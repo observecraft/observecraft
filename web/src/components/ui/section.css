@@ -1,0 +1,107 @@
+/* Collapsible sections + sticky section nav (host panel, APM service page). */
+.hp-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 18px 40px;
+}
+
+.nav-collapsed .hp-nav {
+  width: 44px;
+}
+
+.hp-nav {
+  position: sticky;
+  top: 12px;
+  width: 156px;
+  flex-shrink: 0;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.hp-nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-lg);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.hp-nav button svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.hp-nav button:hover {
+  background: var(--bg-hover);
+}
+
+.hp-nav button.active {
+  background: var(--primary);
+  color: var(--text-inverse);
+}
+
+.hp-nav button.active svg {
+  color: var(--text-inverse);
+}
+
+.hp-nav-collapse {
+  margin-top: 6px;
+  border-top: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+}
+
+.hp-card,
+.hp-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.hp-section > header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.hp-section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+}
+
+.hp-section > header > .btn:last-child {
+  margin-left: auto;
+}
+
+.hp-section-body {
+  padding: 2px 16px 16px;
+  overflow-x: auto;
+}
+
+.hp-empty {
+  padding: 18px 0 10px;
+  text-align: center;
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+}
+
+.hp-nav.collapsed {
+  width: 44px;
+}
+
+.hp-sections {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}

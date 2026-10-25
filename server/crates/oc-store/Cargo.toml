@@ -1,0 +1,13 @@
+[package]
+name = "oc-store"
+description = "ObserveCraft storage: ClickHouse (telemetry) and Postgres (metadata) connections and migrations"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clickhouse.workspace = true
+serde.workspace = true
+sqlx.workspace = true
+tracing.workspace = true

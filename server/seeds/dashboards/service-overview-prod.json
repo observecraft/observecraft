@@ -1,0 +1,243 @@
+{
+ "title": "Service Overview \u2014 Production",
+ "description": "Golden signals for production services, with host CPU and monitors.",
+ "kind": "custom",
+ "teams": [
+  "platform"
+ ],
+ "layoutType": "grid",
+ "templateVariables": [
+  {
+   "name": "env",
+   "prefix": "env",
+   "default": "prod"
+  },
+  {
+   "name": "service",
+   "prefix": "service",
+   "default": "*"
+  }
+ ],
+ "widgets": [
+  {
+   "id": "w6",
+   "definition": {
+    "type": "group",
+    "title": "Golden signals",
+    "color": "blue",
+    "widgets": [
+     {
+      "id": "w1",
+      "definition": {
+       "type": "query_value",
+       "title": "Requests / s",
+       "request": {
+        "query": "sum:trace.requests{$env,$service}"
+       },
+       "aggregator": "avg",
+       "precision": 1,
+       "formats": [
+        {
+         "comparator": ">=",
+         "value": 0,
+         "palette": "green"
+        }
+       ],
+       "unit": " req/s"
+      },
+      "layout": {
+       "x": 0,
+       "y": 0,
+       "w": 4,
+       "h": 4
+      }
+     },
+     {
+      "id": "w2",
+      "definition": {
+       "type": "query_value",
+       "title": "Error rate",
+       "request": {
+        "query": "avg:trace.error_rate{$env,$service}"
+       },
+       "aggregator": "avg",
+       "precision": 2,
+       "formats": [
+        {
+         "comparator": ">",
+         "value": 3,
+         "palette": "red"
+        },
+        {
+         "comparator": ">",
+         "value": 1,
+         "palette": "yellow"
+        },
+        {
+         "comparator": "<=",
+         "value": 1,
+         "palette": "green"
+        }
+       ],
+       "unit": "%",
+       "fill": true
+      },
+      "layout": {
+       "x": 4,
+       "y": 0,
+       "w": 4,
+       "h": 4
+      }
+     },
+     {
+      "id": "w3",
+      "definition": {
+       "type": "query_value",
+       "title": "p95 latency",
+       "request": {
+        "query": "avg:trace.latency.p95{$env,$service}"
+       },
+       "aggregator": "avg",
+       "precision": 1,
+       "formats": [
+        {
+         "comparator": ">",
+         "value": 300,
+         "palette": "red"
+        },
+        {
+         "comparator": ">",
+         "value": 150,
+         "palette": "yellow"
+        },
+        {
+         "comparator": "<=",
+         "value": 150,
+         "palette": "green"
+        }
+       ],
+       "unit": " ms"
+      },
+      "layout": {
+       "x": 8,
+       "y": 0,
+       "w": 4,
+       "h": 4
+      }
+     },
+     {
+      "id": "w4",
+      "definition": {
+       "type": "timeseries",
+       "title": "Requests by service",
+       "requests": [
+        {
+         "query": "sum:trace.requests{$env,$service} by {service}"
+        }
+       ],
+       "display": "line"
+      },
+      "layout": {
+       "x": 0,
+       "y": 4,
+       "w": 6,
+       "h": 6
+      }
+     },
+     {
+      "id": "w5",
+      "definition": {
+       "type": "timeseries",
+       "title": "p99 latency by service",
+       "requests": [
+        {
+         "query": "avg:trace.latency.p99{$env,$service} by {service}"
+        }
+       ],
+       "display": "line"
+      },
+      "layout": {
+       "x": 6,
+       "y": 4,
+       "w": 6,
+       "h": 6
+      }
+     }
+    ]
+   },
+   "layout": {
+    "x": 0,
+    "y": 0,
+    "w": 12,
+    "h": 11
+   }
+  },
+  {
+   "id": "w7",
+   "definition": {
+    "type": "change",
+    "title": "Requests vs previous period",
+    "request": {
+     "query": "sum:trace.requests{$env,$service} by {service}"
+    },
+    "aggregator": "avg",
+    "limit": 10
+   },
+   "layout": {
+    "x": 0,
+    "y": 11,
+    "w": 6,
+    "h": 7
+   }
+  },
+  {
+   "id": "w8",
+   "definition": {
+    "type": "pie",
+    "title": "Share of requests",
+    "request": {
+     "query": "sum:trace.requests{$env,$service} by {service}"
+    },
+    "aggregator": "avg"
+   },
+   "layout": {
+    "x": 6,
+    "y": 11,
+    "w": 6,
+    "h": 7
+   }
+  },
+  {
+   "id": "w9",
+   "definition": {
+    "type": "toplist",
+    "title": "Hosts by CPU user %",
+    "request": {
+     "query": "avg:system.cpu.user{$env} by {host}"
+    },
+    "aggregator": "avg",
+    "limit": 5
+   },
+   "layout": {
+    "x": 0,
+    "y": 18,
+    "w": 6,
+    "h": 6
+   }
+  },
+  {
+   "id": "w10",
+   "definition": {
+    "type": "monitor_summary",
+    "title": "Monitors",
+    "query": ""
+   },
+   "layout": {
+    "x": 6,
+    "y": 18,
+    "w": 6,
+    "h": 6
+   }
+  }
+ ]
+}

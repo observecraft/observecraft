@@ -1,0 +1,167 @@
+# Local ObserveCraft stack.
+#   make up            → storage + pipeline + synthetic load
+#   make server        → API on :8080 (cargo run), or `docker compose --profile app up` for the container
+#
+# Data flow:
+#   loadgen (Vector agent) ──vector──► vector-aggregator ──► ClickHouse oc.logs
+#   apps ──OTLP──► otel-collector ──logs──► vector-aggregator      └──► NATS oc.logs.live.<org>
+#                                 └─traces/metrics──► ClickHouse otel.*
+name: observecraft
+
+x-ch-auth: &ch-auth
+  CLICKHOUSE_USER: observecraft
+  CLICKHOUSE_PASSWORD: observecraft
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    environment:
+      <<: *ch-auth
+      CLICKHOUSE_DB: oc
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "8123:8123" # HTTP
+      - "9000:9000" # native
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      # Same idempotent DDL the API applies on startup, so Vector can write before the API first runs.
+      - ../server/migrations/clickhouse:/docker-entrypoint-initdb.d:ro
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: observecraft
+      POSTGRES_USER: observecraft
+      POSTGRES_PASSWORD: observecraft
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U observecraft"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222" # clients
+      - "8222:8222" # monitoring
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  vector-aggregator:
+    image: timberio/vector:0.42.0-debian
+    restart: unless-stopped
+    command: ["--config", "/etc/vector/vector.yaml"]
+    environment:
+      <<: *ch-auth
+    volumes:
+      - ./vector/aggregator.yaml:/etc/vector/vector.yaml:ro
+    ports:
+      - "6000:6000" # vector protocol (agents)
+      - "8686:8686" # vector API / health
+    depends_on:
+      clickhouse: { condition: service_healthy }
+      nats: { condition: service_healthy }
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.112.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    environment:
+      <<: *ch-auth
+      OC_HOST_NAME: ${OC_HOST_NAME:-docker-dev-host}
+    volumes:
+      - ./otel/collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+    depends_on:
+      clickhouse: { condition: service_healthy }
+      vector-aggregator: { condition: service_started }
+
+  # Synthetic application logs so the UI has live data.
+  loadgen:
+    image: timberio/vector:0.42.0-debian
+    restart: unless-stopped
+    command: ["--config", "/etc/vector/vector.yaml"]
+    volumes:
+      - ./vector/loadgen.yaml:/etc/vector/vector.yaml:ro
+    depends_on:
+      vector-aggregator: { condition: service_started }
+
+  server:
+    profiles: ["app"]
+    build:
+      context: ../server
+    environment:
+      OC_CLICKHOUSE_URL: http://clickhouse:8123
+      OC_POSTGRES_URL: postgres://observecraft:observecraft@postgres:5432/observecraft
+      OC_NATS_URL: nats://nats:4222
+      OC_CORS_ORIGINS: http://localhost:5173
+      OC_PUBLIC_URL: ${OC_PUBLIC_URL:-http://localhost:5173}
+      OC_SECRET_KEY: ${OC_SECRET_KEY:-}
+      OC_COOKIE_SECURE: ${OC_COOKIE_SECURE:-false}
+    ports:
+      - "8080:8080"
+    depends_on:
+      clickhouse: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      nats: { condition: service_healthy }
+
+  # Synthetic OTLP traces for APM (services, dependencies, N+1 calls, errors, rolling deploys).
+  tracegen:
+    profiles: ["app"]
+    build:
+      context: ../server
+    entrypoint: ["oc-tracegen"]
+    restart: unless-stopped
+    environment:
+      <<: *ch-auth
+      OTLP_ENDPOINT: http://otel-collector:4318
+      TRACES_PER_SEC: "20"
+      CLICKHOUSE_HTTP: http://clickhouse:8123
+    depends_on:
+      otel-collector: { condition: service_started }
+
+  # ---- Local identity providers for testing SSO (`docker compose --profile sso up -d`). Never use in production.
+  # SAML IdP (SimpleSAMLphp). Users: user1 / user1pass, user2 / user2pass. Metadata: http://localhost:8081/simplesaml/saml2/idp/metadata.php
+  saml-idp:
+    profiles: ["sso"]
+    image: kristophjunge/test-saml-idp:1.15
+    platform: linux/amd64
+    volumes:
+      - ./sso/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php:ro
+    ports:
+      - "8081:8080"
+
+  # OIDC provider (mock-oauth2-server). Issuer: http://localhost:8082/default. Client id/secret: any.
+  oidc-idp:
+    profiles: ["sso"]
+    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+    environment:
+      SERVER_PORT: "8080"
+      JSON_CONFIG: >-
+        {"interactiveLogin": false, "tokenCallbacks": [{"issuerId": "default", "tokenExpiry": 300,
+          "requestMappings": [{"requestParam": "grant_type", "match": "*",
+            "claims": {"sub": "oidc-user-1", "email": "oidc.user@example.com", "name": "Oidc User",
+                       "groups": ["sre-group"], "aud": ["observecraft"]}}]}]}
+    ports:
+      - "8082:8080"
+
+volumes:
+  clickhouse-data:
+  postgres-data:

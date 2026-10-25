@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = ["crates/oc-query", "crates/oc-store", "crates/oc-api", "crates/oc-tracegen"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "Proprietary"
+
+[workspace.dependencies]
+anyhow = "1"
+async-nats = "0.37"
+axum = "0.7"
+clickhouse = "0.13"
+futures = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "migrate", "macros"] }
+thiserror = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip", "fs"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+utoipa = { version = "5", features = ["axum_extras"] }
+
+oc-query = { path = "crates/oc-query" }
+oc-store = { path = "crates/oc-store" }

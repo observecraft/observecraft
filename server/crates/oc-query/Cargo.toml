@@ -1,0 +1,8 @@
+[package]
+name = "oc-query"
+description = "ObserveCraft search syntax: parser, ClickHouse SQL builder and in-memory matcher"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]

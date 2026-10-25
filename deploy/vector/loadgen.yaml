@@ -1,0 +1,77 @@
+# Synthetic application logs for local development. Runs as a Vector *agent* and ships to the
+# aggregator exactly like a real host agent would. Line format: "<service>|<level>|<message>".
+sources:
+  app:
+    type: demo_logs
+    format: shuffle
+    interval: 0.02
+    lines:
+      - "storefront-api|info|[RQ] [catalogue] GET http://pricing-service:8083/api/resources/v1/products/165daad8-0e7b-4bb7-ab2f-064b5ab021f4/resource"
+      - "storefront-api|info|[RS] [catalogue] GET http://pricing-service:8083/api/resources/v1/products/165daad8-0e7b-4bb7-ab2f-064b5ab021f4/resource 200 OK"
+      - "storefront-api|info|[IN] GET /api/images"
+      - "storefront-api|info|[IN] POST /api/processes/5b756a5b-b893-4e34-bdea-866d157b21db/next"
+      - "storefront-api|error|[RS] [catalogue] GET http://pricing-service:8083/api/resources/v1/products/0c41d2f9-77aa-4e1b-9c3e-5a1f0b2e8d31/texts 502 Bad Gateway"
+      - "inventory-service|info|updating state"
+      - "inventory-service|info|page actions for ui"
+      - "inventory-service|info|-- Response sent --"
+      - "inventory-service|info|response ready"
+      - "inventory-service|info|cycle page seq"
+      - "inventory-service|info|identifying flow"
+      - "order-service|info|handleAgentCommission"
+      - "order-service|info|handleAgentCommission: reply processed"
+      - "order-service|error|handleOrder.GetCustomer"
+      - "order-service|error|GetCustomer bad response"
+      - "billing|info|GetInvoiceByIdHandler. got following request: method='GET' url='/api/billing/v1/invoices/89feee05-4877-4862-adca-cad892229daf'"
+      - "billing-watcher|warn|'lineItems' missing in invoice"
+      - "billing-watcher|info|sending event"
+      - "workflow-engine|info|task completed"
+      - "workflow-engine|info|gateway evaluated: approve"
+      - "pricing-service|info|GET /api/resources/v1/products/165daad8-0e7b-4bb7-ab2f-064b5ab021f4 200"
+      - "pricing-service|warn|slow query on products table took 1243ms"
+      - "notificationsrv|info|email queued"
+      - "notificationsrv|debug|template cache hit"
+
+transforms:
+  shape:
+    type: remap
+    inputs: [app]
+    source: |
+      parts = split(string!(.message), "|", limit: 3)
+      svc = string!(parts[0])
+      .service = svc
+      .level = parts[1]
+      .message = parts[2]
+
+      hosts = {
+        "storefront-api": "i-0a1b2c3d4e5f60002", "billing": "i-0a1b2c3d4e5f60002",
+        "inventory-service": "i-0a1b2c3d4e5f60003", "order-service": "i-0a1b2c3d4e5f60001",
+        "billing-watcher": "i-0a1b2c3d4e5f60006", "workflow-engine": "i-0a1b2c3d4e5f60004",
+        "pricing-service": "i-0a1b2c3d4e5f60004", "notificationsrv": "i-0a1b2c3d4e5f60005"
+      }
+      .host = get(hosts, [svc]) ?? "localhost"
+
+      env = if svc == "notificationsrv" { "staging" } else { "prod" }
+      .tags = {
+        "env": env,
+        "workloadname": "billing",
+        "kube_namespace": "ns-billing-" + env,
+        "kube_cluster_name": "billing" + env + "-core",
+        "kube_deployment": "shop-" + svc,
+        "container_name": svc,
+        "pod_name": "shop-" + svc + "-7d9f8c6b5-" + slice!(md5(svc), 0, 5),
+        "region": "eu-central-1"
+      }
+
+      http = parse_regex(string!(.message), r'(?P<method>GET|POST|PUT|DELETE) (?P<url>\S+)(?: (?P<code>\d{3}))?') ?? {}
+      .attributes = {}
+      if exists(http.method) {
+        .attributes.http = { "method": http.method, "url": http.url }
+        if exists(http.code) { .attributes.http.status_code = to_int(http.code) ?? null }
+      }
+      .attributes.duration_ms = random_int(4, 900)
+
+sinks:
+  aggregator:
+    type: vector
+    inputs: [shape]
+    address: vector-aggregator:6000

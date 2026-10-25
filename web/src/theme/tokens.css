@@ -1,0 +1,157 @@
+/*
+ * ObserveCraft design tokens.
+ * Layout, density and color roles are tuned to match Datadog's app (light theme);
+ * the brand accent, logo and icons are ObserveCraft's own.
+ * Every component reads from these variables — never hardcode colors.
+ */
+:root {
+  /* Typography */
+  --font-sans: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Noto Sans Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  --fs-xs: 11px;   /* axis labels, timestamps */
+  --fs-sm: 12px;   /* group headers, badges */
+  --fs-md: 13px;   /* default body, table cells */
+  --fs-lg: 14px;   /* nav items, facet titles */
+  --fs-xl: 16px;   /* page title */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  /* Navigation chrome (dark) */
+  --nav-bg: #2b2932;
+  --nav-bg-hover: #3a3742;
+  --nav-text: #d7d5de;
+  --nav-text-active: #ffffff;
+  --nav-divider: #45424e;
+  --topbar-bg: #2b2932;
+  --topbar-search-bg: #3b3843;
+  --topbar-search-border: #57535f;
+  --topbar-search-text: #cfcdd6;
+
+  /* Surfaces */
+  --bg: #ffffff;
+  --bg-subtle: #f6f7f9;
+  --bg-muted: #eef0f4;
+  --bg-group: #e4e6ed;       /* facet group header ("CORE") */
+  --bg-hover: #f1f4fa;
+  --bg-selected: #e8f0fc;
+
+  /* Borders */
+  --border: #e1e3ea;
+  --border-strong: #c8ccd6;
+  --border-focus: #2f6ad0;
+
+  /* Text */
+  --text: #1c2333;
+  --text-muted: #5a6273;
+  --text-faint: #8b93a3;
+  --text-inverse: #ffffff;
+
+  /* Interactive */
+  --primary: #2f6ad0;
+  --primary-hover: #2459b5;
+  --primary-subtle: #e8f0fc;
+  --link: #2f6ad0;
+
+  /* Brand (ObserveCraft) */
+  --brand: #7c4dff;
+  --brand-subtle: #efe9ff;
+  --brand-strong: #6a3fd1;    /* brand text/edges on light backgrounds */
+  --hero-tint: #b4a3ff;
+  --insight: #e0218a;        /* anomaly-insight highlight (dashed panel, badge) */
+
+  /* Log / monitor status */
+  --status-error: #e5383b;
+  --status-warn: #f2a93b;
+  --status-info: #9cc3ea;
+  --status-ok: #2ea86b;
+  --status-debug: #b4b9c4;
+  --status-nodata: #c8ccd6;
+  --live: #3cb95c;            /* Live Tail badge + icon */
+
+  /* Status badges (light fill + strong text) */
+  --badge-error-bg: #fde4e4;
+  --badge-error-fg: #b42029;
+  --badge-warn-bg: #fdefd6;
+  --badge-warn-fg: #9a5b06;
+  --badge-info-bg: #dcebfb;
+  --badge-info-fg: #1d5aa6;
+  --badge-ok-bg: #dcf4e6;
+  --badge-ok-fg: #1d7a4b;
+  --badge-debug-bg: #eceef2;
+  --badge-debug-fg: #5a6273;
+
+  /* Log message syntax highlighting */
+  --hl-link: #2f6ad0;
+  --hl-muted: #8b93a3;
+  --pill-bg: #eef0f4;
+  --json-literal: #7b3fc4;    /* booleans / numbers in JSON views */
+
+  /* Error Tracking */
+  --issue-for-review: #d92d35;
+  --issue-reviewed: #2f6ad0;
+  --issue-ignored: #8b93a3;
+  --issue-resolved: #2ea86b;
+  --crash-bg: #e5383b;
+  --regression-bg: #a3212c;
+  --cause-fg: #d97706;
+  --cause-border: #f3c68b;
+  --error-row-bg: #fdecec;
+  --investigate-bg: #f3f0ff;
+
+  /* Dashboards */
+  --qv-green: #2a8a3e;
+  --qv-yellow: #e98404;
+  --qv-red: #c3283b;
+  --qv-gray: #6b7385;
+  --qv-blue: #2f6ad0;
+  --group-blue: #1d6fd8;
+  --group-purple: #7a45d9;
+  --group-green: #2ea86b;
+  --group-orange: #e98404;
+  --group-gray: #5a6273;
+  --note-yellow: #fdf6c5;
+  --note-blue: #e4effd;
+  --note-purple: #efe9ff;
+  --note-green: #e3f6ea;
+  --note-red: #fde4e4;
+  --note-gray: #eef0f4;
+  --toplist-bar: #cfe2fb;
+
+  /* App chip tiles */
+  --tile-mobile: #3fae8a;
+  --tile-browser: #f0c419;
+  --tile-apm: #8a6fd8;
+  --tile-logs: #f0c419;
+
+  /* Chart palette — categorical series, in order */
+  --chart-1: #3d7fe0;
+  --chart-2: #8a5cf5;
+  --chart-3: #29a8a0;
+  --chart-4: #f2a93b;
+  --chart-5: #e5383b;
+  --chart-6: #5fb85a;
+  --chart-7: #d65cad;
+  --chart-8: #7a8597;
+  --chart-grid: #eceef2;
+  --chart-axis: #8b93a3;
+
+  /* Spacing (4px grid) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+
+  /* Sizing */
+  --nav-width: 172px;
+  --topbar-height: 36px;
+  --row-height: 27px;
+  --control-height: 28px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+
+  --shadow-pop: 0 4px 16px rgba(20, 24, 36, 0.16);
+}

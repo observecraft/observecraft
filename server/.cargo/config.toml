@@ -1,0 +1,12 @@
+# macOS development: SAML signature checks use libxmlsec1 from Homebrew, which is built against
+# Homebrew's libxml2. Everything must link that same libxml2 (and libxslt) — mixing in macOS's system
+# libxml2 makes xmlsec fail to resolve signed element ids. Needs: brew install libxmlsec1 libxslt
+# Linux/Docker builds have a single system libxml2 and ignore these paths.
+[target.aarch64-apple-darwin]
+rustflags = ["-L", "/opt/homebrew/opt/libxml2/lib", "-L", "/opt/homebrew/opt/libxslt/lib"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-L", "/usr/local/opt/libxml2/lib", "-L", "/usr/local/opt/libxslt/lib"]
+
+[env]
+PKG_CONFIG_PATH = "/opt/homebrew/opt/libxml2/lib/pkgconfig:/opt/homebrew/opt/libxslt/lib/pkgconfig:/opt/homebrew/opt/libxmlsec1/lib/pkgconfig:/usr/local/opt/libxml2/lib/pkgconfig:/usr/local/opt/libxslt/lib/pkgconfig"

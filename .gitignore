@@ -1,0 +1,10 @@
+# deps / builds
+node_modules/
+web/dist/
+server/target/
+# local env
+.env
+*.local
+# tooling scratch
+.playwright-mcp/
+.DS_Store

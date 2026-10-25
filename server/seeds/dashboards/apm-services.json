@@ -1,0 +1,274 @@
+{
+ "title": "APM Services Overview",
+ "description": "Golden signals (requests, errors, latency) for every service, computed from traces.",
+ "kind": "integration",
+ "logo": "opentelemetry",
+ "teams": [],
+ "layoutType": "grid",
+ "templateVariables": [
+  {
+   "name": "env",
+   "prefix": "env",
+   "default": "*"
+  },
+  {
+   "name": "service",
+   "prefix": "service",
+   "default": "*"
+  }
+ ],
+ "widgets": [
+  {
+   "id": "w1",
+   "definition": {
+    "type": "query_value",
+    "title": "Requests / s",
+    "request": {
+     "query": "sum:trace.requests{$env,$service}"
+    },
+    "aggregator": "avg",
+    "precision": 1,
+    "formats": [
+     {
+      "comparator": ">=",
+      "value": 0,
+      "palette": "green"
+     }
+    ],
+    "unit": " req/s"
+   },
+   "layout": {
+    "x": 0,
+    "y": 0,
+    "w": 3,
+    "h": 4
+   }
+  },
+  {
+   "id": "w2",
+   "definition": {
+    "type": "query_value",
+    "title": "Errors / s",
+    "request": {
+     "query": "sum:trace.errors{$env,$service}"
+    },
+    "aggregator": "avg",
+    "precision": 2,
+    "formats": [
+     {
+      "comparator": ">",
+      "value": 1,
+      "palette": "red"
+     },
+     {
+      "comparator": "<=",
+      "value": 1,
+      "palette": "green"
+     }
+    ],
+    "unit": " err/s"
+   },
+   "layout": {
+    "x": 3,
+    "y": 0,
+    "w": 3,
+    "h": 4
+   }
+  },
+  {
+   "id": "w3",
+   "definition": {
+    "type": "query_value",
+    "title": "Error rate",
+    "request": {
+     "query": "avg:trace.error_rate{$env,$service}"
+    },
+    "aggregator": "avg",
+    "precision": 2,
+    "formats": [
+     {
+      "comparator": ">",
+      "value": 3,
+      "palette": "red"
+     },
+     {
+      "comparator": ">",
+      "value": 1,
+      "palette": "yellow"
+     },
+     {
+      "comparator": "<=",
+      "value": 1,
+      "palette": "green"
+     }
+    ],
+    "unit": "%",
+    "fill": true
+   },
+   "layout": {
+    "x": 6,
+    "y": 0,
+    "w": 3,
+    "h": 4
+   }
+  },
+  {
+   "id": "w4",
+   "definition": {
+    "type": "query_value",
+    "title": "p95 latency",
+    "request": {
+     "query": "avg:trace.latency.p95{$env,$service}"
+    },
+    "aggregator": "avg",
+    "precision": 1,
+    "formats": [
+     {
+      "comparator": ">",
+      "value": 300,
+      "palette": "red"
+     },
+     {
+      "comparator": ">",
+      "value": 150,
+      "palette": "yellow"
+     },
+     {
+      "comparator": "<=",
+      "value": 150,
+      "palette": "green"
+     }
+    ],
+    "unit": " ms"
+   },
+   "layout": {
+    "x": 9,
+    "y": 0,
+    "w": 3,
+    "h": 4
+   }
+  },
+  {
+   "id": "w5",
+   "definition": {
+    "type": "timeseries",
+    "title": "Requests by service (req/s)",
+    "requests": [
+     {
+      "query": "sum:trace.requests{$env,$service} by {service}"
+     }
+    ],
+    "display": "area",
+    "stacked": true
+   },
+   "layout": {
+    "x": 0,
+    "y": 4,
+    "w": 6,
+    "h": 6
+   }
+  },
+  {
+   "id": "w6",
+   "definition": {
+    "type": "timeseries",
+    "title": "p95 latency by service (ms)",
+    "requests": [
+     {
+      "query": "avg:trace.latency.p95{$env,$service} by {service}"
+     }
+    ],
+    "display": "line"
+   },
+   "layout": {
+    "x": 6,
+    "y": 4,
+    "w": 6,
+    "h": 6
+   }
+  },
+  {
+   "id": "w7",
+   "definition": {
+    "type": "timeseries",
+    "title": "Errors by service (err/s)",
+    "requests": [
+     {
+      "query": "sum:trace.errors{$env,$service} by {service}"
+     }
+    ],
+    "display": "bars",
+    "stacked": true
+   },
+   "layout": {
+    "x": 0,
+    "y": 10,
+    "w": 6,
+    "h": 6
+   }
+  },
+  {
+   "id": "w8",
+   "definition": {
+    "type": "toplist",
+    "title": "Slowest endpoints (p95 ms)",
+    "request": {
+     "query": "avg:trace.latency.p95{$env,$service} by {service,resource}"
+    },
+    "aggregator": "avg",
+    "limit": 10
+   },
+   "layout": {
+    "x": 6,
+    "y": 10,
+    "w": 6,
+    "h": 6
+   }
+  },
+  {
+   "id": "w9",
+   "definition": {
+    "type": "table",
+    "title": "Services",
+    "requests": [
+     {
+      "query": "sum:trace.requests{$env,$service} by {service}",
+      "alias": "REQ/S"
+     },
+     {
+      "query": "avg:trace.error_rate{$env,$service} by {service}",
+      "alias": "ERROR %"
+     },
+     {
+      "query": "avg:trace.latency.p95{$env,$service} by {service}",
+      "alias": "P95 (ms)"
+     }
+    ],
+    "aggregator": "avg",
+    "limit": 25,
+    "searchable": true
+   },
+   "layout": {
+    "x": 0,
+    "y": 16,
+    "w": 12,
+    "h": 7
+   }
+  },
+  {
+   "id": "w10",
+   "definition": {
+    "type": "log_stream",
+    "title": "Error logs",
+    "query": "status:error",
+    "limit": 25
+   },
+   "layout": {
+    "x": 0,
+    "y": 23,
+    "w": 12,
+    "h": 8
+   }
+  }
+ ]
+}

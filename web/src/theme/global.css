@@ -1,0 +1,371 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.badge-new {
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  color: var(--brand);
+  letter-spacing: 0.02em;
+}
+
+/* Generic bordered button used in toolbars (CSV, Sheets, Open in…) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-height);
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: var(--fs-lg);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: var(--bg-hover);
+}
+
+.btn-group {
+  display: inline-flex;
+}
+
+.btn-group > .btn {
+  border-radius: 0;
+}
+
+.btn-group > .btn + .btn {
+  margin-left: -1px;
+}
+
+.btn-group > .btn:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.btn-group > .btn:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.btn-label {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.btn-label:hover {
+  background: var(--bg-muted);
+}
+
+.btn-active,
+.btn-active:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-inverse);
+  position: relative;
+  z-index: 1;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: var(--bg);
+}
+
+.icon-btn:hover {
+  background: var(--bg-hover);
+}
+
+.checkbox {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--bg);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+}
+
+.checkbox:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.checkbox:checked::after {
+  content: '';
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: translateY(-1px) rotate(-45deg);
+}
+
+.status-bar {
+  display: inline-block;
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.placeholder-page {
+  padding: var(--sp-6);
+  color: var(--text-muted);
+}
+
+/* ---------- Shared helpers ---------- */
+.muted-text {
+  color: var(--text-muted);
+}
+
+.icon-square {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: var(--bg);
+}
+
+.icon-square:hover {
+  background: var(--bg-hover);
+}
+
+.icon-plain {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.attr-search {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: flex;
+  gap: 6px;
+}
+
+.attr-search input {
+  width: 220px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.icon-plain:hover {
+  color: var(--text);
+}
+
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--link);
+  font-size: var(--fs-lg);
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.brand-icon {
+  color: var(--brand);
+}
+
+.rot90 {
+  transform: rotate(90deg);
+}
+
+/* Data from a previous query shown while the new one loads. */
+.is-stale {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.btn:disabled {
+  color: var(--text-faint);
+  cursor: default;
+  background: var(--bg);
+}
+
+.btn-sm {
+  height: 26px;
+  padding: 0 10px;
+  font-size: var(--fs-md);
+}
+
+.btn-selected,
+.btn-selected:hover {
+  border-color: var(--primary);
+  background: var(--primary-subtle);
+  color: var(--primary);
+  position: relative;
+  z-index: 1;
+}
+
+.btn-primary,
+.btn-primary:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-inverse);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-outline-primary {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-brand {
+  border-color: var(--brand);
+  color: var(--brand);
+  font-size: var(--fs-md);
+  height: 26px;
+}
+
+.btn-brand:hover {
+  background: var(--brand-subtle);
+}
+
+.tag-chip,
+.version-chip {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  font-size: var(--fs-md);
+}
+
+.btn-danger,
+.btn-danger:hover {
+  background: var(--status-error);
+  border-color: var(--status-error);
+  color: var(--text-inverse);
+}
+
+.rot180 {
+  transform: rotate(180deg);
+}
+
+/* Small dialogs (name prompts, confirmations) */
+.small-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px;
+}
+
+.small-modal h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: var(--fw-medium);
+}
+
+.small-modal p {
+  margin: 0;
+}
+
+.small-modal input,
+.small-modal textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  outline: none;
+  font-size: var(--fs-lg);
+}
+
+.small-modal input:focus,
+.small-modal textarea:focus {
+  border-color: var(--border-focus);
+}
+
+.small-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  background: var(--text);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--fs-lg);
+}
+
+.toast .link-btn {
+  color: #9cc3ff;
+}

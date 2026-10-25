@@ -1,0 +1,61 @@
+.json-tree {
+  font-size: 13.5px;
+  line-height: 2.4;
+}
+
+.jt-brace {
+  color: var(--text-faint);
+  margin-left: 6px;
+}
+
+.jt-children {
+  padding-left: 18px;
+  border-left: 1px solid var(--border);
+  margin-left: 6px;
+}
+
+.jt-close {
+  display: block;
+  margin-left: 22px;
+}
+
+.jt-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  color: var(--text-faint);
+  margin-left: -18px;
+}
+
+.jt-row {
+  display: flex;
+  gap: 28px;
+}
+
+.jt-key {
+  color: var(--hl-link);
+  min-width: 80px;
+}
+
+.jt-toggle .jt-key {
+  min-width: 0;
+}
+
+.jt-value {
+  font: inherit;
+  text-align: left;
+  word-break: break-all;
+}
+
+.jt-str {
+  color: var(--text-muted);
+}
+
+.jt-lit {
+  color: var(--json-literal);
+}
+
+button.jt-value:hover {
+  text-decoration: underline;
+}

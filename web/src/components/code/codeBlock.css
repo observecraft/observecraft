@@ -1,0 +1,72 @@
+.code-block {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.code-block figcaption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+  font-size: var(--fs-md);
+}
+
+.cb-filename {
+  color: var(--text-muted);
+}
+
+.cb-copy {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.cb-copy:hover {
+  color: var(--text);
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 10px 0;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.cb-line {
+  display: flex;
+  white-space: pre;
+}
+
+.cb-ln {
+  width: 40px;
+  padding-right: 12px;
+  text-align: right;
+  color: var(--text-faint);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.cb-key {
+  color: var(--hl-link);
+}
+
+.cb-comment {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.cb-env {
+  color: var(--json-literal);
+}
+
+.cb-str {
+  color: var(--status-ok);
+}

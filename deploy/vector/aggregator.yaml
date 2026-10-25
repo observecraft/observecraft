@@ -1,0 +1,118 @@
+# Vector aggregator: one normalization point for every log source.
+#   inputs : Vector agents (vector protocol :6000) and the OTel Collector (OTLP :4317/:4318)
+#   outputs: ClickHouse oc.logs (storage) and NATS oc.logs.live.<org> (live tail fan-out)
+data_dir: /var/lib/vector
+
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+
+sources:
+  agents:
+    type: vector
+    address: 0.0.0.0:6000
+
+  otlp:
+    type: opentelemetry
+    grpc:
+      address: 0.0.0.0:4317
+    http:
+      address: 0.0.0.0:4318
+
+transforms:
+  # Output shape = oc.logs columns (+ ts_ms for live tail consumers).
+  normalize:
+    type: remap
+    inputs: [agents, otlp.logs]
+    source: |
+      res = object(.resources) ?? {}
+      attrs = object(.attributes) ?? {}
+
+      org = to_string(.org_id) ?? ""
+      if org == "" { org = "default" }
+
+      ts = timestamp(.timestamp) ?? now()
+
+      lvl = .level
+      if is_null(lvl) { lvl = .severity_text }
+      if is_null(lvl) { lvl = .status }
+      lvl = downcase(to_string(lvl) ?? "info")
+      status = "info"
+      if starts_with(lvl, "err") || lvl == "fatal" || lvl == "critical" || lvl == "crit" || lvl == "alert" || lvl == "emerg" {
+        status = "error"
+      } else if starts_with(lvl, "warn") {
+        status = "warn"
+      } else if lvl == "debug" || lvl == "trace" {
+        status = "debug"
+      }
+
+      svc = .service
+      if is_null(svc) { svc = get(res, ["service.name"]) ?? null }
+      svc = to_string(svc) ?? ""
+      if svc == "" { svc = "unknown" }
+
+      host = .host
+      if is_null(host) { host = get(res, ["host.name"]) ?? null }
+      host = to_string(host) ?? ""
+
+      src = to_string(.source) ?? ""
+      if src == "" { src = svc }
+
+      msg = to_string(.message) ?? encode_json(.message)
+
+      tags = object(.tags) ?? {}
+      tags = merge(tags, res)
+      tags = map_values(tags) -> |v| { to_string(v) ?? encode_json(v) }
+
+      attr = map_values(flatten(attrs)) -> |v| { to_string(v) ?? encode_json(v) }
+
+      . = {
+        "org_id": org,
+        "id": uuid_v4(),
+        "timestamp": ts,
+        "ts_ms": to_unix_timestamp(ts, unit: "milliseconds"),
+        "status": status,
+        "service": svc,
+        "host": host,
+        "source": src,
+        "message": msg,
+        "tags": tags,
+        "attr": attr,
+        "attributes": encode_json(attrs)
+      }
+
+sinks:
+  clickhouse:
+    type: clickhouse
+    inputs: [normalize]
+    endpoint: http://clickhouse:8123
+    database: oc
+    table: logs
+    auth:
+      strategy: basic
+      user: "${CLICKHOUSE_USER}"
+      password: "${CLICKHOUSE_PASSWORD}"
+    skip_unknown_fields: true
+    date_time_best_effort: true
+    compression: gzip
+    batch:
+      timeout_secs: 1
+      max_events: 20000
+    # Survives ClickHouse restarts without dropping logs.
+    buffer:
+      type: disk
+      max_size: 536870912
+      when_full: block
+
+  live:
+    type: nats
+    inputs: [normalize]
+    url: nats://nats:4222
+    subject: "oc.logs.live.{{ org_id }}"
+    encoding:
+      codec: json
+    # Live tail is best-effort: never let it back-pressure storage.
+    buffer:
+      type: memory
+      max_events: 10000
+      when_full: drop_newest
