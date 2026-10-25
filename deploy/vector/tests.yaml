@@ -1,0 +1,113 @@
+# Unit tests of the `normalize` transform (normalize.vrl):
+#   docker compose -f deploy/docker-compose.yml run --rm --entrypoint vector vector-aggregator test /etc/vector/aggregator.yaml /etc/vector/tests.yaml
+tests:
+  - name: kubernetes container log with a JSON line (OTLP from the Collector)
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "opentelemetry"
+          .timestamp = t'2026-10-25T18:00:00Z'
+          .message = "{\"level\":\"error\",\"msg\":\"payment declined\",\"order_id\":42}"
+          .resources = {
+            "oc.org_id": "acme", "k8s.namespace.name": "shop", "k8s.pod.name": "checkout-7d9f-abc",
+            "k8s.container.name": "checkout", "k8s.deployment.name": "checkout", "k8s.node.name": "node-1",
+            "k8s.cluster.name": "prod-eu", "container.image.name": "ghcr.io/example-org/checkout",
+            "k8s.pod.labels.tags.datadoghq.com/env": "prod", "k8s.pod.labels.tags.datadoghq.com/service": "checkout-api"
+          }
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.org_id, "acme")
+              assert_eq!(.status, "error")
+              assert_eq!(.message, "payment declined")
+              assert_eq!(.service, "checkout-api")
+              assert_eq!(.host, "node-1")
+              assert_eq!(.tags.kube_namespace, "shop")
+              assert_eq!(.tags.kube_deployment, "checkout")
+              assert_eq!(.tags.pod_name, "checkout-7d9f-abc")
+              assert_eq!(.tags.short_image, "checkout")
+              assert_eq!(.tags.env, "prod")
+              assert_eq!(.attr.order_id, "42")
+              assert!(!exists(.tags."oc.org_id"))
+
+  - name: ECS FireLens record with a JSON `log` (oc-intake JSON logs)
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .log = "{\"level\":\"WARN\",\"message\":\"slow upstream\",\"latency_ms\":812}"
+          .container_name = "/web"
+          .ecs_cluster = "arn:aws:ecs:eu-west-1:123456789012:cluster/shop-prod"
+          .ecs_task_definition = "web:17"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "warn")
+              assert_eq!(.message, "slow upstream")
+              assert_eq!(.service, "web")
+              assert_eq!(.tags.ecs_cluster, "shop-prod")
+              assert_eq!(.tags.task_family, "web")
+              assert_eq!(.tags.task_version, "17")
+              assert_eq!(.attr.latency_ms, "812")
+
+  - name: plain JSON with Datadog reserved names and ddtags
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .msg = "card authorised"
+          .severity = "debug"
+          ."dd.service" = "billing"
+          .hostname = "pay-1"
+          .ddtags = "team:payments,env:staging"
+          .eventTime = "2026-10-25T18:00:02Z"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.message, "card authorised")
+              assert_eq!(.status, "debug")
+              assert_eq!(.service, "billing")
+              assert_eq!(.host, "pay-1")
+              assert_eq!(.tags.team, "payments")
+              assert_eq!(.timestamp, t'2026-10-25T18:00:02Z')
+
+  - name: logs without an organization are dropped
+    no_outputs_from: [normalize]
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          .message = "who sent this?"
+
+  - name: plain-text levels (klog and a leading level word)
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "opentelemetry"
+          .message = "E1025 18:47:43.427741       1 controller.go:12] sync failed"
+          .resources = { "oc.org_id": "acme", "k8s.container.name": "kube-controller-manager" }
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "opentelemetry"
+          .message = "2026-10-25T18:47:43Z WARN disk almost full"
+          .resources = { "oc.org_id": "acme", "k8s.container.name": "catalog" }
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              if .service == "kube-controller-manager" { assert_eq!(.status, "error") } else { assert_eq!(.status, "warn") }

@@ -1,0 +1,121 @@
+# Demo workloads for trying ObserveCraft on a local cluster: a small "shop" namespace whose
+# containers write JSON and plain-text logs at different levels, one CrashLoopBackOff pod, a
+# DaemonSet and a CronJob, so the Kubernetes Explorer has every kind of resource to show.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shop
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout
+  namespace: shop
+  labels: { app.kubernetes.io/name: checkout, tags.datadoghq.com/service: checkout, tags.datadoghq.com/env: dev, tags.datadoghq.com/version: "1.4.2" }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app.kubernetes.io/name: checkout } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: checkout, tags.datadoghq.com/service: checkout, tags.datadoghq.com/env: dev, tags.datadoghq.com/version: "1.4.2" }
+    spec:
+      containers:
+        - name: checkout
+          image: busybox:1.36
+          resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { cpu: 100m, memory: 64Mi } }
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i+1))
+                if [ $((i % 7)) -eq 0 ]; then
+                  echo "{\"level\":\"error\",\"msg\":\"payment declined\",\"order_id\":$i,\"card\":\"visa\"}"
+                elif [ $((i % 3)) -eq 0 ]; then
+                  echo "{\"level\":\"warn\",\"msg\":\"slow payment provider\",\"latency_ms\":$((i % 900 + 300))}"
+                else
+                  echo "{\"level\":\"info\",\"msg\":\"order placed\",\"order_id\":$i,\"items\":$((i % 5 + 1))}"
+                fi
+                sleep 1
+              done
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout
+  namespace: shop
+spec:
+  selector: { app.kubernetes.io/name: checkout }
+  ports: [{ port: 80, targetPort: 8080 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+  namespace: shop
+  labels: { app.kubernetes.io/name: catalog }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: catalog } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: catalog }
+    spec:
+      containers:
+        - name: catalog
+          image: busybox:1.36
+          resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { memory: 64Mi } }
+          command: ["/bin/sh", "-c", "while true; do echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) INFO catalog refreshed 120 products\"; sleep 3; done"]
+---
+# Exits immediately: shows up as CrashLoopBackOff with restarts and BackOff events.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendations
+  namespace: shop
+  labels: { app.kubernetes.io/name: recommendations }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: recommendations } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: recommendations }
+    spec:
+      containers:
+        - name: recommendations
+          image: busybox:1.36
+          command: ["/bin/sh", "-c", "echo '{\"level\":\"error\",\"msg\":\"cannot connect to model store\"}'; exit 1"]
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter-lite
+  namespace: shop
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: node-exporter-lite } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: node-exporter-lite }
+    spec:
+      containers:
+        - name: exporter
+          image: busybox:1.36
+          resources: { requests: { cpu: 5m, memory: 8Mi } }
+          command: ["/bin/sh", "-c", "while true; do echo 'debug: scraped node stats'; sleep 10; done"]
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly-report
+  namespace: shop
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: report
+              image: busybox:1.36
+              command: ["/bin/sh", "-c", "echo '{\"level\":\"info\",\"msg\":\"report generated\",\"rows\":4210}'"]

@@ -1,0 +1,55 @@
+{
+  "family": "web",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::<account-id>:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "log_router",
+      "image": "public.ecr.aws/aws-observability/aws-for-fluent-bit:2.32.4",
+      "essential": true,
+      "firelensConfiguration": {
+        "type": "fluentbit",
+        "options": {
+          "enable-ecs-log-metadata": "true"
+        }
+      },
+      "memoryReservation": 50
+    },
+    {
+      "name": "web",
+      "image": "<your-image>",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awsfirelens",
+        "options": {
+          "Name": "http",
+          "Host": "intake.example.com",
+          "Port": "443",
+          "URI": "/api/v2/logs",
+          "Format": "json",
+          "json_date_key": "date",
+          "json_date_format": "iso8601",
+          "tls": "on",
+          "compress": "gzip",
+          "Retry_Limit": "5"
+        },
+        "secretOptions": [
+          {
+            "name": "Header",
+            "valueFrom": "arn:aws:secretsmanager:<region>:<account-id>:secret:observecraft-api-key"
+          }
+        ]
+      }
+    }
+  ]
+}

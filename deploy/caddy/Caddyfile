@@ -1,0 +1,17 @@
+# TLS in front of ObserveCraft (`docker compose --profile app --profile tls up -d`).
+# Caddy obtains and renews certificates automatically; both names must resolve to this host.
+#   OC_DOMAIN         the web app + API          (e.g. observability.example.com)
+#   OC_INTAKE_DOMAIN  OTLP/HTTP + JSON log intake (e.g. intake.observability.example.com)
+# Set OC_PUBLIC_URL=https://$OC_DOMAIN and OC_COOKIE_SECURE=true for the server.
+
+{$OC_DOMAIN:localhost} {
+	encode zstd gzip
+	# Live tail streams (SSE) must not be buffered.
+	reverse_proxy server:8080 {
+		flush_interval -1
+	}
+}
+
+{$OC_INTAKE_DOMAIN:intake.localhost} {
+	reverse_proxy intake:4318
+}

@@ -158,13 +158,13 @@ const ROW: &str = "TraceId AS trace_id, SpanId AS span_id, toInt64(toUnixTimesta
     SpanAttributes['peer.service'] AS peer_service, ResourceAttributes['host.name'] AS host";
 
 #[utoipa::path(post, path = "/api/v1/apm/spans/search", operation_id = "search_spans", request_body = SpanSearchRequest, responses((status = 200, body = SpanSearchResult)), tag = "apm")]
-pub async fn search(State(st): State<AppState>, OrgId(_org): OrgId, Json(req): Json<SpanSearchRequest>) -> ApiResult<SpanSearchResult> {
+pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<SpanSearchRequest>) -> ApiResult<SpanSearchResult> {
     let (w, params) = where_clause(&req.q, None)?;
     let order = if req.sort.as_deref() == Some("duration") { "Duration DESC" } else { "Timestamp DESC" };
     let row = ROW.replace("{METHOD}", METHOD).replace("{HTTP_STATUS}", HTTP_STATUS);
-    let sql = format!("SELECT {row} FROM otel.otel_traces WHERE {w} ORDER BY {order} LIMIT {} OFFSET {}", req.limit.clamp(1, 500), req.offset.clamp(0, 10_000));
-    let rows_q = bind(st.clickhouse.query(&sql), &params);
-    let count_q = bind(st.clickhouse.query(&format!("SELECT count() FROM otel.otel_traces WHERE {w}")), &params);
+    let sql = format!("SELECT {row} FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w} ORDER BY {order} LIMIT {} OFFSET {}", req.limit.clamp(1, 500), req.offset.clamp(0, 10_000));
+    let rows_q = bind(st.ch(&org).query(&sql), &params);
+    let count_q = bind(st.ch(&org).query(&format!("SELECT count() FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w}")), &params);
     let (spans, total) = tokio::try_join!(rows_q.fetch_all::<ExplorerSpan>(), count_q.fetch_one::<u64>())?;
     let mut traces = HashMap::new();
     if req.q.scope == SpanScope::Traces && !spans.is_empty() {
@@ -178,10 +178,10 @@ pub async fn search(State(st): State<AppState>, OrgId(_org): OrgId, Json(req): J
         let ids: Vec<String> = spans.iter().map(|s| s.trace_id.clone()).collect();
         // Whole traces can start before / end after the range: widen it a little.
         let rows = st
-            .clickhouse
+            .ch(&org)
             .query(
                 "SELECT TraceId AS id, count() AS spans, uniqExact(ServiceName) AS services, countIf(StatusCode = 'Error') AS errors FROM otel.otel_traces \
-                 WHERE has(?, TraceId) AND Timestamp >= fromUnixTimestamp64Milli(?) - INTERVAL 5 MINUTE AND Timestamp <= fromUnixTimestamp64Milli(?) + INTERVAL 5 MINUTE GROUP BY id",
+                 WHERE OrgId = {oc_org:String} AND has(?, TraceId) AND Timestamp >= fromUnixTimestamp64Milli(?) - INTERVAL 5 MINUTE AND Timestamp <= fromUnixTimestamp64Milli(?) + INTERVAL 5 MINUTE GROUP BY id",
             )
             .bind(ids)
             .bind(req.q.range.from)
@@ -222,7 +222,8 @@ pub struct SpanFacets {
 }
 
 #[utoipa::path(post, operation_id = "span_facets", path = "/api/v1/apm/spans/facets", request_body = SpanFacetsRequest, responses((status = 200, body = SpanFacets)), tag = "apm")]
-pub async fn facets(State(st): State<AppState>, OrgId(_org): OrgId, Json(req): Json<SpanFacetsRequest>) -> ApiResult<SpanFacets> {
+pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<SpanFacetsRequest>) -> ApiResult<SpanFacets> {
+    let org = org.as_str();
     #[derive(clickhouse::Row, Deserialize)]
     struct V {
         value: String,
@@ -235,8 +236,8 @@ pub async fn facets(State(st): State<AppState>, OrgId(_org): OrgId, Json(req): J
         let (w, params) = where_clause(&req.q, Some(d))?;
         let st = st.clone();
         jobs.push(async move {
-            let sql = format!("SELECT toString({expr}) AS value, count() AS count FROM otel.otel_traces WHERE {w} AND value != '' GROUP BY value ORDER BY count DESC LIMIT 50");
-            let rows = bind(st.clickhouse.query(&sql), &params).fetch_all::<V>().await?;
+            let sql = format!("SELECT toString({expr}) AS value, count() AS count FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w} AND value != '' GROUP BY value ORDER BY count DESC LIMIT 50");
+            let rows = bind(st.ch(org).query(&sql), &params).fetch_all::<V>().await?;
             Ok::<_, ApiError>((d.to_string(), rows.into_iter().map(|v| SpanFacetValue { value: v.value, count: v.count }).collect::<Vec<_>>()))
         });
     }
@@ -247,7 +248,7 @@ pub async fn facets(State(st): State<AppState>, OrgId(_org): OrgId, Json(req): J
         hi: f64,
     }
     let (w, params) = where_clause(&SpanQuery { min_duration_ms: None, max_duration_ms: None, ..req.q.clone() }, None)?;
-    let mm = bind(st.clickhouse.query(&format!("SELECT min(Duration) / 1e6 AS lo, max(Duration) / 1e6 AS hi FROM otel.otel_traces WHERE {w}")), &params)
+    let mm = bind(st.ch(org).query(&format!("SELECT min(Duration) / 1e6 AS lo, max(Duration) / 1e6 AS hi FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w}")), &params)
         .fetch_one::<MinMax>()
         .await?;
     Ok(Json(SpanFacets { facets: results.into_iter().collect(), min_duration_ms: finite(mm.lo), max_duration_ms: finite(mm.hi) }))
@@ -327,7 +328,7 @@ fn step_for(range: TimeRange, buckets: i64) -> i64 {
 }
 
 #[utoipa::path(post, operation_id = "span_analytics", path = "/api/v1/apm/spans/analytics", request_body = SpanAnalyticsRequest, responses((status = 200, body = SpanAnalytics)), tag = "apm")]
-pub async fn analytics(State(st): State<AppState>, OrgId(_org): OrgId, Json(req): Json<SpanAnalyticsRequest>) -> ApiResult<SpanAnalytics> {
+pub async fn analytics(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<SpanAnalyticsRequest>) -> ApiResult<SpanAnalytics> {
     let (w, params) = where_clause(&req.q, None)?;
     let group = match &req.group_by {
         Some(g) if !g.is_empty() => format!("toString({})", dimension(g)?),
@@ -342,7 +343,7 @@ pub async fn analytics(State(st): State<AppState>, OrgId(_org): OrgId, Json(req)
     }
     // Top groups by span count, with the measure over the whole range.
     let totals = bind(
-        st.clickhouse.query(&format!("SELECT {group} AS g, {measure} AS v FROM otel.otel_traces WHERE {w} GROUP BY g ORDER BY count() DESC LIMIT {top}")),
+        st.ch(&org).query(&format!("SELECT {group} AS g, {measure} AS v FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w} GROUP BY g ORDER BY count() DESC LIMIT {top}")),
         &params,
     )
     .fetch_all::<Total>()
@@ -362,9 +363,9 @@ pub async fn analytics(State(st): State<AppState>, OrgId(_org): OrgId, Json(req)
     bparams.extend(groups.iter().map(|g| Param::Str(g.clone())));
     let in_list = if groups.is_empty() { "''".to_string() } else { vec!["?"; groups.len()].join(", ") };
     let rows = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT {group} AS g, intDiv(toInt64(toUnixTimestamp64Milli(Timestamp)), {step}) * {step} AS t, {measure} AS v \
-             FROM otel.otel_traces WHERE {w} AND g IN ({in_list}) GROUP BY g, t"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w} AND g IN ({in_list}) GROUP BY g, t"
         )),
         &bparams,
     )
@@ -413,7 +414,7 @@ pub struct SpanSummary {
 }
 
 #[utoipa::path(post, operation_id = "span_summary", path = "/api/v1/apm/spans/summary", request_body = SpanQuery, responses((status = 200, body = SpanSummary)), tag = "apm")]
-pub async fn summary(State(st): State<AppState>, OrgId(_org): OrgId, Json(q): Json<SpanQuery>) -> ApiResult<SpanSummary> {
+pub async fn summary(State(st): State<AppState>, OrgId(org): OrgId, Json(q): Json<SpanQuery>) -> ApiResult<SpanSummary> {
     let (w, params) = where_clause(&q, None)?;
     let step = step_for(q.range, 40);
     #[derive(clickhouse::Row, Deserialize)]
@@ -426,16 +427,16 @@ pub async fn summary(State(st): State<AppState>, OrgId(_org): OrgId, Json(q): Js
         p99: f64,
     }
     let rows = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT intDiv(toInt64(toUnixTimestamp64Milli(Timestamp)), {step}) * {step} AS t, count() AS hits, countIf(StatusCode = 'Error') AS errors, \
              quantile(0.5)(Duration) / 1e6 AS p50, quantile(0.95)(Duration) / 1e6 AS p95, quantile(0.99)(Duration) / 1e6 AS p99 \
-             FROM otel.otel_traces WHERE {w} GROUP BY t ORDER BY t"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w} GROUP BY t ORDER BY t"
         )),
         &params,
     )
     .fetch_all::<R>()
     .await?;
-    let overall = bind(st.clickhouse.query(&format!("SELECT quantile(0.95)(Duration) / 1e6 FROM otel.otel_traces WHERE {w}")), &params).fetch_one::<f64>().await?;
+    let overall = bind(st.ch(&org).query(&format!("SELECT quantile(0.95)(Duration) / 1e6 FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {w}")), &params).fetch_one::<f64>().await?;
     let first = q.range.from / step * step;
     let times: Vec<i64> = (0..).map(|i| first + i * step).take_while(|t| *t <= q.range.to).collect();
     let n = times.len();
@@ -473,17 +474,17 @@ pub struct SpanPercentile {
 }
 
 #[utoipa::path(post, operation_id = "span_percentile", path = "/api/v1/apm/spans/percentile", request_body = SpanPercentileRequest, responses((status = 200, body = SpanPercentile)), tag = "apm")]
-pub async fn percentile(State(st): State<AppState>, OrgId(_org): OrgId, Json(req): Json<SpanPercentileRequest>) -> ApiResult<SpanPercentile> {
+pub async fn percentile(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<SpanPercentileRequest>) -> ApiResult<SpanPercentile> {
     #[derive(clickhouse::Row, Deserialize)]
     struct R {
         faster: u64,
         total: u64,
     }
     let r = st
-        .clickhouse
+        .ch(&org)
         .query(
             "SELECT countIf(Duration < ?) AS faster, count() AS total FROM otel.otel_traces \
-             WHERE ServiceName = ? AND SpanName = ? AND Timestamp >= fromUnixTimestamp64Milli(?) - INTERVAL 1 HOUR AND Timestamp <= fromUnixTimestamp64Milli(?) + INTERVAL 1 MINUTE",
+             WHERE OrgId = {oc_org:String} AND ServiceName = ? AND SpanName = ? AND Timestamp >= fromUnixTimestamp64Milli(?) - INTERVAL 1 HOUR AND Timestamp <= fromUnixTimestamp64Milli(?) + INTERVAL 1 MINUTE",
         )
         .bind((req.duration_ms * 1e6) as i64)
         .bind(&req.service)

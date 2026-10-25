@@ -1,4 +1,5 @@
 pub mod apm;
+pub mod archives;
 pub mod auth;
 pub mod ci;
 pub mod dashboards;
@@ -8,11 +9,16 @@ pub mod hosts;
 pub mod identity;
 pub mod incident_views;
 pub mod incidents;
+pub mod ingest_keys;
+pub mod instance;
+pub mod kubernetes;
 pub mod live;
+pub mod log_indexes;
 pub mod logs;
 pub mod metrics;
 pub mod monitor_engine;
 pub mod monitors;
+pub mod notifications;
 pub mod spans;
 pub mod sso;
 
@@ -70,6 +76,8 @@ use crate::state::AppState;
         hosts::processes,
         hosts::pods,
         hosts::containers,
+        kubernetes::search,
+        kubernetes::detail,
         identity::me,
         identity::update_me,
         identity::search_users,
@@ -120,6 +128,43 @@ use crate::state::AppState;
         auth::mfa_setup,
         auth::mfa_enable,
         auth::mfa_disable,
+        auth::my_orgs,
+        auth::switch_org,
+        notifications::list,
+        notifications::create,
+        notifications::delete,
+        notifications::test,
+        notifications::deliveries,
+        ingest_keys::list,
+        archives::list,
+        archives::test,
+        archives::create,
+        archives::update,
+        archives::delete,
+        archives::runs,
+        archives::run_now,
+        archives::create_search,
+        archives::list_searches,
+        archives::get_search_detail,
+        archives::delete_search,
+        archives::create_rehydration,
+        archives::list_rehydrations,
+        archives::expire_rehydration,
+        ingest_keys::create,
+        ingest_keys::revoke,
+        instance::list_orgs,
+        instance::create_org,
+        instance::update_org,
+        instance::delete_org,
+        instance::update_limits,
+        log_indexes::list,
+        log_indexes::create,
+        log_indexes::update,
+        log_indexes::delete,
+        log_indexes::reorder,
+        log_indexes::get_settings,
+        log_indexes::update_settings,
+        instance::audit,
         auth::app_keys,
         auth::create_app_key,
         auth::revoke_app_key,
@@ -169,6 +214,7 @@ use crate::state::AppState;
         (name = "metrics", description = "Metric queries for dashboards (OTel metrics and span-derived trace.* metrics)"),
         (name = "dashboards", description = "Dashboards, dashboard lists and the monitor summary widget"),
         (name = "infrastructure", description = "Hosts, built from host metrics, spans and logs"),
+        (name = "orchestration", description = "Kubernetes and ECS Explorers: objects, containers, utilization and events sent by the collectors"),
         (name = "identity", description = "Profile, users, roles, teams and SAML group mappings"),
         (name = "incidents", description = "Incident management"),
         (name = "ci", description = "Software Delivery: CI pipeline executions, flaky tests and DORA metrics from CI/CD traces"),
@@ -251,6 +297,8 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/hosts/:name/processes", post(hosts::processes))
         .route("/api/v1/hosts/:name/pods", post(hosts::pods))
         .route("/api/v1/hosts/:name/containers", post(hosts::containers))
+        .route("/api/v1/orchestration/search", post(kubernetes::search))
+        .route("/api/v1/orchestration/resources/*uid", get(kubernetes::detail))
         .route("/api/v1/me", get(identity::me).patch(identity::update_me))
         .route("/api/v1/users/search", post(identity::search_users))
         .route("/api/v1/users/invite", post(identity::invite))
@@ -281,6 +329,31 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/me/mfa/setup", post(auth::mfa_setup))
         .route("/api/v1/me/mfa/enable", post(auth::mfa_enable))
         .route("/api/v1/me/mfa/disable", post(auth::mfa_disable))
+        .route("/api/v1/me/orgs", get(auth::my_orgs))
+        .route("/api/v1/me/switch-org", post(auth::switch_org))
+        .route("/api/v1/instance/orgs", get(instance::list_orgs).post(instance::create_org))
+        .route("/api/v1/instance/orgs/:id", patch(instance::update_org).delete(instance::delete_org))
+        .route("/api/v1/instance/audit", get(instance::audit))
+        .route("/api/v1/instance/orgs/:id/limits", patch(instance::update_limits))
+        .route("/api/v1/logs/indexes", get(log_indexes::list).post(log_indexes::create))
+        .route("/api/v1/logs/indexes/reorder", post(log_indexes::reorder))
+        .route("/api/v1/logs/indexes/:id", axum::routing::put(log_indexes::update).delete(log_indexes::delete))
+        .route("/api/v1/org/data-settings", get(log_indexes::get_settings).patch(log_indexes::update_settings))
+        .route("/api/v1/ingest-keys", get(ingest_keys::list).post(ingest_keys::create))
+        .route("/api/v1/ingest-keys/:id", delete(ingest_keys::revoke))
+        .route("/api/v1/notification-channels", get(notifications::list).post(notifications::create))
+        .route("/api/v1/notification-channels/:id", delete(notifications::delete))
+        .route("/api/v1/notification-deliveries", get(notifications::deliveries))
+        .route("/api/v1/monitors/test-notification", post(notifications::test))
+        .route("/api/v1/logs/archives", get(archives::list).post(archives::create))
+        .route("/api/v1/logs/archives/test", post(archives::test))
+        .route("/api/v1/logs/archives/:id", patch(archives::update).delete(archives::delete))
+        .route("/api/v1/logs/archives/:id/runs", get(archives::runs))
+        .route("/api/v1/logs/archives/:id/run", post(archives::run_now))
+        .route("/api/v1/logs/archive-searches", get(archives::list_searches).post(archives::create_search))
+        .route("/api/v1/logs/archive-searches/:id", get(archives::get_search_detail).delete(archives::delete_search))
+        .route("/api/v1/logs/rehydrations", get(archives::list_rehydrations).post(archives::create_rehydration))
+        .route("/api/v1/logs/rehydrations/:id", delete(archives::expire_rehydration))
         .route("/api/v1/me/app-keys", get(auth::app_keys).post(auth::create_app_key))
         .route("/api/v1/me/app-keys/:id", delete(auth::revoke_app_key))
         .route("/api/v1/org/login-methods", get(sso::get_settings).put(sso::update_settings))
@@ -328,6 +401,7 @@ mod tests {
     fn schema_type_names_are_unique() {
         let sources = [
             include_str!("apm.rs"),
+            include_str!("archives.rs"),
             include_str!("auth.rs"),
             include_str!("ci.rs"),
             include_str!("sso.rs"),
@@ -336,12 +410,17 @@ mod tests {
             include_str!("downtimes.rs"),
             include_str!("monitor_engine.rs"),
             include_str!("monitors.rs"),
+            include_str!("notifications.rs"),
             include_str!("health.rs"),
             include_str!("hosts.rs"),
             include_str!("identity.rs"),
             include_str!("incidents.rs"),
             include_str!("incident_views.rs"),
+            include_str!("ingest_keys.rs"),
+            include_str!("instance.rs"),
+            include_str!("kubernetes.rs"),
             include_str!("live.rs"),
+            include_str!("log_indexes.rs"),
             include_str!("logs.rs"),
             include_str!("metrics.rs"),
         ];

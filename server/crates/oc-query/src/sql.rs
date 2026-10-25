@@ -27,22 +27,20 @@ pub trait Schema: Sync {
     }
 }
 
-/// `oc.logs`: reserved columns, `@attr.path` → `attr[...]`, anything else → `tags[...]`.
+/// `oc.logs`: reserved columns (`index` is the log index), `@attr.path` → `attr[...]`, anything else → `tags[...]`.
 pub struct LogsSchema;
 
 impl Schema for LogsSchema {
     fn field(&self, key: &str) -> (String, Option<Param>) {
         match key {
-            "service" | "status" | "host" | "source" => (key.to_string(), None),
+            "service" | "status" | "host" | "source" | "trace_id" | "span_id" => (key.to_string(), None),
+            "index" => ("index_name".into(), None),
             k if k.starts_with('@') => ("attr[?]".into(), Some(Param::Str(k[1..].to_string()))),
             k => ("tags[?]".into(), Some(Param::Str(k.to_string()))),
         }
     }
     fn text_expr(&self) -> &'static str {
         "lower(message)"
-    }
-    fn ignored(&self, key: &str) -> bool {
-        key == "index"
     }
 }
 

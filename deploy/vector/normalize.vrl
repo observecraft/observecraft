@@ -1,0 +1,287 @@
+# Normalizes every log (OTLP from the Collector, JSON from oc-intake, Vector agents) into the
+# oc.logs shape. Mirrors Datadog's preprocessing:
+#   - JSON log bodies and lines are parsed; their fields become attributes
+#   - reserved attributes are read from Datadog's default names:
+#       message  message, msg, log
+#       status   status, severity, level, syslog.severity   (OTLP: severity text/number first)
+#       service  service, syslog.appname, dd.service
+#       host     host, hostname, syslog.hostname
+#       date     @timestamp, timestamp, _timestamp, Timestamp, eventTime, date, published_date, syslog.timestamp
+#       trace    dd.trace_id, contextMap.dd.trace_id, named_tags.dd.trace_id, trace_id (and span ids)
+#       source   ddsource;  tags: ddtags ("k:v,k2:v2")
+#   - Kubernetes / ECS / cloud resource attributes become Datadog's tags (kube_namespace, pod_name,
+#     kube_deployment, ecs_cluster, task_family, …), and service/env/version follow unified service
+#     tagging (tags.datadoghq.com/* labels, then OTel resource attributes, then the workload name).
+
+kind = to_string(.source_type) ?? ""
+otlp = kind == "opentelemetry"
+res = object(.resources) ?? {}
+attrs = object(.attributes) ?? {}
+root_tags = object(.tags) ?? {}
+
+# ---------------------------------------------------------------- organization
+# Set by oc-intake (JSON) or the Collector (OTLP resource); trusted agents set org_id themselves.
+org = to_string(get(., ["x-oc-org"]) ?? null) ?? ""
+if org == "" { org = to_string(get(res, ["oc.org_id"]) ?? null) ?? "" }
+if org == "" { org = to_string(.org_id) ?? "" }
+if org == "" { abort }
+res = filter(res) -> |k, _v| { k != "oc.org_id" && k != "oc.retention_days" }
+
+# ---------------------------------------------------------------- attributes
+# JSON and agent events carry their fields at the top level.
+if !otlp {
+  envelope = ["org_id", "x-oc-org", "tags", "attributes", "resources", "source_type", "timestamp", "path"]
+  extra = filter(object(.)) -> |k, _v| { !includes(envelope, k) }
+  attrs = merge(extra, attrs)
+}
+body = null
+if otlp {
+  body = .message
+  if is_object(body) {
+    attrs = merge(attrs, object!(body))
+    body = null
+  } else if is_string(body) {
+    b = strip_whitespace(string!(body))
+    if starts_with(b, "{") {
+      parsed = parse_json(b) ?? null
+      if is_object(parsed) {
+        attrs = merge(attrs, object!(parsed))
+        body = null
+      }
+    }
+  }
+}
+
+used = []
+flat = flatten(attrs)
+
+msg = null
+for_each(["message", "msg", "log"]) -> |_i, k| {
+  if is_null(msg) {
+    v = get(flat, [k]) ?? null
+    if !is_null(v) { msg = v; used = push(used, k) }
+  }
+}
+# A message that is itself JSON (container stdout through Fluent Bit / the Collector).
+if is_string(msg) {
+  m = strip_whitespace(string!(msg))
+  if starts_with(m, "{") {
+    parsed = parse_json(m) ?? null
+    if is_object(parsed) {
+      attrs = merge(filter(attrs) -> |k, _v| { !includes(used, k) }, object!(parsed))
+      used = []
+      flat = flatten(attrs)
+      msg = null
+      for_each(["message", "msg", "log"]) -> |_i, k| {
+        if is_null(msg) {
+          v = get(flat, [k]) ?? null
+          if !is_null(v) { msg = v; used = push(used, k) }
+        }
+      }
+      if is_null(msg) { msg = m }
+    }
+  }
+}
+if is_null(msg) { msg = body }
+msg = if is_string(msg) { string!(msg) } else if is_null(msg) { "" } else { encode_json(msg) }
+
+lvl = null
+if otlp {
+  lvl = .severity_text
+  if lvl == "" { lvl = null }
+}
+for_each(["status", "severity", "level", "syslog.severity"]) -> |_i, k| {
+  if is_null(lvl) {
+    v = get(flat, [k]) ?? null
+    if !is_null(v) { lvl = v; used = push(used, k) }
+  }
+}
+# Plain-text lines: a leading level word ("ERROR …", "2026-10-25T… WARN …", "[info] …") or the klog
+# prefix Kubernetes components use ("E1025 18:47:43.4 …").
+if is_null(lvl) && msg != "" {
+  head = slice(msg, 0, 64) ?? msg
+  klog = parse_regex(head, r'^(?P<l>[IWEF])\d{4} \d{2}:\d{2}:\d{2}') ?? null
+  if klog != null {
+    lvl = get!(klog, ["l"])
+  } else {
+    word = parse_regex(head, r'(?i)^\s*(?:\S+\s+){0,2}?[\[<]?(?P<l>trace|debug|info|notice|warn|warning|error|err|fatal|critical|panic)[\]>:]?(?:\s|$)') ?? null
+    if word != null { lvl = get!(word, ["l"]) }
+  }
+}
+sev = to_int(.severity_number) ?? 0
+if sev < 0 || sev > 24 { sev = 0 }
+# OTLP may send only a numeric severity (1-4 trace … 17-24 fatal).
+if is_null(lvl) && sev > 0 {
+  lvl = if sev >= 17 { "error" } else if sev >= 13 { "warn" } else if sev >= 9 { "info" } else { "debug" }
+}
+lvl = downcase(to_string(lvl) ?? "info")
+status = "info"
+if starts_with(lvl, "err") || includes(["fatal", "critical", "crit", "alert", "emerg", "emergency", "panic", "e", "f"], lvl) {
+  status = "error"
+} else if starts_with(lvl, "warn") || lvl == "w" {
+  status = "warn"
+} else if includes(["debug", "trace", "d", "verbose"], lvl) {
+  status = "debug"
+}
+
+ts = null
+for_each(["@timestamp", "timestamp", "_timestamp", "Timestamp", "eventTime", "date", "published_date", "syslog.timestamp"]) -> |_i, k| {
+  if is_null(ts) {
+    v = get(flat, [k]) ?? null
+    if is_string(v) { ts = parse_timestamp(string!(v), "%+") ?? null }
+    if is_integer(v) || is_float(v) {
+      n = to_int(v) ?? 0
+      # Seconds, milliseconds or nanoseconds since the epoch.
+      ts = if n > 100000000000000000 { from_unix_timestamp(n, unit: "nanoseconds") ?? null } else if n > 100000000000 { from_unix_timestamp(n, unit: "milliseconds") ?? null } else { from_unix_timestamp(n) ?? null }
+    }
+    if is_timestamp(v) { ts = v }
+    if !is_null(ts) { used = push(used, k) }
+  }
+}
+if is_null(ts) && is_string(.timestamp) { ts = parse_timestamp(string!(.timestamp), "%+") ?? null }
+if is_null(ts) { ts = timestamp(.timestamp) ?? now() }
+ts = timestamp(ts) ?? now()
+
+trace_id = to_string(.trace_id) ?? ""
+span_id = to_string(.span_id) ?? ""
+for_each(["dd.trace_id", "contextMap.dd.trace_id", "named_tags.dd.trace_id", "trace_id"]) -> |_i, k| {
+  if trace_id == "" { trace_id = to_string(get(flat, [k]) ?? null) ?? "" }
+}
+for_each(["dd.span_id", "contextMap.dd.span_id", "named_tags.dd.span_id", "span_id"]) -> |_i, k| {
+  if span_id == "" { span_id = to_string(get(flat, [k]) ?? null) ?? "" }
+}
+trace_id = downcase(trace_id)
+span_id = downcase(span_id)
+if !match(trace_id, r'^[0-9a-f]{32}$') || trace_id == "00000000000000000000000000000000" { trace_id = "" }
+if !match(span_id, r'^[0-9a-f]{16}$') { span_id = "" }
+
+# ---------------------------------------------------------------- Datadog tags from resources
+r = map_values(res) -> |v| { to_string(v) ?? encode_json(v) }
+dd = {}
+mapping = {
+  "k8s.namespace.name": "kube_namespace", "k8s.pod.name": "pod_name", "k8s.pod.uid": "pod_uid",
+  "k8s.container.name": "kube_container_name", "k8s.deployment.name": "kube_deployment",
+  "k8s.replicaset.name": "kube_replica_set", "k8s.daemonset.name": "kube_daemon_set",
+  "k8s.statefulset.name": "kube_stateful_set", "k8s.job.name": "kube_job", "k8s.cronjob.name": "kube_cronjob",
+  "k8s.node.name": "kube_node", "k8s.cluster.name": "kube_cluster_name", "container.id": "container_id",
+  "container.name": "container_name", "container.image.name": "image_name", "container.image.tag": "image_tag",
+  "k8s.pod.labels.app.kubernetes.io/name": "kube_app_name", "k8s.pod.labels.app.kubernetes.io/instance": "kube_app_instance",
+  "k8s.pod.labels.app.kubernetes.io/version": "kube_app_version", "k8s.pod.labels.app.kubernetes.io/component": "kube_app_component",
+  "k8s.pod.labels.app.kubernetes.io/part-of": "kube_app_part_of", "k8s.pod.labels.app.kubernetes.io/managed-by": "kube_app_managed_by",
+  "aws.ecs.task.family": "task_family", "aws.ecs.task.revision": "task_version", "aws.ecs.task.arn": "task_arn",
+  "aws.ecs.launchtype": "task_launch_type", "aws.ecs.container.arn": "container_arn",
+  "cloud.region": "region", "cloud.availability_zone": "availability-zone", "cloud.account.id": "aws_account",
+  "host.name": "host"
+}
+for_each(mapping) -> |from, to| {
+  v = (to_string(get(r, [from]) ?? null) ?? "")
+  if v != "" { dd = set!(dd, [to], v) }
+}
+cluster_arn = (to_string(get(r, ["aws.ecs.cluster.arn"]) ?? null) ?? "")
+if cluster_arn != "" { dd.ecs_cluster = replace(cluster_arn, r'^.*/', "") }
+# FireLens (Fluent Bit) puts ECS metadata on the record itself.
+fl_cluster = (to_string(get(attrs, ["ecs_cluster"]) ?? null) ?? "")
+if fl_cluster != "" { dd.ecs_cluster = replace(fl_cluster, r'^.*/', "") }
+fl_task = (to_string(get(attrs, ["ecs_task_arn"]) ?? null) ?? "")
+if fl_task != "" { dd.task_arn = fl_task }
+fl_def = (to_string(get(attrs, ["ecs_task_definition"]) ?? null) ?? "")
+if fl_def != "" {
+  parts = split(fl_def, ":")
+  dd.task_family = parts[0]
+  if length(parts) > 1 { dd.task_version = parts[1] }
+}
+fl_container = (to_string(get(attrs, ["container_name"]) ?? null) ?? "")
+if fl_container != "" { dd.container_name = replace(fl_container, r'^/', "") }
+if exists(dd.image_name) {
+  dd.short_image = replace(replace(string!(dd.image_name), r'^.*/', ""), r'[:@].*$', "")
+}
+if exists(dd.kube_container_name) { dd.display_container_name = string!(dd.kube_container_name) }
+
+# Unified service tagging.
+env = to_string(get(r, ["deployment.environment.name"]) ?? null) ?? ""
+if env == "" { env = to_string(get(r, ["deployment.environment"]) ?? null) ?? "" }
+lenv = (to_string(get(r, ["k8s.pod.labels.tags.datadoghq.com/env"]) ?? null) ?? "")
+if lenv != "" { env = lenv }
+if env != "" && !exists(root_tags.env) { dd.env = env }
+version = (to_string(get(r, ["service.version"]) ?? null) ?? "")
+lversion = (to_string(get(r, ["k8s.pod.labels.tags.datadoghq.com/version"]) ?? null) ?? "")
+if lversion != "" { version = lversion }
+if version != "" { dd.version = version }
+
+svc = null
+for_each(["service", "syslog.appname", "dd.service"]) -> |_i, k| {
+  if is_null(svc) {
+    v = get(flat, [k]) ?? null
+    if is_string(v) && v != "" { svc = v; used = push(used, k) }
+  }
+}
+if is_null(svc) {
+  for_each([
+    "k8s.pod.labels.tags.datadoghq.com/service", "service.name", "k8s.pod.labels.app.kubernetes.io/name",
+    "k8s.deployment.name", "k8s.statefulset.name", "k8s.daemonset.name", "k8s.cronjob.name", "k8s.job.name",
+    "k8s.container.name", "aws.ecs.task.family"
+  ]) -> |_i, k| {
+    if is_null(svc) {
+      v = (to_string(get(r, [k]) ?? null) ?? "")
+      # The SDKs' placeholder name isn't a service.
+      if v != "" && !starts_with(v, "unknown_service") { svc = v }
+    }
+  }
+}
+if is_null(svc) && exists(dd.task_family) { svc = dd.task_family }
+if is_null(svc) && exists(dd.container_name) { svc = dd.container_name }
+if is_null(svc) && exists(dd.short_image) { svc = dd.short_image }
+svc = to_string(svc)
+if svc == "" { svc = "unknown" }
+
+host = null
+for_each(["host", "hostname", "syslog.hostname"]) -> |_i, k| {
+  if is_null(host) {
+    v = get(flat, [k]) ?? null
+    if is_string(v) && v != "" { host = v; used = push(used, k) }
+  }
+}
+if is_null(host) { host = get(r, ["host.name"]) ?? null }
+if is_null(host) { host = get(r, ["k8s.node.name"]) ?? null }
+host = (to_string(host) ?? "")
+
+src = (to_string(get(flat, ["ddsource"]) ?? null) ?? "")
+if src != "" { used = push(used, "ddsource") }
+if src == "" { src = to_string(dd.short_image) }
+if src == "" { src = svc }
+
+# ddtags: "env:prod,team:payments"
+ddtags = (to_string(get(flat, ["ddtags"]) ?? null) ?? "")
+if ddtags != "" {
+  used = push(used, "ddtags")
+  for_each(split(ddtags, ",")) -> |_i, kv| {
+    p = split(strip_whitespace(kv), ":", limit: 2)
+    if length(p) == 2 && p[0] != "" { dd = set!(dd, [p[0]], p[1]) }
+  }
+}
+
+tags = merge(merge(root_tags, r), dd)
+tags = map_values(tags) -> |v| { to_string(v) ?? encode_json(v) }
+
+attrs = filter(attrs) -> |k, _v| { !includes(used, k) }
+attr = map_values(flatten(attrs)) -> |v| { to_string(v) ?? encode_json(v) }
+scope = (to_string(get(., ["scope", "name"]) ?? "") ?? "")
+
+. = {
+  "org_id": org,
+  "id": uuid_v4(),
+  "timestamp": ts,
+  "ts_ms": to_unix_timestamp(ts, unit: "milliseconds"),
+  "status": status,
+  "service": svc,
+  "host": host,
+  "source": src,
+  "message": msg,
+  "tags": tags,
+  "attr": attr,
+  "attributes": encode_json(attrs),
+  "trace_id": trace_id,
+  "span_id": span_id,
+  "severity_number": sev,
+  "scope": scope
+}

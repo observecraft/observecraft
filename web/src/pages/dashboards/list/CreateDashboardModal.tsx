@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Clock, Monitor, X } from 'lucide-react';
-import { currentUser } from '../../../api/dashboards/client';
+import { useQuery } from '@tanstack/react-query';
+import { mockUser } from '../../../api/dashboards/client';
+import { getProfile } from '../../../api/identity/client';
+import { API_MODE } from '../../../api/http';
 import type { LayoutType } from '../../../api/dashboards/types';
 import { usePopover } from '../../../components/ui/Dropdown';
 import { Modal } from '../../../components/ui/Modal';
@@ -9,9 +12,8 @@ import { useCreateDashboard } from '../queries';
 
 const TEAMS = ['storefront', 'billing', 'platform', 'payments', 'checkout'];
 
-function defaultName(): string {
-  const d = new Date();
-  const first = currentUser().name.split(' ')[0].toUpperCase();
+function defaultName(name: string, d: Date): string {
+  const first = name.split(' ')[0].toUpperCase();
   return `${first}'s Dashboard ${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}, ${d.toLocaleTimeString('en-US')}`;
 }
 
@@ -77,11 +79,15 @@ function MiniArt({ variant }: { variant: 'auto' | 'free' }) {
 export function CreateDashboardModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const create = useCreateDashboard();
-  const [name, setName] = useState(defaultName);
+  // Same key as the top bar's profile query, so it is usually cached already.
+  const me = useQuery({ queryKey: ['identity', 'profile'], queryFn: getProfile, enabled: API_MODE === 'live', staleTime: 60_000 });
+  const userName = API_MODE === 'live' ? (me.data?.name ?? 'My') : mockUser().name;
+  const [openedAt] = useState(() => new Date());
+  const [name, setName] = useState<string | null>(null);
+  const title = name ?? defaultName(userName, openedAt);
   const [teams, setTeams] = useState<string[]>([]);
 
-  const go = (layoutType: LayoutType) =>
-    create.mutate({ title: name.trim() || defaultName(), teams, layoutType }, { onSuccess: (d) => navigate(`/dashboards/${d.id}`) });
+  const go = (layoutType: LayoutType) => create.mutate({ title: title.trim() || defaultName(userName, openedAt), teams, layoutType }, { onSuccess: (d) => navigate(`/dashboards/${d.id}`) });
 
   return (
     <Modal onClose={onClose} label="Create a Dashboard" width={820} height="auto">
@@ -95,7 +101,7 @@ export function CreateDashboardModal({ onClose }: { onClose: () => void }) {
         <div className="cd-fields">
           <label className="cd-name">
             <span>Dashboard Name</span>
-            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} onFocus={(e) => e.target.select()} />
+            <input autoFocus value={title} onChange={(e) => setName(e.target.value)} onFocus={(e) => e.target.select()} />
           </label>
           <label>
             <span>Team</span>

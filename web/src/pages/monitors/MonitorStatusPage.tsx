@@ -182,7 +182,7 @@ function StatusInner() {
 function DetailsPanel({ m }: { m: MonitorDetail }) {
   const o = m.options;
   const rows: [string, string][] = [
-    ['Type', m.type === 'apm' ? 'APM' : 'Metric'],
+    ['Type', m.type === 'apm' ? 'APM' : m.type === 'log' ? 'Logs' : 'Metric'],
     ['Priority', m.priority ? `P${m.priority}` : 'Not defined'],
     ['Detection', o?.detection === 'change' ? `Change (${o.changeMode === 'pct_change' ? '%' : 'absolute'}) vs ${o.changeMinutes} min before` : 'Threshold'],
     [

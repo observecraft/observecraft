@@ -20,7 +20,7 @@ use utoipa::ToSchema;
 
 use super::logs::{bind, TimeRange};
 use crate::error::{ApiError, ApiResult};
-use crate::state::AppState;
+use crate::state::{AppState, OrgId};
 
 const ENTRY: &str = "SpanKind IN ('Server', 'Consumer')";
 const OUTBOUND: &str = "SpanKind IN ('Client', 'Producer')";
@@ -143,13 +143,13 @@ struct VersionSeen {
     first_seen: i64,
 }
 
-async fn instrumented_services(st: &AppState, range: TimeRange) -> Result<HashSet<String>, ApiError> {
+async fn instrumented_services(st: &AppState, org: &str, range: TimeRange) -> Result<HashSet<String>, ApiError> {
     #[derive(clickhouse::Row, Deserialize)]
     struct Name {
         service: String,
     }
     let (clause, params) = time_clause(range);
-    let rows = bind(st.clickhouse.query(&format!("SELECT DISTINCT toString(ServiceName) AS service FROM otel.otel_traces WHERE {clause} AND {ENTRY}")), &params)
+    let rows = bind(st.ch(org).query(&format!("SELECT DISTINCT toString(ServiceName) AS service FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND {ENTRY}")), &params)
         .fetch_all::<Name>()
         .await?;
     Ok(rows.into_iter().map(|r| r.service).collect())
@@ -157,33 +157,33 @@ async fn instrumented_services(st: &AppState, range: TimeRange) -> Result<HashSe
 
 /// Every service seen in the range: instrumented (entry spans) and inferred (peers of client spans).
 #[utoipa::path(post, path = "/api/v1/apm/services", request_body = ApmRequest, responses((status = 200, body = Vec<ServiceStats>)), tag = "apm")]
-pub async fn services(State(st): State<AppState>, Json(req): Json<ApmRequest>) -> ApiResult<Vec<ServiceStats>> {
+pub async fn services(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ApmRequest>) -> ApiResult<Vec<ServiceStats>> {
     req.range.validate()?;
     let secs = ((req.range.to - req.range.from) as f64 / 1000.0).max(1.0);
     let (clause, params) = base(req.range, &req.env, &req.query);
 
     let entry_q = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT toString(ServiceName) AS service, count() AS hits, countIf(StatusCode = 'Error') AS errors, \
              quantile(0.5)(Duration) / 1e6 AS p50, quantile(0.95)(Duration) / 1e6 AS p95, quantile(0.99)(Duration) / 1e6 AS p99, \
              any(ResourceAttributes['telemetry.sdk.language']) AS lang, anyLast(ResourceAttributes['service.version']) AS version, \
              toUInt8(countIf(SpanAttributes['http.route'] != '') > 0) AS web \
-             FROM otel.otel_traces WHERE {clause} AND {ENTRY} GROUP BY service"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND {ENTRY} GROUP BY service"
         )),
         &params,
     );
     let peer_q = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT {PEER} AS service, count() AS hits, countIf(StatusCode = 'Error') AS errors, \
              quantile(0.5)(Duration) / 1e6 AS p50, quantile(0.95)(Duration) / 1e6 AS p95, quantile(0.99)(Duration) / 1e6 AS p99, \
              any(SpanAttributes['db.system']) AS db_system, any(SpanAttributes['messaging.system']) AS messaging \
-             FROM otel.otel_traces WHERE {clause} AND {OUTBOUND} AND {PEER} != '' GROUP BY service"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND {OUTBOUND} AND {PEER} != '' GROUP BY service"
         )),
         &params,
     );
-    let deploy_q = st.clickhouse.query(&format!(
+    let deploy_q = st.ch(&org).query(&format!(
         "SELECT toString(ServiceName) AS service, ResourceAttributes['service.version'] AS version, toInt64(toUnixTimestamp64Milli(min(Timestamp))) AS first_seen \
-         FROM otel.otel_traces WHERE Timestamp >= now() - INTERVAL 7 DAY AND {ENTRY} GROUP BY service, version"
+         FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND Timestamp >= now() - INTERVAL 7 DAY AND {ENTRY} GROUP BY service, version"
     ));
     let (entries, peers, versions) = tokio::try_join!(entry_q.fetch_all::<EntryAgg>(), peer_q.fetch_all::<PeerAgg>(), deploy_q.fetch_all::<VersionSeen>())?;
 
@@ -282,13 +282,13 @@ fn service_filter(service: &str, instrumented: bool) -> (String, Vec<Param>, &'s
 
 /// Endpoints (span names of entry spans) with throughput, errors, latency and time share.
 #[utoipa::path(post, path = "/api/v1/apm/resources", request_body = ResourcesRequest, responses((status = 200, body = Vec<ResourceStats>)), tag = "apm")]
-pub async fn resources(State(st): State<AppState>, Json(req): Json<ResourcesRequest>) -> ApiResult<Vec<ResourceStats>> {
+pub async fn resources(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ResourcesRequest>) -> ApiResult<Vec<ResourceStats>> {
     req.range.validate()?;
     let secs = ((req.range.to - req.range.from) as f64 / 1000.0).max(1.0);
     let (mut clause, mut params) = base(req.range, &req.env, "");
     let svc_expr = match &req.service {
         Some(s) => {
-            let instrumented = instrumented_services(&st, req.range).await?.contains(s);
+            let instrumented = instrumented_services(&st, &org, req.range).await?.contains(s);
             let (f, p, expr) = service_filter(s, instrumented);
             clause.push_str(&format!(" AND {f}"));
             params.extend(p);
@@ -300,10 +300,10 @@ pub async fn resources(State(st): State<AppState>, Json(req): Json<ResourcesRequ
         }
     };
     let rows = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT {svc_expr} AS service, toString(SpanName) AS resource, count() AS hits, countIf(StatusCode = 'Error') AS errors, \
              quantile(0.5)(Duration) / 1e6 AS p50, quantile(0.95)(Duration) / 1e6 AS p95, quantile(0.99)(Duration) / 1e6 AS p99, sum(Duration) AS total \
-             FROM otel.otel_traces WHERE {clause} GROUP BY service, resource ORDER BY hits DESC LIMIT 500"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} GROUP BY service, resource ORDER BY hits DESC LIMIT 500"
         )),
         &params,
     )
@@ -432,30 +432,30 @@ fn narrow(req: &ServiceRequest, instrumented: bool) -> (String, Vec<Param>) {
 
 /// Header facts, health and the requests/errors/latency series for one service.
 #[utoipa::path(post, path = "/api/v1/apm/service", request_body = ServiceRequest, responses((status = 200, body = ServiceSummary)), tag = "apm")]
-pub async fn service(State(st): State<AppState>, Json(req): Json<ServiceRequest>) -> ApiResult<ServiceSummary> {
+pub async fn service(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ServiceRequest>) -> ApiResult<ServiceSummary> {
     req.range.validate()?;
-    let instrumented = instrumented_services(&st, req.range).await?.contains(&req.service);
+    let instrumented = instrumented_services(&st, &org, req.range).await?.contains(&req.service);
     let (clause, params) = narrow(&req, instrumented);
     let size = bucket_ms(req.range, 60);
     let mut sparams = vec![Param::Int(size / 1000)];
     sparams.extend(params.clone());
     let series_q = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT toInt64(toUnixTimestamp(toStartOfInterval(Timestamp, toIntervalSecond(?)))) * 1000 AS t, count() AS hits, countIf(StatusCode = 'Error') AS errors, \
              quantile(0.5)(Duration) / 1e6 AS p50, quantile(0.95)(Duration) / 1e6 AS p95, quantile(0.99)(Duration) / 1e6 AS p99 \
-             FROM otel.otel_traces WHERE {clause} GROUP BY t ORDER BY t"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} GROUP BY t ORDER BY t"
         )),
         &sparams,
     );
     // Facets for the header selects ignore resource/version narrowing so every option stays visible.
     let (mclause, mparams) = narrow(&ServiceRequest { resource: None, version: None, env: None, ..req_clone(&req) }, instrumented);
     let meta_q = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT groupUniqArray(20)(ResourceAttributes['deployment.environment']) AS envs, groupUniqArray(20)(ResourceAttributes['service.version']) AS versions, \
              groupUniqArray(50)(toString(SpanName)) AS resources, groupUniqArray(50)(ResourceAttributes['host.name']) AS hosts, \
              any(ResourceAttributes['telemetry.sdk.language']) AS lang, toUInt8(countIf(SpanAttributes['http.route'] != '') > 0) AS web, \
              any(SpanAttributes['db.system']) AS db_system, any(SpanAttributes['messaging.system']) AS messaging \
-             FROM otel.otel_traces WHERE {mclause}"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {mclause}"
         )),
         &mparams,
     );
@@ -533,14 +533,14 @@ struct DeployAgg {
 
 /// Versions of a service seen in the range, newest first.
 #[utoipa::path(post, path = "/api/v1/apm/deployments", request_body = ServiceRequest, responses((status = 200, body = Vec<Deployment>)), tag = "apm")]
-pub async fn deployments(State(st): State<AppState>, Json(req): Json<ServiceRequest>) -> ApiResult<Vec<Deployment>> {
+pub async fn deployments(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ServiceRequest>) -> ApiResult<Vec<Deployment>> {
     req.range.validate()?;
     let (clause, params) = narrow(&ServiceRequest { version: None, ..req_clone(&req) }, true);
     let rows = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT ResourceAttributes['service.version'] AS version, toInt64(toUnixTimestamp64Milli(min(Timestamp))) AS first_seen, \
              toInt64(toUnixTimestamp64Milli(max(Timestamp))) AS last_seen, count() AS hits, countIf(StatusCode = 'Error') AS errors, quantile(0.95)(Duration) / 1e6 AS p95 \
-             FROM otel.otel_traces WHERE {clause} GROUP BY version ORDER BY first_seen DESC"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} GROUP BY version ORDER BY first_seen DESC"
         )),
         &params,
     )
@@ -587,7 +587,7 @@ struct EdgeAgg {
     messaging: String,
 }
 
-async fn edges(st: &AppState, req: &ServiceRequest, downstream: bool, known: &HashSet<String>) -> Result<Vec<Dependency>, ApiError> {
+async fn edges(st: &AppState, org: &str, req: &ServiceRequest, downstream: bool, known: &HashSet<String>) -> Result<Vec<Dependency>, ApiError> {
     const BUCKETS: i64 = 20;
     let (clause, mut params) = base(req.range, &req.env, "");
     let (peer_expr, filter) = if downstream { (PEER, "toString(ServiceName) = ?") } else { ("toString(ServiceName)", "SpanAttributes['peer.service'] = ?") };
@@ -596,10 +596,10 @@ async fn edges(st: &AppState, req: &ServiceRequest, downstream: bool, known: &Ha
     all.append(&mut params);
     all.push(Param::Str(req.service.clone()));
     let rows = bind(
-        st.clickhouse.query(&format!(
+        st.ch(org).query(&format!(
             "SELECT {peer_expr} AS peer, intDiv(toInt64(toUnixTimestamp64Milli(Timestamp)) - ?, ?) AS bucket, count() AS hits, countIf(StatusCode = 'Error') AS errors, \
              quantile(0.95)(Duration) / 1e6 AS p95, any(SpanAttributes['db.system']) AS db_system, any(SpanAttributes['messaging.system']) AS messaging \
-             FROM otel.otel_traces WHERE {clause} AND {OUTBOUND} AND {PEER} != '' AND {filter} GROUP BY peer, bucket"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND {OUTBOUND} AND {PEER} != '' AND {filter} GROUP BY peer, bucket"
         )),
         &all,
     )
@@ -642,10 +642,10 @@ async fn edges(st: &AppState, req: &ServiceRequest, downstream: bool, known: &Ha
 
 /// Services this one calls (downstream) and services calling it (upstream).
 #[utoipa::path(post, path = "/api/v1/apm/dependencies", request_body = ServiceRequest, responses((status = 200, body = Dependencies)), tag = "apm")]
-pub async fn dependencies(State(st): State<AppState>, Json(req): Json<ServiceRequest>) -> ApiResult<Dependencies> {
+pub async fn dependencies(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ServiceRequest>) -> ApiResult<Dependencies> {
     req.range.validate()?;
-    let known = instrumented_services(&st, req.range).await?;
-    let (downstream, upstream) = tokio::try_join!(edges(&st, &req, true, &known), edges(&st, &req, false, &known))?;
+    let known = instrumented_services(&st, &org, req.range).await?;
+    let (downstream, upstream) = tokio::try_join!(edges(&st, &org, &req, true, &known), edges(&st, &org, &req, false, &known))?;
     Ok(Json(Dependencies { upstream, downstream }))
 }
 
@@ -676,15 +676,15 @@ struct DbAgg {
 
 /// Database calls made by a service, grouped by system, database and statement.
 #[utoipa::path(post, path = "/api/v1/apm/databases", request_body = ServiceRequest, responses((status = 200, body = Vec<DatabaseStats>)), tag = "apm")]
-pub async fn databases(State(st): State<AppState>, Json(req): Json<ServiceRequest>) -> ApiResult<Vec<DatabaseStats>> {
+pub async fn databases(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ServiceRequest>) -> ApiResult<Vec<DatabaseStats>> {
     req.range.validate()?;
     let (clause, mut params) = base(req.range, &req.env, "");
     params.push(Param::Str(req.service.clone()));
     let rows = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT SpanAttributes['db.system'] AS db_system, SpanAttributes['db.name'] AS db_name, SpanAttributes['db.statement'] AS statement, \
              count() AS hits, countIf(StatusCode = 'Error') AS errors, quantile(0.95)(Duration) / 1e6 AS p95, sum(Duration) AS total \
-             FROM otel.otel_traces WHERE {clause} AND SpanKind = 'Client' AND ServiceName = ? AND SpanAttributes['db.system'] != '' \
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND SpanKind = 'Client' AND ServiceName = ? AND SpanAttributes['db.system'] != '' \
              GROUP BY db_system, db_name, statement ORDER BY total DESC LIMIT 100"
         )),
         &params,
@@ -735,7 +735,7 @@ struct ErrAgg {
 
 /// Error spans grouped by service, resource, exception type and message.
 #[utoipa::path(post, path = "/api/v1/apm/errors", request_body = ErrorsRequest, responses((status = 200, body = Vec<SpanErrorGroup>)), tag = "apm")]
-pub async fn errors(State(st): State<AppState>, Json(req): Json<ErrorsRequest>) -> ApiResult<Vec<SpanErrorGroup>> {
+pub async fn errors(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ErrorsRequest>) -> ApiResult<Vec<SpanErrorGroup>> {
     req.range.validate()?;
     let (mut clause, mut params) = base(req.range, &req.env, "");
     if let Some(s) = &req.service {
@@ -743,11 +743,11 @@ pub async fn errors(State(st): State<AppState>, Json(req): Json<ErrorsRequest>) 
         params.push(Param::Str(s.clone()));
     }
     let rows = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT toString(ServiceName) AS service, toString(SpanName) AS resource, \
              arrayElement(Events.Attributes, indexOf(Events.Name, 'exception'))['exception.type'] AS error_type, StatusMessage AS message, \
              count() AS n, toInt64(toUnixTimestamp64Milli(min(Timestamp))) AS first_seen, toInt64(toUnixTimestamp64Milli(max(Timestamp))) AS last_seen, any(TraceId) AS sample \
-             FROM otel.otel_traces WHERE {clause} AND StatusCode = 'Error' AND {ENTRY} \
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND StatusCode = 'Error' AND {ENTRY} \
              GROUP BY service, resource, error_type, message ORDER BY n DESC LIMIT 100"
         )),
         &params,
@@ -828,7 +828,7 @@ struct Count {
 
 /// Service entry spans matching the query, newest first (keyset-paginated).
 #[utoipa::path(post, path = "/api/v1/apm/traces/search", request_body = TraceSearchRequest, responses((status = 200, body = TraceSearchPage)), tag = "apm")]
-pub async fn search_traces(State(st): State<AppState>, Json(req): Json<TraceSearchRequest>) -> ApiResult<TraceSearchPage> {
+pub async fn search_traces(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<TraceSearchRequest>) -> ApiResult<TraceSearchPage> {
     req.range.validate()?;
     let limit = req.limit.unwrap_or(100).clamp(1, 500);
     let (clause, params) = base(req.range, &req.env, &req.query);
@@ -844,15 +844,15 @@ pub async fn search_traces(State(st): State<AppState>, Json(req): Json<TraceSear
     }
     page_params.push(Param::Int(limit as i64));
     let rows_q = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT TraceId AS trace_id, SpanId AS span_id, toInt64(toUnixTimestamp64Nano(Timestamp)) AS ts_ns, toString(ServiceName) AS service, toString(SpanName) AS resource, \
              toString(SpanKind) AS kind, Duration AS duration, toString(StatusCode) AS status, ResourceAttributes['deployment.environment'] AS env, \
              SpanAttributes['http.response.status_code'] AS http_status \
-             FROM otel.otel_traces WHERE {page_clause} ORDER BY Timestamp DESC, SpanId DESC LIMIT ?"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {page_clause} ORDER BY Timestamp DESC, SpanId DESC LIMIT ?"
         )),
         &page_params,
     );
-    let count_q = bind(st.clickhouse.query(&format!("SELECT count() AS n FROM otel.otel_traces WHERE {clause}")), &params);
+    let count_q = bind(st.ch(&org).query(&format!("SELECT count() AS n FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause}")), &params);
     let (rows, count) = tokio::try_join!(rows_q.fetch_all::<SpanAgg>(), count_q.fetch_one::<Count>())?;
     let next_cursor = (rows.len() as u64 == limit).then(|| rows.last().map(|r| format!("{}:{}", r.ts_ns, r.span_id))).flatten();
     Ok(Json(TraceSearchPage {
@@ -939,13 +939,13 @@ struct FullSpan {
 /// All spans of one trace (waterfall / flame graph).
 #[utoipa::path(get, path = "/api/v1/apm/traces/{trace_id}", params(("trace_id" = String, Path, description = "32-char hex trace id")),
     responses((status = 200, body = TraceDetail), (status = 404, body = crate::error::ErrorBody)), tag = "apm")]
-pub async fn trace(State(st): State<AppState>, Path(trace_id): Path<String>) -> Result<Json<TraceDetail>, ApiError> {
+pub async fn trace(State(st): State<AppState>, OrgId(org): OrgId, Path(trace_id): Path<String>) -> Result<Json<TraceDetail>, ApiError> {
     if trace_id.len() != 32 || !trace_id.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err(ApiError::BadRequest("trace id must be 32 hex characters".into()));
     }
     // The exporter's trace-id index gives the time bounds, so the main scan prunes by partition.
     let bounds = st
-        .clickhouse
+        .ch(&org)
         // Start/End are second-precision DateTime here; the span query below pads by a second each side.
         .query("SELECT toInt64(toUnixTimestamp(min(Start))) * 1000000000 AS start, toInt64(toUnixTimestamp(max(End))) * 1000000000 AS end FROM otel.otel_traces_trace_id_ts WHERE TraceId = ?")
         .bind(trace_id.as_str())
@@ -955,13 +955,13 @@ pub async fn trace(State(st): State<AppState>, Path(trace_id): Path<String>) -> 
         return Err(ApiError::NotFound("trace not found".into()));
     }
     let spans = st
-        .clickhouse
+        .ch(&org)
         .query(
             "SELECT SpanId AS span_id, ParentSpanId AS parent, toString(ServiceName) AS service, toString(SpanName) AS name, toString(SpanKind) AS kind, \
              toInt64(toUnixTimestamp64Nano(Timestamp)) AS start_ns, Duration AS duration, toString(StatusCode) AS status, StatusMessage AS message, \
              toJSONString(SpanAttributes) AS attrs, toJSONString(ResourceAttributes) AS res, arrayMap(x -> toString(x), Events.Name) AS ev_names, \
              arrayMap(x -> toInt64(toUnixTimestamp64Nano(x)), Events.Timestamp) AS ev_ts, toJSONString(Events.Attributes) AS ev_attrs \
-             FROM otel.otel_traces WHERE TraceId = ? AND Timestamp >= fromUnixTimestamp64Nano(?) - INTERVAL 1 SECOND AND Timestamp <= fromUnixTimestamp64Nano(?) + INTERVAL 1 SECOND \
+             FROM otel.otel_traces WHERE OrgId = {oc_org:String} AND TraceId = ? AND Timestamp >= fromUnixTimestamp64Nano(?) - INTERVAL 1 SECOND AND Timestamp <= fromUnixTimestamp64Nano(?) + INTERVAL 1 SECOND \
              ORDER BY Timestamp LIMIT 5000",
         )
         .bind(trace_id.as_str())
@@ -1048,23 +1048,23 @@ struct NPlusOne {
 
 /// Rule-based recommendations computed from spans: N+1 call patterns, error-prone and slow endpoints.
 #[utoipa::path(post, path = "/api/v1/apm/recommendations", request_body = ApmRequest, responses((status = 200, body = Vec<Recommendation>)), tag = "apm")]
-pub async fn recommendations(State(st): State<AppState>, Json(req): Json<ApmRequest>) -> ApiResult<Vec<Recommendation>> {
+pub async fn recommendations(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ApmRequest>) -> ApiResult<Vec<Recommendation>> {
     req.range.validate()?;
     let (clause, params) = base(req.range, &req.env, &req.query);
     let n1_q = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT service, resource, count() AS traces, sum(n) AS calls, avg(n) AS per_trace FROM ( \
                SELECT TraceId, ParentSpanId, toString(ServiceName) AS service, toString(SpanName) AS resource, count() AS n \
-               FROM otel.otel_traces WHERE {clause} AND SpanKind = 'Client' GROUP BY TraceId, ParentSpanId, service, resource HAVING n >= 5 \
+               FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND SpanKind = 'Client' GROUP BY TraceId, ParentSpanId, service, resource HAVING n >= 5 \
              ) GROUP BY service, resource ORDER BY traces DESC LIMIT 10"
         )),
         &params,
     );
     let ep_q = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT toString(ServiceName) AS service, toString(SpanName) AS resource, count() AS hits, countIf(StatusCode = 'Error') AS errors, \
              quantile(0.5)(Duration) / 1e6 AS p50, quantile(0.95)(Duration) / 1e6 AS p95, quantile(0.99)(Duration) / 1e6 AS p99, sum(Duration) AS total \
-             FROM otel.otel_traces WHERE {clause} AND {ENTRY} GROUP BY service, resource HAVING hits >= 20"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND {ENTRY} GROUP BY service, resource HAVING hits >= 20"
         )),
         &params,
     );
@@ -1131,17 +1131,17 @@ pub struct Anomaly {
 
 /// Endpoints whose p95 latency or error rate rose versus the previous period of equal length.
 #[utoipa::path(post, path = "/api/v1/apm/anomalies", request_body = ApmRequest, responses((status = 200, body = Vec<Anomaly>)), tag = "apm")]
-pub async fn anomalies(State(st): State<AppState>, Json(req): Json<ApmRequest>) -> ApiResult<Vec<Anomaly>> {
+pub async fn anomalies(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ApmRequest>) -> ApiResult<Vec<Anomaly>> {
     req.range.validate()?;
     let span = req.range.to - req.range.from;
     let prev = TimeRange { from: req.range.from - span, to: req.range.from };
     let q = |range: TimeRange| {
         let (clause, params) = base(range, &req.env, &req.query);
         bind(
-            st.clickhouse.query(&format!(
+            st.ch(&org).query(&format!(
                 "SELECT toString(ServiceName) AS service, toString(SpanName) AS resource, count() AS hits, countIf(StatusCode = 'Error') AS errors, \
                  quantile(0.5)(Duration) / 1e6 AS p50, quantile(0.95)(Duration) / 1e6 AS p95, quantile(0.99)(Duration) / 1e6 AS p99, sum(Duration) AS total \
-                 FROM otel.otel_traces WHERE {clause} AND {ENTRY} GROUP BY service, resource HAVING hits >= 20"
+                 FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND {ENTRY} GROUP BY service, resource HAVING hits >= 20"
             )),
             &params,
         )
@@ -1177,11 +1177,11 @@ struct Envs {
 
 /// `deployment.environment` values seen in the range (for env selectors).
 #[utoipa::path(post, path = "/api/v1/apm/envs", request_body = RangeRequest, responses((status = 200, body = Vec<String>)), tag = "apm")]
-pub async fn envs(State(st): State<AppState>, Json(req): Json<RangeRequest>) -> ApiResult<Vec<String>> {
+pub async fn envs(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<RangeRequest>) -> ApiResult<Vec<String>> {
     req.range.validate()?;
     let (clause, params) = time_clause(req.range);
     let row = bind(
-        st.clickhouse.query(&format!("SELECT groupUniqArray(50)(ResourceAttributes['deployment.environment']) AS envs FROM otel.otel_traces WHERE {clause}")),
+        st.ch(&org).query(&format!("SELECT groupUniqArray(50)(ResourceAttributes['deployment.environment']) AS envs FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause}")),
         &params,
     )
     .fetch_one::<Envs>()

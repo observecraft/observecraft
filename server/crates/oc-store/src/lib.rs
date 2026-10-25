@@ -1,6 +1,7 @@
 //! Storage connections and schema migrations.
 //!
-//! - ClickHouse holds telemetry (logs today; traces/metrics come from the OTel Collector's exporter).
+//! - ClickHouse holds telemetry: logs (`oc.logs`), and traces/metrics in `otel.*` (written by the OTel
+//!   Collector's exporter, schemas owned here). Every row carries its organization.
 //! - Postgres holds control-plane metadata (dashboards, monitors, users, …).
 
 use anyhow::Context;
@@ -19,6 +20,11 @@ pub struct ClickHouseConfig {
 const CH_MIGRATIONS: &[(&str, &str)] = &[
     ("0001_logs", include_str!("../../../migrations/clickhouse/0001_logs.sql")),
     ("0002_otel_database", include_str!("../../../migrations/clickhouse/0002_otel_database.sql")),
+    ("0003_otel_tenancy", include_str!("../../../migrations/clickhouse/0003_otel_tenancy.sql")),
+    ("0004_logs_otel", include_str!("../../../migrations/clickhouse/0004_logs_otel.sql")),
+    ("0005_logs_rehydrated", include_str!("../../../migrations/clickhouse/0005_logs_rehydrated.sql")),
+    ("0006_log_indexes", include_str!("../../../migrations/clickhouse/0006_log_indexes.sql")),
+    ("0007_kubernetes", include_str!("../../../migrations/clickhouse/0007_kubernetes.sql")),
 ];
 
 pub fn clickhouse(cfg: &ClickHouseConfig) -> Client {
@@ -80,4 +86,43 @@ pub async fn postgres(url: &str) -> anyhow::Result<PgPool> {
         .context("connect postgres")?;
     sqlx::migrate!("../../migrations/postgres").run(&pool).await.context("postgres migrations")?;
     Ok(pool)
+}
+
+/// How long each kind of telemetry is kept.
+#[derive(Clone, Copy, Debug)]
+pub struct RetentionDays {
+    /// Spans of orgs that didn't choose a retention.
+    pub traces: u32,
+    /// Longest span retention any org may choose (the trace-id lookup table keeps this long).
+    pub traces_max: u32,
+    pub metrics: u32,
+    pub ci: u32,
+    /// Hours every ingested log stays in `oc.logs_raw` (archives read it).
+    pub raw_logs_hours: u32,
+}
+
+/// Sets the tables' TTLs. Indexed logs and spans carry their own retention per row (set by the org's
+/// log indexes and span retention); the rest use install-wide values. A metadata change only:
+/// expired parts are dropped at the next merges instead of rewriting the tables now.
+pub async fn apply_retention(cfg: &ClickHouseConfig, r: RetentionDays) -> anyhow::Result<()> {
+    let admin = Client::default().with_url(&cfg.url).with_user(&cfg.user).with_password(&cfg.password).with_option("materialize_ttl_after_modify", "0");
+    // Rehydrated logs (oc.logs_rehydrated) expire with their rehydration, not by age.
+    let tables: [(&str, String); 11] = [
+        ("oc.logs", "toDateTime(timestamp) + toIntervalDay(retention_days)".into()),
+        ("oc.logs_raw", format!("toDateTime(timestamp) + INTERVAL {} HOUR", r.raw_logs_hours)),
+        ("otel.otel_traces", format!("toDate(Timestamp) + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.traces)),
+        ("otel.otel_traces_trace_id_ts", format!("toDate(Start) + INTERVAL {} DAY", r.traces_max)),
+        ("otel.otel_ci_traces", format!("toDate(Timestamp) + INTERVAL {} DAY", r.ci)),
+        ("otel.otel_ci_traces_trace_id_ts", format!("toDate(Start) + INTERVAL {} DAY", r.ci)),
+        ("otel.otel_metrics_gauge", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
+        ("otel.otel_metrics_sum", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
+        ("otel.otel_metrics_histogram", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
+        ("otel.otel_metrics_exponential_histogram", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
+        ("otel.otel_metrics_summary", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
+    ];
+    for (table, ttl) in tables {
+        admin.query(&format!("ALTER TABLE {table} MODIFY TTL {ttl}")).execute().await.with_context(|| format!("set retention of {table}"))?;
+    }
+    tracing::info!(traces = r.traces, traces_max = r.traces_max, metrics = r.metrics, ci = r.ci, raw_logs_hours = r.raw_logs_hours, "retention applied");
+    Ok(())
 }

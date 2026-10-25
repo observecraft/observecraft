@@ -39,6 +39,8 @@ transforms:
       parts = split(string!(.message), "|", limit: 3)
       svc = string!(parts[0])
       .service = svc
+      # Agents on the trusted vector protocol name their organization themselves.
+      .org_id = "default"
       .level = parts[1]
       .message = parts[2]
 

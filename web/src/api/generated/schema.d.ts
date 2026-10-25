@@ -330,7 +330,8 @@ export interface paths {
         };
         get: operations["link_info"];
         put?: never;
-        /** Sets the password from an invite / reset link and signs in (MFA still applies if enabled). */
+        /** Accepts an invite / reset link and signs in (MFA still applies if enabled). A new account sets its
+         *     password here; an existing account joins the org by confirming its current password. */
         post: operations["accept_link"];
         delete?: never;
         options?: never;
@@ -347,6 +348,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Signs in to the requested org, else the last one used, else the account's first organization. */
         post: operations["login"];
         delete?: never;
         options?: never;
@@ -885,6 +887,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Containers of the pods on this host, by memory. */
         post: operations["containers"];
         delete?: never;
         options?: never;
@@ -917,7 +920,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Pods and containers need the Kubernetes / Docker receivers; no collector sends them yet. */
+        /** Pods the Kubernetes collector reports on this host (its node). */
         post: operations["pods"];
         delete?: never;
         options?: never;
@@ -1199,6 +1202,224 @@ export interface paths {
         patch: operations["set_important"];
         trace?: never;
     };
+    "/api/v1/ingest-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_ingest_keys"];
+        put?: never;
+        post: operations["create_ingest_key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ingest-keys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revoke_ingest_key"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/instance/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["instance_audit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/instance/orgs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["instance_list_orgs"];
+        put?: never;
+        post: operations["instance_create_org"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/instance/orgs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Permanently deletes an organization: its users, content and settings now, its telemetry in the
+         *     background. Accounts that belong to other organizations keep those memberships. */
+        delete: operations["instance_delete_org"];
+        options?: never;
+        head?: never;
+        /** Renames, suspends or reactivates an organization. Suspension ends its sessions and rejects its keys. */
+        patch: operations["instance_update_org"];
+        trace?: never;
+    };
+    "/api/v1/instance/orgs/{id}/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Sets what an org may configure. Lowering a ceiling also lowers settings above it. */
+        patch: operations["instance_update_org_limits"];
+        trace?: never;
+    };
+    "/api/v1/logs/archive-searches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_archive_searches"];
+        put?: never;
+        /** Starts a search over archived logs; poll it with GET /api/v1/logs/archive-searches/{id}. */
+        post: operations["create_archive_search"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/archive-searches/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_archive_search"];
+        put?: never;
+        post?: never;
+        /** Cancels a running search, or deletes a finished one with its results. */
+        delete: operations["delete_archive_search"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/archives": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_log_archives"];
+        put?: never;
+        /** Creates an archive after proving the bucket is writable. */
+        post: operations["create_log_archive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/archives/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks that the bucket can be written, read and deleted from with these credentials. */
+        post: operations["test_log_archive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/archives/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Stops archiving and forgets the archive; files already in the bucket are left there. */
+        delete: operations["delete_log_archive"];
+        options?: never;
+        head?: never;
+        patch: operations["update_log_archive"];
+        trace?: never;
+    };
+    "/api/v1/logs/archives/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archives every pending closed hour now (instead of waiting for the background job). */
+        post: operations["run_log_archive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/archives/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["log_archive_runs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/facets": {
         parameters: {
             query?: never;
@@ -1233,6 +1454,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/indexes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_log_indexes"];
+        put?: never;
+        post: operations["create_log_index"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/indexes/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reorder_log_indexes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/indexes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_log_index"];
+        post?: never;
+        /** Stops indexing into it; its logs stay searchable (`index:<name>`) until they expire. */
+        delete: operations["delete_log_index"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/insights": {
         parameters: {
             query?: never;
@@ -1262,6 +1532,40 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/rehydrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_rehydrations"];
+        put?: never;
+        /** Loads archived logs back into ClickHouse; search them in the Log Explorer with `index:rehydrated`. */
+        post: operations["create_rehydration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/rehydrations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Removes a rehydration's logs now. */
+        delete: operations["expire_rehydration"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1358,7 +1662,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Ends every session of the current user, including this one. */
+        /** Ends every session of the current account (in every organization), including this one. */
         post: operations["logout_all"];
         delete?: never;
         options?: never;
@@ -1409,6 +1713,23 @@ export interface paths {
         put?: never;
         /** Starts enrollment: a new secret that becomes active once confirmed with a code. */
         post: operations["mfa_setup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/orgs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The organizations this account belongs to (active memberships in active orgs). */
+        get: operations["my_orgs"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1475,6 +1796,25 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["revoke_session"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/switch-org": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Moves this browser session to another of the account's organizations (a new session token is issued).
+         *     Sessions started with single sign-on are bound to that organization; an org that requires SSO can
+         *     only be entered through its identity provider (admins excepted). */
+        post: operations["switch_org"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1596,6 +1936,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/monitors/test-notification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends one transition's message to its recipients now, marked as a test. */
+        post: operations["test_monitor_notification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/monitors/triggered": {
         parameters: {
             query?: never;
@@ -1658,6 +2015,104 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notification-channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_notification_channels"];
+        put?: never;
+        post: operations["create_notification_channel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notification-channels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_notification_channel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notification-deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's most recent notification deliveries. */
+        get: operations["list_notification_deliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestration/resources/{uid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_orchestration_resource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestration/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_orchestration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/data-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_org_data_settings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Span retention applies to spans received from then on (within about a minute). */
+        patch: operations["update_org_data_settings"];
         trace?: never;
     };
     "/api/v1/org/login-methods": {
@@ -1998,6 +2453,86 @@ export interface components {
             name: string;
             prefix: string;
         };
+        ArchiveNowResult: {
+            /** @description Hours written by this run. */
+            hours: number;
+            /** Format: int64 */
+            rows: number;
+        };
+        ArchivePatch: {
+            enabled?: boolean | null;
+            name?: string | null;
+            query?: string | null;
+        };
+        ArchiveRun: {
+            /** Format: int32 */
+            attempts: number;
+            /** Format: int64 */
+            bytes: number;
+            error?: string | null;
+            /** Format: int64 */
+            finishedAt: number;
+            /** Format: int64 */
+            hour: number;
+            objectKey?: string | null;
+            /** Format: int64 */
+            rows: number;
+            status: string;
+        };
+        ArchiveSearch: {
+            archiveId: string;
+            archiveName: string;
+            /** Format: int64 */
+            bytesScanned: number;
+            /** Format: int64 */
+            createdAt: number;
+            error?: string | null;
+            /** Format: int32 */
+            filesScanned: number;
+            /** Format: int32 */
+            filesTotal: number;
+            /** Format: int64 */
+            finishedAt?: number | null;
+            /** Format: int64 */
+            from: number;
+            id: string;
+            /** Format: int64 */
+            matches: number;
+            /** Format: int32 */
+            maxResults: number;
+            query: string;
+            /** @description running | done | failed | canceled */
+            status: string;
+            /** Format: int64 */
+            to: number;
+        };
+        ArchiveSearchDetail: {
+            events: components["schemas"]["LogEvent"][];
+            search: components["schemas"]["ArchiveSearch"];
+        };
+        ArchiveSearchRequest: {
+            archiveId: string;
+            /**
+             * Format: int32
+             * @description Events kept (newest first), 1–5000. Default 1000.
+             */
+            maxResults?: number | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        ArchiveTarget: {
+            accessKey: string;
+            bucket: string;
+            endpoint: string;
+            pathStyle?: boolean;
+            prefix?: string;
+            region?: string;
+            secretKey: string;
+        };
+        ArchiveTestResult: {
+            error?: string | null;
+            ok: boolean;
+        };
         AuditEvent: {
             action: string;
             actor: string;
@@ -2236,6 +2771,25 @@ export interface components {
         CreateAppKey: {
             name: string;
         };
+        CreateArchive: components["schemas"]["ArchiveTarget"] & {
+            /**
+             * Format: int64
+             * @description Also archive the logs of the last N days still held in the raw table (0–2 by default, see OC_RAW_LOGS_HOURS).
+             */
+            backfillDays?: number;
+            name: string;
+            /** @description Which logs to archive (search syntax); empty = all. */
+            query?: string;
+        };
+        CreateChannel: {
+            /** @description webhook | slack */
+            kind: string;
+            /** @description Name after the prefix: `oncall` → `@webhook-oncall`. */
+            name: string;
+            /** @description Webhooks only: signing secret. */
+            secret?: string | null;
+            url: string;
+        };
         CreateDashboardRequest: {
             layoutType: components["schemas"]["LayoutType"];
             teams?: string[];
@@ -2244,6 +2798,9 @@ export interface components {
         CreateDocument: {
             title: string;
             url: string;
+        };
+        CreateIngestKey: {
+            name: string;
         };
         CreateListRequest: {
             name: string;
@@ -2260,6 +2817,13 @@ export interface components {
             recipients: string[];
             subject: string;
         };
+        CreateOrgRequest: {
+            /** @description Becomes the org's first Admin (invited; an existing account joins with its current password). */
+            adminEmail: string;
+            /** @description Lowercase letters, digits and dashes (2–40); used in URLs and SSO endpoints. */
+            id: string;
+            name: string;
+        };
         CreatePage: {
             team: string;
             title: string;
@@ -2272,6 +2836,15 @@ export interface components {
         CreatedAppKey: components["schemas"]["AppKey"] & {
             /** @description The secret. Shown only once. */
             key: string;
+        };
+        CreatedIngestKey: components["schemas"]["IngestKey"] & {
+            /** @description The secret. Shown only once. */
+            key: string;
+        };
+        CreatedOrg: {
+            id: string;
+            /** @description One-time link (72h) for the first admin. Share it until mail delivery is configured. */
+            inviteUrl: string;
         };
         Dashboard: {
             author?: null | components["schemas"]["UserRef"];
@@ -2382,6 +2955,29 @@ export interface components {
             teams?: string[];
             test?: boolean;
             title: string;
+        };
+        DeleteOrgRequest: {
+            /** @description Must repeat the organization id. */
+            confirm: string;
+        };
+        Delivery: {
+            /** Format: int32 */
+            attempts: number;
+            /** Format: int64 */
+            createdAt: number;
+            error?: string | null;
+            groupKey: string;
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            monitorId: number;
+            monitorName: string;
+            recipient: string;
+            /** Format: int64 */
+            sentAt?: number | null;
+            /** @description pending | sent | failed | unknown_recipient */
+            status: string;
+            toStatus: string;
         };
         Dependencies: {
             downstream: components["schemas"]["Dependency"][];
@@ -2610,10 +3206,6 @@ export interface components {
         };
         /** @enum {string} */
         DowntimeStatus: "active" | "scheduled" | "ended" | "canceled";
-        EmptyPage: {
-            items: Record<string, never>[];
-            total: number;
-        };
         /** @description JSON error body returned by every endpoint. */
         ErrorBody: {
             error: string;
@@ -2622,6 +3214,17 @@ export interface components {
             env?: string | null;
             range: components["schemas"]["TimeRange"];
             service?: string | null;
+        };
+        ExclusionFilter: {
+            enabled: boolean;
+            name: string;
+            /** @description Logs matching this search are excluded… */
+            query: string;
+            /**
+             * Format: double
+             * @description …at this rate (0–100 %).
+             */
+            sampleRate: number;
         };
         ExplorerSpan: {
             /** @description `db.system` of client database spans (mongodb, postgresql, redis, …). */
@@ -2753,6 +3356,35 @@ export interface components {
              */
             t: number;
         };
+        HostContainer: {
+            /**
+             * Format: double
+             * @description CPU use as a share of the node's cores.
+             */
+            cpuPct?: number | null;
+            image: string;
+            /**
+             * Format: double
+             * @description Container memory limit, else the node's allocatable memory.
+             */
+            memLimitBytes?: number | null;
+            name: string;
+            pod: string;
+            /**
+             * Format: double
+             * @description Working set.
+             */
+            rssBytes?: number | null;
+            /** Format: int64 */
+            startedAt?: number | null;
+            status: components["schemas"]["HostContainerStatus"];
+        };
+        HostContainerPage: {
+            items: components["schemas"]["HostContainer"][];
+            total: number;
+        };
+        /** @enum {string} */
+        HostContainerStatus: "UP" | "WAITING" | "EXITED";
         HostDetail: components["schemas"]["HostSummary"] & {
             account?: string | null;
             /** @description Collector config applied to this host, when the collector reports it. */
@@ -2808,6 +3440,28 @@ export interface components {
             limit: number;
             offset: number;
             query?: string;
+        };
+        HostPod: {
+            /** Format: double */
+            ageSec?: number | null;
+            cluster: string;
+            /** Format: double */
+            cpuPctOfLimit?: number | null;
+            health: components["schemas"]["KubeHealth"];
+            /** Format: double */
+            memPctOfLimit?: number | null;
+            name: string;
+            namespace: string;
+            ready: string;
+            /** Format: int32 */
+            restarts: number;
+            /** @description As `kubectl get pods` prints it: Running, CrashLoopBackOff, Completed, … */
+            status: string;
+            uid: string;
+        };
+        HostPodPage: {
+            items: components["schemas"]["HostPod"][];
+            total: number;
         };
         HostRequest: {
             range: components["schemas"]["TimeRange"];
@@ -2959,6 +3613,64 @@ export interface components {
             test: boolean;
             title: string;
         };
+        IngestKey: {
+            /** Format: int64 */
+            createdAt: number;
+            createdBy?: string | null;
+            id: string;
+            /** Format: int64 */
+            lastUsedAt?: number | null;
+            name: string;
+            prefix: string;
+        };
+        InstanceAuditEvent: {
+            action: string;
+            actor: string;
+            /** Format: int64 */
+            createdAt: number;
+            detail: string;
+            /** Format: int64 */
+            id: number;
+            ip?: string | null;
+            target: string;
+        };
+        InstanceOrg: {
+            admins: string[];
+            /** Format: int64 */
+            createdAt: number;
+            id: string;
+            /**
+             * Format: int64
+             * @description Logs received in the last 24 hours.
+             */
+            logs24h: number;
+            /** Format: int32 */
+            maxIndexes: number;
+            /**
+             * Format: int32
+             * @description What the org may configure (see PATCH …/limits).
+             */
+            maxLogRetentionDays: number;
+            /** Format: int32 */
+            maxSpanRetentionDays: number;
+            /** Format: int64 */
+            members: number;
+            name: string;
+            /** @description The install's own organization (home of the instance admins); can't be suspended or deleted. */
+            primary: boolean;
+            /**
+             * Format: int64
+             * @description Spans received in the last 24 hours.
+             */
+            spans24h: number;
+            /** @description active | suspended */
+            status: string;
+        };
+        InstanceOrgPatch: {
+            name?: string | null;
+            /** @description active | suspended */
+            status?: string | null;
+        };
         Invitation: {
             email: string;
             id: string;
@@ -2968,6 +3680,218 @@ export interface components {
         InviteRequest: {
             emails: string[];
             roleIds?: string[];
+        };
+        KubeContainer: {
+            cpu: components["schemas"]["KubeUtilization"];
+            image: string;
+            init: boolean;
+            memory: components["schemas"]["KubeUtilization"];
+            name: string;
+            ready: boolean;
+            /** @description CrashLoopBackOff, OOMKilled, Completed, … */
+            reason?: string | null;
+            /** Format: int32 */
+            restarts: number;
+            /** Format: int64 */
+            startedAt?: number | null;
+            /** @description running / waiting / terminated */
+            state: string;
+        };
+        KubeDetail: {
+            events: components["schemas"]["KubeEvent"][];
+            /** @description The object as the API server returned it, without `managedFields`. */
+            manifest: Record<string, never>;
+            /** @description Owners up the chain, then pods, services and other objects related to this one. */
+            related: components["schemas"]["KubeResource"][];
+            resource: components["schemas"]["KubeResource"];
+        };
+        KubeEvent: {
+            /** Format: int32 */
+            count: number;
+            /** @description Normal / Warning */
+            eventType: string;
+            message: string;
+            objectKind: string;
+            objectName: string;
+            reason: string;
+            /** Format: int64 */
+            timestamp: number;
+        };
+        KubeFacet: {
+            key: string;
+            values: components["schemas"]["KubeFacetValue"][];
+        };
+        KubeFacetValue: {
+            count: number;
+            value: string;
+        };
+        KubeGroup: {
+            count: number;
+            cpu: components["schemas"]["KubeUtilization"];
+            /** @description Every member sets CPU (memory) requests and limits. Datadog shows no utilization for a
+             *     group with a container that lacks them. */
+            cpuComplete: boolean;
+            /** @description The group's values joined with ", " (one per group-by key). */
+            key: string;
+            memory: components["schemas"]["KubeUtilization"];
+            memoryComplete: boolean;
+            /** @description The group's value for each group-by key, in order. */
+            values: string[];
+        };
+        /**
+         * @description Status colour, as in Datadog's status pills.
+         * @enum {string}
+         */
+        KubeHealth: "ok" | "warning" | "error" | "info";
+        /**
+         * @description The resource types of the explorer's "Select Resources" menu.
+         * @enum {string}
+         */
+        KubeKind: "clusters" | "nodes" | "namespaces" | "pods" | "deployments" | "replicasets" | "daemonsets" | "statefulsets" | "jobs" | "cronjobs" | "services" | "ingresses" | "persistentvolumeclaims" | "persistentvolumes" | "horizontalpodautoscalers" | "networkpolicies" | "poddisruptionbudgets" | "limitranges" | "resourcequotas" | "serviceaccounts" | "roles" | "rolebindings" | "clusterroles" | "clusterrolebindings" | "storageclasses" | "customresourcedefinitions" | "containers" | "container_images" | "ecs_tasks" | "ecs_task_definitions" | "ecs_services" | "ecs_clusters";
+        KubeKindCount: {
+            count: number;
+            kind: components["schemas"]["KubeKind"];
+        };
+        KubeObjectRef: {
+            kind: string;
+            name: string;
+            uid: string;
+        };
+        /** @description One row of the explorer. Kind-specific columns are null for other kinds. */
+        KubeResource: {
+            accessModes?: string | null;
+            /** Format: int32 */
+            active?: number | null;
+            annotations: {
+                [key: string]: string;
+            };
+            /** Format: int32 */
+            available?: number | null;
+            capacity?: string | null;
+            cluster: string;
+            clusterIp?: string | null;
+            /** @description Jobs: "1/1" succeeded / completions, and run time in seconds. */
+            completions?: string | null;
+            containers: components["schemas"]["KubeContainer"][];
+            cpu?: null | components["schemas"]["KubeUtilization"];
+            /** Format: double */
+            cpuReservation?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            createdAt?: number | null;
+            /** Format: int32 */
+            current?: number | null;
+            /** Format: int32 */
+            desired?: number | null;
+            /** Format: double */
+            durationSec?: number | null;
+            external?: string | null;
+            health: components["schemas"]["KubeHealth"];
+            hosts?: string | null;
+            /** @description Container images: tag and containers running it. */
+            imageTag?: string | null;
+            images: string[];
+            ingressClass?: string | null;
+            instanceType?: string | null;
+            ip?: string | null;
+            kind?: null | components["schemas"]["KubeKind"];
+            labels: {
+                [key: string]: string;
+            };
+            /** Format: int64 */
+            lastSchedule?: number | null;
+            /** Format: int64 */
+            lastSeen: number;
+            launchType?: string | null;
+            memory?: null | components["schemas"]["KubeUtilization"];
+            /** Format: double */
+            memoryReservation?: number | null;
+            name: string;
+            namespace?: string | null;
+            node?: string | null;
+            /** Format: int32 */
+            nodes?: number | null;
+            osImage?: string | null;
+            owner?: null | components["schemas"]["KubeObjectRef"];
+            /** Format: int32 */
+            pods?: number | null;
+            ports?: string | null;
+            qos?: string | null;
+            /** @description "1/2" containers (pods), replicas (workloads) or nodes (daemonsets). */
+            ready?: string | null;
+            replicasRange?: string | null;
+            /** Format: int32 */
+            restarts?: number | null;
+            roles?: string | null;
+            /** Format: int32 */
+            runningContainers?: number | null;
+            runtime?: string | null;
+            /** @description CronJobs. */
+            schedule?: string | null;
+            selector?: string | null;
+            /** @description Services: type, cluster IP, external address, "80/TCP,443/TCP". */
+            serviceType?: string | null;
+            /** Format: int32 */
+            services?: number | null;
+            status: string;
+            /** @description Storage. */
+            storageClass?: string | null;
+            suspend?: boolean | null;
+            /** @description Datadog tags (`kube_namespace:shop`, `kube_deployment:checkout`, …) followed by labels. */
+            tags: string[];
+            /** @description HPAs and ingresses: scale target or backend, "min-max", hosts. */
+            target?: string | null;
+            /** @description ECS: `family:revision`, `fargate` / `ec2`, HEALTHY / UNHEALTHY / UNKNOWN, reservations
+             *     (vCPU, bytes), and task / service counts. */
+            taskDefinition?: string | null;
+            taskHealth?: string | null;
+            /** Format: int32 */
+            tasks?: number | null;
+            uid: string;
+            /** Format: int32 */
+            upToDate?: number | null;
+            /** @description Nodes and clusters. */
+            version?: string | null;
+            volume?: string | null;
+            zone?: string | null;
+        };
+        KubeSearchPage: {
+            facets: components["schemas"]["KubeFacet"][];
+            groups?: components["schemas"]["KubeGroup"][] | null;
+            items: components["schemas"]["KubeResource"][];
+            /** @description Objects of each kind matching the query. */
+            kinds: components["schemas"]["KubeKindCount"][];
+            /** @description Every tag key seen on this kind, for the group-by menu. */
+            tagKeys: string[];
+            total: number;
+        };
+        KubeSearchRequest: {
+            desc?: boolean;
+            /** @description Tag keys, comma-separated (`kube_namespace`, `kube_cluster_name,kube_namespace,kube_deployment`, a label key, …). */
+            groupBy?: string | null;
+            kind: components["schemas"]["KubeKind"];
+            limit: number;
+            offset?: number;
+            /** @description `kube_namespace:shop status:crashloopbackoff app:checkout` + free text on the name. */
+            query?: string;
+            /** @description Column to sort by: name, status, age, restarts, cpu, memory, namespace, cluster, node, …. */
+            sort?: string | null;
+        };
+        /** @description CPU in cores or memory in bytes. `usage` is the 15-minute average. */
+        KubeUtilization: {
+            /**
+             * Format: double
+             * @description Allocatable capacity (nodes and clusters).
+             */
+            capacity?: number | null;
+            /** Format: double */
+            limits?: number | null;
+            /** Format: double */
+            requests?: number | null;
+            /** Format: double */
+            usage?: number | null;
         };
         KubernetesInfo: {
             cluster: string;
@@ -2982,6 +3906,9 @@ export interface components {
         LayoutType: "grid" | "auto" | "free";
         LinkInfo: {
             email: string;
+            /** @description The email already has an ObserveCraft password (e.g. from another organization): an invite is
+             *     accepted by entering it, not by choosing a new one. */
+            existingAccount: boolean;
             name: string;
             orgName: string;
             /** @description invite | reset | bootstrap */
@@ -3004,6 +3931,37 @@ export interface components {
              */
             matchedPerSec: number;
         };
+        LogArchive: {
+            accessKey: string;
+            bucket: string;
+            /** Format: int64 */
+            bytes: number;
+            /** Format: int64 */
+            createdAt: number;
+            enabled: boolean;
+            endpoint: string;
+            /**
+             * Format: int64
+             * @description Archived hours (with or without logs).
+             */
+            hoursDone: number;
+            /** Format: int64 */
+            hoursFailed: number;
+            id: string;
+            lastError?: string | null;
+            /**
+             * Format: int64
+             * @description Newest archived hour (epoch ms).
+             */
+            lastHour?: number | null;
+            name: string;
+            pathStyle: boolean;
+            prefix: string;
+            query: string;
+            region: string;
+            /** Format: int64 */
+            rows: number;
+        };
         LogEvent: {
             attributes: Record<string, never>;
             host: string;
@@ -3011,6 +3969,7 @@ export interface components {
             message: string;
             service: string;
             source: string;
+            spanId?: string | null;
             status: string;
             tags: {
                 [key: string]: string;
@@ -3020,6 +3979,50 @@ export interface components {
              * @description Epoch milliseconds.
              */
             timestamp: number;
+            /** @description Trace the log was written in (OTLP logs, or `trace_id` in JSON logs); links to APM. */
+            traceId?: string | null;
+        };
+        LogIndex: {
+            /** Format: int64 */
+            dailyQuota?: number | null;
+            exclusionFilters: components["schemas"]["ExclusionFilter"][];
+            filter: string;
+            id: string;
+            /**
+             * Format: int64
+             * @description Logs indexed since the current quota day started.
+             */
+            indexedToday: number;
+            name: string;
+            /** Format: int32 */
+            position: number;
+            /** Format: int32 */
+            quotaResetHour: number;
+            /** Format: int32 */
+            retentionDays: number;
+        };
+        LogIndexInput: {
+            /** Format: int64 */
+            dailyQuota?: number | null;
+            exclusionFilters?: components["schemas"]["ExclusionFilter"][];
+            filter?: string;
+            name: string;
+            /** Format: int32 */
+            quotaResetHour?: number;
+            /** Format: int32 */
+            retentionDays: number;
+        };
+        LogIndexes: {
+            indexes: components["schemas"]["LogIndex"][];
+            /**
+             * Format: int64
+             * @description Logs received since 00:00 UTC, indexed or not.
+             */
+            ingestedToday: number;
+            /** Format: int32 */
+            maxIndexes: number;
+            /** Format: int32 */
+            maxRetentionDays: number;
         };
         LogInsight: {
             attribute: string;
@@ -3081,6 +4084,8 @@ export interface components {
         };
         MetricCatalogEntry: {
             description: string;
+            /** @description gauge | sum | histogram | exponential_histogram | summary | span (computed from traces) */
+            kind: string;
             name: string;
             tags: string[];
             unit?: string | null;
@@ -3268,6 +4273,7 @@ export interface components {
             options: components["schemas"]["MonitorOptions"];
             query: string;
             range: components["schemas"]["TimeRange"];
+            type?: null | components["schemas"]["MonitorType"];
         };
         MonitorQuality: {
             creators: components["schemas"]["MemberRef"][];
@@ -3360,7 +4366,13 @@ export interface components {
             query?: string;
         };
         /** @enum {string} */
-        MonitorType: "metric" | "apm";
+        MonitorType: "metric" | "apm" | "log";
+        MyOrg: {
+            current: boolean;
+            id: string;
+            isAdmin: boolean;
+            name: string;
+        };
         NoteRequest: {
             body: string;
         };
@@ -3375,6 +4387,18 @@ export interface components {
             recipients: string[];
             subject: string;
         };
+        NotificationChannel: {
+            /** Format: int64 */
+            createdAt: number;
+            /** @description Mention it as `@<handle>` in a monitor message. */
+            handle: string;
+            id: string;
+            /** @description webhook | slack */
+            kind: string;
+            signed: boolean;
+            /** @description Host of the URL (the full URL is a credential and never returned). */
+            target: string;
+        };
         OidcStatus: {
             buttonLabel: string;
             clientId?: string | null;
@@ -3382,6 +4406,43 @@ export interface components {
             groupsClaim: string;
             hasClientSecret: boolean;
             issuer?: string | null;
+        };
+        OrgDataSettings: {
+            /** Format: int32 */
+            ciRetentionDays: number;
+            /** Format: int32 */
+            maxIndexes: number;
+            /** Format: int32 */
+            maxLogRetentionDays: number;
+            /**
+             * Format: int32
+             * @description Ceilings set by the instance admin.
+             */
+            maxSpanRetentionDays: number;
+            /**
+             * Format: int32
+             * @description Install-wide (not per org): metric and CI retention, raw-log window feeding archives.
+             */
+            metricsRetentionDays: number;
+            /** Format: int32 */
+            rawLogsHours: number;
+            /**
+             * Format: int32
+             * @description Days the org's spans are kept.
+             */
+            spanRetentionDays: number;
+        };
+        OrgDataSettingsPatch: {
+            /** Format: int32 */
+            spanRetentionDays: number;
+        };
+        OrgLimits: {
+            /** Format: int32 */
+            maxIndexes: number;
+            /** Format: int32 */
+            maxLogRetentionDays: number;
+            /** Format: int32 */
+            maxSpanRetentionDays: number;
         };
         OrgRef: {
             id: string;
@@ -3465,6 +4526,8 @@ export interface components {
         /** @enum {string} */
         Product: "apm" | "infra" | "logs" | "processes";
         Profile: components["schemas"]["UserSummary"] & {
+            /** @description May create and manage organizations (Instance Admin). */
+            isInstanceAdmin: boolean;
             org: components["schemas"]["OrgRef"];
             teams: components["schemas"]["TeamRef"][];
             timezone?: string | null;
@@ -3526,6 +4589,41 @@ export interface components {
         RecommendationKind: "repeated_sequential_calls" | "high_error_rate" | "slow_endpoint";
         /** @enum {string} */
         Recurrence: "daily" | "weekly";
+        RehydrateRequest: {
+            archiveId: string;
+            name: string;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /**
+             * Format: int64
+             * @description Days the rehydrated logs stay searchable (1–30). Default 7.
+             */
+            retentionDays?: number | null;
+        };
+        Rehydration: {
+            archiveId: string;
+            archiveName: string;
+            /** Format: int64 */
+            createdAt: number;
+            error?: string | null;
+            /** Format: int64 */
+            expiresAt: number;
+            /** Format: int64 */
+            from: number;
+            id: string;
+            name: string;
+            query: string;
+            /** Format: int64 */
+            rows: number;
+            /** @description running | done | failed | expired */
+            status: string;
+            /** Format: int64 */
+            to: number;
+        };
+        ReorderIndexes: {
+            /** @description Every index id, in routing order. */
+            ids: string[];
+        };
         ResourceStats: {
             /** Format: double */
             errorRate: number;
@@ -3695,6 +4793,8 @@ export interface components {
             /** Format: int64 */
             lastSeenAt: number;
             method: string;
+            /** @description Organization the session is acting in. */
+            orgId: string;
             userAgent?: string | null;
         };
         /** @enum {string} */
@@ -3875,6 +4975,9 @@ export interface components {
             partial?: string;
             range: components["schemas"]["TimeRange"];
         };
+        SwitchOrgRequest: {
+            org: string;
+        };
         Team: {
             createdVia: string;
             description: string;
@@ -3931,6 +5034,26 @@ export interface components {
             name: string;
             /** @description Tag key the variable filters on. */
             prefix: string;
+        };
+        TestDelivery: {
+            error?: string | null;
+            recipient: string;
+            /** @description sent | failed | unknown_recipient */
+            status: string;
+        };
+        TestNotification: {
+            /** @description The rendered message; its `@handles` are the recipients. */
+            message: string;
+            /**
+             * Format: int64
+             * @description Monitor (for its link, name, tags); absent while creating one.
+             */
+            monitorId?: number | null;
+            monitorName: string;
+            /** @description alert | warn | ok | nodata */
+            status: string;
+            /** Format: double */
+            value?: number | null;
         };
         Thresholds: {
             /** Format: double */
@@ -5557,7 +6680,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmptyPage"];
+                    "application/json": components["schemas"]["HostContainerPage"];
                 };
             };
         };
@@ -5607,7 +6730,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmptyPage"];
+                    "application/json": components["schemas"]["HostPodPage"];
                 };
             };
         };
@@ -6267,6 +7390,473 @@ export interface operations {
             };
         };
     };
+    list_ingest_keys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestKey"][];
+                };
+            };
+        };
+    };
+    create_ingest_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateIngestKey"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedIngestKey"];
+                };
+            };
+        };
+    };
+    revoke_ingest_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    instance_audit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstanceAuditEvent"][];
+                };
+            };
+        };
+    };
+    instance_list_orgs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstanceOrg"][];
+                };
+            };
+        };
+    };
+    instance_create_org: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOrgRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedOrg"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    instance_delete_org: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteOrgRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    instance_update_org: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstanceOrgPatch"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    instance_update_org_limits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrgLimits"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_archive_searches: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveSearch"][];
+                };
+            };
+        };
+    };
+    create_archive_search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArchiveSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveSearch"];
+                };
+            };
+        };
+    };
+    get_archive_search: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number | null;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveSearchDetail"];
+                };
+            };
+        };
+    };
+    delete_archive_search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_log_archives: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogArchive"][];
+                };
+            };
+        };
+    };
+    create_log_archive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateArchive"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogArchive"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    test_log_archive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArchiveTarget"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveTestResult"];
+                };
+            };
+        };
+    };
+    delete_log_archive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_log_archive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArchivePatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogArchive"];
+                };
+            };
+        };
+    };
+    run_log_archive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveNowResult"];
+                };
+            };
+        };
+    };
+    log_archive_runs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveRun"][];
+                };
+            };
+        };
+    };
     facets: {
         parameters: {
             query?: never;
@@ -6313,6 +7903,113 @@ export interface operations {
             };
         };
     };
+    list_log_indexes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogIndexes"];
+                };
+            };
+        };
+    };
+    create_log_index: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogIndexInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogIndex"];
+                };
+            };
+        };
+    };
+    reorder_log_indexes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReorderIndexes"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_log_index: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogIndexInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogIndex"];
+                };
+            };
+        };
+    };
+    delete_log_index: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     insights: {
         parameters: {
             query?: never;
@@ -6356,6 +8053,67 @@ export interface operations {
                 content: {
                     "text/event-stream": unknown;
                 };
+            };
+        };
+    };
+    list_rehydrations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Rehydration"][];
+                };
+            };
+        };
+    };
+    create_rehydration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RehydrateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Rehydration"];
+                };
+            };
+        };
+    };
+    expire_rehydration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -6618,6 +8376,25 @@ export interface operations {
             };
         };
     };
+    my_orgs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyOrg"][];
+                };
+            };
+        };
+    };
     change_password: {
         parameters: {
             query?: never;
@@ -6703,6 +8480,35 @@ export interface operations {
                 content?: never;
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    switch_org: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SwitchOrgRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6869,6 +8675,29 @@ export interface operations {
             };
         };
     };
+    test_monitor_notification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestNotification"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestDelivery"][];
+                };
+            };
+        };
+    };
     triggered: {
         parameters: {
             query?: never;
@@ -6980,6 +8809,180 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MonitorHistory"];
+                };
+            };
+        };
+    };
+    list_notification_channels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationChannel"][];
+                };
+            };
+        };
+    };
+    create_notification_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateChannel"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationChannel"];
+                };
+            };
+        };
+    };
+    delete_notification_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_notification_deliveries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Delivery"][];
+                };
+            };
+        };
+    };
+    get_orchestration_resource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KubeDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_orchestration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KubeSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KubeSearchPage"];
+                };
+            };
+        };
+    };
+    get_org_data_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgDataSettings"];
+                };
+            };
+        };
+    };
+    update_org_data_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrgDataSettingsPatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgDataSettings"];
                 };
             };
         };

@@ -39,7 +39,7 @@ export function TimeseriesWidget({ def }: { def: Def<'timeseries'> }) {
       tooltip: { trigger: 'axis', confine: true, order: 'valueDesc' },
       legend: showLegend ? { type: 'scroll', bottom: 0, left: 0, right: 0, formatter: (n: string) => (n.length > 32 ? `${n.slice(0, 32)}…` : n) } : undefined,
       xAxis: { type: 'time', axisLabel: { formatter: (v: number) => axisLabel(v, span) } },
-      yAxis: { type: 'value', max: def.yMax, axisLabel: { formatter: (v: number) => formatValue(v, 1) } },
+      yAxis: { type: 'value', max: def.yMax, axisLabel: { formatter: (v: number) => formatValue(v, Math.abs(v) < 1 ? 3 : 1) } },
       series: series.map((s, i) => ({
         name: def.requests.length > 1 && def.requests[i]?.alias ? def.requests[i].alias : s.name,
         type: def.display === 'bars' ? 'bar' : 'line',

@@ -8,9 +8,11 @@
 //! About every 90s it also sends a CI/CD pipeline run (see `ci`); on first start it backfills a week
 //! of pipeline history when ClickHouse has none.
 //!
-//! Env: OTLP_ENDPOINT (default http://localhost:4318), TRACES_PER_SEC (default 20),
+//! Also writes OTLP logs inside the traces (one per request handled, one per error) for log ↔ trace links.
+//! Env: OTLP_ENDPOINT (default http://localhost:4318, the intake), OC_INGEST_KEY (ingest API key), TRACES_PER_SEC (default 20),
 //! CLICKHOUSE_HTTP (default http://localhost:8123), CLICKHOUSE_USER / CLICKHOUSE_PASSWORD (observecraft).
 
+mod appmetrics;
 mod ci;
 mod hosts;
 
@@ -298,6 +300,49 @@ fn build_trace(rng: &mut Rng) -> Vec<Span> {
     spans
 }
 
+/// Application logs written inside the traces (OTLP logs with trace and span ids), so logs and APM
+/// link both ways: one per request handled (server / consumer spans) and one per error.
+fn otlp_logs(spans: &[Span]) -> Value {
+    use std::collections::BTreeMap;
+    let mut by_service: BTreeMap<&str, (&Svc, Vec<Value>)> = BTreeMap::new();
+    for s in spans {
+        let entry = s.kind == 2 || s.kind == 5;
+        if !entry && s.error.is_none() {
+            continue;
+        }
+        let ms = (s.end - s.start) as f64 / 1e6;
+        let (severity, number, body) = match &s.error {
+            Some((ty, msg)) => ("ERROR", 17, format!("{} failed: {ty}: {msg}", s.name)),
+            None => ("INFO", 9, format!("{} handled in {ms:.1} ms", s.name)),
+        };
+        let record = json!({
+            "timeUnixNano": s.end.to_string(),
+            "observedTimeUnixNano": s.end.to_string(),
+            "severityText": severity,
+            "severityNumber": number,
+            "body": { "stringValue": body },
+            "traceId": s.trace_id,
+            "spanId": s.span_id,
+            "attributes": attrs_json(&[("code.function".into(), json!(format!("{}.handler", s.svc.name))), ("duration_ms".into(), json!(ms))]),
+        });
+        by_service.entry(s.svc.name).or_insert((s.svc, Vec::new())).1.push(record);
+    }
+    let resource_logs: Vec<Value> = by_service
+        .into_values()
+        .map(|(svc, records)| {
+            json!({
+                "resource": { "attributes": attrs_json(&[
+                    ("service.name".into(), json!(svc.name)),
+                    ("service.version".into(), json!(version(svc))),
+                    ("host.name".into(), json!(svc.host)),
+                ]) },
+                "scopeLogs": [{ "scope": { "name": "oc-tracegen" }, "logRecords": records }],
+            })
+        })
+        .collect();
+    json!({ "resourceLogs": resource_logs })
+}
+
 fn otlp_payload(spans: Vec<Span>) -> Value {
     use std::collections::BTreeMap;
     let mut by_service: BTreeMap<&str, (&Svc, Vec<Value>, &str)> = BTreeMap::new();
@@ -358,7 +403,14 @@ async fn main() -> anyhow::Result<()> {
     let per_sec: u64 = std::env::var("TRACES_PER_SEC").ok().and_then(|s| s.parse().ok()).unwrap_or(20);
     let url = format!("{endpoint}/v1/traces");
     let metrics_url = format!("{endpoint}/v1/metrics");
-    let http = reqwest::Client::builder().timeout(Duration::from_secs(5)).build()?;
+    let logs_url = format!("{endpoint}/v1/logs");
+    let mut headers = reqwest::header::HeaderMap::new();
+    if let Ok(key) = std::env::var("OC_INGEST_KEY") {
+        headers.insert(reqwest::header::AUTHORIZATION, format!("Bearer {key}").parse()?);
+    } else {
+        tracing::warn!("OC_INGEST_KEY is not set: the intake will reject the data");
+    }
+    let http = reqwest::Client::builder().timeout(Duration::from_secs(5)).default_headers(headers).build()?;
     let mut rng = Rng(now_ns() | 1);
     tracing::info!(%url, per_sec, "oc-tracegen started");
 
@@ -367,6 +419,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let mut host_state = hosts::initial_state(&mut rng, now_ns());
+    let mut app_metrics = appmetrics::AppMetrics::new(now_ns());
     let mut tick = tokio::time::interval(Duration::from_secs(1));
     let mut seconds = 0u64;
     loop {
@@ -376,6 +429,10 @@ async fn main() -> anyhow::Result<()> {
             if let Err(e) = http.post(&metrics_url).json(&payload).send().await.and_then(|r| r.error_for_status()) {
                 tracing::warn!(error = %e, "metrics export failed");
             }
+            let payload = app_metrics.payload(&mut rng, now_ns());
+            if let Err(e) = http.post(&metrics_url).json(&payload).send().await.and_then(|r| r.error_for_status()) {
+                tracing::warn!(error = %e, "application metrics export failed");
+            }
         }
         if seconds % 90 == 45 {
             send_ci(&http, &url, ci_push_ending_now(&mut rng)).await;
@@ -384,6 +441,18 @@ async fn main() -> anyhow::Result<()> {
         let n = rng.range(per_sec * 7 / 10, per_sec * 13 / 10 + 1);
         let spans: Vec<Span> = (0..n).flat_map(|_| build_trace(&mut rng)).collect();
         let count = spans.len();
+        let logs = otlp_logs(&spans);
+        for s in &spans {
+            let secs = (s.end - s.start) as f64 / 1e9;
+            match s.kind {
+                2 => app_metrics.observe_http(s.svc.name, s.svc.host, &s.name, secs),
+                5 => app_metrics.observe_messaging(s.svc.name, s.svc.host, secs),
+                _ => {}
+            }
+        }
+        if let Err(e) = http.post(&logs_url).json(&logs).send().await.and_then(|r| r.error_for_status()) {
+            tracing::warn!(error = %e, "logs export failed");
+        }
         match http.post(&url).json(&otlp_payload(spans)).send().await {
             Ok(r) if r.status().is_success() => tracing::debug!(traces = n, spans = count, "sent"),
             Ok(r) => tracing::warn!(status = %r.status(), "collector rejected batch"),

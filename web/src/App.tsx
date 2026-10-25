@@ -1,3 +1,14 @@
+import { IndexesPage } from './pages/logs/IndexesPage';
+import { DataRetentionPage } from './pages/settings/DataRetentionPage';
+import { MonitorSettingsPage } from './pages/monitors/MonitorSettingsPage';
+import { ArchiveSearchPage } from './pages/logs/ArchiveSearchPage';
+import { ArchivesPage } from './pages/logs/ArchivesPage';
+import { RehydrationsPage } from './pages/logs/RehydrationsPage';
+import { MetricsLayout } from './pages/metrics/MetricsLayout';
+import { MetricsExplorer } from './pages/metrics/MetricsExplorer';
+import { MetricsSummary } from './pages/metrics/MetricsSummary';
+import { ApiKeysPage } from './pages/settings/ApiKeysPage';
+import { InstanceOrgsPage } from './pages/instance/InstanceOrgsPage';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { PageHeader } from './components/shell/PageHeader';
 import { Sidebar, useNavMode } from './components/shell/Sidebar';
@@ -40,6 +51,9 @@ import { DashboardPage } from './pages/dashboards/view/DashboardPage';
 import { ErrorTrackingLayout } from './pages/errors/ErrorTrackingLayout';
 import { IssuesPage } from './pages/errors/IssuesPage';
 import { HostsPage } from './pages/infrastructure/HostsPage';
+import { KubernetesOverview } from './pages/kubernetes/KubernetesOverview';
+import { KubernetesComingSoon } from './pages/kubernetes/KubernetesComingSoon';
+import { OrchestrationExplorer } from './pages/kubernetes/OrchestrationExplorer';
 import { CatalogPage } from './pages/integrations/CatalogPage';
 import { IntegrationsComingSoon, IntegrationsLayout } from './pages/integrations/IntegrationsLayout';
 import { MarketplacePage } from './pages/integrations/MarketplacePage';
@@ -75,10 +89,13 @@ function Shell() {
               <Route index element={<LogExplorer />} />
               <Route path="livetail" element={<LiveTail />} />
               <Route path="notebooks" element={<LogsComingSoon title="Notebooks" />} />
-              <Route path="archive-search" element={<LogsComingSoon title="Archive Search" />} />
+              <Route path="archive-search" element={<ArchiveSearchPage />} />
             </Route>
             <Route element={<LogsConfigLayout />}>
-              {LOGS_CONFIG_SLUGS.map((slug) => (
+              <Route path="/logs/archives" element={<ArchivesPage />} />
+              <Route path="/logs/indexes" element={<IndexesPage />} />
+              <Route path="/logs/rehydrations" element={<RehydrationsPage />} />
+              {LOGS_CONFIG_SLUGS.filter((slug) => !['archives', 'rehydrations', 'indexes'].includes(slug)).map((slug) => (
                 <Route key={slug} path={`/logs/${slug}`} element={<LogsConfigComingSoon />} />
               ))}
             </Route>
@@ -102,6 +119,11 @@ function Shell() {
               <Route path="settings" element={<ApmComingSoon title="APM Settings" />} />
             </Route>
             <Route path="/infrastructure" element={<HostsPage />} />
+            <Route path="/kubernetes" element={<KubernetesOverview />} />
+            <Route path="/orchestration/explorer" element={<OrchestrationExplorer />} />
+            <Route path="/kubernetes/autoscaling" element={<KubernetesComingSoon tab="Autoscaling" />} />
+            <Route path="/kubernetes/remediation" element={<KubernetesComingSoon tab="Remediation" />} />
+            <Route path="/kubernetes/rollouts" element={<KubernetesComingSoon tab="Live Rollouts" />} />
             <Route path="/dashboards" element={<DashboardListPage />} />
             <Route path="/dashboards/shared" element={<SharedDashboardsPage />} />
             <Route path="/dashboards/:id" element={<DashboardPage />} />
@@ -125,15 +147,23 @@ function Shell() {
             <Route path="/monitors/create" element={<NewMonitorPage />} />
             <Route path="/monitors/create/:type" element={<MonitorEditor />} />
             <Route path="/monitors/templates" element={<TemplatesPage />} />
+            <Route path="/monitors/settings" element={<MonitorSettingsPage />} />
             <Route path="/monitors/:id" element={<MonitorStatusPage />} />
             <Route path="/monitors/:id/edit" element={<MonitorEditor />} />
             <Route path="/incidents" element={<IncidentsPage />} />
             <Route path="/incidents/:id" element={<IncidentPage />} />
             <Route path="/account/profile" element={<PersonalSettings />} />
             <Route path="/teams" element={<TeamsPage />} />
+            <Route path="/metrics" element={<MetricsLayout />}>
+              <Route index element={<MetricsExplorer />} />
+              <Route path="summary" element={<MetricsSummary />} />
+            </Route>
+            <Route path="/instance/orgs" element={<InstanceOrgsPage />} />
             <Route path="/organization-settings" element={<OrgSettingsLayout />}>
               <Route index element={<Navigate to="users" replace />} />
               <Route path="users" element={<UsersPage />} />
+              <Route path="api-keys" element={<ApiKeysPage />} />
+              <Route path="data-retention" element={<DataRetentionPage />} />
               <Route path="saml-mappings" element={<SamlMappingsPage />} />
               <Route path="roles" element={<RolesPage />} />
               <Route path="login-methods" element={<LoginMethodsPage />} />

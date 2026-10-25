@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { EChartsOption } from 'echarts';
 import { AlertCircle, ChevronDown, ChevronRight, Clock, Info, Pin, PinOff } from 'lucide-react';
 import type { TraceDetail, TraceSpan } from '../../../api/apm/client';
-import { serviceLogs } from '../../../api/apm/client';
+import { serviceLogs, traceLogs } from '../../../api/apm/client';
 import { queryTimeseries } from '../../../api/dashboards/client';
 import { getHostMetrics, listProcesses } from '../../../api/infrastructure/client';
 import { Chart } from '../../../components/charts/Chart';
@@ -84,7 +84,7 @@ export function SpanPanel({ span, trace }: { span: TraceSpan; trace: TraceDetail
         {tab === 'errors' && <Errors span={span} />}
         {tab === 'infrastructure' && (host ? <Infrastructure host={host} range={around} at={at} /> : <p className="muted">This span has no host.name, so there are no host metrics to show.</p>)}
         {tab === 'metrics' && <ServiceMetrics service={span.service} range={around} at={at} />}
-        {tab === 'logs' && <Logs service={span.service} at={at} />}
+        {tab === 'logs' && <Logs service={span.service} traceId={trace.traceId} spanId={span.spanId} at={at} />}
         {tab === 'processes' && (host ? <Processes host={host} /> : <p className="muted">This span has no host.name.</p>)}
       </div>
     </section>
@@ -314,21 +314,40 @@ function ServiceMetrics({ service, range, at }: { service: string; range: { from
   );
 }
 
-function Logs({ service, at }: { service: string; at: number }) {
+/** The trace's own logs (matched by trace_id); falls back to the service's logs around the span. */
+function Logs({ service, traceId, spanId, at }: { service: string; traceId: string; spanId: string; at: number }) {
   const range = { from: Math.round(at - 5 * 60_000), to: Math.round(at + 5 * 60_000) };
-  const q = useQuery({ queryKey: ['span-logs', service, range], queryFn: () => serviceLogs(range, service), staleTime: 60_000, retry: 1 });
+  const linked = useQuery({ queryKey: ['trace-logs', traceId], queryFn: () => traceLogs({ from: Math.round(at - 3_600_000), to: Math.round(at + 3_600_000) }, traceId), staleTime: 60_000, retry: 1 });
+  const nearby = useQuery({
+    queryKey: ['span-logs', service, range],
+    queryFn: () => serviceLogs(range, service),
+    staleTime: 60_000,
+    retry: 1,
+    enabled: linked.isSuccess && linked.data.logs.length === 0,
+  });
+  const q = linked.isSuccess && linked.data.logs.length === 0 ? nearby : linked;
   if (q.isPending) return <Loading />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
+  const byTrace = q === linked;
   return (
     <>
-      <p className="muted">Logs from {service} within 5 minutes of the span. (Logs aren't linked by trace id yet, so this is time-correlated.)</p>
+      <p className="muted">
+        {byTrace ? (
+          <>
+            {q.data.logs.length} log{q.data.logs.length === 1 ? '' : 's'} written in this trace; this span's are highlighted.{' '}
+            <a href={`/logs?query=${encodeURIComponent(`trace_id:${traceId}`)}`}>Open in Log Explorer</a>
+          </>
+        ) : (
+          `No logs carry this trace's id, so these are ${service}'s logs within 5 minutes of the span.`
+        )}
+      </p>
       {q.data.logs.length === 0 ? (
         <p className="muted">No logs.</p>
       ) : (
         <table className="sp-logs">
           <tbody>
             {q.data.logs.map((l) => (
-              <tr key={l.id} className={Math.abs(l.timestamp - at) < 1000 ? 'near' : ''}>
+              <tr key={l.id} className={(byTrace ? l.spanId === spanId : Math.abs(l.timestamp - at) < 1000) ? 'near' : ''}>
                 <td className="mono">{new Date(l.timestamp).toLocaleTimeString(undefined, { hour12: false })}</td>
                 <td>
                   <span className={`sp-log-status s-${l.status}`}>{l.status}</span>

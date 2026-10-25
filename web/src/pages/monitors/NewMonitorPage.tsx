@@ -53,7 +53,7 @@ const TYPES: TypeEntry[] = [
     to: '/monitors/create/metric?template=cpu-high',
   },
   { label: 'APM', icon: Activity, to: '/monitors/create/apm' },
-  { label: 'Logs', icon: ScrollText },
+  { label: 'Logs', icon: ScrollText, to: '/monitors/create/log' },
   { label: 'CI & Tests', icon: GitBranch },
   { label: 'Cloud Costs', icon: Cloud },
   { label: 'Composite', icon: Merge },
