@@ -2,11 +2,11 @@
 //! - inventory + identity: resource attributes on `system.cpu.utilization` (any `hostmetrics` source),
 //! - CPU / memory / load / uptime: host metrics,
 //! - service + error spans: service entry spans carrying `host.name`,
-//! - processes: `process.*` metrics; logs: `oc.logs.host`.
+//! - processes: `process.*` metrics; logs: `oc.logs.host`,
+//! - pods and containers: the Kubernetes inventory of the node with the host's name.
 //!
 //! Host lists are small (a fleet, not events), so filtering, grouping and sorting happen in memory
-//! after two aggregate queries. Pods and containers need the k8s/docker receivers, which no collector
-//! sends yet, so those lists are empty rather than invented.
+//! after two aggregate queries.
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -156,7 +156,7 @@ struct SpanHost {
 }
 
 /// All hosts that reported host metrics in `range`, with current (last 5 minutes of range) values.
-async fn load_hosts(st: &AppState, range: TimeRange) -> Result<Vec<HostRow>, ApiError> {
+async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<HostRow>, ApiError> {
     range.validate()?;
     let recent_from = range.from.max(range.to - 5 * 60_000);
     #[derive(clickhouse::Row, Deserialize)]
@@ -167,13 +167,13 @@ async fn load_hosts(st: &AppState, range: TimeRange) -> Result<Vec<HostRow>, Api
         uptime: f64,
     }
     let inventory = st
-        .clickhouse
+        .ch(org)
         .query(
             "SELECT ResourceAttributes['host.name'] AS name, toJSONString(argMax(ResourceAttributes, TimeUnix)) AS res, \
              avgIf(Value, Attributes['state'] = 'idle' AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS idle, \
              avgIf(Value, Attributes['state'] = 'user' AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS user \
              FROM otel.otel_metrics_gauge \
-             WHERE MetricName = 'system.cpu.utilization' AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) AND name != '' \
+             WHERE OrgId = {oc_org:String} AND MetricName = 'system.cpu.utilization' AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) AND name != '' \
              GROUP BY name ORDER BY name LIMIT ?",
         )
         .bind(recent_from)
@@ -183,24 +183,24 @@ async fn load_hosts(st: &AppState, range: TimeRange) -> Result<Vec<HostRow>, Api
         .bind(MAX_HOSTS)
         .fetch_all::<Inventory>();
     let values = st
-        .clickhouse
+        .ch(org)
         .query(
             "SELECT ResourceAttributes['host.name'] AS name, \
              avgIf(Value, MetricName = 'system.memory.utilization' AND Attributes['state'] = 'used') AS mem, \
              avgIf(Value, MetricName = 'system.cpu.load_average.1m') AS load1, \
              maxIf(Value, MetricName = 'system.uptime') AS uptime \
              FROM otel.otel_metrics_gauge \
-             WHERE MetricName IN ('system.memory.utilization', 'system.cpu.load_average.1m', 'system.uptime') \
+             WHERE OrgId = {oc_org:String} AND MetricName IN ('system.memory.utilization', 'system.cpu.load_average.1m', 'system.uptime') \
              AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) GROUP BY name",
         )
         .bind(recent_from)
         .bind(range.to)
         .fetch_all::<Vals>();
     let spans = st
-        .clickhouse
+        .ch(org)
         .query(
             "SELECT ResourceAttributes['host.name'] AS name, topK(1)(ServiceName)[1] AS service, countIf(StatusCode = 'Error') AS errors \
-             FROM otel.otel_traces WHERE SpanKind IN ('Server', 'Consumer') \
+             FROM otel.otel_traces WHERE OrgId = {oc_org:String} AND SpanKind IN ('Server', 'Consumer') \
              AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) AND name != '' GROUP BY name",
         )
         .bind(range.from)
@@ -343,13 +343,13 @@ fn host_matches(h: &HostRow, terms: &[Term]) -> bool {
         }
     }
     let rest: Vec<Term> = rest.into_iter().cloned().collect();
-    matches(&rest, &Fields { service: h.summary.service.as_deref().unwrap_or(""), status: "", host: &h.summary.name, source: "", message: &h.summary.name, tags: &tags, attr: &empty })
+    matches(&rest, &Fields { service: h.summary.service.as_deref().unwrap_or(""), status: "", host: &h.summary.name, source: "", message: &h.summary.name, tags: &tags, attr: &empty, index: None })
 }
 
 #[utoipa::path(post, path = "/api/v1/hosts/search", operation_id = "search_hosts", request_body = HostSearchRequest, responses((status = 200, body = HostSearchPage)), tag = "infrastructure")]
-pub async fn search(State(st): State<AppState>, Json(req): Json<HostSearchRequest>) -> ApiResult<HostSearchPage> {
+pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<HostSearchRequest>) -> ApiResult<HostSearchPage> {
     let terms = parse_query(&req.query);
-    let mut hosts: Vec<HostRow> = load_hosts(&st, req.range)
+    let mut hosts: Vec<HostRow> = load_hosts(&st, &org, req.range)
         .await?
         .into_iter()
         .filter(|h| host_matches(h, &terms))
@@ -478,9 +478,9 @@ const HIDDEN_TAGS: &[&str] = &["host.id", "observecraft.collector.version", "hos
 
 #[utoipa::path(post, path = "/api/v1/hosts/{name}", params(("name" = String, Path)), request_body = HostRequest, responses((status = 200, body = HostDetail), (status = 404, body = crate::error::ErrorBody)), tag = "infrastructure")]
 pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, Path(name): Path<String>, Json(req): Json<HostRequest>) -> ApiResult<HostDetail> {
-    let host = load_hosts(&st, req.range).await?.into_iter().find(|h| h.summary.name == name).ok_or_else(|| ApiError::NotFound(format!("Host {name} has not reported in this time range")))?;
+    let host = load_hosts(&st, &org, req.range).await?.into_iter().find(|h| h.summary.name == name).ok_or_else(|| ApiError::NotFound(format!("Host {name} has not reported in this time range")))?;
     let has_logs = st
-        .clickhouse
+        .ch(&org)
         .query("SELECT count() FROM oc.logs WHERE org_id = ? AND host = ? AND timestamp >= fromUnixTimestamp64Milli(?) AND timestamp <= fromUnixTimestamp64Milli(?)")
         .bind(&org)
         .bind(&name)
@@ -488,8 +488,8 @@ pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, Path(name): P
         .bind(req.range.to)
         .fetch_one::<u64>();
     let has_procs = st
-        .clickhouse
-        .query("SELECT count() FROM otel.otel_metrics_gauge WHERE MetricName = 'process.cpu.utilization' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 15 MINUTE")
+        .ch(&org)
+        .query("SELECT count() FROM otel.otel_metrics_gauge WHERE OrgId = {oc_org:String} AND MetricName = 'process.cpu.utilization' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 15 MINUTE")
         .bind(&name)
         .fetch_one::<u64>();
     let (has_logs, has_procs) = tokio::try_join!(has_logs, has_procs)?;
@@ -517,7 +517,16 @@ pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, Path(name): P
         .filter(|(k, v)| !v.is_empty() && !HIDDEN_TAGS.contains(&k.as_str()))
         .map(|(k, v)| (short_tag(k).map(str::to_string).unwrap_or_else(|| k.clone()), v.clone()))
         .collect();
-    let kubernetes = get("k8s.cluster.name").map(|cluster| KubernetesInfo { cluster, cri_name: "—".into(), cri_version: "—".into(), kubelet_version: "—".into() });
+    let node = match get("k8s.cluster.name") {
+        Some(_) => super::kubernetes::host_inventory(&st, &org, &name).await?.0,
+        None => None,
+    };
+    let kubernetes = get("k8s.cluster.name").or(node.as_ref().map(|n| n.cluster.clone())).map(|cluster| {
+        // containerd://1.7.18 → (containerd, 1.7.18)
+        let runtime = node.as_ref().and_then(|n| n.runtime.clone()).unwrap_or_default();
+        let (cri_name, cri_version) = runtime.split_once("://").map(|(a, b)| (a.to_string(), b.to_string())).unwrap_or_else(|| ("—".into(), "—".into()));
+        KubernetesInfo { cluster, cri_name, cri_version, kubelet_version: node.as_ref().and_then(|n| n.version.clone()).unwrap_or_else(|| "—".into()) }
+    });
     let collector_config = "# This host's collector does not report its configuration.\n# Configurations pushed from ObserveCraft (Fleet Automation) will appear here.\n".to_string();
     Ok(Json(HostDetail {
         account: get("cloud.account.id"),
@@ -562,7 +571,7 @@ fn host_query(agg: SpaceAgg, metric: &str, host: &str, extra: &[(&str, &str, boo
 }
 
 #[utoipa::path(post, path = "/api/v1/hosts/{name}/metrics", params(("name" = String, Path)), request_body = HostRequest, responses((status = 200, body = HostMetrics)), tag = "infrastructure")]
-pub async fn metrics(State(st): State<AppState>, Path(name): Path<String>, Json(req): Json<HostRequest>) -> ApiResult<HostMetrics> {
+pub async fn metrics(State(st): State<AppState>, OrgId(org): OrgId, Path(name): Path<String>, Json(req): Json<HostRequest>) -> ApiResult<HostMetrics> {
     let series = |label: String, groups: Vec<super::metrics::Group>, scale: f64| MetricSeries {
         name: label,
         points: groups.into_iter().next().map(|g| g.points.into_iter().map(|(t, v)| (t, (v * scale * 100.0).round() / 100.0)).collect()).unwrap_or_default(),
@@ -570,16 +579,16 @@ pub async fn metrics(State(st): State<AppState>, Path(name): Path<String>, Json(
     let cpu_states = ["user", "system", "iowait", "idle"];
     let mut cpu = Vec::new();
     for s in cpu_states {
-        let g = evaluate_query(&st, &host_query(SpaceAgg::Avg, &format!("system.cpu.{s}"), &name, &[]), req.range, 120).await?;
+        let g = evaluate_query(&st, &org, &host_query(SpaceAgg::Avg, &format!("system.cpu.{s}"), &name, &[]), req.range, 120).await?;
         cpu.push(series(format!("system.cpu.{s}{{host:{name}}}"), g, 1.0));
     }
     let mut load = Vec::new();
     for w in ["1", "5", "15"] {
-        let g = evaluate_query(&st, &host_query(SpaceAgg::Avg, &format!("system.load.{w}"), &name, &[]), req.range, 120).await?;
+        let g = evaluate_query(&st, &org, &host_query(SpaceAgg::Avg, &format!("system.load.{w}"), &name, &[]), req.range, 120).await?;
         load.push(series(format!("system.load.{w}{{host:{name}}}"), g, 1.0));
     }
-    let usable = evaluate_query(&st, &host_query(SpaceAgg::Sum, "system.memory.usage", &name, &[("state", "used", true)]), req.range, 120).await?;
-    let total = evaluate_query(&st, &host_query(SpaceAgg::Sum, "system.memory.usage", &name, &[]), req.range, 120).await?;
+    let usable = evaluate_query(&st, &org, &host_query(SpaceAgg::Sum, "system.memory.usage", &name, &[("state", "used", true)]), req.range, 120).await?;
+    let total = evaluate_query(&st, &org, &host_query(SpaceAgg::Sum, "system.memory.usage", &name, &[]), req.range, 120).await?;
     let total_bytes = total.first().and_then(|g| g.points.last()).map(|p| p.1).unwrap_or(0.0);
     let memory = vec![series(format!("sum:system.mem.usable{{host:{name}}}"), usable, 1.0 / GIB), series(format!("sum:system.mem.total{{host:{name}}}"), total, 1.0 / GIB)];
 
@@ -589,12 +598,12 @@ pub async fn metrics(State(st): State<AppState>, Path(name): Path<String>, Json(
         rss: f64,
     }
     let procs = st
-        .clickhouse
+        .ch(&org)
         .query(
             "SELECT name, sum(rss) AS rss FROM (\
                SELECT ResourceAttributes['process.pid'] AS pid, any(ResourceAttributes['process.executable.name']) AS name, argMax(Value, TimeUnix) AS rss \
                FROM otel.otel_metrics_sum \
-               WHERE MetricName = 'process.memory.usage' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE \
+               WHERE OrgId = {oc_org:String} AND MetricName = 'process.memory.usage' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE \
                GROUP BY pid) GROUP BY name ORDER BY rss DESC",
         )
         .bind(&name)
@@ -646,7 +655,7 @@ pub struct ProcessPage {
 
 /// Processes seen in the last 10 minutes, by CPU.
 #[utoipa::path(post, path = "/api/v1/hosts/{name}/processes", params(("name" = String, Path)), request_body = HostPageRequest, responses((status = 200, body = ProcessPage)), tag = "infrastructure")]
-pub async fn processes(State(st): State<AppState>, Path(name): Path<String>, Json(req): Json<HostPageRequest>) -> ApiResult<ProcessPage> {
+pub async fn processes(State(st): State<AppState>, OrgId(org): OrgId, Path(name): Path<String>, Json(req): Json<HostPageRequest>) -> ApiResult<ProcessPage> {
     #[derive(clickhouse::Row, Deserialize)]
     struct Row {
         pid: String,
@@ -656,12 +665,12 @@ pub async fn processes(State(st): State<AppState>, Path(name): Path<String>, Jso
         rss: f64,
     }
     let rows = st
-        .clickhouse
+        .ch(&org)
         .query(
             "SELECT ResourceAttributes['process.pid'] AS pid, any(ResourceAttributes['process.command']) AS command, any(ResourceAttributes['process.owner']) AS user, \
              avgIf(Value, MetricName = 'process.cpu.utilization') AS cpu, argMaxIf(Value, TimeUnix, MetricName = 'process.memory.usage') AS rss FROM (\
-               SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM otel.otel_metrics_gauge WHERE MetricName = 'process.cpu.utilization' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE \
-               UNION ALL SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM otel.otel_metrics_sum WHERE MetricName = 'process.memory.usage' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE) \
+               SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM otel.otel_metrics_gauge WHERE OrgId = {oc_org:String} AND MetricName = 'process.cpu.utilization' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE \
+               UNION ALL SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM otel.otel_metrics_sum WHERE OrgId = {oc_org:String} AND MetricName = 'process.memory.usage' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE) \
              GROUP BY pid ORDER BY cpu DESC",
         )
         .bind(&name)
@@ -680,19 +689,117 @@ pub async fn processes(State(st): State<AppState>, Path(name): Path<String>, Jso
 }
 
 #[derive(Serialize, ToSchema)]
-pub struct EmptyPage {
-    #[schema(value_type = Vec<Object>)]
-    pub items: Vec<serde_json::Value>,
+#[serde(rename_all = "camelCase")]
+pub struct HostPod {
+    pub uid: String,
+    pub name: String,
+    /// As `kubectl get pods` prints it: Running, CrashLoopBackOff, Completed, …
+    pub status: String,
+    pub health: super::kubernetes::KubeHealth,
+    pub cluster: String,
+    pub namespace: String,
+    pub age_sec: Option<f64>,
+    pub ready: String,
+    pub restarts: u32,
+    pub cpu_pct_of_limit: Option<f64>,
+    pub mem_pct_of_limit: Option<f64>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct HostPodPage {
+    pub items: Vec<HostPod>,
     pub total: usize,
 }
 
-/// Pods and containers need the Kubernetes / Docker receivers; no collector sends them yet.
-#[utoipa::path(post, path = "/api/v1/hosts/{name}/pods", params(("name" = String, Path)), request_body = HostPageRequest, responses((status = 200, body = EmptyPage)), tag = "infrastructure")]
-pub async fn pods(Path(_name): Path<String>, Json(_req): Json<HostPageRequest>) -> ApiResult<EmptyPage> {
-    Ok(Json(EmptyPage { items: vec![], total: 0 }))
+#[derive(Serialize, ToSchema, Clone, Copy)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum HostContainerStatus {
+    Up,
+    Waiting,
+    Exited,
 }
 
-#[utoipa::path(post, path = "/api/v1/hosts/{name}/containers", params(("name" = String, Path)), request_body = HostPageRequest, responses((status = 200, body = EmptyPage)), tag = "infrastructure")]
-pub async fn containers(Path(_name): Path<String>, Json(_req): Json<HostPageRequest>) -> ApiResult<EmptyPage> {
-    Ok(Json(EmptyPage { items: vec![], total: 0 }))
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct HostContainer {
+    pub name: String,
+    pub pod: String,
+    pub status: HostContainerStatus,
+    pub image: String,
+    /// CPU use as a share of the node's cores.
+    pub cpu_pct: Option<f64>,
+    /// Working set.
+    pub rss_bytes: Option<f64>,
+    /// Container memory limit, else the node's allocatable memory.
+    pub mem_limit_bytes: Option<f64>,
+    pub started_at: Option<i64>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct HostContainerPage {
+    pub items: Vec<HostContainer>,
+    pub total: usize,
+}
+
+fn pct_of(u: &super::kubernetes::KubeUtilization) -> Option<f64> {
+    Some(round1(u.usage? / u.limits.filter(|l| *l > 0.0)? * 100.0))
+}
+
+/// Pods the Kubernetes collector reports on this host (its node).
+#[utoipa::path(post, path = "/api/v1/hosts/{name}/pods", params(("name" = String, Path)), request_body = HostPageRequest, responses((status = 200, body = HostPodPage)), tag = "infrastructure")]
+pub async fn pods(State(st): State<AppState>, OrgId(org): OrgId, Path(name): Path<String>, Json(req): Json<HostPageRequest>) -> ApiResult<HostPodPage> {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64;
+    let q = req.query.trim().to_lowercase();
+    let (_, pods) = super::kubernetes::host_inventory(&st, &org, &name).await?;
+    let mut items: Vec<HostPod> = pods
+        .into_iter()
+        .filter(|p| q.is_empty() || p.name.to_lowercase().contains(&q))
+        .map(|p| HostPod {
+            age_sec: p.created_at.map(|c| ((now - c) / 1000) as f64),
+            ready: p.ready.clone().unwrap_or_default(),
+            restarts: p.restarts.unwrap_or(0),
+            cpu_pct_of_limit: p.cpu.as_ref().and_then(pct_of),
+            mem_pct_of_limit: p.memory.as_ref().and_then(pct_of),
+            namespace: p.namespace.unwrap_or_default(),
+            uid: p.uid,
+            name: p.name,
+            status: p.status,
+            health: p.health,
+            cluster: p.cluster,
+        })
+        .collect();
+    items.sort_by(|a, b| a.name.cmp(&b.name));
+    let total = items.len();
+    Ok(Json(HostPodPage { items: items.into_iter().skip(req.offset).take(req.limit.min(500)).collect(), total }))
+}
+
+/// Containers of the pods on this host, by memory.
+#[utoipa::path(post, path = "/api/v1/hosts/{name}/containers", params(("name" = String, Path)), request_body = HostPageRequest, responses((status = 200, body = HostContainerPage)), tag = "infrastructure")]
+pub async fn containers(State(st): State<AppState>, OrgId(org): OrgId, Path(name): Path<String>, Json(req): Json<HostPageRequest>) -> ApiResult<HostContainerPage> {
+    let q = req.query.trim().to_lowercase();
+    let (node, pods) = super::kubernetes::host_inventory(&st, &org, &name).await?;
+    let cores = node.as_ref().and_then(|n| n.cpu.as_ref()).and_then(|c| c.capacity).filter(|c| *c > 0.0);
+    let node_mem = node.as_ref().and_then(|n| n.memory.as_ref()).and_then(|m| m.capacity);
+    let mut items: Vec<HostContainer> = pods
+        .iter()
+        .flat_map(|p| p.containers.iter().filter(|c| !c.init).map(move |c| (p, c)))
+        .filter(|(p, c)| q.is_empty() || c.name.to_lowercase().contains(&q) || c.image.to_lowercase().contains(&q) || p.name.to_lowercase().contains(&q))
+        .map(|(p, c)| HostContainer {
+            name: c.name.clone(),
+            pod: p.name.clone(),
+            status: match c.state.as_str() {
+                "running" => HostContainerStatus::Up,
+                "terminated" => HostContainerStatus::Exited,
+                _ => HostContainerStatus::Waiting,
+            },
+            image: c.image.clone(),
+            cpu_pct: c.cpu.usage.zip(cores).map(|(u, n)| round1(u / n * 100.0)),
+            rss_bytes: c.memory.usage,
+            mem_limit_bytes: c.memory.limits.or(node_mem),
+            started_at: c.started_at,
+        })
+        .collect();
+    items.sort_by(|a, b| b.rss_bytes.unwrap_or(0.0).total_cmp(&a.rss_bytes.unwrap_or(0.0)).then(a.name.cmp(&b.name)));
+    let total = items.len();
+    Ok(Json(HostContainerPage { items: items.into_iter().skip(req.offset).take(req.limit.min(500)).collect(), total }))
 }

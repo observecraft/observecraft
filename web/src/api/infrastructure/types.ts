@@ -1,3 +1,4 @@
+import type { components } from '../generated/schema';
 // Infrastructure (Hosts) wire contract. Hosts are reported by collectors (ObserveCraft
 // collector = OTel Collector + Vector bundle, or a plain OpenTelemetry Collector).
 import type { MetricSeries, TimeRange } from '../types';
@@ -97,29 +98,11 @@ export interface HostMetrics {
   processMemory: { name: string; value: number }[];
 }
 
-export interface Pod {
-  name: string;
-  status: 'RUNNING' | 'PENDING' | 'FAILED' | 'SUCCEEDED';
-  cluster: string;
-  namespace: string;
-  ageSec: number;
-  ready: string; // "1/1"
-  restarts: number;
-  cpuPctOfLimit: number | null;
-  memPctOfLimit: number | null;
-}
+/** A pod on a host (from the Kubernetes collector). */
+export type Pod = components['schemas']['HostPod'];
 
-export interface Container {
-  name: string;
-  status: 'UP' | 'EXITED';
-  image: string;
-  cpuPct: number;
-  rssBytes: number;
-  memLimitBytes: number;
-  netTxBytes: number;
-  netRxBytes: number;
-  startedAt: number;
-}
+/** A container of a pod on a host. */
+export type Container = components['schemas']['HostContainer'];
 
 export interface Process {
   pid: number;

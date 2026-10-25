@@ -28,9 +28,6 @@ export type DashboardPatch = dash.DashboardPatch;
 
 const live = API_MODE === 'live';
 
-/** The development user the API acts as until authentication lands (server: OC_DEV_USER). */
-const LIVE_USER: User = { id: '00000000-0000-0000-0000-000000000001', name: 'Alex Morgan' };
-
 type WireSummary = components['schemas']['DashboardSummary'];
 type WireDashboard = components['schemas']['Dashboard'];
 
@@ -109,7 +106,8 @@ export async function monitorSummary(query: string): Promise<MonitorSummary> {
   return { counts: r.counts, monitors: r.monitors.map((m) => ({ ...m, status: m.status as MonitorSummary['monitors'][number]['status'] })) };
 }
 
-export const currentUser = (): User => (live ? LIVE_USER : dash.CURRENT_USER);
+/** The mock data's user; in live mode the signed-in user comes from `/api/v1/me`. */
+export const mockUser = (): User => dash.CURRENT_USER;
 
 // ---------------------------------------------------------------- metric queries
 

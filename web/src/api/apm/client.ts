@@ -106,6 +106,12 @@ export async function serviceLogs(range: TimeRange, service: string, signal?: Ab
   return post('/api/v1/logs/search', { range, query: `service:${service}`, limit: 25 }, signal);
 }
 
+/** Logs written inside one trace (OTLP logs carry trace_id). */
+export async function traceLogs(range: TimeRange, traceId: string, signal?: AbortSignal) {
+  requireLive();
+  return post('/api/v1/logs/search', { range, query: `trace_id:${traceId}`, limit: 200 }, signal);
+}
+
 // ---------------------------------------------------------------- span explorer
 
 export type SpanScope = S['SpanScope'];

@@ -514,17 +514,6 @@
   font-weight: var(--fw-regular);
 }
 
-
-
-
-
-
-
-
-
-
-
-
 .hp-tags {
   padding: 10px 14px;
   text-align: center;
@@ -547,11 +536,6 @@
 .hp-manage-tags {
   margin-top: 10px;
 }
-
-
-
-
-
 
 /* Summary */
 .hs-grid {
@@ -1095,4 +1079,44 @@
 .pl-exporter {
   background: var(--brand-subtle);
   color: var(--brand-strong);
+}
+
+/* ---------- Kubernetes status pills (host panel and Kubernetes Explorer) ---------- */
+.kx-status {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+.kx-ok {
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
+}
+
+.kx-warning {
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+}
+
+.kx-error {
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
+}
+
+.kx-info {
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
+}
+
+.down-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 3px;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
 }

@@ -229,12 +229,12 @@ pub struct CiExecutionPage {
 }
 
 #[utoipa::path(post, operation_id = "ci_executions", path = "/api/v1/ci/executions", request_body = CiExecutionSearch, responses((status = 200, body = CiExecutionPage)), tag = "ci")]
-pub async fn executions(State(st): State<AppState>, OrgId(_org): OrgId, Json(req): Json<CiExecutionSearch>) -> ApiResult<CiExecutionPage> {
+pub async fn executions(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<CiExecutionSearch>) -> ApiResult<CiExecutionPage> {
     let (w, params) = where_clause(&req.q, None)?;
     let order = if req.sort.as_deref() == Some("duration") { "Duration DESC" } else { "Timestamp DESC" };
-    let sql = format!("SELECT {} FROM {TABLE} WHERE {w} ORDER BY {order} LIMIT {} OFFSET {}", row_select(), req.limit.clamp(1, 500), req.offset.clamp(0, 100_000));
-    let rows = bind(st.clickhouse.query(&sql), &params).fetch_all::<CiExecution>().await?;
-    let total = bind(st.clickhouse.query(&format!("SELECT count() FROM {TABLE} WHERE {w}")), &params).fetch_one::<u64>().await?;
+    let sql = format!("SELECT {} FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND {w} ORDER BY {order} LIMIT {} OFFSET {}", row_select(), req.limit.clamp(1, 500), req.offset.clamp(0, 100_000));
+    let rows = bind(st.ch(&org).query(&sql), &params).fetch_all::<CiExecution>().await?;
+    let total = bind(st.ch(&org).query(&format!("SELECT count() FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND {w}")), &params).fetch_one::<u64>().await?;
     Ok(Json(CiExecutionPage { executions: rows, total }))
 }
 
@@ -255,7 +255,8 @@ pub struct CiFacets {
 }
 
 #[utoipa::path(post, operation_id = "ci_facets", path = "/api/v1/ci/executions/facets", request_body = CiQuery, responses((status = 200, body = CiFacets)), tag = "ci")]
-pub async fn facets(State(st): State<AppState>, OrgId(_org): OrgId, Json(q): Json<CiQuery>) -> ApiResult<CiFacets> {
+pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(q): Json<CiQuery>) -> ApiResult<CiFacets> {
+    let org = org.as_str();
     #[derive(clickhouse::Row, Deserialize)]
     struct V {
         value: String,
@@ -266,8 +267,8 @@ pub async fn facets(State(st): State<AppState>, OrgId(_org): OrgId, Json(q): Jso
         let q = q.clone();
         async move {
             let (w, params) = where_clause(&q, Some(facet))?;
-            let sql = format!("SELECT toString({expr}) AS value, count() AS count FROM {TABLE} WHERE {w} AND value != '' GROUP BY value ORDER BY count DESC LIMIT 100");
-            let rows = bind(st.clickhouse.query(&sql), &params).fetch_all::<V>().await?;
+            let sql = format!("SELECT toString({expr}) AS value, count() AS count FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND {w} AND value != '' GROUP BY value ORDER BY count DESC LIMIT 100");
+            let rows = bind(st.ch(org).query(&sql), &params).fetch_all::<V>().await?;
             Ok::<_, ApiError>(rows.into_iter().map(|v| CiFacetValue { value: v.value, count: v.count }).collect::<Vec<_>>())
         }
     };
@@ -309,7 +310,7 @@ fn step_for(range: TimeRange, buckets: i64) -> i64 {
 }
 
 #[utoipa::path(post, operation_id = "ci_charts", path = "/api/v1/ci/executions/charts", request_body = CiQuery, responses((status = 200, body = CiCharts)), tag = "ci")]
-pub async fn charts(State(st): State<AppState>, OrgId(_org): OrgId, Json(q): Json<CiQuery>) -> ApiResult<CiCharts> {
+pub async fn charts(State(st): State<AppState>, OrgId(org): OrgId, Json(q): Json<CiQuery>) -> ApiResult<CiCharts> {
     let (w, params) = where_clause(&q, None)?;
     let step = step_for(q.range, 60);
     #[derive(clickhouse::Row, Deserialize)]
@@ -322,9 +323,9 @@ pub async fn charts(State(st): State<AppState>, OrgId(_org): OrgId, Json(q): Jso
     }
     let sql = format!(
         "SELECT SpanName AS name, intDiv(toInt64(toUnixTimestamp64Milli(Timestamp)), {step}) * {step} AS t, avg(Duration) / 1e6 AS dur, \
-         countIf({STATUS} = 'error') AS errored, count() AS n FROM {TABLE} WHERE {w} GROUP BY name, t ORDER BY t"
+         countIf({STATUS} = 'error') AS errored, count() AS n FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND {w} GROUP BY name, t ORDER BY t"
     );
-    let rows = bind(st.clickhouse.query(&sql), &params).fetch_all::<R>().await?;
+    let rows = bind(st.ch(&org).query(&sql), &params).fetch_all::<R>().await?;
     let first = q.range.from / step * step;
     let times: Vec<i64> = (0..).map(|i| first + i * step).take_while(|t| *t <= q.range.to).collect();
     let index: HashMap<i64, usize> = times.iter().enumerate().map(|(i, t)| (*t, i)).collect();
@@ -384,15 +385,15 @@ pub struct CiPipelineDetail {
 }
 
 #[utoipa::path(get, operation_id = "ci_pipeline", path = "/api/v1/ci/pipelines/{trace_id}", params(("trace_id" = String, Path)), responses((status = 200, body = CiPipelineDetail)), tag = "ci")]
-pub async fn pipeline(State(st): State<AppState>, OrgId(_org): OrgId, Path(trace_id): Path<String>) -> ApiResult<CiPipelineDetail> {
+pub async fn pipeline(State(st): State<AppState>, OrgId(org): OrgId, Path(trace_id): Path<String>) -> ApiResult<CiPipelineDetail> {
     if trace_id.len() != 32 || !trace_id.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err(ApiError::BadRequest("invalid trace id".into()));
     }
     // The trace-id lookup table narrows the time range so the main table read stays small.
     let bounds = "(SELECT min(Start) - INTERVAL 1 HOUR FROM otel.otel_ci_traces_trace_id_ts WHERE TraceId = ?) AND (SELECT max(End) + INTERVAL 1 HOUR FROM otel.otel_ci_traces_trace_id_ts WHERE TraceId = ?)";
     let p = st
-        .clickhouse
-        .query(&format!("SELECT {} FROM {TABLE} WHERE TraceId = ? AND ParentSpanId = '' AND Timestamp BETWEEN {bounds} LIMIT 1", row_select()))
+        .ch(&org)
+        .query(&format!("SELECT {} FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND TraceId = ? AND ParentSpanId = '' AND Timestamp BETWEEN {bounds} LIMIT 1", row_select()))
         .bind(&trace_id)
         .bind(&trace_id)
         .bind(&trace_id)
@@ -400,14 +401,14 @@ pub async fn pipeline(State(st): State<AppState>, OrgId(_org): OrgId, Path(trace
         .await?
         .ok_or_else(|| ApiError::NotFound("pipeline execution not found".into()))?;
     let spans = st
-        .clickhouse
+        .ch(&org)
         .query(&format!(
             "SELECT SpanId AS span_id, ParentSpanId AS parent_span_id, SpanName AS name, \
              multiIf(ParentSpanId = '', 'pipeline', {JOB} != '', 'job', {TEST} != '', 'test', 'step') AS kind, \
              if({TEST} != '', if(SpanAttributes['test.case.result.status'] = 'fail', 'error', 'success'), {STATUS}) AS status, \
              toInt64(toUnixTimestamp64Milli(Timestamp)) AS start, Duration / 1e6 AS duration_ms, {STAGE} AS stage, SpanAttributes['cicd.pipeline.task.type'] AS job_type, \
              SpanAttributes['deployment.environment.name'] AS environment, SpanAttributes['test.suite.name'] AS test_suite \
-             FROM {TABLE} WHERE TraceId = ? AND Timestamp BETWEEN {bounds} ORDER BY Timestamp LIMIT 5000"
+             FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND TraceId = ? AND Timestamp BETWEEN {bounds} ORDER BY Timestamp LIMIT 5000"
         ))
         .bind(&trace_id)
         .bind(&trace_id)
@@ -435,15 +436,15 @@ pub struct CiAggregate {
 }
 
 #[utoipa::path(post, operation_id = "ci_aggregations", path = "/api/v1/ci/aggregations", request_body = CiQuery, responses((status = 200, body = Vec<CiAggregate>)), tag = "ci")]
-pub async fn aggregations(State(st): State<AppState>, OrgId(_org): OrgId, Json(q): Json<CiQuery>) -> ApiResult<Vec<CiAggregate>> {
+pub async fn aggregations(State(st): State<AppState>, OrgId(org): OrgId, Json(q): Json<CiQuery>) -> ApiResult<Vec<CiAggregate>> {
     let (w, params) = where_clause(&q, None)?;
     let sql = format!(
         "SELECT SpanName AS name, {REPO} AS repository, count() AS executions, countIf({STATUS} = 'error') AS failures, avg(Duration) / 1e6 AS avg_ms, \
          quantile(0.5)(Duration) / 1e6 AS p50_ms, quantile(0.95)(Duration) / 1e6 AS p95_ms, argMax({STATUS}, Timestamp) AS last_status, \
          toInt64(toUnixTimestamp64Milli(max(Timestamp))) AS last_start, argMax(TraceId, Timestamp) AS last_trace_id \
-         FROM {TABLE} WHERE {w} GROUP BY name, repository ORDER BY executions DESC LIMIT 500"
+         FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND {w} GROUP BY name, repository ORDER BY executions DESC LIMIT 500"
     );
-    Ok(Json(bind(st.clickhouse.query(&sql), &params).fetch_all::<CiAggregate>().await?))
+    Ok(Json(bind(st.ch(&org).query(&sql), &params).fetch_all::<CiAggregate>().await?))
 }
 
 // ================================================================ overview
@@ -479,6 +480,7 @@ pub struct CiRangeRequest {
 
 #[utoipa::path(post, operation_id = "ci_overview", path = "/api/v1/ci/overview", request_body = CiRangeRequest, responses((status = 200, body = CiOverview)), tag = "ci")]
 pub async fn overview(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<CiRangeRequest>) -> ApiResult<CiOverview> {
+    let org = org.as_str();
     req.range.validate()?;
     let span = req.range.to - req.range.from;
     let kpis = |from: i64, to: i64| {
@@ -486,15 +488,15 @@ pub async fn overview(State(st): State<AppState>, OrgId(org): OrgId, Json(req): 
         async move {
             let sql = format!(
                 "SELECT count() AS executions, countIf({STATUS} = 'error') AS failures, quantile(0.5)(Duration) / 1e6 AS p50_ms, quantile(0.95)(Duration) / 1e6 AS p95_ms, \
-                 uniqExact({REPO}) AS repositories FROM {TABLE} WHERE ParentSpanId = '' AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?)"
+                 uniqExact({REPO}) AS repositories FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND ParentSpanId = '' AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?)"
             );
-            let k = st.clickhouse.query(&sql).bind(from).bind(to).fetch_one::<CiKpis>().await?;
+            let k = st.ch(org).query(&sql).bind(from).bind(to).fetch_one::<CiKpis>().await?;
             Ok::<_, ApiError>(CiKpis { p50_ms: finite(k.p50_ms), p95_ms: finite(k.p95_ms), ..k })
         }
     };
     let q = CiQuery { range: req.range, level: CiLevel::Pipeline, query: String::new(), filters: CiFilters::default() };
     let (current, previous, aggs) = futures::try_join!(kpis(req.range.from, req.range.to), kpis(req.range.from - span, req.range.from), async {
-        aggregations(State(st.clone()), OrgId(org.clone()), Json(q.clone())).await.map(|j| j.0)
+        aggregations(State(st.clone()), OrgId(org.to_string()), Json(q.clone())).await.map(|j| j.0)
     })?;
     let mut top_failing: Vec<CiAggregate> = aggs.iter().filter(|a| a.failures > 0).map(clone_agg).collect();
     top_failing.sort_by(|a, b| b.failures.cmp(&a.failures));
@@ -504,8 +506,8 @@ pub async fn overview(State(st): State<AppState>, OrgId(org): OrgId, Json(req): 
     slowest.truncate(5);
     let failed_q = CiQuery { filters: CiFilters { statuses: vec!["error".into()], ..Default::default() }, ..q.clone() };
     let (w, params) = where_clause(&failed_q, None)?;
-    let recent_failures = bind(st.clickhouse.query(&format!("SELECT {} FROM {TABLE} WHERE {w} ORDER BY Timestamp DESC LIMIT 6", row_select())), &params).fetch_all::<CiExecution>().await?;
-    let flaky = flaky_rows(&st, req.range, "").await?;
+    let recent_failures = bind(st.ch(org).query(&format!("SELECT {} FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND {w} ORDER BY Timestamp DESC LIMIT 6", row_select())), &params).fetch_all::<CiExecution>().await?;
+    let flaky = flaky_rows(&st, org, req.range, "").await?;
     Ok(Json(CiOverview { current, previous, flaky_tests: flaky.len() as u64, top_failing, slowest, recent_failures }))
 }
 
@@ -550,13 +552,13 @@ struct FlakyRow {
 }
 
 /// A test is flaky when it both passed and failed on the same commit.
-async fn flaky_rows(st: &AppState, range: TimeRange, query: &str) -> Result<Vec<FlakyRow>, ApiError> {
+async fn flaky_rows(st: &AppState, org: &str, range: TimeRange, query: &str) -> Result<Vec<FlakyRow>, ApiError> {
     let like = format!("%{}%", query.replace('%', "\\%").replace('_', "\\_"));
     let sql = format!(
         "WITH tests AS ( \
            SELECT {REPO} AS repository, SpanAttributes['test.suite.name'] AS suite, {TEST} AS name, {SHA} AS sha, \
                   SpanAttributes['test.case.result.status'] = 'fail' AS failed, Timestamp, Duration, TraceId, {TEAM} AS team \
-           FROM {TABLE} WHERE {TEST} != '' AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) \
+           FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND {TEST} != '' AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) \
              AND (? = '' OR {TEST} ILIKE ? OR SpanAttributes['test.suite.name'] ILIKE ? OR {REPO} ILIKE ?)), \
          flaky AS ( \
            SELECT repository, suite, name, sha, min(Timestamp) AS first, max(Timestamp) AS last FROM tests \
@@ -568,7 +570,7 @@ async fn flaky_rows(st: &AppState, range: TimeRange, query: &str) -> Result<Vec<
            ON t.repository = f.repository AND t.suite = f.suite AND t.name = f.name \
          GROUP BY repository, suite, name ORDER BY flaky_commits DESC, failures DESC LIMIT 500"
     );
-    Ok(st.clickhouse.query(&sql).bind(range.from).bind(range.to).bind(query).bind(&like).bind(&like).bind(&like).fetch_all::<FlakyRow>().await?)
+    Ok(st.ch(org).query(&sql).bind(range.from).bind(range.to).bind(query).bind(&like).bind(&like).bind(&like).fetch_all::<FlakyRow>().await?)
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Copy, PartialEq, Eq, Debug)]
@@ -639,7 +641,7 @@ pub struct FlakyPage {
 #[utoipa::path(post, operation_id = "ci_flaky", path = "/api/v1/ci/flaky", request_body = FlakyRequest, responses((status = 200, body = FlakyPage)), tag = "ci")]
 pub async fn flaky(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<FlakyRequest>) -> ApiResult<FlakyPage> {
     req.range.validate()?;
-    let rows = flaky_rows(&st, req.range, req.query.trim()).await?;
+    let rows = flaky_rows(&st, &org, req.range, req.query.trim()).await?;
     let states: Vec<(String, String, String, String, Option<String>)> = sqlx::query_as(
         "SELECT s.repository, s.suite, s.name, s.state, u.name FROM ci_test_states s LEFT JOIN users u ON u.id = s.updated_by WHERE s.org_id = $1",
     )
@@ -833,13 +835,13 @@ pub async fn dora(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json
         "SELECT SpanAttributes['deployment.service.name'] AS service, {REPO} AS repository, toInt64(toUnixTimestamp64Milli(Timestamp)) AS start, \
          toInt64(toUnixTimestamp64Milli(Timestamp) + intDiv(Duration, 1000000)) AS end, {STATUS} = 'error' AS failed, \
          toInt64OrZero(ResourceAttributes['vcs.revision.committed_at']) AS committed_at \
-         FROM {TABLE} WHERE {JOB} != '' AND SpanAttributes['deployment.environment.name'] = ? \
+         FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND {JOB} != '' AND SpanAttributes['deployment.environment.name'] = ? \
            AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) AND (empty(?) OR has(?, service)) ORDER BY start"
     );
-    let deploys = st.clickhouse.query(&sql).bind(&env).bind(req.range.from).bind(req.range.to).bind(&req.services).bind(&req.services).fetch_all::<Deploy>().await?;
+    let deploys = st.ch(&org).query(&sql).bind(&env).bind(req.range.from).bind(req.range.to).bind(&req.services).bind(&req.services).fetch_all::<Deploy>().await?;
     let environments: Vec<String> = st
-        .clickhouse
-        .query(&format!("SELECT DISTINCT SpanAttributes['deployment.environment.name'] AS e FROM {TABLE} WHERE {JOB} != '' AND e != '' AND Timestamp > now() - INTERVAL 30 DAY ORDER BY e"))
+        .ch(&org)
+        .query(&format!("SELECT DISTINCT SpanAttributes['deployment.environment.name'] AS e FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND {JOB} != '' AND e != '' AND Timestamp > now() - INTERVAL 30 DAY ORDER BY e"))
         .fetch_all::<String>()
         .await?;
     // Incidents (declared in range) touching deployed services, for change failure and restore times.
@@ -910,11 +912,11 @@ pub struct CiRepository {
 
 /// Repositories that reported pipeline runs in the last 30 days.
 #[utoipa::path(get, operation_id = "ci_repositories", path = "/api/v1/ci/repositories", responses((status = 200, body = Vec<CiRepository>)), tag = "ci")]
-pub async fn repositories(State(st): State<AppState>, OrgId(_org): OrgId) -> ApiResult<Vec<CiRepository>> {
+pub async fn repositories(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<Vec<CiRepository>> {
     let sql = format!(
         "SELECT {REPO} AS repository, any(ResourceAttributes['vcs.repository.url.full']) AS url, any({PROVIDER}) AS provider, groupUniqArray({PIPELINE}) AS pipelines, \
          count() AS runs, countIf({STATUS} = 'error') AS failures, toInt64(toUnixTimestamp64Milli(max(Timestamp))) AS last_run, argMax({STATUS}, Timestamp) AS last_status \
-         FROM {TABLE} WHERE ParentSpanId = '' AND Timestamp > now() - INTERVAL 30 DAY GROUP BY repository ORDER BY repository"
+         FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND ParentSpanId = '' AND Timestamp > now() - INTERVAL 30 DAY GROUP BY repository ORDER BY repository"
     );
-    Ok(Json(st.clickhouse.query(&sql).fetch_all::<CiRepository>().await?))
+    Ok(Json(st.ch(&org).query(&sql).fetch_all::<CiRepository>().await?))
 }

@@ -50,6 +50,8 @@ export interface MetricCatalogEntry {
   tags: string[];
   unit?: string;
   description: string;
+  /** gauge | sum | histogram | exponential_histogram | summary | span */
+  kind?: string;
 }
 
 // ---------------------------------------------------------------- widgets
@@ -79,7 +81,14 @@ export type WidgetDefinition =
   | (Base & { type: 'distribution'; request: MetricRequest })
   | (Base & { type: 'pie'; request: MetricRequest; aggregator: TimeAggregator })
   | (Base & { type: 'treemap'; request: MetricRequest; aggregator: TimeAggregator })
-  | (Base & { type: 'note'; content: string; background: 'white' | 'yellow' | 'blue' | 'purple' | 'gray' | 'green' | 'red'; align: 'left' | 'center'; fontSize: 'sm' | 'md' | 'lg' | 'xl'; pointer?: boolean })
+  | (Base & {
+      type: 'note';
+      content: string;
+      background: 'white' | 'yellow' | 'blue' | 'purple' | 'gray' | 'green' | 'red';
+      align: 'left' | 'center';
+      fontSize: 'sm' | 'md' | 'lg' | 'xl';
+      pointer?: boolean;
+    })
   | (Base & { type: 'image'; src?: string; logo?: string; background?: string })
   | (Base & { type: 'group'; color: 'blue' | 'purple' | 'green' | 'gray' | 'orange'; widgets: Widget[] })
   | (Base & { type: 'monitor_summary'; query: string })

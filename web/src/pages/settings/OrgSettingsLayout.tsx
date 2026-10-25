@@ -31,6 +31,7 @@ export const ORG_NAV: { section: string; items: Item[] }[] = [
   {
     section: 'ACCESS',
     items: [
+      { to: 'api-keys', label: 'API Keys' },
       { to: 'access-tokens', label: 'Access Tokens', badge: 'NEW' },
       { to: 'roles', label: 'Roles' },
       { to: 'client-tokens', label: 'Client Tokens' },
@@ -50,6 +51,7 @@ export const ORG_NAV: { section: string; items: Item[] }[] = [
     section: 'COMPLIANCE',
     items: [
       { to: 'audit-trail', label: 'Audit Trail' },
+      { to: 'data-retention', label: 'Data Retention' },
       { to: 'sensitive-data-scanner', label: 'Sensitive Data Scanner' },
       { to: 'tagging-policies', label: 'Tagging Policies', badge: 'PREVIEW' },
     ],

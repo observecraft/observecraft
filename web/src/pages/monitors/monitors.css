@@ -2069,3 +2069,73 @@
   margin-left: auto;
   color: var(--text-muted);
 }
+
+.mon-test-send {
+  margin-left: 8px;
+}
+
+.mon-test-results {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: var(--fs-sm);
+}
+
+.mon-test-results .ok {
+  color: var(--status-ok);
+}
+
+.mon-test-results .bad {
+  color: var(--status-error);
+}
+
+.mon-qb-label {
+  min-width: 70px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.mon-settings {
+  max-width: 1200px;
+}
+
+.mon-channel-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.mon-channel-form select,
+.mon-channel-form input {
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 8px;
+  font: inherit;
+  background: var(--bg);
+}
+
+.mon-channel-handle {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+}
+
+.mon-channel-handle input {
+  width: 160px;
+  font-family: var(--font-mono);
+}
+
+.mon-channel-url {
+  flex: 1;
+  min-width: 280px;
+}
+
+.mon-delivery-ok {
+  color: var(--status-ok);
+}
+
+.mon-delivery-bad {
+  color: var(--status-error);
+}

@@ -17,6 +17,9 @@ export interface LogEvent {
   tags: Record<string, string>;
   /** Structured event attributes parsed from the log — queried as `@path.to.attr:value`. */
   attributes: Record<string, JsonValue>;
+  /** Trace the log was written in (links to APM), queried as `trace_id:…`. */
+  traceId?: string | null;
+  spanId?: string | null;
 }
 
 export interface TimeRange {

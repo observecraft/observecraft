@@ -4,6 +4,8 @@ import type { LogEvent } from '../../api/types';
 import { formatLongDate, timeAgo } from '../../lib/format';
 import { JsonTree } from '../../components/json/JsonTree';
 import { LogMessage } from './LogMessage';
+import { API_MODE } from '../../api/http';
+import { useTrace } from '../apm/queries';
 
 interface Props {
   log: LogEvent;
@@ -77,12 +79,7 @@ export function LogDetail({ log, onClose, onPrev, onNext, onFilter }: Props) {
         <Card label="HOST" icon={<Hexagon size={15} />} value={log.host} onFilter={() => onFilter('host', log.host)} />
         <Card label="SERVICE" value={log.service} onFilter={() => onFilter('service', log.service)} />
         <Card label="SOURCE" value={log.source} onFilter={() => onFilter('source', log.source)} />
-        <Card
-          label="CONTAINER NAME"
-          icon={<Box size={15} />}
-          value={log.tags.container_name}
-          onFilter={() => onFilter('container_name', log.tags.container_name)}
-        />
+        <Card label="CONTAINER NAME" icon={<Box size={15} />} value={log.tags.container_name} onFilter={() => onFilter('container_name', log.tags.container_name)} />
         <Card label="DOCKER IMAGE" value={log.tags.docker_image} onFilter={() => onFilter('docker_image', log.tags.docker_image)} />
         <Card label="POD NAME" value={log.tags.pod_name} onFilter={() => onFilter('pod_name', log.tags.pod_name)} />
       </div>
@@ -124,7 +121,7 @@ export function LogDetail({ log, onClose, onPrev, onNext, onFilter }: Props) {
         {TABS.map((t) => (
           <button key={t} className={t === tab ? 'active' : ''} onClick={() => setTab(t)}>
             {t}
-            {t === 'Trace' && <span className="tab-count">0</span>}
+            {t === 'Trace' && <span className="tab-count">{log.traceId ? 1 : 0}</span>}
           </button>
         ))}
       </nav>
@@ -133,32 +130,78 @@ export function LogDetail({ log, onClose, onPrev, onNext, onFilter }: Props) {
         {tab === 'Event Attributes' ? (
           <>
             <div className="attr-search">
-              {attrSearch !== null && (
-                <input
-                  autoFocus
-                  placeholder="Filter attributes"
-                  value={attrSearch}
-                  onChange={(e) => setAttrSearch(e.target.value)}
-                />
-              )}
-              <button
-                className="icon-square"
-                title="Search attributes"
-                onClick={() => setAttrSearch((s) => (s === null ? '' : null))}
-              >
+              {attrSearch !== null && <input autoFocus placeholder="Filter attributes" value={attrSearch} onChange={(e) => setAttrSearch(e.target.value)} />}
+              <button className="icon-square" title="Search attributes" onClick={() => setAttrSearch((s) => (s === null ? '' : null))}>
                 <Search size={15} />
               </button>
             </div>
             <JsonTree data={log.attributes} filter={attrSearch ?? ''} onFilter={onFilter} />
           </>
+        ) : tab === 'Trace' && log.traceId && API_MODE === 'live' ? (
+          <LinkedTrace traceId={log.traceId} spanId={log.spanId ?? null} />
         ) : (
           <div className="detail-empty">
-            {tab === 'Trace' && 'No trace is linked to this log. Inject trace_id into your logs to correlate them with APM.'}
+            {tab === 'Trace' && 'No trace is linked to this log. Send OTLP logs from an instrumented service, or set trace_id in JSON logs, to correlate them with APM.'}
             {tab === 'Metrics' && `Host metrics for ${log.host} around ${formatLongDate(log.timestamp)} will appear here.`}
             {tab === 'Processes' && `Processes running on ${log.host} will appear here once the process agent reports.`}
           </div>
         )}
       </div>
     </aside>
+  );
+}
+
+/** The trace a log was written in: its root request, the span that logged, and a link into APM. */
+function LinkedTrace({ traceId, spanId }: { traceId: string; spanId: string | null }) {
+  const q = useTrace(traceId);
+  const href = `/apm/traces?trace=${traceId}${spanId ? `&span=${spanId}` : ''}`;
+  if (q.isPending) return <div className="detail-empty">Loading trace…</div>;
+  if (q.isError || !q.data.spans.length)
+    return (
+      <div className="detail-empty">
+        Trace <code>{traceId}</code> is no longer stored (traces are kept for a shorter time than logs).
+      </div>
+    );
+  const spans = q.data.spans;
+  const root = spans.find((s) => !s.parentSpanId) ?? spans[0];
+  const own = spans.find((s) => s.spanId === spanId);
+  const errors = spans.filter((s) => s.status === 'Error').length;
+  const services = new Set(spans.map((s) => s.service)).size;
+  return (
+    <div className="linked-trace">
+      <div className="linked-trace-row">
+        <span className="muted">Request</span>
+        <b>
+          {root.service} · {root.name}
+        </b>
+      </div>
+      {own && own !== root && (
+        <div className="linked-trace-row">
+          <span className="muted">Logged by</span>
+          <span>
+            {own.service} · {own.name} ({(own.durationUs / 1000).toFixed(1)} ms)
+          </span>
+        </div>
+      )}
+      <div className="linked-trace-row">
+        <span className="muted">Trace</span>
+        <span>
+          {q.data.durationMs.toFixed(1)} ms · {spans.length} spans · {services} service{services === 1 ? '' : 's'}
+          {errors > 0 && (
+            <span className="linked-trace-err">
+              {' '}
+              · {errors} error{errors === 1 ? '' : 's'}
+            </span>
+          )}
+        </span>
+      </div>
+      <div className="linked-trace-row">
+        <span className="muted">Trace ID</span>
+        <code>{traceId}</code>
+      </div>
+      <a className="btn btn-primary btn-sm" href={href}>
+        View trace in APM
+      </a>
+    </div>
   );
 }

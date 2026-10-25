@@ -10,9 +10,10 @@ export type AuthSettingsView = S['AuthSettingsView'];
 export type AuthSettingsUpdate = S['AuthSettingsUpdate'];
 export type AuditEvent = S['AuditEvent'];
 export type SecurityStatus = S['SecurityStatus'];
+export type MyOrg = S['MyOrg'];
 
-export const loginConfig = () => get('/api/v1/auth/config', {});
-export const login = (email: string, password: string) => post('/api/v1/auth/login', { email, password });
+export const loginConfig = (org?: string) => get('/api/v1/auth/config', {}, undefined, org ? { org } : undefined);
+export const login = (email: string, password: string, org?: string) => post('/api/v1/auth/login', { email, password, org: org ?? null });
 export const verifyMfa = (code: string) => post('/api/v1/auth/mfa/verify', { code });
 export const logout = () => post('/api/v1/auth/logout', undefined as never);
 export const discoverSso = (email: string) => post('/api/v1/auth/sso/discover', { email });
@@ -27,6 +28,8 @@ export const revokeSession = (id: string) => request('DELETE', `/api/v1/me/sessi
 export const mfaSetup = () => post('/api/v1/me/mfa/setup', undefined as never);
 export const mfaEnable = (code: string) => post('/api/v1/me/mfa/enable', { code });
 export const mfaDisable = (code: string) => post('/api/v1/me/mfa/disable', { code });
+export const myOrgs = () => get('/api/v1/me/orgs', {});
+export const switchOrg = (org: string) => post('/api/v1/me/switch-org', { org });
 export const listAppKeys = () => get('/api/v1/me/app-keys', {});
 export const createAppKey = (name: string) => post('/api/v1/me/app-keys', { name });
 export const revokeAppKey = (id: string) => request('DELETE', `/api/v1/me/app-keys/${encodeURIComponent(id)}`);
@@ -52,4 +55,3 @@ async function put(url: string, body: AuthSettingsUpdate): Promise<AuthSettingsV
   if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
   return json;
 }
-

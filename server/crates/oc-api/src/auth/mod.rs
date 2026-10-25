@@ -5,8 +5,11 @@
 //! - `Authorization: Bearer ocak_…` — an application key (scripts, Terraform).
 //!
 //! The [`require`] middleware resolves the credential to an [`AuthContext`]; handlers take
-//! [`OrgId`]/[`CurrentUser`] (any authenticated user), [`Writer`] (Standard or Admin) or [`Admin`].
-//! Access level comes from the user's built-in role (`<org>-admin` / `-standard` / `-readonly`).
+//! [`OrgId`]/[`CurrentUser`] (any authenticated user), [`Writer`] (Standard or Admin), [`Admin`] or
+//! [`InstanceAdmin`]. Access level comes from the user's built-in role (`<org>-admin` / `-standard` / `-readonly`).
+//!
+//! An *account* (email, password, MFA) signs in; a session acts as one of the account's memberships
+//! (`users` rows, one per org), which switching orgs changes. Suspended orgs reject every credential.
 //!
 //! Cookie-authenticated writes must come from an allowed Origin (CSRF defence on top of SameSite=Lax).
 
@@ -48,8 +51,13 @@ pub enum Credential {
 
 #[derive(Clone, Debug)]
 pub struct AuthContext {
+    /// The membership (`users.id`) acting in `org_id`.
     pub user_id: String,
     pub org_id: String,
+    /// The signed-in identity behind the membership.
+    pub account_id: String,
+    /// May create and manage organizations.
+    pub instance_admin: bool,
     pub name: String,
     pub access: Access,
     pub credential: Credential,
@@ -119,6 +127,9 @@ fn is_public(path: &str) -> bool {
 struct Principal {
     user_id: String,
     org_id: String,
+    account_id: String,
+    instance_admin: bool,
+    org_active: bool,
     name: String,
     status: String,
     role_ids: Vec<String>,
@@ -126,8 +137,26 @@ struct Principal {
     stale: bool,
 }
 
-const PRINCIPAL_SELECT: &str = "SELECT u.id::text AS user_id, u.org_id, u.name, u.status, \
+const PRINCIPAL_SELECT: &str = "SELECT u.id::text AS user_id, u.org_id, u.account_id::text AS account_id, a.is_instance_admin AS instance_admin, \
+    (o.status = 'active') AS org_active, u.name, u.status, \
     COALESCE((SELECT array_agg(role_id) FROM user_roles WHERE user_id = u.id), '{}') AS role_ids";
+const PRINCIPAL_JOIN: &str = "JOIN accounts a ON a.id = u.account_id JOIN orgs o ON o.id = u.org_id";
+
+impl Principal {
+    fn context(self, credential: Credential, session_hash: Option<Vec<u8>>, ip: Option<String>) -> AuthContext {
+        AuthContext {
+            access: access_from_roles(&self.org_id, &self.role_ids),
+            user_id: self.user_id,
+            org_id: self.org_id,
+            account_id: self.account_id,
+            instance_admin: self.instance_admin,
+            name: self.name,
+            credential,
+            session_hash,
+            ip,
+        }
+    }
+}
 
 /// Resolves the request's credential (if any) to an [`AuthContext`].
 pub async fn authenticate(st: &AppState, headers: &HeaderMap, peer: Option<SocketAddr>) -> Result<Option<AuthContext>, ApiError> {
@@ -136,27 +165,27 @@ pub async fn authenticate(st: &AppState, headers: &HeaderMap, peer: Option<Socke
         let hash = crypto::sha256(key.trim());
         let p: Option<Principal> = sqlx::query_as(&format!(
             "{PRINCIPAL_SELECT}, false AS mfa_pending, (k.last_used_at IS NULL OR k.last_used_at < now() - interval '1 minute') AS stale \
-             FROM app_keys k JOIN users u ON u.id = k.user_id WHERE k.key_hash = $1 AND k.revoked_at IS NULL"
+             FROM app_keys k JOIN users u ON u.id = k.user_id {PRINCIPAL_JOIN} WHERE k.key_hash = $1 AND k.revoked_at IS NULL"
         ))
         .bind(&hash)
         .fetch_optional(&st.postgres)
         .await?;
-        let Some(p) = p.filter(|p| p.status == "active") else { return Err(ApiError::Unauthorized("invalid or revoked application key".into())) };
+        let Some(p) = p.filter(|p| p.status == "active" && p.org_active) else { return Err(ApiError::Unauthorized("invalid or revoked application key".into())) };
         if p.stale {
             sqlx::query("UPDATE app_keys SET last_used_at = now() WHERE key_hash = $1").bind(&hash).execute(&st.postgres).await?;
         }
-        return Ok(Some(AuthContext { access: access_from_roles(&p.org_id, &p.role_ids), user_id: p.user_id, org_id: p.org_id, name: p.name, credential: Credential::AppKey, session_hash: None, ip }));
+        return Ok(Some(p.context(Credential::AppKey, None, ip)));
     }
     let Some(token) = cookie(headers, SESSION_COOKIE) else { return Ok(None) };
     let hash = crypto::sha256(&token);
     let p: Option<Principal> = sqlx::query_as(&format!(
         "{PRINCIPAL_SELECT}, s.mfa_pending, (s.last_seen_at < now() - interval '1 minute') AS stale \
-         FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.expires_at > now()"
+         FROM sessions s JOIN users u ON u.id = s.user_id {PRINCIPAL_JOIN} WHERE s.token_hash = $1 AND s.expires_at > now()"
     ))
     .bind(&hash)
     .fetch_optional(&st.postgres)
     .await?;
-    let Some(p) = p.filter(|p| p.status == "active" && !p.mfa_pending) else { return Ok(None) };
+    let Some(p) = p.filter(|p| p.status == "active" && p.org_active && !p.mfa_pending) else { return Ok(None) };
     if p.stale {
         // Sliding expiry, capped at the absolute lifetime.
         sqlx::query(&format!(
@@ -169,7 +198,7 @@ pub async fn authenticate(st: &AppState, headers: &HeaderMap, peer: Option<Socke
         .execute(&st.postgres)
         .await?;
     }
-    Ok(Some(AuthContext { access: access_from_roles(&p.org_id, &p.role_ids), user_id: p.user_id, org_id: p.org_id, name: p.name, credential: Credential::Session, session_hash: Some(hash), ip }))
+    Ok(Some(p.context(Credential::Session, Some(hash), ip)))
 }
 
 /// Rejects unauthenticated API calls and attaches the [`AuthContext`] for handlers.
@@ -234,17 +263,32 @@ impl FromRequestParts<AppState> for Admin {
     }
 }
 
+/// Operators of the install: create, suspend and delete organizations.
+pub struct InstanceAdmin(pub AuthContext);
+
+#[async_trait]
+impl FromRequestParts<AppState> for InstanceAdmin {
+    type Rejection = ApiError;
+    async fn from_request_parts(parts: &mut Parts, st: &AppState) -> Result<Self, ApiError> {
+        let ctx = AuthContext::from_request_parts(parts, st).await?;
+        if !ctx.instance_admin {
+            return Err(ApiError::Forbidden("instance administrator required".into()));
+        }
+        Ok(InstanceAdmin(ctx))
+    }
+}
+
 // ================================================================ sessions + audit
 
-/// Starts a session for `user_id`; returns the cookie token. `mfa_pending` sessions only unlock MFA verification.
+/// Starts a session acting as membership `user_id`; returns the cookie token. `mfa_pending` sessions only unlock MFA verification.
 pub async fn create_session(st: &AppState, user_id: &str, org_id: &str, method: &str, mfa_pending: bool, ip: Option<&str>, user_agent: Option<&str>) -> Result<String, ApiError> {
     let token = crypto::random_token("ocs_");
     // An MFA challenge must be answered within 10 minutes.
     let hours = if mfa_pending { 0 } else { st.config.session_hours as i32 };
     let mins = if mfa_pending { 10 } else { 0 };
-    sqlx::query(
-        "INSERT INTO sessions (token_hash, user_id, org_id, method, mfa_pending, ip, user_agent, expires_at) \
-         VALUES ($1, $2::uuid, $3, $4, $5, $6, $7, now() + make_interval(hours => $8, mins => $9))",
+    let inserted = sqlx::query(
+        "INSERT INTO sessions (token_hash, user_id, account_id, org_id, method, mfa_pending, ip, user_agent, expires_at) \
+         SELECT $1, id, account_id, $3, $4, $5, $6, $7, now() + make_interval(hours => $8, mins => $9) FROM users WHERE id = $2::uuid AND org_id = $3",
     )
     .bind(crypto::sha256(&token))
     .bind(user_id)
@@ -257,8 +301,16 @@ pub async fn create_session(st: &AppState, user_id: &str, org_id: &str, method: 
     .bind(mins)
     .execute(&st.postgres)
     .await?;
+    if inserted.rows_affected() == 0 {
+        return Err(ApiError::Unauthorized("not a member of this organization".into()));
+    }
     if !mfa_pending {
-        sqlx::query("UPDATE users SET last_login_at = now(), failed_logins = 0, locked_until = NULL WHERE id = $1::uuid").bind(user_id).execute(&st.postgres).await?;
+        sqlx::query("UPDATE users SET last_login_at = now() WHERE id = $1::uuid").bind(user_id).execute(&st.postgres).await?;
+        sqlx::query("UPDATE accounts SET last_login_at = now(), failed_logins = 0, locked_until = NULL, last_org_id = $2 WHERE id = (SELECT account_id FROM users WHERE id = $1::uuid)")
+            .bind(user_id)
+            .bind(org_id)
+            .execute(&st.postgres)
+            .await?;
     }
     Ok(token)
 }
@@ -277,6 +329,22 @@ pub async fn audit(pg: &sqlx::PgPool, org: &str, actor_id: Option<&str>, actor: 
         .await;
     if let Err(e) = r {
         tracing::error!(error = %e, action, "failed to write audit event");
+    }
+}
+
+/// Instance-level events (organizations created, suspended, deleted); kept even when the org is gone.
+pub async fn instance_audit(pg: &sqlx::PgPool, ctx: &AuthContext, action: &str, target: &str, detail: &str) {
+    let r = sqlx::query("INSERT INTO instance_audit_events (actor_id, actor, action, target, detail, ip) VALUES ($1::uuid, $2, $3, $4, $5, $6)")
+        .bind(&ctx.account_id)
+        .bind(&ctx.name)
+        .bind(action)
+        .bind(target)
+        .bind(detail)
+        .bind(&ctx.ip)
+        .execute(pg)
+        .await;
+    if let Err(e) = r {
+        tracing::error!(error = %e, action, "failed to write instance audit event");
     }
 }
 

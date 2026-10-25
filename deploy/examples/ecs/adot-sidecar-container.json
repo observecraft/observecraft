@@ -1,0 +1,14 @@
+{
+  "name": "observecraft-collector",
+  "image": "public.ecr.aws/aws-observability/aws-otel-collector:v0.40.0",
+  "essential": false,
+  "command": ["--config=env:AOT_CONFIG_CONTENT"],
+  "environment": [
+    { "name": "OBSERVECRAFT_ENDPOINT", "value": "https://intake.example.com" }
+  ],
+  "secrets": [
+    { "name": "AOT_CONFIG_CONTENT", "valueFrom": "arn:aws:ssm:<region>:<account-id>:parameter/observecraft/adot-collector.yaml" },
+    { "name": "OBSERVECRAFT_API_KEY", "valueFrom": "arn:aws:secretsmanager:<region>:<account-id>:secret:observecraft-api-key-value" }
+  ],
+  "memoryReservation": 100
+}

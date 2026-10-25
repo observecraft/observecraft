@@ -124,6 +124,8 @@ pub struct Profile {
     pub timezone: Option<String>,
     pub org: OrgRef,
     pub teams: Vec<TeamRef>,
+    /// May create and manage organizations (Instance Admin).
+    pub is_instance_admin: bool,
 }
 
 async fn profile(st: &AppState, org: &str, user: &str) -> Result<Profile, ApiError> {
@@ -136,8 +138,9 @@ async fn profile(st: &AppState, org: &str, user: &str) -> Result<Profile, ApiErr
         .bind(user)
         .fetch_all(&st.postgres)
         .await?;
+    let (is_instance_admin,): (bool,) = sqlx::query_as("SELECT a.is_instance_admin FROM users u JOIN accounts a ON a.id = u.account_id WHERE u.id = $1::uuid").bind(user).fetch_one(&st.postgres).await?;
     let timezone = row.timezone.clone();
-    Ok(Profile { user: row.summary(), timezone, org: OrgRef { id: org_ref.0, name: org_ref.1 }, teams })
+    Ok(Profile { user: row.summary(), timezone, org: OrgRef { id: org_ref.0, name: org_ref.1 }, teams, is_instance_admin })
 }
 
 #[utoipa::path(get, path = "/api/v1/me", responses((status = 200, body = Profile)), tag = "identity")]
@@ -263,7 +266,8 @@ pub async fn invite(State(st): State<AppState>, Admin(auth): Admin, OrgId(org): 
         }
         let name = email.split('@').next().unwrap_or(&email).replace(['.', '_'], " ");
         let row: Option<(String,)> = sqlx::query_as(
-            "INSERT INTO users (id, org_id, email, name, status, login_methods) VALUES (gen_random_uuid(), $1, $2, $3, 'pending', '{}') \
+            "INSERT INTO users (id, org_id, email, name, status, login_methods) \
+             VALUES (gen_random_uuid(), $1, $2, COALESCE((SELECT name FROM accounts WHERE email = $2), $3), 'pending', '{}') \
              ON CONFLICT (org_id, email) DO NOTHING RETURNING id::text",
         )
         .bind(&org)
@@ -301,6 +305,19 @@ pub async fn login_link(State(st): State<AppState>, Admin(auth): Admin, Path(id)
         return Err(ApiError::BadRequest("Reactivate the user first".into()));
     }
     let purpose = if status == "pending" { "invite" } else { "reset" };
+    if purpose == "reset" {
+        // A reset link sets the account's password, which would also open the person's other organizations.
+        let (others,): (i64,) = sqlx::query_as(
+            "SELECT count(*) FROM users x WHERE x.account_id = (SELECT account_id FROM users WHERE id::text = $1) AND x.org_id <> $2 AND x.status = 'active'",
+        )
+        .bind(&id)
+        .bind(&auth.org_id)
+        .fetch_one(&st.postgres)
+        .await?;
+        if others > 0 {
+            return Err(ApiError::BadRequest(format!("{email} also belongs to other organizations, so only they can change their password (Personal Settings → Security).")));
+        }
+    }
     let url = super::auth::issue_link(&st, &auth.org_id, &id, purpose, Some(&auth.user_id), if purpose == "invite" { 72 } else { 24 }).await?;
     auth.audit(&st, "user.login_link_issued", &email, purpose).await;
     Ok(Json(LoginLink { url }))

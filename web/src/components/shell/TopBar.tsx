@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { Search, Sparkles } from 'lucide-react';
+import { ArrowLeftRight, Building2, Search, Sparkles } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { API_MODE } from '../../api/http';
-import { logout } from '../../api/auth/client';
+import { logout, myOrgs, switchOrg } from '../../api/auth/client';
 import { getProfile } from '../../api/identity/client';
 import { Menu } from '../ui/Dropdown';
 import { UserAvatar } from '../ui/UserAvatar';
@@ -12,6 +12,13 @@ export function TopBar({ onShowNav }: { onShowNav?: () => void }) {
   const navigate = useNavigate();
   // Same key as the settings pages' useProfile, so the profile is fetched once.
   const me = useQuery({ queryKey: ['identity', 'profile'], queryFn: getProfile, enabled: API_MODE === 'live', staleTime: 60_000, retry: false });
+  const orgs = useQuery({ queryKey: ['identity', 'orgs'], queryFn: myOrgs, enabled: API_MODE === 'live', staleTime: 60_000, retry: false });
+  // A full reload drops every cached query of the previous org.
+  const switchTo = (org: string) =>
+    void switchOrg(org)
+      .then(() => window.location.assign('/'))
+      .catch((e: Error) => window.alert(e.message));
+  const others = (orgs.data ?? []).filter((o) => !o.current);
   return (
     <header className="topbar">
       {onShowNav && <ShowNavButton onClick={onShowNav} />}
@@ -30,6 +37,8 @@ export function TopBar({ onShowNav }: { onShowNav?: () => void }) {
             { label: 'Personal Settings', onClick: () => navigate('/account/profile') },
             { label: 'Organization Settings', onClick: () => navigate('/organization-settings/users') },
             { label: 'Teams', onClick: () => navigate('/teams') },
+            ...others.map((o) => ({ label: `Switch to ${o.name}`, icon: <ArrowLeftRight size={14} />, onClick: () => switchTo(o.id) })),
+            ...(me.data?.isInstanceAdmin ? [{ label: 'Instance Admin', icon: <Building2 size={14} />, onClick: () => navigate('/instance/orgs') }] : []),
             ...(API_MODE === 'live' ? [{ label: 'Log Out', onClick: () => void logout().finally(() => window.location.assign('/login')) }] : []),
           ]}
         />

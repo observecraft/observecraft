@@ -10,6 +10,9 @@ pub struct Fields<'a> {
     pub message: &'a str,
     pub tags: &'a HashMap<String, String>,
     pub attr: &'a HashMap<String, String>,
+    /// The log's index, once it has one (unknown before indexing, e.g. live tail): `index:` terms
+    /// then match everything.
+    pub index: Option<&'a str>,
 }
 
 impl<'a> Fields<'a> {
@@ -19,7 +22,7 @@ impl<'a> Fields<'a> {
             "status" => Some(self.status),
             "host" => Some(self.host),
             "source" => Some(self.source),
-            "index" => Some("main"),
+            "index" => self.index,
             k if k.starts_with('@') => self.attr.get(&k[1..]).map(String::as_str),
             k => self.tags.get(k).map(String::as_str),
         }
@@ -27,7 +30,7 @@ impl<'a> Fields<'a> {
 }
 
 /// Case-insensitive glob match supporting `*`.
-fn glob(pattern: &str, value: &str) -> bool {
+pub fn glob(pattern: &str, value: &str) -> bool {
     let p = pattern.to_lowercase();
     let v = value.to_lowercase();
     if !p.contains('*') {
@@ -56,6 +59,7 @@ fn glob(pattern: &str, value: &str) -> bool {
 pub fn matches(terms: &[Term], f: &Fields<'_>) -> bool {
     terms.iter().all(|t| match t {
         Term::Text { text, negate } => f.message.to_lowercase().contains(&text.to_lowercase()) != *negate,
+        Term::Tag { key, .. } if key == "index" && f.index.is_none() => true,
         Term::Tag { key, values, negate } => {
             let hit = f.get(key).is_some_and(|v| values.iter().any(|p| glob(p, v)));
             hit != *negate
@@ -72,7 +76,7 @@ mod tests {
     fn matches_like_the_sql() {
         let tags = HashMap::from([("env".to_string(), "prod".to_string())]);
         let attr = HashMap::from([("http.method".to_string(), "GET".to_string())]);
-        let f = Fields { service: "order-service", status: "error", host: "h1", source: "go", message: "GetCustomer bad response", tags: &tags, attr: &attr };
+        let f = Fields { service: "order-service", status: "error", host: "h1", source: "go", message: "GetCustomer bad response", tags: &tags, attr: &attr, index: Some("main") };
         assert!(matches(&parse_query("service:order* env:prod @http.method:get \"bad response\""), &f));
         assert!(!matches(&parse_query("-status:error"), &f));
         assert!(matches(&parse_query("service:(a OR order-service)"), &f));

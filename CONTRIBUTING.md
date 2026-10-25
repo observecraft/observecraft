@@ -45,11 +45,14 @@ cd observecraft
 cp .env.example .env     # optional: every setting has a development default
 (cd web && npm install)
 
-make up        # ClickHouse, Postgres, NATS, Vector, OTel Collector and synthetic logs
+make up        # ClickHouse, Postgres, NATS, Vector, OTel Collector, RustFS and synthetic logs
 make server    # API on :8080 (applies migrations on startup)
-make tracegen  # synthetic traces, host metrics and CI pipelines
+make intake    # telemetry intake on :4318 (API-key authenticated)
+make tracegen  # synthetic traces, logs, metrics and CI pipelines (through the intake)
 make web       # UI on http://localhost:5173
 ```
+
+The first `cargo build` compiles DuckDB (used by Archive Search) from source; it takes a few minutes once.
 
 On first start the server logs a one-time link to set the admin password. Open it, choose a password, and sign in.
 
@@ -60,6 +63,7 @@ No backend handy? `make web-mock` runs the UI against in-browser mocks.
 | Command | What it does |
 |---|---|
 | `make test` | Rust tests (`cargo test`) + web typecheck (`tsc`) |
+| `OC_TEST_API_URL=http://localhost:8080 OC_TEST_ADMIN_PASSWORD=… cargo test -p oc-api --test tenancy` | Organization-isolation test against a running server (instance admin account) |
 | `make openapi` | Regenerate the OpenAPI document and the web's TypeScript API types |
 | `make logs` / `make ps` | Tail / list the Docker stack |
 | `make down` | Stop the stack, keeping data |
@@ -70,10 +74,11 @@ No backend handy? `make web-mock` runs the UI against in-browser mocks.
 
 | Path | Contents |
 |---|---|
-| `server/crates/oc-query` | Search syntax → SQL `WHERE` clauses / in-memory matcher |
-| `server/crates/oc-store` | ClickHouse + Postgres clients and migrations |
-| `server/crates/oc-api` | The `observecraft-server` binary: axum routes, auth, monitor evaluator, demo seeds |
-| `server/crates/oc-tracegen` | Synthetic OTLP traces, host metrics and CI pipeline data |
+| `server/crates/oc-query` | Search syntax → ClickHouse / DuckDB `WHERE` clauses, in-memory matcher, metric query parser |
+| `server/crates/oc-store` | ClickHouse + Postgres clients, migrations, retention |
+| `server/crates/oc-api` | The `observecraft-server` binary: axum routes, auth & tenancy, monitor evaluator, notifier, log archiver, demo seeds |
+| `server/crates/oc-intake` | The telemetry gateway: ingest-key auth, per-org rate limits, forwarding to the Collector / Vector |
+| `server/crates/oc-tracegen` | Synthetic OTLP traces, logs, metrics (incl. histograms) and CI pipeline data |
 | `server/migrations/` | ClickHouse (telemetry) and Postgres (metadata) schemas |
 | `web/src/api/` | The only data-access layer of the UI: typed clients + in-browser mocks |
 | `web/src/pages/` | One folder per product area (logs, apm, metrics, monitors, …) |
@@ -94,6 +99,8 @@ No backend handy? `make web-mock` runs the UI against in-browser mocks.
 - Add a new numbered file under `server/migrations/postgres/` or `server/migrations/clickhouse/`. Never edit a migration
   that has already been merged; write a new one instead.
 - Every Postgres table carries `org_id`, and every query must filter on it.
+- ClickHouse telemetry is per org too: `oc.logs` filters on `org_id = ?`, the `otel.*` tables on
+  `OrgId = {oc_org:String}` through the client from `AppState::ch(org)`. New queries on those tables must do the same.
 
 ### API changes
 

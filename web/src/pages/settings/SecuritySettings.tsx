@@ -24,11 +24,11 @@ function useAuthMutation<A, R>(fn: (a: A) => Promise<R>) {
   return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: ['auth'] }) });
 }
 
-function errorText(e: unknown): string {
+export function errorText(e: unknown): string {
   return e instanceof Error ? e.message : 'Something went wrong';
 }
 
-function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text }: { text: string }) {
   const [done, setDone] = useState(false);
   return (
     <button

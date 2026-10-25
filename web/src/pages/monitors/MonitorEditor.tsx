@@ -23,7 +23,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { metricCatalog } from '../../api/dashboards/client';
-import { previewMonitor, type MonitorInput, type MonitorOptions, type MonitorType } from '../../api/monitors/client';
+import { previewMonitor, sendTestNotification, type MonitorInput, type MonitorOptions, type MonitorType } from '../../api/monitors/client';
 import { Chart } from '../../components/charts/Chart';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
@@ -39,7 +39,26 @@ import './monitors.css';
 const DEFAULT_QUERY: Record<MonitorType, string> = {
   metric: 'avg:system.load.1{*}',
   apm: 'avg:trace.error_rate{env:prod} by {service}',
+  log: 'logs("status:error") by {service}',
 };
+
+/** `logs("<search>") by {a,b}` ⇄ parts (mirrors the server's parser). */
+export function parseLogQuery(q: string): { search: string; by: string[] } | null {
+  const m = /^\s*logs\("((?:[^"\\]|\\.)*)"\)\s*(?:by\s*\{([^}]*)\})?\s*$/.exec(q);
+  if (!m) return null;
+  return {
+    search: m[1].replace(/\\(.)/g, '$1'),
+    by: (m[2] ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  };
+}
+
+export function formatLogQuery(search: string, by: string[]): string {
+  const esc = search.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `logs("${esc}")${by.length ? ` by {${by.join(',')}}` : ''}`;
+}
 const WINDOWS = [1, 5, 10, 15, 30, 60, 240, 1440];
 const CHANGE_PERIODS = [5, 15, 30, 60, 240, 1440, 10_080];
 const RANGES = [
@@ -107,7 +126,8 @@ export function MonitorEditor() {
   const existing = useMonitor(editing ?? 0, !!editing);
   if (editing && existing.isPending) return <Loading label="Loading monitor…" />;
   if (editing && existing.isError) return <ErrorState error={existing.error} onRetry={() => existing.refetch()} />;
-  return <EditorForm key={editing ?? routeType} editing={editing} detail={editing ? existing.data : undefined} routeType={(routeType === 'apm' ? 'apm' : 'metric') as MonitorType} />;
+  const type: MonitorType = routeType === 'apm' || routeType === 'log' ? routeType : 'metric';
+  return <EditorForm key={editing ?? routeType} editing={editing} detail={editing ? existing.data : undefined} routeType={type} />;
 }
 
 function EditorForm({ editing, detail, routeType }: { editing?: number; detail?: ReturnType<typeof useMonitor>['data']; routeType: MonitorType }) {
@@ -136,7 +156,8 @@ function EditorForm({ editing, detail, routeType }: { editing?: number; detail?:
       name: '',
       type: routeType,
       query: DEFAULT_QUERY[routeType],
-      options: baseOptions(params.get('detection') === 'change'),
+      // Log monitors count matching logs over the window.
+      options: { ...baseOptions(params.get('detection') === 'change'), timeAggregation: routeType === 'log' ? 'sum' : 'avg' },
       critical: '',
       warning: '',
       criticalRecovery: '',
@@ -155,7 +176,9 @@ function EditorForm({ editing, detail, routeType }: { editing?: number; detail?:
   const set = (p: Partial<Form>) => setForm((f) => ({ ...f, ...p }));
   const setOpt = (p: Partial<MonitorOptions>) => setForm((f) => ({ ...f, options: { ...f.options, ...p } }));
 
-  const parsed = parseMetricQuery(form.query);
+  const isLog = form.type === 'log';
+  const parsedLog = isLog ? parseLogQuery(form.query) : null;
+  const parsed = isLog ? (parsedLog ? { by: parsedLog.by } : null) : parseMetricQuery(form.query);
   const critical = num(form.critical);
   const thresholds = {
     critical: critical ?? 0,
@@ -207,12 +230,12 @@ function EditorForm({ editing, detail, routeType }: { editing?: number; detail?:
               New Monitor
             </Link>
             <ChevronRight size={18} className="muted" />
-            <span>{form.type === 'apm' ? 'APM Monitor' : 'Metric Monitor'}</span>
+            <span>{form.type === 'apm' ? 'APM Monitor' : isLog ? 'Logs Monitor' : 'Metric Monitor'}</span>
           </>
         )}
       </header>
       <div className="mon-editor-scroll">
-        <Backtest query={form.query} options={orderError ? { ...options, thresholds: { critical: thresholds.critical } } : options} hasThreshold={critical !== null} />
+        <Backtest type={form.type} query={form.query} options={orderError ? { ...options, thresholds: { critical: thresholds.critical } } : options} hasThreshold={critical !== null} />
         {showTemplates && <TemplateStrip type={form.type} onPick={(t) => set(fromTemplate(t))} onHide={() => setShowTemplates(false)} />}
         <div className="mon-steps">
           <Step n={1} title="Choose the detection method" done>
@@ -248,8 +271,8 @@ function EditorForm({ editing, detail, routeType }: { editing?: number; detail?:
               <Method icon={BarChart3} title="Forecast Alert" desc="Trigger when a metric is predicted to cross a threshold." disabled />
             </div>
           </Step>
-          <Step n={2} title="Define the metric" done={!!parsed}>
-            <QueryBuilder type={form.type} query={form.query} onChange={(query) => set({ query })} />
+          <Step n={2} title={isLog ? 'Define the search query' : 'Define the metric'} done={!!parsed}>
+            {isLog ? <LogQueryBuilder query={form.query} onChange={(query) => set({ query })} /> : <QueryBuilder type={form.type} query={form.query} onChange={(query) => set({ query })} />}
             <div className="mon-eval">
               <h4>Evaluation Details</h4>
               <div className="mon-eval-row">
@@ -406,7 +429,7 @@ function EditorForm({ editing, detail, routeType }: { editing?: number; detail?:
           </button>
         </span>
       </footer>
-      {testing && <TestNotifications input={input} byTags={byTags} onClose={() => setTesting(false)} />}
+      {testing && <TestNotifications input={input} monitorId={editing} byTags={byTags} onClose={() => setTesting(false)} />}
       {exporting && <ExportModal input={input} onClose={() => setExporting(false)} />}
     </div>
   );
@@ -483,6 +506,49 @@ function Threshold({
 }
 
 // ================================================================ query builder
+
+/** Logs monitor: a Log Explorer search, counted per group. */
+function LogQueryBuilder({ query, onChange }: { query: string; onChange: (q: string) => void }) {
+  const parsed = parseLogQuery(query) ?? { search: '', by: [] };
+  return (
+    <div className="mon-qb">
+      <div className="mon-qb-row">
+        <span className="mon-qb-letter">a</span>
+        <input
+          className="mon-qb-raw"
+          value={parsed.search}
+          onChange={(e) => onChange(formatLogQuery(e.target.value, parsed.by))}
+          placeholder='service:checkout status:error "payment declined"'
+          spellCheck={false}
+          aria-label="Log search"
+        />
+      </div>
+      <div className="mon-qb-row">
+        <span className="mon-qb-label">count by</span>
+        <input
+          className="mon-qb-raw"
+          value={parsed.by.join(', ')}
+          onChange={(e) =>
+            onChange(
+              formatLogQuery(
+                parsed.search,
+                e.target.value
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              ),
+            )
+          }
+          placeholder="(everything) e.g. service, host, @http.status_code"
+          aria-label="Group by"
+        />
+      </div>
+      <p className="muted mon-hint">
+        Counts the logs matching the search (same syntax as the Log Explorer) per minute; the evaluation window adds them up. Source: <code>{query}</code>
+      </p>
+    </div>
+  );
+}
 
 function QueryBuilder({ type, query, onChange }: { type: MonitorType; query: string; onChange: (q: string) => void }) {
   const [raw, setRaw] = useState(false);
@@ -595,10 +661,10 @@ function FromInput({ value, tags, onChange }: { value: string; tags: string[]; o
 
 // ================================================================ backtest
 
-function Backtest({ query, options, hasThreshold }: { query: string; options: MonitorOptions; hasThreshold: boolean }) {
+function Backtest({ type, query, options, hasThreshold }: { type: MonitorType; query: string; options: MonitorOptions; hasThreshold: boolean }) {
   const [mode, setMode] = useState<'evaluated' | 'raw'>('evaluated');
   const [rangeKey, setRangeKey] = useState('1h');
-  const valid = !!parseMetricQuery(query);
+  const valid = type === 'log' ? !!parseLogQuery(query) : !!parseMetricQuery(query);
   // Without a threshold yet, preview with one that never triggers.
   const effective: MonitorOptions = hasThreshold
     ? options
@@ -608,13 +674,13 @@ function Backtest({ query, options, hasThreshold }: { query: string; options: Mo
           critical: options.comparator.startsWith('above') ? 1e300 : -1e300,
         },
       };
-  const key = useDeferredValue(JSON.stringify({ query, effective, rangeKey }));
+  const key = useDeferredValue(JSON.stringify({ type, query, effective, rangeKey }));
   const q = useQuery({
     queryKey: ['monitor-preview', key],
     queryFn: ({ signal }) => {
       const k = JSON.parse(key);
       const to = Date.now();
-      return previewMonitor(k.query, k.effective, { from: to - RANGES.find((r) => r.key === k.rangeKey)!.ms, to }, signal);
+      return previewMonitor(k.type, k.query, k.effective, { from: to - RANGES.find((r) => r.key === k.rangeKey)!.ms, to }, signal);
     },
     enabled: valid,
     retry: false,
@@ -856,8 +922,15 @@ function NotificationsStep({ form, set, byTags }: { form: Form; set: (p: Partial
   );
 }
 
-function TestNotifications({ input, byTags, onClose }: { input: MonitorInput; byTags: string[]; onClose: () => void }) {
+function TestNotifications({ input, monitorId, byTags, onClose }: { input: MonitorInput; monitorId?: number; byTags: string[]; onClose: () => void }) {
   const sample = Object.fromEntries(byTags.map((t) => [t, `<${t}>`]));
+  const [results, setResults] = useState<Record<string, { recipient: string; status: string; error?: string | null }[] | string>>({});
+  const send = (label: string, status: string, text: string, value: number | null) => {
+    setResults((r) => ({ ...r, [label]: 'Sending…' }));
+    sendTestNotification({ monitorId, monitorName: input.name || 'Untitled monitor', message: text, status, value })
+      .then((out) => setResults((r) => ({ ...r, [label]: out })))
+      .catch((e: Error) => setResults((r) => ({ ...r, [label]: e.message })));
+  };
   const cases = [
     {
       status: 'alert',
@@ -883,7 +956,7 @@ function TestNotifications({ input, byTags, onClose }: { input: MonitorInput; by
             <X size={18} />
           </button>
         </div>
-        <p className="muted">What each transition would send, rendered from your message. Nothing is delivered.</p>
+        <p className="muted">What each transition sends, rendered from your message. Send delivers it now to its recipients, marked as a test.</p>
         {cases
           .filter((c) => c.status !== 'warn' || c.value !== null)
           .map((c) => {
@@ -901,6 +974,21 @@ function TestNotifications({ input, byTags, onClose }: { input: MonitorInput; by
                 <b className={`mon-test-label t-${c.status}`}>{c.label}</b>
                 <pre>{text.trim() || '(empty message)'}</pre>
                 <span className="muted">→ {who.length ? who.map((w) => `@${w}`).join(', ') : 'no recipients'}</span>
+                {who.length > 0 && (
+                  <button className="btn btn-sm mon-test-send" onClick={() => send(c.label, c.status, text, c.value)} disabled={results[c.label] === 'Sending…'}>
+                    Send test
+                  </button>
+                )}
+                {typeof results[c.label] === 'string' && <span className="muted">{results[c.label] as string}</span>}
+                {Array.isArray(results[c.label]) && (
+                  <ul className="mon-test-results">
+                    {(results[c.label] as { recipient: string; status: string; error?: string | null }[]).map((r) => (
+                      <li key={r.recipient} className={r.status === 'sent' ? 'ok' : 'bad'}>
+                        @{r.recipient}: {r.status === 'sent' ? 'sent' : r.error}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             );
           })}

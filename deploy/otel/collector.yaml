@@ -1,6 +1,9 @@
-# OpenTelemetry Collector (gateway). Applications send OTLP here.
+# OpenTelemetry Collector (internal). Senders reach it only through oc-intake, which authenticates
+# the ingest key and adds the `x-oc-org` header; `resource/org` turns that into the `oc.org_id`
+# resource attribute every table is filtered by (a client-sent oc.org_id is always replaced).
 #   logs            → Vector aggregator (single normalization point, same path as agent logs)
-#   traces, metrics → ClickHouse `otel` database via the contrib ClickHouse exporter (schema auto-created)
+#   traces, metrics → ClickHouse `otel` database via the contrib ClickHouse exporter (tables owned by
+#                     the server's ClickHouse migrations, hence create_schema: false)
 #   CI/CD traces    → `otel.otel_ci_traces` (any trace whose resource has cicd.pipeline.name), kept 30 days
 #   hostmetrics     → the machine running this collector (the Docker VM locally), as a regular host
 receivers:
@@ -23,8 +26,10 @@ receivers:
     protocols:
       grpc:
         endpoint: 0.0.0.0:4317
+        include_metadata: true
       http:
         endpoint: 0.0.0.0:4318
+        include_metadata: true
 
 processors:
   memory_limiter:
@@ -35,6 +40,15 @@ processors:
     # Keep host.name etc. sent by the application; only fill in what is missing.
     override: false
   batch: {}
+  # The tenant: from oc-intake's header only. Without it (nothing should reach us that way) the data
+  # has no organization and is visible to no one.
+  resource/org:
+    attributes:
+      - { key: oc.org_id, action: delete }
+      - { key: oc.org_id, from_context: metadata.x-oc-org, action: upsert }
+      # The org's span retention in days (the spans table TTL reads it).
+      - { key: oc.retention_days, action: delete }
+      - { key: oc.retention_days, from_context: metadata.x-oc-retention-days, action: upsert }
   # hostmetrics reports CPU per core; dashboards want one series per host and state (like the
   # per-host values other agents send), so average across cores before export.
   metricstransform/cpu:
@@ -55,8 +69,17 @@ processors:
       - { key: observecraft.collector, value: otel, action: upsert }
       - { key: observecraft.collector.version, value: otelcol-contrib 0.112.0, action: upsert }
       - { key: os.type, value: linux, action: upsert }
+      - { key: oc.org_id, value: "${env:OC_HOST_ORG}", action: upsert }
 
 connectors:
+  # Kubernetes object snapshots and events (the cluster collector marks them oc.signal = k8s.objects)
+  # are inventory for the Kubernetes Explorer, not log lines.
+  routing/logs:
+    default_pipelines: [logs/app]
+    error_mode: ignore
+    table:
+      - statement: route() where attributes["oc.signal"] == "k8s.objects"
+        pipelines: [logs/k8s]
   # CI/CD pipeline runs arrive as traces (pipeline → jobs → steps/tests) using the OTel cicd.* and
   # vcs.* attributes. They get their own table so they don't show up as APM services.
   routing/ci:
@@ -76,19 +99,29 @@ exporters:
     database: otel
     username: ${env:CLICKHOUSE_USER}
     password: ${env:CLICKHOUSE_PASSWORD}
-    create_schema: true
+    create_schema: false
     ttl: 72h
     timeout: 10s
     retry_on_failure:
       enabled: true
     sending_queue:
       queue_size: 1000
+  clickhouse/k8s:
+    endpoint: tcp://clickhouse:9000?dial_timeout=10s
+    database: otel
+    username: ${env:CLICKHOUSE_USER}
+    password: ${env:CLICKHOUSE_PASSWORD}
+    create_schema: false
+    logs_table_name: otel_k8s_objects
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
   clickhouse/ci:
     endpoint: tcp://clickhouse:9000?dial_timeout=10s
     database: otel
     username: ${env:CLICKHOUSE_USER}
     password: ${env:CLICKHOUSE_PASSWORD}
-    create_schema: true
+    create_schema: false
     traces_table_name: otel_ci_traces
     ttl: 720h
     timeout: 10s
@@ -99,21 +132,30 @@ service:
   pipelines:
     logs:
       receivers: [otlp]
-      processors: [memory_limiter, resourcedetection, batch]
+      processors: [memory_limiter, resource/org, resourcedetection, batch]
+      exporters: [routing/logs]
+    logs/app:
+      receivers: [routing/logs]
       exporters: [otlp/vector]
+    logs/k8s:
+      receivers: [routing/logs]
+      processors: [batch]
+      exporters: [clickhouse/k8s]
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, resourcedetection, batch]
+      processors: [memory_limiter, resource/org, resourcedetection, batch]
       exporters: [routing/ci]
     traces/apm:
       receivers: [routing/ci]
+      processors: [batch]
       exporters: [clickhouse]
     traces/ci:
       receivers: [routing/ci]
+      processors: [batch]
       exporters: [clickhouse/ci]
     metrics:
       receivers: [otlp]
-      processors: [memory_limiter, resourcedetection, batch]
+      processors: [memory_limiter, resource/org, resourcedetection, batch]
       exporters: [clickhouse]
     metrics/host:
       receivers: [hostmetrics]

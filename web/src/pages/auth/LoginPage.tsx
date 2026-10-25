@@ -32,6 +32,8 @@ export function LoginPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const redirect = safeRedirect(params.get('redirect'));
+  // `/login?org=<id>` signs in to that organization (and offers its SSO); otherwise the account's last org.
+  const org = params.get('org') ?? undefined;
   const [step, setStep] = useState<Step>('password');
   const [cfg, setCfg] = useState<LoginConfig | null>(null);
   const [email, setEmail] = useState('');
@@ -41,10 +43,10 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    loginConfig()
+    loginConfig(org)
       .then(setCfg)
       .catch(() => setCfg(null));
-  }, []);
+  }, [org]);
 
   const done = () => {
     // Full reload so every cached query starts fresh as the new user.
@@ -69,7 +71,7 @@ export function LoginPage() {
       {step === 'password' && (
         <>
           <h1 className="auth-title">Log in to ObserveCraft</h1>
-          {cfg && <p className="auth-org">{cfg.orgName}</p>}
+          {cfg && org && <p className="auth-org">{cfg.orgName}</p>}
           {providers.map((p) => (
             <a key={p.loginUrl} className="auth-sso-btn" href={ssoHref(p.loginUrl)}>
               <span className="auth-sso-icon">
@@ -89,7 +91,7 @@ export function LoginPage() {
                 onSubmit={(e) => {
                   e.preventDefault();
                   void run(async () => {
-                    const r = await login(email, password);
+                    const r = await login(email, password, org);
                     if (r.mfaRequired) setStep('mfa');
                     else done();
                   });

@@ -37,6 +37,10 @@ struct LiveRecord {
     attr: HashMap<String, String>,
     #[serde(default)]
     attributes: String,
+    #[serde(default)]
+    trace_id: String,
+    #[serde(default)]
+    span_id: String,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -101,7 +105,7 @@ pub async fn live(State(st): State<AppState>, OrgId(org): OrgId, Query(p): Query
                 msg = sub.next() => {
                     let Some(msg) = msg else { break };
                     let Ok(r) = serde_json::from_slice::<LiveRecord>(&msg.payload) else { continue };
-                    let f = Fields { service: &r.service, status: &r.status, host: &r.host, source: &r.source, message: &r.message, tags: &r.tags, attr: &r.attr };
+                    let f = Fields { service: &r.service, status: &r.status, host: &r.host, source: &r.source, message: &r.message, tags: &r.tags, attr: &r.attr, index: None };
                     if !matches(&terms, &f) {
                         continue;
                     }
@@ -116,6 +120,8 @@ pub async fn live(State(st): State<AppState>, OrgId(org): OrgId, Query(p): Query
                         message: r.message,
                         tags: r.tags,
                         attributes: serde_json::from_str(&r.attributes).unwrap_or(serde_json::Value::Null),
+                        trace_id: super::logs::non_empty(r.trace_id),
+                        span_id: super::logs::non_empty(r.span_id),
                     };
                     // Reservoir sampling keeps a uniform sample of this tick's matches.
                     if window.len() < cap {

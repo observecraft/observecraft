@@ -19,7 +19,7 @@ use utoipa::ToSchema;
 
 use super::downtimes::{load_downtimes, Downtime};
 use super::identity::MemberRef;
-use super::logs::TimeRange;
+use super::logs::{log_counts, parse_log_monitor, TimeRange};
 use super::metrics::{evaluate_query, Group};
 use super::monitor_engine::{
     backtest, group_key, parse_group_key, recipients, render_message, worst, MessageContext, MonitorOptions, MonitorStatus, DAY_MS,
@@ -39,6 +39,8 @@ pub enum MonitorType {
     Metric,
     /// `trace.*` metrics computed from spans.
     Apm,
+    /// Count of logs matching a search: `logs("service:checkout status:error") by {service}`.
+    Log,
 }
 
 impl MonitorType {
@@ -46,15 +48,28 @@ impl MonitorType {
         match self {
             MonitorType::Metric => "metric",
             MonitorType::Apm => "apm",
+            MonitorType::Log => "log",
         }
     }
     fn parse(s: &str) -> Self {
-        if s == "apm" {
-            MonitorType::Apm
-        } else {
-            MonitorType::Metric
+        match s {
+            "apm" => MonitorType::Apm,
+            "log" => MonitorType::Log,
+            _ => MonitorType::Metric,
         }
     }
+}
+
+/// The series a monitor evaluates over `range`: its metric query's groups, or for log monitors the
+/// matching logs per interval (per group).
+async fn monitor_series(st: &AppState, org: &str, kind: MonitorType, query: &str, range: TimeRange, points: u32) -> Result<Vec<Group>, ApiError> {
+    if kind == MonitorType::Log {
+        let (search, by) = parse_log_monitor(query).map_err(ApiError::BadRequest)?;
+        let step = ((range.to - range.from) / points.max(1) as i64).max(60_000);
+        return log_counts(st, org, &search, &by, range, step).await;
+    }
+    let q = parse_metric_query(query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+    evaluate_query(st, org, &q, range, points).await
 }
 
 // ================================================================ loading
@@ -575,9 +590,13 @@ fn validate(input: &mut MonitorInput) -> Result<(), ApiError> {
     if input.name.is_empty() || input.name.len() > 500 {
         return Err(ApiError::BadRequest("the monitor name must be 1–500 characters".into()));
     }
-    let q = parse_metric_query(&input.query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
-    if input.r#type == MonitorType::Apm && !q.metric.starts_with("trace.") {
-        return Err(ApiError::BadRequest("APM monitors use trace.* metrics".into()));
+    if input.r#type == MonitorType::Log {
+        parse_log_monitor(&input.query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+    } else {
+        let q = parse_metric_query(&input.query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+        if input.r#type == MonitorType::Apm && !q.metric.starts_with("trace.") {
+            return Err(ApiError::BadRequest("APM monitors use trace.* metrics".into()));
+        }
     }
     input.options.validate().map_err(ApiError::BadRequest)?;
     if input.priority.is_some_and(|p| !(1..=5).contains(&p)) {
@@ -847,6 +866,8 @@ pub async fn history(State(st): State<AppState>, OrgId(org): OrgId, Path(id): Pa
 #[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MonitorPreviewRequest {
+    /// Metric (default) or log monitor.
+    pub r#type: Option<MonitorType>,
     pub query: String,
     pub options: MonitorOptions,
     pub range: TimeRange,
@@ -882,16 +903,16 @@ pub struct MonitorPreview {
 
 /// Backtests a monitor definition: how its value and status would have evolved over `range`.
 #[utoipa::path(post, path = "/api/v1/monitors/preview", request_body = MonitorPreviewRequest, responses((status = 200, body = MonitorPreview)), tag = "monitors")]
-pub async fn preview(State(st): State<AppState>, OrgId(_org): OrgId, Json(req): Json<MonitorPreviewRequest>) -> ApiResult<MonitorPreview> {
+pub async fn preview(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<MonitorPreviewRequest>) -> ApiResult<MonitorPreview> {
     req.range.validate()?;
     if req.range.to - req.range.from > 7 * DAY_MS {
         return Err(ApiError::BadRequest("previews cover at most a week".into()));
     }
     req.options.validate().map_err(ApiError::BadRequest)?;
-    let q = parse_metric_query(&req.query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
     let span = req.range.to - req.range.from;
     let fetch = TimeRange { from: req.range.from - req.options.lookback_ms(), to: req.range.to };
-    let groups = evaluate_query(&st, &q, fetch, ((fetch.to - fetch.from) / (span / 300).max(10_000)).clamp(10, 1000) as u32).await?;
+    let points = ((fetch.to - fetch.from) / (span / 300).max(10_000)).clamp(10, 1000) as u32;
+    let groups = monitor_series(&st, &org, req.r#type.unwrap_or(MonitorType::Metric), &req.query, fetch, points).await?;
     let step = (span / 240).max(60_000);
     let b = backtest(&req.options, &groups, req.range.from, req.range.to, step);
     let mut transitions = TransitionCounts::default();
@@ -1131,12 +1152,11 @@ async fn evaluate_inner(st: &AppState, id: i64, now: i64) -> Result<(), ApiError
     let downtimes = load_downtimes(st, &row.org_id).await?;
     let m = Loaded::new(row, groups, &downtimes, now);
     let Some(opts) = m.opts.clone() else { return Ok(()) };
-    let Ok(q) = parse_metric_query(&m.row.query) else { return Ok(()) };
 
     let range = TimeRange { from: now - opts.lookback_ms() - 60_000, to: now };
     let points = ((range.to - range.from) / 10_000).clamp(10, 1000) as u32;
-    // A metric that doesn't exist (yet) is no data, not an error.
-    let series = match evaluate_query(st, &q, range, points).await {
+    // A metric that doesn't exist (yet), or an unparsable query, is no data, not an error.
+    let series = match monitor_series(st, &m.row.org_id, MonitorType::parse(&m.row.kind), &m.row.query, range, points).await {
         Ok(s) => s,
         Err(ApiError::BadRequest(_)) => Vec::new(),
         Err(e) => return Err(e),
@@ -1205,9 +1225,9 @@ async fn insert_event(
     let ctx = MessageContext { status: to, previous: from, value, opts, monitor_name: &row.name, group: tags };
     let message = render_message(&row.message, &ctx);
     let who = if muted { Vec::new() } else { recipients(&message) };
-    sqlx::query(
+    let (event_id,): (i64,) = sqlx::query_as(
         "INSERT INTO monitor_events (monitor_id, group_key, from_status, to_status, value, muted, recipients, message, created_at) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE(to_timestamp($9), now()))",
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE(to_timestamp($9), now())) RETURNING id",
     )
     .bind(row.id)
     .bind(key)
@@ -1218,8 +1238,14 @@ async fn insert_event(
     .bind(&who)
     .bind(&message)
     .bind(at.map(|t| t as f64 / 1000.0))
-    .execute(&mut **tx)
+    .fetch_one(&mut **tx)
     .await?;
+    // Live transitions notify; replayed history (backfill) doesn't.
+    if at.is_none() {
+        for r in &who {
+            sqlx::query("INSERT INTO notification_deliveries (event_id, org_id, recipient) VALUES ($1, $2, $3)").bind(event_id).bind(&row.org_id).bind(r).execute(&mut **tx).await?;
+        }
+    }
     Ok(())
 }
 
@@ -1228,11 +1254,10 @@ async fn insert_event(
 pub(crate) async fn backfill(st: &AppState, id: i64) -> Result<(), ApiError> {
     let row: Row = sqlx::query_as(&format!("{SELECT} WHERE m.id = $1")).bind(id).fetch_one(&st.postgres).await?;
     let Some(opts) = serde_json::from_value::<MonitorOptions>(row.definition.clone()).ok() else { return Ok(()) };
-    let Ok(q) = parse_metric_query(&row.query) else { return Ok(()) };
     let now = now_ms();
     let from = now - DAY_MS;
     let range = TimeRange { from: from - opts.lookback_ms(), to: now };
-    let series = match evaluate_query(st, &q, range, 1000).await {
+    let series = match monitor_series(st, &row.org_id, MonitorType::parse(&row.kind), &row.query, range, 1000).await {
         Ok(s) => s,
         Err(ApiError::BadRequest(_)) => return Ok(()),
         Err(e) => return Err(e),

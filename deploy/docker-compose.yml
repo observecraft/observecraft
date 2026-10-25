@@ -65,14 +65,20 @@ services:
   vector-aggregator:
     image: timberio/vector:0.42.0-debian
     restart: unless-stopped
-    command: ["--config", "/etc/vector/vector.yaml"]
+    command: ["--config", "/etc/vector/aggregator.yaml"]
     environment:
       <<: *ch-auth
+      # The server's log indexer. `make up` points it at a server running on the host.
+      OC_LOGPROC_URL: ${OC_LOGPROC_URL:-http://server:8090/ingest/logs}
+      OC_INTERNAL_TOKEN: ${OC_INTERNAL_TOKEN:-}
     volumes:
-      - ./vector/aggregator.yaml:/etc/vector/vector.yaml:ro
+      - ./vector:/etc/vector:ro
+      # Disk buffer in front of ClickHouse: survives restarts and container re-creation.
+      - vector-data:/var/lib/vector
     ports:
-      - "6000:6000" # vector protocol (agents)
+      - "6000:6000" # vector protocol (trusted agents)
       - "8686:8686" # vector API / health
+      - "127.0.0.1:8687:8687" # JSON logs from oc-intake (internal)
     depends_on:
       clickhouse: { condition: service_healthy }
       nats: { condition: service_healthy }
@@ -84,14 +90,32 @@ services:
     environment:
       <<: *ch-auth
       OC_HOST_NAME: ${OC_HOST_NAME:-docker-dev-host}
+      # Organization the collector's own host metrics belong to.
+      OC_HOST_ORG: ${OC_HOST_ORG:-default}
     volumes:
       - ./otel/collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    # Internal only: senders go through oc-intake (:4318), which authenticates them. Published on
+    # loopback so an intake running on the host (make intake) can reach it.
     ports:
-      - "4317:4317" # OTLP gRPC
-      - "4318:4318" # OTLP HTTP
+      - "127.0.0.1:14318:4318" # OTLP HTTP
     depends_on:
       clickhouse: { condition: service_healthy }
       vector-aggregator: { condition: service_started }
+
+  # S3-compatible object storage (RustFS) for log archives: a local stand-in for S3 / GCS / R2.
+  # S3 API on :9100 (in the network: rustfs:9000), web console on :9101.
+  rustfs:
+    image: rustfs/rustfs:1.0.3
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${OC_DEMO_ARCHIVE_ACCESS_KEY:-observecraft}
+      RUSTFS_SECRET_KEY: ${OC_DEMO_ARCHIVE_SECRET_KEY:-observecraft-archive-dev}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    volumes:
+      - rustfs-data:/data
+    ports:
+      - "9100:9000"
+      - "9101:9001"
 
   # Synthetic application logs so the UI has live data.
   loadgen:
@@ -106,13 +130,20 @@ services:
   server:
     profiles: ["app"]
     build:
-      context: ../server
+      context: ..
+      dockerfile: server/Dockerfile
     environment:
       OC_CLICKHOUSE_URL: http://clickhouse:8123
       OC_POSTGRES_URL: postgres://observecraft:observecraft@postgres:5432/observecraft
       OC_NATS_URL: nats://nats:4222
-      OC_CORS_ORIGINS: http://localhost:5173
-      OC_PUBLIC_URL: ${OC_PUBLIC_URL:-http://localhost:5173}
+      OC_CORS_ORIGINS: ${OC_CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
+      # The containerised server also serves the web app on :8080.
+      OC_PUBLIC_URL: ${OC_PUBLIC_URL:-http://localhost:8080}
+      OC_INSTANCE_ADMIN_EMAIL: ${OC_INSTANCE_ADMIN_EMAIL:-}
+      OC_DEMO_INGEST_KEY: ${OC_DEMO_INGEST_KEY:-ocik_local_demo_only_do_not_use_in_production}
+      OC_DEMO_ARCHIVE_ENDPOINT: http://rustfs:9000
+      OC_INTERNAL_TOKEN: ${OC_INTERNAL_TOKEN:-}
+      OC_DATA_DIR: /var/lib/observecraft
       OC_SECRET_KEY: ${OC_SECRET_KEY:-}
       OC_COOKIE_SECURE: ${OC_COOKIE_SECURE:-false}
     ports:
@@ -122,20 +153,58 @@ services:
       postgres: { condition: service_healthy }
       nats: { condition: service_healthy }
 
+  # The public telemetry endpoint: OTLP/HTTP and JSON logs, authenticated by ingest API key.
+  intake:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    entrypoint: ["oc-intake"]
+    restart: unless-stopped
+    environment:
+      OC_POSTGRES_URL: postgres://observecraft:observecraft@postgres:5432/observecraft
+      OC_INTAKE_COLLECTOR_URL: http://otel-collector:4318
+      OC_INTAKE_LOGS_URL: http://vector-aggregator:8687
+    ports:
+      - "4318:4318"
+    depends_on:
+      postgres: { condition: service_healthy }
+      otel-collector: { condition: service_started }
+
   # Synthetic OTLP traces for APM (services, dependencies, N+1 calls, errors, rolling deploys).
   tracegen:
     profiles: ["app"]
     build:
-      context: ../server
+      context: ..
+      dockerfile: server/Dockerfile
     entrypoint: ["oc-tracegen"]
     restart: unless-stopped
     environment:
       <<: *ch-auth
-      OTLP_ENDPOINT: http://otel-collector:4318
+      OTLP_ENDPOINT: http://intake:4318
+      OC_INGEST_KEY: ${OC_DEMO_INGEST_KEY:-ocik_local_demo_only_do_not_use_in_production}
       TRACES_PER_SEC: "20"
       CLICKHOUSE_HTTP: http://clickhouse:8123
     depends_on:
-      otel-collector: { condition: service_started }
+      intake: { condition: service_started }
+
+  # ---- TLS termination (`--profile tls`, with `--profile app`): automatic HTTPS for the app and the intake.
+  caddy:
+    profiles: ["tls"]
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    environment:
+      OC_DOMAIN: ${OC_DOMAIN:-localhost}
+      OC_INTAKE_DOMAIN: ${OC_INTAKE_DOMAIN:-intake.localhost}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      server: { condition: service_started }
+      intake: { condition: service_started }
 
   # ---- Local identity providers for testing SSO (`docker compose --profile sso up -d`). Never use in production.
   # SAML IdP (SimpleSAMLphp). Users: user1 / user1pass, user2 / user2pass. Metadata: http://localhost:8081/simplesaml/saml2/idp/metadata.php
@@ -165,3 +234,6 @@ services:
 volumes:
   clickhouse-data:
   postgres-data:
+  rustfs-data:
+  vector-data:
+  caddy-data:

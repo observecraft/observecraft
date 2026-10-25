@@ -4,8 +4,8 @@
     "title": "ObserveCraft API",
     "description": "API consumed by the ObserveCraft web app.",
     "license": {
-      "name": "Proprietary",
-      "identifier": "Proprietary"
+      "name": "MIT",
+      "identifier": "MIT"
     },
     "version": "0.1.0"
   },
@@ -713,7 +713,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Sets the password from an invite / reset link and signs in (MFA still applies if enabled).",
+        "summary": "Accepts an invite / reset link and signs in (MFA still applies if enabled). A new account sets its\npassword here; an existing account joins the org by confirming its current password.",
         "operationId": "accept_link",
         "parameters": [
           {
@@ -764,6 +764,7 @@
         "tags": [
           "auth"
         ],
+        "summary": "Signs in to the requested org, else the last one used, else the account's first organization.",
         "operationId": "login",
         "requestBody": {
           "content": {
@@ -1893,6 +1894,7 @@
         "tags": [
           "infrastructure"
         ],
+        "summary": "Containers of the pods on this host, by memory.",
         "operationId": "containers",
         "parameters": [
           {
@@ -1920,7 +1922,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EmptyPage"
+                  "$ref": "#/components/schemas/HostContainerPage"
                 }
               }
             }
@@ -1973,7 +1975,7 @@
         "tags": [
           "infrastructure"
         ],
-        "summary": "Pods and containers need the Kubernetes / Docker receivers; no collector sends them yet.",
+        "summary": "Pods the Kubernetes collector reports on this host (its node).",
         "operationId": "pods",
         "parameters": [
           {
@@ -2001,7 +2003,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EmptyPage"
+                  "$ref": "#/components/schemas/HostPodPage"
                 }
               }
             }
@@ -3000,6 +3002,638 @@
         }
       }
     },
+    "/api/v1/ingest-keys": {
+      "get": {
+        "tags": [
+          "ingest"
+        ],
+        "operationId": "list_ingest_keys",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IngestKey"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ingest"
+        ],
+        "operationId": "create_ingest_key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIngestKey"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedIngestKey"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ingest-keys/{id}": {
+      "delete": {
+        "tags": [
+          "ingest"
+        ],
+        "operationId": "revoke_ingest_key",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/instance/audit": {
+      "get": {
+        "tags": [
+          "instance"
+        ],
+        "operationId": "instance_audit",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InstanceAuditEvent"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/instance/orgs": {
+      "get": {
+        "tags": [
+          "instance"
+        ],
+        "operationId": "instance_list_orgs",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InstanceOrg"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "instance"
+        ],
+        "operationId": "instance_create_org",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrgRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOrg"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/instance/orgs/{id}": {
+      "delete": {
+        "tags": [
+          "instance"
+        ],
+        "summary": "Permanently deletes an organization: its users, content and settings now, its telemetry in the\nbackground. Accounts that belong to other organizations keep those memberships.",
+        "operationId": "instance_delete_org",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteOrgRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "instance"
+        ],
+        "summary": "Renames, suspends or reactivates an organization. Suspension ends its sessions and rejects its keys.",
+        "operationId": "instance_update_org",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstanceOrgPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/instance/orgs/{id}/limits": {
+      "patch": {
+        "tags": [
+          "instance"
+        ],
+        "summary": "Sets what an org may configure. Lowering a ceiling also lowers settings above it.",
+        "operationId": "instance_update_org_limits",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrgLimits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/logs/archive-searches": {
+      "get": {
+        "tags": [
+          "archives"
+        ],
+        "operationId": "list_archive_searches",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ArchiveSearch"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "archives"
+        ],
+        "summary": "Starts a search over archived logs; poll it with GET /api/v1/logs/archive-searches/{id}.",
+        "operationId": "create_archive_search",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveSearch"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/archive-searches/{id}": {
+      "get": {
+        "tags": [
+          "archives"
+        ],
+        "operationId": "get_archive_search",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveSearchDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "archives"
+        ],
+        "summary": "Cancels a running search, or deletes a finished one with its results.",
+        "operationId": "delete_archive_search",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/logs/archives": {
+      "get": {
+        "tags": [
+          "archives"
+        ],
+        "operationId": "list_log_archives",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogArchive"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "archives"
+        ],
+        "summary": "Creates an archive after proving the bucket is writable.",
+        "operationId": "create_log_archive",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateArchive"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogArchive"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/archives/test": {
+      "post": {
+        "tags": [
+          "archives"
+        ],
+        "summary": "Checks that the bucket can be written, read and deleted from with these credentials.",
+        "operationId": "test_log_archive",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveTarget"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/archives/{id}": {
+      "delete": {
+        "tags": [
+          "archives"
+        ],
+        "summary": "Stops archiving and forgets the archive; files already in the bucket are left there.",
+        "operationId": "delete_log_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "archives"
+        ],
+        "operationId": "update_log_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchivePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogArchive"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/archives/{id}/run": {
+      "post": {
+        "tags": [
+          "archives"
+        ],
+        "summary": "Archives every pending closed hour now (instead of waiting for the background job).",
+        "operationId": "run_log_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveNowResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/archives/{id}/runs": {
+      "get": {
+        "tags": [
+          "archives"
+        ],
+        "operationId": "log_archive_runs",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ArchiveRun"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/logs/facets": {
       "post": {
         "tags": [
@@ -3068,6 +3702,139 @@
         }
       }
     },
+    "/api/v1/logs/indexes": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "list_log_indexes",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogIndexes"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "create_log_index",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogIndexInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogIndex"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/indexes/reorder": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "reorder_log_indexes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderIndexes"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/logs/indexes/{id}": {
+      "put": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "update_log_index",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogIndexInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogIndex"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Stops indexing into it; its logs stay searchable (`index:<name>`) until they expire.",
+        "operationId": "delete_log_index",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/logs/insights": {
       "post": {
         "tags": [
@@ -3126,6 +3893,82 @@
             "content": {
               "text/event-stream": {}
             }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/rehydrations": {
+      "get": {
+        "tags": [
+          "archives"
+        ],
+        "operationId": "list_rehydrations",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Rehydration"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "archives"
+        ],
+        "summary": "Loads archived logs back into ClickHouse; search them in the Log Explorer with `index:rehydrated`.",
+        "operationId": "create_rehydration",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RehydrateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rehydration"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/rehydrations/{id}": {
+      "delete": {
+        "tags": [
+          "archives"
+        ],
+        "summary": "Removes a rehydration's logs now.",
+        "operationId": "expire_rehydration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
           }
         }
       }
@@ -3342,7 +4185,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Ends every session of the current user, including this one.",
+        "summary": "Ends every session of the current account (in every organization), including this one.",
         "operationId": "logout_all",
         "responses": {
           "204": {
@@ -3431,6 +4274,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MfaSetup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/orgs": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "The organizations this account belongs to (active memberships in active orgs).",
+        "operationId": "my_orgs",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MyOrg"
+                  }
                 }
               }
             }
@@ -3536,6 +4403,40 @@
             "description": ""
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/switch-org": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Moves this browser session to another of the account's organizations (a new session token is issued).\nSessions started with single sign-on are bound to that organization; an org that requires SSO can\nonly be entered through its identity provider (admins excepted).",
+        "operationId": "switch_org",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchOrgRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
             "description": "",
             "content": {
               "application/json": {
@@ -3754,6 +4655,40 @@
         }
       }
     },
+    "/api/v1/monitors/test-notification": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Sends one transition's message to its recipients now, marked as a test.",
+        "operationId": "test_monitor_notification",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestNotification"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TestDelivery"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/monitors/triggered": {
       "post": {
         "tags": [
@@ -3919,6 +4854,223 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MonitorHistory"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notification-channels": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "operationId": "list_notification_channels",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationChannel"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "operationId": "create_notification_channel",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChannel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationChannel"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notification-channels/{id}": {
+      "delete": {
+        "tags": [
+          "notifications"
+        ],
+        "operationId": "delete_notification_channel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/notification-deliveries": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "The org's most recent notification deliveries.",
+        "operationId": "list_notification_deliveries",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Delivery"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orchestration/resources/{uid}": {
+      "get": {
+        "tags": [
+          "orchestration"
+        ],
+        "operationId": "get_orchestration_resource",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KubeDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orchestration/search": {
+      "post": {
+        "tags": [
+          "orchestration"
+        ],
+        "operationId": "search_orchestration",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KubeSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KubeSearchPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/org/data-settings": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "get_org_data_settings",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgDataSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Span retention applies to spans received from then on (within about a minute).",
+        "operationId": "update_org_data_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrgDataSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgDataSettings"
                 }
               }
             }
@@ -4702,6 +5854,269 @@
           },
           "prefix": {
             "type": "string"
+          }
+        }
+      },
+      "ArchiveNowResult": {
+        "type": "object",
+        "required": [
+          "hours",
+          "rows"
+        ],
+        "properties": {
+          "hours": {
+            "type": "integer",
+            "description": "Hours written by this run.",
+            "minimum": 0
+          },
+          "rows": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ArchivePatch": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "query": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ArchiveRun": {
+        "type": "object",
+        "required": [
+          "hour",
+          "status",
+          "rows",
+          "bytes",
+          "attempts",
+          "finishedAt"
+        ],
+        "properties": {
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finishedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "hour": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "objectKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rows": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ArchiveSearch": {
+        "type": "object",
+        "required": [
+          "id",
+          "archiveId",
+          "archiveName",
+          "query",
+          "from",
+          "to",
+          "status",
+          "filesTotal",
+          "filesScanned",
+          "bytesScanned",
+          "matches",
+          "maxResults",
+          "createdAt"
+        ],
+        "properties": {
+          "archiveId": {
+            "type": "string"
+          },
+          "archiveName": {
+            "type": "string"
+          },
+          "bytesScanned": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "filesScanned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "filesTotal": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "finishedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "from": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxResults": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "query": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "running | done | failed | canceled"
+          },
+          "to": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ArchiveSearchDetail": {
+        "type": "object",
+        "required": [
+          "search",
+          "events"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogEvent"
+            }
+          },
+          "search": {
+            "$ref": "#/components/schemas/ArchiveSearch"
+          }
+        }
+      },
+      "ArchiveSearchRequest": {
+        "type": "object",
+        "required": [
+          "archiveId",
+          "range"
+        ],
+        "properties": {
+          "archiveId": {
+            "type": "string"
+          },
+          "maxResults": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Events kept (newest first), 1–5000. Default 1000."
+          },
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "ArchiveTarget": {
+        "type": "object",
+        "required": [
+          "endpoint",
+          "bucket",
+          "accessKey",
+          "secretKey"
+        ],
+        "properties": {
+          "accessKey": {
+            "type": "string"
+          },
+          "bucket": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "pathStyle": {
+            "type": "boolean"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "secretKey": {
+            "type": "string"
+          }
+        }
+      },
+      "ArchiveTestResult": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
           }
         }
       },
@@ -5579,6 +6994,61 @@
           }
         }
       },
+      "CreateArchive": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ArchiveTarget"
+          },
+          {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "backfillDays": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Also archive the logs of the last N days still held in the raw table (0–2 by default, see OC_RAW_LOGS_HOURS)."
+              },
+              "name": {
+                "type": "string"
+              },
+              "query": {
+                "type": "string",
+                "description": "Which logs to archive (search syntax); empty = all."
+              }
+            }
+          }
+        ]
+      },
+      "CreateChannel": {
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "url"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "webhook | slack"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name after the prefix: `oncall` → `@webhook-oncall`."
+          },
+          "secret": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Webhooks only: signing secret."
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
       "CreateDashboardRequest": {
         "type": "object",
         "required": [
@@ -5611,6 +7081,17 @@
             "type": "string"
           },
           "url": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateIngestKey": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
             "type": "string"
           }
         }
@@ -5671,6 +7152,27 @@
           }
         }
       },
+      "CreateOrgRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "adminEmail"
+        ],
+        "properties": {
+          "adminEmail": {
+            "type": "string",
+            "description": "Becomes the org's first Admin (invited; an existing account joins with its current password)."
+          },
+          "id": {
+            "type": "string",
+            "description": "Lowercase letters, digits and dashes (2–40); used in URLs and SSO endpoints."
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "CreatePage": {
         "type": "object",
         "required": [
@@ -5722,6 +7224,41 @@
             }
           }
         ]
+      },
+      "CreatedIngestKey": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IngestKey"
+          },
+          {
+            "type": "object",
+            "required": [
+              "key"
+            ],
+            "properties": {
+              "key": {
+                "type": "string",
+                "description": "The secret. Shown only once."
+              }
+            }
+          }
+        ]
+      },
+      "CreatedOrg": {
+        "type": "object",
+        "required": [
+          "id",
+          "inviteUrl"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "inviteUrl": {
+            "type": "string",
+            "description": "One-time link (72h) for the first admin. Share it until mail delivery is configured."
+          }
+        }
       },
       "Dashboard": {
         "type": "object",
@@ -6160,6 +7697,79 @@
             "type": "boolean"
           },
           "title": {
+            "type": "string"
+          }
+        }
+      },
+      "DeleteOrgRequest": {
+        "type": "object",
+        "required": [
+          "confirm"
+        ],
+        "properties": {
+          "confirm": {
+            "type": "string",
+            "description": "Must repeat the organization id."
+          }
+        }
+      },
+      "Delivery": {
+        "type": "object",
+        "required": [
+          "id",
+          "monitorId",
+          "monitorName",
+          "groupKey",
+          "toStatus",
+          "recipient",
+          "status",
+          "attempts",
+          "createdAt"
+        ],
+        "properties": {
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupKey": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "monitorId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "monitorName": {
+            "type": "string"
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "sentAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "description": "pending | sent | failed | unknown_recipient"
+          },
+          "toStatus": {
             "type": "string"
           }
         }
@@ -6867,25 +8477,6 @@
           "canceled"
         ]
       },
-      "EmptyPage": {
-        "type": "object",
-        "required": [
-          "items",
-          "total"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          },
-          "total": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      },
       "ErrorBody": {
         "type": "object",
         "description": "JSON error body returned by every endpoint.",
@@ -6918,6 +8509,32 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "ExclusionFilter": {
+        "type": "object",
+        "required": [
+          "name",
+          "query",
+          "sampleRate",
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "description": "Logs matching this search are excluded…"
+          },
+          "sampleRate": {
+            "type": "number",
+            "format": "double",
+            "description": "…at this rate (0–100 %)."
           }
         }
       },
@@ -7336,6 +8953,87 @@
           }
         }
       },
+      "HostContainer": {
+        "type": "object",
+        "required": [
+          "name",
+          "pod",
+          "status",
+          "image"
+        ],
+        "properties": {
+          "cpuPct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "CPU use as a share of the node's cores."
+          },
+          "image": {
+            "type": "string"
+          },
+          "memLimitBytes": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Container memory limit, else the node's allocatable memory."
+          },
+          "name": {
+            "type": "string"
+          },
+          "pod": {
+            "type": "string"
+          },
+          "rssBytes": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Working set."
+          },
+          "startedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HostContainerStatus"
+          }
+        }
+      },
+      "HostContainerPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HostContainer"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "HostContainerStatus": {
+        "type": "string",
+        "enum": [
+          "UP",
+          "WAITING",
+          "EXITED"
+        ]
+      },
       "HostDetail": {
         "allOf": [
           {
@@ -7577,6 +9275,88 @@
           },
           "query": {
             "type": "string"
+          }
+        }
+      },
+      "HostPod": {
+        "type": "object",
+        "required": [
+          "uid",
+          "name",
+          "status",
+          "health",
+          "cluster",
+          "namespace",
+          "ready",
+          "restarts"
+        ],
+        "properties": {
+          "ageSec": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "cluster": {
+            "type": "string"
+          },
+          "cpuPctOfLimit": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "health": {
+            "$ref": "#/components/schemas/KubeHealth"
+          },
+          "memPctOfLimit": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "string"
+          },
+          "restarts": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "description": "As `kubectl get pods` prints it: Running, CrashLoopBackOff, Completed, …"
+          },
+          "uid": {
+            "type": "string"
+          }
+        }
+      },
+      "HostPodPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HostPod"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -8169,6 +9949,172 @@
           }
         }
       },
+      "IngestKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          }
+        }
+      },
+      "InstanceAuditEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "actor",
+          "action",
+          "target",
+          "detail",
+          "createdAt"
+        ],
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target": {
+            "type": "string"
+          }
+        }
+      },
+      "InstanceOrg": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "createdAt",
+          "members",
+          "admins",
+          "logs24h",
+          "spans24h",
+          "primary",
+          "maxLogRetentionDays",
+          "maxSpanRetentionDays",
+          "maxIndexes"
+        ],
+        "properties": {
+          "admins": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "logs24h": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Logs received in the last 24 hours.",
+            "minimum": 0
+          },
+          "maxIndexes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxLogRetentionDays": {
+            "type": "integer",
+            "format": "int32",
+            "description": "What the org may configure (see PATCH …/limits)."
+          },
+          "maxSpanRetentionDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "members": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "primary": {
+            "type": "boolean",
+            "description": "The install's own organization (home of the instance admins); can't be suspended or deleted."
+          },
+          "spans24h": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Spans received in the last 24 hours.",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "description": "active | suspended"
+          }
+        }
+      },
+      "InstanceOrgPatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "active | suspended"
+          }
+        }
+      },
       "Invitation": {
         "type": "object",
         "required": [
@@ -8206,6 +10152,852 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "KubeContainer": {
+        "type": "object",
+        "required": [
+          "name",
+          "image",
+          "ready",
+          "restarts",
+          "state",
+          "init",
+          "cpu",
+          "memory"
+        ],
+        "properties": {
+          "cpu": {
+            "$ref": "#/components/schemas/KubeUtilization"
+          },
+          "image": {
+            "type": "string"
+          },
+          "init": {
+            "type": "boolean"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/KubeUtilization"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "CrashLoopBackOff, OOMKilled, Completed, …"
+          },
+          "restarts": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "startedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "state": {
+            "type": "string",
+            "description": "running / waiting / terminated"
+          }
+        }
+      },
+      "KubeDetail": {
+        "type": "object",
+        "required": [
+          "resource",
+          "manifest",
+          "related",
+          "events"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KubeEvent"
+            }
+          },
+          "manifest": {
+            "type": "object",
+            "description": "The object as the API server returned it, without `managedFields`."
+          },
+          "related": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KubeResource"
+            },
+            "description": "Owners up the chain, then pods, services and other objects related to this one."
+          },
+          "resource": {
+            "$ref": "#/components/schemas/KubeResource"
+          }
+        }
+      },
+      "KubeEvent": {
+        "type": "object",
+        "required": [
+          "timestamp",
+          "eventType",
+          "reason",
+          "message",
+          "objectKind",
+          "objectName",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "eventType": {
+            "type": "string",
+            "description": "Normal / Warning"
+          },
+          "message": {
+            "type": "string"
+          },
+          "objectKind": {
+            "type": "string"
+          },
+          "objectName": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "KubeFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "values"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KubeFacetValue"
+            }
+          }
+        }
+      },
+      "KubeFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "KubeGroup": {
+        "type": "object",
+        "required": [
+          "key",
+          "values",
+          "count",
+          "cpu",
+          "memory",
+          "cpuComplete",
+          "memoryComplete"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cpu": {
+            "$ref": "#/components/schemas/KubeUtilization"
+          },
+          "cpuComplete": {
+            "type": "boolean",
+            "description": "Every member sets CPU (memory) requests and limits. Datadog shows no utilization for a\ngroup with a container that lacks them."
+          },
+          "key": {
+            "type": "string",
+            "description": "The group's values joined with \", \" (one per group-by key)."
+          },
+          "memory": {
+            "$ref": "#/components/schemas/KubeUtilization"
+          },
+          "memoryComplete": {
+            "type": "boolean"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The group's value for each group-by key, in order."
+          }
+        }
+      },
+      "KubeHealth": {
+        "type": "string",
+        "description": "Status colour, as in Datadog's status pills.",
+        "enum": [
+          "ok",
+          "warning",
+          "error",
+          "info"
+        ]
+      },
+      "KubeKind": {
+        "type": "string",
+        "description": "The resource types of the explorer's \"Select Resources\" menu.",
+        "enum": [
+          "clusters",
+          "nodes",
+          "namespaces",
+          "pods",
+          "deployments",
+          "replicasets",
+          "daemonsets",
+          "statefulsets",
+          "jobs",
+          "cronjobs",
+          "services",
+          "ingresses",
+          "persistentvolumeclaims",
+          "persistentvolumes",
+          "horizontalpodautoscalers",
+          "networkpolicies",
+          "poddisruptionbudgets",
+          "limitranges",
+          "resourcequotas",
+          "serviceaccounts",
+          "roles",
+          "rolebindings",
+          "clusterroles",
+          "clusterrolebindings",
+          "storageclasses",
+          "customresourcedefinitions",
+          "containers",
+          "container_images",
+          "ecs_tasks",
+          "ecs_task_definitions",
+          "ecs_services",
+          "ecs_clusters"
+        ]
+      },
+      "KubeKindCount": {
+        "type": "object",
+        "required": [
+          "kind",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "kind": {
+            "$ref": "#/components/schemas/KubeKind"
+          }
+        }
+      },
+      "KubeObjectRef": {
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "uid"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "uid": {
+            "type": "string"
+          }
+        }
+      },
+      "KubeResource": {
+        "type": "object",
+        "description": "One row of the explorer. Kind-specific columns are null for other kinds.",
+        "required": [
+          "uid",
+          "cluster",
+          "name",
+          "lastSeen",
+          "status",
+          "health",
+          "labels",
+          "annotations",
+          "tags",
+          "images",
+          "containers"
+        ],
+        "properties": {
+          "accessModes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "active": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "annotations": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "available": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "capacity": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cluster": {
+            "type": "string"
+          },
+          "clusterIp": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "completions": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Jobs: \"1/1\" succeeded / completions, and run time in seconds."
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KubeContainer"
+            }
+          },
+          "cpu": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KubeUtilization"
+              }
+            ]
+          },
+          "cpuReservation": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "createdAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "current": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "desired": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "durationSec": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "external": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "health": {
+            "$ref": "#/components/schemas/KubeHealth"
+          },
+          "hosts": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageTag": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Container images: tag and containers running it."
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ingressClass": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "instanceType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KubeKind"
+              }
+            ]
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "lastSchedule": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "launchType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "memory": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KubeUtilization"
+              }
+            ]
+          },
+          "memoryReservation": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "node": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nodes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "osImage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "owner": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KubeObjectRef"
+              }
+            ]
+          },
+          "pods": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "ports": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "qos": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ready": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "\"1/2\" containers (pods), replicas (workloads) or nodes (daemonsets)."
+          },
+          "replicasRange": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "restarts": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "roles": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runningContainers": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "runtime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schedule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "CronJobs."
+          },
+          "selector": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "serviceType": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Services: type, cluster IP, external address, \"80/TCP,443/TCP\"."
+          },
+          "services": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string"
+          },
+          "storageClass": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Storage."
+          },
+          "suspend": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Datadog tags (`kube_namespace:shop`, `kube_deployment:checkout`, …) followed by labels."
+          },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "HPAs and ingresses: scale target or backend, \"min-max\", hosts."
+          },
+          "taskDefinition": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ECS: `family:revision`, `fargate` / `ec2`, HEALTHY / UNHEALTHY / UNKNOWN, reservations\n(vCPU, bytes), and task / service counts."
+          },
+          "taskHealth": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tasks": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "uid": {
+            "type": "string"
+          },
+          "upToDate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Nodes and clusters."
+          },
+          "volume": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "zone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "KubeSearchPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "facets",
+          "kinds",
+          "tagKeys"
+        ],
+        "properties": {
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KubeFacet"
+            }
+          },
+          "groups": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/KubeGroup"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KubeResource"
+            }
+          },
+          "kinds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KubeKindCount"
+            },
+            "description": "Objects of each kind matching the query."
+          },
+          "tagKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every tag key seen on this kind, for the group-by menu."
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "KubeSearchRequest": {
+        "type": "object",
+        "required": [
+          "kind",
+          "limit"
+        ],
+        "properties": {
+          "desc": {
+            "type": "boolean"
+          },
+          "groupBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Tag keys, comma-separated (`kube_namespace`, `kube_cluster_name,kube_namespace,kube_deployment`, a label key, …)."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/KubeKind"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "description": "`kube_namespace:shop status:crashloopbackoff app:checkout` + free text on the name."
+          },
+          "sort": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Column to sort by: name, status, age, restarts, cpu, memory, namespace, cluster, node, …."
+          }
+        }
+      },
+      "KubeUtilization": {
+        "type": "object",
+        "description": "CPU in cores or memory in bytes. `usage` is the 15-minute average.",
+        "properties": {
+          "capacity": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Allocatable capacity (nodes and clusters)."
+          },
+          "limits": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "requests": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "usage": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           }
         }
       },
@@ -8247,11 +11039,16 @@
           "email",
           "name",
           "orgName",
-          "purpose"
+          "purpose",
+          "existingAccount"
         ],
         "properties": {
           "email": {
             "type": "string"
+          },
+          "existingAccount": {
+            "type": "boolean",
+            "description": "The email already has an ObserveCraft password (e.g. from another organization): an invite is\naccepted by entering it, not by choosing a new one."
           },
           "name": {
             "type": "string"
@@ -8306,6 +11103,93 @@
           }
         }
       },
+      "LogArchive": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "endpoint",
+          "region",
+          "bucket",
+          "prefix",
+          "pathStyle",
+          "accessKey",
+          "query",
+          "enabled",
+          "createdAt",
+          "hoursDone",
+          "hoursFailed",
+          "rows",
+          "bytes"
+        ],
+        "properties": {
+          "accessKey": {
+            "type": "string"
+          },
+          "bucket": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "hoursDone": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Archived hours (with or without logs)."
+          },
+          "hoursFailed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastHour": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Newest archived hour (epoch ms)."
+          },
+          "name": {
+            "type": "string"
+          },
+          "pathStyle": {
+            "type": "boolean"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "LogEvent": {
         "type": "object",
         "required": [
@@ -8338,6 +11222,12 @@
           "source": {
             "type": "string"
           },
+          "spanId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "status": {
             "type": "string"
           },
@@ -8354,6 +11244,135 @@
             "type": "integer",
             "format": "int64",
             "description": "Epoch milliseconds."
+          },
+          "traceId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Trace the log was written in (OTLP logs, or `trace_id` in JSON logs); links to APM."
+          }
+        }
+      },
+      "LogIndex": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "filter",
+          "retentionDays",
+          "quotaResetHour",
+          "exclusionFilters",
+          "position",
+          "indexedToday"
+        ],
+        "properties": {
+          "dailyQuota": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "exclusionFilters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExclusionFilter"
+            }
+          },
+          "filter": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "indexedToday": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Logs indexed since the current quota day started.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quotaResetHour": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "retentionDays": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LogIndexInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "retentionDays"
+        ],
+        "properties": {
+          "dailyQuota": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "exclusionFilters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExclusionFilter"
+            }
+          },
+          "filter": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quotaResetHour": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "retentionDays": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LogIndexes": {
+        "type": "object",
+        "required": [
+          "indexes",
+          "ingestedToday",
+          "maxRetentionDays",
+          "maxIndexes"
+        ],
+        "properties": {
+          "indexes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogIndex"
+            }
+          },
+          "ingestedToday": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Logs received since 00:00 UTC, indexed or not.",
+            "minimum": 0
+          },
+          "maxIndexes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxRetentionDays": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -8567,11 +11586,16 @@
         "required": [
           "name",
           "tags",
-          "description"
+          "description",
+          "kind"
         ],
         "properties": {
           "description": {
             "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "gauge | sum | histogram | exponential_histogram | summary | span (computed from traces)"
           },
           "name": {
             "type": "string"
@@ -9224,6 +12248,17 @@
           },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
+          },
+          "type": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MonitorType",
+                "description": "Metric (default) or log monitor."
+              }
+            ]
           }
         }
       },
@@ -9486,8 +12521,32 @@
         "type": "string",
         "enum": [
           "metric",
-          "apm"
+          "apm",
+          "log"
         ]
+      },
+      "MyOrg": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "current",
+          "isAdmin"
+        ],
+        "properties": {
+          "current": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
       },
       "NoteRequest": {
         "type": "object",
@@ -9540,6 +12599,41 @@
           }
         }
       },
+      "NotificationChannel": {
+        "type": "object",
+        "required": [
+          "id",
+          "handle",
+          "kind",
+          "target",
+          "signed",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "handle": {
+            "type": "string",
+            "description": "Mention it as `@<handle>` in a monitor message."
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "webhook | slack"
+          },
+          "signed": {
+            "type": "boolean"
+          },
+          "target": {
+            "type": "string",
+            "description": "Host of the URL (the full URL is a credential and never returned)."
+          }
+        }
+      },
       "OidcStatus": {
         "type": "object",
         "required": [
@@ -9572,6 +12666,88 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "OrgDataSettings": {
+        "type": "object",
+        "required": [
+          "spanRetentionDays",
+          "maxSpanRetentionDays",
+          "maxLogRetentionDays",
+          "maxIndexes",
+          "metricsRetentionDays",
+          "ciRetentionDays",
+          "rawLogsHours"
+        ],
+        "properties": {
+          "ciRetentionDays": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "maxIndexes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxLogRetentionDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxSpanRetentionDays": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Ceilings set by the instance admin."
+          },
+          "metricsRetentionDays": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Install-wide (not per org): metric and CI retention, raw-log window feeding archives.",
+            "minimum": 0
+          },
+          "rawLogsHours": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "spanRetentionDays": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Days the org's spans are kept."
+          }
+        }
+      },
+      "OrgDataSettingsPatch": {
+        "type": "object",
+        "required": [
+          "spanRetentionDays"
+        ],
+        "properties": {
+          "spanRetentionDays": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "OrgLimits": {
+        "type": "object",
+        "required": [
+          "maxLogRetentionDays",
+          "maxSpanRetentionDays",
+          "maxIndexes"
+        ],
+        "properties": {
+          "maxIndexes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxLogRetentionDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxSpanRetentionDays": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -9882,9 +13058,14 @@
             "type": "object",
             "required": [
               "org",
-              "teams"
+              "teams",
+              "isInstanceAdmin"
             ],
             "properties": {
+              "isInstanceAdmin": {
+                "type": "boolean",
+                "description": "May create and manage organizations (Instance Admin)."
+              },
               "org": {
                 "$ref": "#/components/schemas/OrgRef"
               },
@@ -10090,6 +13271,114 @@
           "daily",
           "weekly"
         ]
+      },
+      "RehydrateRequest": {
+        "type": "object",
+        "required": [
+          "archiveId",
+          "name",
+          "range"
+        ],
+        "properties": {
+          "archiveId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "retentionDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Days the rehydrated logs stay searchable (1–30). Default 7."
+          }
+        }
+      },
+      "Rehydration": {
+        "type": "object",
+        "required": [
+          "id",
+          "archiveId",
+          "archiveName",
+          "name",
+          "query",
+          "from",
+          "to",
+          "status",
+          "rows",
+          "expiresAt",
+          "createdAt"
+        ],
+        "properties": {
+          "archiveId": {
+            "type": "string"
+          },
+          "archiveName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expiresAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "from": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "description": "running | done | failed | expired"
+          },
+          "to": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ReorderIndexes": {
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every index id, in routing order."
+          }
+        }
       },
       "ResourceStats": {
         "type": "object",
@@ -10627,7 +13916,8 @@
           "method",
           "createdAt",
           "lastSeenAt",
-          "current"
+          "current",
+          "orgId"
         ],
         "properties": {
           "createdAt": {
@@ -10652,6 +13942,10 @@
           },
           "method": {
             "type": "string"
+          },
+          "orgId": {
+            "type": "string",
+            "description": "Organization the session is acting in."
           },
           "userAgent": {
             "type": [
@@ -11267,6 +14561,17 @@
           }
         }
       },
+      "SwitchOrgRequest": {
+        "type": "object",
+        "required": [
+          "org"
+        ],
+        "properties": {
+          "org": {
+            "type": "string"
+          }
+        }
+      },
       "Team": {
         "type": "object",
         "required": [
@@ -11462,6 +14767,64 @@
           "prefix": {
             "type": "string",
             "description": "Tag key the variable filters on."
+          }
+        }
+      },
+      "TestDelivery": {
+        "type": "object",
+        "required": [
+          "recipient",
+          "status"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "sent | failed | unknown_recipient"
+          }
+        }
+      },
+      "TestNotification": {
+        "type": "object",
+        "required": [
+          "monitorName",
+          "message",
+          "status"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "The rendered message; its `@handles` are the recipients."
+          },
+          "monitorId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Monitor (for its link, name, tags); absent while creating one."
+          },
+          "monitorName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "alert | warn | ok | nodata"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           }
         }
       },
@@ -12235,6 +15598,10 @@
     {
       "name": "infrastructure",
       "description": "Hosts, built from host metrics, spans and logs"
+    },
+    {
+      "name": "orchestration",
+      "description": "Kubernetes and ECS Explorers: objects, containers, utilization and events sent by the collectors"
     },
     {
       "name": "identity",

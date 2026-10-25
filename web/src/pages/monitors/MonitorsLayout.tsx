@@ -31,9 +31,9 @@ export function MonitorsLayout() {
           </Link>
         </nav>
         <div className="mon-header-actions">
-          <button className="link-muted mon-header-link" disabled title="Monitor settings (default notification rules, tag policies) aren't configurable yet">
+          <Link className="link-muted mon-header-link" to="/monitors/settings">
             <Settings size={15} /> Settings
-          </button>
+          </Link>
           <Link className="link-muted mon-header-link" to="/monitors/templates">
             Browse Templates
           </Link>

@@ -52,7 +52,17 @@ export const NAV_SECTIONS: NavItem[][] = [
       label: 'Assist AI',
       to: '/assist',
       icon: Sparkles,
-      menu: [{ title: 'Assist AI', columns: [[{ label: 'Chat', to: '/assist' }, { label: 'Investigations', to: '/assist/investigations' }]] }],
+      menu: [
+        {
+          title: 'Assist AI',
+          columns: [
+            [
+              { label: 'Chat', to: '/assist' },
+              { label: 'Investigations', to: '/assist/investigations' },
+            ],
+          ],
+        },
+      ],
     },
     {
       label: 'Dashboards',
@@ -136,7 +146,17 @@ export const NAV_SECTIONS: NavItem[][] = [
       label: 'Automation',
       to: '/automation',
       icon: Zap,
-      menu: [{ title: 'Automation', columns: [[{ label: 'Workflows', to: '/automation' }, { label: 'App Builder', to: '/automation/apps' }]] }],
+      menu: [
+        {
+          title: 'Automation',
+          columns: [
+            [
+              { label: 'Workflows', to: '/automation' },
+              { label: 'App Builder', to: '/automation/apps' },
+            ],
+          ],
+        },
+      ],
     },
   ],
   [
@@ -144,28 +164,86 @@ export const NAV_SECTIONS: NavItem[][] = [
       label: 'Infrastructure',
       to: '/infrastructure',
       icon: Boxes,
+      // Datadog's Infrastructure menu.
       menu: [
         {
-          title: 'Infrastructure',
+          title: 'Resources',
           columns: [
             [
-              { label: 'Hosts', to: '/infrastructure' },
-              { label: 'Containers', to: '/containers' },
-              { label: 'Kubernetes', to: '/kubernetes' },
+              { label: 'Catalog', to: '/infrastructure/catalog' },
+              { label: 'Cloudcraft', to: '/cloudcraft' },
+              { label: 'Changes', to: '/infrastructure/changes', isPreview: true },
             ],
             [
-              { label: 'Processes', to: '/process' },
-              { label: 'Network', to: '/network' },
+              { label: 'Policies', to: '/infrastructure/policies', isPreview: true },
+              { label: 'Add Resources', to: '/infrastructure/add' },
             ],
           ],
         },
+        { title: 'Universal Service Monitoring', to: '/usm', badge: 'NEW', columns: [] },
+        {
+          title: 'Hosts',
+          to: '/infrastructure',
+          columns: [
+            [
+              { label: 'Host Map', to: '/infrastructure/map' },
+              { label: 'GPU Monitoring', to: '/gpu-monitoring' },
+            ],
+          ],
+        },
+        {
+          title: 'Containers',
+          columns: [
+            [
+              { label: 'Kubernetes Overview', to: '/kubernetes' },
+              { label: 'Kubernetes Explorer', to: '/orchestration/explorer' },
+              { label: 'Kubernetes Autoscaling', to: '/kubernetes/autoscaling', isNew: true },
+              { label: 'Container Images', to: '/orchestration/explorer?resource=container_images' },
+              { label: 'ECS Explorer', to: '/orchestration/explorer?resource=ecs_tasks' },
+            ],
+          ],
+        },
+        { title: 'Processes', to: '/process', columns: [] },
+        { title: 'Serverless', to: '/functions', columns: [] },
+        {
+          title: 'Cloud Network',
+          columns: [
+            [
+              { label: 'Analytics', to: '/network' },
+              { label: 'Network Map', to: '/network/map' },
+            ],
+          ],
+        },
+        {
+          title: 'Network Devices',
+          columns: [
+            [
+              { label: 'Device Geomap', to: '/devices/geomap', isNew: true },
+              { label: 'Device Topology Map', to: '/devices/topology' },
+              { label: 'NetFlow', to: '/devices/netflow' },
+            ],
+            [{ label: 'Settings', to: '/devices/settings' }],
+          ],
+        },
+        { title: 'Network Path', to: '/network-path', columns: [] },
+        { title: 'Storage Management', to: '/storage-management', badge: 'NEW', columns: [] },
       ],
     },
     {
       label: 'Cloud Cost',
       to: '/cloud-cost',
       icon: Cloud,
-      menu: [{ title: 'Cloud Cost', columns: [[{ label: 'Analytics', to: '/cloud-cost' }, { label: 'Recommendations', to: '/cloud-cost/recommendations' }]] }],
+      menu: [
+        {
+          title: 'Cloud Cost',
+          columns: [
+            [
+              { label: 'Analytics', to: '/cloud-cost' },
+              { label: 'Recommendations', to: '/cloud-cost/recommendations' },
+            ],
+          ],
+        },
+      ],
     },
     {
       label: 'APM',
@@ -213,7 +291,17 @@ export const NAV_SECTIONS: NavItem[][] = [
       label: 'Digital Experience',
       to: '/rum',
       icon: Monitor,
-      menu: [{ title: 'Digital Experience', columns: [[{ label: 'Real User Monitoring', to: '/rum' }, { label: 'Session Replay', to: '/rum/replay' }]] }],
+      menu: [
+        {
+          title: 'Digital Experience',
+          columns: [
+            [
+              { label: 'Real User Monitoring', to: '/rum' },
+              { label: 'Session Replay', to: '/rum/replay' },
+            ],
+          ],
+        },
+      ],
     },
     {
       label: 'Software Delivery',
@@ -271,19 +359,49 @@ export const NAV_SECTIONS: NavItem[][] = [
       label: 'Security',
       to: '/security',
       icon: ShieldCheck,
-      menu: [{ title: 'Security', columns: [[{ label: 'Signals', to: '/security' }, { label: 'Vulnerabilities', to: '/security/vulnerabilities' }]] }],
+      menu: [
+        {
+          title: 'Security',
+          columns: [
+            [
+              { label: 'Signals', to: '/security' },
+              { label: 'Vulnerabilities', to: '/security/vulnerabilities' },
+            ],
+          ],
+        },
+      ],
     },
     {
       label: 'Data Observability',
       to: '/data',
       icon: Database,
-      menu: [{ title: 'Data Observability', columns: [[{ label: 'Database Monitoring', to: '/data' }, { label: 'Data Jobs', to: '/data/jobs' }]] }],
+      menu: [
+        {
+          title: 'Data Observability',
+          columns: [
+            [
+              { label: 'Database Monitoring', to: '/data' },
+              { label: 'Data Jobs', to: '/data/jobs' },
+            ],
+          ],
+        },
+      ],
     },
     {
       label: 'AI Observability',
       to: '/llm',
       icon: Bot,
-      menu: [{ title: 'AI Observability', columns: [[{ label: 'LLM Traces', to: '/llm' }, { label: 'Evaluations', to: '/llm/evaluations' }]] }],
+      menu: [
+        {
+          title: 'AI Observability',
+          columns: [
+            [
+              { label: 'LLM Traces', to: '/llm' },
+              { label: 'Evaluations', to: '/llm/evaluations' },
+            ],
+          ],
+        },
+      ],
     },
   ],
   [
@@ -297,7 +415,17 @@ export const NAV_SECTIONS: NavItem[][] = [
       label: 'Metrics',
       to: '/metrics',
       icon: Gauge,
-      menu: [{ title: 'Metrics', columns: [[{ label: 'Explorer', to: '/metrics' }, { label: 'Summary', to: '/metrics/summary' }]] }],
+      menu: [
+        {
+          title: 'Metrics',
+          columns: [
+            [
+              { label: 'Explorer', to: '/metrics' },
+              { label: 'Summary', to: '/metrics/summary' },
+            ],
+          ],
+        },
+      ],
     },
     {
       label: 'Logs',

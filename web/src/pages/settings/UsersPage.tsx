@@ -234,7 +234,7 @@ function UserTable({ users, isAdmin, meId }: { users: UserSummary[]; isAdmin: bo
   );
 }
 
-function LinkModal({ title, links, note, onClose }: { title: string; links: { label: string; url: string }[]; note: string; onClose: () => void }) {
+export function LinkModal({ title, links, note, onClose }: { title: string; links: { label: string; url: string }[]; note: string; onClose: () => void }) {
   const [copied, setCopied] = useState<string | null>(null);
   return (
     <Modal onClose={onClose} label={title} width={640} height="auto">

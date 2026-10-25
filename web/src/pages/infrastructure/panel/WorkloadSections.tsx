@@ -1,4 +1,5 @@
 import { useDeferredValue, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Activity, ArrowUpNarrowWide, ArrowDownWideNarrow, Box, EllipsisVertical, Search, Ship } from 'lucide-react';
 import type { HostDetail } from '../../../api/infrastructure/types';
 import { Empty, ErrorState, Loading } from '../../../components/ui/AsyncState';
@@ -71,10 +72,12 @@ export function KubernetesSection({ host }: { host: HostDetail }) {
             </thead>
             <tbody>
               {q.data.items.map((p) => (
-                <tr key={p.name}>
-                  <td className="hw-ellipsis">{p.name}</td>
+                <tr key={p.uid}>
+                  <td className="hw-ellipsis">
+                    <Link to={`/orchestration/explorer?resource=pods&panel=${encodeURIComponent(p.uid)}`}>{p.name}</Link>
+                  </td>
                   <td>
-                    <span className={`pod-status ps-${p.status.toLowerCase()}`}>{p.status}</span>
+                    <span className={`kx-status kx-${p.health}`}>{p.status}</span>
                   </td>
                   <td>
                     <span className="hw-link-chip">{p.cluster}</span>
@@ -82,20 +85,24 @@ export function KubernetesSection({ host }: { host: HostDetail }) {
                   <td className="hw-ellipsis">
                     <span className="hw-link-chip">{p.namespace}</span>
                   </td>
-                  <td className="num">{formatAge(p.ageSec)}</td>
+                  <td className="num">{p.ageSec == null ? '—' : formatAge(p.ageSec)}</td>
                   <td className="num">
                     <span className="ready-chip">{p.ready}</span>
                   </td>
                   <td className="num">{p.restarts}</td>
                   <td className="num">
-                    {p.cpuPctOfLimit === null ? '—' : (
+                    {p.cpuPctOfLimit == null ? (
+                      '—'
+                    ) : (
                       <>
-                        {p.cpuPctOfLimit}% <UsageBar pct={p.cpuPctOfLimit * 10} />
+                        {p.cpuPctOfLimit}% <UsageBar pct={p.cpuPctOfLimit} />
                       </>
                     )}
                   </td>
                   <td className="num">
-                    {p.memPctOfLimit === null ? '—' : (
+                    {p.memPctOfLimit == null ? (
+                      '—'
+                    ) : (
                       <>
                         {p.memPctOfLimit}% <UsageBar pct={p.memPctOfLimit} tone="ok" />
                       </>
@@ -162,16 +169,15 @@ export function ContainersSection({ host }: { host: HostDetail }) {
                     <th className="num">
                       <ArrowDownWideNarrow size={13} /> RSS MEMORY
                     </th>
-                    <th className="num">NET BYTES SENT (TX)</th>
-                    <th className="num">NET BYTES RECEIVED (RX)</th>
+                    <th>POD</th>
                     <th className="num">STARTED (AGO)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {q.data.items.map((c) => (
-                    <tr key={c.name}>
+                    <tr key={`${c.pod}/${c.name}`}>
                       <td>
-                        <span className="up-chip">{c.status}</span>
+                        <span className={c.status === 'UP' ? 'up-chip' : 'down-chip'}>{c.status}</span>
                       </td>
                       <td className="hw-ellipsis" title={c.image}>
                         <span className="hw-container-name">
@@ -179,14 +185,25 @@ export function ContainersSection({ host }: { host: HostDetail }) {
                         </span>
                       </td>
                       <td className="num">
-                        {c.cpuPct}% <UsageBar pct={c.cpuPct} />
+                        {c.cpuPct == null ? (
+                          '—'
+                        ) : (
+                          <>
+                            {c.cpuPct}% <UsageBar pct={c.cpuPct} />
+                          </>
+                        )}
                       </td>
                       <td className="num">
-                        {formatBytes(c.rssBytes)} <UsageBar pct={(c.rssBytes / c.memLimitBytes) * 100} />
+                        {c.rssBytes == null ? (
+                          '—'
+                        ) : (
+                          <>
+                            {formatBytes(c.rssBytes)} {c.memLimitBytes ? <UsageBar pct={(c.rssBytes / c.memLimitBytes) * 100} /> : null}
+                          </>
+                        )}
                       </td>
-                      <td className="num">{formatBytes(c.netTxBytes)}</td>
-                      <td className="num">{formatBytes(c.netRxBytes)}</td>
-                      <td className="num">{timeAgo(c.startedAt)}</td>
+                      <td className="hw-ellipsis">{c.pod}</td>
+                      <td className="num">{c.startedAt == null ? '—' : timeAgo(c.startedAt)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -249,9 +266,7 @@ export function ProcessesSection({ host }: { host: HostDetail }) {
             <div className="hw-noproc">
               <Activity size={44} className="hw-noproc-icon" />
               <strong>No processes found</strong>
-              <span>
-                {q.data.enabled ? 'No processes match this filter.' : 'To correlate processes with hosts, enable the processes scraper in this host’s collector configuration.'}
-              </span>
+              <span>{q.data.enabled ? 'No processes match this filter.' : 'To correlate processes with hosts, enable the processes scraper in this host’s collector configuration.'}</span>
             </div>
           )}
           <Pager offset={offset} limit={PAGE} total={q.data.total} onChange={setOffset} />

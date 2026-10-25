@@ -1,0 +1,11 @@
+# Image build context is the repository root (see server/Dockerfile).
+.git
+.playwright-mcp
+.oc-data
+docs
+deploy
+**/node_modules
+web/dist
+server/target
+server/.cargo
+server/.oc-data

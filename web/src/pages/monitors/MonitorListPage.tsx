@@ -132,7 +132,7 @@ export function MonitorListPage() {
               />
             </Facet>
             <Facet title="Monitor Type">
-              <ValuesFacet values={f?.type ?? []} selected={types} onChange={setTypes} label={(v) => (v === 'apm' ? 'APM' : 'Metric')} />
+              <ValuesFacet values={f?.type ?? []} selected={types} onChange={setTypes} label={(v) => (v === 'apm' ? 'APM' : v === 'log' ? 'Logs' : 'Metric')} />
             </Facet>
             <Facet title="Draft Status">
               {[false, true].map((v) => (

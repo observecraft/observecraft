@@ -21,8 +21,8 @@ import { parseQuery } from '../../lib/searchQuery';
 import { LOG_HOSTS, rng, type Rand } from './generator';
 import { matchesTerms } from './match';
 
-const delay = <T,>(value: T, ms = 100 + Math.random() * 150) => new Promise<T>((r) => setTimeout(() => r(value), ms));
-const pick = <T,>(r: Rand, arr: readonly T[]): T => arr[Math.floor(r() * arr.length)];
+const delay = <T>(value: T, ms = 100 + Math.random() * 150) => new Promise<T>((r) => setTimeout(() => r(value), ms));
+const pick = <T>(r: Rand, arr: readonly T[]): T => arr[Math.floor(r() * arr.length)];
 const hex = (r: Rand, n: number) => Array.from({ length: n }, () => Math.floor(r() * 16).toString(16)).join('');
 
 function hashSeed(s: string): number {
@@ -66,7 +66,20 @@ function hosts(): StoredHost[] {
 
   // Hosts that also emit the mock logs, so the host → logs link has data.
   LOG_HOSTS.forEach((name, i) =>
-    add({ name, cloud: 'aws', os: 'linux', collectors: ['observecraft'], software: ['kubernetes'], env: 'prod', service: null, team: 'billing', gpu: false, cluster: CLUSTERS.billing, region: 'eu-central-1', cpu: [92, 47, 33, 28, 12][i] }),
+    add({
+      name,
+      cloud: 'aws',
+      os: 'linux',
+      collectors: ['observecraft'],
+      software: ['kubernetes'],
+      env: 'prod',
+      service: null,
+      team: 'billing',
+      gpu: false,
+      cluster: CLUSTERS.billing,
+      region: 'eu-central-1',
+      cpu: [92, 47, 33, 28, 12][i],
+    }),
   );
   // EKS nodes.
   for (let i = 0; i < 360; i++) {
@@ -87,18 +100,79 @@ function hosts(): StoredHost[] {
   }
   // Windows domain controllers / app servers (no monitors yet).
   for (let i = 1; i <= 24; i++)
-    add({ name: `DCHQ${String(i).padStart(2, '0')}`, cloud: 'none', os: 'windows', collectors: ['observecraft'], software: [], env: 'prod', service: null, team: 'platform', gpu: false, cluster: null, region: null });
+    add({
+      name: `DCHQ${String(i).padStart(2, '0')}`,
+      cloud: 'none',
+      os: 'windows',
+      collectors: ['observecraft'],
+      software: [],
+      env: 'prod',
+      service: null,
+      team: 'platform',
+      gpu: false,
+      cluster: null,
+      region: null,
+    });
   // On-prem Ubuntu servers running Docker.
   for (let i = 1; i <= 18; i++)
-    add({ name: `${pick(r, ['edgep', 'billingdb', 'batch', 'gw'])}${String(i).padStart(2, '0')}`, cloud: 'none', os: 'linux', distro: 'ubuntu', collectors: ['observecraft'], software: ['docker'], env: r() < 0.3 ? null : 'prod', service: null, team: 'billing', gpu: false, cluster: null, region: null });
+    add({
+      name: `${pick(r, ['edgep', 'billingdb', 'batch', 'gw'])}${String(i).padStart(2, '0')}`,
+      cloud: 'none',
+      os: 'linux',
+      distro: 'ubuntu',
+      collectors: ['observecraft'],
+      software: ['docker'],
+      env: r() < 0.3 ? null : 'prod',
+      service: null,
+      team: 'billing',
+      gpu: false,
+      cluster: null,
+      region: null,
+    });
   // Azure + GCP VMs.
   for (let i = 1; i <= 16; i++)
-    add({ name: `az-vm-${hex(r, 6)}`, cloud: 'azure', os: r() < 0.5 ? 'windows' : 'linux', collectors: ['otel'], software: [], env: 'staging', service: null, team: 'payments', gpu: false, cluster: null, region: 'westeurope' });
+    add({
+      name: `az-vm-${hex(r, 6)}`,
+      cloud: 'azure',
+      os: r() < 0.5 ? 'windows' : 'linux',
+      collectors: ['otel'],
+      software: [],
+      env: 'staging',
+      service: null,
+      team: 'payments',
+      gpu: false,
+      cluster: null,
+      region: 'westeurope',
+    });
   for (let i = 1; i <= 12; i++)
-    add({ name: `gke-node-${hex(r, 8)}`, cloud: 'gcp', os: 'linux', collectors: ['otel'], software: ['kubernetes'], env: 'qa', service: null, team: 'platform', gpu: i <= 3, cluster: 'gke-analytics', region: 'europe-west1' });
+    add({
+      name: `gke-node-${hex(r, 8)}`,
+      cloud: 'gcp',
+      os: 'linux',
+      collectors: ['otel'],
+      software: ['kubernetes'],
+      env: 'qa',
+      service: null,
+      team: 'platform',
+      gpu: i <= 3,
+      cluster: 'gke-analytics',
+      region: 'europe-west1',
+    });
   // macOS CI runners + an Oracle Cloud host.
   for (let i = 1; i <= 7; i++)
-    add({ name: `mac-ci-${String(i).padStart(2, '0')}`, cloud: 'none', os: 'darwin', collectors: ['observecraft'], software: [], env: null, service: 'ci-runner', team: 'platform', gpu: false, cluster: null, region: null });
+    add({
+      name: `mac-ci-${String(i).padStart(2, '0')}`,
+      cloud: 'none',
+      os: 'darwin',
+      collectors: ['observecraft'],
+      software: [],
+      env: null,
+      service: 'ci-runner',
+      team: 'platform',
+      gpu: false,
+      cluster: null,
+      region: null,
+    });
   add({ name: 'oci-erp-01', cloud: 'oracle', os: 'linux', collectors: ['otel'], software: [], env: 'prod', service: 'erp', team: 'billing', gpu: false, cluster: null, region: 'eu-frankfurt-1' });
 
   store = out;
@@ -147,7 +221,11 @@ function matches(h: StoredHost, terms: ReturnType<typeof parseQuery>): boolean {
     const hit = t.values.some((v) => vals.includes(v as CollectorKind & Software));
     if (hit === t.negate) return false;
   }
-  return matchesTerms((k) => field(h, k), h.name, terms.filter((t) => !multi.includes(t)));
+  return matchesTerms(
+    (k) => field(h, k),
+    h.name,
+    terms.filter((t) => !multi.includes(t)),
+  );
 }
 
 function metricValue(h: StoredHost, metric: string): number {
@@ -259,7 +337,18 @@ function collectorConfig(h: StoredHost): string {
     '  hostmetrics:',
     '    collection_interval: 15s',
     '    scrapers: { cpu: {}, memory: {}, load: {}, filesystem: {}, network: {}, processes: {} }',
-    ...(k8s ? ['  kubeletstats:', '    auth_type: serviceAccount', '    endpoint: ${env:K8S_NODE_NAME}:10250', '  prometheus/nginx_ingress_controller:', '    config:', '      scrape_configs:', "        - job_name: nginx-ingress", "          static_configs: [{ targets: ['ingress-nginx-controller-metrics:10254'] }]"] : []),
+    ...(k8s
+      ? [
+          '  kubeletstats:',
+          '    auth_type: serviceAccount',
+          '    endpoint: ${env:K8S_NODE_NAME}:10250',
+          '  prometheus/nginx_ingress_controller:',
+          '    config:',
+          '      scrape_configs:',
+          '        - job_name: nginx-ingress',
+          "          static_configs: [{ targets: ['ingress-nginx-controller-metrics:10254'] }]",
+        ]
+      : []),
     '  otlp:',
     '    protocols: { grpc: { endpoint: 0.0.0.0:4317 }, http: { endpoint: 0.0.0.0:4318 } }',
     '',
@@ -302,7 +391,11 @@ function detail(h: StoredHost): HostDetail {
     triggeredMonitors: monitorFor(h),
     integrations: k8s
       ? [
-          { name: 'nginx_ingress_controller', status: h.cpuPct > 80 || r() < 0.2 ? 'broken' : 'ok', metrics: ['nginx_ingress_controller_requests', 'nginx_ingress_controller_request_duration_seconds', 'nginx_ingress_controller_nginx_process_connections'] },
+          {
+            name: 'nginx_ingress_controller',
+            status: h.cpuPct > 80 || r() < 0.2 ? 'broken' : 'ok',
+            metrics: ['nginx_ingress_controller_requests', 'nginx_ingress_controller_request_duration_seconds', 'nginx_ingress_controller_nginx_process_connections'],
+          },
           { name: 'kubelet', status: 'ok', metrics: ['k8s.pod.cpu.utilization', 'k8s.pod.memory.usage', 'k8s.container.restarts'] },
           { name: 'containerd', status: 'ok', metrics: ['container.cpu.utilization', 'container.memory.usage.total'] },
         ]
@@ -312,7 +405,12 @@ function detail(h: StoredHost): HostDetail {
     kubernetes: k8s ? { cluster: cluster!, criName: 'containerd', criVersion: '2.2.9+bottlerocket', kubeletVersion: 'v1.35.6-eks-bca9cf6' } : null,
     collectorConfig: collectorConfig(h),
     pipelines: [
-      { name: 'metrics', receivers: ['hostmetrics', ...(k8s ? ['kubeletstats', 'prometheus/nginx_ingress_controller'] : []), 'otlp'], processors: ['resourcedetection', ...(k8s ? ['k8sattributes'] : []), 'batch'], exporters: ['otlp/observecraft'] },
+      {
+        name: 'metrics',
+        receivers: ['hostmetrics', ...(k8s ? ['kubeletstats', 'prometheus/nginx_ingress_controller'] : []), 'otlp'],
+        processors: ['resourcedetection', ...(k8s ? ['k8sattributes'] : []), 'batch'],
+        exporters: ['otlp/observecraft'],
+      },
       { name: 'traces', receivers: ['otlp'], processors: ['resourcedetection', 'batch'], exporters: ['otlp/observecraft'] },
       { name: 'logs (Vector)', receivers: [k8s ? 'kubernetes_logs' : h.os === 'windows' ? 'windows_event_log' : 'journald'], processors: ['remap'], exporters: ['observecraft_logs'] },
     ],
@@ -369,8 +467,19 @@ export function getHostMetrics(name: string, range: TimeRange): Promise<HostMetr
 
 // ---------------------------------------------------------------- pods / containers / processes
 
-const NAMESPACES = ['logging', 'kube-system', 'ns-accounts-be-qa', 'observecraft', 'csi', 'ns-external-api-be-develop', 'ingress-nginx-private', 'ns-customers-be-qa', 'ns-customers-be-development'];
-const WORKLOADS = ['aws-for-fluentbit', 'aws-node', 'backend', 'observecraft-collector', 'ebs-csi-node', 'external-api', 'ingress-nginx-private-controller', 'customers-backend', 'kube-proxy', 'processes'];
+const NAMESPACES = ['logging', 'kube-system', 'shop', 'observecraft', 'csi', 'payments', 'ingress-nginx', 'catalog', 'orders'];
+const WORKLOADS = [
+  'aws-for-fluentbit',
+  'aws-node',
+  'storefront-api',
+  'observecraft-collector',
+  'ebs-csi-node',
+  'api-gateway',
+  'ingress-nginx-controller',
+  'order-service',
+  'kube-proxy',
+  'catalog-service',
+];
 
 function podsFor(h: StoredHost): Pod[] {
   if (!h.software.includes('kubernetes')) return [];
@@ -379,9 +488,13 @@ function podsFor(h: StoredHost): Pod[] {
     const w = WORKLOADS[i % WORKLOADS.length];
     const system = ['aws-for-fluentbit', 'aws-node', 'ebs-csi-node', 'kube-proxy', 'observecraft-collector'].includes(w);
     const containers = w === 'aws-node' ? 2 : w === 'ebs-csi-node' || w === 'observecraft-collector' ? 3 : 1;
+    const running = r() < 0.97;
+    const name = `${w}-${system ? alnum(r, 5) : `${hex(r, 9)}-${alnum(r, 5)}`}`;
     return {
-      name: `${w}-${system ? alnum(r, 5) : `${hex(r, 9)}-${alnum(r, 5)}`}`,
-      status: r() < 0.97 ? 'RUNNING' : 'PENDING',
+      uid: `${h.name}-pod-${i}`,
+      name,
+      status: running ? 'Running' : 'Pending',
+      health: running ? 'ok' : 'warning',
       cluster: h.cluster!,
       namespace: NAMESPACES[(i + (w === 'kube-proxy' ? 1 : 0)) % NAMESPACES.length],
       ageSec: w === 'observecraft-collector' ? 17 * 3600 : 2 * 86400 + Math.round(r() * 3600),
@@ -403,34 +516,48 @@ function containersFor(h: StoredHost): Container[] {
   const r = rng(h.seed + 4);
   const now = Date.now();
   return Array.from({ length: h.software.includes('kubernetes') ? 25 : 6 }, (_, i) => {
-    const w = i < 2 ? 'processes_processes-56bf944cd4' : `${WORKLOADS[i % WORKLOADS.length]}-${hex(r, 9)}`;
+    const w = WORKLOADS[i % WORKLOADS.length];
     return {
-      name: `${w}-${alnum(r, 5)}`,
+      name: w,
+      pod: `${w}-${hex(r, 9)}-${alnum(r, 5)}`,
       status: 'UP',
-      image: `123456789012.dkr.ecr.eu-central-1.amazonaws.com/${WORKLOADS[i % WORKLOADS.length]}:${1 + (i % 4)}.${i}`,
+      image: `registry.example.com/${w}:${1 + (i % 4)}.${i}`,
       cpuPct: i < 2 ? 70 + i : Math.round(Math.pow(r(), 2) * 40),
       rssBytes: Math.round((i < 2 ? 386 : 20 + r() * 300) * 1024 * 1024),
       memLimitBytes: 1024 * 1024 * 1024,
-      netTxBytes: Math.round(r() < 0.5 ? 0 : r() * 4096),
-      netRxBytes: Math.round(r() < 0.5 ? 0 : r() * 4096),
       startedAt: now - Math.round((2 + r() * 2) * 86400e3),
     } satisfies Container;
-  }).sort((a, b) => b.rssBytes - a.rssBytes);
+  }).sort((a, b) => (b.rssBytes ?? 0) - (a.rssBytes ?? 0));
 }
 
 function processesFor(h: StoredHost): Process[] | null {
   if (h.os !== 'windows' && !h.distro) return null; // process collection only enabled on these hosts
   const r = rng(h.seed + 5);
-  const cmds = h.os === 'windows'
-    ? ['C:\\Windows\\System32\\lsass.exe', 'C:\\Windows\\System32\\svchost.exe -k netsvcs', 'C:\\Program Files\\ObserveCraft\\otelcol.exe', 'C:\\Windows\\System32\\dns.exe', 'C:\\Windows\\System32\\ntfrs.exe']
-    : ['/usr/lib/postgresql/16/bin/postgres -D /var/lib/postgresql', '/usr/bin/dockerd -H fd://', '/opt/observecraft/otelcol --config /etc/observecraft/config.yaml', '/usr/bin/vector --config /etc/vector/vector.yaml', '/usr/sbin/sshd -D'];
-  return cmds.map((command, i) => ({
-    pid: 400 + Math.floor(r() * 30000),
-    command,
-    user: h.os === 'windows' ? 'SYSTEM' : i === 0 ? 'postgres' : 'root',
-    cpuPct: Math.round(r() * 25 * 10) / 10,
-    rssBytes: Math.round((30 + r() * 900) * 1024 * 1024),
-  })).sort((a, b) => b.rssBytes - a.rssBytes);
+  const cmds =
+    h.os === 'windows'
+      ? [
+          'C:\\Windows\\System32\\lsass.exe',
+          'C:\\Windows\\System32\\svchost.exe -k netsvcs',
+          'C:\\Program Files\\ObserveCraft\\otelcol.exe',
+          'C:\\Windows\\System32\\dns.exe',
+          'C:\\Windows\\System32\\ntfrs.exe',
+        ]
+      : [
+          '/usr/lib/postgresql/16/bin/postgres -D /var/lib/postgresql',
+          '/usr/bin/dockerd -H fd://',
+          '/opt/observecraft/otelcol --config /etc/observecraft/config.yaml',
+          '/usr/bin/vector --config /etc/vector/vector.yaml',
+          '/usr/sbin/sshd -D',
+        ];
+  return cmds
+    .map((command, i) => ({
+      pid: 400 + Math.floor(r() * 30000),
+      command,
+      user: h.os === 'windows' ? 'SYSTEM' : i === 0 ? 'postgres' : 'root',
+      cpuPct: Math.round(r() * 25 * 10) / 10,
+      rssBytes: Math.round((30 + r() * 900) * 1024 * 1024),
+    }))
+    .sort((a, b) => b.rssBytes - a.rssBytes);
 }
 
 function pageOf<T>(items: T[], req: PageRequest, text: (t: T) => string): Paged<T> {

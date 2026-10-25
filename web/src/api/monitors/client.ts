@@ -66,9 +66,15 @@ export async function monitorHistory(id: number, range: TimeRange) {
   return postTo('/api/v1/monitors/{id}/history', { id: String(id) }, { range });
 }
 
-export async function previewMonitor(query: string, options: MonitorOptions, range: TimeRange, signal?: AbortSignal) {
+export async function previewMonitor(type: MonitorType, query: string, options: MonitorOptions, range: TimeRange, signal?: AbortSignal) {
   requireLive();
-  return post('/api/v1/monitors/preview', { query, options, range }, signal);
+  return post('/api/v1/monitors/preview', { type, query, options, range }, signal);
+}
+
+/** Sends one rendered transition message to its @recipients now (marked as a test). */
+export async function sendTestNotification(req: { monitorId?: number | null; monitorName: string; message: string; status: string; value?: number | null }) {
+  requireLive();
+  return post('/api/v1/monitors/test-notification', { monitorId: req.monitorId ?? null, monitorName: req.monitorName, message: req.message, status: req.status, value: req.value ?? null });
 }
 
 export async function monitorQuality(req: MonitorQualityRequest) {

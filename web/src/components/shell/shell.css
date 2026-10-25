@@ -148,6 +148,17 @@
   text-decoration: none !important;
 }
 
+/* Long labels (and their bold active state) must not squeeze the icon. */
+.nav-item svg {
+  flex-shrink: 0;
+}
+
+.nav-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .nav-item.hovered,
 .nav-item:hover {
   background: var(--nav-bg-hover);

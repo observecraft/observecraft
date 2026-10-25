@@ -1,0 +1,43 @@
+# AWS Distro for OpenTelemetry Collector as an ECS sidecar (EC2 or Fargate), sending to ObserveCraft:
+#   - task and container metrics from the ECS task metadata endpoint (CPU, memory, network, storage)
+#   - ECS metadata on every record (cluster, task ARN / family / revision, launch type → ecs_cluster,
+#     task_family, task_version, task_launch_type tags)
+#   - traces, metrics and logs your applications send over OTLP to localhost:4317 / 4318
+# Pass this file as the AOT_CONFIG_CONTENT environment variable (or an SSM parameter) of the
+# aws-otel-collector container; OBSERVECRAFT_ENDPOINT and OBSERVECRAFT_API_KEY come from the task.
+receivers:
+  awsecscontainermetrics:
+    collection_interval: 20s
+  otlp:
+    protocols:
+      grpc: { endpoint: 0.0.0.0:4317 }
+      http: { endpoint: 0.0.0.0:4318 }
+
+processors:
+  memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20 }
+  resourcedetection:
+    detectors: [env, ecs]
+    override: false
+  batch: { send_batch_size: 1000, timeout: 5s }
+
+exporters:
+  otlphttp/observecraft:
+    endpoint: ${env:OBSERVECRAFT_ENDPOINT}
+    headers:
+      authorization: "Bearer ${env:OBSERVECRAFT_API_KEY}"
+    compression: gzip
+
+service:
+  pipelines:
+    metrics:
+      receivers: [awsecscontainermetrics, otlp]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [otlphttp/observecraft]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [otlphttp/observecraft]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [otlphttp/observecraft]

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/oc-query", "crates/oc-store", "crates/oc-api", "crates/oc-tracegen"]
+members = ["crates/oc-query", "crates/oc-store", "crates/oc-api", "crates/oc-intake", "crates/oc-tracegen"]
 
 [workspace.package]
 edition = "2021"

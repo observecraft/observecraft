@@ -20,6 +20,14 @@ pub struct Inner {
     pub secrets: SecretBox,
 }
 
+impl Inner {
+    /// ClickHouse client for one organization's telemetry. Queries on the `otel.*` tables filter on
+    /// `OrgId = {oc_org:String}`, a server-side query parameter this client always sends.
+    pub fn ch(&self, org: &str) -> clickhouse::Client {
+        self.clickhouse.clone().with_option("param_oc_org", org)
+    }
+}
+
 impl std::ops::Deref for AppState {
     type Target = Inner;
     fn deref(&self) -> &Inner {

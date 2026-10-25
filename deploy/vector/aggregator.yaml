@@ -1,6 +1,10 @@
 # Vector aggregator: one normalization point for every log source.
-#   inputs : Vector agents (vector protocol :6000) and the OTel Collector (OTLP :4317/:4318)
-#   outputs: ClickHouse oc.logs (storage) and NATS oc.logs.live.<org> (live tail fan-out)
+#   inputs : the OTel Collector (OTLP :4317/:4318; resources carry oc.org_id), JSON logs from oc-intake
+#            (HTTP :8687; organization in the x-oc-org header) and trusted in-cluster Vector agents
+#            (vector protocol :6000; events must set org_id)
+#   outputs: ClickHouse oc.logs_raw (every log, kept briefly; archives read it), the server's log
+#            indexer (routes logs to the org's indexes → oc.logs) and NATS oc.logs.live.<org> (live tail)
+# Events without an organization are dropped: nothing is stored that no tenant owns.
 data_dir: /var/lib/vector
 
 api:
@@ -19,67 +23,23 @@ sources:
     http:
       address: 0.0.0.0:4318
 
+  # JSON log events (an object or an array of objects) forwarded by oc-intake after key validation.
+  intake:
+    type: http_server
+    address: 0.0.0.0:8687
+    decoding:
+      codec: json
+    headers: ["x-oc-org"]
+
 transforms:
   # Output shape = oc.logs columns (+ ts_ms for live tail consumers).
   normalize:
     type: remap
-    inputs: [agents, otlp.logs]
-    source: |
-      res = object(.resources) ?? {}
-      attrs = object(.attributes) ?? {}
-
-      org = to_string(.org_id) ?? ""
-      if org == "" { org = "default" }
-
-      ts = timestamp(.timestamp) ?? now()
-
-      lvl = .level
-      if is_null(lvl) { lvl = .severity_text }
-      if is_null(lvl) { lvl = .status }
-      lvl = downcase(to_string(lvl) ?? "info")
-      status = "info"
-      if starts_with(lvl, "err") || lvl == "fatal" || lvl == "critical" || lvl == "crit" || lvl == "alert" || lvl == "emerg" {
-        status = "error"
-      } else if starts_with(lvl, "warn") {
-        status = "warn"
-      } else if lvl == "debug" || lvl == "trace" {
-        status = "debug"
-      }
-
-      svc = .service
-      if is_null(svc) { svc = get(res, ["service.name"]) ?? null }
-      svc = to_string(svc) ?? ""
-      if svc == "" { svc = "unknown" }
-
-      host = .host
-      if is_null(host) { host = get(res, ["host.name"]) ?? null }
-      host = to_string(host) ?? ""
-
-      src = to_string(.source) ?? ""
-      if src == "" { src = svc }
-
-      msg = to_string(.message) ?? encode_json(.message)
-
-      tags = object(.tags) ?? {}
-      tags = merge(tags, res)
-      tags = map_values(tags) -> |v| { to_string(v) ?? encode_json(v) }
-
-      attr = map_values(flatten(attrs)) -> |v| { to_string(v) ?? encode_json(v) }
-
-      . = {
-        "org_id": org,
-        "id": uuid_v4(),
-        "timestamp": ts,
-        "ts_ms": to_unix_timestamp(ts, unit: "milliseconds"),
-        "status": status,
-        "service": svc,
-        "host": host,
-        "source": src,
-        "message": msg,
-        "tags": tags,
-        "attr": attr,
-        "attributes": encode_json(attrs)
-      }
+    inputs: [agents, otlp.logs, intake]
+    drop_on_abort: true
+    # Datadog-style preprocessing, metadata → tags, reserved attributes. Tested by vector/tests.yaml
+    # (`docker compose run --rm vector-aggregator test /etc/vector/aggregator.yaml /etc/vector/tests.yaml`).
+    file: /etc/vector/normalize.vrl
 
 sinks:
   clickhouse:
@@ -87,7 +47,7 @@ sinks:
     inputs: [normalize]
     endpoint: http://clickhouse:8123
     database: oc
-    table: logs
+    table: logs_raw
     auth:
       strategy: basic
       user: "${CLICKHOUSE_USER}"
@@ -99,6 +59,29 @@ sinks:
       timeout_secs: 1
       max_events: 20000
     # Survives ClickHouse restarts without dropping logs.
+    buffer:
+      type: disk
+      max_size: 536870912
+      when_full: block
+
+  # Index routing, exclusion filters and quotas happen in the server (OC_LOGPROC_URL).
+  indexer:
+    type: http
+    inputs: [normalize]
+    uri: "${OC_LOGPROC_URL}"
+    method: post
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    request:
+      headers:
+        authorization: "Bearer ${OC_INTERNAL_TOKEN:-none}"
+      retry_attempts: 1000000
+    batch:
+      timeout_secs: 1
+      max_events: 10000
+    # Survives server restarts without losing logs.
     buffer:
       type: disk
       max_size: 536870912

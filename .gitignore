@@ -3,6 +3,7 @@ node_modules/
 web/dist/
 server/target/
 # local env
+.oc-data/
 .env
 *.local
 # tooling scratch
