@@ -1,0 +1,159 @@
+# Contributing to ObserveCraft
+
+Thanks for your interest in ObserveCraft! Bug reports, feature ideas, documentation fixes and pull requests are all
+welcome. This guide explains how to get a development environment running and what we look for in a change.
+
+- [Ways to contribute](#ways-to-contribute)
+- [Development setup](#development-setup)
+- [Project layout](#project-layout)
+- [Making a change](#making-a-change)
+- [Coding guidelines](#coding-guidelines)
+- [Commit messages](#commit-messages)
+- [Pull requests](#pull-requests)
+- [Reporting security issues](#reporting-security-issues)
+- [License](#license)
+
+## Ways to contribute
+
+- **Report a bug.** Open an issue with what you did, what you expected and what happened. Include versions, logs and
+  screenshots where they help.
+- **Suggest a feature.** Open an issue describing the problem you want solved before writing a large change, so we can
+  agree on the approach first.
+- **Improve the docs.** Typos, missing steps and unclear explanations are worth a PR on their own.
+- **Pick up an issue.** Issues labelled `good first issue` or `help wanted` are a good place to start. Comment on the
+  issue so others know you are working on it.
+
+## Development setup
+
+### Prerequisites
+
+| Tool | Version |
+|---|---|
+| Docker | Docker Desktop, OrbStack, Colima or Podman with Compose v2 |
+| Rust | ≥ 1.89 (`rustup update stable`) |
+| Node.js | ≥ 20 |
+| libxmlsec1 / libxslt | macOS: `brew install libxmlsec1 libxslt`; Debian/Ubuntu: `apt install libxmlsec1-dev libxml2-dev libxslt1-dev pkg-config` |
+
+`libxmlsec1` is needed for SAML signature verification. On macOS, `server/.cargo/config.toml` points the build at
+Homebrew's libxml2.
+
+### Run everything locally
+
+```bash
+git clone https://github.com/observecraft/observecraft.git
+cd observecraft
+cp .env.example .env     # optional: every setting has a development default
+(cd web && npm install)
+
+make up        # ClickHouse, Postgres, NATS, Vector, OTel Collector and synthetic logs
+make server    # API on :8080 (applies migrations on startup)
+make tracegen  # synthetic traces, host metrics and CI pipelines
+make web       # UI on http://localhost:5173
+```
+
+On first start the server logs a one-time link to set the admin password. Open it, choose a password, and sign in.
+
+No backend handy? `make web-mock` runs the UI against in-browser mocks.
+
+### Useful commands
+
+| Command | What it does |
+|---|---|
+| `make test` | Rust tests (`cargo test`) + web typecheck (`tsc`) |
+| `make openapi` | Regenerate the OpenAPI document and the web's TypeScript API types |
+| `make logs` / `make ps` | Tail / list the Docker stack |
+| `make down` | Stop the stack, keeping data |
+| `make clean-data` | Stop the stack and delete ClickHouse/Postgres volumes |
+| `make build` | Production builds of the server and the web app |
+
+## Project layout
+
+| Path | Contents |
+|---|---|
+| `server/crates/oc-query` | Search syntax → SQL `WHERE` clauses / in-memory matcher |
+| `server/crates/oc-store` | ClickHouse + Postgres clients and migrations |
+| `server/crates/oc-api` | The `observecraft-server` binary: axum routes, auth, monitor evaluator, demo seeds |
+| `server/crates/oc-tracegen` | Synthetic OTLP traces, host metrics and CI pipeline data |
+| `server/migrations/` | ClickHouse (telemetry) and Postgres (metadata) schemas |
+| `web/src/api/` | The only data-access layer of the UI: typed clients + in-browser mocks |
+| `web/src/pages/` | One folder per product area (logs, apm, metrics, monitors, …) |
+| `deploy/` | Docker Compose stack, Vector and OpenTelemetry Collector configuration |
+
+## Making a change
+
+1. Fork the repository and create a branch from `main`: `git checkout -b feat/span-point-plot`.
+2. Make your change, with tests where it makes sense.
+3. Run `make test` and make sure it passes.
+4. If you changed an API endpoint, run `make openapi` and commit the regenerated files under `web/src/api/generated/`.
+5. If you changed the UI, check it in the browser in both live (`make web`) and, where relevant, mock mode
+   (`make web-mock`).
+6. Open a pull request.
+
+### Database migrations
+
+- Add a new numbered file under `server/migrations/postgres/` or `server/migrations/clickhouse/`. Never edit a migration
+  that has already been merged; write a new one instead.
+- Every Postgres table carries `org_id`, and every query must filter on it.
+
+### API changes
+
+- Handlers are documented with `utoipa`; the OpenAPI document and web types are generated from them.
+- `cargo test` fails on duplicate OpenAPI operation ids or schema type names across route modules. Prefix handler
+  names that would collide (e.g. `ci_overview`, `span_facets`), and add new route modules to the guard test's
+  `include_str!` list in `server/crates/oc-api/src/routes/mod.rs`.
+- Organization and user identity come only from the session or application key, never from request input.
+- Bind every user-supplied value as a query parameter; never interpolate it into SQL.
+
+## Coding guidelines
+
+### Rust
+
+- `cargo fmt` before committing; `cargo clippy --all-targets` should not add new warnings.
+- Prefer returning `Result` with the crate's error types over `unwrap()` outside tests.
+- Keep handlers thin: parsing and validation in the route, query building in `oc-query`, storage in `oc-store`.
+
+### TypeScript / React
+
+- Format with Prettier: `npx prettier --single-quote --print-width 200 --write <files>`.
+- `npx tsc -p .` must pass with no errors.
+- Fetch data only through `web/src/api/*/client.ts` and TanStack Query hooks; components never call `fetch` directly.
+- Follow the patterns of the area you are working in: reuse existing components and CSS classes before adding new ones.
+
+### Demo and test data
+
+Seeds, generators, mocks, fixtures and screenshots must use **fictional data only**: the e-commerce demo services
+(`api-gateway`, `storefront-api`, `order-service`, `billing`, …), `example-org/*` repositories, `i-0a1b2c3d4e5f…` hosts
+and `@example.com` people. Never include real company, customer, service or person names, real hostnames or IPs,
+or credentials.
+
+## Commit messages
+
+We use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat(apm): add point plot visualization to the span explorer
+fix(monitors): keep downtime windows in the org's timezone
+docs: document OIDC setup with Keycloak
+```
+
+Common types: `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`. Keep the subject under 72
+characters and explain the *why* in the body when it isn't obvious.
+
+## Pull requests
+
+- Keep PRs focused: one feature or fix per PR is much easier to review.
+- Describe what changed and why, and link the issue it addresses (`Closes #123`).
+- Include screenshots or a short recording for UI changes.
+- Note any migration, configuration or breaking API change explicitly.
+- A maintainer will review your PR. Please respond to feedback with new commits rather than force-pushes while the
+  review is in progress; we squash on merge.
+
+## Reporting security issues
+
+Please **do not** open a public issue for security vulnerabilities. Use GitHub's
+[private vulnerability reporting](https://github.com/observecraft/observecraft/security/advisories/new) instead. We
+will acknowledge your report and keep you updated as we work on a fix.
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).
