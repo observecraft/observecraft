@@ -1,0 +1,3 @@
+# Artifact Hub repository metadata (verified publisher). The release workflow pushes it to
+# oci://ghcr.io/observecraft/charts/observecraft-agent under the tag `artifacthub.io`.
+repositoryID: 4d1613d0-205b-45ba-8bd3-249957ebe4d4

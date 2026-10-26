@@ -10,6 +10,7 @@ kubeVersion: '>=1.26.0-0'
 home: https://github.com/observecraft/observecraft
 sources:
   - https://github.com/observecraft/observecraft
+icon: https://raw.githubusercontent.com/observecraft/observecraft/main/docs/assets/logo.svg
 keywords:
   - observability
   - logs
@@ -20,3 +21,13 @@ keywords:
   - clickhouse
 annotations:
   artifacthub.io/license: MIT
+  artifacthub.io/category: monitoring-logging
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://github.com/observecraft/observecraft#readme
+    - name: Sending data
+      url: https://github.com/observecraft/observecraft/blob/main/docs/sending-data.md
+    - name: Changelog
+      url: https://github.com/observecraft/observecraft/blob/main/CHANGELOG.md
+    - name: Verifying releases
+      url: https://github.com/observecraft/observecraft/blob/main/SECURITY.md#verifying-releases

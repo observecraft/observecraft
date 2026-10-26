@@ -4,6 +4,7 @@
 # (from Conventional Commits); merging it tags vX.Y.Z, and this run then also publishes:
 #   docker pull ghcr.io/observecraft/observecraft:X.Y.Z
 #   helm install observecraft oci://ghcr.io/observecraft/charts/observecraft --version X.Y.Z
+# Charts get their Artifact Hub annotations (images, changes) at packaging time (deploy/helm/artifacthub-annotate.py).
 # Images are built natively per architecture, then signed (cosign, keyless), attested (build provenance, SPDX SBOM)
 # and scanned (Trivy, results in the Security tab). Charts are signed too, and a release is installed from the
 # registry into a kind cluster before the run passes.
@@ -185,6 +186,7 @@ jobs:
           echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
           echo "$TOKEN" | cosign login ghcr.io -u "${{ github.actor }}" --password-stdin
           for chart in observecraft observecraft-agent; do
+            python3 deploy/helm/artifacthub-annotate.py "deploy/helm/$chart" "$VERSION"
             helm package "deploy/helm/$chart" --version "$VERSION" --app-version "$VERSION" -d dist
             digest=$(helm push "dist/$chart-$VERSION.tgz" "oci://$CHARTS" 2>&1 | tee /dev/stderr | awk '/^Digest:/ {print $2}')
             cosign sign --yes "$CHARTS/$chart@$digest"
