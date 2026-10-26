@@ -137,6 +137,12 @@ jobs:
           helm lint deploy/helm/observecraft
           helm lint deploy/helm/observecraft -f deploy/helm/observecraft/values-ha.yaml
           helm lint deploy/helm/observecraft-agent -f deploy/helm/observecraft-agent/ci/default-values.yaml
+      - name: Artifact Hub annotations
+        run: |
+          for chart in observecraft observecraft-agent; do
+            python3 deploy/helm/artifacthub-annotate.py "deploy/helm/$chart" "$(awk '/^version:/ {print $2}' deploy/helm/$chart/Chart.yaml)"
+            helm lint "deploy/helm/$chart" -f "deploy/helm/$chart/ci/default-values.yaml"
+          done
       - name: Build the image for the cluster
         run: docker build -f server/Dockerfile -t ghcr.io/observecraft/observecraft:ci .
       # Fails on critical vulnerabilities that already have a fix (base image or dependency upgrade).
