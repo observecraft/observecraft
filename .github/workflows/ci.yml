@@ -1,3 +1,5 @@
+# Each job runs only when its files change (docs-only changes run nothing); a change to the workflows runs everything.
+# Branch rules require the `ci-ok` job, which passes when every job that ran passed.
 name: ci
 
 on:
@@ -8,8 +10,58 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      server: ${{ steps.f.outputs.server }}
+      web: ${{ steps.f.outputs.web }}
+      licenses: ${{ steps.f.outputs.licenses }}
+      configs: ${{ steps.f.outputs.configs }}
+      charts: ${{ steps.f.outputs.charts }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: f
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            ci: &ci
+              - .github/workflows/**
+            server:
+              - *ci
+              - server/**
+              - web/src/api/generated/**
+            web:
+              - *ci
+              - web/**
+            licenses:
+              - *ci
+              - server/Cargo.toml
+              - server/Cargo.lock
+              - server/crates/*/Cargo.toml
+              - server/deny.toml
+              - web/package.json
+              - web/package-lock.json
+            configs:
+              - *ci
+              - deploy/otel/**
+              - deploy/vector/**
+            charts:
+              - *ci
+              - deploy/helm/**
+              - server/**
+              - web/**
+
   server:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -28,6 +80,8 @@ jobs:
 
   # Dependencies must be permissive (ObserveCraft is MIT): server/deny.toml, and the allowlist below for the web app.
   licenses:
+    needs: changes
+    if: needs.changes.outputs.licenses == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,6 +97,8 @@ jobs:
             --onlyAllow 'MIT;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;OFL-1.1;MPL-2.0;Zlib'
 
   web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,6 +108,8 @@ jobs:
         working-directory: web
 
   pipeline-configs:
+    needs: changes
+    if: needs.changes.outputs.configs == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,6 +125,8 @@ jobs:
           test /etc/vector/aggregator.yaml /etc/vector/tests.yaml
 
   charts:
+    needs: changes
+    if: needs.changes.outputs.charts == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -92,3 +152,11 @@ jobs:
           helm test observecraft -n observecraft --logs
           helm install observecraft-agent deploy/helm/observecraft-agent -n observecraft \
             -f deploy/helm/observecraft-agent/ci/default-values.yaml --wait --timeout 5m
+
+  ci-ok:
+    if: always()
+    needs: [changes, server, licenses, web, pipeline-configs, charts]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Every job that ran passed
+        run: '! ${{ contains(needs.*.result, ''failure'') || contains(needs.*.result, ''cancelled'') }}'

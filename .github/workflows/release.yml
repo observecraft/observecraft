@@ -1,4 +1,5 @@
-# Every push to main publishes edge images (ghcr.io/observecraft/observecraft:main and :sha-<commit>).
+# Every push to main that changes the image's sources (server/, web/) publishes edge images
+# (ghcr.io/observecraft/observecraft:main and :sha-<commit>).
 # Releases are cut by release-please: it keeps a release pull request open with the next version and the changelog
 # (from Conventional Commits); merging it tags vX.Y.Z, and this run then also publishes:
 #   docker pull ghcr.io/observecraft/observecraft:X.Y.Z
@@ -39,8 +40,25 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+  # Edge images only when what goes into the image changed; a release always builds.
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      image: ${{ steps.f.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: f
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            image:
+              - server/**
+              - web/**
+              - .github/workflows/release.yml
+
   images:
-    needs: release-please
+    needs: [release-please, changes]
+    if: needs.release-please.outputs.released == 'true' || needs.changes.outputs.image == 'true'
     strategy:
       matrix:
         include:
@@ -133,9 +151,12 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+      packages: read
       security-events: write
     steps:
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        # Credentials, so the scan also works while a package is private.
+        env: { TRIVY_USERNAME: "${{ github.actor }}", TRIVY_PASSWORD: "${{ secrets.GITHUB_TOKEN }}" }
         with:
           image-ref: ${{ env.IMAGE }}@${{ needs.manifest.outputs.digest }}
           format: sarif
@@ -173,6 +194,9 @@ jobs:
   verify:
     needs: [release-please, charts]
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
@@ -180,8 +204,12 @@ jobs:
       - uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
         with: { cluster_name: verify }
       - name: Install from the registry
-        env: { VERSION: "${{ needs.release-please.outputs.version }}" }
+        env: { VERSION: "${{ needs.release-please.outputs.version }}", TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        # Logged in and the image preloaded, so this also works while the packages are still private.
         run: |
+          echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker pull "$IMAGE:$VERSION" && kind load docker-image "$IMAGE:$VERSION" --name verify
           helm install observecraft "oci://$CHARTS/observecraft" --version "$VERSION" -n observecraft --create-namespace \
             -f deploy/helm/observecraft/ci/default-values.yaml --wait --timeout 10m
           helm test observecraft -n observecraft --logs

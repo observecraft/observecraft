@@ -1,4 +1,6 @@
-# Weekly dependency updates, grouped so each ecosystem opens one pull request.
+# Weekly dependency updates. Each ecosystem opens at most two pull requests: one for minor and patch updates, one
+# for major updates (which usually need code changes). Security updates are opened separately, as soon as an
+# advisory is published.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -10,13 +12,22 @@ updates:
     directory: /server
     schedule: { interval: weekly }
     commit-message: { prefix: deps }
-    groups: { cargo: { update-types: [minor, patch] } }
+    groups:
+      cargo: { update-types: [minor, patch] }
+      cargo-major: { update-types: [major] }
   - package-ecosystem: npm
     directory: /web
     schedule: { interval: weekly }
     commit-message: { prefix: deps }
-    groups: { npm: { update-types: [minor, patch] } }
+    groups:
+      npm: { update-types: [minor, patch] }
+      npm-major: { update-types: [major] }
   - package-ecosystem: docker
     directory: /server
     schedule: { interval: weekly }
     commit-message: { prefix: deps }
+    groups: { docker: { patterns: ["*"] } }
+    # The build image follows the Node.js LTS line CI uses (20); move both together by hand.
+    ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]

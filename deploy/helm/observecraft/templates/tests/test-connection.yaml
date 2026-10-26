@@ -8,7 +8,8 @@ metadata:
     {{- include "oc.labels" . | nindent 4 }}
   annotations:
     helm.sh/hook: test
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    # Kept after it succeeds so `helm test --logs` can read it; replaced on the next run.
+    helm.sh/hook-delete-policy: before-hook-creation
 spec:
   restartPolicy: Never
   automountServiceAccountToken: false
