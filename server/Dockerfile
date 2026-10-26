@@ -2,7 +2,7 @@
 #   observecraft-server (API + the built web app), oc-intake (telemetry gateway), oc-tracegen (demo data).
 # SAML signature verification links libxmlsec1 (OpenSSL backend); bindgen needs libclang at build time.
 
-FROM node:20.18.0-bookworm-slim AS web
+FROM node:26.12.1-bookworm-slim AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
