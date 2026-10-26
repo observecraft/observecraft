@@ -132,6 +132,8 @@ services:
 
   server:
     profiles: ["app"]
+    # The published image (OC_VERSION=0.1.0 pins a release); built from source when it can't be pulled.
+    image: ghcr.io/observecraft/observecraft:${OC_VERSION:-latest}
     build:
       context: ..
       dockerfile: server/Dockerfile
@@ -160,6 +162,7 @@ services:
   # authenticated by ingest API key.
   intake:
     profiles: ["app"]
+    image: ghcr.io/observecraft/observecraft:${OC_VERSION:-latest}
     build:
       context: ..
       dockerfile: server/Dockerfile
@@ -181,6 +184,7 @@ services:
   # Synthetic OTLP traces for APM (services, dependencies, N+1 calls, errors, rolling deploys).
   tracegen:
     profiles: ["app"]
+    image: ghcr.io/observecraft/observecraft:${OC_VERSION:-latest}
     build:
       context: ..
       dockerfile: server/Dockerfile

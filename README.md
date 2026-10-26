@@ -8,6 +8,8 @@
 **Open-source, self-hosted observability platform: logs, metrics, traces, dashboards, monitors, incidents and CI
 visibility in one place, built on OpenTelemetry and ClickHouse.**
 
+[![CI](https://github.com/observecraft/observecraft/actions/workflows/ci.yml/badge.svg)](https://github.com/observecraft/observecraft/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/observecraft/observecraft?sort=semver)](https://github.com/observecraft/observecraft/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.89%2B-orange?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -117,8 +119,9 @@ organizations and invites their first admins. The demo org archives its logs to 
 **Other ways to run:**
 
 - **Kubernetes (Helm):** see [Deploy on Kubernetes](#deploy-on-kubernetes).
-- **Everything in containers:** `docker compose -f deploy/docker-compose.yml --profile app up -d` builds one image
-  with the API, the web app (served on `:8080`), the intake (`:4318`) and the demo generator. Add `--profile tls`
+- **Everything in containers:** `docker compose -f deploy/docker-compose.yml --profile app up -d` runs the published
+  image (`ghcr.io/observecraft/observecraft`, set `OC_VERSION` to pin a release; built from source when it can't be
+  pulled) with the API, the web app (served on `:8080`), the intake (`:4318`) and the demo generator. Add `--profile tls`
   (with `OC_DOMAIN` and `OC_INTAKE_DOMAIN`) for automatic HTTPS through Caddy.
 - **UI only, no backend:** `make web-mock` runs the UI against in-browser mocks.
 - **Try SSO locally:** `docker compose -f deploy/docker-compose.yml --profile sso up -d` starts a SAML IdP
@@ -161,11 +164,13 @@ log's **Trace** tab.
 
 ## Deploy on Kubernetes
 
-The platform is one Helm chart, published as an OCI artifact:
+The platform is one Helm chart, published with every release as an OCI artifact next to the image
+(`ghcr.io/observecraft/observecraft`, amd64 and arm64). Pick a version from the
+[releases](https://github.com/observecraft/observecraft/releases):
 
 ```bash
 # Server (API + web app), intake, collector, Vector, and by default single-node ClickHouse, Postgres, NATS.
-helm install observecraft oci://ghcr.io/observecraft/charts/observecraft -n observecraft --create-namespace \
+helm install observecraft oci://ghcr.io/observecraft/charts/observecraft --version 0.1.0 -n observecraft --create-namespace \
   --set publicUrl=https://observecraft.example.com --set instanceAdminEmail=admin@example.com \
   --set ingress.enabled=true --set ingress.app.host=observecraft.example.com \
   --set ingress.intake.host=intake.observecraft.example.com --set ingress.certManagerClusterIssuer=letsencrypt
@@ -191,6 +196,11 @@ The chart generates and keeps its secrets (or uses `secrets.existingSecret`), ru
 read-only root filesystems, and restricts traffic between components with NetworkPolicies. Every server replica can
 start at once: migrations run under a Postgres lock, and monitors and archiving run on one replica at a time.
 ClickHouse gets a per-organization quota (`clickhouse.quota`). `helm test observecraft` checks the install.
+
+Upgrade with `helm upgrade observecraft oci://ghcr.io/observecraft/charts/observecraft --version <new> --reuse-values`;
+migrations run on startup. Read the release notes first: before 1.0, a minor version may change chart values.
+Images and charts are signed and come with an SBOM and build provenance; [SECURITY.md](SECURITY.md#verifying-releases)
+shows how to verify them. Every commit on `main` is also published as `:main` and `:sha-<commit>` images, for staging.
 
 ## Architecture
 

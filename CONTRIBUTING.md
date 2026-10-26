@@ -10,6 +10,7 @@ welcome. This guide explains how to get a development environment running and wh
 - [Coding guidelines](#coding-guidelines)
 - [Commit messages](#commit-messages)
 - [Pull requests](#pull-requests)
+- [Releases](#releases)
 - [Reporting security issues](#reporting-security-issues)
 - [License](#license)
 
@@ -180,6 +181,19 @@ characters and explain the *why* in the body when it isn't obvious.
 - Note any migration, configuration or breaking API change explicitly.
 - A maintainer will review your PR. Please respond to feedback with new commits rather than force-pushes while the
   review is in progress; we squash on merge.
+- The PR title becomes the commit on `main`, so it must be a Conventional Commit (a check enforces it). Releases are
+  generated from those titles.
+
+## Releases
+
+Releases are automated with [release-please](https://github.com/googleapis/release-please). After each merge to `main`
+it updates a release pull request with the next version (from the `feat`/`fix` titles since the last release) and the
+`CHANGELOG.md` entry. Merging that pull request tags `vX.Y.Z`, publishes the multi-arch image and both Helm charts to
+GHCR, signs them, and installs the published chart in a kind cluster as a final check
+(`.github/workflows/release.yml`). Every merge to `main` also publishes `:main` and `:sha-<commit>` images.
+
+Before 1.0, a breaking change bumps the minor version (`0.1.x` → `0.2.0`). Mark it with `!` (`feat(helm)!: …`) and
+describe the upgrade in the PR.
 
 ## Reporting security issues
 

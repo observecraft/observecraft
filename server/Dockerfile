@@ -16,7 +16,8 @@ COPY server/ .
 RUN cargo build --release --bin observecraft-server --bin oc-intake --bin oc-tracegen
 
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libxml2 libxslt1.1 libxmlsec1 libxmlsec1-openssl libssl3 libstdc++6 \
+# upgrade: security fixes released after the base image was built.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends ca-certificates libxml2 libxslt1.1 libxmlsec1 libxmlsec1-openssl libssl3 libstdc++6 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 10001 observecraft \
     && mkdir -p /var/lib/observecraft && chown observecraft /var/lib/observecraft
