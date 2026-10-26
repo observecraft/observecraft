@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/observecraft/observecraft/compare/v0.1.0...v0.2.0) (2026-10-26)
+
+
+### Features
+
+* **helm:** Artifact Hub listing for both charts ([#19](https://github.com/observecraft/observecraft/issues/19)) ([fa27c7e](https://github.com/observecraft/observecraft/commit/fa27c7ee56e141125ffeab3d8b9a0fd1eb969db7))
+
 ## 0.1.0 (2026-10-26)
 
 
