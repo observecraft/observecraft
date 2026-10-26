@@ -110,6 +110,7 @@ only the traffic each component needs; secrets are generated once and kept acros
 | `intake.orgRequestsPerSecond` / `orgMegabytesPerSecond` | `500` / `50` | Per-organization ingest limits (over them, senders get 429 and retry). |
 | `clickhouse.mode` | `bundled` | `bundled`, `operator` (Altinity, sharded and replicated) or `external`. |
 | `clickhouse.quota.*` | enabled | Per-organization ClickHouse query quota. |
+| `clickhouse.bundled.tuning.*` | small server | Caches, concurrent queries, merge threads and async insert buffering for the bundled server. Raise them with `clickhouse.bundled.resources`. |
 | `postgres.mode` | `bundled` | `bundled`, `operator` (CloudNativePG) or `external`. |
 | `nats.enabled` | `true` | `false` to use `nats.external.url`. |
 | `ingress.enabled` | `false` | Hosts `ingress.app.host`, `ingress.intake.host`, optional `ingress.intakeGrpc` for OTLP/gRPC; TLS through cert-manager (`ingress.certManagerClusterIssuer`) or your own secrets. |

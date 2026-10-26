@@ -2,6 +2,7 @@
 {{- $secret := include "oc.secretName" . -}}
 {{- $ch := .Values.clickhouse -}}
 {{- $q := $ch.quota -}}
+{{- $t := $ch.bundled.tuning -}}
 {{- if eq $ch.mode "bundled" }}
 # Single ClickHouse server. Users: the server's (per-org quota keyed by the org it sends as
 # quota_key) and an insert-only writer for the collector and Vector. `default` is local only.
@@ -16,6 +17,22 @@ data:
     <clickhouse>
       <logger><level>information</level><console>1</console><log remove="1"/><errorlog remove="1"/></logger>
       <listen_host>0.0.0.0</listen_host>
+      <!-- Sized for a small server (clickhouse.bundled.tuning); the defaults assume 32 GB+ of RAM. -->
+      <mark_cache_size>{{ $t.markCacheBytes | int64 }}</mark_cache_size>
+      <index_mark_cache_size>{{ $t.markCacheBytes | int64 }}</index_mark_cache_size>
+      <max_concurrent_queries>{{ $t.maxConcurrentQueries }}</max_concurrent_queries>
+      <background_pool_size>{{ $t.backgroundPoolSize }}</background_pool_size>
+      <!-- These thresholds count free slots of the pool above (2 x its size); the defaults (8, 20,
+           25) assume 16 threads, and the server refuses to start when they exceed the slots. -->
+      <merge_tree>
+        <number_of_free_entries_in_pool_to_lower_max_size_of_merge>{{ $t.backgroundPoolSize }}</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
+        <number_of_free_entries_in_pool_to_execute_mutation>{{ $t.backgroundPoolSize }}</number_of_free_entries_in_pool_to_execute_mutation>
+        <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>{{ $t.backgroundPoolSize }}</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
+      </merge_tree>
+      <!-- Diagnostic logs we don't read; query_log and part_log stay. -->
+      <trace_log remove="1"/>
+      <processors_profile_log remove="1"/>
+      <query_views_log remove="1"/>
     </clickhouse>
   observecraft-users.xml: |
     <clickhouse>
@@ -33,7 +50,7 @@ data:
         <{{ $ch.ingestUser }}>
           <password from_env="OC_CH_INGEST_PASSWORD"/>
           <networks><ip>::/0</ip></networks>
-          <profile>default</profile>
+          <profile>ingest</profile>
           <quota>default</quota>
           <grants>
             <query>GRANT INSERT, SELECT, SHOW ON oc.*</query>
@@ -41,6 +58,16 @@ data:
           </grants>
         </{{ $ch.ingestUser }}>
       </users>
+      <profiles>
+        <!-- Many senders inserting small batches: the server buffers them into fewer, larger parts. -->
+        <ingest>
+          <profile>default</profile>
+          <async_insert>1</async_insert>
+          <wait_for_async_insert>1</wait_for_async_insert>
+          <async_insert_use_adaptive_busy_timeout>0</async_insert_use_adaptive_busy_timeout>
+          <async_insert_busy_timeout_ms>{{ $t.asyncInsertBusyTimeoutMs }}</async_insert_busy_timeout_ms>
+        </ingest>
+      </profiles>
       <quotas>
         <per_org>
           <keyed/>
@@ -108,12 +135,15 @@ spec:
           ports:
             - { name: http, containerPort: 8123 }
             - { name: native, containerPort: 9000 }
+          # A busy server can take over a second to answer /ping; the 1s default restarts it under load.
           readinessProbe:
             httpGet: { path: /ping, port: http }
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet: { path: /ping, port: http }
             periodSeconds: 20
+            timeoutSeconds: 5
             failureThreshold: 6
           resources:
             {{- toYaml $ch.bundled.resources | nindent 12 }}
