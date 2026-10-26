@@ -1,0 +1,34 @@
+# `helm test <release>`: the web app/API and the intake answer, and the intake refuses a request
+# without an API key.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "oc.fullname" . }}-test
+  labels:
+    {{- include "oc.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    seccompProfile: { type: RuntimeDefault }
+  containers:
+    - name: test
+      image: curlimages/curl:8.11.1
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities: { drop: [ALL] }
+      command: [sh, -ec]
+      args:
+        - |
+          curl -fsS http://{{ include "oc.fullname" . }}-server:8080/healthz
+          curl -fsS http://{{ include "oc.fullname" . }}-server:8080/ | grep -q "<div id=\"root\""
+          curl -fsS http://{{ include "oc.fullname" . }}-intake:4318/healthz
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://{{ include "oc.fullname" . }}-intake:4318/v1/traces -H 'Content-Type: application/json' -d '{}')
+          test "$code" = 401
+          echo ok

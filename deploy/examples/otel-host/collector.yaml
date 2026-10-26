@@ -1,0 +1,94 @@
+# The OpenTelemetry Collector (contrib) on a host (VM, bare metal, Docker host): host metrics, log
+# files, and a local endpoint for applications (OTLP, Datadog tracers, DogStatsD). For hosts that
+# don't run the Datadog Agent.
+#
+#   docker run -d --name otel-collector --network host --pid host \
+#     -v /:/hostfs:ro -v /var/log:/var/log:ro -v otel-collector:/var/lib/observecraft-agent \
+#     -v $PWD/collector.yaml:/etc/otelcol-contrib/config.yaml:ro \
+#     -e OBSERVECRAFT_ENDPOINT=https://intake.observecraft.example.com -e OBSERVECRAFT_API_KEY=ocik_… \
+#     -e OBSERVECRAFT_HOSTFS=/hostfs -e HOST_PROC_MOUNTINFO=/hostfs/proc/1 \
+#     otel/opentelemetry-collector-contrib:0.112.0
+#
+#   OBSERVECRAFT_ENDPOINT  intake URL, e.g. https://intake.observecraft.example.com
+#   OBSERVECRAFT_API_KEY   ingest API key (Organization Settings → API Keys)
+#   OBSERVECRAFT_LOGS      log files to tail (glob, default /var/log/*.log)
+#   OTEL_RESOURCE_ATTRIBUTES  extra tags on everything this agent sends, e.g. deployment.environment=prod
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  file_storage:
+    directory: ${env:OBSERVECRAFT_DATA_DIR:-/var/lib/observecraft-agent}
+    create_directory: true
+
+receivers:
+  otlp:
+    protocols:
+      grpc: { endpoint: 0.0.0.0:4317 }
+      http: { endpoint: 0.0.0.0:4318 }
+  # dd-trace libraries (DD_AGENT_HOST / DD_TRACE_AGENT_PORT=8126).
+  datadog:
+    endpoint: 0.0.0.0:8126
+  # DogStatsD custom metrics (DD_DOGSTATSD_PORT=8125).
+  statsd:
+    endpoint: 0.0.0.0:8125
+    aggregation_interval: 10s
+    enable_metric_type: true
+    is_monotonic_counter: false
+    timer_histogram_mapping:
+      - { statsd_type: histogram, observer_type: summary }
+      - { statsd_type: timing, observer_type: summary }
+      - { statsd_type: distribution, observer_type: summary }
+  hostmetrics:
+    root_path: ${env:OBSERVECRAFT_HOSTFS:-/}
+    collection_interval: 20s
+    scrapers:
+      cpu: { metrics: { system.cpu.utilization: { enabled: true } } }
+      memory: { metrics: { system.memory.utilization: { enabled: true } } }
+      load: {}
+      disk: {}
+      filesystem: {}
+      network: {}
+      paging: {}
+      processes: {}
+  filelog:
+    include: ["${env:OBSERVECRAFT_LOGS:-/var/log/*.log}"]
+    start_at: end
+    include_file_path: true
+    # Read positions survive restarts.
+    storage: file_storage
+
+processors:
+  memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20 }
+  resourcedetection:
+    detectors: [env, system, docker, ec2, gcp, azure]
+    override: false
+    system: { hostname_sources: [os] }
+  resource/env:
+    attributes:
+      - { key: observecraft.collector, value: otel, action: upsert }
+  batch: { send_batch_size: 2000, timeout: 2s }
+
+exporters:
+  otlphttp/observecraft:
+    endpoint: ${env:OBSERVECRAFT_ENDPOINT}
+    headers:
+      authorization: "Bearer ${env:OBSERVECRAFT_API_KEY}"
+    compression: gzip
+    retry_on_failure: { enabled: true, max_elapsed_time: 0 }
+    sending_queue: { enabled: true, queue_size: 5000, storage: file_storage }
+
+service:
+  extensions: [health_check, file_storage]
+  pipelines:
+    traces:
+      receivers: [otlp, datadog]
+      processors: [memory_limiter, resourcedetection, resource/env, batch]
+      exporters: [otlphttp/observecraft]
+    metrics:
+      receivers: [otlp, statsd, hostmetrics]
+      processors: [memory_limiter, resourcedetection, resource/env, batch]
+      exporters: [otlphttp/observecraft]
+    logs:
+      receivers: [otlp, filelog]
+      processors: [memory_limiter, resourcedetection, resource/env, batch]
+      exporters: [otlphttp/observecraft]

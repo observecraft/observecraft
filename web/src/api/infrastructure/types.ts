@@ -5,7 +5,7 @@ import type { MetricSeries, TimeRange } from '../types';
 
 export type Cloud = 'aws' | 'azure' | 'gcp' | 'oracle' | 'alibaba' | 'none';
 export type HostOs = 'linux' | 'windows' | 'darwin';
-export type CollectorKind = 'observecraft' | 'otel';
+export type CollectorKind = 'observecraft' | 'otel' | 'datadog';
 export type Software = 'kubernetes' | 'docker';
 
 export interface MonitorCounts {

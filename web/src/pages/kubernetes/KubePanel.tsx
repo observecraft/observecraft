@@ -7,8 +7,9 @@ import { searchSpans } from '../../api/apm/client';
 import { searchLogs } from '../../api/client';
 import { queryTimeseries } from '../../api/dashboards/client';
 import { API_MODE } from '../../api/http';
-import { getKubeResource, type KubeDetail, type KubeResource } from '../../api/kubernetes/client';
+import { getKubeResource, searchKubernetes, type KubeDetail, type KubeResource } from '../../api/kubernetes/client';
 import { searchMonitors } from '../../api/monitors/client';
+import { networkFlows } from '../../api/network/client';
 import { Chart } from '../../components/charts/Chart';
 import { Empty, ErrorState, Loading } from '../../components/ui/AsyncState';
 import { formatBytes } from '../../components/ui/Pager';
@@ -87,8 +88,8 @@ export function KubePanel({ uid, onClose, onFilter, onOpen }: { uid: string; onC
             {tab === 'logs' && <Logs r={q.data.resource} />}
             {tab === 'apm' && <Apm r={q.data.resource} />}
             {tab === 'metrics' && <Metrics r={q.data.resource} />}
-            {tab === 'processes' && <Empty>Process collection is not enabled: the ObserveCraft collectors don't report per-container processes yet.</Empty>}
-            {tab === 'network' && <Empty>Network monitoring is not enabled: the ObserveCraft collectors don't report container network connections yet.</Empty>}
+            {tab === 'processes' && <Processes r={q.data.resource} />}
+            {tab === 'network' && <NetworkTab r={q.data.resource} />}
             {tab === 'events' && <Events d={q.data} />}
             {tab === 'monitors' && <Monitors r={q.data.resource} />}
             {tab === 'related' && <Related d={q.data} onOpen={onOpen} />}
@@ -382,6 +383,91 @@ function Apm({ r }: { r: KubeResource }) {
 }
 
 /** Monitors whose query or tags scope them to this resource (its own tag, e.g. `kube_deployment:checkout`). */
+/** Traffic from and to the resource's pods (Cloud Network Monitoring), by service. */
+function NetworkTab({ r }: { r: KubeResource }) {
+  const navigate = useNavigate();
+  const pod = r.kind === 'containers' ? r.owner?.name : r.kind === 'pods' ? r.name : null;
+  const range = useMemo(() => {
+    const to = Date.now();
+    return { from: to - HOUR, to };
+  }, []);
+  const q = useQuery({
+    queryKey: ['kubernetes', 'network', pod, range],
+    queryFn: () => networkFlows({ range, query: `client_pod_name:${pod}`, clientGroupBy: 'pod_name', serverGroupBy: 'service', showExternal: true, showUnresolved: true, limit: 100 }),
+    enabled: !!pod,
+  });
+  if (!pod) return <Empty>Network traffic is shown for pods and containers.</Empty>;
+  if (q.isPending) return <Loading label="Loading network traffic…" />;
+  if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
+  if (q.data.flows.length === 0) return <Empty>{`No connections from pod ${pod} in the past hour. Traffic appears when the Datadog Agent's system-probe has network monitoring enabled.`}</Empty>;
+  return (
+    <div>
+      <div className="kx-logs-head">
+        <code>client_pod_name:{pod}</code>
+        <button className="btn btn-sm" onClick={() => navigate(`/network?q=${encodeURIComponent(`client_pod_name:${pod}`)}`)}>
+          View in Network Analytics <ExternalLink size={13} />
+        </button>
+      </div>
+      <table className="kx-mini">
+        <thead>
+          <tr>
+            <th>SERVER</th>
+            <th className="num">VOLUME SENT</th>
+            <th className="num">VOLUME RECEIVED</th>
+            <th className="num">TCP RETRANSMITS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {q.data.flows.map((f) => (
+            <tr key={f.server}>
+              <td>{f.server}</td>
+              <td className="num">{formatBytes(f.bytesSent)}</td>
+              <td className="num">{formatBytes(f.bytesReceived)}</td>
+              <td className="num">{f.retransmits}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Processes running in the pod or container, from the live process data. */
+function Processes({ r }: { r: KubeResource }) {
+  const pod = r.kind === 'containers' ? r.owner?.name : r.name;
+  const scope = [`pod_name:${pod}`, r.namespace ? `kube_namespace:${r.namespace}` : '', r.kind === 'containers' ? `kube_container_name:${r.name}` : ''].filter(Boolean).join(' ');
+  const q = useQuery({
+    queryKey: ['kubernetes', 'processes', scope],
+    queryFn: () => searchKubernetes({ kind: 'processes', query: scope, groupBy: null, sort: 'cpu', desc: true, offset: 0, limit: 200 }),
+  });
+  if (q.isPending) return <Loading label="Loading processes…" />;
+  if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
+  if (q.data.items.length === 0) return <Empty>{`No processes reported for ${scope}. Processes come from the Datadog Agent's process collection.`}</Empty>;
+  const cols = COLUMNS.processes.filter((c) => c.key !== 'pod' && c.key !== 'host');
+  return (
+    <table className="kx-mini">
+      <thead>
+        <tr>
+          {cols.map((c) => (
+            <th key={c.key}>{c.label}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {q.data.items.map((p) => (
+          <tr key={p.uid}>
+            {cols.map((c) => (
+              <td key={c.key} className={c.key === 'name' ? 'kx-ellipsis' : undefined}>
+                {c.render(p, { filter: () => {} })}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function Monitors({ r }: { r: KubeResource }) {
   const navigate = useNavigate();
   const own = r.tags.filter((t) => /^(pod_name|kube_deployment|kube_daemon_set|kube_stateful_set|kube_replica_set|kube_job|kube_cronjob|kube_node|kube_service):/.test(t));

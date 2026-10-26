@@ -26,7 +26,7 @@ function HeroArt() {
       {block(330, 60, 120, 120, 2)}
       {block(470, 10, 150, 110, 3)}
       <rect x="250" y="8" width="8" height="40" fill="#e0218a" opacity="0.7" />
-      <rect x="264" y="20" width="8" height="28" fill="#7c4dff" />
+      <rect x="264" y="20" width="8" height="28" fill="var(--brand)" />
       <rect x="278" y="2" width="8" height="46" fill="#e0218a" opacity="0.7" />
     </svg>
   );

@@ -1809,6 +1809,37 @@
         }
       }
     },
+    "/api/v1/events/search": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Search events, newest first, with facet counts over the same filter.",
+        "operationId": "search_events",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/hosts/search": {
       "post": {
         "tags": [
@@ -4861,6 +4892,37 @@
         }
       }
     },
+    "/api/v1/network/flows": {
+      "post": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Flows between the client and server groups in the range, biggest first, with the summary\nseries and the facets.",
+        "operationId": "network_flows",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlowRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notification-channels": {
       "get": {
         "tags": [
@@ -5129,6 +5191,154 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profiles/flamegraph": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "The matching profiles over the range, merged into one flame graph.",
+        "operationId": "profile_flamegraph",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlameGraphRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlameGraph"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profiles/insights": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Patterns detected in the profiles of the range (Profiles → Insights), with their review state.",
+        "operationId": "profile_insights",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileInsightRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileInsightList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profiles/insights/state": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Marks an insight reviewed, resolved, ignored or back for review.",
+        "operationId": "set_profile_insight_state",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileInsightStateUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/profiles/overview": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Explorer: the metric over time per service, each service's total and the facets.",
+        "operationId": "profile_overview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileOverviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOverview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profiles/search": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Profiles in the range, newest first (Profile List).",
+        "operationId": "search_profiles",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileList"
                 }
               }
             }
@@ -6971,7 +7181,8 @@
         "type": "string",
         "enum": [
           "observecraft",
-          "otel"
+          "otel",
+          "datadog"
         ]
       },
       "Comparator": {
@@ -8512,6 +8723,187 @@
           }
         }
       },
+      "Event": {
+        "type": "object",
+        "required": [
+          "id",
+          "timestamp",
+          "title",
+          "text",
+          "alertType",
+          "priority",
+          "source",
+          "host",
+          "aggregationKey",
+          "tags"
+        ],
+        "properties": {
+          "aggregationKey": {
+            "type": "string"
+          },
+          "alertType": {
+            "type": "string",
+            "description": "error, warning, info or success."
+          },
+          "host": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "description": "Stable within a search (timestamp, host and title hash)."
+          },
+          "priority": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "text": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "EventBucket": {
+        "type": "object",
+        "description": "Event counts in one time bucket, by status (error, warning, info, success).",
+        "required": [
+          "t",
+          "counts"
+        ],
+        "properties": {
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bucket start, epoch milliseconds."
+          }
+        }
+      },
+      "EventFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "group",
+          "values"
+        ],
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "description": "`source`, `status`, `priority` or `host`."
+          },
+          "label": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventFacetValue"
+            }
+          }
+        }
+      },
+      "EventFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "EventPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "facets",
+          "histogram"
+        ],
+        "properties": {
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventFacet"
+            }
+          },
+          "histogram": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventBucket"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "EventSearchRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "limit"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
       "ExclusionFilter": {
         "type": "object",
         "required": [
@@ -8817,6 +9209,323 @@
           },
           "team": {
             "type": "string"
+          }
+        }
+      },
+      "FlameGraph": {
+        "type": "object",
+        "required": [
+          "sampleTypes",
+          "sampleType",
+          "unit",
+          "profiles",
+          "scale",
+          "cards",
+          "endpoints",
+          "functions",
+          "root"
+        ],
+        "properties": {
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileCard"
+            },
+            "description": "One card per sample type: its per-minute value or average."
+          },
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileEndpoint"
+            }
+          },
+          "functions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileFunction"
+            },
+            "description": "Self value per function, largest first."
+          },
+          "metric": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProfileMetric"
+              }
+            ]
+          },
+          "profiles": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Profiles merged.",
+            "minimum": 0
+          },
+          "root": {
+            "$ref": "#/components/schemas/FlameNode"
+          },
+          "sampleType": {
+            "type": "string"
+          },
+          "sampleTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SampleType"
+            }
+          },
+          "scale": {
+            "type": "number",
+            "format": "double",
+            "description": "Multiply a frame's value by this for Datadog's \"Average …, per minute\" (summed types) or\n\"Average …\" (gauges)."
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      },
+      "FlameGraphRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "endpoint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Only samples taken in this endpoint (\"\" = samples outside any endpoint); absent = all."
+          },
+          "env": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "description": "Filters: `service:x env:prod version:1.2 host:h`."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "runtimeId": {
+            "type": "string",
+            "description": "Restrict to one profiler process (a profile's runtime id), or all of the service's."
+          },
+          "sampleType": {
+            "type": "string",
+            "description": "Sample type (cpu-time, wall-time, alloc-space, …); default: CPU time, else the first one."
+          },
+          "service": {
+            "type": "string"
+          }
+        }
+      },
+      "FlameNode": {
+        "type": "object",
+        "required": [
+          "name",
+          "file",
+          "value",
+          "children"
+        ],
+        "properties": {
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlameNode"
+            }
+          },
+          "file": {
+            "type": "string",
+            "description": "Source file, when the profiler reports one."
+          },
+          "name": {
+            "type": "string",
+            "description": "Function name (the root is \"all\")."
+          },
+          "value": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "Flow": {
+        "type": "object",
+        "required": [
+          "client",
+          "server",
+          "clientTags",
+          "serverTags",
+          "bytesSent",
+          "bytesReceived",
+          "throughputSent",
+          "throughputReceived",
+          "retransmits",
+          "established",
+          "closed",
+          "external"
+        ],
+        "properties": {
+          "bytesReceived": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "bytesSent": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes the client sent / received.",
+            "minimum": 0
+          },
+          "client": {
+            "type": "string",
+            "description": "The client's value of the client group-by tag, or `N/A`."
+          },
+          "clientTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tags every connection of the flow shares, per side (`key:value`)."
+          },
+          "closed": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "established": {
+            "type": "integer",
+            "format": "int64",
+            "description": "TCP connections opened / closed in the range.",
+            "minimum": 0
+          },
+          "external": {
+            "type": "boolean",
+            "description": "Whether the server is a public address."
+          },
+          "retransmits": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "rttUs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Mean round-trip time and its variance (jitter), microseconds (TCP)."
+          },
+          "rttVarUs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "server": {
+            "type": "string"
+          },
+          "serverTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "throughputReceived": {
+            "type": "number",
+            "format": "double"
+          },
+          "throughputSent": {
+            "type": "number",
+            "format": "double",
+            "description": "Bytes per second over the range."
+          }
+        }
+      },
+      "FlowPage": {
+        "type": "object",
+        "required": [
+          "flows",
+          "total",
+          "totalBytes",
+          "enabled",
+          "stepMs",
+          "series",
+          "facets"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether any connection data exists (system-probe enabled somewhere)."
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetworkFacet"
+            }
+          },
+          "flows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Flow"
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetworkPoint"
+            },
+            "description": "Totals of the matching traffic over time (the summary graphs)."
+          },
+          "stepMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Flows before the limit.",
+            "minimum": 0
+          },
+          "totalBytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "FlowRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "limit"
+        ],
+        "properties": {
+          "clientGroupBy": {
+            "type": "string",
+            "description": "Tag the clients are grouped by: service, env, availability-zone, kube_namespace, pod_name,\nkube_service, host, container_name, short_image, ip, port, domain."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "description": "`client_service:checkout server_env:prod -server_port:53`, plus free text matched against\nthe client and server names."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "serverGroupBy": {
+            "type": "string"
+          },
+          "showExternal": {
+            "type": "boolean",
+            "description": "Traffic to public addresses."
+          },
+          "showUnresolved": {
+            "type": "boolean",
+            "description": "Traffic whose client or server has no value for the group-by tag (`N/A`)."
           }
         }
       },
@@ -10371,6 +11080,7 @@
         "type": "string",
         "description": "The resource types of the explorer's \"Select Resources\" menu.",
         "enum": [
+          "processes",
           "clusters",
           "nodes",
           "namespaces",
@@ -10572,6 +11282,14 @@
           },
           "health": {
             "$ref": "#/components/schemas/KubeHealth"
+          },
+          "hostCpus": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
           },
           "hosts": {
             "type": [
@@ -10852,6 +11570,13 @@
             ],
             "format": "int32",
             "minimum": 0
+          },
+          "user": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Processes: owner and the host's CPU count (CPU is then shown normalized to the host)."
           },
           "version": {
             "type": [
@@ -12548,6 +13273,100 @@
           }
         }
       },
+      "NetworkFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "values"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "`client_service`, `server_port`, …"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetworkFacetValue"
+            }
+          }
+        }
+      },
+      "NetworkFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Connection reports of the matching traffic.",
+            "minimum": 0
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "NetworkPoint": {
+        "type": "object",
+        "required": [
+          "t",
+          "bytesSent",
+          "bytesReceived",
+          "established",
+          "closed",
+          "retransmits"
+        ],
+        "properties": {
+          "bytesReceived": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "bytesSent": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "closed": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "established": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "retransmits": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "rttUs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "rttVarUs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bucket start, epoch ms."
+          }
+        }
+      },
       "NoteRequest": {
         "type": "object",
         "required": [
@@ -13085,6 +13904,327 @@
           }
         ]
       },
+      "ProfileCard": {
+        "type": "object",
+        "required": [
+          "metric",
+          "value"
+        ],
+        "properties": {
+          "metric": {
+            "$ref": "#/components/schemas/ProfileMetric"
+          },
+          "value": {
+            "type": "number",
+            "format": "double",
+            "description": "Per minute for summed types, the average for gauges."
+          }
+        }
+      },
+      "ProfileEndpoint": {
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "\"\" = activity outside a traced endpoint."
+          },
+          "value": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ProfileFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "values"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "env, service, version or host."
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileFacetValue"
+            }
+          }
+        }
+      },
+      "ProfileFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "ProfileFunction": {
+        "type": "object",
+        "required": [
+          "name",
+          "file",
+          "package",
+          "value"
+        ],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string",
+            "description": "Python distribution, Java/.NET namespace, Go import path; \"\" for application code."
+          },
+          "value": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Self value (the function at the top of the stack)."
+          }
+        }
+      },
+      "ProfileInsight": {
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "severity",
+          "category",
+          "service",
+          "env",
+          "language",
+          "description",
+          "status",
+          "detectedAt"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "CPU, MEMORY, LOCK, …"
+          },
+          "description": {
+            "type": "string"
+          },
+          "detectedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "When the pattern peaked (epoch ms)."
+          },
+          "env": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "description": "`<kind>:<service>:<env>`: what review states are stored under."
+          },
+          "language": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "description": "LOW, MEDIUM or HIGH."
+          },
+          "status": {
+            "type": "string",
+            "description": "for_review, reviewed, resolved or ignored."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "ProfileInsightList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileInsight"
+            }
+          }
+        }
+      },
+      "ProfileInsightRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "env": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "service": {
+            "type": "string"
+          }
+        }
+      },
+      "ProfileInsightStateUpdate": {
+        "type": "object",
+        "required": [
+          "key",
+          "status"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "for_review, reviewed, resolved or ignored."
+          }
+        }
+      },
+      "ProfileList": {
+        "type": "object",
+        "required": [
+          "items",
+          "services"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileSummary"
+            }
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Services with profiles in the range."
+          }
+        }
+      },
+      "ProfileMetric": {
+        "type": "object",
+        "description": "How a sample type reads in the UI and how it aggregates over time.",
+        "required": [
+          "type",
+          "unit",
+          "label",
+          "category",
+          "gauge"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "EXECUTION, ELAPSED TIME, MEMORY, LOCK, EXCEPTIONS, THREADS or OTHER."
+          },
+          "gauge": {
+            "type": "boolean",
+            "description": "Gauges (heap live size, goroutines) are averaged; the other types add up over time."
+          },
+          "label": {
+            "type": "string",
+            "description": "Datadog's name: CPU Time, Wall Time, Heap Live Size, …"
+          },
+          "type": {
+            "type": "string",
+            "description": "The profiler's name: cpu-time, wall-time, alloc-space, heap-space, …"
+          },
+          "unit": {
+            "type": "string",
+            "description": "nanoseconds, bytes or count."
+          }
+        }
+      },
+      "ProfileOverview": {
+        "type": "object",
+        "required": [
+          "metrics",
+          "stepMs",
+          "series",
+          "services",
+          "facets"
+        ],
+        "properties": {
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileFacet"
+            }
+          },
+          "metric": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProfileMetric",
+                "description": "The one charted (absent when there are no profiles)."
+              }
+            ]
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileMetric"
+            },
+            "description": "Sample types present in the range."
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileSeries"
+            }
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileServiceTotal"
+            }
+          },
+          "stepMs": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ProfileOverviewRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "sampleType": {
+            "type": "string",
+            "description": "The sample type charted; default: CPU time, else the first type present."
+          }
+        }
+      },
       "ProfilePatch": {
         "type": "object",
         "properties": {
@@ -13105,6 +14245,142 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "ProfileSearchRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "limit"
+        ],
+        "properties": {
+          "env": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "description": "Filters: `service:x env:prod version:1.2 host:h team:web`."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "service": {
+            "type": "string",
+            "description": "Only this service (\"\" = all)."
+          }
+        }
+      },
+      "ProfileSeries": {
+        "type": "object",
+        "required": [
+          "service",
+          "points"
+        ],
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            },
+            "description": "`[epoch ms, value]`: units per second for summed types (CPU nanoseconds per second = cores),\nthe average for gauges."
+          },
+          "service": {
+            "type": "string"
+          }
+        }
+      },
+      "ProfileServiceTotal": {
+        "type": "object",
+        "required": [
+          "service",
+          "language",
+          "value"
+        ],
+        "properties": {
+          "language": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number",
+            "format": "double",
+            "description": "Over the whole range: units per second for summed types, the average for gauges."
+          }
+        }
+      },
+      "ProfileSummary": {
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "service",
+          "env",
+          "version",
+          "host",
+          "language",
+          "runtimeId",
+          "attachment",
+          "totals"
+        ],
+        "properties": {
+          "attachment": {
+            "type": "string"
+          },
+          "end": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "env": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "runtimeId": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "totals": {
+            "type": "object",
+            "description": "Total per sample type over the profile.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "version": {
+            "type": "string"
           }
         }
       },
@@ -13584,6 +14860,23 @@
               "null"
             ],
             "description": "Why the stored metadata can't be used, if it can't."
+          }
+        }
+      },
+      "SampleType": {
+        "type": "object",
+        "required": [
+          "type",
+          "unit"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "e.g. cpu-time, wall-time, alloc-space, inuse-space, lock-acquire-wait"
+          },
+          "unit": {
+            "type": "string",
+            "description": "e.g. nanoseconds, bytes, count"
           }
         }
       },
@@ -15598,6 +16891,18 @@
     {
       "name": "infrastructure",
       "description": "Hosts, built from host metrics, spans and logs"
+    },
+    {
+      "name": "events",
+      "description": "Events from the Datadog Agent and the events API"
+    },
+    {
+      "name": "network",
+      "description": "Network flows from the Datadog Agent's system-probe"
+    },
+    {
+      "name": "profiles",
+      "description": "Continuous profiles from Datadog's profilers: explorer, flame graphs and insights"
     },
     {
       "name": "orchestration",

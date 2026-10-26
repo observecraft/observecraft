@@ -846,6 +846,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search events, newest first, with facet counts over the same filter. */
+        post: operations["search_events"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hosts/search": {
         parameters: {
             query?: never;
@@ -2017,6 +2034,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/network/flows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Flows between the client and server groups in the range, biggest first, with the summary
+         *     series and the facets. */
+        post: operations["network_flows"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notification-channels": {
         parameters: {
             query?: never;
@@ -2125,6 +2160,91 @@ export interface paths {
         get: operations["get_settings"];
         put: operations["update_settings"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/flamegraph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The matching profiles over the range, merged into one flame graph. */
+        post: operations["profile_flamegraph"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Patterns detected in the profiles of the range (Profiles → Insights), with their review state. */
+        post: operations["profile_insights"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/insights/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marks an insight reviewed, resolved, ignored or back for review. */
+        post: operations["set_profile_insight_state"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Explorer: the metric over time per service, each service's total and the facets. */
+        post: operations["profile_overview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Profiles in the range, newest first (Profile List). */
+        post: operations["search_profiles"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2765,7 +2885,7 @@ export interface components {
             code: string;
         };
         /** @enum {string} */
-        CollectorKind: "observecraft" | "otel";
+        CollectorKind: "observecraft" | "otel" | "datadog";
         /** @enum {string} */
         Comparator: "above" | "above_or_equal" | "below" | "below_or_equal";
         CreateAppKey: {
@@ -3215,6 +3335,60 @@ export interface components {
             range: components["schemas"]["TimeRange"];
             service?: string | null;
         };
+        Event: {
+            aggregationKey: string;
+            /** @description error, warning, info or success. */
+            alertType: string;
+            host: string;
+            /** @description Stable within a search (timestamp, host and title hash). */
+            id: string;
+            priority: string;
+            source: string;
+            tags: string[];
+            text: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            timestamp: number;
+            title: string;
+        };
+        /** @description Event counts in one time bucket, by status (error, warning, info, success). */
+        EventBucket: {
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Format: int64
+             * @description Bucket start, epoch milliseconds.
+             */
+            t: number;
+        };
+        EventFacet: {
+            group: string;
+            /** @description `source`, `status`, `priority` or `host`. */
+            key: string;
+            label: string;
+            values: components["schemas"]["EventFacetValue"][];
+        };
+        EventFacetValue: {
+            /** Format: int64 */
+            count: number;
+            value: string;
+        };
+        EventPage: {
+            facets: components["schemas"]["EventFacet"][];
+            histogram: components["schemas"]["EventBucket"][];
+            items: components["schemas"]["Event"][];
+            /** Format: int64 */
+            total: number;
+        };
+        EventSearchRequest: {
+            limit: number;
+            offset?: number;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
         ExclusionFilter: {
             enabled: boolean;
             name: string;
@@ -3310,6 +3484,120 @@ export interface components {
             stateUpdatedBy?: string | null;
             suite: string;
             team: string;
+        };
+        FlameGraph: {
+            /** @description One card per sample type: its per-minute value or average. */
+            cards: components["schemas"]["ProfileCard"][];
+            endpoints: components["schemas"]["ProfileEndpoint"][];
+            /** @description Self value per function, largest first. */
+            functions: components["schemas"]["ProfileFunction"][];
+            metric?: null | components["schemas"]["ProfileMetric"];
+            /**
+             * Format: int64
+             * @description Profiles merged.
+             */
+            profiles: number;
+            root: components["schemas"]["FlameNode"];
+            sampleType: string;
+            sampleTypes: components["schemas"]["SampleType"][];
+            /**
+             * Format: double
+             * @description Multiply a frame's value by this for Datadog's "Average …, per minute" (summed types) or
+             *     "Average …" (gauges).
+             */
+            scale: number;
+            unit: string;
+        };
+        FlameGraphRequest: {
+            /** @description Only samples taken in this endpoint ("" = samples outside any endpoint); absent = all. */
+            endpoint?: string | null;
+            env?: string;
+            /** @description Filters: `service:x env:prod version:1.2 host:h`. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /** @description Restrict to one profiler process (a profile's runtime id), or all of the service's. */
+            runtimeId?: string;
+            /** @description Sample type (cpu-time, wall-time, alloc-space, …); default: CPU time, else the first one. */
+            sampleType?: string;
+            service?: string;
+        };
+        FlameNode: {
+            children: components["schemas"]["FlameNode"][];
+            /** @description Source file, when the profiler reports one. */
+            file: string;
+            /** @description Function name (the root is "all"). */
+            name: string;
+            /** Format: int64 */
+            value: number;
+        };
+        Flow: {
+            /** Format: int64 */
+            bytesReceived: number;
+            /**
+             * Format: int64
+             * @description Bytes the client sent / received.
+             */
+            bytesSent: number;
+            /** @description The client's value of the client group-by tag, or `N/A`. */
+            client: string;
+            /** @description Tags every connection of the flow shares, per side (`key:value`). */
+            clientTags: string[];
+            /** Format: int64 */
+            closed: number;
+            /**
+             * Format: int64
+             * @description TCP connections opened / closed in the range.
+             */
+            established: number;
+            /** @description Whether the server is a public address. */
+            external: boolean;
+            /** Format: int64 */
+            retransmits: number;
+            /**
+             * Format: double
+             * @description Mean round-trip time and its variance (jitter), microseconds (TCP).
+             */
+            rttUs?: number | null;
+            /** Format: double */
+            rttVarUs?: number | null;
+            server: string;
+            serverTags: string[];
+            /** Format: double */
+            throughputReceived: number;
+            /**
+             * Format: double
+             * @description Bytes per second over the range.
+             */
+            throughputSent: number;
+        };
+        FlowPage: {
+            /** @description Whether any connection data exists (system-probe enabled somewhere). */
+            enabled: boolean;
+            facets: components["schemas"]["NetworkFacet"][];
+            flows: components["schemas"]["Flow"][];
+            /** @description Totals of the matching traffic over time (the summary graphs). */
+            series: components["schemas"]["NetworkPoint"][];
+            /** Format: int64 */
+            stepMs: number;
+            /** @description Flows before the limit. */
+            total: number;
+            /** Format: int64 */
+            totalBytes: number;
+        };
+        FlowRequest: {
+            /** @description Tag the clients are grouped by: service, env, availability-zone, kube_namespace, pod_name,
+             *     kube_service, host, container_name, short_image, ip, port, domain. */
+            clientGroupBy?: string;
+            limit: number;
+            /** @description `client_service:checkout server_env:prod -server_port:53`, plus free text matched against
+             *     the client and server names. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            serverGroupBy?: string;
+            /** @description Traffic to public addresses. */
+            showExternal?: boolean;
+            /** @description Traffic whose client or server has no value for the group-by tag (`N/A`). */
+            showUnresolved?: boolean;
         };
         Followup: {
             done: boolean;
@@ -3747,7 +4035,7 @@ export interface components {
          * @description The resource types of the explorer's "Select Resources" menu.
          * @enum {string}
          */
-        KubeKind: "clusters" | "nodes" | "namespaces" | "pods" | "deployments" | "replicasets" | "daemonsets" | "statefulsets" | "jobs" | "cronjobs" | "services" | "ingresses" | "persistentvolumeclaims" | "persistentvolumes" | "horizontalpodautoscalers" | "networkpolicies" | "poddisruptionbudgets" | "limitranges" | "resourcequotas" | "serviceaccounts" | "roles" | "rolebindings" | "clusterroles" | "clusterrolebindings" | "storageclasses" | "customresourcedefinitions" | "containers" | "container_images" | "ecs_tasks" | "ecs_task_definitions" | "ecs_services" | "ecs_clusters";
+        KubeKind: "processes" | "clusters" | "nodes" | "namespaces" | "pods" | "deployments" | "replicasets" | "daemonsets" | "statefulsets" | "jobs" | "cronjobs" | "services" | "ingresses" | "persistentvolumeclaims" | "persistentvolumes" | "horizontalpodautoscalers" | "networkpolicies" | "poddisruptionbudgets" | "limitranges" | "resourcequotas" | "serviceaccounts" | "roles" | "rolebindings" | "clusterroles" | "clusterrolebindings" | "storageclasses" | "customresourcedefinitions" | "containers" | "container_images" | "ecs_tasks" | "ecs_task_definitions" | "ecs_services" | "ecs_clusters";
         KubeKindCount: {
             count: number;
             kind: components["schemas"]["KubeKind"];
@@ -3789,6 +4077,8 @@ export interface components {
             durationSec?: number | null;
             external?: string | null;
             health: components["schemas"]["KubeHealth"];
+            /** Format: int32 */
+            hostCpus?: number | null;
             hosts?: string | null;
             /** @description Container images: tag and containers running it. */
             imageTag?: string | null;
@@ -3852,6 +4142,8 @@ export interface components {
             uid: string;
             /** Format: int32 */
             upToDate?: number | null;
+            /** @description Processes: owner and the host's CPU count (CPU is then shown normalized to the host). */
+            user?: string | null;
             /** @description Nodes and clusters. */
             version?: string | null;
             volume?: string | null;
@@ -4373,6 +4665,40 @@ export interface components {
             isAdmin: boolean;
             name: string;
         };
+        NetworkFacet: {
+            /** @description `client_service`, `server_port`, … */
+            key: string;
+            values: components["schemas"]["NetworkFacetValue"][];
+        };
+        NetworkFacetValue: {
+            /**
+             * Format: int64
+             * @description Connection reports of the matching traffic.
+             */
+            count: number;
+            value: string;
+        };
+        NetworkPoint: {
+            /** Format: int64 */
+            bytesReceived: number;
+            /** Format: int64 */
+            bytesSent: number;
+            /** Format: int64 */
+            closed: number;
+            /** Format: int64 */
+            established: number;
+            /** Format: int64 */
+            retransmits: number;
+            /** Format: double */
+            rttUs?: number | null;
+            /** Format: double */
+            rttVarUs?: number | null;
+            /**
+             * Format: int64
+             * @description Bucket start, epoch ms.
+             */
+            t: number;
+        };
         NoteRequest: {
             body: string;
         };
@@ -4532,10 +4858,159 @@ export interface components {
             teams: components["schemas"]["TeamRef"][];
             timezone?: string | null;
         };
+        ProfileCard: {
+            metric: components["schemas"]["ProfileMetric"];
+            /**
+             * Format: double
+             * @description Per minute for summed types, the average for gauges.
+             */
+            value: number;
+        };
+        ProfileEndpoint: {
+            /** @description "" = activity outside a traced endpoint. */
+            name: string;
+            /** Format: int64 */
+            value: number;
+        };
+        ProfileFacet: {
+            /** @description env, service, version or host. */
+            key: string;
+            values: components["schemas"]["ProfileFacetValue"][];
+        };
+        ProfileFacetValue: {
+            /** Format: int64 */
+            count: number;
+            value: string;
+        };
+        ProfileFunction: {
+            file: string;
+            name: string;
+            /** @description Python distribution, Java/.NET namespace, Go import path; "" for application code. */
+            package: string;
+            /**
+             * Format: int64
+             * @description Self value (the function at the top of the stack).
+             */
+            value: number;
+        };
+        ProfileInsight: {
+            /** @description CPU, MEMORY, LOCK, … */
+            category: string;
+            description: string;
+            /**
+             * Format: int64
+             * @description When the pattern peaked (epoch ms).
+             */
+            detectedAt: number;
+            env: string;
+            /** @description `<kind>:<service>:<env>`: what review states are stored under. */
+            key: string;
+            language: string;
+            service: string;
+            /** @description LOW, MEDIUM or HIGH. */
+            severity: string;
+            /** @description for_review, reviewed, resolved or ignored. */
+            status: string;
+            title: string;
+        };
+        ProfileInsightList: {
+            items: components["schemas"]["ProfileInsight"][];
+        };
+        ProfileInsightRequest: {
+            env?: string;
+            range: components["schemas"]["TimeRange"];
+            service?: string;
+        };
+        ProfileInsightStateUpdate: {
+            key: string;
+            /** @description for_review, reviewed, resolved or ignored. */
+            status: string;
+        };
+        ProfileList: {
+            items: components["schemas"]["ProfileSummary"][];
+            /** @description Services with profiles in the range. */
+            services: string[];
+        };
+        /** @description How a sample type reads in the UI and how it aggregates over time. */
+        ProfileMetric: {
+            /** @description EXECUTION, ELAPSED TIME, MEMORY, LOCK, EXCEPTIONS, THREADS or OTHER. */
+            category: string;
+            /** @description Gauges (heap live size, goroutines) are averaged; the other types add up over time. */
+            gauge: boolean;
+            /** @description Datadog's name: CPU Time, Wall Time, Heap Live Size, … */
+            label: string;
+            /** @description The profiler's name: cpu-time, wall-time, alloc-space, heap-space, … */
+            type: string;
+            /** @description nanoseconds, bytes or count. */
+            unit: string;
+        };
+        ProfileOverview: {
+            facets: components["schemas"]["ProfileFacet"][];
+            metric?: null | components["schemas"]["ProfileMetric"];
+            /** @description Sample types present in the range. */
+            metrics: components["schemas"]["ProfileMetric"][];
+            series: components["schemas"]["ProfileSeries"][];
+            services: components["schemas"]["ProfileServiceTotal"][];
+            /** Format: int64 */
+            stepMs: number;
+        };
+        ProfileOverviewRequest: {
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /** @description The sample type charted; default: CPU time, else the first type present. */
+            sampleType?: string;
+        };
         ProfilePatch: {
             name?: string | null;
             timezone?: string | null;
             title?: string | null;
+        };
+        ProfileSearchRequest: {
+            env?: string;
+            limit: number;
+            /** @description Filters: `service:x env:prod version:1.2 host:h team:web`. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /** @description Only this service ("" = all). */
+            service?: string;
+        };
+        ProfileSeries: {
+            /** @description `[epoch ms, value]`: units per second for summed types (CPU nanoseconds per second = cores),
+             *     the average for gauges. */
+            points: [
+                number,
+                number
+            ][];
+            service: string;
+        };
+        ProfileServiceTotal: {
+            language: string;
+            service: string;
+            /**
+             * Format: double
+             * @description Over the whole range: units per second for summed types, the average for gauges.
+             */
+            value: number;
+        };
+        ProfileSummary: {
+            attachment: string;
+            /** Format: int64 */
+            end: number;
+            env: string;
+            host: string;
+            language: string;
+            runtimeId: string;
+            service: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            start: number;
+            /** @description Total per sample type over the profile. */
+            totals: {
+                [key: string]: number;
+            };
+            version: string;
         };
         QualityIssue: {
             description: string;
@@ -4686,6 +5161,12 @@ export interface components {
             nameAttribute: string;
             /** @description Why the stored metadata can't be used, if it can't. */
             problem?: string | null;
+        };
+        SampleType: {
+            /** @description e.g. cpu-time, wall-time, alloc-space, inuse-space, lock-acquire-wait */
+            type: string;
+            /** @description e.g. nanoseconds, bytes, count */
+            unit: string;
         };
         ScalarRequest: {
             aggregator: components["schemas"]["TimeAggregator"];
@@ -6601,6 +7082,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    search_events: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPage"];
+                };
             };
         };
     };
@@ -8813,6 +9317,29 @@ export interface operations {
             };
         };
     };
+    network_flows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlowRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowPage"];
+                };
+            };
+        };
+    };
     list_notification_channels: {
         parameters: {
             query?: never;
@@ -9033,6 +9560,119 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    profile_flamegraph: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlameGraphRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlameGraph"];
+                };
+            };
+        };
+    };
+    profile_insights: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileInsightRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileInsightList"];
+                };
+            };
+        };
+    };
+    set_profile_insight_state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileInsightStateUpdate"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    profile_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileOverviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOverview"];
+                };
+            };
+        };
+    };
+    search_profiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileList"];
                 };
             };
         };

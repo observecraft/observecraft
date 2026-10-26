@@ -24,7 +24,8 @@ COPY --from=build /src/target/release/observecraft-server /src/target/release/oc
 COPY --from=web /web/dist /usr/share/observecraft/web
 # The API serves the web app; the archive cache lives in the data directory.
 ENV OC_WEB_DIST=/usr/share/observecraft/web OC_DATA_DIR=/var/lib/observecraft
-USER observecraft
+# Numeric, so Kubernetes can verify runAsNonRoot.
+USER 10001:10001
 VOLUME /var/lib/observecraft
 EXPOSE 8080
 ENTRYPOINT ["observecraft-server"]

@@ -390,7 +390,8 @@ pub async fn pipeline(State(st): State<AppState>, OrgId(org): OrgId, Path(trace_
         return Err(ApiError::BadRequest("invalid trace id".into()));
     }
     // The trace-id lookup table narrows the time range so the main table read stays small.
-    let bounds = "(SELECT min(Start) - INTERVAL 1 HOUR FROM otel.otel_ci_traces_trace_id_ts WHERE TraceId = ?) AND (SELECT max(End) + INTERVAL 1 HOUR FROM otel.otel_ci_traces_trace_id_ts WHERE TraceId = ?)";
+    let bounds = "(SELECT min(Start) - INTERVAL 1 HOUR FROM otel.otel_ci_traces_trace_id_ts WHERE OrgId = {oc_org:String} AND TraceId = ?) \
+                  AND (SELECT max(End) + INTERVAL 1 HOUR FROM otel.otel_ci_traces_trace_id_ts WHERE OrgId = {oc_org:String} AND TraceId = ?)";
     let p = st
         .ch(&org)
         .query(&format!("SELECT {} FROM {TABLE} WHERE OrgId = {{oc_org:String}} AND TraceId = ? AND ParentSpanId = '' AND Timestamp BETWEEN {bounds} LIMIT 1", row_select()))

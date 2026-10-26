@@ -5,6 +5,7 @@
 #   outputs: ClickHouse oc.logs_raw (every log, kept briefly; archives read it), the server's log
 #            indexer (routes logs to the org's indexes → oc.logs) and NATS oc.logs.live.<org> (live tail)
 # Events without an organization are dropped: nothing is stored that no tenant owns.
+# Endpoints come from the environment (defaults: the compose service names); the Helm chart mounts this file.
 data_dir: /var/lib/vector
 
 api:
@@ -45,7 +46,7 @@ sinks:
   clickhouse:
     type: clickhouse
     inputs: [normalize]
-    endpoint: http://clickhouse:8123
+    endpoint: "${OC_CLICKHOUSE_HTTP_ENDPOINT:-http://clickhouse:8123}"
     database: oc
     table: logs_raw
     auth:
@@ -90,7 +91,7 @@ sinks:
   live:
     type: nats
     inputs: [normalize]
-    url: nats://nats:4222
+    url: "${OC_NATS_URL:-nats://nats:4222}"
     subject: "oc.logs.live.{{ org_id }}"
     encoding:
       codec: json

@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { ChevronDown, Pause, Play, Ship } from 'lucide-react';
+import { ChevronDown, ListTree, Pause, Play, Ship } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { usePopover } from '../../components/ui/Dropdown';
 
-export type Product = 'kubernetes' | 'ecs';
+export type Product = 'kubernetes' | 'ecs' | 'processes';
 
 const TABS: Record<Product, { label: string; to: string; isNew?: boolean; end?: boolean }[]> = {
   kubernetes: [
@@ -14,7 +14,13 @@ const TABS: Record<Product, { label: string; to: string; isNew?: boolean; end?: 
     { label: 'Live Rollouts', to: '/kubernetes/rollouts', isNew: true },
   ],
   ecs: [{ label: 'Explorer', to: '/orchestration/explorer?resource=ecs_tasks' }],
+  processes: [
+    { label: 'Explorer', to: '/process' },
+    { label: 'Manage Metrics', to: '/process/metrics' },
+  ],
 };
+
+const NAMES: Record<Product, string> = { kubernetes: 'Kubernetes', ecs: 'ECS', processes: 'Processes' };
 
 function AwsIcon({ size = 20 }: { size?: number }) {
   return (
@@ -25,10 +31,11 @@ function AwsIcon({ size = 20 }: { size?: number }) {
 }
 
 export function ProductIcon({ product, size = 20 }: { product: Product; size?: number }) {
+  if (product === 'processes') return <ListTree size={size} className="ox-k8s" />;
   return product === 'ecs' ? <AwsIcon size={size} /> : <Ship size={size} className="ox-k8s" />;
 }
 
-/** "Kubernetes ▾ | Overview Explorer …" header of the Kubernetes and ECS pages, with the live clock. */
+/** "Kubernetes ▾ | Overview Explorer …" header of the Kubernetes, ECS and Processes pages, with the live clock. */
 export function OrchestrationHeader({ product, active, right }: { product: Product; active?: string; right?: ReactNode }) {
   const navigate = useNavigate();
   const { open, setOpen, ref } = usePopover();
@@ -36,7 +43,7 @@ export function OrchestrationHeader({ product, active, right }: { product: Produ
     <header className="product-header ox-header">
       <div className="dd" ref={ref}>
         <button className="ox-product" onClick={() => setOpen((o) => !o)}>
-          <ProductIcon product={product} /> {product === 'ecs' ? 'ECS' : 'Kubernetes'} <ChevronDown size={16} />
+          <ProductIcon product={product} /> {NAMES[product]} <ChevronDown size={16} />
         </button>
         {open && (
           <div className="dd-menu ox-product-menu">
@@ -45,6 +52,9 @@ export function OrchestrationHeader({ product, active, right }: { product: Produ
             </button>
             <button onClick={() => (setOpen(false), navigate('/orchestration/explorer?resource=ecs_tasks'))}>
               <ProductIcon product="ecs" size={16} /> ECS
+            </button>
+            <button onClick={() => (setOpen(false), navigate('/process'))}>
+              <ProductIcon product="processes" size={16} /> Processes
             </button>
           </div>
         )}

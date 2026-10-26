@@ -873,9 +873,22 @@ pub async fn expire_rehydration(State(st): State<AppState>, Writer(ctx): Writer,
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn expire(st: &AppState, org: &str, id: &str) -> Result<(), ApiError> {
-    st.clickhouse.query("ALTER TABLE logs_rehydrated DELETE WHERE org_id = ? AND rehydration_id = ?").bind(org).bind(id).execute().await?;
-    sqlx::query("UPDATE rehydrations SET status = 'expired' WHERE id = $1::uuid").bind(id).execute(&st.postgres).await?;
+/// Drops a rehydration's partition (`oc.logs_rehydrated` is partitioned by rehydration). The caller
+/// has checked that the rehydration belongs to the org.
+async fn expire(st: &AppState, _org: &str, id: &str) -> Result<(), ApiError> {
+    let id = uuid_literal(id)?;
+    let (local, on) = (
+        st.tables.local("oc.logs_rehydrated"),
+        st.tables.on_cluster(),
+    );
+    st.clickhouse
+        .query(&format!("ALTER TABLE {local}{on} DROP PARTITION '{id}'"))
+        .execute()
+        .await?;
+    sqlx::query("UPDATE rehydrations SET status = 'expired' WHERE id = $1::uuid")
+        .bind(id)
+        .execute(&st.postgres)
+        .await?;
     Ok(())
 }
 
@@ -967,5 +980,23 @@ mod tests {
     #[test]
     fn file_lists_escape_quotes() {
         assert_eq!(file_list(&[PathBuf::from("/tmp/a'b.parquet")]), "['/tmp/a''b.parquet']");
+    }
+}
+
+/// A rehydration id as a SQL literal: partition clauses take no bind parameters, so only a
+/// canonical UUID is accepted.
+fn uuid_literal(id: &str) -> Result<String, ApiError> {
+    let ok = id.len() == 36
+        && id.chars().enumerate().all(|(i, c)| {
+            if [8, 13, 18, 23].contains(&i) {
+                c == '-'
+            } else {
+                c.is_ascii_hexdigit()
+            }
+        });
+    if ok {
+        Ok(id.to_ascii_lowercase())
+    } else {
+        Err(ApiError::BadRequest("invalid rehydration id".into()))
     }
 }

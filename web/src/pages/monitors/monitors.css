@@ -504,7 +504,7 @@
 }
 
 .k-team {
-  background: #6a3fd1;
+  background: #0b6e69;
 }
 
 .k-user {
@@ -860,7 +860,7 @@
   height: 48px;
   padding: 0 18px;
   border-radius: var(--radius-md);
-  background: linear-gradient(90deg, #6a5ae0, #7b6cf0);
+  background: linear-gradient(90deg, var(--brand), #1d8a84);
   color: #fff;
   font-size: 17px;
 }

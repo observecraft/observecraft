@@ -1,19 +1,44 @@
 //! ObserveCraft telemetry intake.
 //!
 //! The only public way in for telemetry. Every request must carry an ingest API key
-//! (`Authorization: Bearer ocik_…` or `OC-API-Key: ocik_…`); the key is resolved to its organization
-//! and the request is forwarded unchanged with `x-oc-org: <org>` (any client-sent value is dropped).
-//! The OTel Collector turns that header into the `oc.org_id` resource attribute every table is
-//! filtered by; for JSON logs, Vector does the same.
+//! (`Authorization: Bearer ocik_…`, `OC-API-Key: ocik_…` or Datadog's `DD-API-KEY: ocik_…`); the key
+//! is resolved to its organization and the request is forwarded with `x-oc-org: <org>` (any
+//! client-sent value is dropped). The OTel Collector turns that header into the `oc.org_id` resource
+//! attribute every table is filtered by; for JSON logs, Vector does the same.
 //!
 //! - `POST /v1/traces | /v1/logs | /v1/metrics`  OTLP/HTTP (protobuf or JSON, optionally gzip) → Collector
-//! - `POST /api/v2/logs`                         JSON log events (object or array) → Vector
+//! - OTLP/gRPC on OC_INTAKE_GRPC_ADDR             the same three services (passed through undecoded) → Collector
+//! - `POST /api/v2/logs`                         JSON log events (object or array; Datadog's format) → Vector
+//! - `POST /api/v2/series`, `/api/v1/series`     Datadog metrics (JSON or the Agent's protobuf) → OTLP → Collector
+//! - `POST /api/beta/sketches`                   Datadog distribution metrics (DDSketch) → OTLP exponential histograms
+//! - `POST /api/v0.2/traces`, `/api/v0.2/stats`  the Datadog Agent's APM traces (dd-trace libraries) → OTLP spans
+//! - `POST /api/v2/orchmanif`                    Datadog Cluster Agent manifests → Kubernetes Explorer objects
+//! - `GET /api/v1/validate`                      Datadog's API key check
+//! - `POST /api/v1/check_run`                    Datadog service checks → the `service_check.status` gauge
+//! - `POST /api/v1/collector`, `/api/v1/container`  Datadog live processes and containers → process.* / container.* metrics
+//! - `POST /api/v1/connections`                  Datadog network connections (system-probe) → otel.otel_network
+//! - `POST /api/v2/profile`                      Datadog profiler uploads → the server (otel.profiles)
+//! - `POST /intake/`, `/api/v2/host_metadata`   Datadog Agent host metadata → Postgres `datadog_hosts`; its events → events
+//! - `POST /api/v1/events`, `/api/v2/events`     Datadog events (API, Agent) → otel.otel_events
+//! - `POST /api/v2/service_checks`               the Agent's service checks (as `/api/v1/check_run`)
+//! - `POST /api/v1/metadata`, `/api/v2/orch`: the Agent's inventories and orchestrator summaries,
+//!   acknowledged but not stored
 //!
 //! Each org is rate limited (requests and bytes per second); over the limit answers 429.
 //!
-//! Env: OC_INTAKE_ADDR (0.0.0.0:4318), OC_POSTGRES_URL, OC_INTAKE_COLLECTOR_URL (http://localhost:14318),
-//! OC_INTAKE_LOGS_URL (http://localhost:8687), OC_INTAKE_MAX_BODY_MB (16), OC_INTAKE_ORG_RPS (500),
-//! OC_INTAKE_ORG_MBPS (50).
+//! Env: OC_INTAKE_ADDR (0.0.0.0:4318), OC_INTAKE_GRPC_ADDR (0.0.0.0:4317), OC_POSTGRES_URL,
+//! OC_INTAKE_COLLECTOR_URL (http://localhost:14318), OC_INTAKE_LOGS_URL (http://localhost:8687),
+//! OC_INTAKE_PROFILES_URL (http://localhost:8090/ingest/profiles), OC_INTERNAL_TOKEN,
+//! OC_INTAKE_MAX_BODY_MB (16), OC_INTAKE_ORG_RPS (500), OC_INTAKE_ORG_MBPS (50).
+
+mod datadog;
+mod datadog_apm;
+mod datadog_events;
+mod datadog_network;
+mod datadog_orch;
+mod datadog_process;
+mod grpc;
+mod otlp;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -42,9 +67,14 @@ const MISS_TTL: Duration = Duration::from_secs(10);
 
 struct Config {
     addr: String,
+    grpc_addr: String,
     postgres_url: String,
     collector_url: String,
     logs_url: String,
+    /// The server's internal listener for profile uploads.
+    profiles_url: String,
+    /// Bearer token of the server's internal listener (OC_INTERNAL_TOKEN), if it requires one.
+    internal_token: Option<String>,
     max_body: usize,
     org_rps: f64,
     org_bytes_per_sec: f64,
@@ -58,10 +88,29 @@ impl Config {
     fn from_env() -> Self {
         Config {
             addr: env("OC_INTAKE_ADDR", "0.0.0.0:4318"),
-            postgres_url: env("OC_POSTGRES_URL", "postgres://observecraft:observecraft@localhost:5432/observecraft"),
-            collector_url: env("OC_INTAKE_COLLECTOR_URL", "http://localhost:14318").trim_end_matches('/').to_string(),
-            logs_url: env("OC_INTAKE_LOGS_URL", "http://localhost:8687").trim_end_matches('/').to_string(),
-            max_body: env("OC_INTAKE_MAX_BODY_MB", "16").parse::<usize>().unwrap_or(16) * 1024 * 1024,
+            grpc_addr: env("OC_INTAKE_GRPC_ADDR", "0.0.0.0:4317"),
+            postgres_url: env(
+                "OC_POSTGRES_URL",
+                "postgres://observecraft:observecraft@localhost:5432/observecraft",
+            ),
+            collector_url: env("OC_INTAKE_COLLECTOR_URL", "http://localhost:14318")
+                .trim_end_matches('/')
+                .to_string(),
+            logs_url: env("OC_INTAKE_LOGS_URL", "http://localhost:8687")
+                .trim_end_matches('/')
+                .to_string(),
+            profiles_url: env(
+                "OC_INTAKE_PROFILES_URL",
+                "http://localhost:8090/ingest/profiles",
+            ),
+            internal_token: std::env::var("OC_INTERNAL_TOKEN")
+                .ok()
+                .filter(|t| !t.is_empty()),
+            max_body: env("OC_INTAKE_MAX_BODY_MB", "16")
+                .parse::<usize>()
+                .unwrap_or(16)
+                * 1024
+                * 1024,
             org_rps: env("OC_INTAKE_ORG_RPS", "500").parse().unwrap_or(500.0),
             org_bytes_per_sec: env("OC_INTAKE_ORG_MBPS", "50").parse::<f64>().unwrap_or(50.0) * 1024.0 * 1024.0,
         }
@@ -69,7 +118,7 @@ impl Config {
 }
 
 /// What a key resolves to: its org and the org's span retention.
-type KeyOrg = (String, i32);
+pub type KeyOrg = (String, i32);
 
 struct CachedKey {
     org: Option<KeyOrg>,
@@ -118,9 +167,19 @@ fn reject(status: StatusCode, msg: &str) -> Response {
 }
 
 fn api_key(headers: &HeaderMap) -> Option<&str> {
-    let bearer = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer "));
-    let plain = headers.get("oc-api-key").and_then(|v| v.to_str().ok());
-    bearer.or(plain).map(str::trim).filter(|k| k.starts_with("ocik_"))
+    let bearer = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "));
+    let plain = || {
+        ["oc-api-key", "dd-api-key"]
+            .into_iter()
+            .find_map(|h| headers.get(h).and_then(|v| v.to_str().ok()))
+    };
+    bearer
+        .or_else(plain)
+        .map(str::trim)
+        .filter(|k| k.starts_with("ocik_"))
 }
 
 /// The org an ingest key belongs to (active key, active org) and its span retention, cached for [`KEY_TTL`].
@@ -168,44 +227,185 @@ fn within_limits(st: &Shared, org: &str, bytes: usize) -> bool {
     l.requests.take(1.0, st.cfg.org_rps) && l.bytes.take(bytes as f64, st.cfg.org_bytes_per_sec)
 }
 
-/// Authenticates, rate limits and forwards one request body to `target`.
-async fn forward(st: Shared, headers: HeaderMap, body: Bytes, target: String) -> Response {
-    let Some(key) = api_key(&headers) else {
-        return reject(StatusCode::UNAUTHORIZED, "missing API key: send Authorization: Bearer ocik_...");
+/// Why a request was turned away.
+pub struct Rejection {
+    pub status: StatusCode,
+    pub message: &'static str,
+}
+
+impl Rejection {
+    const fn new(status: StatusCode, message: &'static str) -> Self {
+        Rejection { status, message }
+    }
+}
+
+impl IntoResponse for Rejection {
+    fn into_response(self) -> Response {
+        let mut r = reject(self.status, self.message);
+        if self.status == StatusCode::TOO_MANY_REQUESTS {
+            r.headers_mut()
+                .insert(header::RETRY_AFTER, HeaderValue::from_static("1"));
+        }
+        r
+    }
+}
+
+/// Authenticates the sender and charges `bytes` to its org's rate limit.
+async fn admit(st: &Shared, headers: &HeaderMap, bytes: usize) -> Result<KeyOrg, Rejection> {
+    let Some(key) = api_key(headers) else {
+        return Err(Rejection::new(
+            StatusCode::UNAUTHORIZED,
+            "missing API key: send Authorization: Bearer ocik_...",
+        ));
     };
-    let (org, retention) = match resolve(&st, key).await {
+    let org = match resolve(st, key).await {
         Ok(Some(found)) => found,
-        Ok(None) => return reject(StatusCode::UNAUTHORIZED, "invalid or revoked API key"),
+        Ok(None) => {
+            return Err(Rejection::new(
+                StatusCode::UNAUTHORIZED,
+                "invalid or revoked API key",
+            ))
+        }
         Err(e) => {
             tracing::error!(error = %e, "key lookup failed");
-            return reject(StatusCode::SERVICE_UNAVAILABLE, "temporarily unavailable");
+            return Err(Rejection::new(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "temporarily unavailable",
+            ));
         }
     };
-    if !within_limits(&st, &org, body.len()) {
-        let mut r = reject(StatusCode::TOO_MANY_REQUESTS, "rate limit exceeded for this organization");
-        r.headers_mut().insert(header::RETRY_AFTER, HeaderValue::from_static("1"));
-        return r;
+    if !within_limits(st, &org.0, bytes) {
+        return Err(Rejection::new(
+            StatusCode::TOO_MANY_REQUESTS,
+            "rate limit exceeded for this organization",
+        ));
     }
-    let mut req = st.http.post(&target).header(ORG_HEADER, &org).header(RETENTION_HEADER, retention.to_string()).body(body);
-    for h in [header::CONTENT_TYPE, header::CONTENT_ENCODING] {
-        if let Some(v) = headers.get(&h) {
-            req = req.header(h, v);
-        }
+    Ok(org)
+}
+
+/// What the pipeline answered.
+pub struct Upstream {
+    pub status: StatusCode,
+    pub content_type: Option<HeaderValue>,
+    pub body: Bytes,
+}
+
+/// Sends one admitted body to `target`, stamped with its org.
+async fn send(
+    st: &Shared,
+    (org, retention): &KeyOrg,
+    target: &str,
+    content_type: Option<&HeaderValue>,
+    content_encoding: Option<&HeaderValue>,
+    body: Bytes,
+) -> Result<Upstream, Rejection> {
+    let mut req = st
+        .http
+        .post(target)
+        .header(ORG_HEADER, org)
+        .header(RETENTION_HEADER, retention.to_string())
+        .body(body);
+    if let Some(v) = content_type {
+        req = req.header(header::CONTENT_TYPE, v);
+    }
+    if let Some(v) = content_encoding {
+        req = req.header(header::CONTENT_ENCODING, v);
     }
     match req.send().await {
         Ok(res) => {
-            let status = StatusCode::from_u16(res.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
-            let ct = res.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| HeaderValue::from_bytes(v.as_bytes()).ok());
-            let bytes = res.bytes().await.unwrap_or_default();
-            let mut out = (status, bytes).into_response();
-            if let Some(ct) = ct {
+            let status =
+                StatusCode::from_u16(res.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+            let content_type = res
+                .headers()
+                .get(reqwest::header::CONTENT_TYPE)
+                .and_then(|v| HeaderValue::from_bytes(v.as_bytes()).ok());
+            let body = res.bytes().await.unwrap_or_default();
+            Ok(Upstream {
+                status,
+                content_type,
+                body,
+            })
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, target, "upstream unavailable");
+            Err(Rejection::new(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "pipeline unavailable, retry later",
+            ))
+        }
+    }
+}
+
+/// Authenticates, rate limits and forwards one request body to `target` unchanged.
+async fn forward(st: Shared, headers: HeaderMap, body: Bytes, target: String) -> Response {
+    let org = match admit(&st, &headers, body.len()).await {
+        Ok(org) => org,
+        Err(r) => return r.into_response(),
+    };
+    match send(
+        &st,
+        &org,
+        &target,
+        headers.get(header::CONTENT_TYPE),
+        headers.get(header::CONTENT_ENCODING),
+        body,
+    )
+    .await
+    {
+        Ok(up) => {
+            let mut out = (up.status, up.body).into_response();
+            if let Some(ct) = up.content_type {
                 out.headers_mut().insert(header::CONTENT_TYPE, ct);
             }
             out
         }
+        Err(r) => r.into_response(),
+    }
+}
+
+/// `POST /api/v2/profile`: a profiler upload (multipart) from the Datadog Agent, passed unchanged to
+/// the server's internal listener, which stores it.
+async fn profile(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
+    let (org, _) = match admit(&st, &headers, body.len()).await {
+        Ok(org) => org,
+        Err(r) => return r.into_response(),
+    };
+    let mut req = st
+        .http
+        .post(&st.cfg.profiles_url)
+        .header(ORG_HEADER, &org)
+        .body(body);
+    for h in [
+        header::CONTENT_TYPE.as_str(),
+        header::CONTENT_ENCODING.as_str(),
+        "x-datadog-additional-tags",
+    ] {
+        if let Some(v) = headers.get(h) {
+            req = req.header(h, v);
+        }
+    }
+    if let Some(t) = &st.cfg.internal_token {
+        req = req.bearer_auth(t);
+    }
+    match req.send().await {
+        Ok(res) if res.status().is_success() => StatusCode::ACCEPTED.into_response(),
+        Ok(res) => {
+            tracing::warn!(status = %res.status(), "server refused a profile");
+            reject(
+                if res.status().is_client_error() {
+                    StatusCode::BAD_REQUEST
+                } else {
+                    StatusCode::SERVICE_UNAVAILABLE
+                },
+                "profile was not accepted",
+            )
+        }
         Err(e) => {
-            tracing::warn!(error = %e, target, "upstream unavailable");
-            reject(StatusCode::SERVICE_UNAVAILABLE, "pipeline unavailable, retry later")
+            tracing::warn!(error = %e, "profile store unavailable");
+            reject(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "pipeline unavailable, retry later",
+            )
         }
     }
 }
@@ -230,13 +430,67 @@ async fn json_logs(State(st): State<Shared>, headers: HeaderMap, body: Bytes) ->
     forward(st, headers, body, target).await
 }
 
+/// Datadog clients may pass the key in the query string (`?api_key=…` or `?dd-api-key=…`, e.g. the
+/// Agent's key validation); it becomes the `DD-API-KEY` header the handlers read.
+async fn query_api_key(mut req: axum::extract::Request, next: axum::middleware::Next) -> Response {
+    if api_key(req.headers()).is_none() {
+        let key = req.uri().query().and_then(|q| {
+            q.split('&')
+                .filter_map(|kv| kv.split_once('='))
+                .find(|(k, _)| matches!(*k, "api_key" | "dd-api-key" | "DD-API-KEY"))
+                .map(|(_, v)| v.to_string())
+        });
+        if let Some(v) = key.and_then(|k| HeaderValue::from_str(&k).ok()) {
+            req.headers_mut().insert("dd-api-key", v);
+        }
+    }
+    next.run(req).await
+}
+
+/// Resident memory in MiB (Linux), for the request log.
+fn rss_mib() -> u64 {
+    std::fs::read_to_string("/proc/self/statm")
+        .ok()
+        .and_then(|s| s.split_whitespace().nth(1)?.parse::<u64>().ok())
+        .map_or(0, |pages| pages * 4096 / 1_048_576)
+}
+
+/// Debug log of every request: path, size, encoding, status, latency and resident memory after it.
+async fn log_requests(req: axum::extract::Request, next: axum::middleware::Next) -> Response {
+    let path = req.uri().path().to_string();
+    let size = req
+        .headers()
+        .get(header::CONTENT_LENGTH)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("-")
+        .to_string();
+    let encoding = req
+        .headers()
+        .get(header::CONTENT_ENCODING)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("-")
+        .to_string();
+    let start = Instant::now();
+    let res = next.run(req).await;
+    tracing::debug!(%path, %size, %encoding, status = res.status().as_u16(), ms = start.elapsed().as_millis() as u64, rss_mib = rss_mib(), "request");
+    res
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))).init();
     let cfg = Config::from_env();
-    let pg = PgPoolOptions::new().max_connections(8).acquire_timeout(Duration::from_secs(5)).connect(&cfg.postgres_url).await.context("connect postgres")?;
-    let http = reqwest::Client::builder().timeout(Duration::from_secs(30)).build()?;
+    // Lazy: the intake starts (and answers 503) while Postgres isn't reachable yet.
+    let pg = PgPoolOptions::new()
+        .max_connections(8)
+        .acquire_timeout(Duration::from_secs(5))
+        .connect_lazy(&cfg.postgres_url)
+        .context("postgres url")?;
+    let http = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()?;
     let addr = cfg.addr.clone();
+    let grpc_addr = cfg.grpc_addr.clone();
     let max_body = cfg.max_body;
     let st: Shared = Arc::new(Inner { cfg, pg, http, keys: Mutex::default(), limits: Mutex::default() });
     let app = Router::new()
@@ -245,11 +499,40 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/metrics", post(metrics))
         .route("/v1/logs", post(otlp_logs))
         .route("/api/v2/logs", post(json_logs))
+        .route("/api/v2/series", post(datadog::series_v2))
+        .route("/api/v1/series", post(datadog::series_v1))
+        .route("/api/v1/validate", get(datadog::validate))
+        .route("/api/beta/sketches", post(datadog::sketches))
+        .route("/api/v0.2/traces", post(datadog_apm::traces))
+        .route("/api/v0.2/stats", post(datadog_apm::stats))
+        .route("/api/v2/orchmanif", post(datadog_orch::manifests))
+        .route("/api/v2/orch", post(datadog::acknowledge))
+        .route("/api/v1/collector", post(datadog_process::collector))
+        .route("/api/v1/container", post(datadog_process::collector))
+        .route("/api/v1/connections", post(datadog_network::connections))
+        .route("/api/v2/profile", post(profile))
+        .route("/api/v1/check_run", post(datadog::check_run))
+        .route("/api/v1/metadata", post(datadog::acknowledge))
+        .route("/intake/", post(datadog::intake))
+        .route("/api/v2/host_metadata", post(datadog::intake))
+        .route("/api/v1/events", post(datadog_events::post_v1))
+        .route("/api/v2/events", post(datadog_events::post_agent))
+        .route("/api/v2/service_checks", post(datadog::check_run))
         .layer(DefaultBodyLimit::max(max_body))
-        .with_state(st);
-    let listener = tokio::net::TcpListener::bind(&addr).await.with_context(|| format!("bind {addr}"))?;
-    tracing::info!(%addr, "oc-intake listening");
-    axum::serve(listener, app).await?;
+        .layer(axum::middleware::from_fn(query_api_key))
+        .layer(axum::middleware::from_fn(log_requests))
+        .with_state(st.clone());
+    let listener = tokio::net::TcpListener::bind(&addr)
+        .await
+        .with_context(|| format!("bind {addr}"))?;
+    let grpc_listener = tokio::net::TcpListener::bind(&grpc_addr)
+        .await
+        .with_context(|| format!("bind {grpc_addr}"))?;
+    tracing::info!(%addr, %grpc_addr, "oc-intake listening (OTLP/HTTP, OTLP/gRPC)");
+    tokio::try_join!(
+        axum::serve(listener, app),
+        axum::serve(grpc_listener, grpc::router(st))
+    )?;
     Ok(())
 }
 
@@ -269,6 +552,41 @@ mod tests {
         let mut h = HeaderMap::new();
         h.insert(header::AUTHORIZATION, HeaderValue::from_static("Bearer ocak_abc"));
         assert_eq!(api_key(&h), None);
+    }
+
+    #[tokio::test]
+    async fn api_key_from_the_query_string() {
+        use tower::ServiceExt;
+        let app = Router::new()
+            .route(
+                "/k",
+                get(|h: HeaderMap| async move { api_key(&h).unwrap_or("none").to_string() }),
+            )
+            .layer(axum::middleware::from_fn(query_api_key));
+        let call = |uri: &'static str| {
+            let app = app.clone();
+            async move {
+                let res = app
+                    .oneshot(
+                        axum::extract::Request::builder()
+                            .uri(uri)
+                            .body(axum::body::Body::empty())
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                String::from_utf8(
+                    axum::body::to_bytes(res.into_body(), 1024)
+                        .await
+                        .unwrap()
+                        .to_vec(),
+                )
+                .unwrap()
+            }
+        };
+        assert_eq!(call("/k?api_key=ocik_abc").await, "ocik_abc");
+        assert_eq!(call("/k?x=1&dd-api-key=ocik_def").await, "ocik_def");
+        assert_eq!(call("/k").await, "none");
     }
 
     #[test]

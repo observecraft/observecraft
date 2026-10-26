@@ -1,7 +1,7 @@
 # TLS in front of ObserveCraft (`docker compose --profile app --profile tls up -d`).
 # Caddy obtains and renews certificates automatically; both names must resolve to this host.
 #   OC_DOMAIN         the web app + API          (e.g. observability.example.com)
-#   OC_INTAKE_DOMAIN  OTLP/HTTP + JSON log intake (e.g. intake.observability.example.com)
+#   OC_INTAKE_DOMAIN  the intake: OTLP/HTTP, OTLP/gRPC, Datadog APIs (e.g. intake.observability.example.com)
 # Set OC_PUBLIC_URL=https://$OC_DOMAIN and OC_COOKIE_SECURE=true for the server.
 
 {$OC_DOMAIN:localhost} {
@@ -13,5 +13,8 @@
 }
 
 {$OC_INTAKE_DOMAIN:intake.localhost} {
+	# OTLP/gRPC on the same name and port as everything else.
+	@grpc header Content-Type application/grpc*
+	reverse_proxy @grpc h2c://intake:4317
 	reverse_proxy intake:4318
 }

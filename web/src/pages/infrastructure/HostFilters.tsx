@@ -6,7 +6,7 @@ import { clearKey, selectedValues, toggleValue, type Term } from '../../lib/sear
 import { CLOUD_LABEL, COLLECTOR_LABEL, CloudIcon, CollectorIcon, GpuIcon, OS_LABEL, OsIcon } from './hostIcons';
 
 const CLOUDS: Exclude<Cloud, 'none'>[] = ['aws', 'azure', 'gcp', 'oracle', 'alibaba'];
-const COLLECTORS: CollectorKind[] = ['observecraft', 'otel'];
+const COLLECTORS: CollectorKind[] = ['observecraft', 'datadog', 'otel'];
 const OSES: HostOs[] = ['windows', 'linux', 'darwin'];
 const FACET_KEYS = ['cloud', 'collector', 'os', 'gpu'];
 

@@ -21,6 +21,8 @@ const TELEMETRY_TABLES: &[(&str, &str)] = &[
     ("oc.logs", "org_id"),
     ("otel.otel_traces", "OrgId"),
     ("otel.otel_ci_traces", "OrgId"),
+    ("otel.otel_traces_trace_id_ts", "OrgId"),
+    ("otel.otel_ci_traces_trace_id_ts", "OrgId"),
     ("otel.otel_metrics_gauge", "OrgId"),
     ("otel.otel_metrics_sum", "OrgId"),
     ("otel.otel_metrics_histogram", "OrgId"),
@@ -29,6 +31,9 @@ const TELEMETRY_TABLES: &[(&str, &str)] = &[
     ("otel.otel_k8s_objects", "OrgId"),
     ("otel.k8s_resources", "OrgId"),
     ("otel.k8s_events", "OrgId"),
+    ("otel.otel_events", "OrgId"),
+    ("otel.otel_network", "OrgId"),
+    ("otel.profiles", "OrgId"),
     ("oc.logs_raw", "org_id"),
     ("oc.logs_rehydrated", "org_id"),
 ];
@@ -295,8 +300,18 @@ pub async fn delete_org(State(st): State<AppState>, InstanceAdmin(ctx): Instance
     // Accounts left without any membership can't sign in anywhere; remove them.
     sqlx::query("DELETE FROM accounts a WHERE NOT a.is_instance_admin AND NOT EXISTS (SELECT 1 FROM users u WHERE u.account_id = a.id)").execute(&st.postgres).await?;
     for (table, column) in TELEMETRY_TABLES {
-        // A mutation: ClickHouse rewrites the affected parts in the background.
-        if let Err(e) = st.clickhouse.query(&format!("ALTER TABLE {table} DELETE WHERE {column} = ?")).bind(&id).execute().await {
+        // A mutation on the tables holding the rows (every shard): ClickHouse rewrites the affected
+        // parts in the background. Rare enough that partitioning by org isn't worth its part count.
+        let (local, on) = (st.tables.local(table), st.tables.on_cluster());
+        if let Err(e) = st
+            .clickhouse
+            .query(&format!(
+                "ALTER TABLE {local}{on} DELETE WHERE {column} = ?"
+            ))
+            .bind(&id)
+            .execute()
+            .await
+        {
             tracing::error!(error = %e, table, org = %id, "purging telemetry of a deleted org");
         }
     }

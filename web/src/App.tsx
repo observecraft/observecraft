@@ -53,7 +53,15 @@ import { IssuesPage } from './pages/errors/IssuesPage';
 import { HostsPage } from './pages/infrastructure/HostsPage';
 import { KubernetesOverview } from './pages/kubernetes/KubernetesOverview';
 import { KubernetesComingSoon } from './pages/kubernetes/KubernetesComingSoon';
-import { OrchestrationExplorer } from './pages/kubernetes/OrchestrationExplorer';
+import { OrchestrationExplorer, ProcessMetrics } from './pages/kubernetes/OrchestrationExplorer';
+import { ProfilesLayout } from './pages/apm/profiles/ProfilesLayout';
+import { NetworkLayout } from './pages/network/NetworkLayout';
+import { NetworkAnalytics } from './pages/network/NetworkAnalytics';
+import { NetworkMap } from './pages/network/NetworkMap';
+import { ProfileExplorer } from './pages/apm/profiles/ProfileExplorer';
+import { ProfilesOverview } from './pages/apm/profiles/ProfilesOverview';
+import { ProfileComparison } from './pages/apm/profiles/ProfileComparison';
+import { ProfileInsights } from './pages/apm/profiles/ProfileInsights';
 import { CatalogPage } from './pages/integrations/CatalogPage';
 import { IntegrationsComingSoon, IntegrationsLayout } from './pages/integrations/IntegrationsLayout';
 import { MarketplacePage } from './pages/integrations/MarketplacePage';
@@ -61,6 +69,9 @@ import { LiveTail } from './pages/logs/LiveTail';
 import { LogExplorer } from './pages/logs/LogExplorer';
 import { LOGS_CONFIG_SLUGS, LogsConfigComingSoon, LogsConfigLayout } from './pages/logs/LogsConfigLayout';
 import { LogsComingSoon, LogsLayout } from './pages/logs/LogsLayout';
+import { EventExplorer } from './pages/events/EventExplorer';
+import { EventsLayout, EventsSummary } from './pages/events/EventsLayout';
+import { TriageInbox } from './pages/events/TriageInbox';
 
 function ComingSoon() {
   const { pathname } = useLocation();
@@ -114,13 +125,24 @@ function Shell() {
               <Route path="traces" element={<SpanExplorer />} />
               <Route path="endpoints" element={<EndpointsPage />} />
               <Route path="recommendations" element={<Navigate to="/apm?view=recommendations" replace />} />
-              <Route path="profiles/*" element={<ApmComingSoon title="Profiles" />} />
+              <Route path="profiles" element={<ProfilesLayout />}>
+                <Route index element={<ProfileExplorer />} />
+                <Route path="overview" element={<ProfilesOverview />} />
+                <Route path="comparison" element={<ProfileComparison />} />
+                <Route path="insights" element={<ProfileInsights />} />
+              </Route>
               <Route path="debugger/*" element={<ApmComingSoon title="Live Debugger" />} />
               <Route path="settings" element={<ApmComingSoon title="APM Settings" />} />
             </Route>
             <Route path="/infrastructure" element={<HostsPage />} />
             <Route path="/kubernetes" element={<KubernetesOverview />} />
             <Route path="/orchestration/explorer" element={<OrchestrationExplorer />} />
+            <Route path="/network" element={<NetworkLayout />}>
+              <Route index element={<NetworkAnalytics />} />
+              <Route path="map" element={<NetworkMap />} />
+            </Route>
+            <Route path="/process" element={<OrchestrationExplorer />} />
+            <Route path="/process/metrics" element={<ProcessMetrics />} />
             <Route path="/kubernetes/autoscaling" element={<KubernetesComingSoon tab="Autoscaling" />} />
             <Route path="/kubernetes/remediation" element={<KubernetesComingSoon tab="Remediation" />} />
             <Route path="/kubernetes/rollouts" element={<KubernetesComingSoon tab="Live Rollouts" />} />
@@ -150,6 +172,12 @@ function Shell() {
             <Route path="/monitors/settings" element={<MonitorSettingsPage />} />
             <Route path="/monitors/:id" element={<MonitorStatusPage />} />
             <Route path="/monitors/:id/edit" element={<MonitorEditor />} />
+            <Route path="/event" element={<EventsLayout />}>
+              <Route index element={<Navigate to="explorer" replace />} />
+              <Route path="explorer" element={<EventExplorer />} />
+              <Route path="inbox" element={<TriageInbox />} />
+              <Route path="summary" element={<EventsSummary />} />
+            </Route>
             <Route path="/incidents" element={<IncidentsPage />} />
             <Route path="/incidents/:id" element={<IncidentPage />} />
             <Route path="/account/profile" element={<PersonalSettings />} />

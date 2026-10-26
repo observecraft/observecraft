@@ -137,8 +137,8 @@ export function WidgetIllustration({ type }: { type: WidgetType }) {
     <svg viewBox="0 0 64 48" width="64" height="48" aria-hidden>
       <defs>
         <linearGradient id="wt-grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#7c4dff" />
-          <stop offset="1" stopColor="#c74df0" />
+          <stop offset="0" stopColor="#0b6e69" />
+          <stop offset="1" stopColor="#29a8a0" />
         </linearGradient>
       </defs>
       {body}

@@ -1,3 +1,6 @@
+//! The internal listener (`OC_LOGPROC_ADDR`): the log indexer, and profile uploads from the intake
+//! (`/ingest/profiles`, see `routes::profiles`).
+//!
 //! The log indexer: Vector sends every normalized log here (NDJSON, internal listener on
 //! `OC_LOGPROC_ADDR`) after writing it to `oc.logs_raw`. Each log goes to the first of its org's
 //! indexes whose filter matches; that index's exclusion filters may drop it (sampled
@@ -273,7 +276,14 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
         }
     });
     let addr = st.config.logproc_addr.clone();
-    let app = Router::new().route("/ingest/logs", post(ingest)).layer(axum::extract::DefaultBodyLimit::max(64 * 1024 * 1024)).with_state((st, ix));
+    let profiles = Router::new()
+        .route("/ingest/profiles", post(crate::routes::profiles::ingest))
+        .with_state(st.clone());
+    let app = Router::new()
+        .route("/ingest/logs", post(ingest))
+        .with_state((st, ix))
+        .merge(profiles)
+        .layer(axum::extract::DefaultBodyLimit::max(64 * 1024 * 1024));
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!(%addr, "log indexer listening");
     tokio::spawn(async move {

@@ -1,5 +1,10 @@
 # Kubernetes → ObserveCraft
 
+> **Use the Helm chart** `deploy/helm/observecraft-agent` (see [docs/sending-data.md](../../../docs/sending-data.md)):
+> the same two agents on the ObserveCraft Agent image, plus OTLP / Datadog / DogStatsD endpoints for applications,
+> Prometheus autodiscovery, and log positions and queues kept on disk. The plain manifests below stay as a minimal,
+> dependency-free example.
+
 `observecraft-collector.yaml` runs two OpenTelemetry Collectors (contrib 0.112), the equivalent of the
 Datadog Agent and Cluster Agent:
 

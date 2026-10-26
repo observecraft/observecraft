@@ -404,12 +404,15 @@
 }
 
 .inc-status-btn {
+  /* Same box as the severity picker next to it (.btn). */
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 38px;
-  padding: 0 12px;
+  gap: 6px;
+  height: var(--control-height);
+  padding: 0 10px;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
+  font-size: var(--fs-lg);
   color: #fff;
   font-weight: var(--fw-semibold);
 }
@@ -753,7 +756,7 @@
   gap: 12px;
   height: 66px;
   padding: 0 18px 0 22px;
-  background: linear-gradient(90deg, #5b3fd6 0%, #4677d8 55%, #3fb8e6 100%);
+  background: linear-gradient(90deg, var(--brand-strong) 0%, var(--brand) 55%, #1d8a84 100%);
   color: #fff;
 }
 

@@ -1,0 +1,48 @@
+# Compose only (added with a second --config): metrics of the machine running the collector (the
+# Docker VM locally), reported as a regular host of the OC_HOST_ORG organization.
+receivers:
+  hostmetrics:
+    collection_interval: 10s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization: { enabled: true }
+      load: {}
+      memory:
+        metrics:
+          system.memory.utilization: { enabled: true }
+      filesystem:
+        include_mount_points:
+          mount_points: ["/"]
+          match_type: strict
+      network: {}
+
+processors:
+  # hostmetrics reports CPU per core; dashboards want one series per host and state (like the
+  # per-host values other agents send), so average across cores before export.
+  metricstransform/cpu:
+    transforms:
+      - include: system.cpu.utilization
+        action: update
+        operations:
+          - { action: aggregate_labels, label_set: [state], aggregation_type: mean }
+      - include: system.cpu.time
+        action: update
+        operations:
+          - { action: aggregate_labels, label_set: [state], aggregation_type: sum }
+  # Identity of the collector's own host (OC_HOST_NAME in compose) for hostmetrics only.
+  resource/host:
+    attributes:
+      - { key: host.name, value: "${env:OC_HOST_NAME}", action: upsert }
+      - { key: deployment.environment, value: dev, action: upsert }
+      - { key: observecraft.collector, value: otel, action: upsert }
+      - { key: observecraft.collector.version, value: otelcol-contrib 0.112.0, action: upsert }
+      - { key: os.type, value: linux, action: upsert }
+      - { key: oc.org_id, value: "${env:OC_HOST_ORG}", action: upsert }
+
+service:
+  pipelines:
+    metrics/host:
+      receivers: [hostmetrics]
+      processors: [memory_limiter, metricstransform/cpu, resource/host, batch]
+      exporters: [clickhouse]

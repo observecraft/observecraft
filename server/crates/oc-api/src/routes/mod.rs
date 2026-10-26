@@ -4,6 +4,7 @@ pub mod auth;
 pub mod ci;
 pub mod dashboards;
 pub mod downtimes;
+pub mod events;
 pub mod health;
 pub mod hosts;
 pub mod identity;
@@ -18,7 +19,9 @@ pub mod logs;
 pub mod metrics;
 pub mod monitor_engine;
 pub mod monitors;
+pub mod network;
 pub mod notifications;
+pub mod profiles;
 pub mod spans;
 pub mod sso;
 
@@ -70,6 +73,13 @@ use crate::state::AppState;
         dashboards::create_list,
         dashboards::add_to_list,
         dashboards::monitor_summary,
+        events::search,
+        network::flows,
+        profiles::search,
+        profiles::overview,
+        profiles::flamegraph,
+        profiles::insights,
+        profiles::set_insight_state,
         hosts::search,
         hosts::detail,
         hosts::metrics,
@@ -214,6 +224,9 @@ use crate::state::AppState;
         (name = "metrics", description = "Metric queries for dashboards (OTel metrics and span-derived trace.* metrics)"),
         (name = "dashboards", description = "Dashboards, dashboard lists and the monitor summary widget"),
         (name = "infrastructure", description = "Hosts, built from host metrics, spans and logs"),
+        (name = "events", description = "Events from the Datadog Agent and the events API"),
+        (name = "network", description = "Network flows from the Datadog Agent's system-probe"),
+        (name = "profiles", description = "Continuous profiles from Datadog's profilers: explorer, flame graphs and insights"),
         (name = "orchestration", description = "Kubernetes and ECS Explorers: objects, containers, utilization and events sent by the collectors"),
         (name = "identity", description = "Profile, users, roles, teams and SAML group mappings"),
         (name = "incidents", description = "Incident management"),
@@ -229,7 +242,10 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/healthz", get(health::healthz))
         .route("/readyz", get(health::readyz))
-        .route("/api/openapi.json", get(|| async { axum::Json(ApiDoc::openapi()) }))
+        .route(
+            "/api/openapi.json",
+            get(|| async { axum::Json(ApiDoc::openapi()) }),
+        )
         .route("/api/v1/logs/search", post(logs::search))
         .route("/api/v1/logs/histogram", post(logs::histogram))
         .route("/api/v1/logs/facets", post(logs::facets))
@@ -258,19 +274,34 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/dashboards/search", post(dashboards::search))
         .route("/api/v1/dashboards/recent", get(dashboards::recent))
         .route("/api/v1/dashboards/delete", post(dashboards::delete))
-        .route("/api/v1/dashboards/:id", get(dashboards::get_one).patch(dashboards::update))
+        .route(
+            "/api/v1/dashboards/:id",
+            get(dashboards::get_one).patch(dashboards::update),
+        )
         .route("/api/v1/dashboards/:id/clone", post(dashboards::clone))
         .route("/api/v1/dashboards/:id/restore", post(dashboards::restore))
-        .route("/api/v1/dashboard-lists", get(dashboards::lists).post(dashboards::create_list))
-        .route("/api/v1/dashboard-lists/:id/items", post(dashboards::add_to_list))
-        .route("/api/v1/monitors/summary", post(dashboards::monitor_summary))
+        .route(
+            "/api/v1/dashboard-lists",
+            get(dashboards::lists).post(dashboards::create_list),
+        )
+        .route(
+            "/api/v1/dashboard-lists/:id/items",
+            post(dashboards::add_to_list),
+        )
+        .route(
+            "/api/v1/monitors/summary",
+            post(dashboards::monitor_summary),
+        )
         .route("/api/v1/monitors", post(monitors::create))
         .route("/api/v1/monitors/search", post(monitors::search))
         .route("/api/v1/monitors/triggered", post(monitors::triggered))
         .route("/api/v1/monitors/bulk", post(monitors::bulk))
         .route("/api/v1/monitors/preview", post(monitors::preview))
         .route("/api/v1/monitors/quality", post(monitors::quality))
-        .route("/api/v1/monitors/:id", get(monitors::get_one).put(monitors::update))
+        .route(
+            "/api/v1/monitors/:id",
+            get(monitors::get_one).put(monitors::update),
+        )
         .route("/api/v1/monitors/:id/clone", post(monitors::clone))
         .route("/api/v1/monitors/:id/history", post(monitors::history))
         .route("/api/v1/downtimes", post(downtimes::create))
@@ -288,9 +319,22 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/ci/aggregations", post(ci::aggregations))
         .route("/api/v1/ci/overview", post(ci::overview))
         .route("/api/v1/ci/flaky", post(ci::flaky))
-        .route("/api/v1/ci/flaky/state", axum::routing::put(ci::set_flaky_state))
+        .route(
+            "/api/v1/ci/flaky/state",
+            axum::routing::put(ci::set_flaky_state),
+        )
         .route("/api/v1/ci/dora", post(ci::dora))
         .route("/api/v1/ci/repositories", get(ci::repositories))
+        .route("/api/v1/events/search", post(events::search))
+        .route("/api/v1/network/flows", post(network::flows))
+        .route("/api/v1/profiles/search", post(profiles::search))
+        .route("/api/v1/profiles/flamegraph", post(profiles::flamegraph))
+        .route("/api/v1/profiles/overview", post(profiles::overview))
+        .route("/api/v1/profiles/insights", post(profiles::insights))
+        .route(
+            "/api/v1/profiles/insights/state",
+            post(profiles::set_insight_state),
+        )
         .route("/api/v1/hosts/search", post(hosts::search))
         .route("/api/v1/hosts/:name", post(hosts::detail))
         .route("/api/v1/hosts/:name/metrics", post(hosts::metrics))
@@ -298,7 +342,10 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/hosts/:name/pods", post(hosts::pods))
         .route("/api/v1/hosts/:name/containers", post(hosts::containers))
         .route("/api/v1/orchestration/search", post(kubernetes::search))
-        .route("/api/v1/orchestration/resources/*uid", get(kubernetes::detail))
+        .route(
+            "/api/v1/orchestration/resources/*uid",
+            get(kubernetes::detail),
+        )
         .route("/api/v1/me", get(identity::me).patch(identity::update_me))
         .route("/api/v1/users/search", post(identity::search_users))
         .route("/api/v1/users/invite", post(identity::invite))
@@ -306,15 +353,24 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/roles", get(identity::roles))
         .route("/api/v1/teams", post(identity::create_team))
         .route("/api/v1/teams/search", post(identity::search_teams))
-        .route("/api/v1/saml/mappings", get(identity::mappings).post(identity::create_mapping))
-        .route("/api/v1/saml/mappings/:id", delete(identity::delete_mapping))
+        .route(
+            "/api/v1/saml/mappings",
+            get(identity::mappings).post(identity::create_mapping),
+        )
+        .route(
+            "/api/v1/saml/mappings/:id",
+            delete(identity::delete_mapping),
+        )
         .route("/api/v1/users/:id/login-link", post(identity::login_link))
         .route("/api/v1/audit", get(identity::audit_trail))
         .route("/api/v1/auth/config", get(auth::config))
         .route("/api/v1/auth/login", post(auth::login))
         .route("/api/v1/auth/mfa/verify", post(auth::mfa_verify))
         .route("/api/v1/auth/logout", post(auth::logout))
-        .route("/api/v1/auth/link/:token", get(auth::link_info).post(auth::accept_link))
+        .route(
+            "/api/v1/auth/link/:token",
+            get(auth::link_info).post(auth::accept_link),
+        )
         .route("/api/v1/auth/sso/discover", post(sso::discover_sso))
         .route("/api/v1/auth/saml/:org/metadata", get(sso::saml_metadata))
         .route("/api/v1/auth/saml/:org/login", get(sso::saml_login))
@@ -331,48 +387,146 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/me/mfa/disable", post(auth::mfa_disable))
         .route("/api/v1/me/orgs", get(auth::my_orgs))
         .route("/api/v1/me/switch-org", post(auth::switch_org))
-        .route("/api/v1/instance/orgs", get(instance::list_orgs).post(instance::create_org))
-        .route("/api/v1/instance/orgs/:id", patch(instance::update_org).delete(instance::delete_org))
+        .route(
+            "/api/v1/instance/orgs",
+            get(instance::list_orgs).post(instance::create_org),
+        )
+        .route(
+            "/api/v1/instance/orgs/:id",
+            patch(instance::update_org).delete(instance::delete_org),
+        )
         .route("/api/v1/instance/audit", get(instance::audit))
-        .route("/api/v1/instance/orgs/:id/limits", patch(instance::update_limits))
-        .route("/api/v1/logs/indexes", get(log_indexes::list).post(log_indexes::create))
+        .route(
+            "/api/v1/instance/orgs/:id/limits",
+            patch(instance::update_limits),
+        )
+        .route(
+            "/api/v1/logs/indexes",
+            get(log_indexes::list).post(log_indexes::create),
+        )
         .route("/api/v1/logs/indexes/reorder", post(log_indexes::reorder))
-        .route("/api/v1/logs/indexes/:id", axum::routing::put(log_indexes::update).delete(log_indexes::delete))
-        .route("/api/v1/org/data-settings", get(log_indexes::get_settings).patch(log_indexes::update_settings))
-        .route("/api/v1/ingest-keys", get(ingest_keys::list).post(ingest_keys::create))
+        .route(
+            "/api/v1/logs/indexes/:id",
+            axum::routing::put(log_indexes::update).delete(log_indexes::delete),
+        )
+        .route(
+            "/api/v1/org/data-settings",
+            get(log_indexes::get_settings).patch(log_indexes::update_settings),
+        )
+        .route(
+            "/api/v1/ingest-keys",
+            get(ingest_keys::list).post(ingest_keys::create),
+        )
         .route("/api/v1/ingest-keys/:id", delete(ingest_keys::revoke))
-        .route("/api/v1/notification-channels", get(notifications::list).post(notifications::create))
-        .route("/api/v1/notification-channels/:id", delete(notifications::delete))
-        .route("/api/v1/notification-deliveries", get(notifications::deliveries))
-        .route("/api/v1/monitors/test-notification", post(notifications::test))
-        .route("/api/v1/logs/archives", get(archives::list).post(archives::create))
+        .route(
+            "/api/v1/notification-channels",
+            get(notifications::list).post(notifications::create),
+        )
+        .route(
+            "/api/v1/notification-channels/:id",
+            delete(notifications::delete),
+        )
+        .route(
+            "/api/v1/notification-deliveries",
+            get(notifications::deliveries),
+        )
+        .route(
+            "/api/v1/monitors/test-notification",
+            post(notifications::test),
+        )
+        .route(
+            "/api/v1/logs/archives",
+            get(archives::list).post(archives::create),
+        )
         .route("/api/v1/logs/archives/test", post(archives::test))
-        .route("/api/v1/logs/archives/:id", patch(archives::update).delete(archives::delete))
+        .route(
+            "/api/v1/logs/archives/:id",
+            patch(archives::update).delete(archives::delete),
+        )
         .route("/api/v1/logs/archives/:id/runs", get(archives::runs))
         .route("/api/v1/logs/archives/:id/run", post(archives::run_now))
-        .route("/api/v1/logs/archive-searches", get(archives::list_searches).post(archives::create_search))
-        .route("/api/v1/logs/archive-searches/:id", get(archives::get_search_detail).delete(archives::delete_search))
-        .route("/api/v1/logs/rehydrations", get(archives::list_rehydrations).post(archives::create_rehydration))
-        .route("/api/v1/logs/rehydrations/:id", delete(archives::expire_rehydration))
-        .route("/api/v1/me/app-keys", get(auth::app_keys).post(auth::create_app_key))
+        .route(
+            "/api/v1/logs/archive-searches",
+            get(archives::list_searches).post(archives::create_search),
+        )
+        .route(
+            "/api/v1/logs/archive-searches/:id",
+            get(archives::get_search_detail).delete(archives::delete_search),
+        )
+        .route(
+            "/api/v1/logs/rehydrations",
+            get(archives::list_rehydrations).post(archives::create_rehydration),
+        )
+        .route(
+            "/api/v1/logs/rehydrations/:id",
+            delete(archives::expire_rehydration),
+        )
+        .route(
+            "/api/v1/me/app-keys",
+            get(auth::app_keys).post(auth::create_app_key),
+        )
         .route("/api/v1/me/app-keys/:id", delete(auth::revoke_app_key))
-        .route("/api/v1/org/login-methods", get(sso::get_settings).put(sso::update_settings))
+        .route(
+            "/api/v1/org/login-methods",
+            get(sso::get_settings).put(sso::update_settings),
+        )
         .route("/api/v1/incidents", post(incidents::declare))
         .route("/api/v1/incidents/search", post(incidents::search))
-        .route("/api/v1/incidents/:id", get(incidents::get_one).patch(incidents::update))
-        .route("/api/v1/incidents/:id/timeline", get(incidents::timeline).post(incidents::add_note))
+        .route(
+            "/api/v1/incidents/:id",
+            get(incidents::get_one).patch(incidents::update),
+        )
+        .route(
+            "/api/v1/incidents/:id/timeline",
+            get(incidents::timeline).post(incidents::add_note),
+        )
         .route("/api/v1/incidents/:id/impacts", post(incidents::add_impact))
-        .route("/api/v1/incidents/:id/followups", post(incidents::add_followup))
-        .route("/api/v1/incidents/:id/followups/:followup_id", patch(incidents::update_followup))
-        .route("/api/v1/incidents/:id/timeline/:event_id", patch(incident_views::set_important))
-        .route("/api/v1/incidents/:id/responders", get(incident_views::responders).post(incident_views::add_responder))
-        .route("/api/v1/incidents/:id/responders/:user_id", delete(incident_views::remove_responder))
-        .route("/api/v1/incidents/:id/pages", get(incident_views::pages).post(incident_views::create_page))
-        .route("/api/v1/incidents/:id/pages/:page_id", patch(incident_views::update_page))
-        .route("/api/v1/incidents/:id/notifications", get(incident_views::notifications).post(incident_views::create_notification))
-        .route("/api/v1/incidents/:id/documents", get(incident_views::documents).post(incident_views::add_document))
-        .route("/api/v1/incidents/:id/documents/:doc_id", delete(incident_views::remove_document))
-        .route("/api/v1/incidents/:id/postmortem", get(incident_views::postmortem).post(incident_views::generate_postmortem).put(incident_views::update_postmortem))
+        .route(
+            "/api/v1/incidents/:id/followups",
+            post(incidents::add_followup),
+        )
+        .route(
+            "/api/v1/incidents/:id/followups/:followup_id",
+            patch(incidents::update_followup),
+        )
+        .route(
+            "/api/v1/incidents/:id/timeline/:event_id",
+            patch(incident_views::set_important),
+        )
+        .route(
+            "/api/v1/incidents/:id/responders",
+            get(incident_views::responders).post(incident_views::add_responder),
+        )
+        .route(
+            "/api/v1/incidents/:id/responders/:user_id",
+            delete(incident_views::remove_responder),
+        )
+        .route(
+            "/api/v1/incidents/:id/pages",
+            get(incident_views::pages).post(incident_views::create_page),
+        )
+        .route(
+            "/api/v1/incidents/:id/pages/:page_id",
+            patch(incident_views::update_page),
+        )
+        .route(
+            "/api/v1/incidents/:id/notifications",
+            get(incident_views::notifications).post(incident_views::create_notification),
+        )
+        .route(
+            "/api/v1/incidents/:id/documents",
+            get(incident_views::documents).post(incident_views::add_document),
+        )
+        .route(
+            "/api/v1/incidents/:id/documents/:doc_id",
+            delete(incident_views::remove_document),
+        )
+        .route(
+            "/api/v1/incidents/:id/postmortem",
+            get(incident_views::postmortem)
+                .post(incident_views::generate_postmortem)
+                .put(incident_views::update_postmortem),
+        )
 }
 
 #[cfg(test)]
@@ -389,7 +543,10 @@ mod tests {
         for item in doc["paths"].as_object().unwrap().values() {
             for op in item.as_object().unwrap().values() {
                 if let Some(id) = op["operationId"].as_str() {
-                    assert!(seen.insert(id.to_string()), "duplicate operationId {id}; set operation_id on one handler");
+                    assert!(
+                        seen.insert(id.to_string()),
+                        "duplicate operationId {id}; set operation_id on one handler"
+                    );
                 }
             }
         }
@@ -413,6 +570,9 @@ mod tests {
             include_str!("notifications.rs"),
             include_str!("health.rs"),
             include_str!("hosts.rs"),
+            include_str!("events.rs"),
+            include_str!("network.rs"),
+            include_str!("profiles.rs"),
             include_str!("identity.rs"),
             include_str!("incidents.rs"),
             include_str!("incident_views.rs"),
@@ -427,10 +587,81 @@ mod tests {
         let mut seen = std::collections::HashSet::new();
         for src in sources {
             for line in src.lines() {
-                let Some(rest) = line.strip_prefix("pub struct ").or_else(|| line.strip_prefix("pub enum ")) else { continue };
-                let name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-                assert!(seen.insert(name.clone()), "type name {name} is defined in two route modules");
+                let Some(rest) = line
+                    .strip_prefix("pub struct ")
+                    .or_else(|| line.strip_prefix("pub enum "))
+                else {
+                    continue;
+                };
+                let name: String = rest
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect();
+                assert!(
+                    seen.insert(name.clone()),
+                    "type name {name} is defined in two route modules"
+                );
             }
         }
+    }
+
+    /// Tenant isolation: every query that names a telemetry table must filter by organization
+    /// (`OrgId = {oc_org:String}` or `org_id = ?`). Queries on a table chosen at run time get their
+    /// WHERE clause from a helper that adds the org (e.g. `logs::scope`).
+    #[test]
+    fn telemetry_queries_filter_by_org() {
+        let sources = [
+            ("apm.rs", include_str!("apm.rs")),
+            ("archives.rs", include_str!("archives.rs")),
+            ("ci.rs", include_str!("ci.rs")),
+            ("dashboards.rs", include_str!("dashboards.rs")),
+            ("hosts.rs", include_str!("hosts.rs")),
+            ("events.rs", include_str!("events.rs")),
+            ("network.rs", include_str!("network.rs")),
+            ("profiles.rs", include_str!("profiles.rs")),
+            ("kubernetes.rs", include_str!("kubernetes.rs")),
+            ("live.rs", include_str!("live.rs")),
+            ("log_indexes.rs", include_str!("log_indexes.rs")),
+            ("logs.rs", include_str!("logs.rs")),
+            ("metrics.rs", include_str!("metrics.rs")),
+            ("monitor_engine.rs", include_str!("monitor_engine.rs")),
+            ("monitors.rs", include_str!("monitors.rs")),
+            ("spans.rs", include_str!("spans.rs")),
+            ("../logproc.rs", include_str!("../logproc.rs")),
+        ];
+        let mut missing = Vec::new();
+        for (file, src) in sources {
+            // Every string literal (queries span lines with `\` continuations).
+            let mut rest = src;
+            while let Some(start) = rest.find('"') {
+                let body = &rest[start + 1..];
+                let mut end = 0;
+                let bytes = body.as_bytes();
+                while end < bytes.len() && bytes[end] != b'"' {
+                    end += if bytes[end] == b'\\' { 2 } else { 1 };
+                }
+                let lit = &body[..end.min(body.len())];
+                let names_table = ["FROM otel.", "FROM oc.logs", "JOIN otel.", "JOIN oc.logs"]
+                    .iter()
+                    .any(|t| lit.contains(t));
+                if names_table && !lit.contains("OrgId") && !lit.contains("org_id") {
+                    missing.push(format!(
+                        "{file}: {}",
+                        lit.split_whitespace()
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                            .chars()
+                            .take(120)
+                            .collect::<String>()
+                    ));
+                }
+                rest = &body[(end + 1).min(body.len())..];
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "queries without an org filter:\n{}",
+            missing.join("\n")
+        );
     }
 }

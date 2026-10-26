@@ -1,6 +1,6 @@
 import { memo } from 'react';
 
-/** Deterministic low-poly backdrop: a jittered triangle mesh shaded along a blue → purple diagonal. */
+/** Deterministic low-poly backdrop: a jittered triangle mesh shaded along a deep teal → blue-teal diagonal. */
 export const LowPoly = memo(function LowPoly() {
   const W = 1600;
   const H = 1000;
@@ -23,9 +23,9 @@ export const LowPoly = memo(function LowPoly() {
   }
   const shade = (x: number, y: number) => {
     const t = Math.min(1, Math.max(0, (x / W) * 0.75 + (y / H) * 0.25));
-    const hue = 222 + t * 92; // 222 (blue) → 314 (magenta)
-    const light = 24 + (1 - Math.abs(t - 0.45)) * 6 + (rnd() - 0.5) * 5;
-    return `hsl(${hue.toFixed(0)} ${30 + t * 18}% ${light.toFixed(1)}%)`;
+    const hue = 168 + t * 24; // 168 (teal) → 192 (blue-teal)
+    const light = 16 + (1 - Math.abs(t - 0.45)) * 6 + (rnd() - 0.5) * 4;
+    return `hsl(${hue.toFixed(0)} ${48 + t * 12}% ${light.toFixed(1)}%)`;
   };
   const tris: { d: string; fill: string }[] = [];
   for (let r = 0; r < ROWS; r++) {

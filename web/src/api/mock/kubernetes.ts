@@ -20,6 +20,7 @@ const KINDS: KubeKind[] = [
   'persistentvolumeclaims',
   'persistentvolumes',
   'horizontalpodautoscalers',
+  'processes',
 ];
 
 interface Workload {
@@ -226,6 +227,34 @@ function inventory(): KubeResource[] {
       n.pods = on.length;
       n.cpu = { ...n.cpu!, requests: sum(on, (p) => p.cpu).requests, limits: sum(on, (p) => p.cpu).limits };
       n.memory = { ...n.memory!, requests: sum(on, (p) => p.memory).requests, limits: sum(on, (p) => p.memory).limits };
+    }
+    // Processes: the main process of each running pod, plus the node's own daemons.
+    let pid = 1000;
+    const proc = (host: string, cmd: string, user: string, cpu: number, rss: number, age: number, pod?: KubeResource) => {
+      const p = base('processes', cluster, cmd, pod?.namespace ?? null, `process:${host}:${pid}`, age);
+      Object.assign(p, { status: 'Running', node: host, user, hostCpus: 4, ip: String(pid++), cpu: { usage: cpu, capacity: 4 }, memory: { usage: rss } });
+      p.tags.push(`host:${host}`, `command:${cmd.split(' ')[0].split('/').pop()}`, `user:${user}`);
+      if (pod) {
+        p.owner = { kind: 'Pod', name: pod.name, uid: pod.uid };
+        p.tags.push(
+          `pod_name:${pod.name}`,
+          `kube_container_name:${pod.containers[0]?.name ?? pod.name}`,
+          `container_id:${pod.uid
+            .replace(/[^a-z0-9]/g, '')
+            .padEnd(64, '0')
+            .slice(0, 64)}`,
+        );
+      }
+      out.push(p);
+    };
+    for (const p of pods.filter((x) => x.status === 'Running')) {
+      const name = p.containers[0]?.name ?? p.name;
+      proc(p.node ?? '', `/usr/local/bin/${name} --config /etc/${name}/config.yaml`, 'app', (p.cpu?.usage ?? 0.05) * (0.8 + r() * 0.2), (p.memory?.usage ?? 64 * MI) * 0.9, 3 * day, p);
+    }
+    for (const n of nodes) {
+      proc(n.name, '/usr/bin/kubelet --config=/var/lib/kubelet/config.yaml', 'root', 0.08 + r() * 0.05, (90 + r() * 30) * MI, 20 * day);
+      proc(n.name, '/usr/bin/containerd', 'root', 0.03 + r() * 0.02, (50 + r() * 20) * MI, 20 * day);
+      proc(n.name, '/usr/sbin/sshd -D', 'root', 0, 6 * MI, 20 * day);
     }
     const c = base('clusters', cluster, cluster, null, `cluster:${cluster}`, 60 * day);
     Object.assign(c, { status: 'Healthy', nodes: nodes.length, pods: pods.length, version: 'v1.31.2', cpu: sum(nodes, (n) => n.cpu), memory: sum(nodes, (n) => n.memory) });

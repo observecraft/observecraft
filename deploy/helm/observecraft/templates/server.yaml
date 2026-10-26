@@ -1,0 +1,145 @@
+{{- $fullname := include "oc.fullname" . -}}
+{{- $secret := include "oc.secretName" . -}}
+# The API server: REST API and web app (:8080), log indexer for Vector (:8090, internal), monitor
+# evaluation, archiving and notifications (one replica at a time, coordinated through Postgres).
+# Each replica applies pending migrations at startup under a Postgres lock; the others wait.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-server
+  labels:
+    {{- include "oc.componentLabels" (list . "server") | nindent 4 }}
+spec:
+  {{- if not .Values.server.autoscaling.enabled }}
+  replicas: {{ .Values.server.replicas }}
+  {{- end }}
+  revisionHistoryLimit: 5
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "server") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "oc.selector" (list . "server") | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.server.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "oc.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- include "oc.pullSecrets" . | nindent 6 }}
+      {{- include "oc.podSecurity" . | nindent 6 }}
+      {{- include "oc.scheduling" (list . .Values.server "server") | nindent 6 }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: server
+          image: {{ include "oc.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "oc.containerSecurity" . | nindent 10 }}
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: logproc, containerPort: 8090 }
+          env:
+            {{- include "oc.serverEnv" . | nindent 12 }}
+            - { name: OC_NATS_URL, value: {{ include "oc.natsUrl" . | quote }} }
+            - { name: OC_PUBLIC_URL, value: {{ include "oc.publicUrl" . | quote }} }
+            - { name: OC_CORS_ORIGINS, value: {{ include "oc.publicUrl" . | quote }} }
+            - { name: OC_COOKIE_SECURE, value: {{ hasPrefix "https://" (include "oc.publicUrl" .) | quote }} }
+            # Clients' addresses come from the ingress controller.
+            - { name: OC_TRUST_PROXY, value: {{ .Values.ingress.enabled | quote }} }
+            - { name: OC_DEV_ORG, value: {{ .Values.defaultOrg | quote }} }
+            - { name: OC_INSTANCE_ADMIN_EMAIL, value: {{ .Values.instanceAdminEmail | quote }} }
+            - { name: OC_SEED_DEMO, value: {{ .Values.seedDemo | quote }} }
+            - name: OC_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: secret-key } }
+            - name: OC_INTERNAL_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: internal-token } }
+            {{- if or .Values.smtp.url .Values.secrets.existingSecret }}
+            - name: OC_SMTP_URL
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: smtp-url, optional: true } }
+            {{- end }}
+            - { name: OC_SMTP_FROM, value: {{ .Values.smtp.from | quote }} }
+            - { name: OC_QUERY_TIMEOUT_SECONDS, value: {{ .Values.query.timeoutSeconds | quote }} }
+            - { name: OC_QUERY_MAX_MEMORY_BYTES, value: {{ .Values.query.maxMemoryBytes | int64 | quote }} }
+            - { name: OC_RETENTION_LOGS_DAYS, value: {{ .Values.retention.logsDays | quote }} }
+            - { name: OC_RETENTION_LOGS_MAX_DAYS, value: {{ .Values.retention.logsMaxDays | quote }} }
+            - { name: OC_RETENTION_TRACES_DAYS, value: {{ .Values.retention.tracesDays | quote }} }
+            - { name: OC_RETENTION_TRACES_MAX_DAYS, value: {{ .Values.retention.tracesMaxDays | quote }} }
+            - { name: OC_RETENTION_METRICS_DAYS, value: {{ .Values.retention.metricsDays | quote }} }
+            - { name: OC_RETENTION_CI_DAYS, value: {{ .Values.retention.ciDays | quote }} }
+            - { name: OC_RAW_LOGS_HOURS, value: {{ .Values.retention.rawLogsHours | quote }} }
+            - { name: OC_DATA_DIR, value: /var/lib/observecraft }
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          # Listening means migrations are done; readiness doesn't follow the databases, so a short
+          # ClickHouse outage doesn't take the UI (and sign-in) down with it.
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.server.resources | nindent 12 }}
+          volumeMounts:
+            # Archive download cache and search scratch space.
+            - { name: data, mountPath: /var/lib/observecraft }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: data
+          emptyDir: { sizeLimit: 10Gi }
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-server
+  labels:
+    {{- include "oc.componentLabels" (list . "server") | nindent 4 }}
+spec:
+  selector:
+    {{- include "oc.selector" (list . "server") | nindent 4 }}
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+    - { name: logproc, port: 8090, targetPort: logproc }
+{{- if .Values.server.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $fullname }}-server
+  labels:
+    {{- include "oc.componentLabels" (list . "server") | nindent 4 }}
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $fullname }}-server }
+  minReplicas: {{ .Values.server.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.server.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: {{ .Values.server.autoscaling.targetCPUUtilizationPercentage }} } }
+{{- end }}
+{{- if .Values.server.podDisruptionBudget.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $fullname }}-server
+  labels:
+    {{- include "oc.componentLabels" (list . "server") | nindent 4 }}
+spec:
+  maxUnavailable: {{ .Values.server.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "server") | nindent 6 }}
+{{- end }}

@@ -100,7 +100,7 @@ export function Sparkline({ values, width = 114, height = 34 }: { values: number
   );
 }
 
-const AVATAR_COLORS = ['#7c4dff', '#2f6ad0', '#29a8a0', '#d65cad', '#f2a93b', '#5fb85a'];
+const AVATAR_COLORS = ['#0b6e69', '#2f6ad0', '#29a8a0', '#d65cad', '#f2a93b', '#5fb85a'];
 
 export function Avatar({ user, size = 26 }: { user: User | null; size?: number }) {
   if (!user)

@@ -947,7 +947,7 @@ pub async fn trace(State(st): State<AppState>, OrgId(org): OrgId, Path(trace_id)
     let bounds = st
         .ch(&org)
         // Start/End are second-precision DateTime here; the span query below pads by a second each side.
-        .query("SELECT toInt64(toUnixTimestamp(min(Start))) * 1000000000 AS start, toInt64(toUnixTimestamp(max(End))) * 1000000000 AS end FROM otel.otel_traces_trace_id_ts WHERE TraceId = ?")
+        .query("SELECT toInt64(toUnixTimestamp(min(Start))) * 1000000000 AS start, toInt64(toUnixTimestamp(max(End))) * 1000000000 AS end FROM otel.otel_traces_trace_id_ts WHERE OrgId = {oc_org:String} AND TraceId = ?")
         .bind(trace_id.as_str())
         .fetch_one::<Bounds>()
         .await?;
