@@ -23,7 +23,7 @@ sha2 = "0.10"
 sqlx.workspace = true
 tokio.workspace = true
 # OTLP/gRPC: framing, compression and status codes only (messages are passed through undecoded).
-tonic = { version = "0.12", default-features = false, features = ["gzip", "zstd"] }
+tonic = { version = "0.14", default-features = false, features = ["gzip", "zstd"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
 zstd = "0.13"
