@@ -1,6 +1,6 @@
 // In-browser Cloud Network Monitoring for mock mode: the demo services' traffic (the same topology
 // oc-tracegen sends), oriented and grouped like the API does.
-import type { Flow, FlowPage, FlowRequest, NetworkPoint } from '../network/client';
+import type { DnsFlow, DnsPage, DnsPoint, DnsRequest, Flow, FlowPage, FlowRequest, NetworkPoint } from '../network/client';
 import { parseQuery, type Term } from '../../lib/searchQuery';
 import { rng } from './generator';
 
@@ -171,5 +171,96 @@ export async function networkFlows(req: FlowRequest): Promise<FlowPage> {
     stepMs,
     series: [...series.values()].sort((a, b) => a.t - b.t).map(({ rttSum, n, ...p }) => ({ ...p, rttUs: n ? rttSum / n : null, rttVarUs: n ? (rttSum / n) * 0.12 : null })),
     facets,
+  };
+}
+
+// client, domain, type, requests per 30 s, NXDOMAIN share, response time (µs) — as oc-tracegen sends.
+const DNS: [string, string, string, number, number, number][] = [
+  ['api-gateway', 'storefront-api.shop.svc.cluster.local', 'A', 120, 0, 450],
+  ['storefront-api', 'catalog-service.shop.svc.cluster.local', 'A', 80, 0, 420],
+  ['storefront-api', 'order-service.shop.svc.cluster.local', 'A', 60, 0, 430],
+  ['order-service', 'billing.payments.svc.cluster.local', 'A', 40, 0, 460],
+  ['order-service', 'postgres.internal.example.net', 'A', 12, 0, 1900],
+  ['inventory-service', 'inventory-cache.shop.svc.cluster.local', 'A', 20, 0.08, 520],
+  ['billing', 'payments.example.net', 'A', 18, 0, 18_000],
+  ['workflow-engine', 'legacy-erp.internal.example.net', 'A', 6, 1, 2400],
+  ['notification-worker', 'smtp.example.net', 'MX', 3, 0, 23_000],
+];
+const RESOLVER: Tags = { service: 'coredns', ip: '10.0.4.10', host: 'i-0a1b2c3d4e5f60003', pod_name: 'coredns-7d9f8c', dns_server: 'coredns-7d9f8c', kube_namespace: 'kube-system', port: '53' };
+
+export async function networkDns(req: DnsRequest): Promise<DnsPage> {
+  const span = Math.max(1, req.range.to - req.range.from);
+  const stepMs = Math.max(30_000, Math.floor(span / 60 / 30_000) * 30_000);
+  const cg = req.clientGroupBy || 'service';
+  const sg = req.serverGroupBy || 'dns_server';
+  const terms = parseQuery(req.query ?? '');
+  const flows = new Map<string, DnsFlow & { latency: number }>();
+  const series = new Map<number, DnsPoint & { latency: number }>();
+  for (let t = Math.ceil(req.range.from / stepMs) * stepMs; t <= req.range.to; t += stepMs) {
+    const r = rng(Math.floor(t / 30_000) + 7);
+    for (const [c, domain, type, per, nx, latency] of DNS) {
+      const client = NODES.find((n) => n.service === c)!;
+      const server = { ...RESOLVER, dns_query: domain, dns_query_type: type };
+      const row: Row = { t, client, server, sent: 0, received: 0, established: 0, retransmits: 0, rtt: 0, external: false };
+      const labels: [string, string] = [client[cg] ?? 'N/A', server[sg as keyof typeof server] ?? 'N/A'];
+      if (!matches(terms, row, labels)) continue;
+      const requests = Math.round(per * (stepMs / 30_000) * (0.7 + r() * 0.6));
+      const nxdomain = Math.round(requests * nx);
+      const timeouts = r() < 0.05 ? 1 : 0;
+      const key = labels.join('\u0000');
+      const f = flows.get(key) ?? {
+        client: labels[0],
+        server: labels[1],
+        clientTags: Object.entries(client).map(([k, v]) => `${k}:${v}`),
+        serverTags: Object.entries(server).map(([k, v]) => `${k}:${v}`),
+        requests: 0,
+        requestsPerSec: 0,
+        noerror: 0,
+        servfail: 0,
+        nxdomain: 0,
+        otherErrors: 0,
+        timeouts: 0,
+        responseTimeUs: null,
+        latency: 0,
+      };
+      f.requests += requests;
+      f.nxdomain += nxdomain;
+      f.timeouts += timeouts;
+      f.noerror += requests - nxdomain - timeouts;
+      f.latency += (requests - timeouts) * latency;
+      flows.set(key, f);
+      const p = series.get(t) ?? { t, requests: 0, errors: 0, timeouts: 0, responseTimeUs: null, latency: 0 };
+      p.requests += requests;
+      p.errors += nxdomain;
+      p.timeouts += timeouts;
+      p.latency += (requests - timeouts) * latency;
+      series.set(t, p);
+    }
+  }
+  const list = [...flows.values()]
+    .map(({ latency, ...f }) => ({ ...f, requestsPerSec: f.requests / (span / 1000), responseTimeUs: f.requests > f.timeouts ? latency / (f.requests - f.timeouts) : null }))
+    .sort((a, b) => b.requests - a.requests);
+  const facet = (key: string, values: string[]) => ({ key, values: [...new Set(values)].map((value) => ({ value, count: values.filter((v) => v === value).length })) });
+  return {
+    flows: list.slice(0, req.limit),
+    total: list.length,
+    enabled: true,
+    stepMs,
+    series: [...series.values()].map(({ latency, ...p }) => ({ ...p, responseTimeUs: p.requests > p.timeouts ? latency / (p.requests - p.timeouts) : null })),
+    facets: [
+      facet(
+        'client_service',
+        DNS.map((d) => d[0]),
+      ),
+      facet('server_dns_server', [RESOLVER.dns_server]),
+      facet(
+        'server_dns_query',
+        DNS.map((d) => d[1]),
+      ),
+      facet(
+        'server_dns_query_type',
+        DNS.map((d) => d[2]),
+      ),
+    ],
   };
 }

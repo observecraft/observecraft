@@ -66,7 +66,7 @@ keep Datadog's tracing libraries, profilers and DogStatsD clients as they are. W
 | Events (Agent, DogStatsD, events API) | Event Management → All Events |
 | Host metadata (OS, hardware, agent version, cloud, host tags) | host list and host page |
 | Live processes and containers | Processes explorer, the host page's and the Kubernetes side panel's Processes tabs; `process.*` and `container.*` metrics |
-| Network connections (system-probe) | Cloud Network Monitoring (Analytics, Map) |
+| Network connections and DNS (system-probe) | Cloud Network Monitoring (Analytics with its DNS view, Map) |
 | Cluster Agent manifests, kubelet metrics | Kubernetes Explorer (tables, YAML, CPU and memory) |
 
 **Kubernetes, with Datadog's Helm chart:** [`deploy/examples/datadog/values.yaml`](../deploy/examples/datadog/values.yaml)
@@ -122,8 +122,9 @@ sample types (`cpu`, `inuse_space`, …) are shown under Datadog's names (CPU Ti
 **What isn't supported yet:**
 - Some payloads are acknowledged so the Agent doesn't keep retrying them, but they aren't stored: the Agent's
   inventories (`/api/v1/metadata`) and the orchestrator's summaries (`/api/v2/orch`).
-- Cloud Network Monitoring resolves IPs to tags from the Kubernetes inventory, the hosts' Datadog metadata and the
-  other Agents' reports; DNS names (`domain`), network paths and the DNS page aren't available yet.
+- Cloud Network Monitoring resolves IPs to tags from the Kubernetes inventory, the hosts' Datadog metadata, the
+  other Agents' reports and the hosts' DNS lookups (`domain`). DNS monitoring (requests, response time, timeouts,
+  SERVFAIL, NXDOMAIN per domain and query type) needs Agent 7.33+. Network paths aren't available yet.
 - Not available yet: Cloud Security, the live debugger, data streams and remote configuration.
 - The examples set `site` to a domain that isn't Datadog's, `observecraft.invalid`. They also turn off products that
   would send to Datadog's own intakes, so nothing the Agent collects goes to Datadog.

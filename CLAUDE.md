@@ -66,7 +66,7 @@ or SDK features.
   - events `/api/v1/events`, `/api/v2/events` and the events inside `/intake/`, stored in `otel.otel_events`;
   - host metadata `/intake/` and `/api/v2/host_metadata`, stored in Postgres `datadog_hosts`;
   - live processes and containers `/api/v1/collector` and `/api/v1/container`, stored as `process.*` / `container.*` metrics;
-  - network connections `/api/v1/connections`, stored in `otel.otel_network` (Cloud Network Monitoring);
+  - network connections and DNS stats `/api/v1/connections`, stored in `otel.otel_network` (Cloud Network Monitoring);
   - orchestrator manifests `/api/v2/orchmanif`, which feed the Kubernetes Explorer;
   - `/api/v1/validate`. The API key is also accepted as `?api_key=`.
 - **Deployment:** use the official Datadog Helm chart and Datadog Operator unchanged; examples are in
@@ -87,7 +87,7 @@ or SDK features.
     - the log pipelines in `assets/logs/`, once log pipelines exist.
   - Keep their copyright and LICENSE text with anything copied, and note the source path and version.
 - **Still missing:**
-  - Cloud Network Monitoring's DNS page, `domain` resolution and network paths;
+  - Cloud Network Monitoring's network paths, and the connections' encoded container tags (`encodedTags`);
   - the profiler's Thread Timeline and Call Graph views, and Event Management's Triage Inbox correlators;
   - Cloud Security, the live debugger, data streams and remote configuration;
   - RUM (`browser-sdk`, Apache-2.0), which needs a RUM product first.

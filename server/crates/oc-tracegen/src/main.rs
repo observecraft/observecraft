@@ -851,7 +851,7 @@ async fn main() -> anyhow::Result<()> {
             profiles::send(&http, &profile_url, &mut rng, now_ns()).await;
         }
         if seconds % 30 == 15 {
-            send_network(&http, &logs_url, &mut rng, now_ns()).await;
+            send_network(&http, &logs_url, &mut rng, now_ns(), true).await;
         }
         seconds += 1;
         let n = rng.range(per_sec * 7 / 10, per_sec * 13 / 10 + 1);
@@ -906,36 +906,37 @@ async fn send_ci(http: &reqwest::Client, url: &str, resource_spans: Vec<Value>) 
 }
 
 /// Fills the last 7 days with pipeline runs when ClickHouse has (almost) none yet.
-async fn send_network(http: &reqwest::Client, url: &str, rng: &mut Rng, now: u64) {
-    if let Err(e) = http.post(url).json(&network::payload(rng, now)).send().await.and_then(|r| r.error_for_status()) {
+async fn send_network(http: &reqwest::Client, url: &str, rng: &mut Rng, now: u64, connections: bool) {
+    if let Err(e) = http.post(url).json(&network::payload(rng, now, connections)).send().await.and_then(|r| r.error_for_status()) {
         tracing::warn!(error = %e, "network connections export failed");
     }
 }
 
-/// The last hour of network connections, when there are none yet.
+/// The last hour of network connections and DNS stats, when there are none yet (DNS alone when
+/// only the connections exist, from before DNS was generated).
 async fn backfill_network(http: &reqwest::Client, url: &str, rng: &mut Rng) -> anyhow::Result<()> {
     let ch = std::env::var("CLICKHOUSE_HTTP").unwrap_or_else(|_| "http://localhost:8123".into());
     let user = std::env::var("CLICKHOUSE_USER").unwrap_or_else(|_| "observecraft".into());
     let password = std::env::var("CLICKHOUSE_PASSWORD").unwrap_or_else(|_| "observecraft".into());
-    let count: u64 = http
+    let counts = http
         .get(&ch)
         .basic_auth(user, Some(password))
-        .query(&[("query", "SELECT count() FROM otel.otel_network WHERE Timestamp > now() - INTERVAL 70 MINUTE")])
+        .query(&[("query", "SELECT countIf(LogAttributes['kind'] != 'dns'), countIf(LogAttributes['kind'] = 'dns') FROM otel.otel_network WHERE Timestamp > now() - INTERVAL 70 MINUTE")])
         .send()
         .await?
         .error_for_status()?
         .text()
-        .await?
-        .trim()
-        .parse()?;
-    if count >= 100 {
+        .await?;
+    let mut it = counts.split_whitespace().map(|n| n.parse::<u64>());
+    let (conns, dns) = (it.next().unwrap_or(Ok(0))?, it.next().unwrap_or(Ok(0))?);
+    if conns >= 100 && dns >= 100 {
         return Ok(());
     }
     let now = now_ns();
     for slot in (1..=120u64).rev() {
-        send_network(http, url, rng, now - slot * 30_000_000_000).await;
+        send_network(http, url, rng, now - slot * 30_000_000_000, conns < 100).await;
     }
-    tracing::info!("backfilled an hour of network connections");
+    tracing::info!("backfilled an hour of network data");
     Ok(())
 }
 

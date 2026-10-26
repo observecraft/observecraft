@@ -18,6 +18,7 @@ use axum::Json;
 use serde_json::json;
 
 use crate::datadog::inflate;
+use crate::datadog_dns;
 use crate::datadog_orch::message_body;
 use crate::datadog_process::RES_COLLECTOR;
 use crate::otlp;
@@ -37,6 +38,35 @@ pub mod pb {
         pub connections: Vec<Connection>,
         #[prost(map = "int32, string", tag = "10")]
         pub container_for_pid: HashMap<i32, String>,
+        /// IP → domains, version 1 encoding (older Agents).
+        #[prost(bytes = "vec", tag = "14")]
+        pub encoded_dns: Vec<u8>,
+        /// Domains queried, for `dnsStatsByDomain*` keyed by index.
+        #[prost(string, repeated, tag = "30")]
+        pub domains: Vec<String>,
+        #[prost(bytes = "vec", tag = "36")]
+        pub encoded_domain_database: Vec<u8>,
+        /// IP → domains, version 2 encoding (offsets into `encoded_domain_database`).
+        #[prost(bytes = "vec", tag = "37")]
+        pub encoded_dns_lookups: Vec<u8>,
+    }
+    /// DNS responses seen on a connection (to one domain and query type, or overall).
+    #[derive(Clone, PartialEq, prost::Message)]
+    pub struct DnsStats {
+        #[prost(uint32, tag = "1")]
+        pub timeouts: u32,
+        /// Microseconds.
+        #[prost(uint64, tag = "2")]
+        pub success_latency_sum: u64,
+        #[prost(uint64, tag = "3")]
+        pub failure_latency_sum: u64,
+        #[prost(map = "uint32, uint32", tag = "4")]
+        pub count_by_rcode: HashMap<u32, u32>,
+    }
+    #[derive(Clone, PartialEq, prost::Message)]
+    pub struct DnsStatsByQueryType {
+        #[prost(map = "int32, message", tag = "1")]
+        pub by_query_type: HashMap<i32, DnsStats>,
     }
     #[derive(Clone, PartialEq, prost::Message)]
     pub struct Connection {
@@ -66,6 +96,23 @@ pub mod pb {
         pub rtt_var: u32,
         #[prost(bool, tag = "24")]
         pub intra_host: bool,
+        #[prost(uint32, tag = "27")]
+        pub dns_timeouts: u32,
+        #[prost(uint64, tag = "28")]
+        pub dns_success_latency_sum: u64,
+        #[prost(uint64, tag = "29")]
+        pub dns_failure_latency_sum: u64,
+        #[prost(map = "uint32, uint32", tag = "33")]
+        pub dns_count_by_rcode: HashMap<u32, u32>,
+        /// Deprecated: by index into `domains`, all query types together.
+        #[prost(map = "int32, message", tag = "34")]
+        pub dns_stats_by_domain: HashMap<i32, DnsStats>,
+        /// By index into `domains`.
+        #[prost(map = "int32, message", tag = "42")]
+        pub dns_stats_by_domain_by_query_type: HashMap<i32, DnsStatsByQueryType>,
+        /// By byte offset into `encoded_domain_database`.
+        #[prost(map = "int32, message", tag = "43")]
+        pub dns_stats_by_domain_offset_by_query_type: HashMap<i32, DnsStatsByQueryType>,
         #[prost(uint32, tag = "30")]
         pub last_tcp_established: u32,
         #[prost(uint32, tag = "31")]
@@ -100,6 +147,60 @@ pub mod pb {
     }
 }
 
+/// The DNS stats of a connection: per (domain, query type) when the Agent breaks them down,
+/// otherwise the connection's totals with no domain.
+fn dns_stats(m: &pb::CollectorConnections, c: &pb::Connection) -> Vec<(String, Option<i32>, pb::DnsStats)> {
+    let mut out = Vec::new();
+    for (offset, by_type) in &c.dns_stats_by_domain_offset_by_query_type {
+        let Some(domain) = usize::try_from(*offset).ok().and_then(|o| datadog_dns::domain_at(&m.encoded_domain_database, o)) else { continue };
+        out.extend(by_type.by_query_type.iter().map(|(t, s)| (domain.clone(), Some(*t), s.clone())));
+    }
+    if out.is_empty() {
+        for (idx, by_type) in &c.dns_stats_by_domain_by_query_type {
+            let Some(domain) = usize::try_from(*idx).ok().and_then(|i| m.domains.get(i)) else { continue };
+            out.extend(by_type.by_query_type.iter().map(|(t, s)| (domain.clone(), Some(*t), s.clone())));
+        }
+    }
+    if out.is_empty() {
+        for (idx, s) in &c.dns_stats_by_domain {
+            let Some(domain) = usize::try_from(*idx).ok().and_then(|i| m.domains.get(i)) else { continue };
+            out.push((domain.clone(), None, s.clone()));
+        }
+    }
+    if out.is_empty() && (c.dns_timeouts > 0 || !c.dns_count_by_rcode.is_empty()) {
+        out.push((
+            String::new(),
+            None,
+            pb::DnsStats { timeouts: c.dns_timeouts, success_latency_sum: c.dns_success_latency_sum, failure_latency_sum: c.dns_failure_latency_sum, count_by_rcode: c.dns_count_by_rcode.clone() },
+        ));
+    }
+    out.retain(|(_, _, s)| s.timeouts > 0 || s.count_by_rcode.values().any(|n| *n > 0));
+    out
+}
+
+/// A DNS record's attributes: responses by outcome (NOERROR, SERVFAIL, NXDOMAIN, other errors),
+/// timeouts and latency sums (µs).
+fn dns_attributes(domain: &str, qtype: Option<i32>, s: &pb::DnsStats) -> Vec<otlp::KeyValue> {
+    let count = |code: u32| u64::from(s.count_by_rcode.get(&code).copied().unwrap_or(0));
+    let other: u64 = s.count_by_rcode.iter().filter(|(code, _)| ![0, 2, 3].contains(*code)).map(|(_, n)| u64::from(*n)).sum();
+    let mut out = vec![
+        otlp::kv("dns.noerror", count(0).to_string()),
+        otlp::kv("dns.servfail", count(2).to_string()),
+        otlp::kv("dns.nxdomain", count(3).to_string()),
+        otlp::kv("dns.other_errors", other.to_string()),
+        otlp::kv("dns.timeouts", s.timeouts.to_string()),
+        otlp::kv("dns.success_latency_us", s.success_latency_sum.to_string()),
+        otlp::kv("dns.failure_latency_us", s.failure_latency_sum.to_string()),
+    ];
+    if !domain.is_empty() {
+        out.push(otlp::kv("dns.query", domain));
+    }
+    if let Some(t) = qtype {
+        out.push(otlp::kv("dns.query_type", datadog_dns::query_type(t)));
+    }
+    out
+}
+
 fn direction(d: i32) -> &'static str {
     match d {
         1 => "incoming",
@@ -118,17 +219,50 @@ pub fn to_otlp(data: &[u8], now: u64) -> Result<Option<(otlp::ExportLogsServiceR
     }
     let m = pb::CollectorConnections::decode(raw.as_slice()).map_err(|e| e.to_string())?;
     let containers: &HashMap<i32, String> = &m.container_for_pid;
-    let records: Vec<otlp::LogRecord> = m
-        .connections
-        .iter()
+    // What the host resolved: IP → domains.
+    let resolved = if !m.encoded_dns_lookups.is_empty() {
+        datadog_dns::decode_v2(&m.encoded_dns_lookups, &m.encoded_domain_database)
+    } else if !m.encoded_dns.is_empty() {
+        datadog_dns::decode_v1(&m.encoded_dns)
+    } else {
+        HashMap::new()
+    };
+    let mut records: Vec<otlp::LogRecord> = Vec::new();
+    for c in &m.connections {
+        let l = c.laddr.clone().unwrap_or_default();
+        let r = c.raddr.clone().unwrap_or_default();
+        let container = if l.container_id.is_empty() { containers.get(&c.pid).cloned().unwrap_or_default() } else { l.container_id.clone() };
+        // The endpoints, shared by the connection record and its DNS records.
+        let mut endpoint = vec![
+            otlp::kv("direction", direction(c.direction)),
+            otlp::kv("type", if c.r#type == 1 { "udp" } else { "tcp" }),
+            otlp::kv("family", if c.family == 1 { "v6" } else { "v4" }),
+            otlp::kv("local.ip", l.ip.as_str()),
+            otlp::kv("local.port", l.port.to_string()),
+            otlp::kv("local.port_ephemeral", if c.is_local_port_ephemeral == 1 { "true" } else { "false" }),
+            otlp::kv("remote.ip", r.ip.as_str()),
+            otlp::kv("remote.port", r.port.to_string()),
+            otlp::kv("pid", c.pid.to_string()),
+        ];
+        if !container.is_empty() {
+            endpoint.push(otlp::kv("container.id", container));
+        }
+        if let Some(domain) = resolved.get(&r.ip).and_then(|d| d.first()) {
+            endpoint.push(otlp::kv("remote.domain", domain.as_str()));
+        }
+        for (domain, qtype, stats) in dns_stats(&m, c) {
+            let mut attributes = endpoint.clone();
+            attributes.push(otlp::kv("kind", "dns"));
+            attributes.extend(dns_attributes(&domain, qtype, &stats));
+            records.push(otlp::LogRecord { time_unix_nano: now, observed_time_unix_nano: now, attributes, ..Default::default() });
+        }
         // Nothing moved since the last report: not a flow worth storing.
-        .filter(|c| c.last_bytes_sent + c.last_bytes_received + u64::from(c.last_tcp_established) + u64::from(c.last_tcp_closed) > 0)
-        .map(|c| {
-            let l = c.laddr.clone().unwrap_or_default();
-            let r = c.raddr.clone().unwrap_or_default();
-            let container = if l.container_id.is_empty() { containers.get(&c.pid).cloned().unwrap_or_default() } else { l.container_id.clone() };
-            let mut attributes = vec![
-                otlp::kv("direction", direction(c.direction)),
+        if c.last_bytes_sent + c.last_bytes_received + u64::from(c.last_tcp_established) + u64::from(c.last_tcp_closed) == 0 {
+            continue;
+        }
+        records.push({
+            let mut attributes = endpoint;
+            attributes.extend([
                 otlp::kv("type", if c.r#type == 1 { "udp" } else { "tcp" }),
                 otlp::kv("family", if c.family == 1 { "v6" } else { "v4" }),
                 otlp::kv("local.ip", l.ip.as_str()),
@@ -147,10 +281,7 @@ pub fn to_otlp(data: &[u8], now: u64) -> Result<Option<(otlp::ExportLogsServiceR
                 otlp::kv("tcp_established", c.last_tcp_established.to_string()),
                 otlp::kv("tcp_closed", c.last_tcp_closed.to_string()),
                 otlp::kv("intra_host", c.intra_host.to_string()),
-            ];
-            if !container.is_empty() {
-                attributes.push(otlp::kv("container.id", container));
-            }
+            ]);
             if !r.container_id.is_empty() {
                 attributes.push(otlp::kv("remote.container.id", r.container_id.as_str()));
             }
@@ -160,8 +291,8 @@ pub fn to_otlp(data: &[u8], now: u64) -> Result<Option<(otlp::ExportLogsServiceR
                 attributes.push(otlp::kv("remote.translated_port", t.repl_src_port.to_string()));
             }
             otlp::LogRecord { time_unix_nano: now, observed_time_unix_nano: now, attributes, ..Default::default() }
-        })
-        .collect();
+        });
+    }
     let n = records.len();
     let attributes = vec![otlp::kv("host.name", m.host_name.as_str()), otlp::kv("oc.signal", "dd.connections")];
     let req = otlp::ExportLogsServiceRequest {
@@ -224,6 +355,7 @@ mod tests {
                 pb::Connection { pid: 8, ..Default::default() },
             ],
             container_for_pid: containers,
+            ..Default::default()
         };
         let mut msg = vec![3, 4, TYPE_COLLECTOR_CONNECTIONS, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         msg.extend_from_slice(&zstd::encode_all(m.encode_to_vec().as_slice(), 1).unwrap());
@@ -234,5 +366,54 @@ mod tests {
             assert!(r.attributes.contains(&otlp::kv(k, v)), "{k}");
         }
         assert!(req.resource_logs[0].resource.as_ref().unwrap().attributes.contains(&otlp::kv("oc.signal", "dd.connections")));
+    }
+
+    #[test]
+    fn dns_lookups_and_stats() {
+        let (lookups, db) = datadog_dns::tests::encode_v2(&[("203.0.113.10", &["payments.example.net"])]);
+        let mut rcodes = HashMap::new();
+        rcodes.insert(0, 40);
+        rcodes.insert(3, 2);
+        let mut by_type = HashMap::new();
+        by_type.insert(1, pb::DnsStats { timeouts: 1, success_latency_sum: 4000, failure_latency_sum: 300, count_by_rcode: rcodes });
+        let mut by_domain = HashMap::new();
+        // The domain's offset in the database: after the count and middle varints.
+        by_domain.insert(2, pb::DnsStatsByQueryType { by_query_type: by_type });
+        let m = pb::CollectorConnections {
+            host_name: "web-1".into(),
+            connections: vec![
+                pb::Connection {
+                    laddr: Some(pb::Addr { ip: "10.0.0.5".into(), port: 40000, ..Default::default() }),
+                    raddr: Some(pb::Addr { ip: "10.0.0.2".into(), port: 53, ..Default::default() }),
+                    r#type: 1,
+                    direction: 2,
+                    last_bytes_sent: 3000,
+                    last_bytes_received: 9000,
+                    dns_stats_by_domain_offset_by_query_type: by_domain,
+                    ..Default::default()
+                },
+                pb::Connection {
+                    laddr: Some(pb::Addr { ip: "10.0.0.5".into(), port: 41000, ..Default::default() }),
+                    raddr: Some(pb::Addr { ip: "203.0.113.10".into(), port: 443, ..Default::default() }),
+                    direction: 2,
+                    last_bytes_sent: 100,
+                    ..Default::default()
+                },
+            ],
+            encoded_dns_lookups: lookups,
+            encoded_domain_database: db,
+            ..Default::default()
+        };
+        let mut msg = vec![3, 4, TYPE_COLLECTOR_CONNECTIONS, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        msg.extend_from_slice(&zstd::encode_all(m.encode_to_vec().as_slice(), 1).unwrap());
+        let (req, n) = to_otlp(&msg, 5).unwrap().unwrap();
+        assert_eq!(n, 3);
+        let records = &req.resource_logs[0].scope_logs[0].log_records;
+        let dns = records.iter().find(|r| r.attributes.contains(&otlp::kv("kind", "dns"))).unwrap();
+        for (k, v) in [("dns.query", "payments.example.net"), ("dns.query_type", "A"), ("dns.noerror", "40"), ("dns.nxdomain", "2"), ("dns.timeouts", "1"), ("remote.port", "53")] {
+            assert!(dns.attributes.contains(&otlp::kv(k, v)), "{k}");
+        }
+        let external = records.iter().find(|r| r.attributes.contains(&otlp::kv("remote.ip", "203.0.113.10"))).unwrap();
+        assert!(external.attributes.contains(&otlp::kv("remote.domain", "payments.example.net")));
     }
 }

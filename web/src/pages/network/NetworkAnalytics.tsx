@@ -132,21 +132,67 @@ const tagValue = (tags: string[], key: string) => tags.find((t) => t.startsWith(
 type PanelTab = 'flows' | 'logs' | 'traces' | 'processes';
 
 /** Side panel of a flow: shared tags, then the connections behind it, logs, traces and processes. */
-function FlowPanel({ flow, base, onClose }: { flow: Flow; base: { query: string; clientGroupBy: string; serverGroupBy: string }; onClose: () => void }) {
-  const navigate = useNavigate();
+/** The query of one row: the page's query plus the row's client and server values. */
+export function scopedQuery(query: string, row: { client: string; server: string }, clientGroupBy: string, serverGroupBy: string): string {
+  let scoped = query;
+  if (row.client !== 'N/A') scoped = addTerm(scoped, `client_${clientGroupBy}`, row.client);
+  if (row.server !== 'N/A') scoped = addTerm(scoped, `server_${serverGroupBy}`, row.server);
+  return scoped;
+}
+
+/** Flows tab of a traffic row: the connections behind it, by client IP and server port. */
+function NetworkFlowsTab({ query }: { query: string }) {
   const { range } = useTime();
   const traffic = useTraffic();
+  const detail = useQuery({
+    queryKey: ['network', 'detail', range, query, traffic],
+    queryFn: () => networkFlows({ range, query, clientGroupBy: 'ip', serverGroupBy: 'port', ...traffic, showUnresolved: true, limit: 200 }),
+  });
+  if (detail.isPending) return <Loading label="Loading flows…" />;
+  if (detail.isError) return <ErrorState error={detail.error} onRetry={() => detail.refetch()} />;
+  return (
+    <table className="net-mini">
+      <thead>
+        <tr>
+          <th>CLIENT IP</th>
+          <th>SERVER PORT</th>
+          <th className="num">VOLUME SENT</th>
+          <th className="num">VOLUME RECEIVED</th>
+          <th className="num">TCP LATENCY</th>
+          <th className="num">RETRANSMITS</th>
+        </tr>
+      </thead>
+      <tbody>
+        {detail.data.flows.map((f) => (
+          <tr key={`${f.client}-${f.server}`}>
+            <td className="mono">{f.client}</td>
+            <td className="mono">{f.server}</td>
+            <td className="num">{formatBytes(f.bytesSent)}</td>
+            <td className="num">{formatBytes(f.bytesReceived)}</td>
+            <td className="num">{fmtLatency(f.rttUs)}</td>
+            <td className="num">{f.retransmits}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+interface PanelRow {
+  client: string;
+  server: string;
+  clientTags: string[];
+  serverTags: string[];
+}
+
+/** Side panel of a traffic or DNS row: shared tags, then Flows (given), Logs, Traces and Processes of the client. */
+export function TrafficPanel({ row, flows, onClose }: { row: PanelRow; flows: React.ReactNode; onClose: () => void }) {
+  const flow = row;
+  const navigate = useNavigate();
+  const { range } = useTime();
   const [tab, setTab] = useState<PanelTab>('flows');
-  let scoped = base.query;
-  if (flow.client !== 'N/A') scoped = addTerm(scoped, `client_${base.clientGroupBy}`, flow.client);
-  if (flow.server !== 'N/A') scoped = addTerm(scoped, `server_${base.serverGroupBy}`, flow.server);
   const service = tagValue(flow.clientTags, 'service');
   const host = tagValue(flow.clientTags, 'host');
-  const detail = useQuery({
-    queryKey: ['network', 'detail', range, scoped, traffic],
-    queryFn: () => networkFlows({ range, query: scoped, clientGroupBy: 'ip', serverGroupBy: 'port', ...traffic, showUnresolved: true, limit: 200 }),
-    enabled: tab === 'flows',
-  });
   const logs = useQuery({ queryKey: ['network', 'logs', range, service], queryFn: () => searchLogs({ range, query: `service:${service}` }), enabled: tab === 'logs' && !!service });
   const spans = useQuery({
     queryKey: ['network', 'spans', range, service],
@@ -186,37 +232,7 @@ function FlowPanel({ flow, base, onClose }: { flow: Flow; base: { query: string;
         ))}
       </nav>
       <div className="net-panel-body">
-        {tab === 'flows' &&
-          (detail.isPending ? (
-            <Loading label="Loading flows…" />
-          ) : detail.isError ? (
-            <ErrorState error={detail.error} onRetry={() => detail.refetch()} />
-          ) : (
-            <table className="net-mini">
-              <thead>
-                <tr>
-                  <th>CLIENT IP</th>
-                  <th>SERVER PORT</th>
-                  <th className="num">VOLUME SENT</th>
-                  <th className="num">VOLUME RECEIVED</th>
-                  <th className="num">TCP LATENCY</th>
-                  <th className="num">RETRANSMITS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detail.data.flows.map((f) => (
-                  <tr key={`${f.client}-${f.server}`}>
-                    <td className="mono">{f.client}</td>
-                    <td className="mono">{f.server}</td>
-                    <td className="num">{formatBytes(f.bytesSent)}</td>
-                    <td className="num">{formatBytes(f.bytesReceived)}</td>
-                    <td className="num">{fmtLatency(f.rttUs)}</td>
-                    <td className="num">{f.retransmits}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ))}
+        {tab === 'flows' && flows}
         {tab === 'logs' &&
           (!service ? (
             <Empty>The client has no service tag to find its logs by.</Empty>
@@ -297,7 +313,7 @@ function FlowPanel({ flow, base, onClose }: { flow: Flow; base: { query: string;
 }
 
 /** Cloud Network Monitoring → Analytics: traffic between client and server groups. */
-export function NetworkAnalytics() {
+export function NetworkAnalytics({ toggle }: { toggle?: React.ReactNode }) {
   const { range } = useTime();
   const traffic = useTraffic();
   const [params, setParams] = useSearchParams();
@@ -335,6 +351,7 @@ export function NetworkAnalytics() {
 
   return (
     <div className="net-page">
+      {toggle}
       <div className="net-query">
         <QueryBar value={query} onChange={(v) => set({ q: v })} placeholder="Search for traffic by tags, such as client_service:checkout or server_port:443" />
       </div>
@@ -476,7 +493,7 @@ export function NetworkAnalytics() {
           </div>
         </>
       )}
-      {selected && <FlowPanel flow={selected} base={{ query, clientGroupBy, serverGroupBy }} onClose={() => setSelected(null)} />}
+      {selected && <TrafficPanel row={selected} flows={<NetworkFlowsTab query={scopedQuery(query, selected, clientGroupBy, serverGroupBy)} />} onClose={() => setSelected(null)} />}
     </div>
   );
 }

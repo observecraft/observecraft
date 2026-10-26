@@ -375,3 +375,7 @@
   position: absolute;
   min-width: 120px;
 }
+
+.net-view-toggle {
+  margin-bottom: 10px;
+}

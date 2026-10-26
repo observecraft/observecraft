@@ -145,6 +145,7 @@ struct ConnRow {
     remote_ip: String,
     remote_port: String,
     translated_ip: String,
+    remote_domain: String,
     sent: u64,
     received: u64,
     retransmits: u64,
@@ -214,18 +215,18 @@ struct Oriented<'a> {
 
 /// Whether a side's tags satisfy the `<side>_*` terms (and free text against `label`), skipping
 /// terms on `skip`.
-fn matches(terms: &[Term], o: &Oriented, labels: (&str, &str), skip: Option<&str>) -> bool {
+fn matches(terms: &[Term], (client, server): (&Tags, &Tags), labels: (&str, &str), skip: Option<&str>) -> bool {
     terms.iter().all(|t| match t {
         Term::Tag { key, values, negate } => {
             if Some(key.as_str()) == skip {
                 return true;
             }
             let (tags, k) = match key.split_once('_') {
-                Some(("client", k)) => (&o.client, k),
-                Some(("server", k)) => (&o.server, k),
+                Some(("client", k)) => (client, k),
+                Some(("server", k)) => (server, k),
                 // Neutral tags (both sides): either side matches.
                 _ => {
-                    let hit = [&o.client, &o.server].iter().any(|s| s.get(key.as_str()).is_some_and(|v| values.iter().any(|p| glob(p, v))));
+                    let hit = [client, server].iter().any(|s| s.get(key.as_str()).is_some_and(|v| values.iter().any(|p| glob(p, v))));
                     return hit != *negate;
                 }
             };
@@ -243,6 +244,101 @@ fn matches(terms: &[Term], o: &Oriented, labels: (&str, &str), skip: Option<&str
 const UNRESOLVED: &str = "N/A";
 /// Facets of each side, as in Datadog's Client / Server panels.
 const FACET_KEYS: [&str; 9] = ["service", "env", "availability-zone", "kube_namespace", "pod_name", "host", "ip", "port", "domain"];
+
+/// What the org knows about addresses: Kubernetes pods and services, and the hosts' Datadog tags.
+struct Lookups {
+    pods: Vec<PodRow>,
+    services: Vec<SvcRow>,
+    host_tags: HashMap<String, Vec<String>>,
+}
+
+async fn lookups(st: &AppState, org: &str) -> Result<Lookups, ApiError> {
+    let ch = st.ch(org);
+    let pods = ch
+        .query(
+            "SELECT JSONExtractString(Body, 'status', 'podIP') AS ip, argMax(JSONExtractString(Body, 'metadata', 'name'), LastSeen) AS name, \
+             argMax(JSONExtractString(Body, 'metadata', 'namespace'), LastSeen) AS namespace, \
+             argMax(coalesce(nullIf(JSONExtractString(Body, 'metadata', 'labels', 'tags.datadoghq.com/service'), ''), \
+                             nullIf(JSONExtractString(Body, 'metadata', 'labels', 'app.kubernetes.io/name'), ''), \
+                             JSONExtractString(Body, 'metadata', 'labels', 'app')), LastSeen) AS service, \
+             argMax(JSONExtractString(Body, 'spec', 'nodeName'), LastSeen) AS node, argMax(Cluster, LastSeen) AS cluster \
+             FROM otel.k8s_resources WHERE OrgId = {oc_org:String} AND Kind = 'Pod' AND NOT JSONExtractBool(Body, 'spec', 'hostNetwork') GROUP BY ip HAVING ip != ''",
+        )
+        .fetch_all::<PodRow>();
+    let services = ch
+        .query(
+            "SELECT JSONExtractString(Body, 'spec', 'clusterIP') AS ip, argMax(JSONExtractString(Body, 'metadata', 'name'), LastSeen) AS name, \
+             argMax(JSONExtractString(Body, 'metadata', 'namespace'), LastSeen) AS namespace \
+             FROM otel.k8s_resources WHERE OrgId = {oc_org:String} AND Kind = 'Service' GROUP BY ip HAVING ip NOT IN ('', 'None')",
+        )
+        .fetch_all::<SvcRow>();
+    let host_tags = sqlx::query_as::<_, (String, Vec<String>)>("SELECT host, host_tags FROM datadog_hosts WHERE org_id = $1").bind(org).fetch_all(&st.postgres);
+    let (pods, services, host_tags) =
+        tokio::try_join!(async { pods.await.map_err(ApiError::from) }, async { services.await.map_err(ApiError::from) }, async { host_tags.await.map_err(ApiError::from) })?;
+    Ok(Lookups { pods, services, host_tags: host_tags.into_iter().collect() })
+}
+
+/// Address → tags, from the lookups and each Agent's report about its own addresses.
+struct Directory {
+    by_ip: HashMap<String, Tags>,
+    /// Addresses some Agent reported as its own.
+    monitored: HashSet<String>,
+    host_tags: HashMap<String, Vec<String>>,
+}
+
+impl Directory {
+    /// `locals`: (local ip, local tags, reporting host) of every connection.
+    fn new<'a>(l: Lookups, locals: impl Iterator<Item = (&'a str, &'a str, &'a str)>) -> Self {
+        let mut d = Directory { by_ip: HashMap::new(), monitored: HashSet::new(), host_tags: l.host_tags };
+        for p in l.pods {
+            let mut t = Tags::new();
+            add(&mut t, "pod_name", &p.name);
+            add(&mut t, "kube_namespace", &p.namespace);
+            add(&mut t, "service", &p.service);
+            add(&mut t, "kube_cluster_name", &p.cluster);
+            d.with_host(&mut t, &p.node);
+            d.by_ip.insert(p.ip, t);
+        }
+        for s in l.services {
+            let mut t = Tags::new();
+            add(&mut t, "kube_service", &s.name);
+            add(&mut t, "service", &s.name);
+            add(&mut t, "kube_namespace", &s.namespace);
+            d.by_ip.entry(s.ip).or_insert(t);
+        }
+        for (ip, tags, host) in locals {
+            if ip.is_empty() || ip.starts_with("127.") || ip == "::1" {
+                continue;
+            }
+            d.monitored.insert(ip.to_string());
+            let mut t = d.by_ip.remove(ip).unwrap_or_default();
+            parse_tags(tags, &mut t);
+            // A pod runs on the reporting host too: it gets the host's tags it doesn't set itself.
+            d.with_host(&mut t, host);
+            d.by_ip.insert(ip.to_string(), t);
+        }
+        d
+    }
+
+    fn with_host(&self, tags: &mut Tags, host: &str) {
+        add(tags, "host", host);
+        for t in self.host_tags.get(host).into_iter().flatten() {
+            if let Some((k, v)) = t.split_once(':') {
+                add(tags, k, v);
+            }
+        }
+    }
+
+    fn resolve(&self, ip: &str, reporter: &str) -> Tags {
+        if ip.starts_with("127.") || ip == "::1" {
+            let mut t = Tags::new();
+            self.with_host(&mut t, reporter);
+            add(&mut t, "service", &format!("localhost ({reporter})"));
+            return t;
+        }
+        self.by_ip.get(ip).cloned().unwrap_or_default()
+    }
+}
 
 /// Flows between the client and server groups in the range, biggest first, with the summary
 /// series and the facets.
@@ -265,7 +361,7 @@ pub async fn flows(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Jso
              LogAttributes['local.ip'] AS local_ip, if(LogAttributes['local.port_ephemeral'] = 'true', '', LogAttributes['local.port']) AS local_port, \
              LogAttributes['local.tags'] AS local_tags, LogAttributes['container.id'] AS container, \
              LogAttributes['remote.ip'] AS remote_ip, LogAttributes['remote.port'] AS remote_port, \
-             LogAttributes['remote.translated_ip'] AS translated_ip, \
+             LogAttributes['remote.translated_ip'] AS translated_ip, LogAttributes['remote.domain'] AS remote_domain, \
              sum(toUInt64OrZero(LogAttributes['bytes_sent'])) AS sent, sum(toUInt64OrZero(LogAttributes['bytes_received'])) AS received, \
              sum(toUInt64OrZero(LogAttributes['retransmits'])) AS retransmits, \
              sumIf(toFloat64OrZero(LogAttributes['rtt_us']), toFloat64OrZero(LogAttributes['rtt_us']) > 0) AS rtt_sum, \
@@ -273,90 +369,21 @@ pub async fn flows(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Jso
              countIf(toFloat64OrZero(LogAttributes['rtt_us']) > 0) AS rtt_n, \
              sum(toUInt64OrZero(LogAttributes['tcp_established'])) AS established, sum(toUInt64OrZero(LogAttributes['tcp_closed'])) AS closed \
              FROM otel.otel_network WHERE OrgId = {oc_org:String} AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) \
-             GROUP BY t, host, direction, local_ip, local_port, local_tags, container, remote_ip, remote_port, translated_ip LIMIT 200000",
+             AND LogAttributes['kind'] != 'dns' \
+             GROUP BY t, host, direction, local_ip, local_port, local_tags, container, remote_ip, remote_port, translated_ip, remote_domain LIMIT 200000",
         )
         .bind(step_ms / 1000)
         .bind(req.range.from)
         .bind(req.range.to)
         .fetch_all::<ConnRow>();
-    let pods = ch
-        .query(
-            "SELECT JSONExtractString(Body, 'status', 'podIP') AS ip, argMax(JSONExtractString(Body, 'metadata', 'name'), LastSeen) AS name, \
-             argMax(JSONExtractString(Body, 'metadata', 'namespace'), LastSeen) AS namespace, \
-             argMax(coalesce(nullIf(JSONExtractString(Body, 'metadata', 'labels', 'tags.datadoghq.com/service'), ''), \
-                             nullIf(JSONExtractString(Body, 'metadata', 'labels', 'app.kubernetes.io/name'), ''), \
-                             JSONExtractString(Body, 'metadata', 'labels', 'app')), LastSeen) AS service, \
-             argMax(JSONExtractString(Body, 'spec', 'nodeName'), LastSeen) AS node, argMax(Cluster, LastSeen) AS cluster \
-             FROM otel.k8s_resources WHERE OrgId = {oc_org:String} AND Kind = 'Pod' AND NOT JSONExtractBool(Body, 'spec', 'hostNetwork') GROUP BY ip HAVING ip != ''",
-        )
-        .fetch_all::<PodRow>();
-    let services = ch
-        .query(
-            "SELECT JSONExtractString(Body, 'spec', 'clusterIP') AS ip, argMax(JSONExtractString(Body, 'metadata', 'name'), LastSeen) AS name, \
-             argMax(JSONExtractString(Body, 'metadata', 'namespace'), LastSeen) AS namespace \
-             FROM otel.k8s_resources WHERE OrgId = {oc_org:String} AND Kind = 'Service' GROUP BY ip HAVING ip NOT IN ('', 'None')",
-        )
-        .fetch_all::<SvcRow>();
-    let host_tags = sqlx::query_as::<_, (String, Vec<String>)>("SELECT host, host_tags FROM datadog_hosts WHERE org_id = $1").bind(&org).fetch_all(&st.postgres);
-    let (conns, pods, services, host_tags) =
-        tokio::try_join!(async { conns.await.map_err(ApiError::from) }, async { pods.await.map_err(ApiError::from) }, async { services.await.map_err(ApiError::from) }, async {
-            host_tags.await.map_err(ApiError::from)
-        })?;
-
-    let host_tags: HashMap<String, Vec<String>> = host_tags.into_iter().collect();
-    let with_host = |tags: &mut Tags, host: &str| {
-        add(tags, "host", host);
-        for t in host_tags.get(host).into_iter().flatten() {
-            if let Some((k, v)) = t.split_once(':') {
-                add(tags, k, v);
-            }
-        }
-    };
-    // Address → tags.
-    let mut by_ip: HashMap<String, Tags> = HashMap::new();
-    for p in pods {
-        let mut t = Tags::new();
-        add(&mut t, "pod_name", &p.name);
-        add(&mut t, "kube_namespace", &p.namespace);
-        add(&mut t, "service", &p.service);
-        add(&mut t, "kube_cluster_name", &p.cluster);
-        with_host(&mut t, &p.node);
-        by_ip.insert(p.ip, t);
-    }
-    for s in services {
-        let mut t = Tags::new();
-        add(&mut t, "kube_service", &s.name);
-        add(&mut t, "service", &s.name);
-        add(&mut t, "kube_namespace", &s.namespace);
-        by_ip.entry(s.ip).or_insert(t);
-    }
-    // Each Agent's own addresses carry what it reported about them.
-    let mut monitored: HashSet<&str> = HashSet::new();
-    for c in &conns {
-        if c.local_ip.starts_with("127.") || c.local_ip == "::1" {
-            continue;
-        }
-        monitored.insert(&c.local_ip);
-        let t = by_ip.entry(c.local_ip.clone()).or_default();
-        parse_tags(&c.local_tags, t);
-        // A pod runs on the reporting host too: it gets the host's tags it doesn't set itself.
-        with_host(t, &c.host);
-    }
-    let resolve = |ip: &str, reporter: &str| -> Tags {
-        if ip.starts_with("127.") || ip == "::1" {
-            let mut t = Tags::new();
-            with_host(&mut t, reporter);
-            add(&mut t, "service", &format!("localhost ({reporter})"));
-            return t;
-        }
-        by_ip.get(ip).cloned().unwrap_or_default()
-    };
+    let (conns, lookups) = tokio::try_join!(async { conns.await.map_err(ApiError::from) }, lookups(&st, &org))?;
+    let dir = Directory::new(lookups, conns.iter().map(|c| (c.local_ip.as_str(), c.local_tags.as_str(), c.host.as_str())));
 
     let mut oriented: Vec<Oriented> = Vec::with_capacity(conns.len());
     for c in &conns {
         let (client_ip, server_ip, client_port, server_port, sent, received) = match c.direction.as_str() {
             "incoming" => {
-                if monitored.contains(c.remote_ip.as_str()) || c.remote_ip.starts_with("127.") || by_ip.get(&c.remote_ip).is_some_and(|t| t.contains_key("pod_name")) {
+                if dir.monitored.contains(c.remote_ip.as_str()) || c.remote_ip.starts_with("127.") || dir.by_ip.get(&c.remote_ip).is_some_and(|t| t.contains_key("pod_name")) {
                     continue;
                 }
                 (c.remote_ip.as_str(), c.local_ip.as_str(), "", c.local_port.as_str(), c.received, c.sent)
@@ -366,23 +393,27 @@ pub async fn flows(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Jso
                 (c.local_ip.as_str(), server, c.local_port.as_str(), c.remote_port.as_str(), c.sent, c.received)
             }
         };
-        let mut client = resolve(client_ip, &c.host);
+        let mut client = dir.resolve(client_ip, &c.host);
         if c.direction != "incoming" {
             // The reporting side: its Agent's tags and container.
             parse_tags(&c.local_tags, &mut client);
             add(&mut client, "container_id", &c.container);
         }
-        let mut server = resolve(server_ip, &c.host);
+        let mut server = dir.resolve(server_ip, &c.host);
         add(&mut client, "ip", client_ip);
         add(&mut server, "ip", server_ip);
         add(&mut client, "port", client_port);
         add(&mut server, "port", server_port);
+        if c.direction != "incoming" {
+            // The name the client resolved the address from.
+            add(&mut server, "domain", &c.remote_domain);
+        }
         if c.direction == "incoming" {
             parse_tags(&c.local_tags, &mut server);
         }
         // Behind a Kubernetes service: the service address is what the client asked for.
         if !c.translated_ip.is_empty() {
-            if let Some(svc) = by_ip.get(&c.remote_ip).and_then(|t| t.get("kube_service")) {
+            if let Some(svc) = dir.by_ip.get(&c.remote_ip).and_then(|t| t.get("kube_service")) {
                 add(&mut server, "kube_service", svc);
             }
         }
@@ -412,7 +443,7 @@ pub async fn flows(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Jso
     let mut series: BTreeMap<i64, (NetworkPoint, f64, f64, u64)> = BTreeMap::new();
     for o in oriented.iter().filter(|o| visible(o)) {
         let (cl, sl) = (label(&o.client, &req.client_group_by), label(&o.server, &req.server_group_by));
-        if !matches(&terms, o, (&cl, &sl), None) {
+        if !matches(&terms, (&o.client, &o.server), (&cl, &sl), None) {
             continue;
         }
         let r = o.row;
@@ -496,7 +527,7 @@ pub async fn flows(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Jso
             let mut values: HashMap<String, u64> = HashMap::new();
             for o in oriented.iter().filter(|o| visible(o)) {
                 let (cl, sl) = (label(&o.client, &req.client_group_by), label(&o.server, &req.server_group_by));
-                if !matches(&terms, o, (&cl, &sl), Some(&facet)) {
+                if !matches(&terms, (&o.client, &o.server), (&cl, &sl), Some(&facet)) {
                     continue;
                 }
                 let tags = if side == "client" { &o.client } else { &o.server };
@@ -511,6 +542,271 @@ pub async fn flows(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Jso
         }
     }
     Ok(Json(FlowPage { flows, total, total_bytes, enabled, step_ms, series, facets }))
+}
+
+// ================================================================ DNS
+
+fn default_dns_server() -> String {
+    "dns_server".into()
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DnsRequest {
+    pub range: TimeRange,
+    /// `client_service:checkout server_dns_query:*.example.net`, plus free text on the names.
+    #[serde(default)]
+    pub query: String,
+    /// Tag the clients (making DNS requests) are grouped by.
+    #[serde(default = "default_group")]
+    pub client_group_by: String,
+    /// How DNS servers are shown: dns_server (pod or task, else host, else IP), host, service, ip
+    /// or dns_query (the domain queried).
+    #[serde(default = "default_dns_server")]
+    pub server_group_by: String,
+    /// Clients without a value for their group-by tag (`N/A`).
+    #[serde(default)]
+    pub show_unresolved: bool,
+    pub limit: usize,
+}
+
+#[derive(Serialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DnsFlow {
+    pub client: String,
+    pub server: String,
+    pub client_tags: Vec<String>,
+    pub server_tags: Vec<String>,
+    /// Requests: responses of every kind plus timeouts.
+    pub requests: u64,
+    pub requests_per_sec: f64,
+    pub noerror: u64,
+    pub servfail: u64,
+    pub nxdomain: u64,
+    /// Error codes other than SERVFAIL and NXDOMAIN.
+    pub other_errors: u64,
+    pub timeouts: u64,
+    /// Mean response time of answered requests, microseconds.
+    pub response_time_us: Option<f64>,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DnsPoint {
+    pub t: i64,
+    pub requests: u64,
+    /// SERVFAIL, NXDOMAIN and other error codes.
+    pub errors: u64,
+    pub timeouts: u64,
+    pub response_time_us: Option<f64>,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DnsPage {
+    pub flows: Vec<DnsFlow>,
+    pub total: usize,
+    /// Whether any DNS data exists.
+    pub enabled: bool,
+    pub step_ms: i64,
+    pub series: Vec<DnsPoint>,
+    pub facets: Vec<NetworkFacet>,
+}
+
+#[derive(Row, Deserialize)]
+struct DnsRow {
+    t: i64,
+    host: String,
+    local_ip: String,
+    local_tags: String,
+    container: String,
+    remote_ip: String,
+    query: String,
+    query_type: String,
+    noerror: u64,
+    servfail: u64,
+    nxdomain: u64,
+    other: u64,
+    timeouts: u64,
+    latency_us: f64,
+}
+
+/// One DNS record, tagged per side.
+struct DnsSide<'a> {
+    row: &'a DnsRow,
+    client: Tags,
+    server: Tags,
+}
+
+const DNS_CLIENT_FACETS: [&str; 7] = ["service", "env", "availability-zone", "kube_namespace", "pod_name", "host", "ip"];
+const DNS_SERVER_FACETS: [&str; 6] = ["dns_server", "host", "service", "ip", "dns_query", "dns_query_type"];
+
+/// DNS traffic between clients and the DNS servers they query (Network Analytics' DNS view): the
+/// Agent's DNS stats per connection, domain and query type.
+#[utoipa::path(post, path = "/api/v1/network/dns", operation_id = "network_dns", request_body = DnsRequest, responses((status = 200, body = DnsPage)), tag = "network")]
+pub async fn dns(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<DnsRequest>) -> ApiResult<DnsPage> {
+    req.range.validate()?;
+    for g in [&req.client_group_by, &req.server_group_by] {
+        if g.is_empty() || g.len() > 100 {
+            return Err(ApiError::BadRequest("invalid group-by tag".into()));
+        }
+    }
+    let span_ms = (req.range.to - req.range.from).max(1);
+    let step_ms = ((span_ms / 60).max(30_000) / 30_000) * 30_000;
+    let ch = st.ch(&org);
+    let rows = ch
+        .query(
+            "SELECT toInt64(toUnixTimestamp(toStartOfInterval(Timestamp, toIntervalSecond(?)))) * 1000 AS t, \
+             ResourceAttributes['host.name'] AS host, LogAttributes['local.ip'] AS local_ip, LogAttributes['local.tags'] AS local_tags, \
+             LogAttributes['container.id'] AS container, LogAttributes['remote.ip'] AS remote_ip, \
+             LogAttributes['dns.query'] AS query, LogAttributes['dns.query_type'] AS query_type, \
+             sum(toUInt64OrZero(LogAttributes['dns.noerror'])) AS noerror, sum(toUInt64OrZero(LogAttributes['dns.servfail'])) AS servfail, \
+             sum(toUInt64OrZero(LogAttributes['dns.nxdomain'])) AS nxdomain, sum(toUInt64OrZero(LogAttributes['dns.other_errors'])) AS other, \
+             sum(toUInt64OrZero(LogAttributes['dns.timeouts'])) AS timeouts, \
+             sum(toFloat64OrZero(LogAttributes['dns.success_latency_us']) + toFloat64OrZero(LogAttributes['dns.failure_latency_us'])) AS latency_us \
+             FROM otel.otel_network WHERE OrgId = {oc_org:String} AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) \
+             AND LogAttributes['kind'] = 'dns' AND LogAttributes['direction'] != 'incoming' \
+             GROUP BY t, host, local_ip, local_tags, container, remote_ip, query, query_type LIMIT 200000",
+        )
+        .bind(step_ms / 1000)
+        .bind(req.range.from)
+        .bind(req.range.to)
+        .fetch_all::<DnsRow>();
+    // Every Agent's own addresses (from all its connections), to name the DNS servers.
+    let locals = ch
+        .query(
+            "SELECT DISTINCT LogAttributes['local.ip'] AS ip, LogAttributes['local.tags'] AS tags, ResourceAttributes['host.name'] AS host \
+             FROM otel.otel_network WHERE OrgId = {oc_org:String} AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) LIMIT 50000",
+        )
+        .bind(req.range.from)
+        .bind(req.range.to)
+        .fetch_all::<(String, String, String)>();
+    let (rows, locals, lookups) = tokio::try_join!(async { rows.await.map_err(ApiError::from) }, async { locals.await.map_err(ApiError::from) }, lookups(&st, &org))?;
+    let dir = Directory::new(lookups, locals.iter().map(|(ip, tags, host)| (ip.as_str(), tags.as_str(), host.as_str())));
+
+    let sides: Vec<DnsSide> = rows
+        .iter()
+        .map(|r| {
+            let mut client = dir.resolve(&r.local_ip, &r.host);
+            parse_tags(&r.local_tags, &mut client);
+            add(&mut client, "container_id", &r.container);
+            add(&mut client, "ip", &r.local_ip);
+            let mut server = dir.resolve(&r.remote_ip, &r.host);
+            let name = server.get("pod_name").or_else(|| server.get("task_name")).or_else(|| server.get("host")).cloned().unwrap_or_else(|| r.remote_ip.clone());
+            add(&mut server, "dns_server", &name);
+            add(&mut server, "ip", &r.remote_ip);
+            add(&mut server, "port", "53");
+            add(&mut server, "dns_query", &r.query);
+            add(&mut server, "dns_query_type", &r.query_type);
+            DnsSide { row: r, client, server }
+        })
+        .collect();
+    let enabled = !sides.is_empty();
+    let terms = parse_query(&req.query);
+    let label = |tags: &Tags, key: &str| tags.get(key).cloned().unwrap_or_else(|| UNRESOLVED.to_string());
+    let visible = |s: &DnsSide| req.show_unresolved || (s.client.contains_key(&req.client_group_by) && s.server.contains_key(&req.server_group_by));
+
+    struct Acc {
+        flow: DnsFlow,
+        latency: f64,
+        client_common: Option<Tags>,
+        server_common: Option<Tags>,
+    }
+    let common = |acc: &mut Option<Tags>, tags: &Tags| match acc {
+        None => *acc = Some(tags.clone()),
+        Some(c) => c.retain(|k, v| tags.get(k) == Some(v)),
+    };
+    let mut agg: HashMap<(String, String), Acc> = HashMap::new();
+    let mut series: BTreeMap<i64, (DnsPoint, f64)> = BTreeMap::new();
+    for s in sides.iter().filter(|s| visible(s)) {
+        let (cl, sl) = (label(&s.client, &req.client_group_by), label(&s.server, &req.server_group_by));
+        if !matches(&terms, (&s.client, &s.server), (&cl, &sl), None) {
+            continue;
+        }
+        let r = s.row;
+        let errors = r.servfail + r.nxdomain + r.other;
+        let a = agg.entry((cl.clone(), sl.clone())).or_insert_with(|| Acc {
+            flow: DnsFlow {
+                client: cl,
+                server: sl,
+                client_tags: vec![],
+                server_tags: vec![],
+                requests: 0,
+                requests_per_sec: 0.0,
+                noerror: 0,
+                servfail: 0,
+                nxdomain: 0,
+                other_errors: 0,
+                timeouts: 0,
+                response_time_us: None,
+            },
+            latency: 0.0,
+            client_common: None,
+            server_common: None,
+        });
+        a.flow.noerror += r.noerror;
+        a.flow.servfail += r.servfail;
+        a.flow.nxdomain += r.nxdomain;
+        a.flow.other_errors += r.other;
+        a.flow.timeouts += r.timeouts;
+        a.latency += r.latency_us;
+        common(&mut a.client_common, &s.client);
+        common(&mut a.server_common, &s.server);
+        let p = series.entry(r.t).or_insert_with(|| (DnsPoint { t: r.t, requests: 0, errors: 0, timeouts: 0, response_time_us: None }, 0.0));
+        p.0.requests += r.noerror + errors + r.timeouts;
+        p.0.errors += errors;
+        p.0.timeouts += r.timeouts;
+        p.1 += r.latency_us;
+    }
+    let secs = span_ms as f64 / 1000.0;
+    let tags_of = |t: Option<Tags>| t.unwrap_or_default().into_iter().map(|(k, v)| format!("{k}:{v}")).collect();
+    let mut flows: Vec<DnsFlow> = agg
+        .into_values()
+        .map(|a| {
+            let mut f = a.flow;
+            let answered = f.noerror + f.servfail + f.nxdomain + f.other_errors;
+            f.requests = answered + f.timeouts;
+            f.requests_per_sec = f.requests as f64 / secs;
+            f.response_time_us = (answered > 0).then(|| a.latency / answered as f64);
+            f.client_tags = tags_of(a.client_common);
+            f.server_tags = tags_of(a.server_common);
+            f
+        })
+        .collect();
+    flows.sort_by(|a, b| b.requests.cmp(&a.requests).then(a.client.cmp(&b.client)).then(a.server.cmp(&b.server)));
+    let total = flows.len();
+    flows.truncate(req.limit.clamp(1, 1000));
+    let series = series
+        .into_values()
+        .map(|(mut p, latency)| {
+            let answered = p.requests - p.timeouts;
+            p.response_time_us = (answered > 0).then(|| latency / answered as f64);
+            p
+        })
+        .collect();
+
+    let mut facets = Vec::new();
+    for (side, keys) in [("client", &DNS_CLIENT_FACETS[..]), ("server", &DNS_SERVER_FACETS[..])] {
+        for key in keys {
+            let facet = format!("{side}_{key}");
+            let mut values: HashMap<String, u64> = HashMap::new();
+            for s in sides.iter().filter(|s| visible(s)) {
+                let (cl, sl) = (label(&s.client, &req.client_group_by), label(&s.server, &req.server_group_by));
+                if !matches(&terms, (&s.client, &s.server), (&cl, &sl), Some(&facet)) {
+                    continue;
+                }
+                let tags = if side == "client" { &s.client } else { &s.server };
+                if let Some(v) = tags.get(*key) {
+                    *values.entry(v.clone()).or_default() += 1;
+                }
+            }
+            let mut values: Vec<NetworkFacetValue> = values.into_iter().map(|(value, count)| NetworkFacetValue { value, count }).collect();
+            values.sort_by(|a, b| b.count.cmp(&a.count).then(a.value.cmp(&b.value)));
+            values.truncate(100);
+            facets.push(NetworkFacet { key: facet, values });
+        }
+    }
+    Ok(Json(DnsPage { flows, total, enabled, step_ms, series, facets }))
 }
 
 #[cfg(test)]
@@ -529,6 +825,7 @@ mod tests {
             remote_ip: "10.0.0.2".into(),
             remote_port: "443".into(),
             translated_ip: String::new(),
+            remote_domain: String::new(),
             sent: 0,
             received: 0,
             retransmits: 0,
@@ -558,13 +855,13 @@ mod tests {
         let mut server = Tags::new();
         parse_tags("service:billing,port:443", &mut server);
         let o = Oriented { row: &r, client, server, sent: 1, received: 1, external: false };
-        let ok = |q: &str| matches(&parse_query(q), &o, ("checkout", "billing"), None);
+        let ok = |q: &str| matches(&parse_query(q), (&o.client, &o.server), ("checkout", "billing"), None);
         assert!(ok("client_service:checkout server_port:443"));
         assert!(!ok("client_service:billing"));
         assert!(ok("-server_service:orders"));
         assert!(ok("env:prod"));
         assert!(ok("server_service:bill*"));
         assert!(ok("bill"));
-        assert!(matches(&parse_query("client_service:billing"), &o, ("checkout", "billing"), Some("client_service")));
+        assert!(matches(&parse_query("client_service:billing"), (&o.client, &o.server), ("checkout", "billing"), Some("client_service")));
     }
 }

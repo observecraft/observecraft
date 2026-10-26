@@ -4892,6 +4892,37 @@
         }
       }
     },
+    "/api/v1/network/dns": {
+      "post": {
+        "tags": [
+          "network"
+        ],
+        "summary": "DNS traffic between clients and the DNS servers they query (Network Analytics' DNS view): the\nAgent's DNS stats per connection, domain and query type.",
+        "operationId": "network_dns",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DnsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DnsPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/network/flows": {
       "post": {
         "tags": [
@@ -8209,6 +8240,199 @@
               "type": "integer",
               "format": "int64"
             }
+          }
+        }
+      },
+      "DnsFlow": {
+        "type": "object",
+        "required": [
+          "client",
+          "server",
+          "clientTags",
+          "serverTags",
+          "requests",
+          "requestsPerSec",
+          "noerror",
+          "servfail",
+          "nxdomain",
+          "otherErrors",
+          "timeouts"
+        ],
+        "properties": {
+          "client": {
+            "type": "string"
+          },
+          "clientTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "noerror": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "nxdomain": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "otherErrors": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Error codes other than SERVFAIL and NXDOMAIN.",
+            "minimum": 0
+          },
+          "requests": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Requests: responses of every kind plus timeouts.",
+            "minimum": 0
+          },
+          "requestsPerSec": {
+            "type": "number",
+            "format": "double"
+          },
+          "responseTimeUs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Mean response time of answered requests, microseconds."
+          },
+          "server": {
+            "type": "string"
+          },
+          "serverTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "servfail": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "timeouts": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "DnsPage": {
+        "type": "object",
+        "required": [
+          "flows",
+          "total",
+          "enabled",
+          "stepMs",
+          "series",
+          "facets"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether any DNS data exists."
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetworkFacet"
+            }
+          },
+          "flows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DnsFlow"
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DnsPoint"
+            }
+          },
+          "stepMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "DnsPoint": {
+        "type": "object",
+        "required": [
+          "t",
+          "requests",
+          "errors",
+          "timeouts"
+        ],
+        "properties": {
+          "errors": {
+            "type": "integer",
+            "format": "int64",
+            "description": "SERVFAIL, NXDOMAIN and other error codes.",
+            "minimum": 0
+          },
+          "requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "responseTimeUs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timeouts": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "DnsRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "limit"
+        ],
+        "properties": {
+          "clientGroupBy": {
+            "type": "string",
+            "description": "Tag the clients (making DNS requests) are grouped by."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "description": "`client_service:checkout server_dns_query:*.example.net`, plus free text on the names."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "serverGroupBy": {
+            "type": "string",
+            "description": "How DNS servers are shown: dns_server (pod or task, else host, else IP), host, service, ip\nor dns_query (the domain queried)."
+          },
+          "showUnresolved": {
+            "type": "boolean",
+            "description": "Clients without a value for their group-by tag (`N/A`)."
           }
         }
       },

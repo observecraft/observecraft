@@ -56,7 +56,7 @@ import { KubernetesComingSoon } from './pages/kubernetes/KubernetesComingSoon';
 import { OrchestrationExplorer, ProcessMetrics } from './pages/kubernetes/OrchestrationExplorer';
 import { ProfilesLayout } from './pages/apm/profiles/ProfilesLayout';
 import { NetworkLayout } from './pages/network/NetworkLayout';
-import { NetworkAnalytics } from './pages/network/NetworkAnalytics';
+import { AnalyticsPage } from './pages/network/AnalyticsPage';
 import { NetworkMap } from './pages/network/NetworkMap';
 import { ProfileExplorer } from './pages/apm/profiles/ProfileExplorer';
 import { ProfilesOverview } from './pages/apm/profiles/ProfilesOverview';
@@ -138,7 +138,7 @@ function Shell() {
             <Route path="/kubernetes" element={<KubernetesOverview />} />
             <Route path="/orchestration/explorer" element={<OrchestrationExplorer />} />
             <Route path="/network" element={<NetworkLayout />}>
-              <Route index element={<NetworkAnalytics />} />
+              <Route index element={<AnalyticsPage />} />
               <Route path="map" element={<NetworkMap />} />
             </Route>
             <Route path="/process" element={<OrchestrationExplorer />} />

@@ -2034,6 +2034,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/network/dns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** DNS traffic between clients and the DNS servers they query (Network Analytics' DNS view): the
+         *     Agent's DNS stats per connection, domain and query type. */
+        post: operations["network_dns"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/network/flows": {
         parameters: {
             query?: never;
@@ -3160,6 +3178,75 @@ export interface components {
             /** @description `[timeIndex][bucketIndex]` series counts. */
             counts: number[][];
             times: number[];
+        };
+        DnsFlow: {
+            client: string;
+            clientTags: string[];
+            /** Format: int64 */
+            noerror: number;
+            /** Format: int64 */
+            nxdomain: number;
+            /**
+             * Format: int64
+             * @description Error codes other than SERVFAIL and NXDOMAIN.
+             */
+            otherErrors: number;
+            /**
+             * Format: int64
+             * @description Requests: responses of every kind plus timeouts.
+             */
+            requests: number;
+            /** Format: double */
+            requestsPerSec: number;
+            /**
+             * Format: double
+             * @description Mean response time of answered requests, microseconds.
+             */
+            responseTimeUs?: number | null;
+            server: string;
+            serverTags: string[];
+            /** Format: int64 */
+            servfail: number;
+            /** Format: int64 */
+            timeouts: number;
+        };
+        DnsPage: {
+            /** @description Whether any DNS data exists. */
+            enabled: boolean;
+            facets: components["schemas"]["NetworkFacet"][];
+            flows: components["schemas"]["DnsFlow"][];
+            series: components["schemas"]["DnsPoint"][];
+            /** Format: int64 */
+            stepMs: number;
+            total: number;
+        };
+        DnsPoint: {
+            /**
+             * Format: int64
+             * @description SERVFAIL, NXDOMAIN and other error codes.
+             */
+            errors: number;
+            /** Format: int64 */
+            requests: number;
+            /** Format: double */
+            responseTimeUs?: number | null;
+            /** Format: int64 */
+            t: number;
+            /** Format: int64 */
+            timeouts: number;
+        };
+        DnsRequest: {
+            /** @description Tag the clients (making DNS requests) are grouped by. */
+            clientGroupBy?: string;
+            limit: number;
+            /** @description `client_service:checkout server_dns_query:*.example.net`, plus free text on the names. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /** @description How DNS servers are shown: dns_server (pod or task, else host, else IP), host, service, ip
+             *     or dns_query (the domain queried). */
+            serverGroupBy?: string;
+            /** @description Clients without a value for their group-by tag (`N/A`). */
+            showUnresolved?: boolean;
         };
         Document: {
             /** Format: int64 */
@@ -9319,6 +9406,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MonitorHistory"];
+                };
+            };
+        };
+    };
+    network_dns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DnsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DnsPage"];
                 };
             };
         };

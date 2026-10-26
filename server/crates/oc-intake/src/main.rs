@@ -33,6 +33,7 @@
 
 mod datadog;
 mod datadog_apm;
+mod datadog_dns;
 mod datadog_events;
 mod datadog_network;
 mod datadog_orch;
