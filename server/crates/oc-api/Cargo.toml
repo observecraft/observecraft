@@ -29,7 +29,7 @@ lettre = { version = "=0.11.23", default-features = false, features = ["builder"
 oc-query.workspace = true
 oc-store.workspace = true
 openidconnect = "4"
-prost = "0.13"
+prost = "0.14"
 rand = "0.8"
 reqwest.workspace = true
 # S3 request signing (sans-IO; requests are sent with reqwest).
