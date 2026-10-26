@@ -38,6 +38,7 @@ mod datadog_events;
 mod datadog_network;
 mod datadog_orch;
 mod datadog_process;
+mod datadog_tags;
 mod grpc;
 mod otlp;
 

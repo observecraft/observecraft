@@ -122,8 +122,9 @@ sample types (`cpu`, `inuse_space`, …) are shown under Datadog's names (CPU Ti
 **What isn't supported yet:**
 - Some payloads are acknowledged so the Agent doesn't keep retrying them, but they aren't stored: the Agent's
   inventories (`/api/v1/metadata`) and the orchestrator's summaries (`/api/v2/orch`).
-- Cloud Network Monitoring resolves IPs to tags from the Kubernetes inventory, the hosts' Datadog metadata, the
-  other Agents' reports and the hosts' DNS lookups (`domain`). DNS monitoring (requests, response time, timeouts,
+- Cloud Network Monitoring tags both ends of a connection with what the Agent sends (the container's tags, the
+  host's tags, the remote service's tags for same-host traffic), then the Kubernetes inventory, the hosts' Datadog
+  metadata, the other Agents' reports and the hosts' DNS lookups (`domain`). DNS monitoring (requests, response time, timeouts,
   SERVFAIL, NXDOMAIN per domain and query type) needs Agent 7.33+. Network paths aren't available yet.
 - Not available yet: Cloud Security, the live debugger, data streams and remote configuration.
 - The examples set `site` to a domain that isn't Datadog's, `observecraft.invalid`. They also turn off products that

@@ -141,9 +141,11 @@ struct ConnRow {
     local_ip: String,
     local_port: String,
     local_tags: String,
+    local_host_tags: String,
     container: String,
     remote_ip: String,
     remote_port: String,
+    remote_tags: String,
     translated_ip: String,
     remote_domain: String,
     sent: u64,
@@ -287,8 +289,8 @@ struct Directory {
 }
 
 impl Directory {
-    /// `locals`: (local ip, local tags, reporting host) of every connection.
-    fn new<'a>(l: Lookups, locals: impl Iterator<Item = (&'a str, &'a str, &'a str)>) -> Self {
+    /// `locals`: (local ip, local tags, the host's tags, reporting host) of every connection.
+    fn new<'a>(l: Lookups, locals: impl Iterator<Item = (&'a str, &'a str, &'a str, &'a str)>) -> Self {
         let mut d = Directory { by_ip: HashMap::new(), monitored: HashSet::new(), host_tags: l.host_tags };
         for p in l.pods {
             let mut t = Tags::new();
@@ -306,13 +308,14 @@ impl Directory {
             add(&mut t, "kube_namespace", &s.namespace);
             d.by_ip.entry(s.ip).or_insert(t);
         }
-        for (ip, tags, host) in locals {
+        for (ip, tags, host_tags, host) in locals {
             if ip.is_empty() || ip.starts_with("127.") || ip == "::1" {
                 continue;
             }
             d.monitored.insert(ip.to_string());
             let mut t = d.by_ip.remove(ip).unwrap_or_default();
             parse_tags(tags, &mut t);
+            parse_tags(host_tags, &mut t);
             // A pod runs on the reporting host too: it gets the host's tags it doesn't set itself.
             d.with_host(&mut t, host);
             d.by_ip.insert(ip.to_string(), t);
@@ -359,8 +362,8 @@ pub async fn flows(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Jso
             "SELECT toInt64(toUnixTimestamp(toStartOfInterval(Timestamp, toIntervalSecond(?)))) * 1000 AS t, \
              ResourceAttributes['host.name'] AS host, LogAttributes['direction'] AS direction, \
              LogAttributes['local.ip'] AS local_ip, if(LogAttributes['local.port_ephemeral'] = 'true', '', LogAttributes['local.port']) AS local_port, \
-             LogAttributes['local.tags'] AS local_tags, LogAttributes['container.id'] AS container, \
-             LogAttributes['remote.ip'] AS remote_ip, LogAttributes['remote.port'] AS remote_port, \
+             LogAttributes['local.tags'] AS local_tags, LogAttributes['local.host_tags'] AS local_host_tags, LogAttributes['container.id'] AS container, \
+             LogAttributes['remote.ip'] AS remote_ip, LogAttributes['remote.port'] AS remote_port, LogAttributes['remote.tags'] AS remote_tags, \
              LogAttributes['remote.translated_ip'] AS translated_ip, LogAttributes['remote.domain'] AS remote_domain, \
              sum(toUInt64OrZero(LogAttributes['bytes_sent'])) AS sent, sum(toUInt64OrZero(LogAttributes['bytes_received'])) AS received, \
              sum(toUInt64OrZero(LogAttributes['retransmits'])) AS retransmits, \
@@ -370,14 +373,14 @@ pub async fn flows(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Jso
              sum(toUInt64OrZero(LogAttributes['tcp_established'])) AS established, sum(toUInt64OrZero(LogAttributes['tcp_closed'])) AS closed \
              FROM otel.otel_network WHERE OrgId = {oc_org:String} AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) \
              AND LogAttributes['kind'] != 'dns' \
-             GROUP BY t, host, direction, local_ip, local_port, local_tags, container, remote_ip, remote_port, translated_ip, remote_domain LIMIT 200000",
+             GROUP BY t, host, direction, local_ip, local_port, local_tags, local_host_tags, container, remote_ip, remote_port, remote_tags, translated_ip, remote_domain LIMIT 200000",
         )
         .bind(step_ms / 1000)
         .bind(req.range.from)
         .bind(req.range.to)
         .fetch_all::<ConnRow>();
     let (conns, lookups) = tokio::try_join!(async { conns.await.map_err(ApiError::from) }, lookups(&st, &org))?;
-    let dir = Directory::new(lookups, conns.iter().map(|c| (c.local_ip.as_str(), c.local_tags.as_str(), c.host.as_str())));
+    let dir = Directory::new(lookups, conns.iter().map(|c| (c.local_ip.as_str(), c.local_tags.as_str(), c.local_host_tags.as_str(), c.host.as_str())));
 
     let mut oriented: Vec<Oriented> = Vec::with_capacity(conns.len());
     for c in &conns {
@@ -397,6 +400,7 @@ pub async fn flows(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Jso
         if c.direction != "incoming" {
             // The reporting side: its Agent's tags and container.
             parse_tags(&c.local_tags, &mut client);
+            parse_tags(&c.local_host_tags, &mut client);
             add(&mut client, "container_id", &c.container);
         }
         let mut server = dir.resolve(server_ip, &c.host);
@@ -405,11 +409,13 @@ pub async fn flows(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Jso
         add(&mut client, "port", client_port);
         add(&mut server, "port", server_port);
         if c.direction != "incoming" {
-            // The name the client resolved the address from.
+            // The name the client resolved the address from, and (same host) the remote service.
             add(&mut server, "domain", &c.remote_domain);
+            parse_tags(&c.remote_tags, &mut server);
         }
         if c.direction == "incoming" {
             parse_tags(&c.local_tags, &mut server);
+            parse_tags(&c.local_host_tags, &mut server);
         }
         // Behind a Kubernetes service: the service address is what the client asked for.
         if !c.translated_ip.is_empty() {
@@ -619,6 +625,7 @@ struct DnsRow {
     host: String,
     local_ip: String,
     local_tags: String,
+    local_host_tags: String,
     container: String,
     remote_ip: String,
     query: String,
@@ -658,7 +665,7 @@ pub async fn dns(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<
         .query(
             "SELECT toInt64(toUnixTimestamp(toStartOfInterval(Timestamp, toIntervalSecond(?)))) * 1000 AS t, \
              ResourceAttributes['host.name'] AS host, LogAttributes['local.ip'] AS local_ip, LogAttributes['local.tags'] AS local_tags, \
-             LogAttributes['container.id'] AS container, LogAttributes['remote.ip'] AS remote_ip, \
+             LogAttributes['local.host_tags'] AS local_host_tags, LogAttributes['container.id'] AS container, LogAttributes['remote.ip'] AS remote_ip, \
              LogAttributes['dns.query'] AS query, LogAttributes['dns.query_type'] AS query_type, \
              sum(toUInt64OrZero(LogAttributes['dns.noerror'])) AS noerror, sum(toUInt64OrZero(LogAttributes['dns.servfail'])) AS servfail, \
              sum(toUInt64OrZero(LogAttributes['dns.nxdomain'])) AS nxdomain, sum(toUInt64OrZero(LogAttributes['dns.other_errors'])) AS other, \
@@ -666,7 +673,7 @@ pub async fn dns(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<
              sum(toFloat64OrZero(LogAttributes['dns.success_latency_us']) + toFloat64OrZero(LogAttributes['dns.failure_latency_us'])) AS latency_us \
              FROM otel.otel_network WHERE OrgId = {oc_org:String} AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) \
              AND LogAttributes['kind'] = 'dns' AND LogAttributes['direction'] != 'incoming' \
-             GROUP BY t, host, local_ip, local_tags, container, remote_ip, query, query_type LIMIT 200000",
+             GROUP BY t, host, local_ip, local_tags, local_host_tags, container, remote_ip, query, query_type LIMIT 200000",
         )
         .bind(step_ms / 1000)
         .bind(req.range.from)
@@ -675,20 +682,21 @@ pub async fn dns(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<
     // Every Agent's own addresses (from all its connections), to name the DNS servers.
     let locals = ch
         .query(
-            "SELECT DISTINCT LogAttributes['local.ip'] AS ip, LogAttributes['local.tags'] AS tags, ResourceAttributes['host.name'] AS host \
+            "SELECT DISTINCT LogAttributes['local.ip'] AS ip, LogAttributes['local.tags'] AS tags, LogAttributes['local.host_tags'] AS host_tags, ResourceAttributes['host.name'] AS host \
              FROM otel.otel_network WHERE OrgId = {oc_org:String} AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) LIMIT 50000",
         )
         .bind(req.range.from)
         .bind(req.range.to)
-        .fetch_all::<(String, String, String)>();
+        .fetch_all::<(String, String, String, String)>();
     let (rows, locals, lookups) = tokio::try_join!(async { rows.await.map_err(ApiError::from) }, async { locals.await.map_err(ApiError::from) }, lookups(&st, &org))?;
-    let dir = Directory::new(lookups, locals.iter().map(|(ip, tags, host)| (ip.as_str(), tags.as_str(), host.as_str())));
+    let dir = Directory::new(lookups, locals.iter().map(|(ip, tags, host_tags, host)| (ip.as_str(), tags.as_str(), host_tags.as_str(), host.as_str())));
 
     let sides: Vec<DnsSide> = rows
         .iter()
         .map(|r| {
             let mut client = dir.resolve(&r.local_ip, &r.host);
             parse_tags(&r.local_tags, &mut client);
+            parse_tags(&r.local_host_tags, &mut client);
             add(&mut client, "container_id", &r.container);
             add(&mut client, "ip", &r.local_ip);
             let mut server = dir.resolve(&r.remote_ip, &r.host);
@@ -821,9 +829,11 @@ mod tests {
             local_ip: "10.0.0.1".into(),
             local_port: String::new(),
             local_tags: String::new(),
+            local_host_tags: String::new(),
             container: String::new(),
             remote_ip: "10.0.0.2".into(),
             remote_port: "443".into(),
+            remote_tags: String::new(),
             translated_ip: String::new(),
             remote_domain: String::new(),
             sent: 0,

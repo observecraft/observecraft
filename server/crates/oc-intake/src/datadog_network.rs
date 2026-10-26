@@ -4,7 +4,8 @@
 //! `otel.otel_network`; the network pages aggregate them into flows.
 //!
 //! Record attributes: direction (incoming / outgoing / local), type (tcp / udp), local.ip / port,
-//! remote.ip / port (and remote.translated_ip / port behind NAT), whether the local port is ephemeral, pid, container ids, bytes and packets sent
+//! remote.ip / port (and remote.translated_ip / port behind NAT), whether the local port is ephemeral, pid, container ids,
+//! the container's, host's and (same host) remote service's tags (local.tags, local.host_tags, remote.tags), bytes and packets sent
 //! and received since the last report, retransmits, rtt and its variance (µs), and TCP connections opened / closed.
 
 use std::collections::HashMap;
@@ -21,6 +22,7 @@ use crate::datadog::inflate;
 use crate::datadog_dns;
 use crate::datadog_orch::message_body;
 use crate::datadog_process::RES_COLLECTOR;
+use crate::datadog_tags;
 use crate::otlp;
 use crate::{admit, send, Rejection, Shared};
 
@@ -38,6 +40,12 @@ pub mod pb {
         pub connections: Vec<Connection>,
         #[prost(map = "int32, string", tag = "10")]
         pub container_for_pid: HashMap<i32, String>,
+        /// Host, container and service tag lists (see `datadog_tags`).
+        #[prost(bytes = "vec", tag = "11")]
+        pub encoded_tags: Vec<u8>,
+        /// The reporting host's tags in `encoded_tags`.
+        #[prost(int32, tag = "47")]
+        pub host_tags_index: i32,
         /// IP → domains, version 1 encoding (older Agents).
         #[prost(bytes = "vec", tag = "14")]
         pub encoded_dns: Vec<u8>,
@@ -123,6 +131,12 @@ pub mod pb {
         pub last_packets_received: u64,
         #[prost(int32, tag = "41")]
         pub is_local_port_ephemeral: i32,
+        /// The local container's tags in `encoded_tags` (-1: none).
+        #[prost(int32, tag = "54")]
+        pub local_container_tags_index: i32,
+        /// For same-host connections, the remote service's tags in `encoded_tags` (-1: none).
+        #[prost(int32, tag = "64")]
+        pub remote_service_tags_index: i32,
     }
     /// NAT (e.g. a Kubernetes service address): the reply's source is the real server.
     #[derive(Clone, PartialEq, prost::Message)]
@@ -227,6 +241,8 @@ pub fn to_otlp(data: &[u8], now: u64) -> Result<Option<(otlp::ExportLogsServiceR
     } else {
         HashMap::new()
     };
+    // The host's own tags (env, availability-zone, team, …), on every record of the payload.
+    let host_tags = if m.encoded_tags.is_empty() { String::new() } else { datadog_tags::tags_at(&m.encoded_tags, m.host_tags_index).join(",") };
     let mut records: Vec<otlp::LogRecord> = Vec::new();
     for c in &m.connections {
         let l = c.laddr.clone().unwrap_or_default();
@@ -244,6 +260,26 @@ pub fn to_otlp(data: &[u8], now: u64) -> Result<Option<(otlp::ExportLogsServiceR
             otlp::kv("remote.port", r.port.to_string()),
             otlp::kv("pid", c.pid.to_string()),
         ];
+        // The container's tags (service, kube_namespace, pod_name, image, …). Older Agents don't
+        // set the index (it reads 0): only trust it for connections that have a container.
+        if !container.is_empty() && !m.encoded_tags.is_empty() {
+            let tags = datadog_tags::tags_at(&m.encoded_tags, c.local_container_tags_index);
+            if !tags.is_empty() {
+                endpoint.push(otlp::kv("local.tags", tags.join(",")));
+            }
+        }
+        if !host_tags.is_empty() {
+            endpoint.push(otlp::kv("local.host_tags", host_tags.as_str()));
+        }
+        // Same-host connections name the remote service; index 0 only counts with a remote container
+        // (older Agents leave it unset).
+        let remote_index = c.remote_service_tags_index > 0 || (c.remote_service_tags_index == 0 && !r.container_id.is_empty());
+        if c.intra_host && remote_index && !m.encoded_tags.is_empty() {
+            let tags = datadog_tags::tags_at(&m.encoded_tags, c.remote_service_tags_index);
+            if !tags.is_empty() {
+                endpoint.push(otlp::kv("remote.tags", tags.join(",")));
+            }
+        }
         if !container.is_empty() {
             endpoint.push(otlp::kv("container.id", container));
         }
@@ -361,6 +397,8 @@ mod tests {
         msg.extend_from_slice(&zstd::encode_all(m.encode_to_vec().as_slice(), 1).unwrap());
         let (req, n) = to_otlp(&msg, 5).unwrap().unwrap();
         assert_eq!(n, 1);
+        // No encoded tags: no tag attributes.
+        assert!(!req.resource_logs[0].scope_logs[0].log_records[0].attributes.iter().any(|kv| kv.key == "local.tags"));
         let r = &req.resource_logs[0].scope_logs[0].log_records[0];
         for (k, v) in [("direction", "outgoing"), ("remote.port", "5432"), ("local.port_ephemeral", "true"), ("container.id", "c-checkout"), ("bytes_received", "64000"), ("rtt_us", "350")] {
             assert!(r.attributes.contains(&otlp::kv(k, v)), "{k}");
@@ -415,5 +453,48 @@ mod tests {
         }
         let external = records.iter().find(|r| r.attributes.contains(&otlp::kv("remote.ip", "203.0.113.10"))).unwrap();
         assert!(external.attributes.contains(&otlp::kv("remote.domain", "payments.example.net")));
+    }
+
+    #[test]
+    fn container_and_host_tags() {
+        let (tags, idx) = datadog_tags::tests::encode_v2(&[&["env:prod", "availability-zone:us-east-1a"], &["service:checkout", "kube_namespace:shop", "pod_name:checkout-7d9f"]]);
+        let mut containers = HashMap::new();
+        containers.insert(7, "c-checkout".to_string());
+        let m = pb::CollectorConnections {
+            host_name: "web-1".into(),
+            connections: vec![
+                pb::Connection {
+                    pid: 7,
+                    laddr: Some(pb::Addr { ip: "10.0.0.5".into(), port: 40000, ..Default::default() }),
+                    raddr: Some(pb::Addr { ip: "10.0.0.9".into(), port: 8080, ..Default::default() }),
+                    direction: 2,
+                    last_bytes_sent: 10,
+                    local_container_tags_index: idx[1],
+                    remote_service_tags_index: -1,
+                    ..Default::default()
+                },
+                // A host process: no container, so no container tags even with index 0.
+                pb::Connection {
+                    pid: 9,
+                    laddr: Some(pb::Addr { ip: "10.0.0.5".into(), port: 40001, ..Default::default() }),
+                    raddr: Some(pb::Addr { ip: "10.0.0.9".into(), port: 22, ..Default::default() }),
+                    direction: 2,
+                    last_bytes_sent: 10,
+                    ..Default::default()
+                },
+            ],
+            container_for_pid: containers,
+            encoded_tags: tags,
+            host_tags_index: idx[0],
+            ..Default::default()
+        };
+        let mut msg = vec![3, 4, TYPE_COLLECTOR_CONNECTIONS, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        msg.extend_from_slice(&zstd::encode_all(m.encode_to_vec().as_slice(), 1).unwrap());
+        let (req, _) = to_otlp(&msg, 5).unwrap().unwrap();
+        let records = &req.resource_logs[0].scope_logs[0].log_records;
+        assert!(records[0].attributes.contains(&otlp::kv("local.tags", "service:checkout,kube_namespace:shop,pod_name:checkout-7d9f")));
+        assert!(records[0].attributes.contains(&otlp::kv("local.host_tags", "env:prod,availability-zone:us-east-1a")));
+        assert!(!records[1].attributes.iter().any(|kv| kv.key == "local.tags"));
+        assert!(records[1].attributes.contains(&otlp::kv("local.host_tags", "env:prod,availability-zone:us-east-1a")));
     }
 }
