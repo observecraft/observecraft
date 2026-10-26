@@ -1,29 +1,23 @@
 # ObserveCraft: notes for coding agents
 
-ObserveCraft is an open-source, self-hosted, MIT-licensed observability platform modelled on Datadog: logs, metrics,
+ObserveCraft is an open-source, self-hosted, MIT-licensed observability platform: logs, metrics,
 traces/APM, dashboards, monitors, incidents, infrastructure/containers and CI visibility, built on OpenTelemetry and
 ClickHouse. `README.md` covers features and setup; `CONTRIBUTING.md` holds the full coding rules. This file is what an
 agent needs on top of them. `AGENTS.md` points here, so keep this the single source of truth.
 
-## Product direction: follow Datadog
+## Product direction: independent, interoperable observability
 
-ObserveCraft is a Datadog equivalent. When building or changing a feature, Datadog is the spec.
+Build practical workflows across logs, metrics, traces, infrastructure, monitors, incidents and CI visibility.
 
-- **Consult the Datadog documentation first** (https://docs.datadoghq.com) for a feature's behaviour, naming, query
-  syntax, units, defaults and limits: log indexes, exclusion filters, archives/rehydration, monitor types and
-  evaluation, metric query syntax (`avg:system.cpu.user{env:prod} by {host}`), APM concepts, Kubernetes/ECS explorers,
-  CI Visibility, DORA metrics, and so on. Use Datadog's terms in the UI and the API.
-- **Match the real Datadog UI.** Views should look and behave like the actual Datadog page: same pages, tabs, columns,
-  facets, side panels and formats. Don't invent pages, tabs, columns or formats that Datadog doesn't have.
-- **Docs text isn't enough for layout.** Fetched doc pages lose their screenshots, and the layout lives in those. Before
-  designing or reworking a Datadog-equivalent view, ask the user for screenshots of the real page (they have a Datadog
-  account). Use the docs for behaviour and naming, screenshots for layout.
-- **Stay compatible with Datadog clients.** Being able to point Datadog tooling at ObserveCraft is a feature. The intake
-  accepts the Datadog Agent's and API formats (`server/crates/oc-intake/src/datadog*.rs`, see "Datadog compatibility"
-  below). When adding intake endpoints, follow the Datadog API reference
-  (https://docs.datadoghq.com/api/latest/) and the public OpenAPI spec in `DataDog/datadog-api-client-*`.
-- **OpenTelemetry stays the native path.** Datadog compatibility translates into OTLP and lands in the same ClickHouse
+- **Compatibility.** Support Datadog agents, SDKs and ingestion formats using public API documentation
+  (https://docs.datadoghq.com/api/latest/) and appropriately licensed specifications. Keep compatible metric names,
+  query semantics, units and formats where needed for interoperability.
+- **Interface.** Use ObserveCraft's own components, assets and visual identity. Industry references can inform
+  functional requirements; do not copy proprietary frontend code, artwork or documentation text.
+- **OpenTelemetry stays native.** Datadog compatibility translates into OTLP and lands in the same ClickHouse
   tables; it never becomes a parallel pipeline.
+- **Local context.** If `CLAUDE.internal.local` exists, read it for additional development context. This optional,
+  Git-ignored file does not override the licensing and asset restrictions below.
 
 ## Reusing Datadog (and other) code: licenses
 
@@ -43,8 +37,8 @@ the origin in a comment):
 | Vector | MPL-2.0: fine as an unmodified, separately run component; don't copy its source into this repo |
 | ClickHouse, DuckDB, NATS, RustFS | Apache-2.0 / MIT |
 
-**Not OK:** Datadog's web app, its design system, icons, logos, illustrations and screenshots are proprietary. Recreate
-the layout and behaviour in our own code and assets; never copy their frontend code or images, and don't use the
+**Not OK:** Datadog's web app, its design system, icons, logos, illustrations and screenshots are proprietary. Use
+our own interface code and assets; never copy their frontend code or images, and don't use the
 Datadog name or logo as our branding (naming it to describe compatibility is fine). Don't paste Datadog documentation
 text into the repo; write our own. Avoid copyleft or source-available code (GPL, AGPL, SSPL, BSL, Elastic License,
 Commons Clause): no Grafana/Loki/Tempo/Mimir source (AGPL), Elasticsearch/Kibana, etc. Our new dependencies in
@@ -136,8 +130,11 @@ browser (live and, where relevant, mock mode).
 - **Demo data is fictional.** Seeds, generators, mocks, fixtures and screenshots use the e-commerce demo domain
   (`api-gateway`, `storefront-api`, `order-service`, `billing`, `catalog-service`, `inventory-service`, …),
   `example-org/*` repos, hosts like `i-0a1b2c3d4e5f6000N`, AWS account `123456789012`, `@example.com` people.
-  Reference screenshots may come from a real production Datadog account: replace every service, team, cluster,
+  Reference screenshots may contain production data: replace every service, team, cluster,
   hostname and ID seen there with neutral ones.
 - **S3 storage is RustFS**, never MinIO (compose, archives, tests, docs). Publish its S3 port away from ClickHouse's
   9000 (e.g. `9100:9000`) and use path-style URLs.
-- **Commits** follow Conventional Commits (`feat(apm): …`, `fix(monitors): …`).
+- **Commits** follow Conventional Commits (`feat(apm): …`, `fix(monitors): …`); so do PR titles, which become the squashed
+  commit that release-please turns into the version and changelog (see "Releases" in `CONTRIBUTING.md`).
+- **Dependencies** must pass `cargo deny check licenses` (`server/deny.toml`) and the web license allowlist in `ci.yml`.
+- **GitHub Actions** are pinned to a commit SHA with the version in a comment; Dependabot keeps them current.

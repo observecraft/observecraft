@@ -1,0 +1,39 @@
+name: Bug report
+description: Something doesn't work as documented.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The smallest set of steps, queries or payloads that shows the problem.
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: ObserveCraft version
+      placeholder: 0.1.0, or a commit
+    validations: { required: true }
+  - type: dropdown
+    id: install
+    attributes:
+      label: How it runs
+      options: [Helm chart, Docker Compose, From source, Other]
+    validations: { required: true }
+  - type: input
+    id: sender
+    attributes:
+      label: What sends the data (if relevant)
+      placeholder: Datadog Agent 7.x, OpenTelemetry Collector 0.112, dd-trace-java 1.x, …
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and screenshots
+      description: Server or intake logs, browser console errors. Remove keys, hostnames and other private data first.
+      render: text

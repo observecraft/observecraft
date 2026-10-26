@@ -1,0 +1,19 @@
+name: Feature request
+description: A feature or a Datadog behaviour ObserveCraft doesn't have yet.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you're trying to do and why the current behaviour doesn't cover it.
+    validations: { required: true }
+  - type: textarea
+    id: datadog
+    attributes:
+      label: How Datadog does it (if it's a Datadog feature)
+      description: A link to the Datadog documentation for the feature, and what part of it you need.
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour

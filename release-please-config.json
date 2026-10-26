@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "observecraft",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": false,
+      "include-component-in-tag": false,
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug fixes" },
+        { "type": "perf", "section": "Performance" },
+        { "type": "security", "section": "Security" },
+        { "type": "docs", "section": "Documentation" },
+        { "type": "deps", "section": "Dependencies" },
+        { "type": "chore", "section": "Miscellaneous", "hidden": true },
+        { "type": "ci", "section": "CI", "hidden": true },
+        { "type": "refactor", "section": "Refactoring", "hidden": true },
+        { "type": "test", "section": "Tests", "hidden": true }
+      ],
+      "extra-files": [
+        { "type": "yaml", "path": "deploy/helm/observecraft/Chart.yaml", "jsonpath": "$.version" },
+        { "type": "yaml", "path": "deploy/helm/observecraft/Chart.yaml", "jsonpath": "$.appVersion" },
+        { "type": "yaml", "path": "deploy/helm/observecraft-agent/Chart.yaml", "jsonpath": "$.version" },
+        { "type": "yaml", "path": "deploy/helm/observecraft-agent/Chart.yaml", "jsonpath": "$.appVersion" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+# Pull requests are squash-merged, so the title becomes the commit on main that release-please reads:
+# it must be a Conventional Commit (feat(apm): …, fix(monitors): …).
+name: pr-title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        with:
+          types: |
+            feat
+            fix
+            perf
+            security
+            docs
+            deps
+            refactor
+            test
+            ci
+            chore

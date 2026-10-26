@@ -1,0 +1,57 @@
+ObserveCraft
+Copyright (c) ObserveCraft contributors. Licensed under the MIT License (see LICENSE).
+
+ObserveCraft accepts the Datadog Agent's and OpenTelemetry's wire formats. To decode them, parts of
+the source code below reproduce message definitions and binary layouts from the following projects.
+Their copyright notices and license terms are kept here, as those licenses require.
+
+-------------------------------------------------------------------------------
+DataDog/agent-payload  (https://github.com/DataDog/agent-payload)
+BSD 3-Clause License, Copyright (c) 2017, Datadog, Inc. All rights reserved.
+
+Used in server/crates/oc-intake/src/datadog.rs (proto/metrics/agent_payload.proto),
+datadog_process.rs and datadog_orch.rs (proto/process/agent.proto, process/message.go),
+datadog_network.rs (proto/process/connections.proto), datadog_dns.rs (process/dns_v1.go,
+process/dns_v2.go) and datadog_tags.rs (process/tags.go, process/tags_v2.go).
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this list of conditions
+  and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+  and the following disclaimer in the documentation and/or other materials provided with the
+  distribution.
+* Neither the name of the copyright holder nor the names of its contributors may be used to endorse
+  or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+-------------------------------------------------------------------------------
+DataDog/datadog-agent  (https://github.com/DataDog/datadog-agent)
+Apache License 2.0, Copyright 2016-present Datadog, Inc.
+This product includes software developed at Datadog (https://www.datadoghq.com/).
+
+Used in server/crates/oc-intake/src/datadog_apm.rs (pkg/proto/datadog/trace, including the idx
+format) and datadog.rs (the DDSketch key mapping of pkg/util/quantile).
+
+-------------------------------------------------------------------------------
+google/pprof  (https://github.com/google/pprof)
+Apache License 2.0, Copyright 2016 Google Inc.
+
+Used in server/crates/oc-api/src/routes/profiles.rs and server/crates/oc-tracegen/src/profiles.rs
+(proto/profile.proto, the perftools.profiles messages).
+
+-------------------------------------------------------------------------------
+The Apache License 2.0 text is available at https://www.apache.org/licenses/LICENSE-2.0.
+
+Bundled web fonts (@fontsource/noto-sans, @fontsource/noto-sans-mono) are licensed under the SIL
+Open Font License 1.1. Other dependencies carry their own licenses in their packages; CI checks
+that every one of them is permissive (server/deny.toml, the web license check in ci.yml).
