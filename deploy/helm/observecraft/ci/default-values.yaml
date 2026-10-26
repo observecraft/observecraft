@@ -1,0 +1,8 @@
+# chart-testing (ct install) in kind: small volumes and requests.
+instanceAdminEmail: admin@example.com
+server: { replicas: 1, resources: { requests: { cpu: 50m, memory: 128Mi } } }
+intake: { replicas: 1, resources: { requests: { cpu: 20m, memory: 32Mi } } }
+collector: { replicas: 1, persistence: { size: 1Gi }, resources: { requests: { cpu: 20m, memory: 128Mi } } }
+vector: { replicas: 1, persistence: { size: 1Gi }, resources: { requests: { cpu: 20m, memory: 64Mi } } }
+clickhouse: { bundled: { persistence: { size: 2Gi }, resources: { requests: { cpu: 100m, memory: 1Gi } } } }
+postgres: { bundled: { persistence: { size: 1Gi }, resources: { requests: { cpu: 20m, memory: 64Mi } } } }

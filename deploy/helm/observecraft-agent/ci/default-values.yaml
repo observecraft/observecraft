@@ -1,0 +1,3 @@
+endpoint: http://observecraft-intake.observecraft.svc:4318
+clusterName: ci
+apiKey: ocik_ci_placeholder_key_for_rendering

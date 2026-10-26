@@ -103,6 +103,15 @@ export const NAV_SECTIONS: NavItem[][] = [
             ],
           ],
         },
+        {
+          title: 'Event Management',
+          columns: [
+            [
+              { label: 'All Events', to: '/event/explorer' },
+              { label: 'Triage Inbox', to: '/event/inbox' },
+            ],
+          ],
+        },
       ],
     },
     {

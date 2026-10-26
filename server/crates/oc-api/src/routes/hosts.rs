@@ -49,6 +49,7 @@ pub enum HostOs {
 pub enum CollectorKind {
     Observecraft,
     Otel,
+    Datadog,
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Copy, PartialEq, Eq, Debug)]
@@ -169,11 +170,14 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
     let inventory = st
         .ch(org)
         .query(
+            // OpenTelemetry hosts report system.cpu.utilization by state (0–1); Datadog Agents
+            // system.cpu.idle / system.cpu.user in percent.
             "SELECT ResourceAttributes['host.name'] AS name, toJSONString(argMax(ResourceAttributes, TimeUnix)) AS res, \
-             avgIf(Value, Attributes['state'] = 'idle' AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS idle, \
-             avgIf(Value, Attributes['state'] = 'user' AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS user \
+             avgIf(if(MetricName = 'system.cpu.idle', Value / 100, Value), (MetricName = 'system.cpu.idle' OR Attributes['state'] = 'idle') AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS idle, \
+             avgIf(if(MetricName = 'system.cpu.user', Value / 100, Value), (MetricName = 'system.cpu.user' OR Attributes['state'] = 'user') AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS user \
              FROM otel.otel_metrics_gauge \
-             WHERE OrgId = {oc_org:String} AND MetricName = 'system.cpu.utilization' AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) AND name != '' \
+             WHERE OrgId = {oc_org:String} AND MetricName IN ('system.cpu.utilization', 'system.cpu.idle', 'system.cpu.user') \
+             AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) AND name != '' \
              GROUP BY name ORDER BY name LIMIT ?",
         )
         .bind(recent_from)
@@ -186,11 +190,11 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
         .ch(org)
         .query(
             "SELECT ResourceAttributes['host.name'] AS name, \
-             avgIf(Value, MetricName = 'system.memory.utilization' AND Attributes['state'] = 'used') AS mem, \
-             avgIf(Value, MetricName = 'system.cpu.load_average.1m') AS load1, \
+             avgIf(if(MetricName = 'system.mem.pct_usable', 1 - Value, Value), MetricName = 'system.mem.pct_usable' OR (MetricName = 'system.memory.utilization' AND Attributes['state'] = 'used')) AS mem, \
+             avgIf(Value, MetricName IN ('system.cpu.load_average.1m', 'system.load.1')) AS load1, \
              maxIf(Value, MetricName = 'system.uptime') AS uptime \
              FROM otel.otel_metrics_gauge \
-             WHERE OrgId = {oc_org:String} AND MetricName IN ('system.memory.utilization', 'system.cpu.load_average.1m', 'system.uptime') \
+             WHERE OrgId = {oc_org:String} AND MetricName IN ('system.memory.utilization', 'system.mem.pct_usable', 'system.cpu.load_average.1m', 'system.load.1', 'system.uptime') \
              AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) GROUP BY name",
         )
         .bind(recent_from)
@@ -206,14 +210,78 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
         .bind(range.from)
         .bind(range.to)
         .fetch_all::<SpanHost>();
-    let (inventory, values, spans) = tokio::try_join!(inventory, values, spans)?;
+    // Datadog Agent host metadata (OS, hardware, agent version, cloud, host tags).
+    #[derive(sqlx::FromRow)]
+    struct DdHost {
+        host: String,
+        agent_version: String,
+        os: String,
+        platform: String,
+        kernel: String,
+        arch: String,
+        cpu_cores: Option<i32>,
+        memory_bytes: Option<i64>,
+        cloud: String,
+        instance_id: String,
+        host_tags: Vec<String>,
+    }
+    let dd_hosts = sqlx::query_as::<_, DdHost>(
+        "SELECT host, agent_version, os, platform, kernel, arch, cpu_cores, memory_bytes, cloud, instance_id, host_tags FROM datadog_hosts WHERE org_id = $1",
+    )
+    .bind(org)
+    .fetch_all(&st.postgres);
+    let (inventory, values, spans, dd_hosts) = tokio::try_join!(
+        async { inventory.await.map_err(ApiError::from) },
+        async { values.await.map_err(ApiError::from) },
+        async { spans.await.map_err(ApiError::from) },
+        async { dd_hosts.await.map_err(ApiError::from) }
+    )?;
+    let dd_hosts: HashMap<String, DdHost> =
+        dd_hosts.into_iter().map(|h| (h.host.clone(), h)).collect();
     let values: HashMap<String, Vals> = values.into_iter().map(|v| (v.name.clone(), v)).collect();
     let spans: HashMap<String, SpanHost> = spans.into_iter().map(|s| (s.name.clone(), s)).collect();
 
     Ok(inventory
         .into_iter()
         .map(|i| {
-            let res: HashMap<String, String> = serde_json::from_str(&i.res).unwrap_or_default();
+            let mut res: HashMap<String, String> = serde_json::from_str(&i.res).unwrap_or_default();
+            if let Some(d) = dd_hosts.get(&i.name) {
+                // What the Datadog Agent reports about the host, under the OTel resource names
+                // the rest of the page reads (resource attributes from metrics win).
+                let mut fill = |k: &str, v: String| {
+                    if !v.is_empty() {
+                        res.entry(k.to_string()).or_insert(v);
+                    }
+                };
+                fill("os.type", d.os.clone());
+                fill("os.description", d.platform.clone());
+                fill("os.version", d.kernel.clone());
+                fill("host.arch", d.arch.clone());
+                fill("cloud.provider", d.cloud.clone());
+                fill("host.id", d.instance_id.clone());
+                fill(
+                    "host.cpu.count",
+                    d.cpu_cores.map(|c| c.to_string()).unwrap_or_default(),
+                );
+                fill(
+                    "host.memory.total",
+                    d.memory_bytes.map(|m| m.to_string()).unwrap_or_default(),
+                );
+                fill(
+                    "observecraft.collector.version",
+                    if d.agent_version.is_empty() {
+                        String::new()
+                    } else {
+                        format!("datadog-agent {}", d.agent_version)
+                    },
+                );
+                for tag in &d.host_tags {
+                    if let Some((k, v)) = tag.split_once(':') {
+                        let key = oc_query::resource_alias(k).unwrap_or(k);
+                        fill(key, v.to_string());
+                    }
+                }
+            }
             let v = values.get(&i.name);
             let span = spans.get(&i.name);
             let get = |k: &str| res.get(k).filter(|v| !v.is_empty()).cloned();
@@ -234,8 +302,18 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
                 let d = d.to_lowercase();
                 ["ubuntu", "debian", "centos", "redhat", "amazon", "alpine"].into_iter().find(|x| d.contains(x)).map(str::to_string)
             });
-            let collector = if get("observecraft.collector").as_deref() == Some("observecraft") { CollectorKind::Observecraft } else { CollectorKind::Otel };
-            let software = if get("k8s.cluster.name").is_some() { vec![Software::Kubernetes] } else { vec![] };
+            let collector = match get("observecraft.collector").as_deref() {
+                Some("observecraft" | "observecraft-agent" | "observecraft-cluster-agent") => {
+                    CollectorKind::Observecraft
+                }
+                Some("datadog-agent") => CollectorKind::Datadog,
+                _ => CollectorKind::Otel,
+            };
+            let software = if get("k8s.cluster.name").is_some() {
+                vec![Software::Kubernetes]
+            } else {
+                vec![]
+            };
             let summary = HostSummary {
                 name: i.name.clone(),
                 cloud,
@@ -474,7 +552,17 @@ pub struct HostRequest {
 }
 
 /// Resource attributes not worth showing as tags.
-const HIDDEN_TAGS: &[&str] = &["host.id", "observecraft.collector.version", "host.cpu.count", "process.pid", "process.command", "process.owner", "process.executable.name"];
+const HIDDEN_TAGS: &[&str] = &[
+    "oc.org_id",
+    "oc.retention_days",
+    "host.id",
+    "observecraft.collector.version",
+    "host.cpu.count",
+    "process.pid",
+    "process.command",
+    "process.owner",
+    "process.executable.name",
+];
 
 #[utoipa::path(post, path = "/api/v1/hosts/{name}", params(("name" = String, Path)), request_body = HostRequest, responses((status = 200, body = HostDetail), (status = 404, body = crate::error::ErrorBody)), tag = "infrastructure")]
 pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, Path(name): Path<String>, Json(req): Json<HostRequest>) -> ApiResult<HostDetail> {

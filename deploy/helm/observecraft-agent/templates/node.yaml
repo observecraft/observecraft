@@ -1,0 +1,147 @@
+{{- if .Values.node.enabled }}
+{{- $fullname := include "agent.fullname" . -}}
+{{- $n := .Values.node -}}
+{{- $config := mergeOverwrite (include "agent.nodeConfig" . | fromYaml) (deepCopy $n.extraConfig) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-node
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    {{- toYaml $config | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+    app.kubernetes.io/component: node
+spec:
+  updateStrategy:
+    rollingUpdate: { maxUnavailable: 10% }
+  selector:
+    matchLabels:
+      {{- include "agent.selector" (list . "node") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "agent.selector" (list . "node") | nindent 8 }}
+      annotations:
+        checksum/config: {{ toYaml $config | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ $fullname }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      {{- with $n.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      # Root (without capabilities) to read the node's container log files, like other node agents.
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        seccompProfile: { type: RuntimeDefault }
+      {{- with $n.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $n.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $n.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: agent
+          image: {{ include "agent.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: [--config=/etc/observecraft-agent/config.yaml]
+          securityContext:
+            {{- include "agent.securityContext" . | nindent 12 }}
+          env:
+            {{- include "agent.env" . | nindent 12 }}
+            - name: K8S_NODE_IP
+              valueFrom: { fieldRef: { fieldPath: status.hostIP } }
+            {{- if $n.hostMetrics.enabled }}
+            # The host's mount table (the filesystem scraper reads it from here under root_path).
+            - { name: HOST_PROC_MOUNTINFO, value: /hostfs/proc/1 }
+            {{- end }}
+            {{- with $n.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - { name: health, containerPort: 13133 }
+            {{- if $n.otlp.enabled }}
+            - { name: otlp-grpc, containerPort: 4317{{ if $n.hostPorts }}, hostPort: 4317{{ end }} }
+            - { name: otlp-http, containerPort: 4318{{ if $n.hostPorts }}, hostPort: 4318{{ end }} }
+            {{- end }}
+            {{- if $n.datadog.traces }}
+            - { name: dd-traces, containerPort: 8126{{ if $n.hostPorts }}, hostPort: 8126{{ end }} }
+            {{- end }}
+            {{- if $n.datadog.dogstatsd }}
+            - { name: dogstatsd, containerPort: 8125, protocol: UDP{{ if $n.hostPorts }}, hostPort: 8125{{ end }} }
+            {{- end }}
+          readinessProbe:
+            httpGet: { path: /, port: health }
+          livenessProbe:
+            httpGet: { path: /, port: health }
+            periodSeconds: 20
+          resources:
+            {{- toYaml $n.resources | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/observecraft-agent }
+            - { name: data, mountPath: /var/lib/observecraft-agent }
+            {{- if $n.logs.enabled }}
+            - { name: varlogpods, mountPath: /var/log/pods, readOnly: true }
+            {{- end }}
+            {{- if $n.hostMetrics.enabled }}
+            - { name: hostfs, mountPath: /hostfs, readOnly: true, mountPropagation: HostToContainer }
+            {{- end }}
+      volumes:
+        - name: config
+          configMap: { name: {{ $fullname }}-node }
+        - name: data
+          hostPath: { path: {{ $n.dataHostPath }}, type: DirectoryOrCreate }
+        {{- if $n.logs.enabled }}
+        - name: varlogpods
+          hostPath: { path: /var/log/pods }
+        {{- end }}
+        {{- if $n.hostMetrics.enabled }}
+        - name: hostfs
+          hostPath: { path: / }
+        {{- end }}
+{{- if or $n.otlp.enabled $n.datadog.traces $n.datadog.dogstatsd }}
+---
+# Applications reach the agent on their own node through this service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+spec:
+  internalTrafficPolicy: Local
+  selector:
+    {{- include "agent.selector" (list . "node") | nindent 4 }}
+  ports:
+    {{- if $n.otlp.enabled }}
+    - { name: otlp-grpc, port: 4317, targetPort: otlp-grpc }
+    - { name: otlp-http, port: 4318, targetPort: otlp-http }
+    {{- end }}
+    {{- if $n.datadog.traces }}
+    - { name: dd-traces, port: 8126, targetPort: dd-traces }
+    {{- end }}
+    {{- if $n.datadog.dogstatsd }}
+    - { name: dogstatsd, port: 8125, targetPort: dogstatsd, protocol: UDP }
+    {{- end }}
+{{- end }}
+{{- end }}

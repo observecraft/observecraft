@@ -1,0 +1,94 @@
+{{- if .Values.cluster.enabled }}
+{{- $fullname := include "agent.fullname" . -}}
+{{- $c := .Values.cluster -}}
+{{- $config := mergeOverwrite (include "agent.clusterConfig" . | fromYaml) (deepCopy $c.extraConfig) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-cluster
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    {{- toYaml $config | nindent 4 }}
+---
+# One per cluster: a second replica would send every object and cluster metric twice.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-cluster
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cluster
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels:
+      {{- include "agent.selector" (list . "cluster") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "agent.selector" (list . "cluster") | nindent 8 }}
+      annotations:
+        checksum/config: {{ toYaml $config | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ $fullname }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      {{- with $c.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      {{- with $c.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $c.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $c.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: agent
+          image: {{ include "agent.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: [--config=/etc/observecraft-agent/config.yaml]
+          securityContext:
+            {{- include "agent.securityContext" . | nindent 12 }}
+          env:
+            {{- include "agent.env" . | nindent 12 }}
+            {{- with $c.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - { name: health, containerPort: 13133 }
+          readinessProbe:
+            httpGet: { path: /, port: health }
+          livenessProbe:
+            httpGet: { path: /, port: health }
+            periodSeconds: 20
+          resources:
+            {{- toYaml $c.resources | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/observecraft-agent }
+            # Export queue: survives container restarts.
+            - { name: data, mountPath: /var/lib/observecraft-agent }
+      volumes:
+        - name: config
+          configMap: { name: {{ $fullname }}-cluster }
+        - name: data
+          emptyDir: { sizeLimit: 2Gi }
+{{- end }}

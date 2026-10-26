@@ -1,7 +1,8 @@
 /*
  * ObserveCraft design tokens.
- * Layout, density and color roles are tuned to match Datadog's app (light theme);
- * the brand accent, logo and icons are ObserveCraft's own.
+ * Dense light theme for data-heavy screens. Brand: deep teal with an amber signal,
+ * the two colors of the logo; actions and links use the teal.
+ * Fonts stay Noto Sans / Noto Sans Mono for small sizes.
  * Every component reads from these variables — never hardcode colors.
  */
 :root {
@@ -18,28 +19,28 @@
   --fw-semibold: 600;
 
   /* Navigation chrome (dark) */
-  --nav-bg: #2b2932;
-  --nav-bg-hover: #3a3742;
-  --nav-text: #d7d5de;
+  --nav-bg: #142423;
+  --nav-bg-hover: #1e3433;
+  --nav-text: #cfdad8;
   --nav-text-active: #ffffff;
-  --nav-divider: #45424e;
-  --topbar-bg: #2b2932;
-  --topbar-search-bg: #3b3843;
-  --topbar-search-border: #57535f;
-  --topbar-search-text: #cfcdd6;
+  --nav-divider: #2b4442;
+  --topbar-bg: #142423;
+  --topbar-search-bg: #1e3433;
+  --topbar-search-border: #36504e;
+  --topbar-search-text: #c3cfcd;
 
   /* Surfaces */
   --bg: #ffffff;
   --bg-subtle: #f6f7f9;
   --bg-muted: #eef0f4;
   --bg-group: #e4e6ed;       /* facet group header ("CORE") */
-  --bg-hover: #f1f4fa;
-  --bg-selected: #e8f0fc;
+  --bg-hover: #f1f6f5;
+  --bg-selected: #e3f2ee;
 
   /* Borders */
   --border: #e1e3ea;
   --border-strong: #c8ccd6;
-  --border-focus: #2f6ad0;
+  --border-focus: #0b6e69;
 
   /* Text */
   --text: #1c2333;
@@ -48,16 +49,17 @@
   --text-inverse: #ffffff;
 
   /* Interactive */
-  --primary: #2f6ad0;
-  --primary-hover: #2459b5;
-  --primary-subtle: #e8f0fc;
-  --link: #2f6ad0;
+  --primary: #0b6e69;
+  --primary-hover: #0b5f5c;
+  --primary-subtle: #e3f2ee;
+  --link: #0b6e69;
 
   /* Brand (ObserveCraft) */
-  --brand: #7c4dff;
-  --brand-subtle: #efe9ff;
-  --brand-strong: #6a3fd1;    /* brand text/edges on light backgrounds */
-  --hero-tint: #b4a3ff;
+  --brand: #0b5f5c;
+  --brand-subtle: #e3f2ee;
+  --brand-strong: #073f3d;    /* brand text/edges on light backgrounds */
+  --brand-accent: #ffb547;    /* amber from the logo: highlights, active nav marker */
+  --hero-tint: #8fd1c7;
   --insight: #e0218a;        /* anomaly-insight highlight (dashed panel, badge) */
 
   /* Log / monitor status */
@@ -82,7 +84,7 @@
   --badge-debug-fg: #5a6273;
 
   /* Log message syntax highlighting */
-  --hl-link: #2f6ad0;
+  --hl-link: #0b6e69;
   --hl-muted: #8b93a3;
   --pill-bg: #eef0f4;
   --json-literal: #7b3fc4;    /* booleans / numbers in JSON views */

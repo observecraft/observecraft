@@ -22,18 +22,39 @@ const PEER_LOGO: Record<string, string> = {
   'sendgrid-api': 'sendgrid',
 };
 
+// `db.system` / `messaging.system` of inferred services → BrandLogo key.
+const TECH_LOGO: Record<string, string> = {
+  postgresql: 'postgresql',
+  mysql: 'mysql',
+  mariadb: 'mysql',
+  redis: 'redis',
+  mongodb: 'mongodb',
+  elasticsearch: 'elasticsearch',
+  cassandra: 'apachecassandra',
+  dynamodb: 'amazondynamodb',
+  oracle: 'oracle',
+  kafka: 'apachekafka',
+  rabbitmq: 'rabbitmq',
+};
+
 export const LANGUAGE_LABEL: Record<string, string> = { java: 'Java', go: 'Go', nodejs: 'Node.js', python: 'Python', dotnet: '.NET' };
 
+/** The logo of a service: its language, the technology of an inferred peer, or a known peer name. */
+export function serviceLogo(name: string, language?: string | null, technology?: string | null): string | null {
+  const key = (language && LANGUAGE_LOGO[language]) || (technology && TECH_LOGO[technology]) || PEER_LOGO[name];
+  return key && hasBrandLogo(key) ? key : null;
+}
+
 /** Square kind badge (web/db/…) and, when known, the language or technology logo. */
-export function ServiceIcon({ name, kind, language, size = 16 }: { name: string; kind: ServiceKind; language?: string | null; size?: number }) {
+export function ServiceIcon({ name, kind, language, technology, size = 16 }: { name: string; kind: ServiceKind; language?: string | null; technology?: string | null; size?: number }) {
   const Icon = KIND_ICON[kind];
-  const logo = (language && LANGUAGE_LOGO[language]) || PEER_LOGO[name];
+  const logo = serviceLogo(name, language, technology);
   return (
     <span className="svc-icon">
       <span className={`svc-kind svc-kind-${kind}`} title={KIND_LABEL[kind]}>
         <Icon size={size - 4} />
       </span>
-      {logo && hasBrandLogo(logo) && <BrandLogo name={logo} size={size} title={language ? LANGUAGE_LABEL[language] ?? language : name} />}
+      {logo && <BrandLogo name={logo} size={size} title={language ? (LANGUAGE_LABEL[language] ?? language) : (technology ?? name)} />}
     </span>
   );
 }

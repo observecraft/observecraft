@@ -77,12 +77,12 @@ No backend handy? `make web-mock` runs the UI against in-browser mocks.
 | `server/crates/oc-query` | Search syntax → ClickHouse / DuckDB `WHERE` clauses, in-memory matcher, metric query parser |
 | `server/crates/oc-store` | ClickHouse + Postgres clients, migrations, retention |
 | `server/crates/oc-api` | The `observecraft-server` binary: axum routes, auth & tenancy, monitor evaluator, notifier, log archiver, demo seeds |
-| `server/crates/oc-intake` | The telemetry gateway: ingest-key auth, per-org rate limits, forwarding to the Collector / Vector |
+| `server/crates/oc-intake` | The telemetry gateway: ingest-key auth, per-org rate limits, OTLP HTTP and gRPC, Datadog logs and metrics APIs, forwarding to the Collector / Vector |
 | `server/crates/oc-tracegen` | Synthetic OTLP traces, logs, metrics (incl. histograms) and CI pipeline data |
 | `server/migrations/` | ClickHouse (telemetry) and Postgres (metadata) schemas |
 | `web/src/api/` | The only data-access layer of the UI: typed clients + in-browser mocks |
 | `web/src/pages/` | One folder per product area (logs, apm, metrics, monitors, …) |
-| `deploy/` | Docker Compose stack, Vector and OpenTelemetry Collector configuration |
+| `deploy/` | Docker Compose stack, Helm charts, Vector and OpenTelemetry Collector configuration |
 
 ## Making a change
 
@@ -100,7 +100,33 @@ No backend handy? `make web-mock` runs the UI against in-browser mocks.
   that has already been merged; write a new one instead.
 - Every Postgres table carries `org_id`, and every query must filter on it.
 - ClickHouse telemetry is per org too: `oc.logs` filters on `org_id = ?`, the `otel.*` tables on
-  `OrgId = {oc_org:String}` through the client from `AppState::ch(org)`. New queries on those tables must do the same.
+  `OrgId = {oc_org:String}` through the client from `AppState::ch(org)`. New queries on those tables must do the same;
+  the `telemetry_queries_filter_by_org` test fails on a query that names a telemetry table without an org filter.
+- ClickHouse tables must work on a single server and on a cluster. Write them with the placeholders documented at the
+  top of `server/migrations/clickhouse/0001_schema.sql`:
+  - `${ON_CLUSTER}`, `${LOCAL}` and `${REPLICATED}` on every table and materialized view;
+  - a `${DISTRIBUTED db.table sharding_key}` statement after each table;
+  - a sort key that starts with the org (`org_id` / `OrgId`);
+  - partitions by day, plus by retention when rows carry their own.
+- DDL and mutations from code target the table that holds the rows: use `AppState::tables.local(table)` and
+  `.on_cluster()`. Reads and inserts use the plain names.
+- `cargo test -p oc-store` checks the rendered schema in both modes. To run it on a real cluster, start one with Keeper
+  (a cluster named `oc` with two shards), then run
+  `OC_TEST_CLICKHOUSE_CLUSTER_URL=http://localhost:18123 cargo test -p oc-store --test cluster`.
+
+### Helm charts and the agent
+
+- `deploy/helm/observecraft` (the platform) and `deploy/helm/observecraft-agent`. The platform chart's Collector and
+  Vector configs are symlinks to `deploy/otel` and `deploy/vector`: Compose and Helm share one copy, and endpoints come
+  from environment variables. Keep compose-only parts (like `otel/hostmetrics.yaml`) out of those files.
+- New values go in `values.yaml` with a comment and in `values.schema.json`.
+- Check a change with `helm lint` (also with `values-ha.yaml`) and `helm template`, and install it in a local cluster
+  (kind): build the image (`docker build -f server/Dockerfile -t observecraft:dev .`), `kind load docker-image` it,
+  install with
+  `-f ci/default-values.yaml --set image.repository=observecraft --set image.tag=dev`, then `helm test`.
+- `observecraft-agent` runs the official `otel/opentelemetry-collector-contrib` image: keep its tag on the collector
+  release the platform chart uses. We don't build our own agent or SDK; senders are the Datadog Agent and libraries,
+  or OpenTelemetry.
 
 ### API changes
 

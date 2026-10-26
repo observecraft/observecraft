@@ -14,12 +14,14 @@ aes-gcm = "0.10"
 anyhow.workspace = true
 argon2 = "0.5"
 async-nats.workspace = true
-axum.workspace = true
+axum = { workspace = true, features = ["multipart"] }
 base64 = "0.22"
 clickhouse.workspace = true
 data-encoding = "2"
 # Archive search over Parquet files (C++ engine compiled in; Parquet reader included).
 duckdb = { version = "=1.10506.0", features = ["bundled", "parquet"] }
+# Profiles: gzip-compressed pprof uploads.
+flate2 = "1"
 futures.workspace = true
 hmac = "0.12"
 # Monitor notification email (SMTP over rustls).
@@ -27,12 +29,14 @@ lettre = { version = "=0.11.23", default-features = false, features = ["builder"
 oc-query.workspace = true
 oc-store.workspace = true
 openidconnect = "4"
+prost = "0.13"
 rand = "0.8"
 reqwest.workspace = true
 # S3 request signing (sans-IO; requests are sent with reqwest).
 rusty-s3 = "0.10.2"
 samael = { version = "0.0.22", features = ["xmlsec"] }
 serde.workspace = true
+serde_bytes = "0.11"
 serde_json.workspace = true
 sha1 = "0.10"
 sha2 = "0.10"

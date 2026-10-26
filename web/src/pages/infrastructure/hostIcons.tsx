@@ -1,6 +1,6 @@
 // Marks for clouds, OSes, collectors and software in the host list and filters.
 // Full-colour brand logos via BrandLogo (SVG Logos, CC0); Alibaba uses its Simple Icons mark in brand colour.
-import { Cpu } from 'lucide-react';
+import { Cpu, Server } from 'lucide-react';
 import { siAlibabacloud, siOracle, type SimpleIcon } from 'simple-icons';
 import type { Cloud, CollectorKind, HostOs, Software } from '../../api/infrastructure/types';
 import { BrandLogo } from '../../components/brand/BrandLogo';
@@ -26,7 +26,7 @@ function SiMark({ icon, size, title }: { icon: SimpleIcon; size: number; title: 
 
 export const CLOUD_LABEL: Record<Cloud, string> = { aws: 'AWS', azure: 'Azure', gcp: 'Google Cloud', oracle: 'Oracle', alibaba: 'Alibaba Cloud', none: 'On-prem' };
 export const OS_LABEL: Record<HostOs, string> = { windows: 'Windows', linux: 'Linux', darwin: 'Darwin' };
-export const COLLECTOR_LABEL: Record<CollectorKind, string> = { observecraft: 'ObserveCraft Collector', otel: 'OpenTelemetry' };
+export const COLLECTOR_LABEL: Record<CollectorKind, string> = { observecraft: 'ObserveCraft Agent', datadog: 'Datadog Agent', otel: 'OpenTelemetry' };
 
 export function CloudIcon({ cloud, size = 16 }: { cloud: Cloud; size?: number }) {
   switch (cloud) {
@@ -54,7 +54,10 @@ export function OsIcon({ os, distro, size = 16 }: { os: HostOs; distro?: string;
 }
 
 export function CollectorIcon({ kind, size = 16 }: { kind: CollectorKind; size?: number }) {
-  return kind === 'otel' ? <BrandLogo name="otel" size={size} title="OpenTelemetry" /> : <CollectorMark size={size} />;
+  if (kind === 'otel') return <BrandLogo name="otel" size={size} title="OpenTelemetry" />;
+  // A neutral mark: the Datadog Agent is identified by its label, not Datadog's logo.
+  if (kind === 'datadog') return <Server size={size} aria-label={COLLECTOR_LABEL.datadog} />;
+  return <CollectorMark size={size} />;
 }
 
 export function SoftwareIcon({ kind, size = 16 }: { kind: Software; size?: number }) {

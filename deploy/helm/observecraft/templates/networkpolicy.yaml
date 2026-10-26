@@ -1,0 +1,54 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $fullname := include "oc.fullname" . -}}
+{{- /* component → list of [port, [allowed components]]; "*" = anyone (the intake authenticates
+     every request), "ingress" = networkPolicy.ingressFrom (anyone when empty). Egress is open:
+     archives (S3), notifications (SMTP, webhooks) and SSO reach outside the cluster. */ -}}
+{{- $rules := dict
+  "server" (list (list 8080 (list "ingress")) (list 8090 (list "vector" "intake")))
+  "intake" (list (list 4318 (list "*")) (list 4317 (list "*")))
+  "collector" (list (list 4318 (list "intake")) (list 4317 (list "intake")))
+  "vector" (list (list 4317 (list "collector")) (list 8687 (list "intake")))
+-}}
+{{- if eq .Values.clickhouse.mode "bundled" }}
+{{- $_ := set $rules "clickhouse" (list (list 8123 (list "server" "vector")) (list 9000 (list "server" "collector"))) }}
+{{- end }}
+{{- if eq .Values.postgres.mode "bundled" }}
+{{- $_ := set $rules "postgres" (list (list 5432 (list "server" "intake"))) }}
+{{- end }}
+{{- if .Values.nats.enabled }}
+{{- $_ := set $rules "nats" (list (list 4222 (list "server" "vector")) (list 6222 (list "nats"))) }}
+{{- end }}
+{{- range $component, $ports := $rules }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}-{{ $component }}
+  labels:
+    {{- include "oc.componentLabels" (list $ $component) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "oc.selector" (list $ $component) | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    {{- range $ports }}
+    {{- $port := index . 0 }}{{- $from := index . 1 }}
+    - ports: [{ port: {{ $port }} }]
+      {{- if has "*" $from }}
+      {{- else if has "ingress" $from }}
+      {{- with $.Values.networkPolicy.ingressFrom }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- else }}
+      from:
+        {{- range $from }}
+        - podSelector:
+            matchLabels:
+              {{- include "oc.selector" (list $ .) | nindent 14 }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

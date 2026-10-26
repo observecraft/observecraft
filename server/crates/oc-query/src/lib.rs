@@ -18,6 +18,9 @@ mod sql;
 
 pub use duck::{build_where_duckdb, ArchiveLogsSchema};
 pub use matcher::{glob, matches, Fields};
-pub use metrics::{metric_field, metric_filter, parse_metric_query, resource_alias, short_tag, span_field, MetricQuery, SpaceAgg, TagFilter};
+pub use metrics::{
+    metric_field, metric_filter, parse_metric_query, resource_alias, short_tag, span_field,
+    MetricQuery, SpaceAgg, TagFilter,
+};
 pub use parse::{parse_query, tokenize, Term};
 pub use sql::{build_where, LogsSchema, Param, Schema, SpansSchema, SqlFilter};

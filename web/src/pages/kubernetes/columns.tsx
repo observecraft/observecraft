@@ -2,8 +2,8 @@ import type { MouseEvent, ReactNode } from 'react';
 import type { KubeHealth, KubeKind, KubeResource, KubeUtilization } from '../../api/kubernetes/client';
 import { formatBytes } from '../../components/ui/Pager';
 
-/** Explorer resources: Kubernetes and ECS kinds, plus processes (not collected). */
-export type ExplorerKind = KubeKind | 'processes';
+/** Explorer resources: processes, containers, Kubernetes and ECS kinds. */
+export type ExplorerKind = KubeKind;
 
 export interface CellContext {
   /** Adds `key:value` to the explorer's filter. */
@@ -178,6 +178,10 @@ export const TAG_LABELS: Record<string, string> = {
   ecs_cluster: 'ECS Cluster',
   ecs_service: 'ECS Service',
   region: 'Region',
+  command: 'Command',
+  user: 'User',
+  host: 'Host',
+  container_id: 'Container',
 };
 
 /** Facets about the resource itself; the rest describe what it belongs to. */
@@ -194,6 +198,8 @@ const CONDITION_KEYS = new Set([
   'os',
   'short_image',
   'image_tag',
+  'command',
+  'user',
 ]);
 export const facetGroup = (key: string) => (CONDITION_KEYS.has(key) ? 'CONDITIONS' : 'RELATIONS');
 
@@ -328,7 +334,51 @@ const t = (key: keyof KubeResource, label: string, mono = false): KubeColumn => 
 /** Capacity-based utilization (nodes, clusters): usage / allocatable. */
 const alloc = (k: 'cpu' | 'memory', label: string): KubeColumn => ({ key: k, label, sort: k, num: true, render: (r) => <PctOfLimits u={r[k] ? { ...r[k], limits: r[k]!.capacity } : null} /> });
 
+const tagValue = (r: KubeResource, key: string) => r.tags.find((x) => x.startsWith(`${key}:`))?.slice(key.length + 1);
+
+/** Process CPU as a share of all the host's cores (Datadog's "Total CPU - Normalized"). */
+function normalizedCpu(r: KubeResource): number | null {
+  const used = r.cpu?.usage;
+  if (used == null) return null;
+  return (used / (r.hostCpus || 1)) * 100;
+}
+
 export const COLUMNS: Record<KubeKind, KubeColumn[]> = {
+  processes: [
+    {
+      key: 'name',
+      label: 'PROCESS',
+      sort: 'name',
+      render: (r) => (
+        <span className="ox-name mono" title={r.name}>
+          {r.name}
+        </span>
+      ),
+    },
+    { key: 'user', label: 'USERNAME', sort: 'user', render: (r, c) => <Chip k="user" v={r.user} ctx={c} /> },
+    { key: 'host', label: 'HOST', render: (r, c) => <Chip k="host" v={r.node} ctx={c} /> },
+    { key: 'pod', label: 'POD', render: (r, c) => <Chip k="pod_name" v={r.owner?.name} ctx={c} /> },
+    {
+      key: 'container',
+      label: 'CONTAINER',
+      render: (r, c) => {
+        const id = tagValue(r, 'container_id');
+        return <Chip k="container_id" v={id ? id.slice(0, 12) : null} ctx={{ filter: (k) => id && c.filter(k, id) }} />;
+      },
+    },
+    {
+      key: 'cpu',
+      label: 'TOTAL CPU - NORMALIZED',
+      sort: 'cpu',
+      num: true,
+      render: (r) => {
+        const pct = normalizedCpu(r);
+        return pct == null ? '—' : `${pct < 0.01 && pct > 0 ? '<0.01' : pct.toFixed(2)}%`;
+      },
+    },
+    { key: 'memory', label: 'RSS MEMORY', sort: 'memory', num: true, render: (r) => formatMem(r.memory?.usage) },
+    { key: 'age', label: 'STARTED', sort: 'age', num: true, render: (r) => (r.createdAt ? `${age(r.createdAt)} ago` : '—') },
+  ],
   pods: [nameCol('POD'), status, cluster, ns, ageCol, ready, restarts, cpu, mem],
   clusters: [nameCol('CLUSTER'), status, t('version', 'VERSION'), n('nodes', 'NODES'), pods, alloc('cpu', 'CPU USAGE/ALLOCATABLE'), alloc('memory', 'MEM USAGE/ALLOCATABLE'), ageCol],
   namespaces: [nameCol('NAMESPACE'), status, cluster, ageCol, pods, cpu, mem],

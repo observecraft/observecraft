@@ -10,4 +10,5 @@ anyhow.workspace = true
 clickhouse.workspace = true
 serde.workspace = true
 sqlx.workspace = true
+tokio.workspace = true
 tracing.workspace = true

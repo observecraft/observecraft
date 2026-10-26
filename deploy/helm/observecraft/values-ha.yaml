@@ -1,0 +1,50 @@
+# Production profile: no single points of failure, room to grow.
+#   helm install observecraft oci://ghcr.io/observecraft/charts/observecraft -n observecraft --create-namespace \
+#     -f values-ha.yaml --set publicUrl=https://observecraft.example.com --set instanceAdminEmail=admin@example.com
+#
+# Needs, installed first:
+#   - Altinity ClickHouse operator   https://github.com/Altinity/clickhouse-operator
+#   - CloudNativePG                  https://cloudnative-pg.io
+#   - an ingress controller, cert-manager (optional) and metrics-server (for autoscaling)
+
+clickhouse:
+  mode: operator
+  operator:
+    shards: 2
+    replicas: 2
+    keeper:
+      replicas: 3
+
+postgres:
+  mode: operator
+  operator:
+    instances: 3
+
+nats:
+  replicas: 3
+
+server:
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+
+intake:
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+
+collector:
+  replicas: 3
+
+vector:
+  replicas: 3
+
+ingress:
+  enabled: true
+  className: nginx
+  certManagerClusterIssuer: letsencrypt
+  intake:
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: 16m

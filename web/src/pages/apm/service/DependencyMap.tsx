@@ -1,13 +1,28 @@
 import { useNavigate } from 'react-router-dom';
 import type { Dependencies, Dependency } from '../../../api/apm/client';
-import { fmtPct, fmtRate } from '../visuals';
+import { BrandLogo } from '../../../components/brand/BrandLogo';
+import { fmtPct, fmtRate, serviceLogo } from '../visuals';
 
 const W = 900;
 const ROW = 46;
-const NODE_R = 9;
+const NODE_R = 13;
+/** Logo size inside a node. */
+const LOGO = 16;
 
 function edgeColor(d: Dependency): string {
   return d.errorRate >= 0.05 ? 'var(--status-error)' : d.errorRate >= 0.01 ? 'var(--status-warn)' : 'var(--border-strong)';
+}
+
+/** A service's logo centred on (x, y), on a white disc so it reads on any kind colour. */
+function Logo({ name, language, technology, x, y, size }: { name: string; language?: string | null; technology?: string | null; x: number; y: number; size: number }) {
+  const logo = serviceLogo(name, language, technology);
+  if (!logo) return null;
+  return (
+    <g transform={`translate(${x - size / 2} ${y - size / 2})`} pointerEvents="none">
+      <circle cx={size / 2} cy={size / 2} r={size / 2 + 2} className="dm-logo-bg" />
+      <BrandLogo name={logo} size={size} />
+    </g>
+  );
 }
 
 /** Upstream callers → this service → downstream dependencies. Edge width ∝ log(req/s), colour = error rate. */
@@ -28,7 +43,8 @@ export function DependencyMap({ service, deps }: { service: string; deps: Depend
     <g key={`${anchor}:${d.service}`} className="dm-node" onClick={() => open(d.service)}>
       <title>{`${d.service}\n${fmtRate(d.reqPerSec)} · ${fmtPct(d.errorRate)} errors`}</title>
       <circle cx={x} cy={y} r={NODE_R} className={`dm-kind-${d.kind}`} />
-      <text x={anchor === 'end' ? x - 16 : x + 16} y={y + 4} textAnchor={anchor}>
+      <Logo name={d.service} language={d.language} technology={d.technology} x={x} y={y} size={LOGO} />
+      <text x={anchor === 'end' ? x - 20 : x + 20} y={y + 4} textAnchor={anchor}>
         {d.service}
       </text>
     </g>
@@ -49,6 +65,7 @@ export function DependencyMap({ service, deps }: { service: string; deps: Depend
         {deps.downstream.map((d, i) => node(d, W - 200, down[i], 'start'))}
         <g className="dm-center">
           <circle cx={cx} cy={cy} r={22} />
+          <Logo name={service} language={deps.language} x={cx} y={cy} size={24} />
           <text x={cx} y={cy + 40} textAnchor="middle">
             {service}
           </text>

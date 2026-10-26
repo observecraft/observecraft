@@ -29,7 +29,7 @@ function DashIcon({ d, size = 18 }: { d: Pick<DashboardSummary, 'logo' | 'title'
 }
 
 function Initials({ name }: { name: string }) {
-  const colors = ['#7c4dff', '#2f6ad0', '#29a8a0', '#d65cad', '#f2a93b'];
+  const colors = ['#0b6e69', '#2f6ad0', '#29a8a0', '#d65cad', '#f2a93b'];
   const c = colors[[...name].reduce((a, ch) => a + ch.charCodeAt(0), 0) % colors.length];
   return (
     <span className="dl-avatar" style={{ background: c }}>

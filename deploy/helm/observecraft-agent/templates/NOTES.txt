@@ -1,0 +1,27 @@
+The OpenTelemetry Collector is sending {{ .Values.clusterName }} to {{ .Values.endpoint }}.
+{{- if .Values.node.enabled }}
+
+On every node: {{ if .Values.node.logs.enabled }}container logs, {{ end }}{{ if .Values.node.kubeletMetrics.enabled }}pod and container metrics, {{ end }}{{ if .Values.node.hostMetrics.enabled }}host metrics{{ end }}.
+{{- if or .Values.node.otlp.enabled .Values.node.datadog.traces .Values.node.datadog.dogstatsd }}
+
+Point applications at the agent on their node:
+  env:
+    - name: HOST_IP
+      valueFrom: { fieldRef: { fieldPath: status.hostIP } }
+{{- if .Values.node.otlp.enabled }}
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT        # OpenTelemetry SDKs
+      value: http://$(HOST_IP):4318
+{{- end }}
+{{- if or .Values.node.datadog.traces .Values.node.datadog.dogstatsd }}
+    - name: DD_AGENT_HOST                      # Datadog tracers (8126) and DogStatsD (8125)
+      value: $(HOST_IP)
+{{- end }}
+  or use the node-local service {{ include "agent.fullname" . }}.{{ .Release.Namespace }}.svc
+{{- end }}
+{{- end }}
+{{- if .Values.cluster.enabled }}
+
+Cluster agent: cluster state metrics, the Kubernetes Explorer inventory{{ if .Values.cluster.events }} and events{{ end }}.
+{{- end }}
+
+Check it: kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}

@@ -1,0 +1,243 @@
+{{- $fullname := include "oc.fullname" . -}}
+{{- $secret := include "oc.secretName" . -}}
+# Telemetry pipeline. The configs are the same files the compose stack uses (deploy/otel,
+# deploy/vector); endpoints come from the environment.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-pipeline
+  labels:
+    {{- include "oc.labels" . | nindent 4 }}
+data:
+  collector.yaml: |
+    {{- .Files.Get "files/collector.yaml" | nindent 4 }}
+  aggregator.yaml: |
+    {{- .Files.Get "files/vector-aggregator.yaml" | nindent 4 }}
+  normalize.vrl: |
+    {{- .Files.Get "files/normalize.vrl" | nindent 4 }}
+---
+# ---------------------------------------------------------------- collector
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullname }}-collector
+  labels:
+    {{- include "oc.componentLabels" (list . "collector") | nindent 4 }}
+spec:
+  serviceName: {{ $fullname }}-collector-headless
+  replicas: {{ .Values.collector.replicas }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "collector") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "oc.selector" (list . "collector") | nindent 8 }}
+      annotations:
+        checksum/config: {{ .Files.Get "files/collector.yaml" | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      {{- include "oc.pullSecrets" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      {{- include "oc.scheduling" (list . .Values.collector "collector") | nindent 6 }}
+      containers:
+        - name: collector
+          image: {{ include "oc.imageOf" (list . .Values.collector.image) }}
+          args: [--config=/etc/otelcol/collector.yaml]
+          {{- include "oc.containerSecurity" . | nindent 10 }}
+          ports:
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: health, containerPort: 13133 }
+          env:
+            - { name: OC_CLICKHOUSE_TCP_ENDPOINT, value: "tcp://{{ include "oc.clickhouseNative" . }}?dial_timeout=10s" }
+            # Client-side balancing over every Vector pod (gRPC connections are long-lived).
+            - { name: OC_VECTOR_OTLP_ENDPOINT, value: "dns:///{{ $fullname }}-vector-headless:4317" }
+            - { name: OC_COLLECTOR_MEMORY_LIMIT_MIB, value: {{ .Values.collector.memoryLimitMiB | quote }} }
+            - { name: CLICKHOUSE_USER, value: {{ include "oc.clickhouseIngestUser" . | quote }} }
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: {{ include "oc.clickhouseIngestPasswordKey" . }} } }
+          readinessProbe:
+            httpGet: { path: /, port: health }
+          livenessProbe:
+            httpGet: { path: /, port: health }
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.collector.resources | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/otelcol }
+            - { name: queue, mountPath: /var/lib/otelcol/queue }
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $fullname }}-pipeline
+            items: [{ key: collector.yaml, path: collector.yaml }]
+  volumeClaimTemplates:
+    - metadata:
+        name: queue
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- include "oc.storageClass" . | nindent 8 }}
+        resources:
+          requests:
+            storage: {{ .Values.collector.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-collector
+  labels:
+    {{- include "oc.componentLabels" (list . "collector") | nindent 4 }}
+spec:
+  selector:
+    {{- include "oc.selector" (list . "collector") | nindent 4 }}
+  ports:
+    - { name: otlp-http, port: 4318, targetPort: otlp-http }
+    - { name: otlp-grpc, port: 4317, targetPort: otlp-grpc }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-collector-headless
+  labels:
+    {{- include "oc.componentLabels" (list . "collector") | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "oc.selector" (list . "collector") | nindent 4 }}
+  ports:
+    - { name: otlp-http, port: 4318 }
+{{- if .Values.collector.podDisruptionBudget.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $fullname }}-collector
+  labels:
+    {{- include "oc.componentLabels" (list . "collector") | nindent 4 }}
+spec:
+  maxUnavailable: {{ .Values.collector.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "collector") | nindent 6 }}
+{{- end }}
+---
+# ---------------------------------------------------------------- vector
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullname }}-vector
+  labels:
+    {{- include "oc.componentLabels" (list . "vector") | nindent 4 }}
+spec:
+  serviceName: {{ $fullname }}-vector-headless
+  replicas: {{ .Values.vector.replicas }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "vector") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "oc.selector" (list . "vector") | nindent 8 }}
+      annotations:
+        checksum/config: {{ print (.Files.Get "files/vector-aggregator.yaml") (.Files.Get "files/normalize.vrl") | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      {{- include "oc.pullSecrets" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      {{- include "oc.scheduling" (list . .Values.vector "vector") | nindent 6 }}
+      containers:
+        - name: vector
+          image: {{ include "oc.imageOf" (list . .Values.vector.image) }}
+          args: [--config, /etc/vector/aggregator.yaml]
+          {{- include "oc.containerSecurity" . | nindent 10 }}
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: json-logs, containerPort: 8687 }
+            - { name: api, containerPort: 8686 }
+          env:
+            - { name: OC_CLICKHOUSE_HTTP_ENDPOINT, value: {{ include "oc.clickhouseHttpUrl" . | quote }} }
+            - { name: OC_NATS_URL, value: {{ include "oc.natsUrl" . | quote }} }
+            - { name: OC_LOGPROC_URL, value: "http://{{ $fullname }}-server:8090/ingest/logs" }
+            - name: OC_INTERNAL_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: internal-token } }
+            - { name: CLICKHOUSE_USER, value: {{ include "oc.clickhouseIngestUser" . | quote }} }
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: {{ include "oc.clickhouseIngestPasswordKey" . }} } }
+          readinessProbe:
+            httpGet: { path: /health, port: api }
+          livenessProbe:
+            httpGet: { path: /health, port: api }
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.vector.resources | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/vector }
+            - { name: data, mountPath: /var/lib/vector }
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $fullname }}-pipeline
+            items:
+              - { key: aggregator.yaml, path: aggregator.yaml }
+              - { key: normalize.vrl, path: normalize.vrl }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- include "oc.storageClass" . | nindent 8 }}
+        resources:
+          requests:
+            storage: {{ .Values.vector.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-vector
+  labels:
+    {{- include "oc.componentLabels" (list . "vector") | nindent 4 }}
+spec:
+  selector:
+    {{- include "oc.selector" (list . "vector") | nindent 4 }}
+  ports:
+    - { name: json-logs, port: 8687, targetPort: json-logs }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-vector-headless
+  labels:
+    {{- include "oc.componentLabels" (list . "vector") | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "oc.selector" (list . "vector") | nindent 4 }}
+  ports:
+    - { name: otlp-grpc, port: 4317 }
+{{- if .Values.vector.podDisruptionBudget.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $fullname }}-vector
+  labels:
+    {{- include "oc.componentLabels" (list . "vector") | nindent 4 }}
+spec:
+  maxUnavailable: {{ .Values.vector.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "vector") | nindent 6 }}
+{{- end }}

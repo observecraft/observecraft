@@ -4,7 +4,8 @@ import { Check, ChevronDown, ChevronRight, Clock, Copy, ExternalLink, Link2, Max
 import type { TraceDetail, TraceSpan } from '../../../api/apm/client';
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { useSpanPercentile, useTrace } from '../queries';
-import { fmtLatency } from '../visuals';
+import { BrandLogo } from '../../../components/brand/BrandLogo';
+import { fmtLatency, serviceLogo } from '../visuals';
 import { HttpStatus, ServiceGlyph, serviceColor } from '../explorer/SpanBits';
 import { SpanPanel } from './SpanPanel';
 import '../explorer/explorer.css';
@@ -445,7 +446,7 @@ function ServiceMap({ spans }: { spans: TraceSpan[] }) {
     const byId = new Map(spans.map((s) => [s.spanId, s]));
     const depth = new Map<string, number>();
     const edges = new Map<string, { from: string; to: string; calls: number; errors: number }>();
-    const nodeStats = new Map<string, { spans: number; errors: number }>();
+    const nodeStats = new Map<string, { spans: number; errors: number; language: string | null }>();
     const levelOf = (s: TraceSpan): number => {
       let d = 0;
       let p = byId.get(s.parentSpanId);
@@ -458,7 +459,8 @@ function ServiceMap({ spans }: { spans: TraceSpan[] }) {
       return d;
     };
     for (const s of spans) {
-      const st = nodeStats.get(s.service) ?? { spans: 0, errors: 0 };
+      const st = nodeStats.get(s.service) ?? { spans: 0, errors: 0, language: null };
+      st.language ??= s.resource['telemetry.sdk.language'] ?? null;
       st.spans++;
       st.errors += isError(s) ? 1 : 0;
       nodeStats.set(s.service, st);
@@ -518,6 +520,14 @@ function ServiceMap({ spans }: { spans: TraceSpan[] }) {
             <g key={svc} transform={`translate(${p.x},${p.y})`}>
               <rect width={W} height={H} rx={8} className={`tv-map-node${st.errors ? ' err' : ''}`} />
               <rect width={6} height={H} rx={3} fill={serviceColor(svc)} />
+              {(() => {
+                const logo = serviceLogo(svc, st.language);
+                return logo ? (
+                  <g transform={`translate(${W - 30},${(H - 20) / 2})`}>
+                    <BrandLogo name={logo} size={20} />
+                  </g>
+                ) : null;
+              })()}
               <text x={16} y={26} className="tv-map-name">
                 {svc.length > 26 ? `${svc.slice(0, 25)}…` : svc}
               </text>

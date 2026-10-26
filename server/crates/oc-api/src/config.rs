@@ -7,6 +7,15 @@ pub struct Config {
     pub clickhouse_url: String,
     pub clickhouse_user: String,
     pub clickhouse_password: String,
+    /// ClickHouse cluster to create replicated, sharded tables on (unset: a single server).
+    pub clickhouse_cluster: Option<String>,
+    /// Replace a pre-0001_schema ClickHouse schema (deletes its telemetry).
+    pub clickhouse_drop_legacy: bool,
+    /// Apply migrations at startup (off when a deploy step runs `observecraft-server migrate`).
+    pub run_migrations: bool,
+    /// Limits on each query an org runs, so one org can't starve the others.
+    pub query_timeout_secs: u32,
+    pub query_max_memory_bytes: u64,
     pub postgres_url: String,
     pub nats_url: String,
     /// Built web app to serve (e.g. `../web/dist`); unset in development (Vite serves it).
@@ -86,6 +95,11 @@ impl Config {
             clickhouse_url: var("OC_CLICKHOUSE_URL", "http://localhost:8123"),
             clickhouse_user: var("OC_CLICKHOUSE_USER", "observecraft"),
             clickhouse_password: var("OC_CLICKHOUSE_PASSWORD", "observecraft"),
+            clickhouse_cluster: env::var("OC_CLICKHOUSE_CLUSTER").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+            clickhouse_drop_legacy: var("OC_CLICKHOUSE_DROP_LEGACY_SCHEMA", "false") == "true",
+            run_migrations: var("OC_RUN_MIGRATIONS", "true") != "false",
+            query_timeout_secs: var("OC_QUERY_TIMEOUT_SECONDS", "60").parse().unwrap_or(60).max(1),
+            query_max_memory_bytes: var("OC_QUERY_MAX_MEMORY_BYTES", "4294967296").parse().unwrap_or(4 << 30),
             postgres_url: var("OC_POSTGRES_URL", "postgres://observecraft:observecraft@localhost:5432/observecraft"),
             nats_url: var("OC_NATS_URL", "nats://localhost:4222"),
             web_dist: env::var("OC_WEB_DIST").ok().filter(|s| !s.is_empty()),

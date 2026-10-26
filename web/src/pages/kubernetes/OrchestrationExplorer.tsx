@@ -20,7 +20,7 @@ import {
   Ship,
   Table2,
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { searchKubernetes, type KubeKind, type KubeResource, type KubeSearchPage } from '../../api/kubernetes/client';
 import type { Facet } from '../../api/types';
 import { FacetPanel } from '../../components/facets/FacetPanel';
@@ -70,10 +70,21 @@ export function OrchestrationExplorer() {
   );
 }
 
+/** Processes → Manage Metrics: process metrics generated from live process data. */
+export function ProcessMetrics() {
+  return (
+    <div className="hosts-page ox-page">
+      <OrchestrationHeader product="processes" active="Manage Metrics" />
+      <div className="placeholder-page">Process-based metrics haven't been designed yet.</div>
+    </div>
+  );
+}
+
 function ExplorerBody() {
   const [params, setParam] = useParamState();
-  const kind = (params.get('resource') as ExplorerKind | null) ?? 'pods';
-  const product = isEcs(kind) ? 'ecs' : 'kubernetes';
+  const { pathname } = useLocation();
+  const kind = (params.get('resource') as ExplorerKind | null) ?? (pathname.startsWith('/process') ? 'processes' : 'pods');
+  const product = isEcs(kind) ? 'ecs' : kind === 'processes' ? 'processes' : 'kubernetes';
   const sub: Sub = isEcs(kind) ? 'inventory' : ((params.get('sub') as Sub | null) ?? 'inventory');
   const panel = params.get('panel');
   const [updatedAt, setUpdatedAt] = useState<number | undefined>();
@@ -225,14 +236,14 @@ function Inventory({ kind, onUpdated, filter }: { kind: ExplorerKind; onUpdated:
   const [teamsOpen, setTeamsOpen] = useState(false);
   const [fill, setFill] = useState<MapFill>('cpu');
   const [hidden, setHidden] = useState<Set<string>>(new Set());
-  const apiKind = kind === 'processes' ? null : (kind as KubeKind);
+  const apiKind: KubeKind = kind;
   const info = KIND_INFO[kind];
 
   const q = useQuery({
     queryKey: ['kubernetes', 'search', kind, query, groupBy, sortField, sortDir, view === 'map' ? 0 : offset, view],
     queryFn: async () => {
       const page = await searchKubernetes({
-        kind: apiKind!,
+        kind: apiKind,
         query,
         groupBy: groupBy || null,
         sort: sortField,
@@ -389,9 +400,7 @@ function Inventory({ kind, onUpdated, filter }: { kind: ExplorerKind; onUpdated:
             </span>
           </div>
 
-          {!apiKind ? (
-            <Empty>Process collection is not enabled: the ObserveCraft collectors don't report processes running in containers yet.</Empty>
-          ) : q.isPending ? (
+          {q.isPending ? (
             <Loading label={`Loading ${info.label.toLowerCase()}…`} />
           ) : q.isError ? (
             <ErrorState error={q.error} onRetry={() => q.refetch()} />

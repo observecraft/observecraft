@@ -2,6 +2,7 @@
 node_modules/
 web/dist/
 server/target/
+dist/
 # local env
 .oc-data/
 .env

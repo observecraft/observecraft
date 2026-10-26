@@ -53,10 +53,12 @@ visibility in one place, built on OpenTelemetry and ClickHouse.**
 | 🗂️ | **Log indexes** | Per-org indexes (Datadog model): filters route each log to the first matching index, each with its own retention, daily quota and sampled exclusion filters; Live Tail and archives still get every log |
 | 🗄️ | **Log archives** | Hourly Parquet archives in your own S3-compatible bucket, Archive Search with DuckDB (no rehydration needed), rehydration back into the explorer |
 | 🧭 | **APM** | Service catalog, endpoints, recommendations (N+1 queries, error hot spots), deployments, service pages with latency/error breakdowns |
+| 🌐 | **Cloud Network Monitoring** | Traffic between clients and servers grouped by any tag (service, availability zone, namespace, pod, host, IP, port): volume, throughput, TCP retransmits, latency and jitter, connections; DNS view (requests, response time, timeouts, SERVFAIL, NXDOMAIN by domain); summary graphs, client/server facets, flow side panel, network map |
+| 🔥 | **Continuous Profiler** | Datadog profiler uploads: CPU and memory per service over time, merged flame graphs with endpoint and package breakdowns, profile list, A/B comparison with differences coloured, CPU-burst insights with review status |
 | 🔎 | **Trace explorer** | Span and trace search, facets, group-by analytics, flame graph, waterfall, span list, service map, span ↔ host metrics, logs and processes |
 | 📈 | **Metrics** | Explorer and summary, query engine (`avg:system.cpu.user{env:prod} by {host}`), gauges, counters, histograms, exponential histograms and summaries (`http.server.request.duration.p95`), span-derived `trace.*` metrics |
 | 🧩 | **Dashboards** | Drag-and-drop dashboards, lists, starring, built-in host and APM dashboards |
-| 🖥️ | **Infrastructure** | Host list and map, host details with metrics, processes, pods, containers, spans and logs |
+| 🖥️ | **Infrastructure** | Host list and map, host details with metrics, processes, pods, containers, spans and logs; Processes explorer; Event Management (All Events) |
 | ☸️ | **Containers** | Kubernetes Overview and Explorer (pods, workloads, nodes, network, policies, storage, access control, CRDs, containers, container images) with facets, group-by, map and side panels (YAML, logs, APM, metrics, events, monitors); Resource Utilization; ECS Explorer (tasks, task definitions, services, clusters). Collector manifests in `deploy/examples/kubernetes`, ECS (FireLens + ADOT) in `deploy/examples/ecs` |
 | 🚨 | **Monitors** | Metric, APM, log and change monitors; warn/alert thresholds with recovery; backtesting; downtimes; notifications to webhooks (HMAC-signed), Slack and email with retries; quality checks |
 | 🧯 | **Incidents** | Declare, triage, timeline, impacts, follow-ups and analytics |
@@ -114,6 +116,7 @@ organizations and invites their first admins. The demo org archives its logs to 
 
 **Other ways to run:**
 
+- **Kubernetes (Helm):** see [Deploy on Kubernetes](#deploy-on-kubernetes).
 - **Everything in containers:** `docker compose -f deploy/docker-compose.yml --profile app up -d` builds one image
   with the API, the web app (served on `:8080`), the intake (`:4318`) and the demo generator. Add `--profile tls`
   (with `OC_DOMAIN` and `OC_INTAKE_DOMAIN`) for automatic HTTPS through Caddy.
@@ -125,7 +128,14 @@ organizations and invites their first admins. The demo org archives its logs to 
 ### Send your own data
 
 Create an API key under *Organization Settings → API Keys*. Everything sent with it belongs to that organization.
-The intake speaks **OTLP/HTTP** (protobuf or JSON, gzip OK) for traces, metrics and logs:
+The intake accepts what Datadog accepts, so you can keep Datadog's open-source agents and libraries:
+
+- **OTLP**, over HTTP (`:4318`) and gRPC (`:4317`), for traces, metrics and logs;
+- **Datadog's API and Agent formats**: metrics, distributions, logs, APM traces, service checks, and the Cluster
+  Agent's Kubernetes manifests.
+
+The **Datadog Agent** (official Helm chart or Operator) and Datadog's tracing libraries (dd-trace-*) and DogStatsD
+clients need only a new URL and key. Fluent Bit, Fluentd, Vector and Logstash work through their Datadog outputs.
 
 ```bash
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
@@ -135,26 +145,52 @@ export OTEL_SERVICE_NAME=my-service
 export OTEL_RESOURCE_ATTRIBUTES=deployment.environment=dev,service.version=1.0.0
 ```
 
-From an OpenTelemetry Collector (e.g. one per cluster, also the way to forward OTLP/gRPC):
-
-```yaml
-exporters:
-  otlphttp/observecraft:
-    endpoint: http://localhost:4318
-    headers:
-      authorization: "Bearer ocik_…"
-```
-
-Plain JSON logs (an object or an array; `message`, `service`, `host`, `level`, `trace_id`, any other fields become
-attributes):
-
 ```bash
-curl -X POST http://localhost:4318/api/v2/logs -H "authorization: Bearer ocik_…" -H "content-type: application/json" \
-  -d '[{"message":"payment declined","service":"checkout","level":"error"}]'
+curl -X POST http://localhost:4318/api/v2/logs -H "DD-API-KEY: ocik_…" -H "content-type: application/json" \
+  -d '[{"message":"payment declined","service":"checkout","status":"error","ddtags":"env:dev"}]'
 ```
+
+For Kubernetes clusters and hosts, run the **Datadog Agent** (its Helm chart or Operator) pointed at the intake, or, for
+an OpenTelemetry-only setup, the `observecraft-agent` Helm chart (the official OpenTelemetry Collector, configured).
+**[docs/sending-data.md](docs/sending-data.md)** has the setup for every sender: the Datadog Agent and tracers, DogStatsD,
+OpenTelemetry, Fluent Bit, Fluentd, Vector,
+Logstash, Filebeat, Prometheus and syslog.
 
 Logs written inside a trace (OTLP logs carry `trace_id`/`span_id`) link to it both ways: the span's **Logs** tab and the
 log's **Trace** tab.
+
+## Deploy on Kubernetes
+
+The platform is one Helm chart, published as an OCI artifact:
+
+```bash
+# Server (API + web app), intake, collector, Vector, and by default single-node ClickHouse, Postgres, NATS.
+helm install observecraft oci://ghcr.io/observecraft/charts/observecraft -n observecraft --create-namespace \
+  --set publicUrl=https://observecraft.example.com --set instanceAdminEmail=admin@example.com \
+  --set ingress.enabled=true --set ingress.app.host=observecraft.example.com \
+  --set ingress.intake.host=intake.observecraft.example.com --set ingress.certManagerClusterIssuer=letsencrypt
+```
+
+In every cluster you monitor, install the Datadog Agent with Datadog's own Helm chart (or Operator), pointed at the
+intake:
+
+```bash
+kubectl -n datadog create secret generic datadog-secret --from-literal api-key=ocik_…
+helm install datadog datadog/datadog -n datadog -f deploy/examples/datadog/values.yaml --set datadog.clusterName=prod-eu
+```
+
+For an OpenTelemetry-only setup, use the `observecraft-agent` chart instead. It runs the official OpenTelemetry
+Collector as a node agent and a cluster agent.
+
+For production, [`values-ha.yaml`](deploy/helm/observecraft/values-ha.yaml) runs ClickHouse sharded and replicated with
+Keeper (Altinity operator), Postgres as a CloudNativePG cluster with failover, three NATS nodes, and autoscaled,
+disruption-budgeted services. Or point the chart at your own databases (`clickhouse.mode=external`,
+`postgres.mode=external`).
+
+The chart generates and keeps its secrets (or uses `secrets.existingSecret`), runs everything as non-root with
+read-only root filesystems, and restricts traffic between components with NetworkPolicies. Every server replica can
+start at once: migrations run under a Postgres lock, and monitors and archiving run on one replica at a time.
+ClickHouse gets a per-organization quota (`clickhouse.quota`). `helm test observecraft` checks the install.
 
 ## Architecture
 
@@ -162,10 +198,12 @@ log's **Trace** tab.
 flowchart LR
   subgraph Sources
     A[Apps & services<br/>OpenTelemetry SDKs]
-    H[Hosts<br/>OTel / Vector agents]
+    H[Clusters & hosts<br/>ObserveCraft Agent]
     C[CI pipelines<br/>OTel CI/CD spans]
   end
-  A & H & C -->|OTLP/HTTP + API key| IN[oc-intake<br/>auth · rate limits]
+  D[Datadog Agent · Fluent Bit<br/>Vector · Logstash]
+  A & H & C -->|OTLP HTTP/gRPC + API key| IN[oc-intake<br/>auth · rate limits]
+  D -->|Datadog logs / series API| IN
   IN -->|x-oc-org| COL[OTel Collector]
   IN -->|JSON logs| VEC[Vector aggregator]
   COL -->|logs| VEC
@@ -187,9 +225,9 @@ Every telemetry row carries its organization: the intake resolves the API key, t
 | Path | What |
 |---|---|
 | `web/` | React + Vite + TypeScript UI. `src/api/*/client.ts` is the only data-access layer. |
-| `server/` | Rust workspace: `oc-query` (search syntax → ClickHouse/DuckDB SQL, matcher), `oc-store` (ClickHouse + Postgres, migrations, retention), `oc-api` (`observecraft-server`), `oc-intake` (telemetry gateway), `oc-tracegen` (synthetic data). |
+| `server/` | Rust workspace: `oc-query` (search syntax → ClickHouse/DuckDB SQL, matcher), `oc-store` (ClickHouse + Postgres, migrations, retention), `oc-api` (`observecraft-server`), `oc-intake` (telemetry gateway: OTLP HTTP/gRPC, Datadog APIs), `oc-tracegen` (synthetic data). |
 | `server/migrations/` | ClickHouse (telemetry) and Postgres (metadata) schemas. |
-| `deploy/` | Docker Compose stack, Vector aggregator (`vector/normalize.vrl`, with unit tests) + load generator, OTel Collector config, RustFS, Caddy (TLS), Kubernetes and ECS examples (`examples/`). |
+| `deploy/` | Docker Compose stack, Helm charts (`helm/observecraft`, `helm/observecraft-agent`), Vector aggregator (`vector/normalize.vrl`, with unit tests) + load generator, OTel Collector config (shared by Compose and Helm), RustFS, Caddy (TLS), Kubernetes and ECS examples (`examples/`). |
 
 ### API contract
 
@@ -206,6 +244,10 @@ most important ones:
 |---|---|---|
 | `OC_HTTP_ADDR` | `0.0.0.0:8080` | API listen address |
 | `OC_CLICKHOUSE_URL` | `http://localhost:8123` | ClickHouse HTTP endpoint (`OC_CLICKHOUSE_USER` / `_PASSWORD`) |
+| `OC_CLICKHOUSE_CLUSTER` | — | ClickHouse cluster name (from `remote_servers`, with Keeper): tables are created replicated and sharded on it. Unset for a single server |
+| `OC_RUN_MIGRATIONS` | `true` | Apply migrations at startup (under a Postgres lock, so replicas can start together). `false` when a deploy step runs `observecraft-server migrate` |
+| `OC_CLICKHOUSE_DROP_LEGACY_SCHEMA` | `false` | Allow replacing a ClickHouse schema from before the org-sorted tables (deletes its telemetry) |
+| `OC_QUERY_TIMEOUT_SECONDS` / `OC_QUERY_MAX_MEMORY_BYTES` | `60` / `4294967296` | Limits on each telemetry query; queries also send the org as ClickHouse `quota_key` for per-org quotas |
 | `OC_POSTGRES_URL` | `postgres://observecraft:…@localhost:5432/observecraft` | Postgres connection string |
 | `OC_NATS_URL` | `nats://localhost:4222` | NATS for live tail |
 | `OC_PUBLIC_URL` | `http://localhost:5173` | Origin users open the app on (SSO redirects, login links, notification links) |
@@ -223,8 +265,9 @@ most important ones:
 | `OC_WEB_DIST` | — | Serve the built web app from the API (production-style) |
 | `OC_SEED_DEMO` | `true` | Fictional demo users, teams, monitors and incidents, a demo ingest key and archive. **Set `false` in production.** |
 
-The intake (`oc-intake`) has its own settings: `OC_INTAKE_ADDR`, `OC_INTAKE_COLLECTOR_URL`, `OC_INTAKE_LOGS_URL`, and
-per-organization limits `OC_INTAKE_ORG_RPS` (500 requests/s) and `OC_INTAKE_ORG_MBPS` (50 MB/s).
+The intake (`oc-intake`) has its own settings: `OC_INTAKE_ADDR` (HTTP, `:4318`), `OC_INTAKE_GRPC_ADDR` (OTLP/gRPC,
+`:4317`), `OC_INTAKE_COLLECTOR_URL`, `OC_INTAKE_LOGS_URL`, `OC_INTAKE_MAX_BODY_MB` (16), and per-organization limits
+`OC_INTAKE_ORG_RPS` (500 requests/s) and `OC_INTAKE_ORG_MBPS` (50 MB/s).
 
 ## Security
 
@@ -248,7 +291,8 @@ releases.
 
 | Area | Status |
 |---|---|
-| Ingest (OTLP/HTTP, JSON logs), API keys, organizations | ✅ Live |
+| Ingest (OTLP HTTP/gRPC, Datadog logs and metrics APIs), API keys, organizations | ✅ Live |
+| Helm charts (platform; OpenTelemetry Collector agent), Datadog Agent / Operator examples | ✅ Live |
 | Logs, live tail, log indexes (retention, quotas, exclusions), archives, Archive Search, rehydration, trace ↔ log links | ✅ Live (ClickHouse, S3 + DuckDB) |
 | APM, trace explorer, metrics (all OTLP types), dashboards, infrastructure | ✅ Live (ClickHouse) |
 | Monitors (metric, APM, log) with webhook / Slack / email notifications, downtimes, incidents | ✅ Live (Postgres) |
@@ -256,8 +300,9 @@ releases.
 | CI visibility, flaky tests, DORA metrics | ✅ Live (ClickHouse) |
 | Error tracking, integrations catalog | 🧪 UI with in-browser mocks |
 | Log pipelines (parsing, remapping), logs → metrics, self-serve signup and per-org usage limits (SaaS mode) | 🗺️ Planned |
-| OTLP/gRPC directly on the intake (use a Collector meanwhile), PagerDuty / on-call | 🗺️ Planned |
-| Continuous profiling, live debugger, RUM, Kubernetes / container inventory | 🗺️ Planned |
+| Datadog Agent / Cluster Agent (Helm chart, Operator): metrics, distributions, logs, APM from dd-trace libraries, service checks, Kubernetes, host metadata, live processes and containers, events, continuous profiles, network connections (system-probe) | ✅ Live |
+| PagerDuty / on-call | 🗺️ Planned |
+| Live debugger, RUM | 🗺️ Planned |
 
 ## Contributing
 

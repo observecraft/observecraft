@@ -2,7 +2,8 @@
 //! - objects: `otel.k8s_resources` (latest state of each object, refreshed every minute by the
 //!   k8sobjects receiver; objects not seen for [`STALE_MINUTES`] are gone),
 //! - events: `otel.k8s_events`,
-//! - usage: kubeletstats pod / container / node gauges, averaged over the last 15 minutes like
+//! - usage: kubeletstats pod / container / node gauges (or the Datadog Agent's kubelet check:
+//!   kubernetes.cpu.usage.total, kubernetes.memory.working_set), averaged over the last 15 minutes like
 //!   Datadog's resource utilization columns. Requests and limits come from the pod specs.
 //!
 //! - ECS tasks and containers: the awsecscontainermetrics receiver's task metadata metrics;
@@ -30,6 +31,9 @@ const MAX_OBJECTS: u64 = 50_000;
 #[derive(Serialize, Deserialize, ToSchema, Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum KubeKind {
+    /// Processes of every host (process.* metrics: the Datadog Agent's live processes, or the
+    /// OpenTelemetry hostmetrics process scraper).
+    Processes,
     Clusters,
     Nodes,
     Namespaces,
@@ -71,7 +75,7 @@ pub enum KubeKind {
 }
 
 impl KubeKind {
-    const ALL: [KubeKind; 32] = [
+    const ALL: [KubeKind; 33] = [
         KubeKind::Clusters,
         KubeKind::Nodes,
         KubeKind::Namespaces,
@@ -104,12 +108,20 @@ impl KubeKind {
         KubeKind::EcsTaskDefinitions,
         KubeKind::EcsServices,
         KubeKind::EcsClusters,
+        KubeKind::Processes,
     ];
 
     /// The Kubernetes `kind` (None for resources derived from other data).
     fn api_kind(self) -> Option<&'static str> {
         Some(match self {
-            KubeKind::Clusters | KubeKind::Containers | KubeKind::ContainerImages | KubeKind::EcsTasks | KubeKind::EcsTaskDefinitions | KubeKind::EcsServices | KubeKind::EcsClusters => return None,
+            KubeKind::Clusters
+            | KubeKind::Containers
+            | KubeKind::ContainerImages
+            | KubeKind::EcsTasks
+            | KubeKind::EcsTaskDefinitions
+            | KubeKind::EcsServices
+            | KubeKind::EcsClusters
+            | KubeKind::Processes => return None,
             KubeKind::Nodes => "Node",
             KubeKind::Namespaces => "Namespace",
             KubeKind::Pods => "Pod",
@@ -157,6 +169,14 @@ impl KubeKind {
             KubeKind::EcsTaskDefinitions => &["task_launch_type", "region"],
             KubeKind::EcsServices => &["task_launch_type", "ecs_cluster", "region"],
             KubeKind::EcsClusters => &["region"],
+            KubeKind::Processes => &[
+                "command",
+                "user",
+                "host",
+                "kube_namespace",
+                "pod_name",
+                "container_id",
+            ],
             _ => &[],
         }
     }
@@ -164,8 +184,17 @@ impl KubeKind {
     fn namespaced(self) -> bool {
         !matches!(
             self,
-            KubeKind::Clusters | KubeKind::Nodes | KubeKind::Namespaces | KubeKind::PersistentVolumes | KubeKind::ClusterRoles | KubeKind::ClusterRoleBindings | KubeKind::StorageClasses | KubeKind::CustomResourceDefinitions
-        ) && !self.is_ecs() && self != KubeKind::ContainerImages
+            KubeKind::Clusters
+                | KubeKind::Nodes
+                | KubeKind::Namespaces
+                | KubeKind::PersistentVolumes
+                | KubeKind::ClusterRoles
+                | KubeKind::ClusterRoleBindings
+                | KubeKind::StorageClasses
+                | KubeKind::CustomResourceDefinitions
+        ) && !self.is_ecs()
+            && self != KubeKind::ContainerImages
+            && self != KubeKind::Processes
     }
 
     fn is_ecs(self) -> bool {
@@ -309,6 +338,9 @@ pub struct KubeResource {
     /// Container images: tag and containers running it.
     pub image_tag: Option<String>,
     pub running_containers: Option<u32>,
+    /// Processes: owner and the host's CPU count (CPU is then shown normalized to the host).
+    pub user: Option<String>,
+    pub host_cpus: Option<u32>,
 }
 
 impl KubeResource {
@@ -346,6 +378,28 @@ struct Inventory {
     node_usage: HashMap<(String, String), (f64, f64)>,
     /// ECS tasks (container empty) and their containers, from the awsecscontainermetrics receiver.
     ecs: Vec<EcsRow>,
+    /// Latest state of every process (last 5 minutes).
+    processes: Vec<ProcRow>,
+    /// host → CPU count (Datadog Agent host metadata).
+    host_cpus: HashMap<String, u32>,
+}
+
+#[derive(clickhouse::Row, Deserialize)]
+struct ProcRow {
+    host: String,
+    pid: String,
+    exe: String,
+    cmdline: String,
+    user: String,
+    created: String,
+    container: String,
+    container_name: String,
+    pod: String,
+    namespace: String,
+    cluster: String,
+    cpu: f64,
+    rss: f64,
+    seen: i64,
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -398,6 +452,30 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
              GROUP BY cluster, node, pod, container",
         )
         .fetch_all::<Usage>();
+    // The Datadog Agent's kubelet check: per-container nanocores and bytes, tagged with the pod's
+    // namespace and name (no uid); node-level rows have no pod.
+    #[derive(clickhouse::Row, Deserialize)]
+    struct DdUsage {
+        cluster: String,
+        node: String,
+        namespace: String,
+        pod: String,
+        container: String,
+        cpu: f64,
+        mem: f64,
+    }
+    let dd_usage = st
+        .ch(org)
+        .query(
+            "SELECT ResourceAttributes['k8s.cluster.name'] AS cluster, ResourceAttributes['host.name'] AS node, \
+             ResourceAttributes['k8s.namespace.name'] AS namespace, ResourceAttributes['k8s.pod.name'] AS pod, ResourceAttributes['k8s.container.name'] AS container, \
+             ifNotFinite(avgIf(Value / 1e9, MetricName = 'kubernetes.cpu.usage.total'), -1) AS cpu, \
+             ifNotFinite(avgIf(Value, MetricName = 'kubernetes.memory.working_set'), -1) AS mem \
+             FROM otel.otel_metrics_gauge WHERE OrgId = {oc_org:String} AND TimeUnix > now() - INTERVAL 15 MINUTE \
+             AND MetricName IN ('kubernetes.cpu.usage.total', 'kubernetes.memory.working_set') \
+             GROUP BY cluster, node, namespace, pod, container",
+        )
+        .fetch_all::<DdUsage>();
     // ECS task and container gauges (vCPU, MiB reservations; vCPU and bytes used).
     let ecs = st
         .ch(org)
@@ -414,8 +492,50 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
              AND ResourceAttributes['aws.ecs.task.arn'] != '' GROUP BY arn, container LIMIT 50000",
         )
         .fetch_all::<EcsRow>();
-    let (objects, usage, ecs) = tokio::try_join!(objects, usage, ecs)?;
-    let mut inv = Inventory { objects: Vec::with_capacity(objects.len()), pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs };
+    // Processes: the latest CPU (fraction of a core) and RSS of each (host, pid).
+    let processes = st
+        .ch(org)
+        .query(
+            "SELECT ResourceAttributes['host.name'] AS host, ResourceAttributes['process.pid'] AS pid, \
+             any(ResourceAttributes['process.executable.name']) AS exe, any(ResourceAttributes['process.command_line']) AS cmdline, \
+             any(ResourceAttributes['process.owner']) AS user, any(ResourceAttributes['process.create_time']) AS created, \
+             any(ResourceAttributes['container.id']) AS container, any(ResourceAttributes['k8s.container.name']) AS container_name, any(ResourceAttributes['k8s.pod.name']) AS pod, \
+             any(ResourceAttributes['k8s.namespace.name']) AS namespace, any(ResourceAttributes['k8s.cluster.name']) AS cluster, \
+             ifNotFinite(argMaxIf(Value, TimeUnix, MetricName = 'process.cpu.utilization'), 0) AS cpu, \
+             ifNotFinite(argMaxIf(Value, TimeUnix, MetricName = 'process.memory.usage'), 0) AS rss, toInt64(toUnixTimestamp64Milli(max(TimeUnix))) AS seen \
+             FROM ( \
+               SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM otel.otel_metrics_gauge WHERE OrgId = {oc_org:String} AND MetricName = 'process.cpu.utilization' AND TimeUnix > now() - INTERVAL 5 MINUTE \
+               UNION ALL SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM otel.otel_metrics_sum WHERE OrgId = {oc_org:String} AND MetricName = 'process.memory.usage' AND TimeUnix > now() - INTERVAL 5 MINUTE) \
+             WHERE pid != '' GROUP BY host, pid LIMIT 50000",
+        )
+        .fetch_all::<ProcRow>();
+    let host_cpus = sqlx::query_as::<_, (String, i32)>(
+        "SELECT host, cpu_cores FROM datadog_hosts WHERE org_id = $1 AND cpu_cores IS NOT NULL",
+    )
+    .bind(org)
+    .fetch_all(&st.postgres);
+    let (objects, usage, dd_usage, ecs, processes, host_cpus) = tokio::try_join!(
+        async { objects.await.map_err(ApiError::from) },
+        async { usage.await.map_err(ApiError::from) },
+        async { dd_usage.await.map_err(ApiError::from) },
+        async { ecs.await.map_err(ApiError::from) },
+        async { processes.await.map_err(ApiError::from) },
+        async { host_cpus.await.map_err(ApiError::from) }
+    )?;
+    let host_cpus = host_cpus
+        .into_iter()
+        .filter(|(_, c)| *c > 0)
+        .map(|(h, c)| (h, c as u32))
+        .collect();
+    let mut inv = Inventory {
+        objects: Vec::with_capacity(objects.len()),
+        pod_usage: HashMap::new(),
+        container_usage: HashMap::new(),
+        node_usage: HashMap::new(),
+        ecs,
+        processes,
+        host_cpus,
+    };
     for o in objects {
         let (Some(kind), Ok(body)) = (KubeKind::from_api(&o.kind), serde_json::from_str::<Value>(&o.body)) else { continue };
         inv.objects.push((kind, o.cluster, o.seen, body));
@@ -428,6 +548,46 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
             inv.pod_usage.insert(u.pod, v);
         } else if !u.node.is_empty() {
             inv.node_usage.insert((u.cluster, u.node), v);
+        }
+    }
+    if !dd_usage.is_empty() {
+        // (cluster, namespace, name) → uid of the pods we know.
+        let uids: HashMap<(&str, &str, &str), &str> = inv
+            .objects
+            .iter()
+            .filter(|(k, ..)| *k == KubeKind::Pods)
+            .filter_map(|(_, cluster, _, b)| {
+                let m = &b["metadata"];
+                Some((
+                    (
+                        cluster.as_str(),
+                        m["namespace"].as_str()?,
+                        m["name"].as_str()?,
+                    ),
+                    m["uid"].as_str()?,
+                ))
+            })
+            .collect();
+        let mut container_usage = Vec::new();
+        let mut node_usage = Vec::new();
+        for u in dd_usage {
+            if u.pod.is_empty() {
+                if !u.node.is_empty() {
+                    node_usage.push(((u.cluster, u.node), (u.cpu, u.mem)));
+                }
+            } else if let Some(uid) =
+                uids.get(&(u.cluster.as_str(), u.namespace.as_str(), u.pod.as_str()))
+            {
+                if !u.container.is_empty() {
+                    container_usage.push(((uid.to_string(), u.container), (u.cpu, u.mem)));
+                }
+            }
+        }
+        for (k, v) in container_usage {
+            inv.container_usage.entry(k).or_insert(v);
+        }
+        for (k, v) in node_usage {
+            inv.node_usage.entry(k).or_insert(v);
         }
     }
     Ok(inv)
@@ -1016,6 +1176,7 @@ fn build(inv: &Inventory) -> Vec<KubeResource> {
     rows.extend(images(&containers));
     rows.extend(containers);
     rows.extend(ecs(inv));
+    rows.extend(processes(inv));
     rows
 }
 
@@ -1084,6 +1245,68 @@ fn images(containers: &[KubeResource]) -> Vec<KubeResource> {
         }
     }
     by.into_values().collect()
+}
+
+/// Processes of every host, as the Processes explorer lists them.
+fn processes(inv: &Inventory) -> Vec<KubeResource> {
+    inv.processes
+        .iter()
+        .map(|p| {
+            let name = if p.cmdline.is_empty() {
+                p.exe.clone()
+            } else {
+                p.cmdline.clone()
+            };
+            let mut tags = vec![format!("host:{}", p.host)];
+            for (k, v) in [
+                ("command", &p.exe),
+                ("user", &p.user),
+                ("container_id", &p.container),
+                ("kube_container_name", &p.container_name),
+                ("pod_name", &p.pod),
+                ("kube_namespace", &p.namespace),
+                ("kube_cluster_name", &p.cluster),
+            ] {
+                if !v.is_empty() {
+                    tags.push(format!("{k}:{v}"));
+                }
+            }
+            let cpus = inv.host_cpus.get(&p.host).copied();
+            KubeResource {
+                uid: format!("process:{}:{}:{}", p.host, p.pid, p.created),
+                kind: Some(KubeKind::Processes),
+                cluster: p.cluster.clone(),
+                namespace: Some(p.namespace.clone()).filter(|n| !n.is_empty()),
+                name,
+                created_at: p.created.parse().ok().filter(|t: &i64| *t > 0),
+                last_seen: p.seen,
+                status: "Running".into(),
+                health: KubeHealth::Ok,
+                node: Some(p.host.clone()),
+                user: Some(p.user.clone()).filter(|u| !u.is_empty()),
+                host_cpus: cpus,
+                cpu: Some(KubeUtilization {
+                    usage: Some(p.cpu.max(0.0)),
+                    capacity: cpus.map(f64::from),
+                    ..Default::default()
+                }),
+                memory: Some(KubeUtilization {
+                    usage: Some(p.rss.max(0.0)),
+                    ..Default::default()
+                }),
+                owner: Some(p.pod.clone())
+                    .filter(|x| !x.is_empty())
+                    .map(|pod| KubeObjectRef {
+                        kind: "Pod".into(),
+                        name: pod,
+                        uid: String::new(),
+                    }),
+                ip: Some(p.pid.clone()),
+                tags,
+                ..Default::default()
+            }
+        })
+        .collect()
 }
 
 /// ECS tasks, their containers, task definitions, services and clusters, from task metadata metrics.
@@ -1366,6 +1589,7 @@ fn sort_key(r: &KubeResource, field: &str) -> SortVal {
         "pods" => SortVal::N(r.pods.unwrap_or(0) as f64),
         "desired" => SortVal::N(r.desired.unwrap_or(0) as f64),
         "type" => SortVal::S(r.service_type.clone().unwrap_or_default()),
+        "user" => SortVal::S(r.user.clone().unwrap_or_default()),
         _ => SortVal::S(r.name.clone()),
     }
 }
@@ -1402,11 +1626,17 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
     let of_kind: Vec<KubeResource> = all.into_iter().filter(|r| r.kind == Some(req.kind)).collect();
 
     // KubeFacet counts honour every filter except the facet's own.
-    let mut keys = if req.kind.is_ecs() { vec![] } else { vec!["kube_cluster_name"] };
+    let mut keys = if req.kind.is_ecs() || req.kind == KubeKind::Processes {
+        vec![]
+    } else {
+        vec!["kube_cluster_name"]
+    };
     if req.kind.namespaced() {
         keys.push("kube_namespace");
     }
-    keys.push("status");
+    if req.kind != KubeKind::Processes {
+        keys.push("status");
+    }
     keys.extend(req.kind.facets());
     let facets = keys
         .into_iter()

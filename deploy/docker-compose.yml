@@ -24,8 +24,6 @@ services:
       - "9000:9000" # native
     volumes:
       - clickhouse-data:/var/lib/clickhouse
-      # Same idempotent DDL the API applies on startup, so Vector can write before the API first runs.
-      - ../server/migrations/clickhouse:/docker-entrypoint-initdb.d:ro
     ulimits:
       nofile: { soft: 262144, hard: 262144 }
     healthcheck:
@@ -86,14 +84,19 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.112.0
     restart: unless-stopped
-    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    command: ["--config=/etc/otelcol-contrib/config.yaml", "--config=/etc/otelcol-contrib/hostmetrics.yaml"]
     environment:
       <<: *ch-auth
       OC_HOST_NAME: ${OC_HOST_NAME:-docker-dev-host}
       # Organization the collector's own host metrics belong to.
       OC_HOST_ORG: ${OC_HOST_ORG:-default}
+    # Root only so it can write its queue to the named volume (the image's user can't).
+    user: "0:0"
     volumes:
       - ./otel/collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - ./otel/hostmetrics.yaml:/etc/otelcol-contrib/hostmetrics.yaml:ro
+      # Export queue on disk: spans and metrics survive a restart or a ClickHouse outage.
+      - collector-queue:/var/lib/otelcol/queue
     # Internal only: senders go through oc-intake (:4318), which authenticates them. Published on
     # loopback so an intake running on the host (make intake) can reach it.
     ports:
@@ -153,7 +156,8 @@ services:
       postgres: { condition: service_healthy }
       nats: { condition: service_healthy }
 
-  # The public telemetry endpoint: OTLP/HTTP and JSON logs, authenticated by ingest API key.
+  # The public telemetry endpoint: OTLP (HTTP :4318, gRPC :4317) and the Datadog logs / metrics APIs,
+  # authenticated by ingest API key.
   intake:
     profiles: ["app"]
     build:
@@ -165,8 +169,11 @@ services:
       OC_POSTGRES_URL: postgres://observecraft:observecraft@postgres:5432/observecraft
       OC_INTAKE_COLLECTOR_URL: http://otel-collector:4318
       OC_INTAKE_LOGS_URL: http://vector-aggregator:8687
+      OC_INTAKE_PROFILES_URL: http://server:8090/ingest/profiles
+      OC_INTERNAL_TOKEN: ${OC_INTERNAL_TOKEN:-}
     ports:
       - "4318:4318"
+      - "4317:4317"
     depends_on:
       postgres: { condition: service_healthy }
       otel-collector: { condition: service_started }
@@ -232,6 +239,7 @@ services:
       - "8082:8080"
 
 volumes:
+  collector-queue:
   clickhouse-data:
   postgres-data:
   rustfs-data:

@@ -155,6 +155,21 @@ async fn instrumented_services(st: &AppState, org: &str, range: TimeRange) -> Re
     Ok(rows.into_iter().map(|r| r.service).collect())
 }
 
+/// Instrumented services in the range and their `telemetry.sdk.language` ("" when unknown).
+async fn service_languages(st: &AppState, org: &str, range: TimeRange) -> Result<HashMap<String, String>, ApiError> {
+    let (clause, params) = time_clause(range);
+    let rows = bind(
+        st.ch(org).query(&format!(
+            "SELECT toString(ServiceName) AS service, any(ResourceAttributes['telemetry.sdk.language']) AS lang FROM otel.otel_traces \
+             WHERE OrgId = {{oc_org:String}} AND {clause} AND {ENTRY} GROUP BY service"
+        )),
+        &params,
+    )
+    .fetch_all::<(String, String)>()
+    .await?;
+    Ok(rows.into_iter().collect())
+}
+
 /// Every service seen in the range: instrumented (entry spans) and inferred (peers of client spans).
 #[utoipa::path(post, path = "/api/v1/apm/services", request_body = ApmRequest, responses((status = 200, body = Vec<ServiceStats>)), tag = "apm")]
 pub async fn services(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ApmRequest>) -> ApiResult<Vec<ServiceStats>> {
@@ -568,12 +583,18 @@ pub struct Dependency {
     /// 20-bucket sparklines across the range.
     pub error_series: Vec<u64>,
     pub p95_series: Vec<f64>,
+    /// `telemetry.sdk.language` of an instrumented service.
+    pub language: Option<String>,
+    /// `db.system` / `messaging.system` of an inferred one (postgresql, redis, kafka, …).
+    pub technology: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
 pub struct Dependencies {
     pub upstream: Vec<Dependency>,
     pub downstream: Vec<Dependency>,
+    /// The service's own language.
+    pub language: Option<String>,
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -587,7 +608,7 @@ struct EdgeAgg {
     messaging: String,
 }
 
-async fn edges(st: &AppState, org: &str, req: &ServiceRequest, downstream: bool, known: &HashSet<String>) -> Result<Vec<Dependency>, ApiError> {
+async fn edges(st: &AppState, org: &str, req: &ServiceRequest, downstream: bool, known: &HashMap<String, String>) -> Result<Vec<Dependency>, ApiError> {
     const BUCKETS: i64 = 20;
     let (clause, mut params) = base(req.range, &req.env, "");
     let (peer_expr, filter) = if downstream { (PEER, "toString(ServiceName) = ?") } else { ("toString(ServiceName)", "SpanAttributes['peer.service'] = ?") };
@@ -608,8 +629,12 @@ async fn edges(st: &AppState, org: &str, req: &ServiceRequest, downstream: bool,
     let secs = ((req.range.to - req.range.from) as f64 / 1000.0).max(1.0);
     let mut by_peer: HashMap<String, Dependency> = HashMap::new();
     for r in rows {
-        let kind = if known.contains(&r.peer) { ServiceKind::Web } else { inferred_kind(&r.db_system, &r.messaging) };
+        let language = known.get(&r.peer).filter(|l| !l.is_empty()).cloned();
+        let kind = if known.contains_key(&r.peer) { ServiceKind::Web } else { inferred_kind(&r.db_system, &r.messaging) };
+        let technology = if known.contains_key(&r.peer) { None } else { [&r.db_system, &r.messaging].into_iter().find(|t| !t.is_empty()).cloned() };
         let d = by_peer.entry(r.peer.clone()).or_insert_with(|| Dependency {
+            language,
+            technology,
             service: r.peer.clone(),
             kind,
             requests: 0,
@@ -644,9 +669,10 @@ async fn edges(st: &AppState, org: &str, req: &ServiceRequest, downstream: bool,
 #[utoipa::path(post, path = "/api/v1/apm/dependencies", request_body = ServiceRequest, responses((status = 200, body = Dependencies)), tag = "apm")]
 pub async fn dependencies(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ServiceRequest>) -> ApiResult<Dependencies> {
     req.range.validate()?;
-    let known = instrumented_services(&st, &org, req.range).await?;
+    let known = service_languages(&st, &org, req.range).await?;
     let (downstream, upstream) = tokio::try_join!(edges(&st, &org, &req, true, &known), edges(&st, &org, &req, false, &known))?;
-    Ok(Json(Dependencies { upstream, downstream }))
+    let language = known.get(&req.service).filter(|l| !l.is_empty()).cloned();
+    Ok(Json(Dependencies { upstream, downstream, language }))
 }
 
 // ================================================================ databases
@@ -947,7 +973,7 @@ pub async fn trace(State(st): State<AppState>, OrgId(org): OrgId, Path(trace_id)
     let bounds = st
         .ch(&org)
         // Start/End are second-precision DateTime here; the span query below pads by a second each side.
-        .query("SELECT toInt64(toUnixTimestamp(min(Start))) * 1000000000 AS start, toInt64(toUnixTimestamp(max(End))) * 1000000000 AS end FROM otel.otel_traces_trace_id_ts WHERE TraceId = ?")
+        .query("SELECT toInt64(toUnixTimestamp(min(Start))) * 1000000000 AS start, toInt64(toUnixTimestamp(max(End))) * 1000000000 AS end FROM otel.otel_traces_trace_id_ts WHERE OrgId = {oc_org:String} AND TraceId = ?")
         .bind(trace_id.as_str())
         .fetch_one::<Bounds>()
         .await?;

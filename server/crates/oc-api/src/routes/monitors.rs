@@ -1111,20 +1111,41 @@ pub async fn quality(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
 
 // ================================================================ evaluation
 
-/// Evaluates every monitor once a minute.
+/// Evaluates every monitor once a minute. One server at a time (advisory lock), so replicas don't
+/// record each state change twice.
 pub async fn run_evaluator(st: AppState) {
     let mut tick = tokio::time::interval(Duration::from_secs(60));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     loop {
         tick.tick().await;
-        let ids: Vec<i64> = match sqlx::query_scalar("SELECT id FROM monitors ORDER BY id").fetch_all(&st.postgres).await {
-            Ok(ids) => ids,
+        let mut conn = match st.postgres.acquire().await {
+            Ok(c) => c,
             Err(e) => {
-                tracing::warn!(error = %e, "monitor evaluation: listing monitors failed");
+                tracing::warn!(error = %e, "monitor evaluation: postgres unavailable");
                 continue;
             }
         };
-        futures::stream::iter(ids).for_each_concurrent(8, |id| evaluate_one(&st, id)).await;
+        if !sqlx::query_scalar::<_, bool>("SELECT pg_try_advisory_lock(7301)")
+            .fetch_one(&mut *conn)
+            .await
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        match sqlx::query_scalar::<_, i64>("SELECT id FROM monitors ORDER BY id")
+            .fetch_all(&st.postgres)
+            .await
+        {
+            Ok(ids) => {
+                futures::stream::iter(ids)
+                    .for_each_concurrent(8, |id| evaluate_one(&st, id))
+                    .await
+            }
+            Err(e) => tracing::warn!(error = %e, "monitor evaluation: listing monitors failed"),
+        }
+        let _ = sqlx::query("SELECT pg_advisory_unlock(7301)")
+            .execute(&mut *conn)
+            .await;
     }
 }
 

@@ -1,0 +1,72 @@
+# The Datadog Operator's DatadogAgent, sending to ObserveCraft instead of Datadog.
+#
+#   helm repo add datadog https://helm.datadoghq.com
+#   helm install datadog-operator datadog/datadog-operator -n datadog --create-namespace
+#   kubectl -n datadog create secret generic datadog-secret --from-literal api-key=ocik_…
+#   kubectl apply -f datadog-agent.yaml
+#
+# Set the intake in `global.endpoint.url` and in the env below (logs take host:port). With an https
+# intake (through the ingress), drop DD_LOGS_CONFIG_LOGS_NO_SSL.
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+  namespace: datadog
+spec:
+  global:
+    clusterName: my-cluster
+    # Not a Datadog site: anything left unconfigured has nowhere to send, so no data reaches Datadog.
+    site: observecraft.invalid
+    # Clusters whose kubelet serves a self-signed certificate (kind, some on-prem setups):
+    # kubelet: { tlsVerify: false }
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+    # Metrics, metadata, service checks, distributions and the API key check.
+    endpoint:
+      url: http://observecraft-intake.observecraft.svc:4318
+  features:
+    # APM (8126) and DogStatsD (8125) on each node's IP: DD_AGENT_HOST=status.hostIP in your pods.
+    apm:
+      enabled: true
+      hostPortConfig:
+        enabled: true
+    dogstatsd:
+      hostPortConfig:
+        enabled: true
+    logCollection:
+      enabled: true
+      containerCollectAll: true
+    orchestratorExplorer:
+      enabled: true
+    # Products ObserveCraft doesn't have yet.
+    remoteConfiguration:
+      enabled: false
+    liveProcessCollection:
+      enabled: false
+    liveContainerCollection:
+      enabled: false
+    processDiscovery:
+      enabled: false
+  override:
+    nodeAgent:
+      env: &env
+        - { name: DD_APM_DD_URL, value: http://observecraft-intake.observecraft.svc:4318 }
+        - { name: DD_APM_PROFILING_DD_URL, value: http://observecraft-intake.observecraft.svc:4318/api/v2/profile }
+        - { name: DD_ORCHESTRATOR_EXPLORER_ORCHESTRATOR_DD_URL, value: http://observecraft-intake.observecraft.svc:4318 }
+        - { name: DD_PROCESS_CONFIG_PROCESS_DD_URL, value: http://observecraft-intake.observecraft.svc:4318 }
+        - { name: DD_LOGS_CONFIG_LOGS_DD_URL, value: observecraft-intake.observecraft.svc:4318 }
+        - { name: DD_LOGS_CONFIG_FORCE_USE_HTTP, value: "true" }
+        - { name: DD_LOGS_CONFIG_LOGS_NO_SSL, value: "true" }
+        - { name: DD_APM_TELEMETRY_ENABLED, value: "false" }
+        - { name: DD_INSTRUMENTATION_TELEMETRY_ENABLED, value: "false" }
+        # Products that would send to Datadog's own intakes (not to ObserveCraft): keep them off so nothing
+        # leaves for Datadog.
+        - { name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED, value: "false" }
+        - { name: DD_PROCESS_CONFIG_PROCESS_DISCOVERY_ENABLED, value: "false" }
+        - { name: DD_CONTAINER_IMAGE_ENABLED, value: "false" }
+        - { name: DD_CONTAINER_LIFECYCLE_ENABLED, value: "false" }
+        - { name: DD_SBOM_ENABLED, value: "false" }
+    clusterAgent:
+      env: *env

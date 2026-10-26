@@ -1,0 +1,24 @@
+ObserveCraft {{ .Chart.AppVersion }} is starting. The first start applies the database schema (a minute or two).
+
+Web app:   {{ include "oc.publicUrl" . }}
+{{- if not .Values.ingress.enabled }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "oc.fullname" . }}-server 8080:8080
+{{- end }}
+
+Intake (OTLP/HTTP, JSON logs):
+{{- if .Values.ingress.enabled }}
+  {{ ternary "https" "http" .Values.ingress.tls }}://{{ .Values.ingress.intake.host }}
+{{- end }}
+  in the cluster: http://{{ include "oc.fullname" . }}-intake.{{ .Release.Namespace }}.svc:4318
+
+
+First sign-in{{ with .Values.instanceAdminEmail }} ({{ . }}){{ end }}: a new install logs a one-time link to set the admin password:
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=server --tail=-1 | grep "Set the admin password"
+
+Then create an ingest API key (Organization Settings → API Keys) and point your senders at the intake:
+the Datadog Agent (Helm chart or Operator, see deploy/examples/datadog), OpenTelemetry SDKs and
+collectors (e.g. the observecraft-agent chart), Fluent Bit, Vector, … (docs/sending-data.md).
+{{- if eq .Values.clickhouse.mode "operator" }}
+
+ClickHouse runs as the ClickHouseInstallation {{ include "oc.fullname" . }} (Altinity operator), cluster {{ .Values.clickhouse.operator.cluster }}.
+{{- end }}

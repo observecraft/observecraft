@@ -1,0 +1,311 @@
+# ObserveCraft Helm chart.
+#
+# The defaults run everything in the cluster on single-node databases (good for trying it out and
+# for small installs):
+#   helm install observecraft oci://ghcr.io/observecraft/charts/observecraft -n observecraft --create-namespace \
+#     --set publicUrl=https://observecraft.example.com --set instanceAdminEmail=admin@example.com
+#
+# For production use values-ha.yaml: replicated, sharded ClickHouse (Altinity operator), a Postgres
+# cluster (CloudNativePG), several replicas of every service, autoscaling and disruption budgets.
+#
+# Data flow:
+#   senders ─► intake (API key → org) ─► collector ─► ClickHouse (traces, metrics, Kubernetes objects)
+#                                    │            └─► vector (logs)
+#                                    └─► vector (JSON logs) ─► ClickHouse, server log indexer, NATS (live tail)
+#   browser ─► server (API + web app) ─► ClickHouse, Postgres, NATS
+
+# -- Origin users reach the web app on, e.g. https://observecraft.example.com (SSO redirects,
+# emailed links, cookies). Defaults to the ingress host.
+publicUrl: ""
+# -- Account that administers the install (creates organizations). On a new install it gets a
+# one-time set-password link, printed in the server log.
+instanceAdminEmail: ""
+# -- Name of the first organization.
+defaultOrg: default
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  # -- Storage class of every volume ("" = the cluster default).
+  storageClass: ""
+
+image:
+  repository: ghcr.io/observecraft/observecraft
+  # -- Defaults to the chart's appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# Generated secrets (kept across upgrades) unless set here or provided by existingSecret.
+secrets:
+  # -- Secret with any of these keys (missing ones are generated): secret-key (encrypts stored
+  # secrets: TOTP seeds, SSO and archive credentials; never change it once set), internal-token,
+  # clickhouse-password, clickhouse-ingest-password, postgres-password, smtp-url.
+  existingSecret: ""
+  secretKey: ""
+  internalToken: ""
+
+retention:
+  logsDays: 15
+  logsMaxDays: 365
+  tracesDays: 15
+  tracesMaxDays: 90
+  metricsDays: 30
+  ciDays: 30
+  # -- Hours every ingested log stays in the raw table that archives read.
+  rawLogsHours: 72
+
+# Limits on each query an organization runs, so one can't starve the others.
+query:
+  timeoutSeconds: 60
+  maxMemoryBytes: 4294967296
+
+# Monitor notification email. The URL (it holds credentials) is read from the secret key smtp-url.
+smtp:
+  url: ""
+  from: "ObserveCraft <alerts@observecraft.local>"
+
+# -- Install demo users, dashboards and monitors into the default org. Development only.
+seedDemo: false
+
+# -- Extra environment for the server and intake (e.g. OC_SESSION_HOURS).
+extraEnv: []
+
+server:
+  replicas: 2
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 2Gi }
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+  podDisruptionBudget:
+    enabled: true
+    maxUnavailable: 1
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+
+intake:
+  replicas: 2
+  # Per-organization limits; over them a sender gets 429 and retries.
+  orgRequestsPerSecond: 500
+  orgMegabytesPerSecond: 50
+  maxBodyMegabytes: 16
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { memory: 512Mi }
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  podDisruptionBudget:
+    enabled: true
+    maxUnavailable: 1
+  service:
+    type: ClusterIP
+    annotations: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+
+# Internal OpenTelemetry Collector: tenant stamping, batching per org, export to ClickHouse. Its
+# export queue is on a volume, so data waiting for ClickHouse survives restarts.
+collector:
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.112.0"
+  replicas: 2
+  memoryLimitMiB: 1536
+  persistence:
+    size: 10Gi
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 2Gi }
+  podDisruptionBudget:
+    enabled: true
+    maxUnavailable: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Vector: log normalization, then ClickHouse, the server's log indexer and live tail. Disk buffers
+# on a volume.
+vector:
+  image:
+    repository: timberio/vector
+    tag: "0.42.0-debian"
+  replicas: 2
+  persistence:
+    size: 10Gi
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits: { memory: 1Gi }
+  podDisruptionBudget:
+    enabled: true
+    maxUnavailable: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+clickhouse:
+  # -- bundled: one ClickHouse server in this release. operator: a ClickHouseInstallation for the
+  # Altinity operator (install it first), sharded and replicated, with ClickHouse Keeper.
+  # external: your own ClickHouse (set external.*).
+  mode: bundled
+  user: observecraft
+  # -- Generated when empty (bundled / operator). Required with mode=external (or in existingSecret).
+  password: ""
+  # -- Writer used by the collector and Vector (INSERT only). bundled / operator modes.
+  ingestUser: observecraft_ingest
+  ingestPassword: ""
+  # Per-organization quota (the server sends the org as quota_key). bundled / operator modes.
+  quota:
+    enabled: true
+    intervalSeconds: 60
+    # -- SELECT queries an org may run per interval (0 = unlimited).
+    selects: 3000
+    # -- Seconds of query execution an org may use per interval (0 = unlimited).
+    executionTimeSeconds: 900
+    # -- Rows an org's queries may read per interval (0 = unlimited).
+    readRows: 0
+  bundled:
+    image:
+      repository: clickhouse/clickhouse-server
+      tag: "24.8"
+    persistence:
+      size: 50Gi
+    resources:
+      requests: { cpu: "1", memory: 4Gi }
+      limits: { memory: 8Gi }
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+  operator:
+    # -- Cluster name (the server creates tables ON CLUSTER this name).
+    cluster: observecraft
+    shards: 2
+    replicas: 2
+    image:
+      repository: clickhouse/clickhouse-server
+      tag: "24.8"
+    persistence:
+      size: 100Gi
+    resources:
+      requests: { cpu: "2", memory: 8Gi }
+      limits: { memory: 16Gi }
+    keeper:
+      replicas: 3
+      image:
+        repository: clickhouse/clickhouse-keeper
+        tag: "24.8"
+      persistence:
+        size: 10Gi
+  external:
+    # -- e.g. http://clickhouse.example.internal:8123
+    httpUrl: ""
+    # -- Native protocol address for the collector, e.g. clickhouse.example.internal:9000
+    nativeAddress: ""
+    # -- Set when the tables should be created ON CLUSTER (replicated and sharded).
+    cluster: ""
+    # -- Writer for the collector and Vector; defaults to `user` (password: clickhouse-ingest-password,
+    # else clickhouse-password).
+    ingestUser: ""
+
+postgres:
+  # -- bundled: one Postgres in this release. operator: a CloudNativePG Cluster (install the
+  # operator first). external: your own Postgres (URL in the secret key postgres-url or external.url).
+  mode: bundled
+  database: observecraft
+  user: observecraft
+  bundled:
+    image:
+      repository: postgres
+      tag: "16-alpine"
+    persistence:
+      size: 10Gi
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits: { memory: 2Gi }
+  operator:
+    instances: 3
+    imageName: ghcr.io/cloudnative-pg/postgresql:16
+    persistence:
+      size: 20Gi
+    resources:
+      requests: { cpu: 500m, memory: 1Gi }
+      limits: { memory: 4Gi }
+  external:
+    # -- postgres://user:password@host:5432/db?sslmode=require (prefer the secret key postgres-url).
+    url: ""
+
+# NATS carries live tail (best effort: nothing is lost when it is down, only the live view pauses).
+nats:
+  # -- false: use external.url.
+  enabled: true
+  # -- 3 for a NATS cluster (live tail keeps working while a node restarts).
+  replicas: 1
+  image:
+    repository: nats
+    tag: "2.10-alpine"
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 512Mi }
+  external:
+    url: ""
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  # -- cert-manager ClusterIssuer for the TLS certificates ("" = bring your own secrets).
+  certManagerClusterIssuer: ""
+  app:
+    host: observecraft.example.com
+    tlsSecretName: ""
+    annotations: {}
+  intake:
+    # -- Hostname senders use (OTLP/HTTP, JSON logs, Datadog API).
+    host: intake.observecraft.example.com
+    tlsSecretName: ""
+    # -- e.g. nginx.ingress.kubernetes.io/proxy-body-size: 16m (match intake.maxBodyMegabytes)
+    annotations: {}
+  # OTLP/gRPC on its own hostname (gRPC needs HTTP/2 to the intake; the annotation is ingress-nginx's).
+  intakeGrpc:
+    enabled: false
+    host: otlp.observecraft.example.com
+    tlsSecretName: ""
+    annotations:
+      nginx.ingress.kubernetes.io/backend-protocol: GRPC
+  tls: true
+
+# Only the traffic each component needs (ingress controller → server / intake, intake → pipeline,
+# pipeline → databases).
+networkPolicy:
+  enabled: true
+  # -- Pods allowed to reach the server and intake (your ingress controller). Empty: any pod.
+  ingressFrom: []
+  #  - namespaceSelector:
+  #      matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile: { type: RuntimeDefault }
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: { drop: [ALL] }

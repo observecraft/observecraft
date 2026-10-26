@@ -3,8 +3,8 @@
   position: fixed;
   inset: 0;
   overflow: auto;
-  background: #2a2f4a;
-  color: #e9ecf5;
+  background: #10201f;
+  color: #e9f1ef;
 }
 
 .lowpoly {
@@ -63,14 +63,14 @@
 
 .auth-org {
   margin: 0 0 22px;
-  color: #c8cde0;
+  color: #c3d3d0;
   font-size: 15px;
 }
 
 .auth-back {
   display: grid;
   place-items: center;
-  color: #c8cde0;
+  color: #c3d3d0;
 }
 
 .auth-sso-btn {
@@ -79,7 +79,7 @@
   height: 42px;
   margin-bottom: 10px;
   border-radius: 3px;
-  background: #d25845;
+  background: #1d8a84;
   color: #fff !important;
   font-size: 15px;
   font-weight: 600;
@@ -87,7 +87,7 @@
 }
 
 .auth-sso-btn:hover {
-  background: #dc6552;
+  background: #23a097;
 }
 
 .auth-sso-icon {
@@ -98,7 +98,7 @@
   margin: 2px;
   border-radius: 2px;
   background: #fff;
-  color: #d25845;
+  color: #1d8a84;
 }
 
 .auth-sso-btn > span:last-child {
@@ -111,7 +111,7 @@
   display: inline-block;
   margin: 8px 0;
   padding: 0;
-  color: #6ea8ff !important;
+  color: #ffcf85 !important;
   font-size: 15px;
   text-decoration: none !important;
 }
@@ -137,19 +137,19 @@
   padding: 0 11px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 3px;
-  background: rgba(10, 12, 24, 0.75);
+  background: rgba(6, 16, 15, 0.75);
   color: #fff;
   font-size: 17px;
   outline: none;
 }
 
 .auth-input::placeholder {
-  color: #9aa1b8;
+  color: #93a6a3;
 }
 
 .auth-input:focus {
-  border-color: #5b8fe0;
-  box-shadow: 0 0 0 2px rgba(91, 143, 224, 0.35);
+  border-color: #ffb547;
+  box-shadow: 0 0 0 2px rgba(255, 181, 71, 0.35);
 }
 
 .auth-code {
@@ -160,13 +160,14 @@
 .auth-submit {
   height: 42px;
   border-radius: 3px;
-  background: #4f86d6;
-  color: #fff;
+  background: #ffb547;
+  color: #121212;
+  font-weight: 600;
   font-size: 17px;
 }
 
 .auth-submit:hover:not(:disabled) {
-  background: #5b93e4;
+  background: #f29b17;
 }
 
 .auth-submit:disabled {
@@ -184,7 +185,7 @@
 
 .auth-hint {
   margin: 0 0 16px;
-  color: #c8cde0;
+  color: #c3d3d0;
   font-size: 15px;
 }
 
@@ -195,7 +196,7 @@
   bottom: 16px;
   text-align: center;
   font-size: 13px;
-  color: #b7bdd2;
+  color: #a9bcb9;
 }
 
 @media (max-width: 900px) {

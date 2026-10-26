@@ -49,11 +49,11 @@ function TeamPicker({ value, onChange }: { value: string[]; onChange: (v: string
 function GridArt() {
   return (
     <svg viewBox="0 0 280 120" width="280" height="120" aria-hidden>
-      <rect x="2" y="2" width="174" height="108" rx="2" fill="#efe9ff" stroke="#b9a6ff" strokeWidth="2" />
-      <rect x="186" y="2" width="38" height="18" rx="2" fill="#efe9ff" stroke="#b9a6ff" strokeWidth="2" />
-      <rect x="186" y="28" width="38" height="18" rx="2" fill="#efe9ff" stroke="#b9a6ff" strokeWidth="2" />
-      <rect x="232" y="2" width="38" height="46" rx="2" fill="#efe9ff" stroke="#b9a6ff" strokeWidth="2" />
-      <rect x="186" y="56" width="84" height="54" rx="2" fill="#efe9ff" stroke="#b9a6ff" strokeWidth="2" />
+      <rect x="2" y="2" width="174" height="108" rx="2" fill="#e3f2ee" stroke="#8fd1c7" strokeWidth="2" />
+      <rect x="186" y="2" width="38" height="18" rx="2" fill="#e3f2ee" stroke="#8fd1c7" strokeWidth="2" />
+      <rect x="186" y="28" width="38" height="18" rx="2" fill="#e3f2ee" stroke="#8fd1c7" strokeWidth="2" />
+      <rect x="232" y="2" width="38" height="46" rx="2" fill="#e3f2ee" stroke="#8fd1c7" strokeWidth="2" />
+      <rect x="186" y="56" width="84" height="54" rx="2" fill="#e3f2ee" stroke="#8fd1c7" strokeWidth="2" />
     </svg>
   );
 }

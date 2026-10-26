@@ -271,7 +271,7 @@ function GroupRows({ label, rows, onOpen }: { label: string; rows: Dependency[];
         <tr key={d.service} onClick={() => onOpen(d.service)}>
           <td>
             <span className="svc-name">
-              <ServiceIcon name={d.service} kind={d.kind} />
+              <ServiceIcon name={d.service} kind={d.kind} language={d.language} technology={d.technology} />
               {d.service}
             </span>
           </td>
@@ -499,7 +499,7 @@ export function DatabasesSection({ scope }: { scope: ServiceScope }) {
                 <tr key={`${d.dbSystem}:${d.dbName}:${d.statement}`} className="no-click">
                   <td>
                     <span className="svc-name">
-                      <ServiceIcon name={d.dbSystem} kind="db" />
+                      <ServiceIcon name={d.dbSystem} kind="db" technology={d.dbSystem} />
                       {d.dbName || d.dbSystem}
                     </span>
                   </td>

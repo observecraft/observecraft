@@ -1,0 +1,381 @@
+.net-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+}
+
+.net-header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.net-filter-menu,
+.net-columns-menu {
+  right: 0;
+  left: auto;
+  min-width: 280px;
+  padding: 8px 4px;
+}
+
+.net-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.net-section {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  position: relative;
+}
+
+.net-page {
+  padding: 12px 16px 32px;
+}
+
+.net-groupby {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 4px;
+}
+
+.net-groupby-label {
+  color: var(--text-muted);
+}
+
+.net-chipset {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.net-chipset > span {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
+.net-chipset select {
+  min-width: 150px;
+  height: 30px;
+  border: none;
+  padding: 0 8px;
+  background: var(--bg);
+  font-size: var(--fs-md);
+}
+
+.net-graphs {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.net-graph {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.net-graph-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.net-graph-head select {
+  border: none;
+  background: transparent;
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-lg);
+}
+
+.net-add-graph {
+  width: 48px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+
+.net-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: var(--text-muted);
+}
+
+.net-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.net-facets {
+  width: 260px;
+  flex-shrink: 0;
+}
+
+.net-side-tabs {
+  display: flex;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.net-side-tab {
+  flex: 1;
+  padding: 6px 0;
+  color: var(--text-muted);
+}
+
+.net-side-tab.active {
+  background: var(--primary-subtle);
+  color: var(--primary);
+  font-weight: var(--fw-semibold);
+}
+
+.net-results {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.net-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.net-count {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+
+.net-customize {
+  margin-left: auto;
+  position: relative;
+}
+
+.net-table-wrap {
+  overflow-x: auto;
+}
+
+.net-table,
+.net-mini {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.net-table th,
+.net-mini th {
+  height: 34px;
+  padding: 0 10px;
+  text-align: left;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.net-table td,
+.net-mini td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.net-table tbody tr {
+  cursor: pointer;
+}
+
+.net-table tbody tr:hover,
+.net-table tbody tr.selected {
+  background: var(--bg-hover);
+}
+
+.net-table .num,
+.net-mini .num {
+  text-align: right;
+}
+
+.net-ext {
+  color: var(--text-muted);
+  vertical-align: -2px;
+}
+
+.net-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 32px 0 !important;
+}
+
+.net-click {
+  cursor: pointer;
+}
+
+.net-ellipsis {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Side panel */
+.net-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(760px, 92%);
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 16px rgb(0 0 0 / 8%);
+  display: flex;
+  flex-direction: column;
+  z-index: 5;
+}
+
+.net-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 6px;
+}
+
+.net-panel-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--fs-xl);
+}
+
+.net-panel-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 6px 18px 12px;
+}
+
+.net-panel-sides h5 {
+  margin: 0 0 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.net-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.net-chip {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.net-panel-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.net-panel-tab {
+  padding: 8px 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+}
+
+.net-panel-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+  font-weight: var(--fw-semibold);
+}
+
+.net-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 18px;
+}
+
+.net-panel-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+/* Map */
+.net-map-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.net-map-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 240px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+
+.net-map-filter input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+}
+
+.net-inspecting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-subtle);
+}
+
+.net-map {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.net-node-menu {
+  position: absolute;
+  min-width: 120px;
+}
+
+.net-view-toggle {
+  margin-bottom: 10px;
+}

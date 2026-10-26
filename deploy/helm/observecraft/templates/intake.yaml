@@ -1,0 +1,115 @@
+{{- $fullname := include "oc.fullname" . -}}
+# The public telemetry endpoint: authenticates ingest API keys, stamps the organization, rate limits
+# per org and forwards to the collector (OTLP) or Vector (JSON logs). Stateless.
+#   :4318  OTLP/HTTP, JSON logs, Datadog API (series, logs)
+#   :4317  OTLP/gRPC
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-intake
+  labels:
+    {{- include "oc.componentLabels" (list . "intake") | nindent 4 }}
+spec:
+  {{- if not .Values.intake.autoscaling.enabled }}
+  replicas: {{ .Values.intake.replicas }}
+  {{- end }}
+  revisionHistoryLimit: 5
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "intake") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "oc.selector" (list . "intake") | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.intake.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "oc.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- include "oc.pullSecrets" . | nindent 6 }}
+      {{- include "oc.podSecurity" . | nindent 6 }}
+      {{- include "oc.scheduling" (list . .Values.intake "intake") | nindent 6 }}
+      containers:
+        - name: intake
+          image: {{ include "oc.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: [oc-intake]
+          {{- include "oc.containerSecurity" . | nindent 10 }}
+          ports:
+            - { name: http, containerPort: 4318 }
+            - { name: grpc, containerPort: 4317 }
+          env:
+            {{- include "oc.postgresEnv" . | nindent 12 }}
+            - { name: OC_INTAKE_COLLECTOR_URL, value: "http://{{ $fullname }}-collector:4318" }
+            - { name: OC_INTAKE_LOGS_URL, value: "http://{{ $fullname }}-vector:8687" }
+            # Profiler uploads go to the server's internal listener.
+            - { name: OC_INTAKE_PROFILES_URL, value: "http://{{ $fullname }}-server:8090/ingest/profiles" }
+            - name: OC_INTERNAL_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ include "oc.secretName" . }}, key: internal-token } }
+            - { name: OC_INTAKE_ORG_RPS, value: {{ .Values.intake.orgRequestsPerSecond | quote }} }
+            - { name: OC_INTAKE_ORG_MBPS, value: {{ .Values.intake.orgMegabytesPerSecond | quote }} }
+            - { name: OC_INTAKE_MAX_BODY_MB, value: {{ .Values.intake.maxBodyMegabytes | quote }} }
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.intake.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-intake
+  labels:
+    {{- include "oc.componentLabels" (list . "intake") | nindent 4 }}
+  {{- with .Values.intake.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.intake.service.type }}
+  selector:
+    {{- include "oc.selector" (list . "intake") | nindent 4 }}
+  ports:
+    - { name: http, port: 4318, targetPort: http }
+    - { name: grpc, port: 4317, targetPort: grpc, appProtocol: kubernetes.io/h2c }
+{{- if .Values.intake.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $fullname }}-intake
+  labels:
+    {{- include "oc.componentLabels" (list . "intake") | nindent 4 }}
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $fullname }}-intake }
+  minReplicas: {{ .Values.intake.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.intake.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: {{ .Values.intake.autoscaling.targetCPUUtilizationPercentage }} } }
+{{- end }}
+{{- if .Values.intake.podDisruptionBudget.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $fullname }}-intake
+  labels:
+    {{- include "oc.componentLabels" (list . "intake") | nindent 4 }}
+spec:
+  maxUnavailable: {{ .Values.intake.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "intake") | nindent 6 }}
+{{- end }}

@@ -1,0 +1,84 @@
+# ObserveCraft agent chart: the OpenTelemetry Collector (official contrib image) configured as a node
+# agent and a cluster agent, for clusters that don't run the Datadog Agent. With the Datadog Agent
+# (Helm chart or Operator) you don't need this chart: see deploy/examples/datadog.
+#   helm install observecraft-agent oci://ghcr.io/observecraft/charts/observecraft-agent -n observecraft --create-namespace \
+#     --set endpoint=https://intake.observecraft.example.com --set clusterName=prod-eu --set apiKey=ocik_…
+#
+# Tags follow Datadog's (kube_namespace, pod_name, kube_deployment, …). Set the pod labels
+# tags.datadoghq.com/service|env|version (or OTEL_SERVICE_NAME) for unified service tagging.
+
+# -- Intake URL of your ObserveCraft install (the observecraft chart's ingress.intake.host), e.g.
+# https://intake.observecraft.example.com, or http://observecraft-intake.observecraft.svc:4318 in the same cluster.
+endpoint: ""
+# -- Ingest API key (Organization Settings → API Keys). Prefer existingSecret.
+apiKey: ""
+# -- Secret holding the key under `api-key`.
+existingSecret: ""
+# -- Shown as kube_cluster_name on everything this cluster sends.
+clusterName: ""
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.112.0"
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# One agent per node (DaemonSet).
+node:
+  enabled: true
+  logs:
+    enabled: true
+    # -- Namespaces whose container logs are not collected (the agent's own are never collected).
+    excludeNamespaces: []
+  kubeletMetrics:
+    enabled: true
+    interval: 20s
+  hostMetrics:
+    enabled: true
+    interval: 20s
+  # Endpoints for applications on the node: OTEL_EXPORTER_OTLP_ENDPOINT=http://$(HOST_IP):4318,
+  # DD_AGENT_HOST=$(HOST_IP) for dd-trace (8126) and DogStatsD (8125). Also reachable through the
+  # node-local service <release>-observecraft-agent.<namespace>.svc.
+  otlp:
+    enabled: true
+  datadog:
+    # -- Traces from Datadog tracing libraries (dd-trace) on :8126.
+    traces: true
+    # -- DogStatsD custom metrics on :8125/udp.
+    dogstatsd: true
+  # -- Expose the application endpoints on each node's IP (hostPort).
+  hostPorts: true
+  # Scrape pods annotated prometheus.io/scrape: "true" (prometheus.io/port, prometheus.io/path).
+  prometheus:
+    enabled: true
+    interval: 30s
+  # -- Queue and log read positions on the node (survive agent restarts).
+  dataHostPath: /var/lib/observecraft-agent
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+  tolerations:
+    - operator: Exists
+  nodeSelector: {}
+  affinity: {}
+  priorityClassName: ""
+  # -- Merged over the generated collector config (e.g. extra processors or receivers).
+  extraConfig: {}
+  extraEnv: []
+
+# One agent per cluster (Deployment).
+cluster:
+  enabled: true
+  metricsInterval: 20s
+  # -- How often full object snapshots are taken (Kubernetes Explorer tables and YAML).
+  objectsInterval: 60s
+  events: true
+  resources:
+    requests: { cpu: 50m, memory: 192Mi }
+    limits: { memory: 512Mi }
+  tolerations: []
+  nodeSelector: {}
+  affinity: {}
+  priorityClassName: ""
+  extraConfig: {}
+  extraEnv: []

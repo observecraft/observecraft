@@ -252,7 +252,7 @@ function lineChart(series: { name: string; points: [number, number][] }[], at: n
       showSymbol: false,
       color: colors[i % colors.length],
       data: s.points,
-      ...(i === 0 ? { markLine: { symbol: 'none', silent: true, lineStyle: { color: '#6a3fd1', type: 'dashed' }, label: { formatter: 'span' }, data: [{ xAxis: at }] } } : {}),
+      ...(i === 0 ? { markLine: { symbol: 'none', silent: true, lineStyle: { color: '#0b6e69', type: 'dashed' }, label: { formatter: 'span' }, data: [{ xAxis: at }] } } : {}),
     })),
   };
 }
