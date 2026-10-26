@@ -3101,6 +3101,8 @@ export interface components {
         };
         Dependencies: {
             downstream: components["schemas"]["Dependency"][];
+            /** @description The service's own language. */
+            language?: string | null;
             upstream: components["schemas"]["Dependency"][];
         };
         Dependency: {
@@ -3111,6 +3113,8 @@ export interface components {
             /** Format: int64 */
             errors: number;
             kind: components["schemas"]["ServiceKind"];
+            /** @description `telemetry.sdk.language` of an instrumented service. */
+            language?: string | null;
             /** Format: double */
             p95Ms: number;
             p95Series: number[];
@@ -3119,6 +3123,8 @@ export interface components {
             /** Format: int64 */
             requests: number;
             service: string;
+            /** @description `db.system` / `messaging.system` of an inferred one (postgresql, redis, kafka, …). */
+            technology?: string | null;
         };
         Deployment: {
             /** Format: double */

@@ -718,6 +718,12 @@ button.apm-card:hover {
   font-weight: 600;
 }
 
+/* White disc under a node's logo (overrides the node circle styles above). */
+.dep-map circle.dm-logo-bg {
+  fill: var(--bg);
+  stroke: none;
+}
+
 .dep-tables {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

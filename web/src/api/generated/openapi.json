@@ -7998,6 +7998,13 @@
               "$ref": "#/components/schemas/Dependency"
             }
           },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The service's own language."
+          },
           "upstream": {
             "type": "array",
             "items": {
@@ -8041,6 +8048,13 @@
           "kind": {
             "$ref": "#/components/schemas/ServiceKind"
           },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`telemetry.sdk.language` of an instrumented service."
+          },
           "p95Ms": {
             "type": "number",
             "format": "double"
@@ -8063,6 +8077,13 @@
           },
           "service": {
             "type": "string"
+          },
+          "technology": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`db.system` / `messaging.system` of an inferred one (postgresql, redis, kafka, …)."
           }
         }
       },
