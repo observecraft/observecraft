@@ -9,7 +9,7 @@ license = "MIT"
 
 [workspace.dependencies]
 anyhow = "1"
-async-nats = "0.37"
+async-nats = "0.50"
 axum = "0.7"
 clickhouse = "0.13"
 futures = "0.3"
