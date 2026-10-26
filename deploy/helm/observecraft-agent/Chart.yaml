@@ -1,13 +1,24 @@
 apiVersion: v2
 name: observecraft-agent
-description: OpenTelemetry Collector for ObserveCraft on Kubernetes (for clusters without the Datadog Agent). A node agent (logs, kubelet and host metrics, OTLP / Datadog / DogStatsD endpoints for applications, Prometheus autodiscovery) and a cluster agent (cluster state, object inventory, events).
+description: >-
+  OpenTelemetry Collector for ObserveCraft on Kubernetes (for clusters without
+  the Datadog Agent). A node agent (logs, kubelet and host metrics, OTLP /
+  Datadog / DogStatsD endpoints for applications, Prometheus autodiscovery) and
+  a cluster agent (cluster state, object inventory, events).
 type: application
 version: 0.1.0
-appVersion: "0.1.0"
-kubeVersion: ">=1.24.0-0"
+appVersion: 0.1.0
+kubeVersion: '>=1.24.0-0'
 home: https://github.com/observecraft/observecraft
 sources:
   - https://github.com/observecraft/observecraft
-keywords: [observability, opentelemetry, agent, kubernetes, logs, metrics, datadog]
+keywords:
+  - observability
+  - opentelemetry
+  - agent
+  - kubernetes
+  - logs
+  - metrics
+  - datadog
 annotations:
   artifacthub.io/license: MIT
