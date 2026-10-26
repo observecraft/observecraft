@@ -9,7 +9,7 @@ RUN npm ci --no-audit --no-fund
 COPY web/ ./
 RUN VITE_API_MODE=live npm run build
 
-FROM rust:1.89-bookworm AS build
+FROM rust:1.99-bookworm AS build
 RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libclang-dev libxml2-dev libxmlsec1-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY server/ .
