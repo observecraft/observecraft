@@ -184,6 +184,17 @@ clickhouse:
     resources:
       requests: { cpu: "1", memory: 4Gi }
       limits: { memory: 8Gi }
+    # Server settings for a small single server. ClickHouse's defaults assume 32 GB+ of RAM
+    # (https://clickhouse.com/docs/operations/tips); raise these with the resources above.
+    tuning:
+      # -- Mark cache and index mark cache size, in bytes each (ClickHouse default: 5 GiB).
+      markCacheBytes: 536870912
+      # -- Queries running at once; more fail fast instead of queueing for CPU and memory.
+      maxConcurrentQueries: 100
+      # -- Background merge threads; up to twice as many merges run at once (ClickHouse default: 16).
+      backgroundPoolSize: 4
+      # -- How long the server gathers async inserts from the collector and Vector into one part.
+      asyncInsertBusyTimeoutMs: 1000
     nodeSelector: {}
     tolerations: []
     affinity: {}

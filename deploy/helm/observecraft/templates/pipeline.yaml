@@ -64,9 +64,11 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ $secret }}, key: {{ include "oc.clickhouseIngestPasswordKey" . }} } }
           readinessProbe:
             httpGet: { path: /, port: health }
+            timeoutSeconds: 5
           livenessProbe:
             httpGet: { path: /, port: health }
             periodSeconds: 20
+            timeoutSeconds: 5
           resources:
             {{- toYaml .Values.collector.resources | nindent 12 }}
           volumeMounts:
@@ -178,9 +180,11 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ $secret }}, key: {{ include "oc.clickhouseIngestPasswordKey" . }} } }
           readinessProbe:
             httpGet: { path: /health, port: api }
+            timeoutSeconds: 5
           livenessProbe:
             httpGet: { path: /health, port: api }
             periodSeconds: 20
+            timeoutSeconds: 5
           resources:
             {{- toYaml .Values.vector.resources | nindent 12 }}
           volumeMounts:

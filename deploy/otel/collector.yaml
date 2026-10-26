@@ -26,7 +26,12 @@ processors:
     detectors: [env, system]
     # Keep host.name etc. sent by the application; only fill in what is missing.
     override: false
-  batch: {}
+  # Every batch becomes one INSERT, i.e. one new part per table. The defaults (8192 items or 200ms)
+  # mean several small parts a second per table, and merging them takes ClickHouse's CPU and memory.
+  batch:
+    timeout: 5s
+    send_batch_size: 50000
+    send_batch_max_size: 100000
   # The tenant: from oc-intake's header only. Without it (nothing should reach us that way) the data
   # has no organization and is visible to no one.
   resource/org:
