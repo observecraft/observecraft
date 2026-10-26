@@ -19,7 +19,7 @@ base64 = "0.22"
 clickhouse.workspace = true
 data-encoding = "2"
 # Archive search over Parquet files (C++ engine compiled in; Parquet reader included).
-duckdb = { version = "=1.10506.0", features = ["bundled", "parquet"] }
+duckdb = { version = "=1.20000.0", features = ["bundled", "parquet"] }
 # Profiles: gzip-compressed pprof uploads.
 flate2 = "1"
 futures.workspace = true
