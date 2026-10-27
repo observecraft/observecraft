@@ -529,7 +529,7 @@
 }
 
 .tv-trigger {
-  min-width: 140px;
+  min-width: 108px;
   height: 30px;
   padding-top: 2px;
 }
@@ -1740,4 +1740,22 @@
 /* Event text (Markdown) inside event lists */
 .event-text p {
   margin: 2px 0;
+}
+
+/* "+N": template variables folded away */
+.tv-more {
+  align-self: flex-end;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 8px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+
+.tv-more:hover {
+  color: var(--text);
 }

@@ -1,5 +1,5 @@
 // Pure helpers over the widget tree (groups contain widgets).
-import type { Widget, WidgetDefinition, WidgetLayout, WidgetType } from '../../api/dashboards/types';
+import type { TemplateVariable, TemplateVarValues, Widget, WidgetDefinition, WidgetLayout, WidgetType } from '../../api/dashboards/types';
 
 export function newWidgetId(): string {
   return `w${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
@@ -126,4 +126,12 @@ export function defaultDefinition(type: WidgetType): WidgetDefinition {
 /** A log search as dashboard widgets (Log Explorer → Open in Dashboards). */
 export function logStreamWidgets(query: string): Widget[] {
   return [{ id: newWidgetId(), definition: { type: 'log_stream', title: query.trim() || 'All logs', query, limit: 50 }, layout: { x: 0, y: 0, ...DEFAULT_SIZE.log_stream } }];
+}
+
+/** Template variables shown before "+N": the first five and any later one in use. */
+export function visibleVariables(vars: TemplateVariable[], values: TemplateVarValues, expanded: boolean, limit = 5): { shown: TemplateVariable[]; hidden: number } {
+  // Folding a single variable behind "+1" saves no room.
+  if (expanded || vars.length <= limit + 1) return { shown: vars, hidden: 0 };
+  const shown = vars.filter((v, i) => i < limit || (values[v.name] !== undefined && values[v.name] !== v.default));
+  return { shown, hidden: vars.length - shown.length };
 }

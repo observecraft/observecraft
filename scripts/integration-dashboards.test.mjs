@@ -464,3 +464,17 @@ test('Datadog event text: the markdown between %%% markers', async () => {
   assert.equal(eventMarkdown('%%% \n1 **Killing**: Stopping container build\n %%%'), '1 **Killing**: Stopping container build');
   assert.equal(eventMarkdown('plain text'), 'plain text');
 });
+
+test('template variables: first five, plus later ones in use; the rest behind +N', async () => {
+  const { visibleVariables } = await import('../web/src/pages/dashboards/tree.ts');
+  const vars = ['scope', 'cluster', 'namespace', 'deployment', 'daemonset', 'statefulset', 'replicaset', 'service', 'node'].map((name) => ({ name, prefix: name, default: '*' }));
+  const folded = visibleVariables(vars, { node: 'aks-1' }, false);
+  assert.deepEqual(
+    folded.shown.map((v) => v.name),
+    ['scope', 'cluster', 'namespace', 'deployment', 'daemonset', 'node'],
+  );
+  assert.equal(folded.hidden, 3);
+  assert.equal(visibleVariables(vars, {}, true).shown.length, 9);
+  assert.equal(visibleVariables(vars, {}, true).hidden, 0);
+  assert.equal(visibleVariables(vars.slice(0, 6), {}, false).hidden, 0, 'one extra is shown rather than folded as +1');
+});
