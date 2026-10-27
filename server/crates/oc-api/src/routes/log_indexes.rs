@@ -2,8 +2,9 @@
 //!
 //! Each org routes incoming logs to the first index whose filter matches (see `logproc`). An index
 //! sets the retention of its logs, an optional daily quota, and exclusion filters. Retention changes
-//! apply to logs indexed from then on. The instance admin bounds what an org may choose
-//! (`org_data_settings`: longest log / span retention, number of indexes).
+//! apply to logs indexed from then on. The org also chooses its span and metric retention (metrics:
+//! full resolution, 5-minute and 1-hour rollups, from fixed tiers). The instance admin bounds what an
+//! org may choose (`org_data_settings`: longest log / span / metric retention, number of indexes).
 
 use std::collections::HashMap;
 
@@ -65,6 +66,8 @@ pub(crate) struct DataSettings {
     pub max_span_retention_days: i32,
     pub max_indexes: i32,
     pub span_retention_days: i32,
+    #[sqlx(flatten)]
+    pub metrics: StoredMetricRetention,
 }
 
 pub(crate) async fn data_settings(st: &AppState, org: &str) -> Result<DataSettings, ApiError> {
@@ -76,7 +79,13 @@ pub(crate) async fn data_settings(st: &AppState, org: &str) -> Result<DataSettin
         .bind(r.traces_days as i32)
         .execute(&st.postgres)
         .await?;
-    Ok(sqlx::query_as("SELECT max_log_retention_days, max_span_retention_days, max_indexes, span_retention_days FROM org_data_settings WHERE org_id = $1").bind(org).fetch_one(&st.postgres).await?)
+    Ok(sqlx::query_as(
+        "SELECT max_log_retention_days, max_span_retention_days, max_indexes, span_retention_days, metrics_retention_days, metrics_5m_days, metrics_1h_days, \
+         max_metrics_retention_days, max_metrics_5m_days, max_metrics_1h_days FROM org_data_settings WHERE org_id = $1",
+    )
+    .bind(org)
+    .fetch_one(&st.postgres)
+    .await?)
 }
 
 /// New orgs: data settings within the install's ceilings and one catch-all index.
@@ -269,6 +278,82 @@ pub async fn reorder(State(st): State<AppState>, Admin(ctx): Admin, Json(req): J
 
 // ================================================================ org data settings
 
+/// Metric retentions an org may choose, in days. Retention is part of the metric tables' partition
+/// key, so the values come from a short fixed list (395: a year plus a month for year-over-year).
+pub(crate) const METRIC_RETENTION_TIERS: [i32; 7] = [7, 15, 30, 90, 180, 395, 760];
+
+/// Days metrics are kept at full resolution and as 5-minute and 1-hour rollups.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricRetention {
+    pub raw: i32,
+    pub rollup_5m: i32,
+    pub rollup_1h: i32,
+}
+
+impl MetricRetention {
+    fn tiers_in_order(self) -> Result<(), String> {
+        let tiers = METRIC_RETENTION_TIERS.map(|d| d.to_string()).join(", ");
+        if [self.raw, self.rollup_5m, self.rollup_1h].iter().any(|d| !METRIC_RETENTION_TIERS.contains(d)) {
+            return Err(format!("Metric retention must be one of {tiers} days"));
+        }
+        if self.raw > self.rollup_5m || self.rollup_5m > self.rollup_1h {
+            return Err("Metrics can't be kept longer at a finer resolution: full resolution ≤ 5-minute ≤ 1-hour rollups".into());
+        }
+        Ok(())
+    }
+}
+
+/// What `org_data_settings` stores for metrics: NULL = the install's default.
+#[derive(Clone, Copy, Debug, Default, sqlx::FromRow)]
+pub(crate) struct StoredMetricRetention {
+    #[sqlx(rename = "metrics_retention_days")]
+    pub raw: Option<i32>,
+    #[sqlx(rename = "metrics_5m_days")]
+    pub rollup_5m: Option<i32>,
+    #[sqlx(rename = "metrics_1h_days")]
+    pub rollup_1h: Option<i32>,
+    #[sqlx(rename = "max_metrics_retention_days")]
+    pub max_raw: Option<i32>,
+    #[sqlx(rename = "max_metrics_5m_days")]
+    pub max_5m: Option<i32>,
+    #[sqlx(rename = "max_metrics_1h_days")]
+    pub max_1h: Option<i32>,
+}
+
+impl StoredMetricRetention {
+    /// (the org's retention, its limits), unset values taking the install's default.
+    pub(crate) fn effective(self, install: MetricRetention) -> (MetricRetention, MetricRetention) {
+        let or = |v: Option<i32>, d: i32| v.unwrap_or(d);
+        (
+            MetricRetention { raw: or(self.raw, install.raw), rollup_5m: or(self.rollup_5m, install.rollup_5m), rollup_1h: or(self.rollup_1h, install.rollup_1h) },
+            MetricRetention { raw: or(self.max_raw, install.raw), rollup_5m: or(self.max_5m, install.rollup_5m), rollup_1h: or(self.max_1h, install.rollup_1h) },
+        )
+    }
+}
+
+/// The install's default metric retention (OC_RETENTION_METRICS_*).
+pub(crate) fn install_metric_retention(r: &crate::config::Retention) -> MetricRetention {
+    MetricRetention { raw: r.metrics_days as i32, rollup_5m: r.metrics_5m_days as i32, rollup_1h: r.metrics_1h_days as i32 }
+}
+
+/// An org's choice: tiers, in order, within its limits.
+pub(crate) fn validate_metric_retention(v: MetricRetention, limits: MetricRetention) -> Result<(), String> {
+    v.tiers_in_order()?;
+    if v.raw > limits.raw || v.rollup_5m > limits.rollup_5m || v.rollup_1h > limits.rollup_1h {
+        return Err(format!(
+            "Metric retention can be up to {} / {} / {} days for this organization",
+            limits.raw, limits.rollup_5m, limits.rollup_1h
+        ));
+    }
+    Ok(())
+}
+
+/// The instance admin's limits for an org: tiers, in order.
+pub(crate) fn validate_metric_limits(limits: MetricRetention) -> Result<(), String> {
+    limits.tiers_in_order()
+}
+
 #[derive(Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct OrgDataSettings {
@@ -278,8 +363,12 @@ pub struct OrgDataSettings {
     pub max_span_retention_days: i32,
     pub max_log_retention_days: i32,
     pub max_indexes: i32,
-    /// Install-wide (not per org): metric and CI retention, raw-log window feeding archives.
-    pub metrics_retention_days: u32,
+    /// Days the org's metrics are kept at full resolution and as rollups, and its limits.
+    pub metrics: MetricRetention,
+    pub max_metrics: MetricRetention,
+    /// What metric retentions can be chosen.
+    pub metric_retention_tiers: Vec<i32>,
+    /// Install-wide (not per org): CI retention, raw-log window feeding archives.
     pub ci_retention_days: u32,
     pub raw_logs_hours: u32,
 }
@@ -287,12 +376,15 @@ pub struct OrgDataSettings {
 async fn org_data_settings(st: &AppState, org: &str) -> Result<OrgDataSettings, ApiError> {
     let s = data_settings(st, org).await?;
     let r = &st.config.retention;
+    let (metrics, max_metrics) = s.metrics.effective(install_metric_retention(r));
     Ok(OrgDataSettings {
         span_retention_days: s.span_retention_days,
         max_span_retention_days: s.max_span_retention_days,
         max_log_retention_days: s.max_log_retention_days,
         max_indexes: s.max_indexes,
-        metrics_retention_days: r.metrics_days,
+        metrics,
+        max_metrics,
+        metric_retention_tiers: METRIC_RETENTION_TIERS.to_vec(),
         ci_retention_days: r.ci_days,
         raw_logs_hours: r.raw_logs_hours,
     })
@@ -306,24 +398,73 @@ pub async fn get_settings(State(st): State<AppState>, ctx: AuthContext) -> ApiRe
 #[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct OrgDataSettingsPatch {
-    pub span_retention_days: i32,
+    pub span_retention_days: Option<i32>,
+    pub metrics: Option<MetricRetention>,
 }
 
-/// Span retention applies to spans received from then on (within about a minute).
+/// Span and metric retention apply to data received from then on (within about a minute).
 #[utoipa::path(patch, path = "/api/v1/org/data-settings", operation_id = "update_org_data_settings", request_body = OrgDataSettingsPatch, responses((status = 200, body = OrgDataSettings)), tag = "logs")]
 pub async fn update_settings(State(st): State<AppState>, Admin(ctx): Admin, Json(p): Json<OrgDataSettingsPatch>) -> ApiResult<OrgDataSettings> {
     let s = data_settings(&st, &ctx.org_id).await?;
-    if !(1..=s.max_span_retention_days).contains(&p.span_retention_days) {
-        return Err(ApiError::BadRequest(format!("Span retention must be between 1 and {} days for this organization", s.max_span_retention_days)));
+    if let Some(days) = p.span_retention_days {
+        if !(1..=s.max_span_retention_days).contains(&days) {
+            return Err(ApiError::BadRequest(format!("Span retention must be between 1 and {} days for this organization", s.max_span_retention_days)));
+        }
+        sqlx::query("UPDATE org_data_settings SET span_retention_days = $2, updated_at = now() WHERE org_id = $1").bind(&ctx.org_id).bind(days).execute(&st.postgres).await?;
+        ctx.audit(&st, "org.span_retention_changed", "", &format!("{days} days")).await;
     }
-    sqlx::query("UPDATE org_data_settings SET span_retention_days = $2, updated_at = now() WHERE org_id = $1").bind(&ctx.org_id).bind(p.span_retention_days).execute(&st.postgres).await?;
-    ctx.audit(&st, "org.span_retention_changed", "", &format!("{} days", p.span_retention_days)).await;
+    if let Some(m) = p.metrics {
+        let (_, limits) = s.metrics.effective(install_metric_retention(&st.config.retention));
+        validate_metric_retention(m, limits).map_err(ApiError::BadRequest)?;
+        sqlx::query("UPDATE org_data_settings SET metrics_retention_days = $2, metrics_5m_days = $3, metrics_1h_days = $4, updated_at = now() WHERE org_id = $1")
+            .bind(&ctx.org_id)
+            .bind(m.raw)
+            .bind(m.rollup_5m)
+            .bind(m.rollup_1h)
+            .execute(&st.postgres)
+            .await?;
+        ctx.audit(&st, "org.metric_retention_changed", "", &format!("{} / {} / {} days", m.raw, m.rollup_5m, m.rollup_1h)).await;
+    }
     Ok(Json(org_data_settings(&st, &ctx.org_id).await?))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const fn r(raw: i32, rollup_5m: i32, rollup_1h: i32) -> MetricRetention {
+        MetricRetention { raw, rollup_5m, rollup_1h }
+    }
+
+    #[test]
+    fn metric_retention_is_a_tier_within_the_limits() {
+        let limits = r(30, 90, 395);
+        assert!(validate_metric_retention(r(15, 90, 395), limits).is_ok());
+        assert!(validate_metric_retention(r(30, 30, 30), limits).is_ok());
+        // Not a tier: every distinct value is a partition, so they come from a short list.
+        assert!(validate_metric_retention(r(20, 90, 395), limits).is_err());
+        // Over the org's limit.
+        assert!(validate_metric_retention(r(30, 90, 760), limits).is_err());
+        // A finer resolution kept longer than a coarser one isn't useful.
+        assert!(validate_metric_retention(r(30, 15, 395), limits).is_err());
+        assert!(validate_metric_retention(r(7, 180, 90), r(30, 180, 395)).is_err());
+    }
+
+    #[test]
+    fn unset_metric_retention_is_the_install_default() {
+        let install = r(30, 90, 395);
+        let unset = StoredMetricRetention::default();
+        assert_eq!(unset.effective(install), (install, install));
+        let chosen = StoredMetricRetention { raw: Some(15), rollup_5m: None, rollup_1h: Some(760), max_raw: None, max_5m: Some(180), max_1h: Some(760) };
+        assert_eq!(chosen.effective(install), (r(15, 90, 760), r(30, 180, 760)));
+    }
+
+    #[test]
+    fn metric_limits_are_ordered_tiers() {
+        assert!(validate_metric_limits(r(90, 395, 760)).is_ok());
+        assert!(validate_metric_limits(r(30, 90, 100)).is_err());
+        assert!(validate_metric_limits(r(90, 30, 395)).is_err());
+    }
 
     fn input(name: &str, days: i32) -> LogIndexInput {
         LogIndexInput { name: name.into(), filter: String::new(), retention_days: days, daily_quota: None, quota_reset_hour: 0, exclusion_filters: vec![] }

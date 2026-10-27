@@ -34,6 +34,17 @@ impl TimeRange {
         Ok(())
     }
 
+    /// For data kept up to `max_days` and cheap to read over long periods (metric rollups).
+    pub(crate) fn validate_within(&self, max_days: u32) -> Result<(), ApiError> {
+        if self.to < self.from {
+            return Err(ApiError::BadRequest("range.to must be >= range.from".into()));
+        }
+        if self.to - self.from > max_days as i64 * 86_400_000 {
+            return Err(ApiError::BadRequest(format!("range may not exceed {max_days} days")));
+        }
+        Ok(())
+    }
+
     /// For small metadata tables (incidents) that can be listed over long periods: up to 2 years.
     pub(crate) fn validate_loose(&self) -> Result<(), ApiError> {
         if self.to < self.from {

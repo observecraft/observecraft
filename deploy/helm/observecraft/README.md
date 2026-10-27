@@ -104,12 +104,14 @@ only the traffic each component needs; secrets are generated once and kept acros
 | `image.tag` | chart `appVersion` | ObserveCraft image version. |
 | `secrets.existingSecret` | `""` | Secret with `secret-key`, `internal-token`, `clickhouse-password`, `clickhouse-ingest-password`, `postgres-password`, `postgres-url`, `smtp-url` (missing keys are generated). |
 | `retention.logsDays` / `tracesDays` / `metricsDays` / `ciDays` | `15` / `15` / `30` / `30` | Default retention. `logsMaxDays` / `tracesMaxDays` cap what the instance admin can grant an organization. |
+| `retention.metrics5mDays` / `metrics1hDays` | `90` / `395` | How long metrics are kept as 5-minute and 1-hour rollups, which long ranges read. |
 | `query.timeoutSeconds` / `maxMemoryBytes` | `60` / `4 GiB` | Limits on each query, so one organization can't starve the others. |
 | `smtp.url` / `smtp.from` | | Email for monitor notifications (put the URL in the secret key `smtp-url`). |
 | `server.replicas`, `intake.replicas` | `2` | Plus `autoscaling.*`, `podDisruptionBudget.*`, `resources`, scheduling for each component. |
 | `intake.orgRequestsPerSecond` / `orgMegabytesPerSecond` | `500` / `50` | Per-organization ingest limits (over them, senders get 429 and retry). |
 | `clickhouse.mode` | `bundled` | `bundled`, `operator` (Altinity, sharded and replicated) or `external`. |
 | `clickhouse.quota.*` | enabled | Per-organization ClickHouse query quota. |
+| `clickhouse.bundled.coldStorage.*` | off | Moves metric samples and rollups older than `moveAfterDays` to an S3-compatible bucket (e.g. RustFS); they stay queryable. `endpoint` is the path-style bucket URL with a prefix, `existingSecret` holds `access-key-id` and `secret-access-key`. With `operator` or `external` ClickHouse, declare an `observecraft_tiered` storage policy (volumes `default` and `cold`) yourself and set `OC_METRICS_COLD_AFTER_DAYS` in `extraEnv`. |
 | `clickhouse.bundled.tuning.*` | small server | Caches, concurrent queries, merge threads and async insert buffering for the bundled server. Raise them with `clickhouse.bundled.resources`. |
 | `postgres.mode` | `bundled` | `bundled`, `operator` (CloudNativePG) or `external`. |
 | `nats.enabled` | `true` | `false` to use `nats.external.url`. |

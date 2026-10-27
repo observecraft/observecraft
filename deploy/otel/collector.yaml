@@ -41,6 +41,14 @@ processors:
       # The org's span retention in days (the spans table TTL reads it).
       - { key: oc.retention_days, action: delete }
       - { key: oc.retention_days, from_context: metadata.x-oc-retention-days, action: upsert }
+      # The org's metric retention: full resolution, 5-minute and 1-hour rollups (the metric tables
+      # partition by them).
+      - { key: oc.metrics_retention_days, action: delete }
+      - { key: oc.metrics_retention_days, from_context: metadata.x-oc-metrics-retention-days, action: upsert }
+      - { key: oc.metrics_retention_5m_days, action: delete }
+      - { key: oc.metrics_retention_5m_days, from_context: metadata.x-oc-metrics-retention-5m-days, action: upsert }
+      - { key: oc.metrics_retention_1h_days, action: delete }
+      - { key: oc.metrics_retention_1h_days, from_context: metadata.x-oc-metrics-retention-1h-days, action: upsert }
 connectors:
   # Kubernetes object snapshots and events (the cluster collector marks them oc.signal = k8s.objects)
   # are inventory for the Kubernetes Explorer, not log lines.
@@ -78,6 +86,26 @@ exporters:
     create_schema: false
     ttl: 72h
     timeout: 10s
+    retry_on_failure:
+      enabled: true
+    sending_queue:
+      queue_size: 1000
+      storage: file_storage/queue
+  # Metrics: the ingest tables of the metrics storage (series, samples, rollups; built by
+  # materialized views, docs/adr/0001-metrics-storage.md).
+  clickhouse/metrics:
+    endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
+    database: otel
+    username: ${env:CLICKHOUSE_USER}
+    password: ${env:CLICKHOUSE_PASSWORD}
+    create_schema: false
+    timeout: 10s
+    metrics_tables:
+      gauge: { name: metrics_ingest_gauge }
+      sum: { name: metrics_ingest_sum }
+      summary: { name: metrics_ingest_summary }
+      histogram: { name: metrics_ingest_histogram }
+      exponential_histogram: { name: metrics_ingest_exponential_histogram }
     retry_on_failure:
       enabled: true
     sending_queue:
@@ -179,4 +207,4 @@ service:
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, resource/org, resourcedetection, batch]
-      exporters: [clickhouse]
+      exporters: [clickhouse/metrics]

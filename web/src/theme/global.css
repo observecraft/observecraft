@@ -330,6 +330,7 @@ a:hover {
 }
 
 .small-modal input,
+.small-modal select,
 .small-modal textarea {
   padding: 6px 8px;
   border: 1px solid var(--border-strong);
@@ -339,6 +340,7 @@ a:hover {
 }
 
 .small-modal input:focus,
+.small-modal select:focus,
 .small-modal textarea:focus {
   border-color: var(--border-focus);
 }

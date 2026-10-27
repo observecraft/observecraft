@@ -16,7 +16,7 @@ use utoipa::ToSchema;
 use super::super::logs::TimeRange;
 use super::{
     bind, group_array, group_label, inner_query_at_step, parse, resolve_alias, round, step_ms,
-    Kind, Row, SPAN_METRICS,
+    Kind, Row, Source, SPAN_METRICS,
 };
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, OrgId};
@@ -75,6 +75,7 @@ struct Prepared {
     weighted: bool,
     scale: f64,
     step: i64,
+    source: Source,
     error: Option<String>,
 }
 
@@ -93,7 +94,7 @@ struct Meta {
 }
 
 fn validate(req: &DashboardQueryRequest) -> Result<(), ApiError> {
-    req.range.validate()?;
+    req.range.validate_within(u32::MAX)?;
     if req.queries.is_empty() || req.queries.len() > 256 {
         return Err(ApiError::BadRequest(
             "dashboard requires 1 to 256 queries".into(),
@@ -116,6 +117,13 @@ impl Plan {
         org: &str,
         req: &DashboardQueryRequest,
     ) -> Result<Self, ApiError> {
+        let tiers = super::org_tiers(st, org).await?;
+        req.range.validate_within(
+            tiers
+                .raw_days
+                .max(tiers.rollup_5m_days)
+                .max(tiers.rollup_1h_days),
+        )?;
         let mut items: Vec<Prepared> = Vec::new();
         let mut seen = HashMap::new();
         for item in &req.queries {
@@ -150,6 +158,7 @@ impl Plan {
                 weighted,
                 scale,
                 step: step_ms(req.range, key.1, 10_000),
+                source: Source::Samples,
                 error,
             });
         }
@@ -165,20 +174,17 @@ impl Plan {
         if !names.is_empty() {
             let marks = vec!["?"; names.len()].join(",");
             let mut params = Vec::new();
-            let mut parts = Vec::new();
-            for (table, kind) in [
-                ("otel.otel_metrics_gauge", "'gauge'"),
-                ("otel.otel_metrics_sum", "multiIf(any(AggregationTemporality) = 1, 'delta', any(IsMonotonic), 'counter', 'updown')"),
-                ("otel.otel_metrics_histogram", "'histogram'"),
-                ("otel.otel_metrics_exponential_histogram", "'exponential_histogram'"),
-                ("otel.otel_metrics_summary", "'summary'"),
-            ] {
-                // Statistic queries use a base metric name. Include both, without guessing its table.
-                let bases: Vec<_> = names.iter().map(|n| super::split_stat(n).map(|(b, _)| b.to_string()).unwrap_or(n.clone())).collect();
-                parts.push(format!("SELECT MetricName AS name, {kind} AS kind, any(MetricUnit) AS unit FROM {table} WHERE OrgId = {{oc_org:String}} AND (MetricName IN ({marks}) OR MetricName IN ({marks})) GROUP BY MetricName"));
-                params.extend(names.iter().chain(bases.iter()).cloned().map(Param::Str));
-            }
-            for meta in bind(st.ch(org).query(&parts.join(" UNION ALL ")), &params)
+            let bases: Vec<_> = names
+                .iter()
+                .map(|n| {
+                    super::split_stat(n)
+                        .map(|(b, _)| b.to_string())
+                        .unwrap_or(n.clone())
+                })
+                .collect();
+            let sql = format!("SELECT MetricName AS name, multiIf(any(MetricType) = 'sum', multiIf(any(AggregationTemporality) = 1, 'delta', any(IsMonotonic), 'counter', 'updown'), toString(any(MetricType))) AS kind, any(MetricUnit) AS unit FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND (MetricName IN ({marks}) OR MetricName IN ({marks})) GROUP BY MetricName");
+            params.extend(names.iter().chain(bases.iter()).cloned().map(Param::Str));
+            for meta in bind(st.ch(org).query(&sql), &params)
                 .fetch_all::<Meta>()
                 .await?
             {
@@ -250,6 +256,9 @@ impl Plan {
                     10_000
                 },
             );
+            if p.kind != "span" {
+                (p.source, p.step) = super::resolution(req.range, p.step, super::now_ms(), tiers);
+            }
             if p.kind == "unknown" {
                 p.error = Some(format!("Unknown metric: {}", p.query.metric));
             } else if p.weighted && (p.kind != "gauge" || p.query.agg.sql() != "sum") {
@@ -264,10 +273,11 @@ impl Plan {
             .enumerate()
             .filter(|(_, p)| p.scalar_kind.is_some() && p.error.is_none())
         {
-            if let Some(g) = groups
-                .iter_mut()
-                .find(|g| items[g[0]].scalar_kind == p.scalar_kind && items[g[0]].step == p.step)
-            {
+            if let Some(g) = groups.iter_mut().find(|g| {
+                items[g[0]].scalar_kind == p.scalar_kind
+                    && items[g[0]].step == p.step
+                    && items[g[0]].source == p.source
+            }) {
                 g.push(i);
             } else {
                 groups.push(vec![i]);
@@ -316,7 +326,7 @@ impl Plan {
                 bind(st.ch(org).query(&sql), &params).fetch_all::<BatchRow>().await.map_err(ApiError::from)
             } else {
                 let p = &self.items[indices[0]];
-                match inner_query_at_step(st, org, &p.query, subrange, 120, Some(step)).await {
+                match inner_query_at_step(st, org, &p.query, subrange, 120, Some((p.source, step))).await {
                     Ok((inner, params, _)) => {
                         let sql = format!("SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64({}(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t", p.query.agg.sql());
                         bind(st.ch(org).query(&sql), &params).fetch_all::<Row>().await.map(|rows| rows.into_iter().map(|r| BatchRow { qi: indices[0] as u32, g: r.g, ts: r.ts, value: r.value }).collect()).map_err(ApiError::from)
@@ -457,23 +467,49 @@ fn shared_sql(items: &[Prepared], indices: &[usize], range: TimeRange) -> (Strin
         .collect::<HashSet<_>>()
         .into_iter()
         .collect();
+    // The series side binds grouping/filter values first, then the point side's names/window.
+    params.extend(metrics.iter().cloned().map(Param::Str));
+    params.push(Param::Int(range.from));
     params.extend(metrics.iter().cloned().map(Param::Str));
     params.extend([Param::Int(range.from), Param::Int(range.to)]);
     let step_s = first.step / 1000;
-    let value = match kind {
-        Kind::Gauge | Kind::UpDown => "avg(Value)".into(),
-        Kind::Counter => "greatest(max(Value) - min(Value), 0) * 1000 / greatest(dateDiff('millisecond', min(TimeUnix), max(TimeUnix)), 1)".to_string(),
-        Kind::Delta => format!("sum(Value) / {step_s}"),
+    let rollup = first.source != Source::Samples;
+    let value = match (kind, rollup) {
+        (Kind::Gauge | Kind::UpDown, false) => "avg(x.Value)".to_string(),
+        (Kind::Gauge | Kind::UpDown, true) => "sum(x.Sum) / sum(x.Count)".to_string(),
+        (Kind::Counter, false) => "greatest(max(x.Value) - min(x.Value), 0) * 1000 / greatest(dateDiff('millisecond', min(x.TimeUnix), max(x.TimeUnix)), 1)".to_string(),
+        (Kind::Counter, true) => "greatest(max(x.Max) - min(x.Min), 0) * 1000 / greatest(dateDiff('millisecond', min(x.Start), max(x.End)), 1)".to_string(),
+        (Kind::Delta, false) => format!("sum(x.Value) / {step_s}"),
+        (Kind::Delta, true) => format!("sum(x.Sum) / {step_s}"),
     };
+    let (table, time) = match first.source {
+        Source::Samples => ("otel.metrics_samples", "TimeUnix"),
+        Source::Rollup5m => ("otel.metrics_rollup_5m", "Bucket"),
+        Source::Rollup1h => ("otel.metrics_rollup_1h", "Bucket"),
+    };
+    let samples = if rollup {
+        "sum(x.Count)"
+    } else {
+        "uniqExact(x.TimeUnix)"
+    };
+    let (start, end) = if rollup {
+        ("x.Start", "x.End")
+    } else {
+        ("x.TimeUnix", "x.TimeUnix")
+    };
+    let metric_type = if kind == Kind::Gauge { "gauge" } else { "sum" };
+    let bucket_s = (first.source.bucket_ms() / 1000).max(1);
     let sql = format!(
         "SELECT toUInt32(qi) AS qi, g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64(multiIf({aggregates}, avg(v))) AS value FROM (\
-         SELECT qi, multiIf({grouping}, CAST([], 'Array(String)')) AS g, toStartOfInterval(TimeUnix, INTERVAL {step_s} SECOND) AS t, \
-         cityHash64(toString(mapSort(ResourceAttributes)), toString(mapSort(Attributes))) AS sid, uniqExact(TimeUnix) AS samples, min(toUnixTimestamp64Milli(TimeUnix)) AS first_seen, max(toUnixTimestamp64Milli(TimeUnix)) AS last_seen, ({value}) * multiIf({scaling}, 1.0) AS v \
-         FROM {table} ARRAY JOIN arrayFilter(x -> x >= 0, [{eligible}]) AS qi \
-         WHERE OrgId = {{oc_org:String}} AND MetricName IN ({marks}) AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) \
+         SELECT s.qi AS qi, s.g AS g, toStartOfInterval(x.{time}, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid, \
+         {samples} AS samples, min(toUnixTimestamp64Milli({start})) AS first_seen, max(toUnixTimestamp64Milli({end})) AS last_seen, ({value}) * multiIf({scaling}, 1.0) AS v \
+         FROM {table} AS x INNER JOIN (SELECT SeriesId, qi, any(multiIf({grouping}, CAST([], 'Array(String)'))) AS g \
+         FROM otel.metrics_series ARRAY JOIN arrayFilter(x -> x >= 0, [{eligible}]) AS qi \
+         WHERE OrgId = {{oc_org:String}} AND MetricName IN ({marks}) AND MetricType = '{metric_type}' AND LastSeen >= toDateTime(intDiv(?, 1000)) GROUP BY SeriesId, qi) AS s ON x.SeriesId = s.SeriesId \
+         WHERE x.OrgId = {{oc_org:String}} AND x.MetricName IN ({marks}) AND x.{time} >= toStartOfInterval(fromUnixTimestamp64Milli(?), INTERVAL {bucket_s} SECOND) AND x.{time} <= fromUnixTimestamp64Milli(?) \
          GROUP BY qi, g, t, sid{having}) WHERE isFinite(v) GROUP BY qi, g, t ORDER BY qi, g, t",
         aggregates=aggregates.join(","), grouping=grouping.join(","), scaling=scaling.join(","), eligible=eligible.join(","),
-        table=kind.table(), marks=vec!["?"; metrics.len()].join(","), having=if kind == Kind::Counter { " HAVING count() > 1" } else { "" }
+        marks=vec!["?"; metrics.len()].join(","), having=if kind == Kind::Counter { format!(" HAVING {samples} > 1") } else { String::new() }
     );
     (sql, params)
 }
@@ -692,6 +728,120 @@ fn merge_frame(snapshot: &mut DashboardQueryFrame, delta: &DashboardQueryFrame) 
 mod tests {
     use super::*;
 
+    /// Exercise the actual shared SQL against the storage introduced in ADR-0001.
+    /// The existing per-query evaluator is the oracle for all three resolutions.
+    #[tokio::test]
+    async fn shared_scans_match_individual_queries_on_samples_and_rollups() {
+        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
+            return;
+        };
+        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+        oc_store::migrate_clickhouse(
+            &oc_store::ClickHouseConfig {
+                url: url.clone(),
+                user: user.clone(),
+                password: password.clone(),
+                database: "oc".into(),
+                cluster: None,
+            },
+            false,
+        )
+        .await
+        .unwrap();
+        let org = format!(
+            "dashboard-parity-{}-{}",
+            std::process::id(),
+            super::super::now_ms()
+        );
+        let ch = clickhouse::Client::default()
+            .with_url(url)
+            .with_user(user)
+            .with_password(password)
+            .with_option("param_oc_org", &org);
+        let from = super::super::now_ms().div_euclid(3_600_000) * 3_600_000;
+        let range = TimeRange {
+            from,
+            to: from + 3_600_000,
+        };
+        for (kind, name, temporality, monotonic) in [
+            (Kind::Gauge, "dashboard.test.gauge", 0, false),
+            (Kind::Counter, "dashboard.test.counter", 2, true),
+            (Kind::Delta, "dashboard.test.delta", 1, true),
+            (Kind::UpDown, "dashboard.test.updown", 2, false),
+        ] {
+            let table = if kind == Kind::Gauge {
+                "otel.metrics_ingest_gauge"
+            } else {
+                "otel.metrics_ingest_sum"
+            };
+            let (extra_cols, extra_values) = if kind == Kind::Gauge {
+                (String::new(), String::new())
+            } else {
+                (
+                    ", AggregationTemporality, IsMonotonic".into(),
+                    format!(", {temporality}, {monotonic}"),
+                )
+            };
+            ch.query(&format!("INSERT INTO {table} (ResourceAttributes, MetricName, MetricUnit, Attributes, TimeUnix, Value{extra_cols}) SELECT map('oc.org_id', ?, 'host.name', if(number < 6, 'storefront-node', 'checkout-node'), 'deployment.environment', if(number < 6, 'prod', 'staging')), ?, '1', map('state', 'running'), fromUnixTimestamp64Milli(?) + toIntervalSecond((number % 6) * 10), toFloat64(10 + number * 2){extra_values} FROM numbers(12)"))
+                .bind(&org).bind(name).bind(from).execute().await.unwrap();
+            for (source, step) in [
+                (Source::Samples, 60_000),
+                (Source::Rollup5m, 300_000),
+                (Source::Rollup1h, 3_600_000),
+            ] {
+                let mut items = vec![
+                    prepared(&format!("sum:{name}{{*}} by {{host}}")),
+                    prepared(&format!("avg:{name}{{env:prod}}")),
+                    prepared(&format!("max:{name}{{*}}")),
+                ];
+                for p in &mut items {
+                    p.scalar_kind = Some(kind);
+                    p.source = source;
+                    p.step = step;
+                }
+                let (sql, params) = shared_sql(&items, &[0, 1, 2], range);
+                let actual = bind(ch.query(&sql), &params)
+                    .fetch_all::<BatchRow>()
+                    .await
+                    .unwrap_or_else(|e| panic!("{sql}: {e}"));
+                for (index, p) in items.iter().enumerate() {
+                    let (inner, params) =
+                        super::super::points_query(kind, source, &p.query, range, step / 1000, 1.0);
+                    let sql = format!("SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64({}(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g,t ORDER BY g,t", p.query.agg.sql());
+                    let expected = bind(ch.query(&sql), &params)
+                        .fetch_all::<Row>()
+                        .await
+                        .unwrap();
+                    let actual: Vec<_> = actual.iter().filter(|r| r.qi == index as u32).collect();
+                    assert_eq!(
+                        actual.len(),
+                        expected.len(),
+                        "{kind:?} {source:?} query {index}"
+                    );
+                    for (a, e) in actual.iter().zip(&expected) {
+                        assert_eq!((&a.g, a.ts), (&e.g, e.ts));
+                        assert!(
+                            (a.value - e.value).abs() < 1e-9,
+                            "{kind:?} {source:?}: {} != {}",
+                            a.value,
+                            e.value
+                        );
+                    }
+                }
+            }
+        }
+        let (sql, params) = shared_sql(&[prepared("sum:dashboard.test.gauge{*}")], &[0], range);
+        let other = ch
+            .clone()
+            .with_option("param_oc_org", format!("{org}-empty"));
+        assert!(bind(other.query(&sql), &params)
+            .fetch_all::<BatchRow>()
+            .await
+            .unwrap()
+            .is_empty());
+    }
+
     fn prepared(text: &str) -> Prepared {
         let (query, scale) = resolve_alias(&parse(text).unwrap());
         Prepared {
@@ -704,6 +854,7 @@ mod tests {
             weighted: false,
             scale,
             step: 30_000,
+            source: Source::Samples,
             error: None,
         }
     }
@@ -723,7 +874,7 @@ mod tests {
                 to: 60_000,
             },
         );
-        assert_eq!(sql.matches("otel.otel_metrics_gauge").count(), 1);
+        assert_eq!(sql.matches("otel.metrics_samples").count(), 1);
         assert!(sql.contains("OrgId = {oc_org:String}"));
         assert!(sql.contains("sum(v)") && sql.contains("avg(v)") && sql.contains("max(v)"));
         assert!(!sql.contains("checkout") && !sql.contains("staging"));
@@ -744,7 +895,7 @@ mod tests {
         );
         assert!(sql.contains("sum(v * samples)"));
         assert!(sql.contains("medianExactIf"));
-        assert_eq!(sql.matches("otel.otel_metrics_gauge").count(), 1);
+        assert_eq!(sql.matches("otel.metrics_samples").count(), 1);
         assert_eq!(sql.matches('?').count(), params.len());
     }
 

@@ -66,10 +66,15 @@ pub struct Retention {
     /// Ceilings the instance admin can grant orgs (log indexes / spans).
     pub logs_max_days: u32,
     pub traces_max_days: u32,
+    /// Raw metric samples, and the 5-minute and 1-hour rollups, of orgs that haven't chosen.
     pub metrics_days: u32,
+    pub metrics_5m_days: u32,
+    pub metrics_1h_days: u32,
     pub ci_days: u32,
     /// Hours every ingested log stays in the raw table (archive source).
     pub raw_logs_hours: u32,
+    /// Days after which metric samples and rollups move to cold (object) storage; 0 = off.
+    pub metrics_cold_after_days: u32,
 }
 
 fn days(key: &str, default: u32) -> u32 {
@@ -135,10 +140,13 @@ impl Config {
                 logs_days: days("OC_RETENTION_LOGS_DAYS", 15),
                 traces_days: days("OC_RETENTION_TRACES_DAYS", 15),
                 metrics_days: days("OC_RETENTION_METRICS_DAYS", 30),
+                metrics_5m_days: days("OC_RETENTION_METRICS_5M_DAYS", 90),
+                metrics_1h_days: days("OC_RETENTION_METRICS_1H_DAYS", 395),
                 ci_days: days("OC_RETENTION_CI_DAYS", 30),
                 logs_max_days: days("OC_RETENTION_LOGS_MAX_DAYS", 365),
                 traces_max_days: days("OC_RETENTION_TRACES_MAX_DAYS", 90),
                 raw_logs_hours: var("OC_RAW_LOGS_HOURS", "72").parse::<u32>().unwrap_or(72).clamp(2, 24 * 30),
+                metrics_cold_after_days: var("OC_METRICS_COLD_AFTER_DAYS", "0").parse().unwrap_or(0),
             },
             demo_ingest_key: env::var("OC_DEMO_INGEST_KEY").ok().filter(|k| k.starts_with("ocik_") && k.len() >= 20 && var("OC_SEED_DEMO", "true") == "true"),
         }

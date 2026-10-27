@@ -1,7 +1,9 @@
 //! Metric queries for dashboards (`avg:system.cpu.utilization{env:prod} by {host}`).
 //!
 //! Sources:
-//! - OTel metrics written by the Collector's ClickHouse exporter (`otel.otel_metrics_*`).
+//! - The metrics storage (docs/adr/0001-metrics-storage.md): series + samples, or the 5-minute /
+//!   1-hour rollups for long ranges (see [`resolution`]); distributions have their own samples and
+//!   rollups (`otel.metrics_dist_*`).
 //!   Gauges and non-monotonic sums are averaged per series per interval; cumulative monotonic sums
 //!   (counters) become per-second rates; delta sums are summed and divided by the interval.
 //!   Histograms, exponential histograms and summaries are queried through a statistic suffix:
@@ -19,9 +21,6 @@
 //!
 //! Tenancy: every query filters on `OrgId = {oc_org:String}` (see `AppState::ch`).
 
-#[path = "metrics/dashboard.rs"]
-pub mod dashboard;
-
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -37,6 +36,8 @@ use utoipa::ToSchema;
 use super::logs::{bind, TimeRange};
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, OrgId};
+
+pub mod dashboard;
 
 const ENTRY: &str = "SpanKind IN ('Server', 'Consumer')";
 
@@ -241,15 +242,6 @@ enum Kind {
     Delta,
 }
 
-impl Kind {
-    fn table(self) -> &'static str {
-        match self {
-            Kind::Gauge => "otel.otel_metrics_gauge",
-            _ => "otel.otel_metrics_sum",
-        }
-    }
-}
-
 /// Distribution metric families (queried with a statistic suffix).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Dist {
@@ -259,13 +251,6 @@ enum Dist {
 }
 
 impl Dist {
-    fn table(self) -> &'static str {
-        match self {
-            Dist::Histogram => "otel.otel_metrics_histogram",
-            Dist::ExpHistogram => "otel.otel_metrics_exponential_histogram",
-            Dist::Summary => "otel.otel_metrics_summary",
-        }
-    }
     fn name(self) -> &'static str {
         match self {
             Dist::Histogram => "histogram",
@@ -318,12 +303,9 @@ async fn dist_kind(st: &AppState, org: &str, name: &str) -> Result<Option<Dist>,
     let rows: Vec<String> = st
         .ch(org)
         .query(
-            "SELECT 'histogram' FROM otel.otel_metrics_histogram WHERE OrgId = {oc_org:String} AND MetricName = ? LIMIT 1 \
-             UNION ALL SELECT 'exponential_histogram' FROM otel.otel_metrics_exponential_histogram WHERE OrgId = {oc_org:String} AND MetricName = ? LIMIT 1 \
-             UNION ALL SELECT 'summary' FROM otel.otel_metrics_summary WHERE OrgId = {oc_org:String} AND MetricName = ? LIMIT 1",
+            "SELECT toString(MetricType) FROM otel.metrics_series \
+             WHERE OrgId = {oc_org:String} AND MetricName = ? AND MetricType IN ('histogram', 'exponential_histogram', 'summary') ORDER BY MetricType LIMIT 1",
         )
-        .bind(name)
-        .bind(name)
         .bind(name)
         .fetch_all()
         .await?;
@@ -370,15 +352,17 @@ fn bucket_quantile(c: &str, q: f64, lower: &str, upper: &str) -> String {
     )
 }
 
-/// Inner query (g, t, sid, v) for a distribution metric statistic.
+/// Inner query (g, t, sid, v) for a distribution metric statistic over raw points selected `from`
+/// a table or subquery with the exporter's columns.
 fn dist_query(
+    from: &str,
     dist: Dist,
     stat: &str,
     g: &str,
     step_s: i64,
     filter: &str,
 ) -> Result<String, ApiError> {
-    let table = dist.table();
+    let table = from;
     // Summaries have no temporality column: they are always cumulative.
     let temporality = if dist == Dist::Summary {
         "2"
@@ -430,6 +414,153 @@ fn dist_query(
     })
 }
 
+/// A distribution statistic's per-series, per-interval values (g, t, sid, v) from the storage:
+/// raw samples or a rollup. Returns the SQL and its params.
+fn dist_points_query(
+    dist: Dist,
+    stat: &str,
+    source: Source,
+    q: &MetricQuery,
+    range: TimeRange,
+    step_s: i64,
+) -> Result<(String, Vec<Param>), ApiError> {
+    let base = split_stat(&q.metric)
+        .map_or(q.metric.as_str(), |(b, _)| b)
+        .to_string();
+    let mut params = Vec::new();
+    let mut by = Vec::new();
+    for k in &q.by {
+        let (e, p) = metric_field(k);
+        by.push(e);
+        params.extend(p);
+    }
+    let f = metric_filter(&q.filters, metric_field);
+    let g = group_array(&by);
+    let kind = dist.name();
+    if source == Source::Samples {
+        // The raw query over samples joined to their series, which carry the labels and temporality.
+        let from = format!(
+            "(SELECT x.OrgId AS OrgId, x.MetricName AS MetricName, s.ResourceAttributes AS ResourceAttributes, s.Attributes AS Attributes, s.AggregationTemporality AS AggregationTemporality, \
+                     x.TimeUnix AS TimeUnix, x.Count AS Count, x.Sum AS Sum, x.Min AS Min, x.Max AS Max, x.BucketCounts AS BucketCounts, x.ExplicitBounds AS ExplicitBounds, \
+                     x.Scale AS Scale, x.PositiveOffset AS PositiveOffset, x.PositiveBucketCounts AS PositiveBucketCounts, \
+                     x.`ValueAtQuantiles.Quantile` AS `ValueAtQuantiles.Quantile`, x.`ValueAtQuantiles.Value` AS `ValueAtQuantiles.Value` FROM otel.metrics_dist_samples AS x \
+              INNER JOIN (SELECT SeriesId, any(ResourceAttributes) AS ResourceAttributes, any(Attributes) AS Attributes, any(AggregationTemporality) AS AggregationTemporality \
+                          FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND MetricName = ? AND MetricType = '{kind}' AND LastSeen >= toDateTime(intDiv(?, 1000)) GROUP BY SeriesId) AS s \
+                ON x.SeriesId = s.SeriesId \
+              WHERE x.OrgId = {{oc_org:String}} AND x.MetricName = ? AND x.TimeUnix >= fromUnixTimestamp64Milli(?) AND x.TimeUnix <= fromUnixTimestamp64Milli(?))"
+        );
+        params.extend([
+            Param::Str(base.clone()),
+            Param::Int(range.from),
+            Param::Str(base.clone()),
+            Param::Int(range.from),
+            Param::Int(range.to),
+        ]);
+        params.extend([
+            Param::Str(base),
+            Param::Int(range.from),
+            Param::Int(range.to),
+        ]);
+        params.extend(f.params);
+        return Ok((
+            dist_query(&from, dist, stat, &g, step_s, &f.clause)?,
+            params,
+        ));
+    }
+    // Rollups: the same statistics from each bucket's first / last / total values.
+    let table = if source == Source::Rollup5m {
+        "otel.metrics_dist_rollup_5m"
+    } else {
+        "otel.metrics_dist_rollup_1h"
+    };
+    let temporality = "any(s.temporality)";
+    // Change over the interval: last − first for cumulative series, the total for delta ones.
+    let delta = |first: &str, last: &str, total: &str| {
+        format!("if({temporality} = 2, greatest(toFloat64(argMaxMerge({last})) - toFloat64(argMinMerge({first})), 0), toFloat64(sum({total})))")
+    };
+    let rate = |d: String| {
+        format!("if({temporality} = 2, {d} * 1000 / greatest(dateDiff('millisecond', min(Start), max(End)), 1), {d} / {step_s})")
+    };
+    let buckets = format!(
+        "if({temporality} = 2, if(length(argMaxMerge(BucketsLast)) = length(argMinMerge(BucketsFirst)), \
+         arrayMap((a, b) -> if(a >= b, toUInt64(a - b), toUInt64(0)), argMaxMerge(BucketsLast), argMinMerge(BucketsFirst)), arrayMap(x -> toUInt64(0), argMaxMerge(BucketsLast))), \
+         sumForEachMerge(BucketsTotal))"
+    );
+    let quantile = |q: f64| {
+        format!("if(has(any(Quantiles), {q}), sumForEachMerge(QuantileTotals)[indexOf(any(Quantiles), {q})] / sum(Points), nan)")
+    };
+    let head = format!("SELECT s.g AS g, toStartOfInterval(x.Bucket, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid");
+    let from = format!(
+        "FROM {table} AS x \
+         INNER JOIN (SELECT SeriesId, any({g}) AS g, any(AggregationTemporality) AS temporality FROM otel.metrics_series \
+                     WHERE OrgId = {{oc_org:String}} AND MetricName = ? AND MetricType = '{kind}' AND LastSeen >= toDateTime(intDiv(?, 1000)) AND {filter} GROUP BY SeriesId) AS s \
+           ON x.SeriesId = s.SeriesId \
+         WHERE x.OrgId = {{oc_org:String}} AND x.MetricName = ? \
+           AND x.Bucket >= toStartOfInterval(fromUnixTimestamp64Milli(?), INTERVAL {bucket_s} SECOND) AND x.Bucket <= fromUnixTimestamp64Milli(?)",
+        filter = f.clause,
+        bucket_s = source.bucket_ms() / 1000,
+    );
+    params.extend([Param::Str(base.clone()), Param::Int(range.from)]);
+    params.extend(f.params);
+    params.extend([
+        Param::Str(base),
+        Param::Int(range.from),
+        Param::Int(range.to),
+    ]);
+    let simple = |v: String| format!("{head}, {v} AS v {from} GROUP BY g, t, sid");
+    let unsupported =
+        || ApiError::BadRequest(format!("{} metrics don't record {stat}", dist.name()));
+    let sql = match (stat, quantile_of(stat)) {
+        // A cumulative series needs two samples in the interval to have a rate.
+        ("count", _) => format!(
+            "{} HAVING sum(Points) > 1 OR {temporality} != 2",
+            simple(rate(delta("CountFirst", "CountLast", "CountTotal")))
+        ),
+        ("sum", _) => format!(
+            "{} HAVING sum(Points) > 1 OR {temporality} != 2",
+            simple(rate(delta("SumFirst", "SumLast", "SumTotal")))
+        ),
+        ("avg", _) => simple(format!(
+            "if({c} = 0, nan, {s} / {c})",
+            s = delta("SumFirst", "SumLast", "SumTotal"),
+            c = delta("CountFirst", "CountLast", "CountTotal")
+        )),
+        ("min" | "max", _) if dist == Dist::Summary => {
+            simple(quantile(if stat == "min" { 0.0 } else { 1.0 }))
+        }
+        ("min", _) => simple("min(Min)".into()),
+        ("max", _) => simple("max(Max)".into()),
+        (_, Some(q)) => match dist {
+            Dist::Summary => simple(quantile(q)),
+            // Explicit buckets share their layout across series: merge the group's counts, then interpolate.
+            Dist::Histogram => {
+                let v = bucket_quantile(
+                    "cs",
+                    q,
+                    "if({i} <= 1, least(0, bs[1]), bs[{i} - 1])",
+                    "if({i} <= length(bs), bs[{i}], bs[length(bs)])",
+                );
+                format!(
+                    "SELECT g, t, toUInt64(0) AS sid, if(length(bs) = 0, nan, {v}) AS v FROM (\
+                       SELECT g, t, sumForEach(c) AS cs, any(b) AS bs FROM (\
+                         {head}, {buckets} AS c, any(ExplicitBounds) AS b {from} GROUP BY g, t, sid) GROUP BY g, t)"
+                )
+            }
+            Dist::ExpHistogram => {
+                let v = bucket_quantile(
+                    "c",
+                    q,
+                    "pow(pow(2, pow(2, -sc)), off + {i} - 1)",
+                    "pow(pow(2, pow(2, -sc)), off + {i})",
+                );
+                format!("SELECT g, t, sid, {v} AS v FROM ({head}, {buckets} AS c, any(Scale) AS sc, any(PositiveOffset) AS off {from} GROUP BY g, t, sid)")
+            }
+        },
+        _ => return Err(unsupported()),
+    };
+    Ok((sql, params))
+}
+
 fn step_ms(range: TimeRange, points: u32, min_ms: i64) -> i64 {
     let raw = (range.to - range.from) / points.max(1) as i64;
     const STEPS: [i64; 11] = [
@@ -441,6 +572,57 @@ fn step_ms(range: TimeRange, points: u32, min_ms: i64) -> i64 {
         .copied()
         .find(|s| *s >= raw.max(min_ms))
         .unwrap_or(43_200_000)
+}
+
+/// Where gauge and sum points are read from (docs/adr/0001-metrics-storage.md).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Source {
+    Samples,
+    Rollup5m,
+    Rollup1h,
+}
+
+impl Source {
+    /// Bucket size in milliseconds (0: raw samples).
+    fn bucket_ms(self) -> i64 {
+        match self {
+            Source::Samples => 0,
+            Source::Rollup5m => 300_000,
+            Source::Rollup1h => 3_600_000,
+        }
+    }
+}
+
+/// How many days raw samples and each rollup are kept.
+#[derive(Clone, Copy, Debug)]
+struct Tiers {
+    raw_days: u32,
+    rollup_5m_days: u32,
+    rollup_1h_days: u32,
+}
+
+/// The coarsest source whose buckets fit in `step` and that still holds the range's start, and the
+/// step to use. When only a coarser one still has the data, the step grows to its bucket.
+fn resolution(range: TimeRange, step: i64, now: i64, tiers: Tiers) -> (Source, i64) {
+    let kept = |days: u32| range.from >= now - days as i64 * 86_400_000;
+    let sources = [
+        (Source::Rollup1h, tiers.rollup_1h_days),
+        (Source::Rollup5m, tiers.rollup_5m_days),
+        (Source::Samples, tiers.raw_days),
+    ];
+    if let Some((s, _)) = sources
+        .iter()
+        .find(|(s, days)| s.bucket_ms() <= step && kept(*days))
+    {
+        return (*s, step);
+    }
+    // Finest of the coarser sources that still has it, or the longest-kept one.
+    let s = sources
+        .iter()
+        .rev()
+        .find(|(_, days)| kept(*days))
+        .map_or(Source::Rollup1h, |(s, _)| *s);
+    (s, step.max(s.bucket_ms()))
 }
 
 /// (org, metric name) → kind, cached briefly so every widget query doesn't re-probe the tables.
@@ -462,10 +644,9 @@ async fn metric_kind(st: &AppState, org: &str, name: &str) -> Result<Option<Kind
     let rows = st
         .ch(org)
         .query(
-            "SELECT 'gauge' AS src, toInt32(0) AS temporality, false AS monotonic FROM otel.otel_metrics_gauge WHERE OrgId = {oc_org:String} AND MetricName = ? LIMIT 1 \
-             UNION ALL SELECT 'sum' AS src, AggregationTemporality AS temporality, IsMonotonic AS monotonic FROM otel.otel_metrics_sum WHERE OrgId = {oc_org:String} AND MetricName = ? LIMIT 1",
+            "SELECT toString(MetricType) AS src, AggregationTemporality AS temporality, IsMonotonic AS monotonic FROM otel.metrics_series \
+             WHERE OrgId = {oc_org:String} AND MetricName = ? AND MetricType IN ('gauge', 'sum') ORDER BY MetricType LIMIT 1",
         )
-        .bind(name)
         .bind(name)
         .fetch_all::<Probe>()
         .await?;
@@ -519,11 +700,13 @@ async fn inner_query_at_step(
     q: &MetricQuery,
     range: TimeRange,
     points: u32,
-    fixed_step: Option<i64>,
+    forced: Option<(Source, i64)>,
 ) -> Result<(String, Vec<Param>, i64), ApiError> {
     let mut params = Vec::new();
     if let Some((_, expr, _, _)) = SPAN_METRICS.iter().find(|m| m.0 == q.metric) {
-        let step = fixed_step.unwrap_or_else(|| step_ms(range, points, 10_000));
+        let step = forced
+            .map(|(_, step)| step)
+            .unwrap_or_else(|| step_ms(range, points, 10_000));
         let step_s = step / 1000;
         let mut by = Vec::new();
         for k in &q.by {
@@ -552,46 +735,112 @@ async fn inner_query_at_step(
         let (base, stat) = split_stat(&q.metric).ok_or_else(unknown)?;
         let dist = dist_kind(st, org, base).await?.ok_or_else(unknown)?;
         // Cumulative series need two samples per interval (SDKs export every 10–60 s).
-        let step = fixed_step.unwrap_or_else(|| step_ms(range, points, 30_000));
-        let mut by = Vec::new();
-        for k in &q.by {
-            let (e, p) = metric_field(k);
-            by.push(e);
-            params.extend(p);
-        }
-        let f = metric_filter(&q.filters, metric_field);
-        params.extend([
-            Param::Str(base.to_string()),
-            Param::Int(range.from),
-            Param::Int(range.to),
-        ]);
-        params.extend(f.params);
-        let sql = dist_query(dist, stat, &group_array(&by), step / 1000, &f.clause)?;
+        let step = step_ms(range, points, 30_000);
+        let (source, step) = match forced {
+            Some(value) => value,
+            None => resolution(range, step, now_ms(), org_tiers(st, org).await?),
+        };
+        let (sql, p) = dist_points_query(dist, stat, source, q, range, step / 1000)?;
+        params.extend(p);
         return Ok((sql, params, step));
     };
     // Counters need at least two samples per interval (collectors report every 10s).
-    let step = fixed_step.unwrap_or_else(|| {
-        step_ms(
-            range,
-            points,
-            if kind == Kind::Counter {
-                30_000
-            } else {
-                10_000
-            },
-        )
-    });
-    let step_s = step / 1000;
-    let v = match kind {
-        Kind::Gauge | Kind::UpDown => "avg(Value)".to_string(),
-        Kind::Counter => "greatest(max(Value) - min(Value), 0) * 1000 / greatest(dateDiff('millisecond', min(TimeUnix), max(TimeUnix)), 1)".to_string(),
-        Kind::Delta => format!("sum(Value) / {step_s}"),
+    let step = step_ms(
+        range,
+        points,
+        if kind == Kind::Counter {
+            30_000
+        } else {
+            10_000
+        },
+    );
+    let (source, step) = match forced {
+        Some(value) => value,
+        None => resolution(range, step, now_ms(), org_tiers(st, org).await?),
+    };
+    let (sql, p) = points_query(kind, source, q, range, step / 1000, scale);
+    params.extend(p);
+    Ok((sql, params, step))
+}
+
+pub(crate) fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as i64)
+}
+
+/// Upper bound of a window that ends "now" (samples a little ahead of this server's clock count).
+pub(crate) const OPEN_END_MS: i64 = 3_600_000;
+
+/// Sets the `{oc_from:Int64}` / `{oc_to:Int64}` window (epoch ms) that [`points_subquery`] reads.
+pub(crate) fn with_window(c: clickhouse::Client, from: i64, to: i64) -> clickhouse::Client {
+    c.with_option("param_oc_from", from.to_string())
+        .with_option("param_oc_to", to.to_string())
+}
+
+/// Points of the `kind` ("gauge" or "sum") metrics `names` in the window, with the columns of the
+/// exporter's tables that direct readers use (OrgId, MetricName, ServiceName, ResourceAttributes,
+/// Attributes, TimeUnix, Value), from series + samples. `names` are the caller's constants.
+pub(crate) fn points_subquery(kind: &str, names: &[&str]) -> String {
+    assert!(matches!(kind, "gauge" | "sum"));
+    let names = name_list(names);
+    format!(
+        "(SELECT x.OrgId AS OrgId, x.MetricName AS MetricName, s.ServiceName AS ServiceName, s.ResourceAttributes AS ResourceAttributes, s.Attributes AS Attributes, \
+                 x.TimeUnix AS TimeUnix, x.Value AS Value FROM otel.metrics_samples AS x \
+          INNER JOIN (SELECT SeriesId, any(ServiceName) AS ServiceName, any(ResourceAttributes) AS ResourceAttributes, any(Attributes) AS Attributes FROM otel.metrics_series \
+                      WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) AND MetricType = '{kind}' AND LastSeen >= toDateTime(intDiv({{oc_from:Int64}}, 1000)) \
+                      GROUP BY SeriesId) AS s ON x.SeriesId = s.SeriesId \
+          WHERE x.OrgId = {{oc_org:String}} AND x.MetricName IN ({names}) \
+            AND x.TimeUnix >= fromUnixTimestamp64Milli({{oc_from:Int64}}) AND x.TimeUnix <= fromUnixTimestamp64Milli({{oc_to:Int64}}))"
+    )
+}
+
+/// `'a', 'b'` for an SQL `IN (...)` of metric name constants (never user input).
+pub(crate) fn name_list(names: &[&str]) -> String {
+    names
+        .iter()
+        .map(|n| {
+            assert!(
+                n.chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_')),
+                "metric name constant: {n}"
+            );
+            format!("'{n}'")
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Per-series, per-interval values (g, t, sid, v) of a gauge or sum metric from series + samples
+/// or a rollup. Returns the SQL and its params.
+fn points_query(
+    kind: Kind,
+    source: Source,
+    q: &MetricQuery,
+    range: TimeRange,
+    step_s: i64,
+    scale: f64,
+) -> (String, Vec<Param>) {
+    // Raw points (Value, TimeUnix) or rollup buckets (Sum, Count, Min, Max, Start, End).
+    let v = match (kind, source != Source::Samples) {
+        (Kind::Gauge | Kind::UpDown, false) => "avg(Value)".to_string(),
+        (Kind::Gauge | Kind::UpDown, true) => "sum(Sum) / sum(Count)".to_string(),
+        (Kind::Counter, false) => "greatest(max(Value) - min(Value), 0) * 1000 / greatest(dateDiff('millisecond', min(TimeUnix), max(TimeUnix)), 1)".to_string(),
+        (Kind::Counter, true) => "greatest(max(Max) - min(Min), 0) * 1000 / greatest(dateDiff('millisecond', min(Start), max(End)), 1)".to_string(),
+        (Kind::Delta, false) => format!("sum(Value) / {step_s}"),
+        (Kind::Delta, true) => format!("sum(Sum) / {step_s}"),
     };
     let v = if scale == 1.0 {
         v
     } else {
         format!("({v}) * {scale:e}")
     };
+    let having = match (kind, source != Source::Samples) {
+        (Kind::Counter, false) => " HAVING count() > 1",
+        (Kind::Counter, true) => " HAVING sum(Count) > 1",
+        _ => "",
+    };
+    let mut params = Vec::new();
     let mut by = Vec::new();
     for k in &q.by {
         let (e, p) = metric_field(k);
@@ -599,26 +848,32 @@ async fn inner_query_at_step(
         params.extend(p);
     }
     let f = metric_filter(&q.filters, metric_field);
+    let g = group_array(&by);
+    // Labels are filtered and grouped on the series table (one row per series and insert), then
+    // joined to the points by SeriesId. A rollup bucket counts in the interval it starts in.
+    let (table, time) = match source {
+        Source::Samples => ("otel.metrics_samples", "TimeUnix"),
+        Source::Rollup5m => ("otel.metrics_rollup_5m", "Bucket"),
+        Source::Rollup1h => ("otel.metrics_rollup_1h", "Bucket"),
+    };
+    let bucket_s = (source.bucket_ms() / 1000).max(1);
+    params.extend([Param::Str(q.metric.clone()), Param::Int(range.from)]);
+    params.extend(f.params);
     params.extend([
         Param::Str(q.metric.clone()),
         Param::Int(range.from),
         Param::Int(range.to),
     ]);
-    params.extend(f.params);
-    let having = if kind == Kind::Counter {
-        " HAVING count() > 1"
-    } else {
-        ""
-    };
     let sql = format!(
-        "SELECT {g} AS g, toStartOfInterval(TimeUnix, INTERVAL {step_s} SECOND) AS t, cityHash64(toString(mapSort(ResourceAttributes)), toString(mapSort(Attributes))) AS sid, {v} AS v \
-         FROM {table} WHERE OrgId = {{oc_org:String}} AND MetricName = ? AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) AND {filter} \
+        "SELECT s.g AS g, toStartOfInterval(x.{time}, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid, {v} AS v FROM {table} AS x \
+         INNER JOIN (SELECT SeriesId, any({g}) AS g FROM otel.metrics_series \
+                     WHERE OrgId = {{oc_org:String}} AND MetricName = ? AND LastSeen >= toDateTime(intDiv(?, 1000)) AND {filter} GROUP BY SeriesId) AS s ON x.SeriesId = s.SeriesId \
+         WHERE x.OrgId = {{oc_org:String}} AND x.MetricName = ? \
+           AND x.{time} >= toStartOfInterval(fromUnixTimestamp64Milli(?), INTERVAL {bucket_s} SECOND) AND x.{time} <= fromUnixTimestamp64Milli(?) \
          GROUP BY g, t, sid{having}",
-        g = group_array(&by),
-        table = kind.table(),
         filter = f.clause,
     );
-    Ok((sql, params, step))
+    (sql, params)
 }
 
 fn group_array(exprs: &[String]) -> String {
@@ -641,6 +896,40 @@ fn parse(query: &str) -> Result<MetricQuery, ApiError> {
         .map_err(|e| ApiError::BadRequest(format!("Invalid query '{query}': {e}")))
 }
 
+/// Longest range a metric query may span: what the org's longest-kept rollup holds.
+async fn validate_metric_range(st: &AppState, org: &str, range: TimeRange) -> Result<(), ApiError> {
+    let t = org_tiers(st, org).await?;
+    range.validate_within(t.raw_days.max(t.rollup_5m_days).max(t.rollup_1h_days))
+}
+
+/// The org's metric retention (its choice or the install's default), cached for a minute.
+async fn org_tiers(st: &AppState, org: &str) -> Result<Tiers, ApiError> {
+    type Cache = Mutex<HashMap<String, (Tiers, Instant)>>;
+    static CACHE: OnceLock<Cache> = OnceLock::new();
+    let cache = CACHE.get_or_init(Default::default);
+    if let Some((t, at)) = cache.lock().unwrap().get(org) {
+        if at.elapsed() < Duration::from_secs(60) {
+            return Ok(*t);
+        }
+    }
+    let s = super::log_indexes::data_settings(st, org).await?;
+    let (m, _) = s
+        .metrics
+        .effective(super::log_indexes::install_metric_retention(
+            &st.config.retention,
+        ));
+    let t = Tiers {
+        raw_days: m.raw.max(1) as u32,
+        rollup_5m_days: m.rollup_5m.max(1) as u32,
+        rollup_1h_days: m.rollup_1h.max(1) as u32,
+    };
+    cache
+        .lock()
+        .unwrap()
+        .insert(org.to_string(), (t, Instant::now()));
+    Ok(t)
+}
+
 async fn evaluate(
     st: &AppState,
     org: &str,
@@ -648,7 +937,7 @@ async fn evaluate(
     range: TimeRange,
     points: u32,
 ) -> Result<(MetricQuery, Vec<Group>), ApiError> {
-    range.validate()?;
+    validate_metric_range(st, org, range).await?;
     let q = parse(query)?;
     let groups = evaluate_query(st, org, &q, range, points).await?;
     Ok((q, groups))
@@ -739,7 +1028,7 @@ pub struct TimeseriesRequest {
     pub points: Option<u32>,
 }
 
-#[derive(Clone, Serialize, ToSchema)]
+#[derive(Serialize, ToSchema)]
 pub struct MetricSeries {
     pub name: String,
     /// `[timestamp ms, value]` pairs.
@@ -868,7 +1157,7 @@ pub async fn distribution(
     OrgId(org): OrgId,
     Json(req): Json<DistributionRequest>,
 ) -> ApiResult<DistributionResponse> {
-    req.range.validate()?;
+    validate_metric_range(&st, &org, req.range).await?;
     let q = parse(&req.query)?;
     let (inner, params, _) = inner_query(&st, &org, &q, req.range, 40).await?;
     let sql = format!("SELECT sid, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64(v) AS value FROM ({inner}) WHERE isFinite(v) ORDER BY ts");
@@ -914,6 +1203,24 @@ pub struct MetricCatalogEntry {
     pub kind: String,
 }
 
+/// Metrics reported in the last day: (name, kind, unit, description, attr_keys, res_keys) per
+/// metric and kind, from the series table.
+fn catalog_sql() -> String {
+    "SELECT MetricName AS name, toString(MetricType) AS kind, any(MetricUnit) AS unit, any(MetricDescription) AS description, \
+     arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(Attributes)))) AS attr_keys, \
+     arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(ResourceAttributes)))) AS res_keys \
+     FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND LastSeen > now() - INTERVAL 1 DAY GROUP BY MetricName, MetricType"
+        .to_string()
+}
+
+/// Values of the tag `expr` (with its `params`) on metrics in the last day, from the series table.
+fn tag_values_sql(expr: &str, params: &[Param]) -> (String, Vec<Param>) {
+    let sql = format!(
+        "SELECT DISTINCT toString({expr}) AS v FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND LastSeen > now() - INTERVAL 1 DAY AND v != ''"
+    );
+    (sql, params.to_vec())
+}
+
 /// Metrics reported in the last day plus the span-derived `trace.*` metrics.
 #[utoipa::path(get, path = "/api/v1/metrics", responses((status = 200, body = Vec<MetricCatalogEntry>)), tag = "metrics")]
 pub async fn catalog(
@@ -929,22 +1236,7 @@ pub async fn catalog(
         attr_keys: Vec<String>,
         res_keys: Vec<String>,
     }
-    let part = |table: &str, kind: &str| {
-        format!(
-            "SELECT MetricName AS name, '{kind}' AS kind, any(MetricUnit) AS unit, any(MetricDescription) AS description, \
-             arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(Attributes)))) AS attr_keys, \
-             arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(ResourceAttributes)))) AS res_keys \
-             FROM {table} WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY GROUP BY MetricName"
-        )
-    };
-    let sql = [
-        part("otel.otel_metrics_gauge", "gauge"),
-        part("otel.otel_metrics_sum", "sum"),
-        part(Dist::Histogram.table(), Dist::Histogram.name()),
-        part(Dist::ExpHistogram.table(), Dist::ExpHistogram.name()),
-        part(Dist::Summary.table(), Dist::Summary.name()),
-    ]
-    .join(" UNION ALL ");
+    let sql = catalog_sql();
     let rows = st.ch(&org).query(&sql).fetch_all::<Entry>().await?;
     let mut out: Vec<MetricCatalogEntry> = Vec::new();
     for e in rows {
@@ -1037,15 +1329,8 @@ pub async fn tag_values(
         return Err(ApiError::BadRequest("invalid tag key".into()));
     }
     let (m_expr, m_params) = metric_field(&key);
-    let mut params = m_params.clone();
-    params.extend(m_params.clone());
-    params.extend(m_params);
-    let mut sql = format!(
-        "SELECT DISTINCT v FROM (\
-           SELECT toString({m_expr}) AS v FROM otel.otel_metrics_gauge WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY \
-           UNION ALL SELECT toString({m_expr}) AS v FROM otel.otel_metrics_sum WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY \
-           UNION ALL SELECT toString({m_expr}) AS v FROM otel.otel_metrics_histogram WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY"
-    );
+    let (metrics, mut params) = tag_values_sql(&m_expr, &m_params);
+    let mut sql = format!("SELECT DISTINCT v FROM ({metrics}");
     if SPAN_TAGS.contains(&key.as_str()) {
         let (s_expr, s_params) = span_field(&key);
         sql.push_str(&format!(" UNION ALL SELECT toString({s_expr}) AS v FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND Timestamp > now() - INTERVAL 1 HOUR"));
@@ -1061,6 +1346,598 @@ pub async fn tag_values(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn exporter_table(d: Dist) -> &'static str {
+        match d {
+            Dist::Histogram => "otel.otel_metrics_histogram",
+            Dist::ExpHistogram => "otel.otel_metrics_exponential_histogram",
+            Dist::Summary => "otel.otel_metrics_summary",
+        }
+    }
+
+    // Oracles: the same queries on the OpenTelemetry exporter's own tables (one row per point, labels
+    // on every row), which the parity tests compare the storage against.
+
+    fn exporter_points_query(
+        kind: Kind,
+        q: &MetricQuery,
+        range: TimeRange,
+        step_s: i64,
+    ) -> (String, Vec<Param>) {
+        let v = match kind {
+            Kind::Gauge | Kind::UpDown => "avg(Value)".to_string(),
+            Kind::Counter => "greatest(max(Value) - min(Value), 0) * 1000 / greatest(dateDiff('millisecond', min(TimeUnix), max(TimeUnix)), 1)".to_string(),
+            Kind::Delta => format!("sum(Value) / {step_s}"),
+        };
+        let having = if kind == Kind::Counter {
+            " HAVING count() > 1"
+        } else {
+            ""
+        };
+        let mut params = Vec::new();
+        let mut by = Vec::new();
+        for k in &q.by {
+            let (e, p) = metric_field(k);
+            by.push(e);
+            params.extend(p);
+        }
+        let f = metric_filter(&q.filters, metric_field);
+        params.extend([
+            Param::Str(q.metric.clone()),
+            Param::Int(range.from),
+            Param::Int(range.to),
+        ]);
+        params.extend(f.params);
+        let sql = format!(
+            "SELECT {g} AS g, toStartOfInterval(TimeUnix, INTERVAL {step_s} SECOND) AS t, cityHash64(toString(mapSort(ResourceAttributes)), toString(mapSort(Attributes))) AS sid, {v} AS v \
+             FROM {table} WHERE OrgId = {{oc_org:String}} AND MetricName = ? AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) AND {filter} \
+             GROUP BY g, t, sid{having}",
+            g = group_array(&by),
+            table = if kind == Kind::Gauge { "otel.otel_metrics_gauge" } else { "otel.otel_metrics_sum" },
+            filter = f.clause,
+        );
+        (sql, params)
+    }
+
+    fn exporter_catalog_sql() -> String {
+        ["gauge", "sum"]
+            .map(|kind| {
+                format!(
+                    "SELECT MetricName AS name, '{kind}' AS kind, any(MetricUnit) AS unit, any(MetricDescription) AS description, \
+                     arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(Attributes)))) AS attr_keys, \
+                     arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(ResourceAttributes)))) AS res_keys \
+                     FROM otel.otel_metrics_{kind} WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY GROUP BY MetricName"
+                )
+            })
+            .join(" UNION ALL ")
+    }
+
+    fn exporter_tag_values_sql(expr: &str, params: &[Param]) -> (String, Vec<Param>) {
+        let sql = format!(
+            "SELECT DISTINCT v FROM (\
+               SELECT toString({expr}) AS v FROM otel.otel_metrics_gauge WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY \
+               UNION ALL SELECT toString({expr}) AS v FROM otel.otel_metrics_sum WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY \
+               UNION ALL SELECT toString({expr}) AS v FROM otel.otel_metrics_histogram WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY) WHERE v != ''"
+        );
+        (sql, [params, params, params].concat())
+    }
+
+    const DAY: i64 = 86_400_000;
+    const NOW: i64 = 1_793_000_000_000;
+    const TIERS: Tiers = Tiers {
+        raw_days: 30,
+        rollup_5m_days: 90,
+        rollup_1h_days: 395,
+    };
+
+    fn ago(from_days: f64, to_days: f64) -> TimeRange {
+        TimeRange {
+            from: NOW - (from_days * DAY as f64) as i64,
+            to: NOW - (to_days * DAY as f64) as i64,
+        }
+    }
+
+    /// The same points queried from the exporter's tables and from series + samples / rollups give
+    /// the same series and values. Skipped unless OC_TEST_CLICKHOUSE_URL points at a ClickHouse
+    /// server (user `default`, or OC_TEST_CLICKHOUSE_USER / OC_TEST_CLICKHOUSE_PASSWORD).
+    #[tokio::test]
+    async fn new_storage_matches_the_exporter_tables() {
+        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
+            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
+            return;
+        };
+        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+        let cfg = oc_store::ClickHouseConfig {
+            url: url.clone(),
+            user: user.clone(),
+            password: password.clone(),
+            database: "oc".into(),
+            cluster: None,
+        };
+        oc_store::migrate_clickhouse(&cfg, false)
+            .await
+            .expect("migrate");
+        let org = format!("parity-{}", std::process::id());
+        let ch = clickhouse::Client::default()
+            .with_url(&url)
+            .with_user(&user)
+            .with_password(&password)
+            .with_option("param_oc_org", &org);
+
+        // Two hours from an hour boundary, a point every 10s: 3 gauge series, a cumulative counter
+        // with a reset, and a delta counter. Each goes into the old table and the ingest table.
+        let start = 1_793_095_200_i64; // 2026-10-27 10:00:00 UTC
+        let gauge = format!(
+            "SELECT map('oc.org_id', '{org}', 'host.name', concat('i-0a1b2c3d4e5f6000', toString(number % 3))) AS ResourceAttributes, 'storefront-api' AS ServiceName, \
+             'system.cpu.utilization' AS MetricName, map('state', if(number % 2 = 0, 'user', 'system')) AS Attributes, \
+             toDateTime64({start} + intDiv(number, 3) * 10, 9) AS TimeUnix, (number % 17) / 17 AS Value FROM numbers(2160)"
+        );
+        let counter = format!(
+            "SELECT map('oc.org_id', '{org}', 'host.name', 'i-0a1b2c3d4e5f60001') AS ResourceAttributes, 'order-service' AS ServiceName, 'http.server.requests' AS MetricName, \
+             map('route', '/cart') AS Attributes, toDateTime64({start} + number * 10, 9) AS TimeUnix, toFloat64(if(number < 400, number * 7, (number - 400) * 3)) AS Value, \
+             2 AS AggregationTemporality, true AS IsMonotonic FROM numbers(720)"
+        );
+        let delta = format!(
+            "SELECT map('oc.org_id', '{org}') AS ResourceAttributes, 'billing' AS ServiceName, 'billing.charges' AS MetricName, map('currency', 'eur') AS Attributes, \
+             toDateTime64({start} + number * 10, 9) AS TimeUnix, toFloat64(number % 5) AS Value, 1 AS AggregationTemporality, true AS IsMonotonic FROM numbers(720)"
+        );
+        for (table, select) in [("gauge", &gauge), ("sum", &counter), ("sum", &delta)] {
+            let cols = "ResourceAttributes, ServiceName, MetricName, Attributes, TimeUnix, Value";
+            let cols = if table == "sum" {
+                format!("{cols}, AggregationTemporality, IsMonotonic")
+            } else {
+                cols.to_string()
+            };
+            for target in [
+                format!("otel.otel_metrics_{table}"),
+                format!("otel.metrics_ingest_{table}"),
+            ] {
+                ch.query(&format!(
+                    "INSERT INTO {target} ({cols}) SELECT {cols} FROM ({select})"
+                ))
+                .execute()
+                .await
+                .unwrap_or_else(|e| panic!("{target}: {e}"));
+            }
+        }
+
+        let range = TimeRange {
+            from: start * 1000,
+            to: (start + 7200) * 1000 - 1,
+        };
+        let cases = [
+            ("avg:system.cpu.utilization{*}", Kind::Gauge),
+            ("max:system.cpu.utilization{*} by {host}", Kind::Gauge),
+            (
+                "sum:system.cpu.utilization{state:user} by {host,state}",
+                Kind::Gauge,
+            ),
+            ("sum:http.server.requests{*}", Kind::Counter),
+            (
+                "sum:billing.charges{currency:eur} by {service}",
+                Kind::Delta,
+            ),
+        ];
+        for (query, kind) in cases {
+            let q = parse(query).unwrap();
+            for (step_s, source) in [
+                (30, Source::Samples),
+                (600, Source::Rollup5m),
+                (3600, Source::Rollup1h),
+            ] {
+                let run = |source: Option<Source>| {
+                    let (inner, params) = match source {
+                        Some(source) => points_query(kind, source, &q, range, step_s, 1.0),
+                        None => exporter_points_query(kind, &q, range, step_s),
+                    };
+                    let sql = format!(
+                        "SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64({agg}(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t",
+                        agg = q.agg.sql()
+                    );
+                    let ch = ch.clone();
+                    async move {
+                        bind(ch.query(&sql), &params)
+                            .fetch_all::<Row>()
+                            .await
+                            .unwrap_or_else(|e| panic!("{sql}: {e}"))
+                    }
+                };
+                let (old, new) = (run(None).await, run(Some(source)).await);
+                assert!(!old.is_empty(), "{query} step {step_s}: no data");
+                assert_eq!(
+                    old.len(),
+                    new.len(),
+                    "{query} step {step_s} from {source:?}: number of points"
+                );
+                for (o, n) in old.iter().zip(&new) {
+                    assert_eq!(
+                        (&o.g, o.ts),
+                        (&n.g, n.ts),
+                        "{query} step {step_s} from {source:?}"
+                    );
+                    assert!(
+                        (o.value - n.value).abs() <= 1e-9 * o.value.abs().max(1.0),
+                        "{query} step {step_s} from {source:?} at {}: {} vs {}",
+                        o.ts,
+                        o.value,
+                        n.value
+                    );
+                }
+            }
+        }
+    }
+
+    /// Readers that query points directly (hosts, Kubernetes), the metric catalog and tag values
+    /// give the same rows from the exporter's tables and from series + samples. Skipped unless
+    /// OC_TEST_CLICKHOUSE_URL is set (see above).
+    #[tokio::test]
+    async fn direct_readers_match_the_exporter_tables() {
+        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
+            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
+            return;
+        };
+        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+        let cfg = oc_store::ClickHouseConfig {
+            url: url.clone(),
+            user: user.clone(),
+            password: password.clone(),
+            database: "oc".into(),
+            cluster: None,
+        };
+        oc_store::migrate_clickhouse(&cfg, false)
+            .await
+            .expect("migrate");
+        let org = format!("readers-{}", std::process::id());
+        let now = now_ms();
+        // Open-ended like the `now() - INTERVAL` readers: points written after `now` count too.
+        let (from, to) = (now - 15 * 60_000, now + OPEN_END_MS);
+        let ch = with_window(
+            clickhouse::Client::default()
+                .with_url(&url)
+                .with_user(&user)
+                .with_password(&password)
+                .with_option("param_oc_org", &org),
+            from,
+            to,
+        );
+
+        // Two hosts with CPU by state and memory, pods with a process metric (sum), over 10 minutes.
+        let gauge = format!(
+            "SELECT map('oc.org_id', '{org}', 'host.name', concat('i-0a1b2c3d4e5f6000', toString(number % 2)), 'k8s.pod.name', concat('storefront-', toString(number % 4)), 'cloud.region', 'eu-west-1') AS ResourceAttributes, \
+             'storefront-api' AS ServiceName, if(number % 3 = 0, 'system.memory.utilization', 'system.cpu.utilization') AS MetricName, \
+             map('state', ['user', 'idle', 'used'][number % 3 + 1]) AS Attributes, now64(9) - toIntervalSecond(number) AS TimeUnix, (number % 11) / 11 AS Value FROM numbers(600)"
+        );
+        let sum = format!(
+            "SELECT map('oc.org_id', '{org}', 'host.name', 'i-0a1b2c3d4e5f60001', 'process.pid', toString(number % 3)) AS ResourceAttributes, 'order-service' AS ServiceName, \
+             'process.memory.usage' AS MetricName, map() AS Attributes, now64(9) - toIntervalSecond(number) AS TimeUnix, toFloat64(number * 1000) AS Value, 2 AS AggregationTemporality, false AS IsMonotonic FROM numbers(300)"
+        );
+        for (table, select) in [("gauge", &gauge), ("sum", &sum)] {
+            let cols = "ResourceAttributes, ServiceName, MetricName, Attributes, TimeUnix, Value";
+            let cols = if table == "sum" {
+                format!("{cols}, AggregationTemporality, IsMonotonic")
+            } else {
+                cols.to_string()
+            };
+            for target in [
+                format!("otel.otel_metrics_{table}"),
+                format!("otel.metrics_ingest_{table}"),
+            ] {
+                ch.query(&format!(
+                    "INSERT INTO {target} ({cols}) SELECT {cols} FROM ({select})"
+                ))
+                .execute()
+                .await
+                .unwrap_or_else(|e| panic!("{target}: {e}"));
+            }
+        }
+
+        async fn rows(ch: &clickhouse::Client, sql: &str) -> Vec<String> {
+            ch.query(&format!(
+                "SELECT toString(tuple(*)) FROM ({sql}) ORDER BY 1"
+            ))
+            .fetch_all::<String>()
+            .await
+            .unwrap_or_else(|e| panic!("{sql}: {e}"))
+        }
+        // Shaped like the host list and the Kubernetes pod usage queries.
+        let host_query = |src: &str| {
+            format!(
+                "SELECT ResourceAttributes['host.name'] AS name, ServiceName, round(avgIf(Value, Attributes['state'] = 'user'), 9) AS user, count() AS n, \
+                 toJSONString(mapSort(mapFilter((k, v) -> NOT startsWith(k, 'oc.'), argMax(ResourceAttributes, TimeUnix)))) AS res \
+                 FROM {src} WHERE OrgId = {{oc_org:String}} AND MetricName IN ('system.cpu.utilization', 'system.memory.utilization') \
+                 AND TimeUnix >= fromUnixTimestamp64Milli({{oc_from:Int64}}) GROUP BY name, ServiceName"
+            )
+        };
+        let pod_query = |src: &str| {
+            format!("SELECT ResourceAttributes['k8s.pod.name'] AS pod, round(avg(Value), 9) AS cpu FROM {src} WHERE OrgId = {{oc_org:String}} AND MetricName = 'system.cpu.utilization' AND TimeUnix > now() - INTERVAL 15 MINUTE GROUP BY pod")
+        };
+        let process_query = |src: &str| {
+            format!("SELECT ResourceAttributes['process.pid'] AS pid, argMax(Value, TimeUnix) AS mem FROM {src} WHERE OrgId = {{oc_org:String}} AND MetricName = 'process.memory.usage' GROUP BY pid")
+        };
+        let gauges = points_subquery(
+            "gauge",
+            &["system.cpu.utilization", "system.memory.utilization"],
+        );
+        let sums = points_subquery("sum", &["process.memory.usage"]);
+        for (old, new) in [
+            (host_query("otel.otel_metrics_gauge"), host_query(&gauges)),
+            (pod_query("otel.otel_metrics_gauge"), pod_query(&gauges)),
+            (process_query("otel.otel_metrics_sum"), process_query(&sums)),
+        ] {
+            let (o, n) = (rows(&ch, &old).await, rows(&ch, &new).await);
+            assert!(!o.is_empty(), "no data: {old}");
+            assert_eq!(o, n, "{new}");
+        }
+
+        // The catalog and tag values (`oc.*` resource keys are the org's stamps, not tags).
+        let catalog = |new: bool| {
+            let sql = if new {
+                format!(
+                    "SELECT * FROM ({}) WHERE kind IN ('gauge', 'sum')",
+                    catalog_sql()
+                )
+            } else {
+                exporter_catalog_sql()
+            };
+            format!("SELECT name, kind, unit, description, arraySort(arrayFilter(k -> NOT startsWith(k, 'oc.'), attr_keys)), arraySort(arrayFilter(k -> NOT startsWith(k, 'oc.'), res_keys)) FROM ({sql})")
+        };
+        assert_eq!(
+            rows(&ch, &catalog(false)).await,
+            rows(&ch, &catalog(true)).await
+        );
+        assert_eq!(rows(&ch, &catalog(true)).await.len(), 3);
+        for key in ["host", "pod_name", "region", "state"] {
+            let (expr, p) = metric_field(key);
+            let values = |new: bool| {
+                let sql = if new {
+                    tag_values_sql(&expr, &p)
+                } else {
+                    exporter_tag_values_sql(&expr, &p)
+                };
+                let ch = ch.clone();
+                async move {
+                    bind(
+                        ch.query(&format!("SELECT * FROM ({}) ORDER BY 1", sql.0)),
+                        &sql.1,
+                    )
+                    .fetch_all::<String>()
+                    .await
+                    .unwrap_or_else(|e| panic!("{}: {e}", sql.0))
+                }
+            };
+            let (o, n) = (values(false).await, values(true).await);
+            assert!(!o.is_empty(), "no values for {key}");
+            assert_eq!(o, n, "values of {key}");
+        }
+    }
+
+    /// The distribution query on the exporter's tables (the oracle).
+    fn exporter_dist_query(
+        dist: Dist,
+        stat: &str,
+        q: &MetricQuery,
+        range: TimeRange,
+        step_s: i64,
+    ) -> (String, Vec<Param>) {
+        let mut params = Vec::new();
+        let mut by = Vec::new();
+        for k in &q.by {
+            let (e, p) = metric_field(k);
+            by.push(e);
+            params.extend(p);
+        }
+        let f = metric_filter(&q.filters, metric_field);
+        params.extend([
+            Param::Str(split_stat(&q.metric).unwrap().0.to_string()),
+            Param::Int(range.from),
+            Param::Int(range.to),
+        ]);
+        params.extend(f.params);
+        let sql = dist_query(
+            exporter_table(dist),
+            dist,
+            stat,
+            &group_array(&by),
+            step_s,
+            &f.clause,
+        )
+        .unwrap();
+        (sql, params)
+    }
+
+    /// Histograms (cumulative and delta), exponential histograms and summaries give the same
+    /// statistics from the storage, raw and from rollups, as from the exporter's tables. Skipped
+    /// unless OC_TEST_CLICKHOUSE_URL is set (see above).
+    #[tokio::test]
+    async fn distributions_match_the_exporter_tables() {
+        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
+            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
+            return;
+        };
+        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+        let cfg = oc_store::ClickHouseConfig {
+            url: url.clone(),
+            user: user.clone(),
+            password: password.clone(),
+            database: "oc".into(),
+            cluster: None,
+        };
+        oc_store::migrate_clickhouse(&cfg, false)
+            .await
+            .expect("migrate");
+        let org = format!("dists-{}", std::process::id());
+        let ch = clickhouse::Client::default()
+            .with_url(&url)
+            .with_user(&user)
+            .with_password(&password)
+            .with_option("param_oc_org", &org);
+
+        // Two hours from an hour boundary, a point every 10s per series (two hosts).
+        let start = 1_793_095_200_i64;
+        let common = |name: &str| {
+            format!(
+                "map('oc.org_id', '{org}', 'host.name', concat('i-0a1b2c3d4e5f6000', toString(number % 2))) AS ResourceAttributes, 'checkout' AS ServiceName, \
+                 '{name}' AS MetricName, 'ms' AS MetricUnit, map('route', '/cart') AS Attributes, toDateTime64({start} + intDiv(number, 2) * 10, 9) AS TimeUnix"
+            )
+        };
+        // Per point: n grows with time; buckets (≤10, ≤100, ≤1000, +inf) take shares of it.
+        let hist = |name: &str, temporality: i32| {
+            let n = if temporality == 2 {
+                "intDiv(number, 2) * 7 + number % 2 * 3"
+            } else {
+                "(number % 5) + 1"
+            };
+            format!(
+                "SELECT {c}, ({n}) AS n, toUInt64(n * 4) AS Count, toFloat64(n * 4 * 55.5) AS Sum, [toUInt64(n), toUInt64(n * 2), toUInt64(n), toUInt64(0)] AS BucketCounts, \
+                 [10., 100., 1000.] AS ExplicitBounds, toFloat64(1 + number % 7) AS Min, toFloat64(900 + number % 50) AS Max, {temporality} AS AggregationTemporality FROM numbers(1440)",
+                c = common(name)
+            )
+        };
+        let exp = format!(
+            "SELECT {c}, intDiv(number, 2) * 5 + 1 AS n, toUInt64(n * 6) AS Count, toFloat64(n * 6 * 12.5) AS Sum, 2 AS Scale, toUInt64(0) AS ZeroCount, 3 AS PositiveOffset, \
+             [toUInt64(n), toUInt64(n * 3), toUInt64(n * 2), toUInt64(0)] AS PositiveBucketCounts, 0 AS NegativeOffset, CAST([], 'Array(UInt64)') AS NegativeBucketCounts, \
+             toFloat64(2) AS Min, toFloat64(40 + number % 9) AS Max, 2 AS AggregationTemporality FROM numbers(1440)",
+            c = common("rpc.duration")
+        );
+        let summary = format!(
+            "SELECT {c}, toUInt64(intDiv(number, 2) * 3) AS Count, toFloat64(intDiv(number, 2) * 3 * 20) AS Sum, [0., 0.5, 0.99, 1.] AS `ValueAtQuantiles.Quantile`, \
+             [toFloat64(1 + number % 3), toFloat64(20 + number % 11), toFloat64(80 + number % 13), toFloat64(120 + number % 17)] AS `ValueAtQuantiles.Value` FROM numbers(1440)",
+            c = common("gc.pause")
+        );
+        let hist_cols = "ResourceAttributes, ServiceName, MetricName, MetricUnit, Attributes, TimeUnix, Count, Sum, BucketCounts, ExplicitBounds, Min, Max, AggregationTemporality";
+        let exp_cols = "ResourceAttributes, ServiceName, MetricName, MetricUnit, Attributes, TimeUnix, Count, Sum, Scale, ZeroCount, PositiveOffset, PositiveBucketCounts, NegativeOffset, NegativeBucketCounts, Min, Max, AggregationTemporality";
+        let summary_cols = "ResourceAttributes, ServiceName, MetricName, MetricUnit, Attributes, TimeUnix, Count, Sum, `ValueAtQuantiles.Quantile`, `ValueAtQuantiles.Value`";
+        for (table, cols, select) in [
+            ("histogram", hist_cols, hist("http.server.duration", 2)),
+            ("histogram", hist_cols, hist("queue.wait", 1)),
+            ("exponential_histogram", exp_cols, exp),
+            ("summary", summary_cols, summary),
+        ] {
+            for target in [
+                format!("otel.otel_metrics_{table}"),
+                format!("otel.metrics_ingest_{table}"),
+            ] {
+                ch.query(&format!(
+                    "INSERT INTO {target} ({cols}) SELECT {cols} FROM ({select})"
+                ))
+                .execute()
+                .await
+                .unwrap_or_else(|e| panic!("{target}: {e}"));
+            }
+        }
+
+        let range = TimeRange {
+            from: start * 1000,
+            to: (start + 7200) * 1000 - 1,
+        };
+        let metrics = [
+            ("http.server.duration", Dist::Histogram),
+            ("queue.wait", Dist::Histogram),
+            ("rpc.duration", Dist::ExpHistogram),
+            ("gc.pause", Dist::Summary),
+        ];
+        for (base, dist) in metrics {
+            for stat in ["count", "sum", "avg", "min", "max", "p50", "p99"] {
+                for by in ["", " by {host}"] {
+                    let q = parse(&format!("avg:{base}.{stat}{{*}}{by}")).unwrap();
+                    for (step_s, source) in [
+                        (30, Source::Samples),
+                        (600, Source::Rollup5m),
+                        (3600, Source::Rollup1h),
+                    ] {
+                        let run = |source: Option<Source>| {
+                            let (inner, params) = match source {
+                                Some(source) => {
+                                    dist_points_query(dist, stat, source, &q, range, step_s)
+                                        .unwrap()
+                                }
+                                None => exporter_dist_query(dist, stat, &q, range, step_s),
+                            };
+                            let sql = format!("SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64(avg(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t");
+                            let ch = ch.clone();
+                            async move {
+                                bind(ch.query(&sql), &params)
+                                    .fetch_all::<Row>()
+                                    .await
+                                    .unwrap_or_else(|e| panic!("{sql}: {e}"))
+                            }
+                        };
+                        let (old, new) = (run(None).await, run(Some(source)).await);
+                        let what = format!("{base}.{stat}{by} step {step_s} from {source:?}");
+                        assert!(!old.is_empty(), "{what}: no data");
+                        assert_eq!(old.len(), new.len(), "{what}: number of points");
+                        for (o, n) in old.iter().zip(&new) {
+                            assert_eq!((&o.g, o.ts), (&n.g, n.ts), "{what}");
+                            assert!(
+                                (o.value - n.value).abs() <= 1e-9 * o.value.abs().max(1.0),
+                                "{what} at {}: {} vs {}",
+                                o.ts,
+                                o.value,
+                                n.value
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn metric_ranges_reach_the_longest_retention() {
+        // Metrics read rollups for long ranges, so they may span what the 1-hour rollup keeps.
+        assert!(ago(90.0, 0.0).validate_within(395).is_ok());
+        assert!(ago(395.0, 0.0).validate_within(395).is_ok());
+        assert!(ago(396.0, 0.0).validate_within(395).is_err());
+        assert!(TimeRange {
+            from: NOW,
+            to: NOW - 1
+        }
+        .validate_within(395)
+        .is_err());
+    }
+
+    #[test]
+    fn resolution_follows_the_step() {
+        // Short ranges read raw samples, longer ones the coarsest rollup that fits the step.
+        assert_eq!(
+            resolution(ago(1.0 / 24.0, 0.0), 30_000, NOW, TIERS),
+            (Source::Samples, 30_000)
+        );
+        assert_eq!(
+            resolution(ago(7.0, 0.0), 600_000, NOW, TIERS),
+            (Source::Rollup5m, 600_000)
+        );
+        assert_eq!(
+            resolution(ago(30.0, 0.0), 3_600_000, NOW, TIERS),
+            (Source::Rollup1h, 3_600_000)
+        );
+        assert_eq!(
+            resolution(ago(365.0, 0.0), 43_200_000, NOW, TIERS),
+            (Source::Rollup1h, 43_200_000)
+        );
+    }
+
+    #[test]
+    fn resolution_falls_back_to_what_is_still_kept() {
+        // An hour 60 days ago: raw samples are gone (30 days), the 5-minute rollup has it.
+        assert_eq!(
+            resolution(ago(60.0, 60.0 - 1.0 / 24.0), 30_000, NOW, TIERS),
+            (Source::Rollup5m, 300_000)
+        );
+        // 200 days ago: only the 1-hour rollup.
+        assert_eq!(
+            resolution(ago(200.0, 199.0), 600_000, NOW, TIERS),
+            (Source::Rollup1h, 3_600_000)
+        );
+        // Older than everything: the longest-kept rollup (it returns nothing rather than failing).
+        assert_eq!(
+            resolution(ago(500.0, 499.0), 30_000, NOW, TIERS),
+            (Source::Rollup1h, 3_600_000)
+        );
+    }
 
     #[test]
     fn distribution_suffixes() {
@@ -1081,7 +1958,7 @@ mod tests {
     fn stats_each_type_supports() {
         for d in [Dist::Histogram, Dist::ExpHistogram, Dist::Summary] {
             for (stat, _) in DIST_STATS {
-                let sql = dist_query(d, stat, "[]", 30, "1").unwrap();
+                let sql = dist_query(exporter_table(d), d, stat, "[]", 30, "1").unwrap();
                 assert!(
                     sql.contains("OrgId = {oc_org:String}"),
                     "{d:?} {stat} must be org-scoped"

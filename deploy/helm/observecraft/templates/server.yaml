@@ -70,6 +70,11 @@ spec:
             - { name: OC_RETENTION_TRACES_DAYS, value: {{ .Values.retention.tracesDays | quote }} }
             - { name: OC_RETENTION_TRACES_MAX_DAYS, value: {{ .Values.retention.tracesMaxDays | quote }} }
             - { name: OC_RETENTION_METRICS_DAYS, value: {{ .Values.retention.metricsDays | quote }} }
+            - { name: OC_RETENTION_METRICS_5M_DAYS, value: {{ .Values.retention.metrics5mDays | quote }} }
+            - { name: OC_RETENTION_METRICS_1H_DAYS, value: {{ .Values.retention.metrics1hDays | quote }} }
+            {{- if and (eq .Values.clickhouse.mode "bundled") .Values.clickhouse.bundled.coldStorage.enabled }}
+            - { name: OC_METRICS_COLD_AFTER_DAYS, value: {{ .Values.clickhouse.bundled.coldStorage.moveAfterDays | quote }} }
+            {{- end }}
             - { name: OC_RETENTION_CI_DAYS, value: {{ .Values.retention.ciDays | quote }} }
             - { name: OC_RAW_LOGS_HOURS, value: {{ .Values.retention.rawLogsHours | quote }} }
             - { name: OC_DATA_DIR, value: /var/lib/observecraft }

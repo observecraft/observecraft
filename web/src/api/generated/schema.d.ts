@@ -2164,7 +2164,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Span retention applies to spans received from then on (within about a minute). */
+        /** Span and metric retention apply to data received from then on (within about a minute). */
         patch: operations["update_org_data_settings"];
         trace?: never;
     };
@@ -4110,6 +4110,8 @@ export interface components {
              * @description What the org may configure (see PATCH …/limits).
              */
             maxLogRetentionDays: number;
+            /** @description Longest metric retention at full resolution and as rollups. */
+            maxMetrics: components["schemas"]["MetricRetention"];
             /** Format: int32 */
             maxSpanRetentionDays: number;
             /** Format: int64 */
@@ -4560,6 +4562,15 @@ export interface components {
             /** Format: double */
             min?: number | null;
         };
+        /** @description Days metrics are kept at full resolution and as 5-minute and 1-hour rollups. */
+        MetricRetention: {
+            /** Format: int32 */
+            raw: number;
+            /** Format: int32 */
+            rollup1h: number;
+            /** Format: int32 */
+            rollup5m: number;
+        };
         MetricSeries: {
             name: string;
             /** @description `[timestamp ms, value]` pairs. */
@@ -4905,22 +4916,25 @@ export interface components {
             issuer?: string | null;
         };
         OrgDataSettings: {
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Install-wide (not per org): CI retention, raw-log window feeding archives.
+             */
             ciRetentionDays: number;
             /** Format: int32 */
             maxIndexes: number;
             /** Format: int32 */
             maxLogRetentionDays: number;
+            maxMetrics: components["schemas"]["MetricRetention"];
             /**
              * Format: int32
              * @description Ceilings set by the instance admin.
              */
             maxSpanRetentionDays: number;
-            /**
-             * Format: int32
-             * @description Install-wide (not per org): metric and CI retention, raw-log window feeding archives.
-             */
-            metricsRetentionDays: number;
+            /** @description What metric retentions can be chosen. */
+            metricRetentionTiers: number[];
+            /** @description Days the org's metrics are kept at full resolution and as rollups, and its limits. */
+            metrics: components["schemas"]["MetricRetention"];
             /** Format: int32 */
             rawLogsHours: number;
             /**
@@ -4930,14 +4944,16 @@ export interface components {
             spanRetentionDays: number;
         };
         OrgDataSettingsPatch: {
+            metrics?: null | components["schemas"]["MetricRetention"];
             /** Format: int32 */
-            spanRetentionDays: number;
+            spanRetentionDays?: number | null;
         };
         OrgLimits: {
             /** Format: int32 */
             maxIndexes: number;
             /** Format: int32 */
             maxLogRetentionDays: number;
+            maxMetrics?: null | components["schemas"]["MetricRetention"];
             /** Format: int32 */
             maxSpanRetentionDays: number;
         };
