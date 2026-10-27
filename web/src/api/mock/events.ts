@@ -91,11 +91,17 @@ function matches(e: EventItem, token: string): boolean {
 export async function searchEvents(req: EventSearchRequest): Promise<EventPage> {
   const tokens = (req.query ?? '').split(/\s+/).filter(Boolean);
   const all = demo(req.range.to).filter((e) => e.timestamp >= req.range.from && e.timestamp <= req.range.to && tokens.every((t) => matches(e, t)));
-  const facet = (key: 'source' | 'status' | 'priority' | 'host', label: string, get: (e: EventItem) => string) => {
+  const facet = (key: string, label: string, get: (e: EventItem) => string | undefined, group = 'CORE') => {
     const counts = new Map<string, number>();
-    for (const e of all) counts.set(get(e), (counts.get(get(e)) ?? 0) + 1);
-    return { key, label, group: 'CORE', values: [...counts].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count })) };
+    for (const e of all) {
+      const v = get(e);
+      if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    return { key, label, group, values: [...counts].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count })) };
   };
+  // Tag facets: env and service, then the ones added with "+ Add".
+  const tagKeys = [...new Set(['env', 'service', ...(req.extra ?? [])])].filter((k) => !['source', 'status', 'priority', 'host'].includes(k));
+  const tagValue = (e: EventItem, key: string) => e.tags.find((t) => t.startsWith(`${key}:`))?.slice(key.length + 1);
   const span = Math.max(60_000, req.range.to - req.range.from);
   const step = [10_000, 30_000, 60_000, 300_000, 600_000, 1_800_000, 3_600_000, 10_800_000, 21_600_000, 43_200_000, 86_400_000].find((s) => span / s <= 90) ?? 86_400_000;
   const histogram = [];
@@ -107,7 +113,21 @@ export async function searchEvents(req: EventSearchRequest): Promise<EventPage> 
   return {
     items: all.slice(req.offset ?? 0, (req.offset ?? 0) + req.limit),
     total: all.length,
-    facets: [facet('source', 'Source', (e) => e.source), facet('status', 'Status', (e) => e.alertType), facet('priority', 'Priority', (e) => e.priority), facet('host', 'Host', (e) => e.host)],
+    facets: [
+      facet('source', 'Source', (e) => e.source),
+      facet('status', 'Status', (e) => e.alertType),
+      facet('priority', 'Priority', (e) => e.priority),
+      facet('host', 'Host', (e) => e.host),
+      ...tagKeys.map((k) => facet(k, k === 'env' ? 'Env' : k === 'service' ? 'Service' : k, (e) => tagValue(e, k), 'TAGS')),
+    ],
     histogram,
   };
+}
+
+/** Tag keys of the matching events, most common first. */
+export async function eventFields(req: { range: EventSearchRequest['range']; query?: string }): Promise<{ key: string; count: number }[]> {
+  const { items } = await searchEvents({ range: req.range, query: req.query ?? '', limit: 10_000, offset: 0 });
+  const counts = new Map<string, number>();
+  for (const e of items) for (const key of new Set(e.tags.filter((t) => t.includes(':')).map((t) => t.slice(0, t.indexOf(':'))))) counts.set(key, (counts.get(key) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([key, count]) => ({ key, count }));
 }

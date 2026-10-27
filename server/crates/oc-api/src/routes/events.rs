@@ -23,6 +23,9 @@ pub struct EventSearchRequest {
     #[serde(default)]
     pub offset: usize,
     pub limit: usize,
+    /// Tag keys added as facets ("+ Add"), after env and service.
+    #[serde(default)]
+    pub extra: Vec<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -51,7 +54,7 @@ pub struct EventFacetValue {
 
 #[derive(Serialize, ToSchema)]
 pub struct EventFacet {
-    /// `source`, `status`, `priority` or `host`.
+    /// `source`, `status`, `priority`, `host`, or a tag key (`env`, `service`, added ones).
     pub key: String,
     pub label: String,
     pub group: String,
@@ -106,6 +109,40 @@ fn conditions(query: &str) -> Vec<Cond> {
     }
     out
 }
+
+const CORE_FACETS: [(&str, &str); 4] = [("source", "Source"), ("status", "Status"), ("priority", "Priority"), ("host", "Host")];
+/// Tag facets every search shows.
+const DEFAULT_TAG_FACETS: [&str; 2] = ["env", "service"];
+/// Added tag facets per search.
+const MAX_EXTRA_FACETS: usize = 10;
+
+fn tag_key_ok(k: &str) -> bool {
+    !k.is_empty() && k.len() <= 100 && k.chars().all(|c| c.is_ascii_alphanumeric() || "_.-/".contains(c))
+}
+
+/// The facets of a search, as (key, label, group): the core ones, env and service, then the added tags.
+fn facet_list(extra: &[String]) -> Vec<(String, String, String)> {
+    let mut out: Vec<(String, String, String)> = CORE_FACETS.iter().map(|(k, l)| (k.to_string(), l.to_string(), "CORE".to_string())).collect();
+    let mut tags: Vec<&str> = DEFAULT_TAG_FACETS.to_vec();
+    for k in extra.iter().map(String::as_str).filter(|k| tag_key_ok(k)).take(MAX_EXTRA_FACETS) {
+        if !tags.contains(&k) && !CORE_FACETS.iter().any(|(c, _)| *c == k) {
+            tags.push(k);
+        }
+    }
+    for k in tags {
+        let label = match k {
+            "env" => "Env".to_string(),
+            "service" => "Service".to_string(),
+            other => other.to_string(),
+        };
+        out.push((k.to_string(), label, "TAGS".to_string()));
+    }
+    out
+}
+
+/// A tag's key and value from `key:value` in SQL (`t` is one tag).
+const TAG_KEY_SQL: &str = "substring(t, 1, position(t, ':') - 1)";
+const TAG_VALUE_SQL: &str = "substring(t, position(t, ':') + 1)";
 
 /// The time range and query conditions; every query puts the org filter in front of it.
 const RANGE: &str = "Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?)";
@@ -169,6 +206,17 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
     )))
     .fetch_all::<FacetRow>();
 
+    let list = facet_list(&req.extra);
+    let tag_keys: Vec<String> = list.iter().filter(|(_, _, g)| g == "TAGS").map(|(k, ..)| k.clone()).collect();
+    let tag_facets = bind_all(ch.query(&format!(
+        "SELECT key, value, count() AS count FROM ( \
+           SELECT arrayJoin(splitByChar(',', LogAttributes['tags'])) AS t, {TAG_KEY_SQL} AS key, {TAG_VALUE_SQL} AS value \
+           FROM otel.otel_events WHERE OrgId = {{oc_org:String}} AND {where_sql}) \
+         WHERE position(t, ':') > 0 AND value != '' AND has(?, key) GROUP BY key, value ORDER BY key, count DESC LIMIT 25 BY key"
+    )))
+    .bind(&tag_keys)
+    .fetch_all::<FacetRow>();
+
     let total = bind_all(ch.query(&format!("SELECT count() FROM otel.otel_events WHERE OrgId = {{oc_org:String}} AND {where_sql}"))).fetch_one::<u64>();
 
     // About 60 bars over the range, on a round step.
@@ -185,7 +233,7 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
          FROM otel.otel_events WHERE OrgId = {{oc_org:String}} AND {where_sql} GROUP BY t, status ORDER BY t"
     )))
     .fetch_all::<BucketRow>();
-    let (rows, facet_rows, total, bucket_rows) = tokio::try_join!(rows, facets, total, buckets)?;
+    let (rows, facet_rows, tag_rows, total, bucket_rows) = tokio::try_join!(rows, facets, tag_facets, total, buckets)?;
     let mut histogram: Vec<EventBucket> = Vec::new();
     let mut t = req.range.from.div_euclid(step) * step;
     while t <= req.range.to {
@@ -198,17 +246,8 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
         }
     }
 
-    let mut facets: Vec<EventFacet> = Vec::new();
-    for key in ["source", "status", "priority", "host"] {
-        let label = match key {
-            "source" => "Source",
-            "status" => "Status",
-            "priority" => "Priority",
-            _ => "Host",
-        };
-        facets.push(EventFacet { key: key.into(), label: label.into(), group: "CORE".into(), values: vec![] });
-    }
-    for f in facet_rows {
+    let mut facets: Vec<EventFacet> = list.into_iter().map(|(key, label, group)| EventFacet { key, label, group, values: vec![] }).collect();
+    for f in facet_rows.into_iter().chain(tag_rows) {
         if let Some(x) = facets.iter_mut().find(|x| x.key == f.key) {
             x.values.push(EventFacetValue { value: f.value, count: f.count });
         }
@@ -231,9 +270,59 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
     Ok(Json(EventPage { items, total, facets, histogram }))
 }
 
+#[derive(Deserialize, ToSchema)]
+pub struct EventFieldsRequest {
+    pub range: TimeRange,
+    #[serde(default)]
+    pub query: String,
+}
+
+#[derive(Serialize, ToSchema, Row, Deserialize)]
+pub struct EventField {
+    pub key: String,
+    /// Events with the tag.
+    pub count: u64,
+}
+
+/// Tag keys of the matching events, most common first: the facets "+ Add" offers.
+#[utoipa::path(post, path = "/api/v1/events/fields", operation_id = "event_fields", request_body = EventFieldsRequest, responses((status = 200, body = Vec<EventField>)), tag = "events")]
+pub async fn fields(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<EventFieldsRequest>) -> ApiResult<Vec<EventField>> {
+    req.range.validate()?;
+    let conds = conditions(&req.query);
+    let mut where_sql = RANGE.to_string();
+    for c in &conds {
+        where_sql.push_str(" AND ");
+        where_sql.push_str(&c.sql);
+    }
+    let mut q = st
+        .ch(&org)
+        .query(&format!(
+            "SELECT key, count() AS count FROM ( \
+               SELECT arrayJoin(arrayDistinct(splitByChar(',', LogAttributes['tags']))) AS t, {TAG_KEY_SQL} AS key \
+               FROM otel.otel_events WHERE OrgId = {{oc_org:String}} AND {where_sql}) \
+             WHERE position(t, ':') > 0 AND key != '' GROUP BY key ORDER BY count DESC, key LIMIT 200"
+        ))
+        .bind(req.range.from)
+        .bind(req.range.to);
+    for c in &conds {
+        for b in &c.binds {
+            q = q.bind(b.as_str());
+        }
+    }
+    Ok(Json(q.fetch_all::<EventField>().await?))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn facets_are_the_core_ones_then_env_service_and_added_tags() {
+        let keys = |extra: &[&str]| facet_list(&extra.iter().map(|s| s.to_string()).collect::<Vec<_>>()).into_iter().map(|(k, _, g)| format!("{g}:{k}")).collect::<Vec<_>>();
+        assert_eq!(keys(&[]), vec!["CORE:source", "CORE:status", "CORE:priority", "CORE:host", "TAGS:env", "TAGS:service"]);
+        // Added tags once each, after the defaults; core keys and invalid names aren't tags.
+        assert_eq!(keys(&["kube_namespace", "env", "host", "bad key", "kube_namespace"])[6..], ["TAGS:kube_namespace".to_string()]);
+    }
 
     #[test]
     fn query_conditions_are_bound() {

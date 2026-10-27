@@ -931,6 +931,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tag keys of the matching events, most common first: the facets "+ Add" offers. */
+        post: operations["event_fields"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/search": {
         parameters: {
             query?: never;
@@ -3673,7 +3690,7 @@ export interface components {
         };
         EventFacet: {
             group: string;
-            /** @description `source`, `status`, `priority` or `host`. */
+            /** @description `source`, `status`, `priority`, `host`, or a tag key (`env`, `service`, added ones). */
             key: string;
             label: string;
             values: components["schemas"]["EventFacetValue"][];
@@ -3683,6 +3700,18 @@ export interface components {
             count: number;
             value: string;
         };
+        EventField: {
+            /**
+             * Format: int64
+             * @description Events with the tag.
+             */
+            count: number;
+            key: string;
+        };
+        EventFieldsRequest: {
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
         EventPage: {
             facets: components["schemas"]["EventFacet"][];
             histogram: components["schemas"]["EventBucket"][];
@@ -3691,6 +3720,8 @@ export interface components {
             total: number;
         };
         EventSearchRequest: {
+            /** @description Tag keys added as facets ("+ Add"), after env and service. */
+            extra?: string[];
             limit: number;
             offset?: number;
             query?: string;
@@ -7694,6 +7725,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    event_fields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventFieldsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventField"][];
+                };
             };
         };
     };

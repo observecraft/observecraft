@@ -1987,6 +1987,40 @@
         }
       }
     },
+    "/api/v1/events/fields": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Tag keys of the matching events, most common first: the facets \"+ Add\" offers.",
+        "operationId": "event_fields",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventFieldsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventField"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/events/search": {
       "post": {
         "tags": [
@@ -9565,7 +9599,7 @@
           },
           "key": {
             "type": "string",
-            "description": "`source`, `status`, `priority` or `host`."
+            "description": "`source`, `status`, `priority`, `host`, or a tag key (`env`, `service`, added ones)."
           },
           "label": {
             "type": "string"
@@ -9592,6 +9626,38 @@
           },
           "value": {
             "type": "string"
+          }
+        }
+      },
+      "EventField": {
+        "type": "object",
+        "required": [
+          "key",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Events with the tag.",
+            "minimum": 0
+          },
+          "key": {
+            "type": "string"
+          }
+        }
+      },
+      "EventFieldsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
           }
         }
       },
@@ -9636,6 +9702,13 @@
           "limit"
         ],
         "properties": {
+          "extra": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tag keys added as facets (\"+ Add\"), after env and service."
+          },
           "limit": {
             "type": "integer",
             "minimum": 0
