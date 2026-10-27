@@ -708,7 +708,6 @@
   padding: 16px 0;
 }
 
-
 /* ---------- Logs › Configuration ---------- */
 .logs-config-header {
   display: flex;
@@ -1030,4 +1029,21 @@
 
 .ix-add-excl {
   align-self: flex-start;
+}
+
+/* ---------------------------------------------------------------- patterns */
+.log-patterns tbody tr {
+  cursor: pointer;
+}
+
+.log-patterns .col-count,
+.log-patterns .col-share {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.pattern-wildcard {
+  color: var(--primary);
+  font-weight: var(--fw-semibold);
 }

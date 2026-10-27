@@ -170,3 +170,79 @@ tests:
           - type: vrl
             source: |
               assert_eq!(.status, "error")
+
+  - name: Datadog Agent stderr klog info line is info
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "I1027 19:54:21.008123       1 client.go:12] \"remote connection EOF\""
+          .status = "error"
+          .ddsource = "python"
+          .service = "catalog-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "info")
+
+  - name: Datadog Agent stderr logfmt line with level=info is info
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "level=info ts=2026-10-27T19:54:21Z caller=index_set.go:12 msg=\"uploading table\""
+          .status = "error"
+          .ddsource = "python"
+          .service = "catalog-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "info")
+
+  - name: Datadog Agent stderr Python line with a dashed level is info
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "2026-10-27 19:54:21,008 - azure.identity._credentials.default - INFO - token acquired"
+          .status = "error"
+          .ddsource = "python"
+          .service = "catalog-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "info")
+
+  - name: Datadog Agent stderr Python line with a dashed WARNING level is warn
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "2026-10-27 19:54:21,008 - catalog.cache - WARNING - cache miss storm"
+          .status = "error"
+          .ddsource = "python"
+          .service = "catalog-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "warn")

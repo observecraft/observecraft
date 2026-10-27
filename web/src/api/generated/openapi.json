@@ -3928,6 +3928,40 @@
         }
       }
     },
+    "/api/v1/logs/patterns": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "The matching logs grouped by pattern (Group into Patterns), from the newest 10,000 of them.",
+        "operationId": "patterns",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogPatternsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogPattern"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/logs/rehydrations": {
       "get": {
         "tags": [
@@ -12634,6 +12668,61 @@
           },
           "value": {
             "type": "string"
+          }
+        }
+      },
+      "LogPattern": {
+        "type": "object",
+        "required": [
+          "pattern",
+          "count",
+          "status",
+          "service",
+          "sample"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Logs of the sample with this pattern.",
+            "minimum": 0
+          },
+          "pattern": {
+            "type": "string",
+            "description": "The message with its variable parts as `*`."
+          },
+          "sample": {
+            "type": "string",
+            "description": "The newest message with this pattern."
+          },
+          "service": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "The most common status and service among them."
+          }
+        }
+      },
+      "LogPatternsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "How many patterns, 1–200 (default 50).",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
           }
         }
       },

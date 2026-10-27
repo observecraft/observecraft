@@ -105,6 +105,27 @@ export function mockTopLogValues(q: LogQuery & { key: string; limit?: number }):
     .slice(0, q.limit ?? 10);
 }
 
+/** Logs grouped by message pattern (numbers and ids as `*`), newest 10,000 matching logs. */
+export function mockLogPatterns(q: LogQuery): { pattern: string; count: number; status: string; service: string; sample: string }[] {
+  const terms = parseQuery(q.query);
+  const groups = new Map<string, { count: number; status: string; service: string; sample: string }>();
+  for (const l of inRange(q.range)
+    .filter((l) => matchLog(l, terms))
+    .slice(0, 10_000)) {
+    const pattern = l.message
+      .split(/\s+/)
+      .map((w) => (/^\d|[0-9a-f]{8,}/.test(w) ? '*' : w))
+      .join(' ');
+    const g = groups.get(pattern) ?? { count: 0, status: l.status, service: l.service, sample: l.message };
+    g.count += 1;
+    groups.set(pattern, g);
+  }
+  return [...groups]
+    .map(([pattern, g]) => ({ pattern, ...g }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 50);
+}
+
 export function mockHistogram(q: LogQuery): HistogramBucket[] {
   const terms = parseQuery(q.query);
   return histogramFor(

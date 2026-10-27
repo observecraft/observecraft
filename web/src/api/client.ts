@@ -2,7 +2,7 @@
 // otherwise the in-browser mock answers, so the UI still runs without a backend.
 import { API_MODE, post } from './http';
 import type { components } from './generated/schema';
-import { mockHistogram, mockLiveTail, mockTopLogValues, mockMetric, mockSearchLogs, mockSuggest } from './mock';
+import { mockHistogram, mockLiveTail, mockLogPatterns, mockTopLogValues, mockMetric, mockSearchLogs, mockSuggest } from './mock';
 import type { FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, LogStatus, MetricSeries, QuerySuggestion, TimeRange } from './types';
 
 /** The UI loads at most this many rows per search; aggregate views work on this sample. */
@@ -37,6 +37,14 @@ export async function searchLogs(q: LogQuery): Promise<LogSearchResult> {
 export async function topLogValues(q: LogQuery & { key: string; limit?: number }): Promise<FacetValue[]> {
   if (API_MODE !== 'live') return mockTopLogValues(q);
   return post('/api/v1/logs/top', { range: q.range, query: q.query, key: q.key, limit: q.limit });
+}
+
+export type LogPattern = components['schemas']['LogPattern'];
+
+/** The matching logs grouped by pattern (Log Explorer → Group into Patterns). */
+export async function logPatterns(q: LogQuery): Promise<LogPattern[]> {
+  if (API_MODE !== 'live') return mockLogPatterns(q);
+  return post('/api/v1/logs/patterns', { range: q.range, query: q.query });
 }
 
 /** Status-stacked counts only — cheaper than a full search, used by Live Tail. */

@@ -1,15 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  ChevronDown,
-  Download,
-  EllipsisVertical,
-  LayoutDashboard,
-  PanelLeft,
-  ScanSearch,
-  Settings,
-  Sheet,
-} from 'lucide-react';
+import { ChevronDown, Download, EllipsisVertical, LayoutDashboard, PanelLeft, ScanSearch, Settings, Sheet } from 'lucide-react';
 import { searchLogs, suggestLogQuery } from '../../api/client';
 import type { LogEvent, LogInsight, LogSearchResult } from '../../api/types';
 import { TimePicker } from '../../components/shell/PageHeader';
@@ -24,14 +15,14 @@ import { LogDetail } from './LogDetail';
 import { LogHistogram } from './LogHistogram';
 import { LogTable } from './LogTable';
 import { VizPicker } from './VizPicker';
+import { PatternsTable } from './PatternsTable';
+import { patternQuery } from './patterns';
 
 const MAX_ROWS = 500;
 
 function downloadCsv(logs: LogEvent[]) {
   const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
-  const rows = [['date', 'status', 'host', 'service', 'message']].concat(
-    logs.map((l) => [formatLogDate(l.timestamp), l.status, l.host, l.service, l.message]),
-  );
+  const rows = [['date', 'status', 'host', 'service', 'message']].concat(logs.map((l) => [formatLogDate(l.timestamp), l.status, l.host, l.service, l.message]));
   const blob = new Blob([rows.map((r) => r.map(esc).join(',')).join('\n')], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -46,6 +37,7 @@ export function LogExplorer() {
   const [params] = useSearchParams();
   const [query, setQuery] = useState(() => params.get('query') ?? '');
   const [viz, setViz] = useState<VizMode>('list');
+  const [groupInto, setGroupInto] = useState<'fields' | 'patterns'>('fields');
   const [showFacets, setShowFacets] = useState(true);
   const [selectedLog, setSelectedLog] = useState<LogEvent | null>(null);
   const [result, setResult] = useState<LogSearchResult | null>(null);
@@ -91,7 +83,17 @@ export function LogExplorer() {
           <QueryBar value={query} onChange={setQuery} suggest={suggest} placeholder="Search for logs, e.g. service:order-service status:error" />
         </div>
 
-        <VizPicker value={viz} onChange={setViz} />
+        <div className="viz-row">
+          <div className="btn-group">
+            <span className="btn btn-label">Group into</span>
+            {(['fields', 'patterns'] as const).map((g) => (
+              <button key={g} className={`btn${groupInto === g ? ' btn-active' : ''}`} onClick={() => setGroupInto(g)}>
+                {g === 'fields' ? 'Fields' : 'Patterns'}
+              </button>
+            ))}
+          </div>
+        </div>
+        {groupInto === 'fields' && <VizPicker value={viz} onChange={setViz} />}
 
         <div className="log-histogram">
           <LogHistogram buckets={result?.histogram ?? []} />
@@ -139,7 +141,17 @@ export function LogExplorer() {
                 </div>
               </div>
 
-              {viz === 'list' ? (
+              {groupInto === 'patterns' ? (
+                <PatternsTable
+                  range={range}
+                  query={query}
+                  onOpen={(p) => {
+                    setQuery(patternQuery(p, query));
+                    setGroupInto('fields');
+                    setViz('list');
+                  }}
+                />
+              ) : viz === 'list' ? (
                 <LogTable logs={rows} selectedId={selectedLog?.id ?? null} onSelect={setSelectedLog} />
               ) : (
                 <div className="agg-wrap">

@@ -424,6 +424,148 @@ pub async fn top(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<
     Ok(Json(rows.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect()))
 }
 
+// ---------------------------------------------------------------- patterns
+
+/// Characters that separate the parts of a word (`/api/v1/orders/42`, `key=value`, `a:b`).
+const PART_DELIMITERS: &str = "/:=,;()[]{}\"'?&@#|<>";
+
+/// Whether a part of a word changes from one log to the next: numbers, hex, UUIDs, long ids.
+fn variable_part(p: &str) -> bool {
+    let hex = |c: char| c.is_ascii_hexdigit() || c == '-';
+    let digits = p.chars().any(|c| c.is_ascii_digit());
+    p.starts_with(|c: char| c.is_ascii_digit())
+        || (p.starts_with("0x") && p.len() > 2)
+        || (digits && p.len() >= 8 && p.chars().all(hex))
+        || (digits && p.len() >= 16)
+}
+
+/// A message's pattern: its variable parts become `*` (Log Explorer → Group into Patterns).
+fn pattern_of(message: &str) -> String {
+    // Without ANSI colors (`ESC[94m`).
+    let mut text = String::with_capacity(message.len());
+    let mut chars = message.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\u{1b}' && chars.peek() == Some(&'[') {
+            for d in chars.by_ref() {
+                if d.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+        } else {
+            text.push(c);
+        }
+    }
+    let words: Vec<String> = text
+        .split_whitespace()
+        .map(|word| {
+            let mut parts: Vec<(String, bool)> = Vec::new(); // (text, is a delimiter)
+            let mut current = String::new();
+            for c in word.chars() {
+                if PART_DELIMITERS.contains(c) {
+                    if !current.is_empty() {
+                        parts.push((std::mem::take(&mut current), false));
+                    }
+                    parts.push((c.to_string(), true));
+                } else {
+                    current.push(c);
+                }
+            }
+            if !current.is_empty() {
+                parts.push((current, false));
+            }
+            let values: Vec<&String> = parts.iter().filter(|(_, d)| !d).map(|(p, _)| p).collect();
+            if values.is_empty() || !values.iter().all(|p| variable_part(p)) {
+                return parts.iter().map(|(p, d)| if !d && variable_part(p) { "*" } else { p.as_str() }).collect();
+            }
+            // One number with a short unit keeps the unit (`12.5ms` → `*ms`); timestamps, IPs,
+            // UUIDs and other all-variable words become a single `*`.
+            if let [only] = values.as_slice() {
+                let unit = only.trim_start_matches(|c: char| c.is_ascii_digit() || c == '.');
+                if (1..=3).contains(&unit.len()) && unit.chars().all(|c| c.is_ascii_alphabetic()) && parts.len() == 1 {
+                    return format!("*{unit}");
+                }
+            }
+            "*".to_string()
+        })
+        .collect();
+    words.join(" ")
+}
+
+/// Logs grouped into patterns: the newest this many matching logs are read.
+const PATTERN_SAMPLE: i64 = 10_000;
+
+#[derive(clickhouse::Row, Deserialize)]
+struct PatternRow {
+    message: String,
+    status: String,
+    service: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct LogPattern {
+    /// The message with its variable parts as `*`.
+    pub pattern: String,
+    /// Logs of the sample with this pattern.
+    pub count: u64,
+    /// The most common status and service among them.
+    pub status: String,
+    pub service: String,
+    /// The newest message with this pattern.
+    pub sample: String,
+}
+
+fn group_patterns(rows: Vec<PatternRow>, limit: usize) -> Vec<LogPattern> {
+    struct Group {
+        count: u64,
+        sample: String,
+        statuses: HashMap<String, u64>,
+        services: HashMap<String, u64>,
+    }
+    let most = |m: &HashMap<String, u64>| m.iter().max_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(a.0))).map(|(k, _)| k.clone()).unwrap_or_default();
+    let mut groups: HashMap<String, Group> = HashMap::new();
+    for r in rows {
+        let g = groups.entry(pattern_of(&r.message)).or_insert_with(|| Group { count: 0, sample: r.message.clone(), statuses: HashMap::new(), services: HashMap::new() });
+        g.count += 1;
+        *g.statuses.entry(r.status).or_default() += 1;
+        *g.services.entry(r.service).or_default() += 1;
+    }
+    let mut out: Vec<LogPattern> =
+        groups.into_iter().map(|(pattern, g)| LogPattern { status: most(&g.statuses), service: most(&g.services), pattern, count: g.count, sample: g.sample }).collect();
+    out.sort_by(|a, b| b.count.cmp(&a.count).then(a.pattern.cmp(&b.pattern)));
+    out.truncate(limit);
+    out
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct LogPatternsRequest {
+    pub range: TimeRange,
+    #[serde(default)]
+    pub query: String,
+    /// How many patterns, 1–200 (default 50).
+    pub limit: Option<usize>,
+}
+
+/// The matching logs grouped by pattern (Group into Patterns), from the newest 10,000 of them.
+#[utoipa::path(post, path = "/api/v1/logs/patterns", request_body = LogPatternsRequest,
+    responses((status = 200, body = Vec<LogPattern>)), tag = "logs")]
+pub async fn patterns(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogPatternsRequest>) -> ApiResult<Vec<LogPattern>> {
+    req.range.validate()?;
+    let terms = parse_query(&req.query);
+    let s = scope(&org, req.range, &terms, None);
+    let mut params = s.params;
+    params.push(Param::Int(PATTERN_SAMPLE));
+    let rows = bind(
+        st.ch(&org).query(&format!(
+            "SELECT substring(message, 1, 300) AS message, toString(status) AS status, toString(service) AS service FROM {} WHERE {} ORDER BY timestamp DESC LIMIT ?",
+            s.table, s.clause
+        )),
+        &params,
+    )
+    .fetch_all::<PatternRow>()
+    .await?;
+    Ok(Json(group_patterns(rows, req.limit.unwrap_or(50).clamp(1, 200))))
+}
+
 // ---------------------------------------------------------------- suggestions
 
 #[derive(Deserialize, ToSchema)]
@@ -629,6 +771,33 @@ pub(crate) async fn log_counts(st: &AppState, org: &str, search: &str, by: &[Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn patterns_replace_the_variable_parts_of_a_message() {
+        assert_eq!(pattern_of("GET /api/v1/orders/48213 200 in 12.5ms"), "GET /api/v1/orders/* * in *ms");
+        assert_eq!(pattern_of("user 3f2a9c1e-77b4-4d0e-9a51-0c6f5e2b8d14 logged in from 10.2.1.23"), "user * logged in from *");
+        assert_eq!(pattern_of("\u{1b}[94mGET\u{1b}[0m /metrics took 0x7ffe3a10"), "GET /metrics took *");
+        assert_eq!(pattern_of("2026-10-27T19:54:21.008Z worker 7 done"), "* worker * done");
+        // Same shape, same pattern.
+        assert_eq!(pattern_of("job 1 failed after 3 retries"), pattern_of("job 982 failed after 11 retries"));
+    }
+
+    #[test]
+    fn patterns_group_logs_and_keep_their_most_common_status_and_service() {
+        let row = |m: &str, status: &str, service: &str| PatternRow { message: m.into(), status: status.into(), service: service.into() };
+        let rows = vec![
+            row("job 1 failed", "error", "billing"),
+            row("job 2 failed", "error", "billing"),
+            row("job 3 failed", "warn", "billing"),
+            row("cache warm", "info", "catalog-service"),
+        ];
+        let p = group_patterns(rows, 10);
+        assert_eq!(p.len(), 2);
+        assert_eq!((p[0].pattern.as_str(), p[0].count, p[0].status.as_str(), p[0].service.as_str()), ("job * failed", 3, "error", "billing"));
+        assert_eq!(p[0].sample, "job 1 failed");
+        assert_eq!(p[1].pattern, "cache warm");
+        assert_eq!(group_patterns(vec![row("a 1", "info", "s"), row("b", "info", "s")], 1).len(), 1);
+    }
 
     #[test]
     fn top_values_count_with_the_keys_own_filter() {

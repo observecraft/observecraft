@@ -1554,6 +1554,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/patterns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The matching logs grouped by pattern (Group into Patterns), from the newest 10,000 of them. */
+        post: operations["patterns"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/rehydrations": {
         parameters: {
             query?: never;
@@ -4514,6 +4531,26 @@ export interface components {
             /** Format: double */
             shareOfLogs: number;
             value: string;
+        };
+        LogPattern: {
+            /**
+             * Format: int64
+             * @description Logs of the sample with this pattern.
+             */
+            count: number;
+            /** @description The message with its variable parts as `*`. */
+            pattern: string;
+            /** @description The newest message with this pattern. */
+            sample: string;
+            service: string;
+            /** @description The most common status and service among them. */
+            status: string;
+        };
+        LogPatternsRequest: {
+            /** @description How many patterns, 1–200 (default 50). */
+            limit?: number | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
         };
         LogQueryRequest: {
             query?: string;
@@ -8771,6 +8808,29 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": unknown;
+                };
+            };
+        };
+    };
+    patterns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogPatternsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPattern"][];
                 };
             };
         };

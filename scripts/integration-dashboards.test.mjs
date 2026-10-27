@@ -427,3 +427,11 @@ test('log queries count logs per facet value; throughput divides by the range', 
   assert.deepEqual(logSeries([{ value: 'etcd', count: 120 }], 'source', range), [{ name: 'source:etcd', points: [[60_000, 120]] }]);
   assert.deepEqual(throughputs('throughput(query1) * 2'), { text: 'query1__throughput * 2', names: ['query1'] });
 });
+
+test('a log pattern opens as a search for its service and longest fixed text', async () => {
+  const { patternQuery } = await import('../web/src/pages/logs/patterns.ts');
+  assert.equal(patternQuery({ pattern: 'GET /api/v1/orders/* * in *ms', service: 'order-service' }, 'env:prod'), 'env:prod service:order-service "GET /api/v1/orders/"');
+  assert.equal(patternQuery({ pattern: '* *', service: 'billing' }, ''), 'service:billing');
+  // Quotes can't be escaped in a search phrase: the longest piece between them is used.
+  assert.equal(patternQuery({ pattern: 'say "hello" * now', service: '' }, ''), '"hello"');
+});
