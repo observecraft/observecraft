@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Columns3, Download, EllipsisVertical, Hexagon, List, Megaphone, PanelLeft, PanelLeftClose, Search, Server, Sparkles, X } from 'lucide-react';
+import { Columns3, Download, Hexagon, List, PanelLeft, PanelLeftClose, Search, Server } from 'lucide-react';
 import type { HostSortField, HostSummary, MetricFilter } from '../../api/infrastructure/types';
 import { TimePicker } from '../../components/shell/PageHeader';
 import { TimeProvider, useTime } from '../../components/shell/TimeContext';
@@ -19,7 +19,6 @@ import './infrastructure.css';
 const PAGE_SIZE = 20;
 /** Hosts the Host Map draws at once. */
 const MAP_LIMIT = 1000;
-const BANNER_KEY = 'oc.infra.bannerDismissed';
 
 const GROUP_OPTIONS = [
   { value: '', label: 'Attributes or Tags' },
@@ -31,14 +30,6 @@ const GROUP_OPTIONS = [
   { value: 'region', label: 'region' },
   { value: 'collector', label: 'collector' },
 ];
-
-function readBannerDismissed(): boolean {
-  try {
-    return localStorage.getItem(BANNER_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
 
 function toCsv(hosts: HostSummary[]): string {
   const rows = [['host', 'cloud', 'os', 'env', 'team', 'cpu_pct', 'mem_pct', 'monitors_alert', 'monitors_ok']].concat(
@@ -118,7 +109,6 @@ function HostsPageBody() {
   const [metricFilters, setMetricFilters] = useState<MetricFilter[]>([{ metric: 'system.uptime' }, { metric: 'system.mem.pct_usable' }]);
   const [showFilters, setShowFilters] = useState(true);
   const [columns, setColumns] = useState<Set<HostColumn>>(() => new Set(ALL_COLUMNS.map((c) => c.key)));
-  const [bannerHidden, setBannerHidden] = useState(readBannerDismissed);
 
   const terms = useMemo(() => parseQuery(query), [query]);
   const setTerms = useCallback((t: Term[]) => setParam({ q: formatQuery(t), offset: null }), [setParam]);
@@ -159,21 +149,11 @@ function HostsPageBody() {
         <div className="product-title">
           <Server size={20} /> Hosts
         </div>
-        <div className="hosts-header-right">
-          <button className="link-btn">
-            <Megaphone size={15} /> Give Feedback
-          </button>
-        </div>
       </header>
 
       <div className="section-header et-section-header">
         <div className="section-header-left">
-          <button className="page-tab et-views">
-            <PanelLeft size={15} /> Views
-          </button>
-          <div className="page-tab active">
-            My View <EllipsisVertical size={16} className="muted" />
-          </div>
+          <div className="page-tab active">My View</div>
           <div className="hosts-tabs">
             <button className={`hosts-tab${view === 'list' ? ' active' : ''}`} onClick={() => setParam({ view: null })}>
               <List size={15} /> Hosts
@@ -201,32 +181,6 @@ function HostsPageBody() {
           <span className="hosts-groupby-label">Group by</span>
           <Select value={groupBy ?? ''} options={GROUP_OPTIONS} onChange={(g) => setParam({ group: g || null, offset: null })} triggerClassName="dd-trigger hosts-groupby" align="right" />
         </div>
-
-        {!bannerHidden && (
-          <div className="hosts-banner">
-            <div>
-              <h3>
-                <Sparkles size={18} /> Assist Infrastructure Operations Coming Soon!
-              </h3>
-              <p>Sign up to be part of the AI-assisted troubleshooting & remediation private preview for host and infrastructure issues.</p>
-              <button className="btn">Join Preview</button>
-            </div>
-            <button
-              className="hosts-banner-close"
-              title="Dismiss"
-              onClick={() => {
-                setBannerHidden(true);
-                try {
-                  localStorage.setItem(BANNER_KEY, '1');
-                } catch {
-                  /* storage unavailable: dismiss for this session only */
-                }
-              }}
-            >
-              <X size={20} />
-            </button>
-          </div>
-        )}
 
         <div className="hosts-body">
           {showFilters && (
