@@ -4,7 +4,8 @@
 //!   gauge (and unspecified) → OTLP gauge; rate → gauge of the per-second value;
 //!   count → OTLP delta, monotonic sum.
 //! The `host` resource (v2) or field (v1) becomes `host.name`, the `service:` tag `service.name`,
-//! other `key:value` tags become data point attributes.
+//! other `key:value` tags become data point attributes. The host's tags from its host metadata are
+//! added first (tags on the series win), as Datadog does.
 
 use std::collections::BTreeMap;
 use std::io::Read;
@@ -387,6 +388,15 @@ pub fn to_otlp(series: &[Series], collector: Option<&str>) -> otlp::ExportMetric
     resource_metrics(resources, collector)
 }
 
+/// Adds each series' host tags (from the host's metadata), as Datadog does.
+pub fn with_host_tags(series: &mut [Series], hosts: &crate::host_tags::Hosts) {
+    for s in series {
+        if let Some(tags) = hosts.get(&s.host) {
+            crate::host_tags::merge(&mut s.tags, tags);
+        }
+    }
+}
+
 // ---------------------------------------------------------------- distributions (sketches)
 
 /// The Agent's DDSketch key mapping (datadog-agent pkg/util/quantile): relative accuracy 1/128,
@@ -514,11 +524,12 @@ async fn ingest(st: Shared, headers: HeaderMap, body: Bytes, parse: impl FnOnce(
         Ok(org) => org,
         Err(r) => return r.into_response(),
     };
-    let series = match inflate(&headers, &body).and_then(|raw| parse(&raw)) {
+    let mut series = match inflate(&headers, &body).and_then(|raw| parse(&raw)) {
         Ok(series) => series,
         Err(e) => return bad_request(e),
     };
     drop(body);
+    with_host_tags(&mut series, &st.host_tags.hosts(&st.pg, &org.org_id).await);
     let collector = sender(&headers);
     for chunk in series.chunks(CHUNK) {
         if let Err(r) = deliver_metrics(&st, &org, otlp::encode(&to_otlp(chunk, collector))).await {
@@ -559,11 +570,17 @@ pub async fn sketches(State(st): State<Shared>, headers: HeaderMap, body: Bytes)
         Ok(org) => org,
         Err(r) => return r.into_response(),
     };
-    let payload = match inflate(&headers, &body).and_then(|raw| <pb::SketchPayload as prost::Message>::decode(raw.as_slice()).map_err(|e| format!("invalid sketch payload: {e}"))) {
+    let mut payload = match inflate(&headers, &body).and_then(|raw| <pb::SketchPayload as prost::Message>::decode(raw.as_slice()).map_err(|e| format!("invalid sketch payload: {e}"))) {
         Ok(p) => p,
         Err(e) => return bad_request(e),
     };
     drop(body);
+    let hosts = st.host_tags.hosts(&st.pg, &org.org_id).await;
+    for s in &mut payload.sketches {
+        if let Some(tags) = hosts.get(&s.host) {
+            crate::host_tags::merge(&mut s.tags, tags);
+        }
+    }
     let collector = sender(&headers);
     for chunk in payload.sketches.chunks(CHUNK) {
         if let Err(r) = deliver_metrics(&st, &org, otlp::encode(&sketches_to_otlp(chunk, collector))).await {
@@ -673,6 +690,7 @@ pub async fn intake(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -
             tracing::warn!(error = %e, "storing Datadog host metadata failed");
             return Rejection { status: StatusCode::SERVICE_UNAVAILABLE, message: "temporarily unavailable" }.into_response();
         }
+        st.host_tags.set(&org, &m.host, m.tags);
     }
     if let Err(r) = crate::datadog_events::deliver(&st, &key_org, &crate::datadog_events::intake_events(&payload)).await {
         return r.into_response();
@@ -788,6 +806,36 @@ mod tests {
         assert_eq!(r["k8s.cluster.name"], "prod-eu");
         assert_eq!(r["host.name"], "node-1");
         assert_eq!(attrs, vec![otlp::kv("team", "web")]);
+    }
+
+    #[test]
+    fn host_tags_reach_the_hosts_series() {
+        let series = |host: &str, tags: &[&str]| Series {
+            metric: "kubernetes.cpu.usage.total".into(),
+            kind: Kind::Gauge,
+            unit: "".into(),
+            host: host.into(),
+            tags: tags.iter().map(|t| t.to_string()).collect(),
+            interval: 0,
+            points: vec![(100, 1.0)],
+        };
+        let hosts: crate::host_tags::Hosts = std::sync::Arc::new(std::collections::HashMap::from([(
+            "node-1".to_string(),
+            vec!["kube_cluster_name:prod-eu".to_string(), "kube_distribution:aks".to_string(), "kube_namespace:from-host".to_string()],
+        )]));
+        let mut batch = vec![series("node-1", &["kube_namespace:shop"]), series("node-2", &[])];
+        with_host_tags(&mut batch, &hosts);
+        let req = to_otlp(&batch, None);
+        let resource = |host: &str| -> std::collections::HashMap<String, String> {
+            req.resource_metrics.iter().map(|rm| attrs(rm.resource.as_ref().unwrap())).find(|a| a.contains(&("host.name".to_string(), host.to_string()))).unwrap().into_iter().collect()
+        };
+        let node1 = resource("node-1");
+        assert_eq!(node1["k8s.cluster.name"], "prod-eu");
+        assert_eq!(node1["k8s.namespace.name"], "shop", "the series' own tag wins");
+        let rm = req.resource_metrics.iter().find(|rm| attrs(rm.resource.as_ref().unwrap()).contains(&("host.name".to_string(), "node-1".to_string()))).unwrap();
+        let Some(otlp::metric::Data::Gauge(g)) = &rm.scope_metrics[0].metrics[0].data else { panic!("gauge") };
+        assert_eq!(g.data_points[0].attributes, vec![otlp::kv("kube_distribution", "aks")]);
+        assert!(!resource("node-2").contains_key("k8s.cluster.name"), "another host's tags don't apply");
     }
 
     #[test]

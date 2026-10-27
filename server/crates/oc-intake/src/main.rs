@@ -18,7 +18,8 @@
 //! - `POST /api/v1/collector`, `/api/v1/container`  Datadog live processes and containers → process.* / container.* metrics
 //! - `POST /api/v1/connections`                  Datadog network connections (system-probe) → otel.otel_network
 //! - `POST /api/v2/profile`                      Datadog profiler uploads → the server (otel.profiles)
-//! - `POST /intake/`, `/api/v2/host_metadata`   Datadog Agent host metadata → Postgres `datadog_hosts`; its events → events
+//! - `POST /intake/`, `/api/v2/host_metadata`   Datadog Agent host metadata → Postgres `datadog_hosts`; its events → events.
+//!   Its host tags are added to that host's series, sketches and service checks (see `host_tags`)
 //! - `POST /api/v1/events`, `/api/v2/events`     Datadog events (API, Agent) → otel.otel_events
 //! - `POST /api/v2/service_checks`               the Agent's service checks (as `/api/v1/check_run`)
 //! - `POST /api/v1/metadata`, `/api/v2/orch`: the Agent's inventories and orchestrator summaries,
@@ -40,6 +41,7 @@ mod datadog_orch;
 mod datadog_process;
 mod datadog_tags;
 mod grpc;
+mod host_tags;
 mod otlp;
 
 use std::collections::HashMap;
@@ -179,6 +181,8 @@ struct Inner {
     http: reqwest::Client,
     keys: Mutex<HashMap<Vec<u8>, CachedKey>>,
     limits: Mutex<HashMap<String, Limits>>,
+    /// Datadog host tags per (org, host), added to the host's series.
+    host_tags: host_tags::HostTags,
 }
 
 type Shared = Arc<Inner>;
@@ -512,7 +516,7 @@ async fn main() -> anyhow::Result<()> {
     let addr = cfg.addr.clone();
     let grpc_addr = cfg.grpc_addr.clone();
     let max_body = cfg.max_body;
-    let st: Shared = Arc::new(Inner { cfg, pg, http, keys: Mutex::default(), limits: Mutex::default() });
+    let st: Shared = Arc::new(Inner { cfg, pg, http, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default() });
     let app = Router::new()
         .route("/healthz", get(|| async { "ok" }))
         .route("/v1/traces", post(traces))
