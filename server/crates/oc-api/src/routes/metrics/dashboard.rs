@@ -794,13 +794,16 @@ mod tests {
                     prepared(&format!("sum:{name}{{*}} by {{host}}")),
                     prepared(&format!("avg:{name}{{env:prod}}")),
                     prepared(&format!("max:{name}{{*}}")),
+                    prepared(&format!("sum:{name}{{state:*}} by {{host}}")),
+                    prepared(&format!("sum:{name}{{missing:*}} by {{host}}")),
+                    prepared(&format!("sum:{name}{{!missing:*}} by {{host}}")),
                 ];
                 for p in &mut items {
                     p.scalar_kind = Some(kind);
                     p.source = source;
                     p.step = step;
                 }
-                let (sql, params) = shared_sql(&items, &[0, 1, 2], range);
+                let (sql, params) = shared_sql(&items, &[0, 1, 2, 3, 4, 5], range);
                 let actual = bind(ch.query(&sql), &params)
                     .fetch_all::<BatchRow>()
                     .await
@@ -814,6 +817,17 @@ mod tests {
                         .await
                         .unwrap();
                     let actual: Vec<_> = actual.iter().filter(|r| r.qi == index as u32).collect();
+                    if index == 4 {
+                        assert!(
+                            actual.is_empty(),
+                            "a wildcard tag must exclude missing tags"
+                        );
+                    } else if index >= 3 {
+                        assert!(
+                            !actual.is_empty(),
+                            "present tags and negated missing tags must match"
+                        );
+                    }
                     assert_eq!(
                         actual.len(),
                         expected.len(),

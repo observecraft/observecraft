@@ -203,7 +203,9 @@ pub fn metric_filter(filters: &[TagFilter], field: fn(&str) -> (String, Vec<Para
     for f in filters {
         let (expr, key_params) = field(&f.key);
         params.extend(key_params);
-        let cmp = if f.value.contains('*') {
+        let cmp = if f.value.chars().all(|c| c == '*') {
+            format!("notEmpty({expr})")
+        } else if f.value.contains('*') {
             params.push(Param::Str(like_pattern(&f.value)));
             format!("{expr} ILIKE ?")
         } else {
@@ -253,5 +255,23 @@ mod tests {
         );
         assert_eq!(f.params.len(), 8);
         assert_eq!(f.params[7], Param::Str("qa%".into()));
+    }
+
+    #[test]
+    fn wildcard_tag_values_require_a_present_value() {
+        for value in ["*", "**"] {
+            let q = parse_metric_query(&format!("sum:m{{workload:{value},!env:*}}")).unwrap();
+            let f = metric_filter(&q.filters, metric_field);
+            assert_eq!(f.clause, "(notEmpty(if(mapContains(Attributes, ?), Attributes[?], ResourceAttributes[?]))) AND NOT (notEmpty(ResourceAttributes[?]))");
+            assert_eq!(
+                f.params,
+                vec![
+                    Param::Str("workload".into()),
+                    Param::Str("workload".into()),
+                    Param::Str("workload".into()),
+                    Param::Str("deployment.environment".into())
+                ]
+            );
+        }
     }
 }
