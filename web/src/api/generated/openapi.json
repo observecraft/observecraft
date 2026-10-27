@@ -3676,7 +3676,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LogQueryRequest"
+                "$ref": "#/components/schemas/LogFacetsRequest"
               }
             }
           },
@@ -3691,6 +3691,40 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/Facet"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/fields": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "The tags and attributes of the matching logs (from the newest 10,000), to add as facets.",
+        "operationId": "fields",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogField"
                   }
                 }
               }
@@ -12517,6 +12551,46 @@
               "null"
             ],
             "description": "Trace the log was written in (OTLP logs, or `trace_id` in JSON logs); links to APM."
+          }
+        }
+      },
+      "LogFacetsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "extra": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Facets the viewer added (`kube_node`, `@http.url`), up to 20, after the built-in ones."
+          },
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "LogField": {
+        "type": "object",
+        "required": [
+          "key",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Logs of the sample that have it.",
+            "minimum": 0
+          },
+          "key": {
+            "type": "string",
+            "description": "A tag (`kube_node`) or an attribute (`@http.url`)."
           }
         }
       },

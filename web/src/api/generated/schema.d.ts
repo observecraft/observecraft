@@ -1454,6 +1454,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The tags and attributes of the matching logs (from the newest 10,000), to add as facets. */
+        post: operations["fields"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/histogram": {
         parameters: {
             query?: never;
@@ -4480,6 +4497,21 @@ export interface components {
             timestamp: number;
             /** @description Trace the log was written in (OTLP logs, or `trace_id` in JSON logs); links to APM. */
             traceId?: string | null;
+        };
+        LogFacetsRequest: {
+            /** @description Facets the viewer added (`kube_node`, `@http.url`), up to 20, after the built-in ones. */
+            extra?: string[];
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        LogField: {
+            /**
+             * Format: int64
+             * @description Logs of the sample that have it.
+             */
+            count: number;
+            /** @description A tag (`kube_node`) or an attribute (`@http.url`). */
+            key: string;
         };
         LogIndex: {
             /** Format: int64 */
@@ -8622,7 +8654,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LogQueryRequest"];
+                "application/json": components["schemas"]["LogFacetsRequest"];
             };
         };
         responses: {
@@ -8632,6 +8664,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Facet"][];
+                };
+            };
+        };
+    };
+    fields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogQueryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogField"][];
                 };
             };
         };

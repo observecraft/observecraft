@@ -88,6 +88,19 @@ export function mockSearchLogs(q: LogQuery): LogSearchResult {
     return { key, label, group, values };
   });
 
+  for (const key of q.facets ?? []) {
+    if (facets.some((f) => f.key === key)) continue;
+    const counts = new Map<string, number>();
+    for (const l of scope) {
+      const v = matchLog(l, terms, key) ? logField(l, key) : undefined;
+      if (v !== undefined) counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    const values = [...counts]
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+    facets.push({ key, label: key.replace(/^@/, ''), group: 'ADDED', values });
+  }
   return { logs: hits, total: hits.length, facets, histogram: histogramFor(hits, q.range), insights: insights(scope) };
 }
 
@@ -124,6 +137,19 @@ export function mockLogPatterns(q: LogQuery): { pattern: string; count: number; 
     .map(([pattern, g]) => ({ pattern, ...g }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 50);
+}
+
+/** Tags and `@attributes` of the newest 10,000 matching logs, most common first. */
+export function mockLogFields(q: LogQuery): { key: string; count: number }[] {
+  const terms = parseQuery(q.query);
+  const counts = new Map<string, number>();
+  for (const l of inRange(q.range)
+    .filter((l) => matchLog(l, terms))
+    .slice(0, 10_000)) {
+    const keys = [...Object.keys(l.tags ?? {}), ...Object.keys(l.attributes ?? {}).map((k) => `@${k}`)];
+    for (const k of keys) counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  return [...counts].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 }
 
 export function mockHistogram(q: LogQuery): HistogramBucket[] {

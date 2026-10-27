@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, LayoutDashboard, PanelLeft, Settings } from 'lucide-react';
-import { searchLogs, suggestLogQuery } from '../../api/client';
+import { logFields, searchLogs, suggestLogQuery } from '../../api/client';
 import type { LogEvent, LogInsight, LogSearchResult } from '../../api/types';
 import { TimePicker } from '../../components/shell/PageHeader';
 import { useTime } from '../../components/shell/TimeContext';
@@ -34,6 +34,9 @@ function downloadCsv(logs: LogEvent[]) {
   URL.revokeObjectURL(a.href);
 }
 
+/** localStorage key of the facets added with "+ Add". */
+const ADDED_FACETS_KEY = 'oc.logs.addedFacets';
+
 export function LogExplorer() {
   const { range } = useTime();
   // Deep links (e.g. Error Tracking → "View All Errors") seed the query via ?query=…
@@ -55,15 +58,35 @@ export function LogExplorer() {
   const [selectedLog, setSelectedLog] = useState<LogEvent | null>(null);
   const [result, setResult] = useState<LogSearchResult | null>(null);
 
+  // Facets this viewer added with "+ Add" (kept in this browser).
+  const [addedFacets, setAddedFacets] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(ADDED_FACETS_KEY) ?? '[]') as string[];
+    } catch {
+      return [];
+    }
+  });
+  const addFacet = useCallback((key: string) => {
+    setAddedFacets((list) => {
+      const next = list.includes(key) ? list : [...list, key];
+      try {
+        localStorage.setItem(ADDED_FACETS_KEY, JSON.stringify(next));
+      } catch {
+        // Private windows: the facet still shows until the page is left.
+      }
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    searchLogs({ range, query }).then((r) => {
+    searchLogs({ range, query, facets: addedFacets }).then((r) => {
       if (!cancelled) setResult(r);
     });
     return () => {
       cancelled = true;
     };
-  }, [range, query]);
+  }, [range, query, addedFacets]);
 
   const terms = useMemo(() => parseQuery(query), [query]);
   const setTerms = useCallback((next: Term[]) => setQuery(formatQuery(next)), []);
@@ -107,7 +130,7 @@ export function LogExplorer() {
         </div>
 
         <div className="log-body">
-          {showFacets && result && <FacetPanel facets={result.facets} terms={terms} onChange={setTerms} />}
+          {showFacets && result && <FacetPanel facets={result.facets} terms={terms} onChange={setTerms} addable={{ load: () => logFields({ range, query }), onAdd: addFacet }} />}
 
           <div className="log-results">
             <InsightsPanel insights={result?.insights ?? []} onPick={pickInsight} />

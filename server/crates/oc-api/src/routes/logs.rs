@@ -365,15 +365,39 @@ async fn values_for(st: &AppState, org: &str, range: TimeRange, terms: &[Term], 
     .await?)
 }
 
+#[derive(Deserialize, ToSchema)]
+pub struct LogFacetsRequest {
+    pub range: TimeRange,
+    #[serde(default)]
+    pub query: String,
+    /// Facets the viewer added (`kube_node`, `@http.url`), up to 20, after the built-in ones.
+    #[serde(default)]
+    pub extra: Vec<String>,
+}
+
+/// The added facets worth counting: new, plausible keys, at most 20.
+fn extra_facets(extra: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for k in extra {
+        let valid = !k.is_empty() && k.len() <= 200 && !k.chars().any(char::is_whitespace);
+        if valid && !FACETS.iter().any(|(f, _, _)| f == k) && !out.contains(k) && out.len() < 20 {
+            out.push(k.clone());
+        }
+    }
+    out
+}
+
 /// Top values per facet. Each facet ignores its own filter so unchecked values keep their counts.
-#[utoipa::path(post, path = "/api/v1/logs/facets", request_body = LogQueryRequest,
+#[utoipa::path(post, path = "/api/v1/logs/facets", request_body = LogFacetsRequest,
     responses((status = 200, body = Vec<Facet>)), tag = "logs")]
-pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogQueryRequest>) -> ApiResult<Vec<Facet>> {
+pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogFacetsRequest>) -> ApiResult<Vec<Facet>> {
     req.range.validate()?;
     let terms = parse_query(&req.query);
-    let (results, indexes) = tokio::try_join!(
+    let extra = extra_facets(&req.extra);
+    let (results, indexes, added) = tokio::try_join!(
         try_join_all(FACETS.iter().map(|(key, _, _)| values_for(&st, &org, req.range, &terms, key, None, 10, true))),
         values_for(&st, &org, req.range, &terms, "index", None, 50, true),
+        try_join_all(extra.iter().map(|key| values_for(&st, &org, req.range, &terms, key, None, 10, true))),
     )?;
     let mut out = vec![Facet { key: "index".into(), label: "Index".into(), group: "CORE".into(), values: indexes.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect() }];
     for ((key, label, group), rows) in FACETS.iter().zip(results) {
@@ -389,7 +413,46 @@ pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
         }
         out.push(Facet { key: (*key).into(), label: (*label).into(), group: (*group).into(), values });
     }
+    for (key, rows) in extra.into_iter().zip(added) {
+        out.push(Facet { label: key.trim_start_matches('@').into(), key, group: "ADDED".into(), values: rows.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect() });
+    }
     Ok(Json(out))
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct LogField {
+    /// A tag (`kube_node`) or an attribute (`@http.url`).
+    pub key: String,
+    /// Logs of the sample that have it.
+    pub count: u64,
+}
+
+#[derive(clickhouse::Row, Deserialize)]
+struct FieldRow {
+    key: String,
+    n: u64,
+}
+
+/// The tags and attributes of the matching logs (from the newest 10,000), to add as facets.
+#[utoipa::path(post, path = "/api/v1/logs/fields", request_body = LogQueryRequest,
+    responses((status = 200, body = Vec<LogField>)), tag = "logs")]
+pub async fn fields(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogQueryRequest>) -> ApiResult<Vec<LogField>> {
+    req.range.validate()?;
+    let terms = parse_query(&req.query);
+    let s = scope(&org, req.range, &terms, None);
+    let mut params = s.params;
+    params.push(Param::Int(PATTERN_SAMPLE));
+    let rows = bind(
+        st.ch(&org).query(&format!(
+            "SELECT key, count() AS n FROM (SELECT arrayJoin(arrayConcat(mapKeys(tags), arrayMap(k -> concat('@', k), mapKeys(attr)))) AS key \
+             FROM (SELECT tags, attr FROM {} WHERE {} ORDER BY timestamp DESC LIMIT ?)) GROUP BY key ORDER BY n DESC, key LIMIT 300",
+            s.table, s.clause
+        )),
+        &params,
+    )
+    .fetch_all::<FieldRow>()
+    .await?;
+    Ok(Json(rows.into_iter().map(|r| LogField { key: r.key, count: r.n }).collect()))
 }
 
 // ---------------------------------------------------------------- top values
@@ -797,6 +860,13 @@ mod tests {
         assert_eq!(p[0].sample, "job 1 failed");
         assert_eq!(p[1].pattern, "cache warm");
         assert_eq!(group_patterns(vec![row("a 1", "info", "s"), row("b", "info", "s")], 1).len(), 1);
+    }
+
+    #[test]
+    fn added_facets_are_new_valid_keys_at_most_twenty() {
+        let keys = |v: &[&str]| v.iter().map(|k| k.to_string()).collect::<Vec<_>>();
+        assert_eq!(extra_facets(&keys(&["kube_node", "service", "@http.url", "kube_node", "", "a b"])), keys(&["kube_node", "@http.url"]));
+        assert_eq!(extra_facets(&(0..30).map(|i| format!("k{i}")).collect::<Vec<_>>()).len(), 20);
     }
 
     #[test]
