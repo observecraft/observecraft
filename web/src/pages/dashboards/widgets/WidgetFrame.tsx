@@ -94,6 +94,17 @@ const GROUP_COLORS: Record<Extract<WidgetDefinition, { type: 'group' }>['color']
 export function GroupFrame({ widget, children, dragClass = 'drag-l0' }: { widget: Widget; children: ReactNode; dragClass?: string }) {
   const def = widget.definition as Extract<WidgetDefinition, { type: 'group' }>;
   const [open, setOpen] = useState(true);
+  if (def.showTitle === false)
+    return (
+      <div className="wg wg-untitled">
+        <div className={`wg-handle ${dragClass}`}>
+          <span className="wf-actions wf-nodrag wg-actions">
+            <WidgetMenu widget={widget} />
+          </span>
+        </div>
+        <div className="wg-body">{children}</div>
+      </div>
+    );
   return (
     <div className={`wg${def.compact ? ' wg-compact' : ''}`}>
       <div className={`wg-head ${dragClass}`} style={{ background: GROUP_COLORS[def.color] }}>

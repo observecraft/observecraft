@@ -50,9 +50,9 @@ export function bottom(widgets: Widget[]): number {
   return widgets.reduce((m, w) => Math.max(m, w.layout.y + w.layout.h), 0);
 }
 
-/** Group height follows its content: header (2 rows) + children + padding. */
-export function groupHeight(children: Widget[], compact = false): number {
-  return (compact ? 2 : 3) + Math.max(2, bottom(children));
+/** Group height follows its content: header (2 rows, 1 compact, none untitled) + children + padding. */
+export function groupHeight(children: Widget[], compact = false, titled = true): number {
+  return (titled ? (compact ? 2 : 3) : 1) + Math.max(2, bottom(children));
 }
 
 export const DEFAULT_SIZE: Record<WidgetType, Pick<WidgetLayout, 'w' | 'h'>> = {

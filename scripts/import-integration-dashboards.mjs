@@ -24,7 +24,20 @@ const AGENT_UNITS = {
 
 /** Integrations whose metadata.csv gives the units of the metrics an integration's dashboards use. */
 const UNIT_SOURCES = {
-  kubernetes: ['kubelet', 'kubernetes_state_core', 'kubernetes_state', 'etcd', 'kube_apiserver_metrics', 'kube_controller_manager', 'kube_scheduler', 'container', 'system_core', 'disk', 'network', 'tls'],
+  kubernetes: [
+    'kubelet',
+    'kubernetes_state_core',
+    'kubernetes_state',
+    'etcd',
+    'kube_apiserver_metrics',
+    'kube_controller_manager',
+    'kube_scheduler',
+    'container',
+    'system_core',
+    'disk',
+    'network',
+    'tls',
+  ],
 };
 
 /** Our colors for integrations-core's note and group colors (vivid_* are the saturated variants). */
@@ -57,13 +70,16 @@ export function convertDashboard(doc, integration, path, revision) {
         if (d.banner_img) {
           // The banner spans the group above its widgets.
           for (const w of children) w.layout.y += BANNER_ROWS;
-          children.unshift({ id: `upstream-${item.id ?? ++seq}-banner`, definition: banner, layout: { x: 0, y: 0, w: 12, h: BANNER_ROWS } });
+          // A banner embedded in the file is part of it; a linked one is Datadog's and becomes ours.
+          const image = d.banner_img.startsWith('data:image/') ? { ...banner, src: d.banner_img } : banner;
+          children.unshift({ id: `upstream-${item.id ?? ++seq}-banner`, definition: image, layout: { x: 0, y: 0, w: 12, h: BANNER_ROWS } });
         }
         definition = {
           type: 'group',
           title: d.title || (d.banner_img ? doc.title : ''),
           color: color(GROUP_COLORS, d.background_color, 'blue'),
           compact: false,
+          ...(d.show_title === false ? { showTitle: false } : {}),
           widgets: children,
         };
       } else if (d.type === 'note') {
@@ -98,7 +114,9 @@ export function convertDashboard(doc, integration, path, revision) {
         geometry = { x: 0, y: cursor, w: cols, h };
       }
       if (definition.type === 'group') {
-        geometry.h = Math.max(geometry.h, 2 + Math.max(0, ...definition.widgets.map((w) => w.layout.y + w.layout.h)));
+        // Two rows for the group's header, unless it has none.
+        const header = definition.showTitle === false ? 0 : 2;
+        geometry.h = Math.max(geometry.h, header + Math.max(0, ...definition.widgets.map((w) => w.layout.y + w.layout.h)));
       }
       cursor = Math.max(cursor, geometry.y + geometry.h);
       return { id: `upstream-${item.id ?? ++seq}`, definition, layout: geometry };
@@ -146,11 +164,11 @@ function csvFields(line) {
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
     if (quoted) {
-      if (c === '"' && line[i + 1] === '"') (field += '"'), i++;
+      if (c === '"' && line[i + 1] === '"') ((field += '"'), i++);
       else if (c === '"') quoted = false;
       else field += c;
     } else if (c === '"') quoted = true;
-    else if (c === ',') fields.push(field), (field = '');
+    else if (c === ',') (fields.push(field), (field = ''));
     else field += c;
   }
   fields.push(field);
@@ -196,7 +214,15 @@ async function main() {
   await writeFile(new URL('dashboards.json', target), JSON.stringify(dashboards, null, 2) + '\n');
   const sources = (UNIT_SOURCES[integration] ?? [integration]).map((s) => `${s}/metadata.csv`).join(', ');
   const header = `# Metric units from DataDog/integrations-core@${revision} (${sources}); BSD-3-Clause, see LICENSE. Agent host metrics (system.*) added here.\n`;
-  await writeFile(new URL('units.csv', target), header + [...units].sort(([a], [b]) => a.localeCompare(b)).map(([m, u]) => `${m},${u}`).join('\n') + '\n');
+  await writeFile(
+    new URL('units.csv', target),
+    header +
+      [...units]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([m, u]) => `${m},${u}`)
+        .join('\n') +
+      '\n',
+  );
   await writeFile(new URL('LICENSE', target), license);
   console.log(`Imported ${dashboards.length} upstream dashboards and ${units.size} metric units.`);
 }

@@ -343,3 +343,32 @@ test('byte axes step in round binary units', () => {
   assert.equal(byteAxisInterval(48 * 1024 ** 2), 10 * 1024 ** 2);
   assert.equal(byteAxisInterval(0), undefined);
 });
+
+test('a group banner embedded in the upstream file is kept, and a hidden group title stays hidden', () => {
+  const doc = {
+    title: 'Kubernetes - Overview',
+    layout_type: 'ordered',
+    widgets: [
+      {
+        id: 1,
+        definition: { type: 'group', title: 'Banner', show_title: false, banner_img: 'data:image/png;base64,iVBORw0KGgo=', layout_type: 'ordered', widgets: [] },
+        layout: { x: 0, y: 0, width: 12, height: 2 },
+      },
+      { id: 2, definition: { type: 'group', title: 'Infrastructure', show_title: true, layout_type: 'ordered', widgets: [] }, layout: { x: 0, y: 4, width: 12, height: 4 } },
+    ],
+  };
+  const d = convertDashboard(doc, 'kubernetes', 'assets/dashboards/kubernetes_dashboard.json', PINNED_REVISION);
+  const banner = d.widgets[0].definition;
+  assert.equal(banner.showTitle, false);
+  assert.deepEqual(banner.widgets[0].definition, { type: 'image', title: 'Kubernetes', src: 'data:image/png;base64,iVBORw0KGgo=' });
+  assert.equal(d.widgets[1].definition.showTitle, undefined);
+  // No header: the group is as tall as its banner, not two rows taller.
+  assert.equal(d.widgets[0].layout.h, 5);
+});
+
+test('a group without a header is only as tall as its widgets and padding', async () => {
+  const { groupHeight } = await import('../web/src/pages/dashboards/tree.ts');
+  const children = [{ layout: { x: 0, y: 0, w: 12, h: 5 } }];
+  assert.equal(groupHeight(children), 8);
+  assert.equal(groupHeight(children, false, false), 6);
+});

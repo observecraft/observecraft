@@ -768,6 +768,22 @@
   font-weight: var(--fw-semibold);
 }
 
+/* A group without a header: a thin strip on top to drag it by and reach its menu. */
+.wg-untitled {
+  position: relative;
+}
+
+.wg-handle {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 28px;
+  z-index: 2;
+}
+
+.wg-handle:hover .wf-actions {
+  opacity: 1;
+}
+
 .wg-compact .wg-head {
   height: 36px;
   justify-content: flex-start;
