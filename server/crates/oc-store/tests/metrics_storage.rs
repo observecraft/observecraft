@@ -170,10 +170,10 @@ async fn retention_changes_reach_existing_parts() {
     oc_store::apply_retention(&cfg, days(30)).await.expect("retention 30 again");
     wait_mutations(&ch).await;
     let expires: u32 = ch
-        .query(&format!(
+        .query(
             "SELECT toUInt32(dateDiff('day', now(), max(delete_ttl_info_max))) FROM system.parts \
-             WHERE active AND database = 'otel' AND table = 'metrics_samples' AND partition LIKE concat('%', toString(today() - 5), '%')"
-        ))
+             WHERE active AND database = 'otel' AND table = 'metrics_samples' AND partition LIKE concat('%', toString(today() - 5), '%')",
+        )
         .fetch_one()
         .await
         .expect("ttl info");
