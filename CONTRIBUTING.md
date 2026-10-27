@@ -32,7 +32,7 @@ welcome. This guide explains how to get a development environment running and wh
 |---|---|
 | Docker | Docker Desktop, OrbStack, Colima or Podman with Compose v2 |
 | Rust | ≥ 1.89 (`rustup update stable`) |
-| Node.js | ≥ 20 |
+| Node.js | 20.19+ or 22.12+ (CI uses 24) |
 | libxmlsec1 / libxslt | macOS: `brew install libxmlsec1 libxslt`; Debian/Ubuntu: `apt install libxmlsec1-dev libxml2-dev libxslt1-dev pkg-config` |
 
 `libxmlsec1` is needed for SAML signature verification. On macOS, `server/.cargo/config.toml` points the build at
