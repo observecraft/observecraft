@@ -4,6 +4,7 @@ pub mod auth;
 pub mod ci;
 pub mod dashboards;
 pub mod downtimes;
+pub mod error_tracking;
 pub mod events;
 pub mod health;
 pub mod hosts;
@@ -41,6 +42,7 @@ use crate::state::AppState;
         logs::histogram,
         logs::facets,
         logs::top,
+        error_tracking::search_issues,
         logs::patterns,
         logs::fields,
         logs::suggest,
@@ -256,6 +258,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/logs/histogram", post(logs::histogram))
         .route("/api/v1/logs/facets", post(logs::facets))
         .route("/api/v1/logs/top", post(logs::top))
+        .route("/api/v1/error-tracking/issues/search", post(error_tracking::search_issues))
         .route("/api/v1/logs/patterns", post(logs::patterns))
         .route("/api/v1/logs/fields", post(logs::fields))
         .route("/api/v1/logs/suggest", post(logs::suggest))

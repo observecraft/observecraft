@@ -8,14 +8,8 @@ export type IssueStatus = 'for_review' | 'reviewed' | 'ignored' | 'resolved';
 export type IssueStateTab = IssueStatus | 'all';
 export type Persona = 'all' | 'backend' | 'browser' | 'mobile';
 export type DataSource = 'logs' | 'rum' | 'apm';
-export type Platform = 'android' | 'ios' | 'java' | 'dotnet' | 'browser' | 'react-native' | 'node' | 'python' | 'go';
-export type SuspectedCause =
-  | 'code_exception'
-  | 'failed_request'
-  | 'lost_connection'
-  | 'invalid_argument'
-  | 'illegal_object_access'
-  | 'unknown';
+export type Platform = 'android' | 'ios' | 'java' | 'dotnet' | 'browser' | 'react-native' | 'node' | 'python' | 'go' | 'unknown';
+export type SuspectedCause = 'code_exception' | 'failed_request' | 'lost_connection' | 'invalid_argument' | 'illegal_object_access' | 'unknown';
 export type IssueSort = 'relevance' | 'count' | 'last_seen' | 'first_seen';
 
 export interface User {

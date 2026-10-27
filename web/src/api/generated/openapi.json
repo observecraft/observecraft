@@ -1809,6 +1809,37 @@
         }
       }
     },
+    "/api/v1/error-tracking/issues/search": {
+      "post": {
+        "tags": [
+          "error-tracking"
+        ],
+        "summary": "Issues from the organization's error logs in the range (first and last seen within it).",
+        "operationId": "search_issues",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueSearchPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/events/search": {
       "post": {
         "tags": [
@@ -11436,6 +11467,169 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "IssueOut": {
+        "type": "object",
+        "required": [
+          "id",
+          "errorType",
+          "message",
+          "platform",
+          "persona",
+          "source",
+          "service",
+          "firstSeen",
+          "lastSeen",
+          "count",
+          "sparkline",
+          "status",
+          "isCrash",
+          "isRegression"
+        ],
+        "properties": {
+          "assignee": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "errorType": {
+            "type": "string"
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isCrash": {
+            "type": "boolean"
+          },
+          "isRegression": {
+            "type": "boolean"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string"
+          },
+          "persona": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "sparkline": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "suspectedCause": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "IssueSearchPage": {
+        "type": "object",
+        "required": [
+          "issues",
+          "totals"
+        ],
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IssueOut"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "totals": {
+            "type": "object",
+            "description": "Issues per state tab (for_review, reviewed, ignored, resolved, all).",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "IssueSearchRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "limit"
+        ],
+        "properties": {
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Offset into the result, as returned in `nextCursor`."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "sort": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "relevance | count | last_seen | first_seen"
+          },
+          "source": {
+            "type": "string",
+            "description": "logs | rum | apm | all"
+          },
+          "state": {
+            "type": "string",
+            "description": "for_review | reviewed | ignored | resolved | all"
           }
         }
       },

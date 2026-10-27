@@ -431,6 +431,8 @@ function frames(s: StoredIssue, r: Rand): { title: string; frames: StackFrame[] 
   const f = (index: number, module: string, symbol: string, extra: Partial<StackFrame> = {}): StackFrame => ({ index, module, symbol, inApp: false, ...extra });
   const msg = b.message.replace(/\bX\b/g, () => String(Math.floor(r() * 9) + 1));
   switch (b.platform) {
+    case 'unknown':
+      return { title: msg, frames: [] };
     case 'android':
       if (b.errorType === 'SIGSEGV') {
         const list: StackFrame[] = [

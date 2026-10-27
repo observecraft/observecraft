@@ -117,10 +117,10 @@ impl From<LogRow> for LogEvent {
 
 /// WHERE clause scoping a query to the org and range, plus the search terms, and the table they
 /// run against.
-struct Scope {
-    clause: String,
-    params: Vec<Param>,
-    table: &'static str,
+pub(crate) struct Scope {
+    pub(crate) clause: String,
+    pub(crate) params: Vec<Param>,
+    pub(crate) table: &'static str,
 }
 
 /// `index:rehydrated` searches logs loaded back from archives instead of the live index.
@@ -133,7 +133,7 @@ fn index_table(terms: &[Term]) -> &'static str {
     }
 }
 
-fn scope(org: &str, range: TimeRange, terms: &[Term], skip_key: Option<&str>) -> Scope {
+pub(crate) fn scope(org: &str, range: TimeRange, terms: &[Term], skip_key: Option<&str>) -> Scope {
     let table = index_table(terms);
     // `index:rehydrated` picks the table; it isn't an index_name filter.
     let filtered: Vec<Term> = terms.iter().filter(|t| !(table == "logs_rehydrated" && matches!(t, Term::Tag { key, .. } if key == "index"))).cloned().collect();
@@ -556,7 +556,7 @@ fn variable_part(p: &str) -> bool {
 }
 
 /// A message's pattern: its variable parts become `*` (Log Explorer → Group into Patterns).
-fn pattern_of(message: &str) -> String {
+pub(crate) fn pattern_of(message: &str) -> String {
     // Without ANSI colors (`ESC[94m`).
     let mut text = String::with_capacity(message.len());
     let mut chars = message.chars().peekable();

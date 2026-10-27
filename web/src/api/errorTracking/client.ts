@@ -7,9 +7,10 @@
 //   POST /api/v1/error-tracking/issues/:id/samples getErrorSample
 //   GET  /api/v1/users                              listUsers
 //   GET  /api/v1/teams                              listTeams
-// The server has no Error Tracking yet: these resolve against the in-browser mock in mock mode, and in
-// live mode fail with an explanation instead of showing example issues as if they were real.
-import { API_MODE } from '../http';
+// Live: issues come from the server (error logs grouped into issues); the rest (issue detail, states,
+// comments, samples) isn't on the server yet and fails with an explanation rather than showing
+// example data as if it were real. Mock mode answers everything in the browser.
+import { API_MODE, post } from '../http';
 import * as mock from '../mock/errorTracking';
 import type { TimeRange } from '../types';
 
@@ -19,13 +20,16 @@ function requireMock(): void {
 }
 import type { ActivityEntry, ErrorSamplePage, ErrorSampleRequest, IssueDetail, IssueFacets, IssueFacetsRequest, IssuePatch, IssueSearchPage, IssueSearchRequest, QuerySuggestion, User } from './types';
 
-export function searchIssues(req: IssueSearchRequest): Promise<IssueSearchPage> {
-  requireMock();
-  return mock.searchIssues(req);
+export async function searchIssues(req: IssueSearchRequest): Promise<IssueSearchPage> {
+  if (API_MODE !== 'live') return mock.searchIssues(req);
+  // Issues from the organization's error logs (persona, assignee, team and cause filters come with saved issues).
+  const page = await post('/api/v1/error-tracking/issues/search', { range: req.range, query: req.query, state: req.state, source: req.source, sort: req.sort, cursor: req.cursor, limit: req.limit });
+  return page as unknown as IssueSearchPage;
 }
 
 export function issueFacets(req: IssueFacetsRequest): Promise<IssueFacets> {
-  requireMock();
+  // Facets over real issues come next; until then live shows none.
+  if (API_MODE === 'live') return Promise.resolve({ facets: [], totalAvailable: 0 });
   return mock.issueFacets(req);
 }
 

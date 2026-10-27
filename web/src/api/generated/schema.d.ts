@@ -846,6 +846,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/error-tracking/issues/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issues from the organization's error logs in the range (first and last seen within it). */
+        post: operations["search_issues"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/search": {
         parameters: {
             query?: never;
@@ -4193,6 +4210,49 @@ export interface components {
             emails: string[];
             roleIds?: string[];
         };
+        IssueOut: {
+            assignee?: string | null;
+            /** Format: int64 */
+            count: number;
+            errorType: string;
+            /** Format: int64 */
+            firstSeen: number;
+            id: string;
+            isCrash: boolean;
+            isRegression: boolean;
+            /** Format: int64 */
+            lastSeen: number;
+            message: string;
+            persona: string;
+            platform: string;
+            service: string;
+            source: string;
+            sparkline: number[];
+            status: string;
+            suspectedCause?: string | null;
+            team?: string | null;
+        };
+        IssueSearchPage: {
+            issues: components["schemas"]["IssueOut"][];
+            nextCursor?: string | null;
+            /** @description Issues per state tab (for_review, reviewed, ignored, resolved, all). */
+            totals: {
+                [key: string]: number;
+            };
+        };
+        IssueSearchRequest: {
+            /** @description Offset into the result, as returned in `nextCursor`. */
+            cursor?: string | null;
+            limit: number;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /** @description relevance | count | last_seen | first_seen */
+            sort?: string | null;
+            /** @description logs | rum | apm | all */
+            source?: string;
+            /** @description for_review | reviewed | ignored | resolved | all */
+            state?: string;
+        };
         KubeContainer: {
             cpu: components["schemas"]["KubeUtilization"];
             image: string;
@@ -7368,6 +7428,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    search_issues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueSearchPage"];
+                };
             };
         };
     };
