@@ -74,9 +74,10 @@ export function groupLabel(tags: Record<string, string>): string {
 
 /** Resolves `$vars` in a query string against a dashboard's template variables. Invalid queries pass through. */
 export function resolveQuery(query: string, tvs: TemplateVariable[], values: TemplateVarValues): string {
-  const parsed = parseMetricQuery(query);
-  if (!parsed) return query;
   const prefixes = Object.fromEntries(tvs.map((t) => [t.name, t.prefix]));
   const vals = Object.fromEntries(tvs.map((t) => [t.name, values[t.name] ?? t.default]));
+  const expanded = query.replace(/\$([\w]+)\.value\b/g, (reference, name: string) => vals[name] ?? reference);
+  const parsed = parseMetricQuery(expanded);
+  if (!parsed) return expanded;
   return formatMetricQuery(resolveTemplateVars(parsed, vals, prefixes));
 }

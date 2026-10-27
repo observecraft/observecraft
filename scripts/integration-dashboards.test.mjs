@@ -3,6 +3,14 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { convertDashboard, PINNED_REVISION } from './import-integration-dashboards.mjs';
 import { formula, metricPlan, preparePanelQuery } from '../web/src/api/integrations/evaluate.ts';
+import { resolveQuery } from '../web/src/lib/metricQuery.ts';
+
+test('explicit template values resolve StatefulSet filters and preserve the selected workload', () => {
+  const variables = [{ name: 'kube_stateful_set', prefix: 'kube_stateful_set', default: '*' }];
+  const query = 'sum:kubernetes.cpu.requests{kube_stateful_set:$kube_stateful_set.value}';
+  assert.equal(resolveQuery(query, variables, {}), 'sum:kubernetes.cpu.requests{kube_stateful_set:*}');
+  assert.equal(resolveQuery(query, variables, { kube_stateful_set: 'catalog-store' }), 'sum:kubernetes.cpu.requests{kube_stateful_set:catalog-store}');
+});
 
 const s = (name, values) => [{ name, points: values.map((v, i) => [i * 1000, v]) }];
 test('formula precedence, scaling, missing points and division by zero', () => {
