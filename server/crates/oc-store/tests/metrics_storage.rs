@@ -17,6 +17,8 @@ struct Rollup {
     count: u64,
     first: f64,
     last: f64,
+    start: i64,
+    end: i64,
 }
 
 #[tokio::test]
@@ -107,13 +109,15 @@ async fn ingested_points_become_series_samples_and_rollups() {
     for table in ["metrics_rollup_5m", "metrics_rollup_1h"] {
         let r = ch
             .query(&format!(
-                "SELECT min(Min) AS min, max(Max) AS max, sum(Sum) AS sum, sum(Count) AS count, argMinMerge(First) AS first, argMaxMerge(Last) AS last \
+                "SELECT min(Min) AS min, max(Max) AS max, sum(Sum) AS sum, sum(Count) AS count, argMinMerge(First) AS first, argMaxMerge(Last) AS last, \
+                 toInt64(toUnixTimestamp(min(Start))) AS start, toInt64(toUnixTimestamp(max(End))) AS end \
                  FROM otel.{table} WHERE {o} AND MetricName = 'system.cpu.utilization' AND SeriesId = \
                  (SELECT any(SeriesId) FROM otel.metrics_series WHERE {o} AND ServiceName = 'storefront-api')"
             ))
             .fetch_one::<Rollup>()
             .await
             .unwrap_or_else(|e| panic!("{table}: {e}"));
-        assert_eq!(r, Rollup { min: 0.25, max: 0.75, sum: 1.5, count: 3, first: 0.25, last: 0.5 }, "{table}");
+        // Start and End are the first and last sample's time: rates divide by the time samples span.
+        assert_eq!(r, Rollup { min: 0.25, max: 0.75, sum: 1.5, count: 3, first: 0.25, last: 0.5, start: 1793095210, end: 1793095330 }, "{table}");
     }
 }

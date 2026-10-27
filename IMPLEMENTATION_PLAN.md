@@ -64,17 +64,33 @@ Status: Complete
 ## Stage 2: Query layer on the new tables
 
 Goal:
-- `routes/metrics.rs` (`inner_query`, `dist_query`, `metric_kind`) reads series + samples or rollups.
-- A resolution picker chooses raw, 5m or 1h from the range, the step and the org's tiers.
-- Ranges up to the org's retention replace the 31-day cap for metrics.
+- `routes/metrics.rs` reads gauges and sums from series + samples or the rollups:
+  - `points_query` builds the SQL for either source;
+  - `resolution` picks raw, 5m or 1h from the range, the step and the tiers;
+  - `metric_kind` probes the series table first.
+- Ranges that start before an org's data reached the new storage read the exporter's tables (the transition).
+- Metric ranges may span the longest retention instead of 31 days.
 
 Success criteria:
-- Parity tests show that the same data gives the same series and values through the old and new paths, within
-  rounding for rollups.
+- Parity tests show that the same data gives the same series and values through the old and new paths.
 - Unit tests cover resolution selection.
 - A dashboard over 1h reads ≥10× fewer bytes than today (measured as in the ADR).
 
-Status: Not Started
+Verified:
+- `new_storage_matches_the_exporter_tables`: gauge, cumulative counter with a reset and delta sum; avg, max and sum,
+  with and without filters and `by`; steps 30s (samples), 10m (5m rollup) and 1h (1h rollup).
+  - Identical series and values.
+  - A mutation of the rollup formula makes it fail.
+- Rollups carry `Start` and `End`, the first and last sample time, so counter rates over rollups equal those over
+  raw points.
+- On one real hour from dev (19.3M points):
+  - the generated SQL of `avg:<metric>{*} by {kube_namespace}` takes 28 ms and reads 9.4 MB, against 383 ms and
+    209 MB on the exporter's table;
+  - all 1799 points are equal;
+  - the same hour is stored in 49 MiB (samples, series and both rollups), against 1.04 GiB.
+- Not done here: distributions still read the exporter's tables (stage 5).
+
+Status: Complete
 
 ## Stage 3: Remaining readers
 

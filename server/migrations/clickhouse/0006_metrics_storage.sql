@@ -4,7 +4,7 @@
 -- there). Materialized views normalize each insert into metrics_points (Null too) and fan it out to:
 --   metrics_series     one row per series: its labels, type and unit (labels are stored once, not per point)
 --   metrics_samples    (series, time, value) per point
---   metrics_rollup_5m  min / max / sum / count / first / last per series and 5 minutes
+--   metrics_rollup_5m  min / max / sum / count / first / last (and their times) per series and 5 minutes
 --   metrics_rollup_1h  the same per hour
 -- A series is identified by its org, metric name, type and sorted labels, so the order a sender uses
 -- doesn't matter; the organization's own oc.* attributes (org, retention) are not labels. In a
@@ -182,6 +182,9 @@ CREATE TABLE IF NOT EXISTS otel.metrics_rollup_5m${LOCAL} ${ON_CLUSTER}
     `Count` SimpleAggregateFunction(sum, UInt64) CODEC(T64, ZSTD(1)),
     `First` AggregateFunction(argMin, Float64, DateTime64(3)),
     `Last` AggregateFunction(argMax, Float64, DateTime64(3)),
+    -- First and last sample time: rates divide by the time the samples span, as on raw samples.
+    `Start` SimpleAggregateFunction(min, DateTime64(3)) CODEC(Delta, ZSTD(1)),
+    `End` SimpleAggregateFunction(max, DateTime64(3)) CODEC(Delta, ZSTD(1)),
     `RetentionDays` UInt16
 )
 ENGINE = ${REPLICATED}AggregatingMergeTree
@@ -203,6 +206,8 @@ SELECT
     count() AS Count,
     argMinState(Value, TimeUnix) AS First,
     argMaxState(Value, TimeUnix) AS Last,
+    min(TimeUnix) AS Start,
+    max(TimeUnix) AS End,
     Retention5mDays AS RetentionDays
 FROM otel.metrics_points${LOCAL}
 GROUP BY OrgId, MetricName, SeriesId, Bucket, RetentionDays;
@@ -220,6 +225,9 @@ CREATE TABLE IF NOT EXISTS otel.metrics_rollup_1h${LOCAL} ${ON_CLUSTER}
     `Count` SimpleAggregateFunction(sum, UInt64) CODEC(T64, ZSTD(1)),
     `First` AggregateFunction(argMin, Float64, DateTime64(3)),
     `Last` AggregateFunction(argMax, Float64, DateTime64(3)),
+    -- First and last sample time: rates divide by the time the samples span, as on raw samples.
+    `Start` SimpleAggregateFunction(min, DateTime64(3)) CODEC(Delta, ZSTD(1)),
+    `End` SimpleAggregateFunction(max, DateTime64(3)) CODEC(Delta, ZSTD(1)),
     `RetentionDays` UInt16
 )
 ENGINE = ${REPLICATED}AggregatingMergeTree
@@ -241,6 +249,8 @@ SELECT
     count() AS Count,
     argMinState(Value, TimeUnix) AS First,
     argMaxState(Value, TimeUnix) AS Last,
+    min(TimeUnix) AS Start,
+    max(TimeUnix) AS End,
     Retention1hDays AS RetentionDays
 FROM otel.metrics_points${LOCAL}
 GROUP BY OrgId, MetricName, SeriesId, Bucket, RetentionDays;
