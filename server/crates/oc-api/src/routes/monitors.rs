@@ -21,6 +21,7 @@ use super::downtimes::{load_downtimes, Downtime};
 use super::identity::MemberRef;
 use super::logs::{log_counts, parse_log_monitor, TimeRange};
 use super::metrics::{evaluate_query, Group};
+use super::monitor_formula::{combine, parse_formula, Expr};
 use super::monitor_engine::{
     backtest, group_key, parse_group_key, recipients, render_message, worst, MessageContext, MonitorOptions, MonitorStatus, DAY_MS,
 };
@@ -68,8 +69,17 @@ async fn monitor_series(st: &AppState, org: &str, kind: MonitorType, query: &str
         let step = ((range.to - range.from) / points.max(1) as i64).max(60_000);
         return log_counts(st, org, &search, &by, range, step).await;
     }
-    let q = parse_metric_query(query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
-    evaluate_query(st, org, &q, range, points).await
+    let f = parse_formula(query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+    let mut results = Vec::with_capacity(f.queries.len());
+    for q in &f.queries {
+        let q = parse_metric_query(q).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+        results.push(evaluate_query(st, org, &q, range, points).await?);
+    }
+    // One plain query: its groups as they are.
+    if f.expr == Expr::Query(0) {
+        return Ok(results.remove(0));
+    }
+    Ok(combine(&f.expr, &results))
 }
 
 // ================================================================ loading
@@ -593,8 +603,9 @@ fn validate(input: &mut MonitorInput) -> Result<(), ApiError> {
     if input.r#type == MonitorType::Log {
         parse_log_monitor(&input.query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
     } else {
-        let q = parse_metric_query(&input.query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
-        if input.r#type == MonitorType::Apm && !q.metric.starts_with("trace.") {
+        let f = parse_formula(&input.query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+        let apm_only = f.queries.iter().all(|q| parse_metric_query(q).is_ok_and(|q| q.metric.starts_with("trace.")));
+        if input.r#type == MonitorType::Apm && !apm_only {
             return Err(ApiError::BadRequest("APM monitors use trace.* metrics".into()));
         }
     }
@@ -1327,4 +1338,28 @@ pub(crate) async fn summary(st: &AppState, org: &str, text: &str) -> Result<Vec<
     out.sort_by(|a, b| b.2.severity().cmp(&a.2.severity()).then_with(|| a.1.cmp(&b.1)));
     out.truncate(500);
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn input(kind: &str, query: &str) -> MonitorInput {
+        serde_json::from_value(serde_json::json!({
+            "name": "m", "type": kind, "query": query, "priority": null,
+            "options": {"detection": "threshold", "timeAggregation": "max", "windowMinutes": 15, "comparator": "above_or_equal",
+                        "thresholds": {"critical": 2.0, "warning": null, "criticalRecovery": null, "warningRecovery": null}}
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn metric_monitors_accept_arithmetic_between_queries() {
+        assert!(validate(&mut input("metric", "sum:a.desired{*} by {d} - sum:a.ready{*} by {d}")).is_ok());
+        assert!(validate(&mut input("metric", "default_zero(sum:n{s:ok} by {c} * 100 / sum:n{*} by {c})")).is_ok());
+        assert!(validate(&mut input("metric", "sum:a{*} -")).is_err());
+        // APM monitors: every query is a trace metric.
+        assert!(validate(&mut input("apm", "sum:trace.http.request.errors{*} / sum:trace.http.request.hits{*}")).is_ok());
+        assert!(validate(&mut input("apm", "sum:trace.http.request.errors{*} / sum:system.load.1{*}")).is_err());
+    }
 }

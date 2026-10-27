@@ -4,6 +4,7 @@
 // node scripts/import-integration-dashboards.mjs [integration] [commit SHA]
 import { mkdir, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import { formulaQueries, parseMetricQuery } from '../web/src/lib/metricQuery.ts';
 export const PINNED_REVISION = 'c7dbc72cac1946294acda77f6491ecd081d9b498';
 
 /** Units of the Agent's own host metrics (they have no integrations-core metadata.csv); memory is in MiB. */
@@ -160,16 +161,17 @@ const COMPARATORS = { '>': 'above', '>=': 'above_or_equal', '<': 'below', '<=': 
 
 /**
  * A recommended monitor (assets/monitors/*.json `definition`) as a monitor template, or null when its
- * query isn't one metric query: arithmetic between queries (`a - b`, `a * 100 / b`) has no single-query form.
+ * query is neither a metric query nor arithmetic between metric queries (`a - b`, `a * 100 / b`).
  */
 export function convertMonitor(def, integration, title) {
   const m = /^(?:change\((\w+)\(last_(\d+)m\),last_(\d+)m\)|(\w+)\(last_(\d+)m\)):(.+?)\s*(>=|<=|>|<)\s*(-?[\d.]+)$/.exec(def.query?.trim() ?? '');
   if (!m) return null;
   const [, changeAgg, changeWindow, changeShift, agg, window, rawExpr, op] = m;
-  // default_zero(): no data counts as 0, which a threshold above zero treats like no data anyway.
-  const expr = rawExpr.replace(/^default_zero\((.*)\)$/, '$1').trim();
-  const outside = expr.replace(/\{[^}]*\}/g, '{}');
-  if (/\s[-+*/]\s/.test(outside) || !/^(avg|sum|min|max):[\w.]+\{[^}]*\}(\s+by\s+\{[^}]*\})?$/.test(expr)) return null;
+  // default_zero() around one query: no data counts as 0, which a threshold above zero treats like no data
+  // anyway. Around a formula it stays (a ratio's missing values matter there).
+  const single = rawExpr.replace(/^default_zero\((.*)\)$/, '$1').trim();
+  const expr = parseMetricQuery(single) ? single : rawExpr.trim();
+  if (!formulaQueries(expr)) return null;
   const t = def.options?.thresholds ?? {};
   const change = Boolean(changeAgg);
   return {

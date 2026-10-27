@@ -19,6 +19,7 @@ pub mod log_indexes;
 pub mod logs;
 pub mod metrics;
 pub mod monitor_engine;
+pub mod monitor_formula;
 pub mod monitors;
 pub mod network;
 pub mod notifications;

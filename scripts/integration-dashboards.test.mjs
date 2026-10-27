@@ -6,7 +6,7 @@ import { formula, metricPlan, preparePanelQuery, timeShifts } from '../web/src/a
 import { byteAxisInterval, formatMetricValue } from '../web/src/api/integrations/units.ts';
 import { changeRows } from '../web/src/api/integrations/change.ts';
 import { shades } from '../web/src/theme/shades.ts';
-import { resolveQuery } from '../web/src/lib/metricQuery.ts';
+import { formulaQueries, resolveQuery } from '../web/src/lib/metricQuery.ts';
 
 test('explicit template values resolve StatefulSet filters and preserve the selected workload', () => {
   const variables = [{ name: 'kube_stateful_set', prefix: 'kube_stateful_set', default: '*' }];
@@ -530,7 +530,7 @@ test('metric descriptions come from metadata.csv, one line each', () => {
   ]);
 });
 
-test('recommended monitors from integrations-core become templates; ones our monitors cannot express are skipped', () => {
+test('recommended monitors from integrations-core become templates, formulas between queries included', () => {
   const crash = convertMonitor(
     {
       name: 'Pod {{pod_name.name}} is CrashloopBackOff',
@@ -556,8 +556,31 @@ test('recommended monitors from integrations-core become templates; ones our mon
   );
   assert.deepEqual([restarts.options.detection, restarts.options.changeMode, restarts.options.changeMinutes, restarts.options.thresholds.warning], ['change', 'change', 5, 3]);
 
-  // Arithmetic between queries isn't a single monitor query.
-  assert.equal(convertMonitor({ name: 'd', message: '', query: 'avg(last_15m):avg:a.b{*} by {x} - avg:c.d{*} by {x} >= 2', options: { thresholds: { critical: 2 } } }, 'kubernetes', 'd'), null);
+  // Arithmetic between queries stays a formula (default_zero kept around it).
+  const replicas = convertMonitor({ name: 'd', message: '', query: 'avg(last_15m):avg:a.b{*} by {x} - avg:c.d{*} by {x} >= 2', options: { thresholds: { critical: 2 } } }, 'kubernetes', 'd');
+  assert.equal(replicas.query, 'avg:a.b{*} by {x} - avg:c.d{*} by {x}');
+  const nodes = convertMonitor(
+    { name: 'n', message: '', query: 'max(last_15m):default_zero(sum:n.s{status:schedulable} by {c} * 100 / sum:n.s{*} by {c}) < 80', options: { thresholds: { critical: 80 } } },
+    'kubernetes',
+    'n',
+  );
+  assert.equal(nodes.query, 'default_zero(sum:n.s{status:schedulable} by {c} * 100 / sum:n.s{*} by {c})');
+  assert.equal(convertMonitor({ name: 'x', message: '', query: 'avg(last_5m):avg:a.b{*}.rollup(sum, 60) > 1', options: {} }, 'kubernetes', 'x'), null);
+});
+
+test('monitor formulas: the metric queries of arithmetic between queries, or null', () => {
+  assert.deepEqual(
+    formulaQueries('sum:a.desired{*} by {d} - sum:a.ready{env:prod} by {d}').map((q) => [q.metric, q.by]),
+    [
+      ['a.desired', ['d']],
+      ['a.ready', ['d']],
+    ],
+  );
+  assert.equal(formulaQueries('default_zero(sum:n{s:ok} by {c} * 100 / sum:n{*} by {c})').length, 2);
+  assert.equal(formulaQueries('avg:system.load.1{*}').length, 1);
+  assert.equal(formulaQueries('sum:a{*} -'), null);
+  assert.equal(formulaQueries('(sum:a{*}'), null);
+  assert.equal(formulaQueries('sum:a{*} % 2'), null);
 });
 
 test('event list rows show the text without Markdown markers', async () => {

@@ -15,6 +15,30 @@ export interface ParsedMetricQuery {
 
 const RE = /^\s*(avg|sum|min|max):([\w.]+)\{([^}]*)\}(?:\s+by\s+\{([^}]*)\})?\s*$/;
 
+const QUERY_IN_FORMULA = /(?:avg|sum|min|max):[\w.]+\{[^}]*\}(?:\s+by\s+\{[^}]*\})?/g;
+
+/**
+ * The metric queries of a monitor formula (`sum:a{*} by {x} - sum:b{*} by {x}`, `default_zero(… * 100 / …)`),
+ * or null when it isn't one: arithmetic (+ - * /), numbers, parentheses and default_zero() between queries.
+ */
+export function formulaQueries(q: string): ParsedMetricQuery[] | null {
+  const queries = (q.match(QUERY_IN_FORMULA) ?? []).map(parseMetricQuery);
+  if (queries.length === 0 || queries.some((x) => x === null)) return null;
+  const rest = q.replace(QUERY_IN_FORMULA, ' Q ').replace(/default_zero\(/g, '(');
+  // Operands and operators alternate: Q or a number, then an operator, …; parentheses balance.
+  const tokens = rest.match(/Q|\d+(?:\.\d+)?|[-+*/()]|\S/g) ?? [];
+  let depth = 0;
+  let expectOperand = true;
+  for (const t of tokens) {
+    if (t === '(' && expectOperand) depth++;
+    else if (t === ')' && !expectOperand && depth > 0) depth--;
+    else if ((t === 'Q' || /^\d/.test(t)) && expectOperand) expectOperand = false;
+    else if ('+-*/'.includes(t) && t.length === 1 && !expectOperand) expectOperand = true;
+    else return null;
+  }
+  return depth === 0 && !expectOperand ? (queries as ParsedMetricQuery[]) : null;
+}
+
 export function parseMetricQuery(q: string): ParsedMetricQuery | null {
   const m = RE.exec(q);
   if (!m) return null;

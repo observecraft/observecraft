@@ -27,7 +27,7 @@ import { previewMonitor, sendTestNotification, type MonitorInput, type MonitorOp
 import { Chart } from '../../components/charts/Chart';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
-import { formatMetricQuery, parseMetricQuery } from '../../lib/metricQuery';
+import { formatMetricQuery, formulaQueries, parseMetricQuery } from '../../lib/metricQuery';
 import { palette } from '../../theme/chartTheme';
 import { useTeams } from '../settings/queries';
 import { fmtValue, RecipientIcon, recipientLabel } from './common';
@@ -178,7 +178,7 @@ function EditorForm({ editing, detail, routeType }: { editing?: number; detail?:
 
   const isLog = form.type === 'log';
   const parsedLog = isLog ? parseLogQuery(form.query) : null;
-  const parsed = isLog ? (parsedLog ? { by: parsedLog.by } : null) : parseMetricQuery(form.query);
+  const parsed = isLog ? (parsedLog ? { by: parsedLog.by } : null) : (formulaQueries(form.query)?.[0] ?? null);
   const critical = num(form.critical);
   const thresholds = {
     critical: critical ?? 0,
@@ -576,7 +576,7 @@ function QueryBuilder({ type, query, onChange }: { type: MonitorType; query: str
         <div className="mon-qb-row">
           <span className="mon-qb-letter">a</span>
           <input className="mon-qb-raw" value={query} onChange={(e) => onChange(e.target.value)} spellCheck={false} aria-label="Metric query" />
-          {!parsed && (
+          {!formulaQueries(query) && (
             <span className="form-error">
               Expected avg:metric.name{'{tag:value}'} by {'{tag}'}
             </span>
@@ -664,7 +664,7 @@ function FromInput({ value, tags, onChange }: { value: string; tags: string[]; o
 function Backtest({ type, query, options, hasThreshold }: { type: MonitorType; query: string; options: MonitorOptions; hasThreshold: boolean }) {
   const [mode, setMode] = useState<'evaluated' | 'raw'>('evaluated');
   const [rangeKey, setRangeKey] = useState('1h');
-  const valid = type === 'log' ? !!parseLogQuery(query) : !!parseMetricQuery(query);
+  const valid = type === 'log' ? !!parseLogQuery(query) : !!formulaQueries(query);
   // Without a threshold yet, preview with one that never triggers.
   const effective: MonitorOptions = hasThreshold
     ? options
