@@ -312,22 +312,52 @@ fn retention_ttls(r: RetentionDays) -> Vec<(&'static str, String)> {
         ("otel.metrics_samples", format!("toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics)),
         ("otel.metrics_rollup_5m", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_5m)),
         ("otel.metrics_rollup_1h", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_1h)),
+        ("otel.metrics_dist_samples", format!("toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics)),
+        ("otel.metrics_dist_rollup_5m", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_5m)),
+        ("otel.metrics_dist_rollup_1h", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_1h)),
         ("otel.metrics_series", format!("LastSeen + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics.max(r.metrics_5m).max(r.metrics_1h))),
     ]
 }
 
-/// Sets the tables' TTLs. Indexed logs and spans carry their own retention per row (set by the org's
-/// log indexes and span retention); the rest use install-wide values. A metadata change only:
-/// expired parts are dropped at the next merges instead of rewriting the tables now.
+/// Sets the tables' TTLs. Indexed logs, spans and the metrics storage carry their own retention per
+/// row (the org's choice); the rest, and rows without a choice, use install-wide values. A changed
+/// TTL is recalculated for existing parts without rewriting them; expired parts are dropped at the
+/// next merges.
 pub async fn apply_retention(cfg: &ClickHouseConfig, r: RetentionDays) -> anyhow::Result<()> {
     let admin = cfg.admin().with_option("materialize_ttl_after_modify", "0");
+    let on = cfg.on_cluster();
     for (table, ttl) in retention_ttls(r) {
-        let (local, on) = (cfg.local(table), cfg.on_cluster());
+        let local = cfg.local(table);
+        let (db, name) = local.split_once('.').unwrap_or(("default", &local));
+        let definition = || {
+            admin
+                .query("SELECT engine_full FROM system.tables WHERE database = ? AND name = ?")
+                .bind(db)
+                .bind(name)
+                .fetch_one::<String>()
+        };
+        let before = definition().await.with_context(|| format!("definition of {table}"))?;
         admin
             .query(&format!("ALTER TABLE {local}{on} MODIFY TTL {ttl}"))
             .execute()
             .await
             .with_context(|| format!("set retention of {table}"))?;
+        // A new TTL only applies to parts written from now on: recalculate the existing parts' TTL
+        // (no rewrite; expired parts are dropped by the next merges). Only when it changed, and in
+        // the background so startup doesn't wait on big tables.
+        if definition().await? != before {
+            admin
+                .query(&format!("ALTER TABLE {local}{on} MODIFY SETTING materialize_ttl_recalculate_only = 1"))
+                .execute()
+                .await
+                .with_context(|| format!("recalculate-only TTL on {table}"))?;
+            admin
+                .query(&format!("ALTER TABLE {local}{on} MATERIALIZE TTL"))
+                .execute()
+                .await
+                .with_context(|| format!("materialize retention of {table}"))?;
+            tracing::info!(table, ttl, "retention changed; recalculating existing parts");
+        }
     }
     tracing::info!(traces = r.traces, traces_max = r.traces_max, metrics = r.metrics, metrics_5m = r.metrics_5m, metrics_1h = r.metrics_1h, ci = r.ci, raw_logs_hours = r.raw_logs_hours, "retention applied");
     Ok(())
@@ -433,6 +463,10 @@ mod tests {
         assert_eq!(ttl("otel.metrics_samples"), "toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, 30, RetentionDays))");
         assert_eq!(ttl("otel.metrics_rollup_5m"), "Bucket + toIntervalDay(if(RetentionDays = 0, 90, RetentionDays))");
         assert_eq!(ttl("otel.metrics_rollup_1h"), "Bucket + toIntervalDay(if(RetentionDays = 0, 395, RetentionDays))");
+        // Distributions follow the same retention.
+        assert_eq!(ttl("otel.metrics_dist_samples"), "toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, 30, RetentionDays))");
+        assert_eq!(ttl("otel.metrics_dist_rollup_5m"), "Bucket + toIntervalDay(if(RetentionDays = 0, 90, RetentionDays))");
+        assert_eq!(ttl("otel.metrics_dist_rollup_1h"), "Bucket + toIntervalDay(if(RetentionDays = 0, 395, RetentionDays))");
         // A series lives as long as the longest of its data.
         assert_eq!(ttl("otel.metrics_series"), "LastSeen + toIntervalDay(if(RetentionDays = 0, 395, RetentionDays))");
     }

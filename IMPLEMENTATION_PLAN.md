@@ -164,15 +164,30 @@ Decision (2026-10-27): existing metric data doesn't need to survive the upgrade.
 - Parity tests keep the exporter-table SQL as their oracle.
 
 Goal:
-- Histograms, exponential histograms and summaries on the same model: series, samples and rollups.
-- Install-wide TTL changes reach existing parts: `MATERIALIZE TTL` with `materialize_ttl_recalculate_only`.
+- Histograms, exponential histograms and summaries on the same model: `metrics_dist_points` → series,
+  `metrics_dist_samples`, `metrics_dist_rollup_5m` / `_1h`. Rollups keep each bucket's first, last and total count,
+  sum and buckets, plus min / max, the bucket layout and quantile totals.
+- Install-wide TTL changes reach existing parts: `MATERIALIZE TTL` with `materialize_ttl_recalculate_only`, only
+  when a table's TTL changed.
 
 Success criteria:
-- Percentile, count/sum/avg/min/max and heatmap results match the oracle on the exporter's tables, at raw and
-  rollup resolution, for cumulative and delta series.
+- Percentile, count/sum/avg/min/max results match the oracle on the exporter's tables, at raw and rollup
+  resolution, for cumulative and delta series.
 - Raising or lowering an install-wide TTL affects existing parts (test on ClickHouse 26.8).
 
-Status: In Progress
+Verified:
+- `distributions_match_the_exporter_tables` gives identical values, with mutations of the rollup delta and
+  summary formulas failing it:
+  - cumulative and delta histograms, a cumulative exponential histogram and a summary;
+  - count, sum, avg, min, max, p50, p99, with and without `by`;
+  - raw, 5m and 1h.
+- `retention_changes_reach_existing_parts`: lowering a default drops existing expired data; raising it extends
+  existing parts' expiry.
+- Cluster test: distribution samples and rollups share their series' shard; retention applies on both shards.
+- e2e with collector 0.163.2: histograms and exponential histograms reach the new tables, the old tables get
+  nothing, no exporter errors.
+
+Status: Complete
 
 ## Stage 6: Cold storage for old metric partitions
 

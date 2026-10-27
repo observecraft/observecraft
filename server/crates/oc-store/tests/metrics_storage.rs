@@ -121,3 +121,75 @@ async fn ingested_points_become_series_samples_and_rollups() {
         assert_eq!(r, Rollup { min: 0.25, max: 0.75, sum: 1.5, count: 3, first: 0.25, last: 0.5, start: 1793095210, end: 1793095330 }, "{table}");
     }
 }
+
+/// Changing an install-wide retention reaches parts already written: lowering it drops their
+/// expired data, raising it keeps data the old retention would have dropped.
+#[tokio::test]
+async fn retention_changes_reach_existing_parts() {
+    let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
+        eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
+        return;
+    };
+    let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+    let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+    let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
+    migrate_clickhouse(&cfg, false).await.expect("migrate");
+    let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_option("mutations_sync", "2");
+    let org = format!("retention-test-{}", std::process::id());
+    let days = |raw: u32| oc_store::RetentionDays { traces: 15, traces_max: 90, metrics: raw, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72 };
+    let count = || {
+        let (ch, org) = (ch.clone(), org.clone());
+        async move { ch.query(&format!("SELECT count() FROM otel.metrics_samples WHERE OrgId = '{org}'")).fetch_one::<u64>().await.expect("count") }
+    };
+
+    // Points 10 days old under a 30-day default: kept.
+    oc_store::apply_retention(&cfg, days(30)).await.expect("retention 30");
+    ch.query(&format!(
+        "INSERT INTO otel.metrics_ingest_gauge (ResourceAttributes, MetricName, Attributes, TimeUnix, Value) \
+         SELECT map('oc.org_id', '{org}'), 'system.cpu.utilization', map('cpu', toString(number)), now64(9) - INTERVAL 10 DAY, 1 FROM numbers(3)"
+    ))
+    .execute()
+    .await
+    .expect("insert");
+    assert_eq!(count().await, 3);
+
+    // Lowered to 7 days: the existing part's TTL is recalculated and the expired data dropped.
+    oc_store::apply_retention(&cfg, days(7)).await.expect("retention 7");
+    wait_mutations(&ch).await;
+    ch.query("OPTIMIZE TABLE otel.metrics_samples FINAL").execute().await.expect("optimize");
+    assert_eq!(count().await, 0, "lowering the retention drops data past it");
+
+    // Raised again: data the 7-day retention would drop now stays.
+    ch.query(&format!(
+        "INSERT INTO otel.metrics_ingest_gauge (ResourceAttributes, MetricName, Attributes, TimeUnix, Value) \
+         SELECT map('oc.org_id', '{org}'), 'system.cpu.utilization', map('cpu', toString(number)), now64(9) - INTERVAL 5 DAY, 1 FROM numbers(3)"
+    ))
+    .execute()
+    .await
+    .expect("insert");
+    oc_store::apply_retention(&cfg, days(30)).await.expect("retention 30 again");
+    wait_mutations(&ch).await;
+    let expires: u32 = ch
+        .query(&format!(
+            "SELECT toUInt32(dateDiff('day', now(), max(delete_ttl_info_max))) FROM system.parts \
+             WHERE active AND database = 'otel' AND table = 'metrics_samples' AND partition LIKE concat('%', toString(today() - 5), '%')"
+        ))
+        .fetch_one()
+        .await
+        .expect("ttl info");
+    assert!(expires >= 20, "the part now expires under the 30-day retention, in {expires} days");
+    // Unchanged settings don't touch the tables.
+    oc_store::apply_retention(&cfg, days(30)).await.expect("retention unchanged");
+}
+
+/// Waits for the background TTL recalculations `apply_retention` starts.
+async fn wait_mutations(ch: &clickhouse::Client) {
+    for _ in 0..60 {
+        let running: u64 = ch.query("SELECT count() FROM system.mutations WHERE NOT is_done").fetch_one().await.expect("mutations");
+        if running == 0 {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+    panic!("TTL recalculation didn't finish");
+}

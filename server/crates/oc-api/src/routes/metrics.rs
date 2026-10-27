@@ -1,9 +1,9 @@
 //! Metric queries for dashboards (`avg:system.cpu.utilization{env:prod} by {host}`).
 //!
 //! Sources:
-//! - Gauges and sums from series + samples, or from the 5-minute / 1-hour rollups for long ranges
-//!   (see [`resolution`] and docs/adr/0001-metrics-storage.md). Distributions still read the
-//!   exporter's tables (`otel.otel_metrics_*`).
+//! - The metrics storage (docs/adr/0001-metrics-storage.md): series + samples, or the 5-minute /
+//!   1-hour rollups for long ranges (see [`resolution`]); distributions have their own samples and
+//!   rollups (`otel.metrics_dist_*`).
 //!   Gauges and non-monotonic sums are averaged per series per interval; cumulative monotonic sums
 //!   (counters) become per-second rates; delta sums are summed and divided by the interval.
 //!   Histograms, exponential histograms and summaries are queried through a statistic suffix:
@@ -105,13 +105,6 @@ enum Dist {
 }
 
 impl Dist {
-    fn table(self) -> &'static str {
-        match self {
-            Dist::Histogram => "otel.otel_metrics_histogram",
-            Dist::ExpHistogram => "otel.otel_metrics_exponential_histogram",
-            Dist::Summary => "otel.otel_metrics_summary",
-        }
-    }
     fn name(self) -> &'static str {
         match self {
             Dist::Histogram => "histogram",
@@ -159,12 +152,9 @@ async fn dist_kind(st: &AppState, org: &str, name: &str) -> Result<Option<Dist>,
     let rows: Vec<String> = st
         .ch(org)
         .query(
-            "SELECT 'histogram' FROM otel.otel_metrics_histogram WHERE OrgId = {oc_org:String} AND MetricName = ? LIMIT 1 \
-             UNION ALL SELECT 'exponential_histogram' FROM otel.otel_metrics_exponential_histogram WHERE OrgId = {oc_org:String} AND MetricName = ? LIMIT 1 \
-             UNION ALL SELECT 'summary' FROM otel.otel_metrics_summary WHERE OrgId = {oc_org:String} AND MetricName = ? LIMIT 1",
+            "SELECT toString(MetricType) FROM otel.metrics_series \
+             WHERE OrgId = {oc_org:String} AND MetricName = ? AND MetricType IN ('histogram', 'exponential_histogram', 'summary') ORDER BY MetricType LIMIT 1",
         )
-        .bind(name)
-        .bind(name)
         .bind(name)
         .fetch_all()
         .await?;
@@ -211,9 +201,10 @@ fn bucket_quantile(c: &str, q: f64, lower: &str, upper: &str) -> String {
     )
 }
 
-/// Inner query (g, t, sid, v) for a distribution metric statistic.
-fn dist_query(dist: Dist, stat: &str, g: &str, step_s: i64, filter: &str) -> Result<String, ApiError> {
-    let table = dist.table();
+/// Inner query (g, t, sid, v) for a distribution metric statistic over raw points selected `from`
+/// a table or subquery with the exporter's columns.
+fn dist_query(from: &str, dist: Dist, stat: &str, g: &str, step_s: i64, filter: &str) -> Result<String, ApiError> {
+    let table = from;
     // Summaries have no temporality column: they are always cumulative.
     let temporality = if dist == Dist::Summary { "2" } else { "any(AggregationTemporality)" };
     let series = "cityHash64(toString(mapSort(ResourceAttributes)), toString(mapSort(Attributes)))";
@@ -258,6 +249,94 @@ fn dist_query(dist: Dist, stat: &str, g: &str, step_s: i64, filter: &str) -> Res
         },
         _ => return Err(unsupported()),
     })
+}
+
+/// A distribution statistic's per-series, per-interval values (g, t, sid, v) from the storage:
+/// raw samples or a rollup. Returns the SQL and its params.
+fn dist_points_query(dist: Dist, stat: &str, source: Source, q: &MetricQuery, range: TimeRange, step_s: i64) -> Result<(String, Vec<Param>), ApiError> {
+    let base = split_stat(&q.metric).map_or(q.metric.as_str(), |(b, _)| b).to_string();
+    let mut params = Vec::new();
+    let mut by = Vec::new();
+    for k in &q.by {
+        let (e, p) = metric_field(k);
+        by.push(e);
+        params.extend(p);
+    }
+    let f = metric_filter(&q.filters, metric_field);
+    let g = group_array(&by);
+    let kind = dist.name();
+    if source == Source::Samples {
+        // The raw query over samples joined to their series, which carry the labels and temporality.
+        let from = format!(
+            "(SELECT x.OrgId AS OrgId, x.MetricName AS MetricName, s.ResourceAttributes AS ResourceAttributes, s.Attributes AS Attributes, s.AggregationTemporality AS AggregationTemporality, \
+                     x.TimeUnix AS TimeUnix, x.Count AS Count, x.Sum AS Sum, x.Min AS Min, x.Max AS Max, x.BucketCounts AS BucketCounts, x.ExplicitBounds AS ExplicitBounds, \
+                     x.Scale AS Scale, x.PositiveOffset AS PositiveOffset, x.PositiveBucketCounts AS PositiveBucketCounts, \
+                     x.`ValueAtQuantiles.Quantile` AS `ValueAtQuantiles.Quantile`, x.`ValueAtQuantiles.Value` AS `ValueAtQuantiles.Value` FROM otel.metrics_dist_samples AS x \
+              INNER JOIN (SELECT SeriesId, any(ResourceAttributes) AS ResourceAttributes, any(Attributes) AS Attributes, any(AggregationTemporality) AS AggregationTemporality \
+                          FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND MetricName = ? AND MetricType = '{kind}' AND LastSeen >= toDateTime(intDiv(?, 1000)) GROUP BY SeriesId) AS s \
+                ON x.SeriesId = s.SeriesId \
+              WHERE x.OrgId = {{oc_org:String}} AND x.MetricName = ? AND x.TimeUnix >= fromUnixTimestamp64Milli(?) AND x.TimeUnix <= fromUnixTimestamp64Milli(?))"
+        );
+        params.extend([Param::Str(base.clone()), Param::Int(range.from), Param::Str(base.clone()), Param::Int(range.from), Param::Int(range.to)]);
+        params.extend([Param::Str(base), Param::Int(range.from), Param::Int(range.to)]);
+        params.extend(f.params);
+        return Ok((dist_query(&from, dist, stat, &g, step_s, &f.clause)?, params));
+    }
+    // Rollups: the same statistics from each bucket's first / last / total values.
+    let table = if source == Source::Rollup5m { "otel.metrics_dist_rollup_5m" } else { "otel.metrics_dist_rollup_1h" };
+    let temporality = "any(s.temporality)";
+    // Change over the interval: last − first for cumulative series, the total for delta ones.
+    let delta = |first: &str, last: &str, total: &str| format!("if({temporality} = 2, greatest(toFloat64(argMaxMerge({last})) - toFloat64(argMinMerge({first})), 0), toFloat64(sum({total})))");
+    let rate = |d: String| format!("if({temporality} = 2, {d} * 1000 / greatest(dateDiff('millisecond', min(Start), max(End)), 1), {d} / {step_s})");
+    let buckets = format!(
+        "if({temporality} = 2, if(length(argMaxMerge(BucketsLast)) = length(argMinMerge(BucketsFirst)), \
+         arrayMap((a, b) -> if(a >= b, toUInt64(a - b), toUInt64(0)), argMaxMerge(BucketsLast), argMinMerge(BucketsFirst)), arrayMap(x -> toUInt64(0), argMaxMerge(BucketsLast))), \
+         sumForEachMerge(BucketsTotal))"
+    );
+    let quantile = |q: f64| format!("if(has(any(Quantiles), {q}), sumForEachMerge(QuantileTotals)[indexOf(any(Quantiles), {q})] / sum(Points), nan)");
+    let head = format!("SELECT s.g AS g, toStartOfInterval(x.Bucket, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid");
+    let from = format!(
+        "FROM {table} AS x \
+         INNER JOIN (SELECT SeriesId, any({g}) AS g, any(AggregationTemporality) AS temporality FROM otel.metrics_series \
+                     WHERE OrgId = {{oc_org:String}} AND MetricName = ? AND MetricType = '{kind}' AND LastSeen >= toDateTime(intDiv(?, 1000)) AND {filter} GROUP BY SeriesId) AS s \
+           ON x.SeriesId = s.SeriesId \
+         WHERE x.OrgId = {{oc_org:String}} AND x.MetricName = ? \
+           AND x.Bucket >= toStartOfInterval(fromUnixTimestamp64Milli(?), INTERVAL {bucket_s} SECOND) AND x.Bucket <= fromUnixTimestamp64Milli(?)",
+        filter = f.clause,
+        bucket_s = source.bucket_ms() / 1000,
+    );
+    params.extend([Param::Str(base.clone()), Param::Int(range.from)]);
+    params.extend(f.params);
+    params.extend([Param::Str(base), Param::Int(range.from), Param::Int(range.to)]);
+    let simple = |v: String| format!("{head}, {v} AS v {from} GROUP BY g, t, sid");
+    let unsupported = || ApiError::BadRequest(format!("{} metrics don't record {stat}", dist.name()));
+    let sql = match (stat, quantile_of(stat)) {
+        // A cumulative series needs two samples in the interval to have a rate.
+        ("count", _) => format!("{} HAVING sum(Points) > 1 OR {temporality} != 2", simple(rate(delta("CountFirst", "CountLast", "CountTotal")))),
+        ("sum", _) => format!("{} HAVING sum(Points) > 1 OR {temporality} != 2", simple(rate(delta("SumFirst", "SumLast", "SumTotal")))),
+        ("avg", _) => simple(format!("if({c} = 0, nan, {s} / {c})", s = delta("SumFirst", "SumLast", "SumTotal"), c = delta("CountFirst", "CountLast", "CountTotal"))),
+        ("min" | "max", _) if dist == Dist::Summary => simple(quantile(if stat == "min" { 0.0 } else { 1.0 })),
+        ("min", _) => simple("min(Min)".into()),
+        ("max", _) => simple("max(Max)".into()),
+        (_, Some(q)) => match dist {
+            Dist::Summary => simple(quantile(q)),
+            // Explicit buckets share their layout across series: merge the group's counts, then interpolate.
+            Dist::Histogram => {
+                let v = bucket_quantile("cs", q, "if({i} <= 1, least(0, bs[1]), bs[{i} - 1])", "if({i} <= length(bs), bs[{i}], bs[length(bs)])");
+                format!(
+                    "SELECT g, t, toUInt64(0) AS sid, if(length(bs) = 0, nan, {v}) AS v FROM (\
+                       SELECT g, t, sumForEach(c) AS cs, any(b) AS bs FROM (\
+                         {head}, {buckets} AS c, any(ExplicitBounds) AS b {from} GROUP BY g, t, sid) GROUP BY g, t)"
+                )
+            }
+            Dist::ExpHistogram => {
+                let v = bucket_quantile("c", q, "pow(pow(2, pow(2, -sc)), off + {i} - 1)", "pow(pow(2, pow(2, -sc)), off + {i})");
+                format!("SELECT g, t, sid, {v} AS v FROM ({head}, {buckets} AS c, any(Scale) AS sc, any(PositiveOffset) AS off {from} GROUP BY g, t, sid)")
+            }
+        },
+        _ => return Err(unsupported()),
+    };
+    Ok((sql, params))
 }
 
 fn step_ms(range: TimeRange, points: u32, min_ms: i64) -> i64 {
@@ -396,16 +475,9 @@ async fn inner_query(st: &AppState, org: &str, q: &MetricQuery, range: TimeRange
         let dist = dist_kind(st, org, base).await?.ok_or_else(unknown)?;
         // Cumulative series need two samples per interval (SDKs export every 10–60 s).
         let step = step_ms(range, points, 30_000);
-        let mut by = Vec::new();
-        for k in &q.by {
-            let (e, p) = metric_field(k);
-            by.push(e);
-            params.extend(p);
-        }
-        let f = metric_filter(&q.filters, metric_field);
-        params.extend([Param::Str(base.to_string()), Param::Int(range.from), Param::Int(range.to)]);
-        params.extend(f.params);
-        let sql = dist_query(dist, stat, &group_array(&by), step / 1000, &f.clause)?;
+        let (source, step) = resolution(range, step, now_ms(), org_tiers(st, org).await?);
+        let (sql, p) = dist_points_query(dist, stat, source, q, range, step / 1000)?;
+        params.extend(p);
         return Ok((sql, params, step));
     };
     // Counters need at least two samples per interval (collectors report every 10s).
@@ -738,38 +810,21 @@ pub struct MetricCatalogEntry {
 }
 
 /// Metrics reported in the last day: (name, kind, unit, description, attr_keys, res_keys) per
-/// metric and kind; gauges and sums from the series table, distributions (`distributions`) from the
-/// exporter's tables.
-fn catalog_sql(distributions: bool) -> String {
-    let mut parts = vec!["SELECT MetricName AS name, toString(MetricType) AS kind, any(MetricUnit) AS unit, any(MetricDescription) AS description, \
-         arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(Attributes)))) AS attr_keys, \
-         arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(ResourceAttributes)))) AS res_keys \
-         FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND MetricType IN ('gauge', 'sum') AND LastSeen > now() - INTERVAL 1 DAY GROUP BY MetricName, MetricType"
-        .to_string()];
-    if distributions {
-        for d in [Dist::Histogram, Dist::ExpHistogram, Dist::Summary] {
-            parts.push(format!(
-                "SELECT MetricName AS name, '{kind}' AS kind, any(MetricUnit) AS unit, any(MetricDescription) AS description, \
-                 arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(Attributes)))) AS attr_keys, \
-                 arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(ResourceAttributes)))) AS res_keys \
-                 FROM {table} WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY GROUP BY MetricName",
-                kind = d.name(),
-                table = d.table(),
-            ));
-        }
-    }
-    parts.join(" UNION ALL ")
+/// metric and kind, from the series table.
+fn catalog_sql() -> String {
+    "SELECT MetricName AS name, toString(MetricType) AS kind, any(MetricUnit) AS unit, any(MetricDescription) AS description, \
+     arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(Attributes)))) AS attr_keys, \
+     arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(ResourceAttributes)))) AS res_keys \
+     FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND LastSeen > now() - INTERVAL 1 DAY GROUP BY MetricName, MetricType"
+        .to_string()
 }
 
-/// Values of the tag `expr` (with its `params`) on metrics in the last day: gauges and sums from
-/// the series table, histograms from the exporter's table.
+/// Values of the tag `expr` (with its `params`) on metrics in the last day, from the series table.
 fn tag_values_sql(expr: &str, params: &[Param]) -> (String, Vec<Param>) {
     let sql = format!(
-        "SELECT DISTINCT v FROM (\
-           SELECT toString({expr}) AS v FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND MetricType IN ('gauge', 'sum') AND LastSeen > now() - INTERVAL 1 DAY \
-           UNION ALL SELECT toString({expr}) AS v FROM otel.otel_metrics_histogram WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY) WHERE v != ''"
+        "SELECT DISTINCT toString({expr}) AS v FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND LastSeen > now() - INTERVAL 1 DAY AND v != ''"
     );
-    (sql, [params, params].concat())
+    (sql, params.to_vec())
 }
 
 /// Metrics reported in the last day plus the span-derived `trace.*` metrics.
@@ -784,7 +839,7 @@ pub async fn catalog(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult
         attr_keys: Vec<String>,
         res_keys: Vec<String>,
     }
-    let sql = catalog_sql(true);
+    let sql = catalog_sql();
     let rows = st.ch(&org).query(&sql).fetch_all::<Entry>().await?;
     let mut out: Vec<MetricCatalogEntry> = Vec::new();
     for e in rows {
@@ -852,6 +907,14 @@ pub async fn tag_values(State(st): State<AppState>, OrgId(org): OrgId, Path(key)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn exporter_table(d: Dist) -> &'static str {
+        match d {
+            Dist::Histogram => "otel.otel_metrics_histogram",
+            Dist::ExpHistogram => "otel.otel_metrics_exponential_histogram",
+            Dist::Summary => "otel.otel_metrics_summary",
+        }
+    }
 
     // Oracles: the same queries on the OpenTelemetry exporter's own tables (one row per point, labels
     // on every row), which the parity tests compare the storage against.
@@ -1055,7 +1118,7 @@ mod tests {
 
         // The catalog and tag values (`oc.*` resource keys are the org's stamps, not tags).
         let catalog = |new: bool| {
-            let sql = if new { catalog_sql(false) } else { exporter_catalog_sql() };
+            let sql = if new { format!("SELECT * FROM ({}) WHERE kind IN ('gauge', 'sum')", catalog_sql()) } else { exporter_catalog_sql() };
             format!("SELECT name, kind, unit, description, arraySort(arrayFilter(k -> NOT startsWith(k, 'oc.'), attr_keys)), arraySort(arrayFilter(k -> NOT startsWith(k, 'oc.'), res_keys)) FROM ({sql})")
         };
         assert_eq!(rows(&ch, &catalog(false)).await, rows(&ch, &catalog(true)).await);
@@ -1070,6 +1133,110 @@ mod tests {
             let (o, n) = (values(false).await, values(true).await);
             assert!(!o.is_empty(), "no values for {key}");
             assert_eq!(o, n, "values of {key}");
+        }
+    }
+
+    /// The distribution query on the exporter's tables (the oracle).
+    fn exporter_dist_query(dist: Dist, stat: &str, q: &MetricQuery, range: TimeRange, step_s: i64) -> (String, Vec<Param>) {
+        let mut params = Vec::new();
+        let mut by = Vec::new();
+        for k in &q.by {
+            let (e, p) = metric_field(k);
+            by.push(e);
+            params.extend(p);
+        }
+        let f = metric_filter(&q.filters, metric_field);
+        params.extend([Param::Str(split_stat(&q.metric).unwrap().0.to_string()), Param::Int(range.from), Param::Int(range.to)]);
+        params.extend(f.params);
+        let sql = dist_query(exporter_table(dist), dist, stat, &group_array(&by), step_s, &f.clause).unwrap();
+        (sql, params)
+    }
+
+    /// Histograms (cumulative and delta), exponential histograms and summaries give the same
+    /// statistics from the storage, raw and from rollups, as from the exporter's tables. Skipped
+    /// unless OC_TEST_CLICKHOUSE_URL is set (see above).
+    #[tokio::test]
+    async fn distributions_match_the_exporter_tables() {
+        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
+            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
+            return;
+        };
+        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+        let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
+        oc_store::migrate_clickhouse(&cfg, false).await.expect("migrate");
+        let org = format!("dists-{}", std::process::id());
+        let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_option("param_oc_org", &org);
+
+        // Two hours from an hour boundary, a point every 10s per series (two hosts).
+        let start = 1_793_095_200_i64;
+        let common = |name: &str| {
+            format!(
+                "map('oc.org_id', '{org}', 'host.name', concat('i-0a1b2c3d4e5f6000', toString(number % 2))) AS ResourceAttributes, 'checkout' AS ServiceName, \
+                 '{name}' AS MetricName, 'ms' AS MetricUnit, map('route', '/cart') AS Attributes, toDateTime64({start} + intDiv(number, 2) * 10, 9) AS TimeUnix"
+            )
+        };
+        // Per point: n grows with time; buckets (≤10, ≤100, ≤1000, +inf) take shares of it.
+        let hist = |name: &str, temporality: i32| {
+            let n = if temporality == 2 { "intDiv(number, 2) * 7 + number % 2 * 3" } else { "(number % 5) + 1" };
+            format!(
+                "SELECT {c}, ({n}) AS n, toUInt64(n * 4) AS Count, toFloat64(n * 4 * 55.5) AS Sum, [toUInt64(n), toUInt64(n * 2), toUInt64(n), toUInt64(0)] AS BucketCounts, \
+                 [10., 100., 1000.] AS ExplicitBounds, toFloat64(1 + number % 7) AS Min, toFloat64(900 + number % 50) AS Max, {temporality} AS AggregationTemporality FROM numbers(1440)",
+                c = common(name)
+            )
+        };
+        let exp = format!(
+            "SELECT {c}, intDiv(number, 2) * 5 + 1 AS n, toUInt64(n * 6) AS Count, toFloat64(n * 6 * 12.5) AS Sum, 2 AS Scale, toUInt64(0) AS ZeroCount, 3 AS PositiveOffset, \
+             [toUInt64(n), toUInt64(n * 3), toUInt64(n * 2), toUInt64(0)] AS PositiveBucketCounts, 0 AS NegativeOffset, CAST([], 'Array(UInt64)') AS NegativeBucketCounts, \
+             toFloat64(2) AS Min, toFloat64(40 + number % 9) AS Max, 2 AS AggregationTemporality FROM numbers(1440)",
+            c = common("rpc.duration")
+        );
+        let summary = format!(
+            "SELECT {c}, toUInt64(intDiv(number, 2) * 3) AS Count, toFloat64(intDiv(number, 2) * 3 * 20) AS Sum, [0., 0.5, 0.99, 1.] AS `ValueAtQuantiles.Quantile`, \
+             [toFloat64(1 + number % 3), toFloat64(20 + number % 11), toFloat64(80 + number % 13), toFloat64(120 + number % 17)] AS `ValueAtQuantiles.Value` FROM numbers(1440)",
+            c = common("gc.pause")
+        );
+        let hist_cols = "ResourceAttributes, ServiceName, MetricName, MetricUnit, Attributes, TimeUnix, Count, Sum, BucketCounts, ExplicitBounds, Min, Max, AggregationTemporality";
+        let exp_cols = "ResourceAttributes, ServiceName, MetricName, MetricUnit, Attributes, TimeUnix, Count, Sum, Scale, ZeroCount, PositiveOffset, PositiveBucketCounts, NegativeOffset, NegativeBucketCounts, Min, Max, AggregationTemporality";
+        let summary_cols = "ResourceAttributes, ServiceName, MetricName, MetricUnit, Attributes, TimeUnix, Count, Sum, `ValueAtQuantiles.Quantile`, `ValueAtQuantiles.Value`";
+        for (table, cols, select) in [
+            ("histogram", hist_cols, hist("http.server.duration", 2)),
+            ("histogram", hist_cols, hist("queue.wait", 1)),
+            ("exponential_histogram", exp_cols, exp),
+            ("summary", summary_cols, summary),
+        ] {
+            for target in [format!("otel.otel_metrics_{table}"), format!("otel.metrics_ingest_{table}")] {
+                ch.query(&format!("INSERT INTO {target} ({cols}) SELECT {cols} FROM ({select})")).execute().await.unwrap_or_else(|e| panic!("{target}: {e}"));
+            }
+        }
+
+        let range = TimeRange { from: start * 1000, to: (start + 7200) * 1000 - 1 };
+        let metrics = [("http.server.duration", Dist::Histogram), ("queue.wait", Dist::Histogram), ("rpc.duration", Dist::ExpHistogram), ("gc.pause", Dist::Summary)];
+        for (base, dist) in metrics {
+            for stat in ["count", "sum", "avg", "min", "max", "p50", "p99"] {
+                for by in ["", " by {host}"] {
+                    let q = parse(&format!("avg:{base}.{stat}{{*}}{by}")).unwrap();
+                    for (step_s, source) in [(30, Source::Samples), (600, Source::Rollup5m), (3600, Source::Rollup1h)] {
+                        let run = |source: Option<Source>| {
+                            let (inner, params) = match source {
+                                Some(source) => dist_points_query(dist, stat, source, &q, range, step_s).unwrap(),
+                                None => exporter_dist_query(dist, stat, &q, range, step_s),
+                            };
+                            let sql = format!("SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64(avg(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t");
+                            let ch = ch.clone();
+                            async move { bind(ch.query(&sql), &params).fetch_all::<Row>().await.unwrap_or_else(|e| panic!("{sql}: {e}")) }
+                        };
+                        let (old, new) = (run(None).await, run(Some(source)).await);
+                        let what = format!("{base}.{stat}{by} step {step_s} from {source:?}");
+                        assert!(!old.is_empty(), "{what}: no data");
+                        assert_eq!(old.len(), new.len(), "{what}: number of points");
+                        for (o, n) in old.iter().zip(&new) {
+                            assert_eq!((&o.g, o.ts), (&n.g, n.ts), "{what}");
+                            assert!((o.value - n.value).abs() <= 1e-9 * o.value.abs().max(1.0), "{what} at {}: {} vs {}", o.ts, o.value, n.value);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1114,7 +1281,7 @@ mod tests {
     fn stats_each_type_supports() {
         for d in [Dist::Histogram, Dist::ExpHistogram, Dist::Summary] {
             for (stat, _) in DIST_STATS {
-                let sql = dist_query(d, stat, "[]", 30, "1").unwrap();
+                let sql = dist_query(exporter_table(d), d, stat, "[]", 30, "1").unwrap();
                 assert!(sql.contains("OrgId = {oc_org:String}"), "{d:?} {stat} must be org-scoped");
             }
         }

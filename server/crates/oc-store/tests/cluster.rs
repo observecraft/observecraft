@@ -54,7 +54,17 @@ async fn schema_on_a_cluster() {
     assert_eq!(count("SELECT count() AS n FROM otel.metrics_samples WHERE OrgId = 'acme'").await, 300);
     assert_eq!(count("SELECT uniqExact(SeriesId) AS n FROM otel.metrics_series WHERE OrgId = 'acme'").await, 100);
     assert_eq!(count("SELECT uniqExact(_shard_num) AS n FROM otel.metrics_samples").await, 2, "series are spread over both shards");
-    for table in ["metrics_samples", "metrics_series", "metrics_rollup_5m", "metrics_rollup_1h"] {
+    // A histogram's samples and rollups too.
+    ch.query(
+        "INSERT INTO otel.metrics_ingest_histogram (ResourceAttributes, MetricName, Attributes, TimeUnix, Count, Sum, BucketCounts, ExplicitBounds, AggregationTemporality) \
+         SELECT map('oc.org_id', 'acme', 'host.name', concat('i-0a1b2c3d4e5f6', toString(number % 100))), 'http.server.duration', map('route', '/cart'), \
+                now64(9) - toIntervalSecond(intDiv(number, 100) * 10), number, number * 2.5, [number, number], [100.], 2 FROM numbers(300)",
+    )
+    .execute()
+    .await
+    .expect("insert histograms");
+    assert_eq!(count("SELECT count() AS n FROM otel.metrics_dist_samples WHERE OrgId = 'acme'").await, 300);
+    for table in ["metrics_samples", "metrics_series", "metrics_rollup_5m", "metrics_rollup_1h", "metrics_dist_samples", "metrics_dist_rollup_5m", "metrics_dist_rollup_1h"] {
         let split = count(&format!("SELECT count() AS n FROM (SELECT SeriesId FROM otel.{table} GROUP BY SeriesId HAVING uniqExact(_shard_num) > 1)")).await;
         assert_eq!(split, 0, "a series is on more than one shard in {table}");
     }
