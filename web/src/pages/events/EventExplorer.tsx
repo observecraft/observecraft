@@ -4,7 +4,7 @@ import { ChevronDown, Code2, Copy, EllipsisVertical, LayoutDashboard, LayoutGrid
 import { searchEvents, type EventItem, type EventPage } from '../../api/events/client';
 import { Chart } from '../../components/charts/Chart';
 import { Markdown } from '../dashboards/widgets/markdown';
-import { eventMarkdown } from '../../lib/format';
+import { eventMarkdown, eventSnippet } from '../../lib/format';
 import { FacetPanel } from '../../components/facets/FacetPanel';
 import { QueryBar } from '../../components/query/QueryBar';
 import { TimePicker } from '../../components/shell/PageHeader';
@@ -299,7 +299,7 @@ export function EventExplorer() {
                             <span className="ev-title">{e.title}</span>
                             {e.source && <span className="ev-via">via {e.source}</span>}
                           </div>
-                          {e.text && <div className="ev-text">{e.text}</div>}
+                          {e.text && <div className="ev-text">{eventSnippet(e.text)}</div>}
                           {e.tags.length > 0 && (
                             <div className="ev-tags">
                               {e.tags.slice(0, TAGS_SHOWN).map((t) => (

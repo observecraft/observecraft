@@ -56,3 +56,12 @@ export function eventMarkdown(text: string): string {
   const m = /^\s*%%%([\s\S]*?)%%%\s*$/.exec(text);
   return (m ? m[1] : text).trim();
 }
+
+/** A Datadog event's text on one line, without Markdown markers (event lists). */
+export function eventSnippet(text: string): string {
+  return eventMarkdown(text)
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/\*\*|__|`|(?<!\w)_|_(?!\w)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}

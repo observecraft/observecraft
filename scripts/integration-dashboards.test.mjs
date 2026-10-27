@@ -559,3 +559,11 @@ test('recommended monitors from integrations-core become templates; ones our mon
   // Arithmetic between queries isn't a single monitor query.
   assert.equal(convertMonitor({ name: 'd', message: '', query: 'avg(last_15m):avg:a.b{*} by {x} - avg:c.d{*} by {x} >= 2', options: { thresholds: { critical: 2 } } }, 'kubernetes', 'd'), null);
 });
+
+test('event list rows show the text without Markdown markers', async () => {
+  const { eventSnippet } = await import('../web/src/lib/format.ts');
+  assert.equal(
+    eventSnippet('%%% \n42 **FailedGetResourceMetric**: failed to get `cpu` [docs](https://example.com)\n _Events emitted by the hpa_ \n %%%'),
+    '42 FailedGetResourceMetric: failed to get cpu docs Events emitted by the hpa',
+  );
+});
