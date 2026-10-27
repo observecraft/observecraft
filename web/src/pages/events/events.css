@@ -19,16 +19,6 @@
   gap: 10px;
 }
 
-.ev-learn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding-top: 3px;
-  border-top: 3px solid transparent;
-  border-image: linear-gradient(90deg, var(--chart-1), var(--chart-5)) 1;
-  font-size: var(--fs-lg);
-}
-
 /* ---------- All Events ---------- */
 .ev-explorer {
   display: flex;
@@ -56,10 +46,6 @@
 
 .ev-query > :first-child {
   flex: 1;
-}
-
-.ev-code {
-  align-self: stretch;
 }
 
 .ev-histogram {

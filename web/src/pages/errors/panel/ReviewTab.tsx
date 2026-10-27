@@ -65,9 +65,7 @@ export function ReviewTab({ issue, range, isRefreshing }: Props) {
   // Panel query suggestions come from the issue's own tag distribution.
   const suggest = useCallback(
     async (partial: string): Promise<QuerySuggestion[]> =>
-      issue.tags
-        .map((t) => ({ text: `${t.key}:${t.value}`, count: Math.round(t.share * issue.count) }))
-        .filter((s) => s.text.toLowerCase().includes(partial.toLowerCase())),
+      issue.tags.map((t) => ({ text: `${t.key}:${t.value}`, count: Math.round(t.share * issue.count) })).filter((s) => s.text.toLowerCase().includes(partial.toLowerCase())),
     [issue],
   );
 
@@ -83,8 +81,7 @@ export function ReviewTab({ issue, range, isRefreshing }: Props) {
       </div>
       {investigate && (
         <div className="investigate-note">
-          AI investigation isn't connected yet. Once the backend is in place, this will analyse the stack trace, recent deploys
-          and correlated logs for {issue.service}.
+          AI investigation isn't connected yet. Once the backend is in place, this will analyse the stack trace, recent deploys and correlated logs for {issue.service}.
         </div>
       )}
 
@@ -102,8 +99,7 @@ export function ReviewTab({ issue, range, isRefreshing }: Props) {
         <section className="ip-card ip-summary">
           <div className="ip-seen">
             <span>
-              <strong>First seen</strong>{' '}
-              <u title={formatLongDate(issue.firstSeen)}>{timeAgo(issue.firstSeen)}</u>
+              <strong>First seen</strong> <u title={formatLongDate(issue.firstSeen)}>{timeAgo(issue.firstSeen)}</u>
               {issue.firstSeenVersion && <span className="version-chip">{issue.firstSeenVersion}</span>}
             </span>
             <ArrowRight size={16} className="ip-seen-arrow" />
@@ -147,7 +143,6 @@ export function ReviewTab({ issue, range, isRefreshing }: Props) {
                 </button>
               ))}
             </div>
-            <button className="btn">View All</button>
           </div>
         </section>
 

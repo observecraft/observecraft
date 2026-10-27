@@ -598,20 +598,6 @@
   font-size: var(--fs-md);
 }
 
-.mp-partner {
-  justify-content: center;
-  align-items: center;
-  gap: 14px;
-  border-top-width: 1px;
-  text-align: center;
-  font-size: 19px;
-}
-
-.mp-partner strong {
-  font-weight: var(--fw-medium);
-  max-width: 180px;
-}
-
 .mp-modal .im-text {
   padding: 4px 24px 24px 90px;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Box, Check, Copy, Hexagon, ListTree, ScanSearch, Search, X } from 'lucide-react';
+import { Box, Check, Copy, Hexagon, ListTree, Search, X } from 'lucide-react';
 import type { LogEvent } from '../../api/types';
 import { formatLongDate, timeAgo } from '../../lib/format';
 import { JsonTree } from '../../components/json/JsonTree';
@@ -111,9 +111,6 @@ export function LogDetail({ log, onClose, onPrev, onNext, onFilter, onViewInCont
             <LogMessage message={log.message} />
           </div>
           <span className="detail-message-actions">
-            <button title="Add finding">
-              <ScanSearch size={15} />
-            </button>
             <button title="Copy message" onClick={copy}>
               {copied ? <Check size={15} /> : <Copy size={15} />}
             </button>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
-import { ChevronDown, Code2, Copy, LayoutDashboard, LayoutGrid, LineChart, List, ListOrdered, PanelLeft, PanelLeftClose, Pin, Settings, Table2, X } from 'lucide-react';
+import { ChevronDown, Copy, LayoutGrid, LineChart, List, ListOrdered, PanelLeft, PanelLeftClose, Pin, Table2, X } from 'lucide-react';
 import { eventFields, searchEvents, type EventItem, type EventPage } from '../../api/events/client';
 import { Chart } from '../../components/charts/Chart';
 import { Markdown } from '../dashboards/widgets/markdown';
@@ -224,9 +224,6 @@ export function EventExplorer() {
       <div className="ev-scroll">
         <div className="ev-query">
           <QueryBar value={query} onChange={setQuery} placeholder="Filter your events" />
-          <button className="btn ev-code" title="Query syntax">
-            <Code2 size={15} />
-          </button>
         </div>
 
         <div className="viz-row">
@@ -272,24 +269,8 @@ export function EventExplorer() {
                 </button>
                 <span className="ev-count">{compact(page?.total ?? 0).replace('K', 'k')} Events</span>
                 <div className="toolbar-right">
-                  <div className="btn-group">
-                    <button className="btn">
-                      <LayoutDashboard size={14} /> Save to Dashboard
-                    </button>
-                    <button className="btn">
-                      <ChevronDown size={14} />
-                    </button>
-                  </div>
-                  <div className="btn-group">
-                    <button className="btn" onClick={() => navigator.clipboard?.writeText(query)}>
-                      <Copy size={14} /> Copy
-                    </button>
-                    <button className="btn">
-                      <ChevronDown size={14} />
-                    </button>
-                  </div>
-                  <button className="toolbar-link">
-                    <Settings size={15} /> Options
+                  <button className="btn" onClick={() => navigator.clipboard?.writeText(query)}>
+                    <Copy size={14} /> Copy
                   </button>
                 </div>
               </div>

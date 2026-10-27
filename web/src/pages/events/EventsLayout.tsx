@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { ChevronDown, ListChecks, Plus, Settings } from 'lucide-react';
+import { ListChecks, Plus, Settings } from 'lucide-react';
 import './events.css';
 
 const TABS = [
@@ -26,9 +26,6 @@ export function EventsLayout() {
           ))}
         </nav>
         <div className="ev-header-right">
-          <button className="ev-learn">
-            Learn More <ChevronDown size={14} />
-          </button>
           <button className="btn" disabled title="Event Management settings">
             <Settings size={14} /> Settings
           </button>

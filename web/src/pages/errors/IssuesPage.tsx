@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronRight, Globe, PanelLeft, PanelLeftClose, Pin, Sparkles, Upload } from 'lucide-react';
+import { ChevronRight, Globe, PanelLeft, PanelLeftClose, Pin, Sparkles } from 'lucide-react';
 import { suggestIssueQuery } from '../../api/errorTracking/client';
 import type { DataSource, IssueSort, IssueStateTab, Persona, SuspectedCause } from '../../api/errorTracking/types';
 import { FacetPanel } from '../../components/facets/FacetPanel';
@@ -205,9 +205,6 @@ export function IssuesPage() {
               <span className="muted-text">Sort by:</span>
               <Select value={sort} options={SORTS} onChange={(s) => setParam('sort', s === 'relevance' ? null : s)} triggerClassName="dd-trigger et-sort" />
               <div className="btn-group">
-                <button className="btn">
-                  <Upload size={14} /> Create Monitor
-                </button>
                 <Menu
                   trigger="More…"
                   items={[
