@@ -322,7 +322,8 @@ pub(crate) const TAG_ATTRS: &[(&str, &str)] = &[
 type ResourceKey = Vec<(String, String)>;
 
 /// A series' tags split into its resource (host, `service:` and the TAG_ATTRS tags) and the data
-/// point attributes.
+/// point attributes, sorted: ClickHouse keeps a Map in the order it gets it, so the same tags in
+/// another order would be another series to it.
 fn split_tags(tags: &[String], host: &str) -> (ResourceKey, Vec<KeyValue>) {
     let mut resource: BTreeMap<String, String> = BTreeMap::new();
     if !host.is_empty() {
@@ -338,10 +339,11 @@ fn split_tags(tags: &[String], host: &str) -> (ResourceKey, Vec<KeyValue>) {
         } else if let Some((_, otel)) = TAG_ATTRS.iter().find(|(dd, _)| *dd == k) {
             resource.entry((*otel).to_string()).or_insert_with(|| v.to_string());
         } else {
-            attrs.push(otlp::kv(k, v));
+            attrs.push((k, v));
         }
     }
-    (resource.into_iter().collect(), attrs)
+    attrs.sort_unstable();
+    (resource.into_iter().collect(), attrs.into_iter().map(|(k, v)| otlp::kv(k, v)).collect())
 }
 
 /// Metrics grouped by resource → an OTLP request. `collector` marks what sent them (the host list
@@ -785,6 +787,18 @@ mod tests {
         assert_eq!(r["k8s.cluster.name"], "prod-eu");
         assert_eq!(r["host.name"], "node-1");
         assert_eq!(attrs, vec![otlp::kv("team", "web")]);
+    }
+
+    #[test]
+    fn point_attributes_are_sorted() {
+        // ClickHouse stores attributes as a Map in arrival order: the same tags in another order
+        // would be another series to it, and compress poorly.
+        let tags = |t: &[&str]| t.iter().map(|t| t.to_string()).collect::<Vec<_>>();
+        let (_, a) = split_tags(&tags(&["team:web", "az:eu-1b", "tier:gold", "az:eu-1a"]), "node-1");
+        let (_, b) = split_tags(&tags(&["az:eu-1a", "tier:gold", "az:eu-1b", "team:web"]), "node-1");
+        let expected = vec![otlp::kv("az", "eu-1a"), otlp::kv("az", "eu-1b"), otlp::kv("team", "web"), otlp::kv("tier", "gold")];
+        assert_eq!(a, expected);
+        assert_eq!(b, expected);
     }
 
     #[test]
