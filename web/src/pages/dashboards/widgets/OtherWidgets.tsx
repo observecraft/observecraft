@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { searchLogs } from '../../../api/client';
+import { searchLogPage } from '../../../api/client';
 import type { WidgetDefinition } from '../../../api/dashboards/types';
 import { formatLogDate } from '../../../lib/format';
 import { STATUS_COLORS } from '../../../theme/chartTheme';
@@ -76,8 +76,8 @@ export function MonitorSummaryWidget({ def }: { def: Def<'monitor_summary'> }) {
 export function LogStreamWidget({ def }: { def: Def<'log_stream'> }) {
   const { range, resolveSearch } = useDashboardContext();
   const query = resolveSearch(def.query);
-  const q = useQuery({ queryKey: ['logs', 'widget', query, range], queryFn: () => searchLogs({ range, query }) });
-  const logs = q.data?.logs.slice(0, def.limit) ?? [];
+  const q = useQuery({ queryKey: ['logs', 'widget', query, range, def.limit], queryFn: () => searchLogPage({ range, query }, def.limit) });
+  const logs = q.data?.logs ?? [];
   return (
     <WidgetState loading={q.isPending} error={q.error} empty={logs.length === 0}>
       <div className="ls">

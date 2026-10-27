@@ -3,7 +3,7 @@
 import { API_MODE, post } from './http';
 import type { components } from './generated/schema';
 import { mockHistogram, mockLiveTail, mockLogFields, mockLogPatterns, mockTopLogValues, mockMetric, mockSearchLogs, mockSuggest } from './mock';
-import type { FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, LogStatus, MetricSeries, QuerySuggestion, TimeRange } from './types';
+import type { Facet, FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogStatus, MetricSeries, QuerySuggestion, TimeRange } from './types';
 
 /** The UI loads at most this many rows per search; aggregate views work on this sample. */
 const LIVE_PAGE = 1000;
@@ -14,23 +14,27 @@ function toLogEvent(e: WireEvent): LogEvent {
   return { ...e, status: e.status as LogStatus, attributes: (e.attributes ?? {}) as Record<string, JsonValue> };
 }
 
-export async function searchLogs(q: LogQuery): Promise<LogSearchResult> {
-  if (API_MODE !== 'live') return mockSearchLogs(q);
-  const body = { range: q.range, query: q.query };
-  // Independent endpoints, fetched in parallel; the explorer shows them together.
-  const [page, facets, histogram, insights] = await Promise.all([
-    post('/api/v1/logs/search', { ...body, limit: LIVE_PAGE }),
-    post('/api/v1/logs/facets', { ...body, extra: q.facets ?? [] }),
-    post('/api/v1/logs/histogram', body),
-    post('/api/v1/logs/insights', body),
-  ]);
-  return {
-    logs: page.logs.map(toLogEvent),
-    total: page.total,
-    facets,
-    histogram,
-    insights: insights.map((i) => ({ ...i, kind: 'error_outlier' }) satisfies LogInsight),
-  };
+/** A page of matching logs, newest first, and how many match in all. */
+export async function searchLogPage(q: LogQuery, limit = LIVE_PAGE): Promise<{ logs: LogEvent[]; total: number }> {
+  if (API_MODE !== 'live') {
+    const r = mockSearchLogs(q);
+    return { logs: r.logs.slice(0, limit), total: r.total };
+  }
+  const page = await post('/api/v1/logs/search', { range: q.range, query: q.query, limit });
+  return { logs: page.logs.map(toLogEvent), total: page.total };
+}
+
+/** Top values per facet (the built-in ones and `q.facets`). */
+export async function logFacets(q: LogQuery): Promise<Facet[]> {
+  if (API_MODE !== 'live') return mockSearchLogs(q).facets;
+  return post('/api/v1/logs/facets', { range: q.range, query: q.query, extra: q.facets ?? [] });
+}
+
+/** Services with far more than their share of the errors. */
+export async function logInsights(q: LogQuery): Promise<LogInsight[]> {
+  if (API_MODE !== 'live') return mockSearchLogs(q).insights;
+  const insights = await post('/api/v1/logs/insights', { range: q.range, query: q.query });
+  return insights.map((i) => ({ ...i, kind: 'error_outlier' }) satisfies LogInsight);
 }
 
 /** The most frequent values of a key among the matching logs (dashboard toplists and sunbursts). */

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Box, Check, Copy, Hexagon, ScanSearch, Search, Share, X } from 'lucide-react';
+import { Box, Check, Copy, Hexagon, ListTree, ScanSearch, Search, X } from 'lucide-react';
 import type { LogEvent } from '../../api/types';
 import { formatLongDate, timeAgo } from '../../lib/format';
 import { JsonTree } from '../../components/json/JsonTree';
@@ -14,6 +14,8 @@ interface Props {
   onNext?: () => void;
   /** Adds `key:value` to the current query. */
   onFilter: (key: string, value: string) => void;
+  /** The logs around this one from the same host and service. */
+  onViewInContext?: () => void;
 }
 
 const TAGS_COLLAPSED = 9;
@@ -33,7 +35,7 @@ function Card({ label, icon, value, onFilter }: { label: string; icon?: ReactNod
 }
 
 /** Right-hand log side panel: status/time header, key infra cards, tags, message, attributes. */
-export function LogDetail({ log, onClose, onPrev, onNext, onFilter }: Props) {
+export function LogDetail({ log, onClose, onPrev, onNext, onFilter, onViewInContext }: Props) {
   const [showAllTags, setShowAllTags] = useState(false);
   const [tab, setTab] = useState<(typeof TABS)[number]>('Event Attributes');
   const [attrSearch, setAttrSearch] = useState<string | null>(null);
@@ -66,9 +68,11 @@ export function LogDetail({ log, onClose, onPrev, onNext, onFilter }: Props) {
         <strong>{formatLongDate(log.timestamp)}</strong>
         <span className="muted-text">({timeAgo(log.timestamp)})</span>
         <span className="detail-header-actions">
-          <button className="icon-square" title="Share">
-            <Share size={16} />
-          </button>
+          {onViewInContext && (
+            <button className="btn" onClick={onViewInContext} title="Logs from the same host and service, 15 minutes around this one">
+              <ListTree size={14} /> View in context
+            </button>
+          )}
           <button className="icon-plain" title="Close (Esc)" onClick={onClose}>
             <X size={20} />
           </button>

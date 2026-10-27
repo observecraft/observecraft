@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, ExternalLink, ScrollText, Waypoints, Wrench, type LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { searchLogs } from '../../../api/client';
+import { searchLogPage } from '../../../api/client';
 import type { HostDetail } from '../../../api/infrastructure/types';
 import { CodeBlock } from '../../../components/code/CodeBlock';
 import { useTime } from '../../../components/shell/TimeContext';
@@ -25,7 +25,7 @@ export function LogsSection({ host }: { host: HostDetail }) {
   const { from, to } = snapRange(live);
   const range = useMemo(() => ({ from, to }), [from, to]);
   const query = `host:${host.name}`;
-  const q = useQuery({ queryKey: ['logs', 'host', host.name, range], queryFn: () => searchLogs({ range, query }) });
+  const q = useQuery({ queryKey: ['logs', 'host', host.name, range], queryFn: () => searchLogPage({ range, query }, 100) });
   return (
     <HpSection
       id="logs"
@@ -49,7 +49,12 @@ export function LogsSection({ host }: { host: HostDetail }) {
             Latest <strong>{Math.min(10, q.data.total)}</strong> of <strong>{q.data.total.toLocaleString()}</strong> logs
           </p>
           <div className="hp-logs">
-            <LogTable logs={q.data.logs.slice(0, 10)} selectedId={null} onSelect={() => navigate(`/logs?query=${encodeURIComponent(query)}`)} options={{ wrap: false, showHost: false, showService: true }} />
+            <LogTable
+              logs={q.data.logs.slice(0, 10)}
+              selectedId={null}
+              onSelect={() => navigate(`/logs?query=${encodeURIComponent(query)}`)}
+              options={{ wrap: false, showHost: false, showService: true }}
+            />
           </div>
         </>
       )}

@@ -451,3 +451,10 @@ test('log messages are shown without ANSI color codes', async () => {
   assert.equal(stripAnsi('INFO:\u001b[94m\u001b[1mGET\u001b[0m /metrics \u001b[32m200\u001b[0m'), 'INFO:GET /metrics 200');
   assert.equal(stripAnsi('plain [94m text'), 'plain [94m text');
 });
+
+test('view in context centers the time range on the log, never past now', async () => {
+  const { centeredEnd } = await import('../web/src/lib/time.ts');
+  const min = 60_000;
+  assert.equal(centeredEnd(100 * min, 15 * min, 200 * min), 107.5 * min);
+  assert.equal(centeredEnd(199 * min, 15 * min, 200 * min), 200 * min);
+});

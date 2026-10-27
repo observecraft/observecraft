@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { EChartsOption } from 'echarts';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Columns3, ExternalLink, Globe, PanelLeft, Plus, X } from 'lucide-react';
-import { searchLogs } from '../../api/client';
+import { searchLogPage } from '../../api/client';
 import { searchSpans } from '../../api/apm/client';
 import { API_MODE } from '../../api/http';
 import { searchKubernetes } from '../../api/kubernetes/client';
@@ -193,7 +193,7 @@ export function TrafficPanel({ row, flows, onClose }: { row: PanelRow; flows: Re
   const [tab, setTab] = useState<PanelTab>('flows');
   const service = tagValue(flow.clientTags, 'service');
   const host = tagValue(flow.clientTags, 'host');
-  const logs = useQuery({ queryKey: ['network', 'logs', range, service], queryFn: () => searchLogs({ range, query: `service:${service}` }), enabled: tab === 'logs' && !!service });
+  const logs = useQuery({ queryKey: ['network', 'logs', range, service], queryFn: () => searchLogPage({ range, query: `service:${service}` }, 50), enabled: tab === 'logs' && !!service });
   const spans = useQuery({
     queryKey: ['network', 'spans', range, service],
     queryFn: () => searchSpans({ range, query: `service:${service}`, limit: 50 }),
