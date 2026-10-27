@@ -580,38 +580,34 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         }
     }
     if !dd_usage.is_empty() {
-        // (cluster, namespace, name) → uid of the pods we know.
-        let uids: HashMap<(&str, &str, &str), &str> = inv
-            .objects
-            .iter()
-            .filter(|(k, ..)| *k == KubeKind::Pods)
-            .filter_map(|(_, cluster, _, b)| {
-                let m = &b["metadata"];
-                Some((
-                    (
-                        cluster.as_str(),
-                        m["namespace"].as_str()?,
-                        m["name"].as_str()?,
-                    ),
-                    m["uid"].as_str()?,
-                ))
-            })
-            .collect();
+        let pods = PodIndex::new(inv.objects.iter().filter(|(k, ..)| *k == KubeKind::Pods).filter_map(|(_, cluster, _, b)| {
+            let m = &b["metadata"];
+            Some((cluster.as_str(), m["namespace"].as_str()?, m["name"].as_str()?, m["uid"].as_str()?))
+        }));
+        // Node name → cluster, to find the node a Datadog host is.
+        let node_clusters: HashMap<&str, &str> =
+            inv.objects.iter().filter(|(k, ..)| *k == KubeKind::Nodes).filter_map(|(_, cluster, _, b)| Some((b["metadata"]["name"].as_str()?, cluster.as_str()))).collect();
         let mut container_usage = Vec::new();
         let mut node_usage = Vec::new();
+        let mut container_on_node = Vec::new();
         for u in dd_usage {
             if u.pod.is_empty() {
-                if !u.node.is_empty() {
-                    node_usage.push(((u.cluster, u.node), (u.cpu, u.mem)));
+                if let Some((cluster, node)) = node_of_host(&u.node, &u.cluster, &node_clusters) {
+                    node_usage.push(((cluster.to_string(), node.to_string()), (u.cpu, u.mem)));
                 }
-            } else if let Some(uid) =
-                uids.get(&(u.cluster.as_str(), u.namespace.as_str(), u.pod.as_str()))
-            {
-                if !u.container.is_empty() {
-                    container_usage.push(((uid.to_string(), u.container), (u.cpu, u.mem)));
+            } else {
+                // The kubelet check reports containers only: a node's usage is the sum of its containers'.
+                if let Some((cluster, node)) = node_of_host(&u.node, &u.cluster, &node_clusters) {
+                    container_on_node.push(((cluster.to_string(), node.to_string()), (u.cpu, u.mem)));
+                }
+                if let Some(uid) = pods.uid(&u.cluster, &u.namespace, &u.pod) {
+                    if !u.container.is_empty() {
+                        container_usage.push(((uid.to_string(), u.container), (u.cpu, u.mem)));
+                    }
                 }
             }
         }
+        node_usage.extend(node_totals(container_on_node));
         for (k, v) in container_usage {
             inv.container_usage.entry(k).or_insert(v);
         }
@@ -620,6 +616,52 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         }
     }
     Ok(inv)
+}
+
+/// Pod uids by (cluster, namespace, name), and by (namespace, name) for metrics without a cluster
+/// (an Agent with no cluster name, or before its host tags arrive) when only one cluster has the pod.
+struct PodIndex<'a> {
+    full: HashMap<(&'a str, &'a str, &'a str), &'a str>,
+    /// None: the same namespace/name in several clusters.
+    by_name: HashMap<(&'a str, &'a str), Option<&'a str>>,
+}
+
+impl<'a> PodIndex<'a> {
+    fn new(pods: impl Iterator<Item = (&'a str, &'a str, &'a str, &'a str)>) -> Self {
+        let mut index = PodIndex { full: HashMap::new(), by_name: HashMap::new() };
+        for (cluster, ns, name, uid) in pods {
+            index.full.insert((cluster, ns, name), uid);
+            index.by_name.entry((ns, name)).and_modify(|u| *u = None).or_insert(Some(uid));
+        }
+        index
+    }
+
+    fn uid(&self, cluster: &str, ns: &str, name: &str) -> Option<&'a str> {
+        if cluster.is_empty() {
+            self.by_name.get(&(ns, name)).copied().flatten()
+        } else {
+            self.full.get(&(cluster, ns, name)).copied()
+        }
+    }
+}
+
+/// The Kubernetes node (and its cluster) a Datadog host is: the Agent names it `<node>-<cluster>`.
+fn node_of_host<'a>(host: &str, cluster: &str, nodes: &HashMap<&'a str, &'a str>) -> Option<(&'a str, &'a str)> {
+    if let Some((node, c)) = nodes.get_key_value(host) {
+        return Some((c, node));
+    }
+    nodes.iter().find(|(node, c)| (cluster.is_empty() || cluster == **c) && host.strip_suffix(**c).and_then(|h| h.strip_suffix('-')) == Some(**node)).map(|(node, c)| (*c, *node))
+}
+
+/// Per-node CPU and memory as the sum of its containers' (-1: not measured).
+fn node_totals<K: std::hash::Hash + Eq>(rows: impl IntoIterator<Item = (K, (f64, f64))>) -> HashMap<K, (f64, f64)> {
+    let add = |total: f64, v: f64| if v < 0.0 { total } else if total < 0.0 { v } else { total + v };
+    let mut out: HashMap<K, (f64, f64)> = HashMap::new();
+    for (k, (cpu, mem)) in rows {
+        let t = out.entry(k).or_insert((-1.0, -1.0));
+        *t = (add(t.0, cpu), add(t.1, mem));
+    }
+    out
 }
 
 fn measured(v: f64) -> Option<f64> {
@@ -1926,6 +1968,36 @@ pub async fn host_inventory(st: &AppState, org: &str, host: &str) -> Result<(Opt
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn datadog_usage_without_a_cluster_matches_a_unique_pod() {
+        let pods = [("prod", "shop", "web-1", "uid-a"), ("stage", "shop", "web-1", "uid-b"), ("prod", "shop", "api-1", "uid-c")];
+        let index = PodIndex::new(pods.iter().copied());
+        assert_eq!(index.uid("prod", "shop", "web-1"), Some("uid-a"));
+        // No cluster on the metric (an Agent without a cluster name): only an unambiguous pod matches.
+        assert_eq!(index.uid("", "shop", "api-1"), Some("uid-c"));
+        assert_eq!(index.uid("", "shop", "web-1"), None);
+        assert_eq!(index.uid("prod", "shop", "gone"), None);
+    }
+
+    #[test]
+    fn datadog_hosts_map_to_their_kubernetes_node() {
+        let nodes = HashMap::from([("aks-infra-1-vmss000016", "aks-dev"), ("worker-1", "prod")]);
+        // The Agent names a Kubernetes host `<node>-<cluster>`.
+        assert_eq!(node_of_host("aks-infra-1-vmss000016-aks-dev", "", &nodes), Some(("aks-dev", "aks-infra-1-vmss000016")));
+        assert_eq!(node_of_host("aks-infra-1-vmss000016-aks-dev", "aks-dev", &nodes), Some(("aks-dev", "aks-infra-1-vmss000016")));
+        assert_eq!(node_of_host("worker-1", "", &nodes), Some(("prod", "worker-1")));
+        assert_eq!(node_of_host("laptop", "", &nodes), None);
+    }
+
+    #[test]
+    fn a_nodes_usage_sums_its_containers() {
+        let key = |n: &str| ("aks-dev".to_string(), n.to_string());
+        let totals = node_totals([(key("n1"), (0.25, 100.0)), (key("n1"), (0.5, -1.0)), (key("n2"), (-1.0, 50.0))]);
+        assert_eq!(totals[&key("n1")], (0.75, 100.0));
+        // -1: not measured; a node with nothing measured stays unmeasured.
+        assert_eq!(totals[&key("n2")], (-1.0, 50.0));
+    }
 
     #[test]
     fn pod_tags_carry_phase_and_readiness() {
