@@ -5,6 +5,13 @@ ObserveCraft accepts the Datadog Agent's and OpenTelemetry's wire formats. To de
 the source code below reproduce message definitions and binary layouts from the following projects.
 Their copyright notices and license terms are kept here, as those licenses require.
 
+DataDog/integrations-core (BSD-3-Clause), Copyright (c) 2016, Datadog, Inc.
+Kubernetes dashboard definitions are imported from commit
+c7dbc72cac1946294acda77f6491ecd081d9b498. Source paths and revision are recorded
+on each document in server/seeds/integrations/kubernetes/dashboards.json.
+The full copyright notice and license are in server/seeds/integrations/kubernetes/LICENSE.
+Proprietary artwork and documentation prose are excluded from the import.
+
 -------------------------------------------------------------------------------
 DataDog/agent-payload  (https://github.com/DataDog/agent-payload)
 BSD 3-Clause License, Copyright (c) 2017, Datadog, Inc. All rights reserved.

@@ -9,32 +9,136 @@ use crate::{attrs_json, Rng};
 pub struct Host {
     pub name: &'static str,
     instance_type: &'static str,
-    cpus: u32,
-    mem_gib: f64,
+    pub(super) cpus: u32,
+    pub(super) mem_gib: f64,
     region: &'static str,
     zone: &'static str,
     env: &'static str,
     team: &'static str,
-    cluster: Option<&'static str>,
+    pub(super) cluster: Option<&'static str>,
     collector: &'static str,
     /// Typical CPU busy fraction; each host wanders around it.
     cpu_base: f64,
     procs: &'static [(&'static str, &'static str, f64, f64)], // (executable, owner, cpu share, rss GiB)
 }
 
-const JVM: &[(&str, &str, f64, f64)] = &[("java", "app", 0.55, 2.4), ("observecraft-collector", "root", 0.06, 0.18), ("containerd", "root", 0.04, 0.12), ("kubelet", "root", 0.05, 0.09), ("sshd", "root", 0.0, 0.01)];
-const GO: &[(&str, &str, f64, f64)] = &[("api-gateway", "app", 0.35, 0.4), ("order-service", "app", 0.3, 0.35), ("observecraft-collector", "root", 0.06, 0.18), ("containerd", "root", 0.04, 0.12), ("kubelet", "root", 0.05, 0.09)];
-const NODE: &[(&str, &str, f64, f64)] = &[("node", "app", 0.6, 0.9), ("otelcol-contrib", "otel", 0.07, 0.2), ("dockerd", "root", 0.05, 0.15), ("cron", "root", 0.0, 0.01)];
-const DOTNET: &[(&str, &str, f64, f64)] = &[("dotnet", "app", 0.45, 1.6), ("java", "app", 0.3, 2.1), ("observecraft-collector", "root", 0.06, 0.18), ("containerd", "root", 0.04, 0.12)];
-const PY: &[(&str, &str, f64, f64)] = &[("python3", "app", 0.5, 0.7), ("observecraft-collector", "root", 0.05, 0.16), ("containerd", "root", 0.03, 0.1)];
+const JVM: &[(&str, &str, f64, f64)] = &[
+    ("java", "app", 0.55, 2.4),
+    ("observecraft-collector", "root", 0.06, 0.18),
+    ("containerd", "root", 0.04, 0.12),
+    ("kubelet", "root", 0.05, 0.09),
+    ("sshd", "root", 0.0, 0.01),
+];
+const GO: &[(&str, &str, f64, f64)] = &[
+    ("api-gateway", "app", 0.35, 0.4),
+    ("order-service", "app", 0.3, 0.35),
+    ("observecraft-collector", "root", 0.06, 0.18),
+    ("containerd", "root", 0.04, 0.12),
+    ("kubelet", "root", 0.05, 0.09),
+];
+const NODE: &[(&str, &str, f64, f64)] = &[
+    ("node", "app", 0.6, 0.9),
+    ("otelcol-contrib", "otel", 0.07, 0.2),
+    ("dockerd", "root", 0.05, 0.15),
+    ("cron", "root", 0.0, 0.01),
+];
+const DOTNET: &[(&str, &str, f64, f64)] = &[
+    ("dotnet", "app", 0.45, 1.6),
+    ("java", "app", 0.3, 2.1),
+    ("observecraft-collector", "root", 0.06, 0.18),
+    ("containerd", "root", 0.04, 0.12),
+];
+const PY: &[(&str, &str, f64, f64)] = &[
+    ("python3", "app", 0.5, 0.7),
+    ("observecraft-collector", "root", 0.05, 0.16),
+    ("containerd", "root", 0.03, 0.1),
+];
 
 pub const HOSTS: &[Host] = &[
-    Host { name: "i-0a1b2c3d4e5f60001", instance_type: "c6i.2xlarge", cpus: 8, mem_gib: 16.0, region: "eu-west-1", zone: "eu-west-1a", env: "prod", team: "platform", cluster: Some("shop-prod-eks"), collector: "observecraft", cpu_base: 0.42, procs: GO },
-    Host { name: "i-0a1b2c3d4e5f60002", instance_type: "m6i.2xlarge", cpus: 8, mem_gib: 32.0, region: "eu-west-1", zone: "eu-west-1b", env: "prod", team: "storefront", cluster: Some("shop-prod-eks"), collector: "observecraft", cpu_base: 0.58, procs: JVM },
-    Host { name: "i-0a1b2c3d4e5f60003", instance_type: "m6i.xlarge", cpus: 4, mem_gib: 16.0, region: "eu-west-1", zone: "eu-west-1c", env: "prod", team: "checkout", cluster: Some("shop-prod-eks"), collector: "observecraft", cpu_base: 0.31, procs: NODE },
-    Host { name: "i-0a1b2c3d4e5f60004", instance_type: "r6i.2xlarge", cpus: 8, mem_gib: 64.0, region: "eu-west-1", zone: "eu-west-1a", env: "prod", team: "billing", cluster: None, collector: "otel", cpu_base: 0.67, procs: DOTNET },
-    Host { name: "i-0a1b2c3d4e5f60005", instance_type: "t3.large", cpus: 2, mem_gib: 8.0, region: "eu-west-1", zone: "eu-west-1b", env: "prod", team: "platform", cluster: None, collector: "otel", cpu_base: 0.22, procs: PY },
-    Host { name: "i-0a1b2c3d4e5f60006", instance_type: "m6i.large", cpus: 2, mem_gib: 8.0, region: "eu-central-1", zone: "eu-central-1a", env: "staging", team: "storefront", cluster: Some("shop-staging-eks"), collector: "observecraft", cpu_base: 0.15, procs: NODE },
+    Host {
+        name: "i-0a1b2c3d4e5f60001",
+        instance_type: "c6i.2xlarge",
+        cpus: 8,
+        mem_gib: 16.0,
+        region: "eu-west-1",
+        zone: "eu-west-1a",
+        env: "prod",
+        team: "platform",
+        cluster: Some("shop-prod-eks"),
+        collector: "observecraft",
+        cpu_base: 0.42,
+        procs: GO,
+    },
+    Host {
+        name: "i-0a1b2c3d4e5f60002",
+        instance_type: "m6i.2xlarge",
+        cpus: 8,
+        mem_gib: 32.0,
+        region: "eu-west-1",
+        zone: "eu-west-1b",
+        env: "prod",
+        team: "storefront",
+        cluster: Some("shop-prod-eks"),
+        collector: "observecraft",
+        cpu_base: 0.58,
+        procs: JVM,
+    },
+    Host {
+        name: "i-0a1b2c3d4e5f60003",
+        instance_type: "m6i.xlarge",
+        cpus: 4,
+        mem_gib: 16.0,
+        region: "eu-west-1",
+        zone: "eu-west-1c",
+        env: "prod",
+        team: "checkout",
+        cluster: Some("shop-prod-eks"),
+        collector: "observecraft",
+        cpu_base: 0.31,
+        procs: NODE,
+    },
+    Host {
+        name: "i-0a1b2c3d4e5f60004",
+        instance_type: "r6i.2xlarge",
+        cpus: 8,
+        mem_gib: 64.0,
+        region: "eu-west-1",
+        zone: "eu-west-1a",
+        env: "prod",
+        team: "billing",
+        cluster: None,
+        collector: "otel",
+        cpu_base: 0.67,
+        procs: DOTNET,
+    },
+    Host {
+        name: "i-0a1b2c3d4e5f60005",
+        instance_type: "t3.large",
+        cpus: 2,
+        mem_gib: 8.0,
+        region: "eu-west-1",
+        zone: "eu-west-1b",
+        env: "prod",
+        team: "platform",
+        cluster: None,
+        collector: "otel",
+        cpu_base: 0.22,
+        procs: PY,
+    },
+    Host {
+        name: "i-0a1b2c3d4e5f60006",
+        instance_type: "m6i.large",
+        cpus: 2,
+        mem_gib: 8.0,
+        region: "eu-central-1",
+        zone: "eu-central-1a",
+        env: "staging",
+        team: "storefront",
+        cluster: Some("shop-staging-eks"),
+        collector: "observecraft",
+        cpu_base: 0.15,
+        procs: NODE,
+    },
 ];
 
 const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
@@ -76,7 +180,14 @@ fn gauge(name: &str, unit: &str, desc: &str, points: Vec<Value>) -> Value {
     json!({ "name": name, "unit": unit, "description": desc, "gauge": { "dataPoints": points } })
 }
 
-fn sum(name: &str, unit: &str, desc: &str, monotonic: bool, start: &str, mut points: Vec<Value>) -> Value {
+fn sum(
+    name: &str,
+    unit: &str,
+    desc: &str,
+    monotonic: bool,
+    start: &str,
+    mut points: Vec<Value>,
+) -> Value {
     for p in &mut points {
         p["startTimeUnixNano"] = json!(start);
     }
@@ -105,7 +216,14 @@ fn host_resource(h: &Host) -> Vec<(String, Value)> {
         kv("team", h.team),
         kv("host.cpu.count", h.cpus as i64),
         kv("observecraft.collector", h.collector),
-        kv("observecraft.collector.version", if h.collector == "otel" { "otelcol-contrib 0.163.2" } else { "observecraft-collector 1.4.2" }),
+        kv(
+            "observecraft.collector.version",
+            if h.collector == "otel" {
+                "otelcol-contrib 0.163.2"
+            } else {
+                "observecraft-collector 1.4.2"
+            },
+        ),
     ];
     if let Some(c) = h.cluster {
         r.push(kv("k8s.cluster.name", c));
@@ -114,7 +232,12 @@ fn host_resource(h: &Host) -> Vec<(String, Value)> {
 }
 
 /// One OTLP metrics export for every host at `now_ns`.
-pub fn metrics_payload(rng: &mut Rng, state: &mut [HostState], now_ns: u64, interval_s: f64) -> Value {
+pub fn metrics_payload(
+    rng: &mut Rng,
+    state: &mut [HostState],
+    now_ns: u64,
+    interval_s: f64,
+) -> Value {
     let t = now_ns.to_string();
     let mut resource_metrics = Vec::new();
     for (h, s) in HOSTS.iter().zip(state.iter_mut()) {
@@ -138,20 +261,98 @@ pub fn metrics_payload(rng: &mut Rng, state: &mut [HostState], now_ns: u64, inte
         let load1 = s.busy * h.cpus as f64 * (0.9 + rng.f() * 0.3);
         let boot = s.start_ns.to_string();
 
-        let state_pts = |vals: &[(&str, f64)]| vals.iter().map(|(st, v)| point(&t, *v, &[kv("state", *st)])).collect::<Vec<_>>();
+        let state_pts = |vals: &[(&str, f64)]| {
+            vals.iter()
+                .map(|(st, v)| point(&t, *v, &[kv("state", *st)]))
+                .collect::<Vec<_>>()
+        };
         let metrics = vec![
-            gauge("system.cpu.utilization", "1", "Fraction of CPU time spent in each state", state_pts(&[("user", user), ("system", system), ("wait", iowait), ("idle", idle)])),
-            gauge("system.cpu.load_average.1m", "{thread}", "Load average over 1 minute", vec![point(&t, load1, &[])]),
-            gauge("system.cpu.load_average.5m", "{thread}", "Load average over 5 minutes", vec![point(&t, load1 * 0.95, &[])]),
-            gauge("system.cpu.load_average.15m", "{thread}", "Load average over 15 minutes", vec![point(&t, load1 * 0.9, &[])]),
-            sum("system.memory.usage", "By", "Bytes of memory in use", false, &boot, state_pts(&[("used", used), ("cached", cached), ("free", free)])),
-            gauge("system.memory.utilization", "1", "Fraction of memory in each state", state_pts(&[("used", used / mem_total), ("cached", cached / mem_total), ("free", free / mem_total)])),
-            gauge("system.filesystem.utilization", "1", "Fraction of filesystem bytes used", vec![point(&t, s.disk_frac, &[kv("device", "/dev/nvme0n1p1"), kv("mountpoint", "/"), kv("type", "ext4")])]),
-            sum("system.network.io", "By", "Bytes transmitted and received", true, &boot, vec![
-                point(&t, s.net_tx.round(), &[kv("device", "eth0"), kv("direction", "transmit")]),
-                point(&t, s.net_rx.round(), &[kv("device", "eth0"), kv("direction", "receive")]),
-            ]),
-            gauge("system.uptime", "s", "Seconds since boot", vec![point(&t, (now_ns - s.start_ns) as f64 / 1e9, &[])]),
+            gauge(
+                "system.cpu.utilization",
+                "1",
+                "Fraction of CPU time spent in each state",
+                state_pts(&[
+                    ("user", user),
+                    ("system", system),
+                    ("wait", iowait),
+                    ("idle", idle),
+                ]),
+            ),
+            gauge(
+                "system.cpu.load_average.1m",
+                "{thread}",
+                "Load average over 1 minute",
+                vec![point(&t, load1, &[])],
+            ),
+            gauge(
+                "system.cpu.load_average.5m",
+                "{thread}",
+                "Load average over 5 minutes",
+                vec![point(&t, load1 * 0.95, &[])],
+            ),
+            gauge(
+                "system.cpu.load_average.15m",
+                "{thread}",
+                "Load average over 15 minutes",
+                vec![point(&t, load1 * 0.9, &[])],
+            ),
+            sum(
+                "system.memory.usage",
+                "By",
+                "Bytes of memory in use",
+                false,
+                &boot,
+                state_pts(&[("used", used), ("cached", cached), ("free", free)]),
+            ),
+            gauge(
+                "system.memory.utilization",
+                "1",
+                "Fraction of memory in each state",
+                state_pts(&[
+                    ("used", used / mem_total),
+                    ("cached", cached / mem_total),
+                    ("free", free / mem_total),
+                ]),
+            ),
+            gauge(
+                "system.filesystem.utilization",
+                "1",
+                "Fraction of filesystem bytes used",
+                vec![point(
+                    &t,
+                    s.disk_frac,
+                    &[
+                        kv("device", "/dev/nvme0n1p1"),
+                        kv("mountpoint", "/"),
+                        kv("type", "ext4"),
+                    ],
+                )],
+            ),
+            sum(
+                "system.network.io",
+                "By",
+                "Bytes transmitted and received",
+                true,
+                &boot,
+                vec![
+                    point(
+                        &t,
+                        s.net_tx.round(),
+                        &[kv("device", "eth0"), kv("direction", "transmit")],
+                    ),
+                    point(
+                        &t,
+                        s.net_rx.round(),
+                        &[kv("device", "eth0"), kv("direction", "receive")],
+                    ),
+                ],
+            ),
+            gauge(
+                "system.uptime",
+                "s",
+                "Seconds since boot",
+                vec![point(&t, (now_ns - s.start_ns) as f64 / 1e9, &[])],
+            ),
         ];
         resource_metrics.push(json!({
             "resource": { "attributes": attrs_json(&host_resource(h)) },

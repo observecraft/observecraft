@@ -1,6 +1,6 @@
 // Integrations wire contract. An integration is a packaged collector configuration
 // (OpenTelemetry receiver and/or Vector source) plus the metadata, dashboards and
-// monitors that come with it. "Install" applies the config to the fleet's collectors.
+// monitors that come with it. Live collection is configured on externally managed collectors.
 
 export type IntegrationStatus = 'detected' | 'installed' | 'warning' | 'available';
 

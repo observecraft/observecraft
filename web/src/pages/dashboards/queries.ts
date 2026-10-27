@@ -1,3 +1,6 @@
+import { useContext } from 'react';
+import { DashboardContext } from './widgets/context';
+import { groupedMetricValues, scalarMetricValue } from '../../api/dashboards/reduce';
 // TanStack Query bindings for dashboards (documents) and widget data (metric queries).
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -32,8 +35,7 @@ export const dashKeys = {
   lists: () => [...dashKeys.all, 'lists'] as const,
 };
 
-export const useDashboardSearch = (req: DashboardSearchRequest) =>
-  useQuery({ queryKey: dashKeys.search(req), queryFn: () => searchDashboards(req), placeholderData: keepPreviousData });
+export const useDashboardSearch = (req: DashboardSearchRequest) => useQuery({ queryKey: dashKeys.search(req), queryFn: () => searchDashboards(req), placeholderData: keepPreviousData });
 export const useRecentlyViewed = () => useQuery({ queryKey: dashKeys.recent(), queryFn: () => recentlyViewed(4) });
 export const useDashboard = (id: string) => useQuery({ queryKey: dashKeys.detail(id), queryFn: () => getDashboard(id), staleTime: Infinity });
 export const useLists = () => useQuery({ queryKey: dashKeys.lists(), queryFn: listLists });
@@ -98,20 +100,62 @@ export function useAddToList() {
 
 const metricKey = (...parts: unknown[]) => ['metrics', ...parts];
 
-export const useTimeseriesData = (queries: string[], range: TimeRange) =>
-  useQuery({ queryKey: metricKey('ts', queries, range), queryFn: () => queryTimeseries({ queries, range, points: 120 }), placeholderData: keepPreviousData, enabled: queries.length > 0 });
+function useExecution(queries: string[], points: number, range: TimeRange) {
+  const context = useContext(DashboardContext);
+  const execution = context?.metrics;
+  return execution && context.range.from === range.from && context.range.to === range.to && queries.every((q) => execution.has(q, points)) ? execution : undefined;
+}
 
-export const useScalarData = (query: string, aggregator: TimeAggregator, range: TimeRange) =>
-  useQuery({ queryKey: metricKey('scalar', query, aggregator, range), queryFn: () => queryScalar({ query, aggregator, range }), placeholderData: keepPreviousData, enabled: !!query });
+export function useTimeseriesData(queries: string[], range: TimeRange) {
+  const execution = useExecution(queries, 120, range);
+  return useQuery({
+    queryKey: metricKey('ts', queries, range, execution?.version),
+    queryFn: () => {
+      if (execution?.error) throw execution.error;
+      return execution ? execution.source.timeseries({ queries, range, points: 120 }) : queryTimeseries({ queries, range, points: 120 });
+    },
+    placeholderData: keepPreviousData,
+    gcTime: 30_000,
+    enabled: queries.length > 0 && (!execution || execution.ready || !!execution.error),
+    retry: execution ? false : 1,
+  });
+}
 
-export const useGroupedData = (query: string, aggregator: TimeAggregator, range: TimeRange) =>
-  useQuery({ queryKey: metricKey('grouped', query, aggregator, range), queryFn: () => queryGrouped({ query, aggregator, range }), placeholderData: keepPreviousData, enabled: !!query });
+export function useScalarData(query: string, aggregator: TimeAggregator, range: TimeRange) {
+  const execution = useExecution([query], 60, range);
+  return useQuery({
+    queryKey: metricKey('scalar', query, aggregator, range, execution?.version),
+    queryFn: async () => {
+      if (execution?.error) throw execution.error;
+      return execution ? scalarMetricValue(await execution.source.timeseries({ queries: [query], range, points: 60 }), query, aggregator) : queryScalar({ query, aggregator, range });
+    },
+    placeholderData: keepPreviousData,
+    gcTime: 30_000,
+    enabled: !!query && (!execution || execution.ready || !!execution.error),
+    retry: execution ? false : 1,
+  });
+}
+
+export function useGroupedData(query: string, aggregator: TimeAggregator, range: TimeRange) {
+  const execution = useExecution([query], 60, range);
+  return useQuery({
+    queryKey: metricKey('grouped', query, aggregator, range, execution?.version),
+    queryFn: async () => {
+      if (execution?.error) throw execution.error;
+      return execution ? groupedMetricValues(await execution.source.timeseries({ queries: [query], range, points: 60 }), query, aggregator) : queryGrouped({ query, aggregator, range });
+    },
+    placeholderData: keepPreviousData,
+    gcTime: 30_000,
+    enabled: !!query && (!execution || execution.ready || !!execution.error),
+    retry: execution ? false : 1,
+  });
+}
 
 export const useDistributionData = (query: string, range: TimeRange) =>
   useQuery({ queryKey: metricKey('dist', query, range), queryFn: () => queryDistribution({ query, range }), placeholderData: keepPreviousData, enabled: !!query });
 
 export const useMonitorSummary = (query: string) => useQuery({ queryKey: ['monitors', 'summary', query], queryFn: () => monitorSummary(query), refetchInterval: 30_000 });
 
-export const useMetricCatalog = () => useQuery({ queryKey: metricKey('catalog'), queryFn: metricCatalog, staleTime: Infinity });
+export const useMetricCatalog = () => useQuery({ queryKey: metricKey('catalog'), queryFn: ({ signal }) => metricCatalog(signal), staleTime: Infinity });
 
 export const useTagValues = (key: string) => useQuery({ queryKey: metricKey('tags', key), queryFn: () => tagValues(key), staleTime: 5 * 60_000 });

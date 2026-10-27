@@ -81,5 +81,7 @@ export interface LiveTailBatch {
 
 export interface MetricSeries {
   name: string;
+  unit?: string;
+  tags?: Record<string, string>;
   points: [number, number][];
 }

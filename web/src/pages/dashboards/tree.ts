@@ -15,9 +15,7 @@ export function updateWidget(widgets: Widget[], id: string, fn: (w: Widget) => W
 }
 
 export function removeWidget(widgets: Widget[], id: string): Widget[] {
-  return widgets
-    .filter((w) => w.id !== id)
-    .map((w) => (w.definition.type === 'group' ? { ...w, definition: { ...w.definition, widgets: removeWidget(w.definition.widgets, id) } } : w));
+  return widgets.filter((w) => w.id !== id).map((w) => (w.definition.type === 'group' ? { ...w, definition: { ...w.definition, widgets: removeWidget(w.definition.widgets, id) } } : w));
 }
 
 /** Deep copy with fresh ids, placed directly below the original. */
@@ -53,11 +51,12 @@ export function bottom(widgets: Widget[]): number {
 }
 
 /** Group height follows its content: header (2 rows) + children + padding. */
-export function groupHeight(children: Widget[]): number {
-  return 2 + Math.max(2, bottom(children)) + 1;
+export function groupHeight(children: Widget[], compact = false): number {
+  return (compact ? 2 : 3) + Math.max(2, bottom(children));
 }
 
 export const DEFAULT_SIZE: Record<WidgetType, Pick<WidgetLayout, 'w' | 'h'>> = {
+  integration: { w: 6, h: 6 },
   timeseries: { w: 6, h: 6 },
   query_value: { w: 3, h: 4 },
   toplist: { w: 4, h: 6 },
@@ -81,6 +80,8 @@ const QBY = 'avg:system.cpu.user{*} by {host}';
 /** Starting definition when a widget is added from the tray. */
 export function defaultDefinition(type: WidgetType): WidgetDefinition {
   switch (type) {
+    case 'integration':
+      return { type, title: 'Integration panel', original: { type: 'timeseries', requests: [] } };
     case 'timeseries':
       return { type, title: '', requests: [{ query: QBY }], display: 'line' };
     case 'query_value':
@@ -92,7 +93,17 @@ export function defaultDefinition(type: WidgetType): WidgetDefinition {
     case 'bar_chart':
       return { type, title: '', request: { query: 'avg:system.cpu.user{*} by {kube_cluster_name}' }, aggregator: 'avg', limit: 10 };
     case 'table':
-      return { type, title: '', requests: [{ query: 'sum:trace.http.request.hits{*} by {service}', alias: 'Requests' }, { query: 'avg:trace.http.request.duration.p95{*} by {service}', alias: 'p95 (ms)' }], aggregator: 'avg', limit: 25, searchable: true };
+      return {
+        type,
+        title: '',
+        requests: [
+          { query: 'sum:trace.http.request.hits{*} by {service}', alias: 'Requests' },
+          { query: 'avg:trace.http.request.duration.p95{*} by {service}', alias: 'p95 (ms)' },
+        ],
+        aggregator: 'avg',
+        limit: 25,
+        searchable: true,
+      };
     case 'heatmap':
     case 'distribution':
       return { type, title: '', request: { query: Q } };

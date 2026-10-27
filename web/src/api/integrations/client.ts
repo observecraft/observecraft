@@ -1,34 +1,49 @@
-// Integrations data access. One function per query-service endpoint:
-//   GET    /api/v1/integrations?query&status&category   searchCatalog
-//   GET    /api/v1/integrations/categories               listCategories
-//   GET    /api/v1/integrations/:id                      getIntegration
-//   POST   /api/v1/integrations/:id/install              installIntegration
-//   DELETE /api/v1/integrations/:id/install              uninstallIntegration
-//   GET    /api/v1/marketplace/apps?query&category       searchMarketplace
-// Today they resolve against the in-browser mock.
+// Live state is derived from organization-scoped telemetry. Catalog templates do not install collectors.
 import * as mock from '../mock/integrations';
-import type { CatalogRequest, CatalogResponse, IntegrationDetail, MarketplaceApp, MarketplaceRequest } from './types';
+import { API_MODE, get } from '../http';
+import { hasReportedMetrics, reportedMetricNames } from './detection';
+import type { CatalogRequest, CatalogResponse, IntegrationDetail, MarketplaceApp, MarketplaceRequest, IntegrationSummary } from './types';
 
-export function searchCatalog(req: CatalogRequest): Promise<CatalogResponse> {
-  return mock.searchCatalog(req);
+async function reportedMetrics(): Promise<Set<string>> {
+  const metrics = await get('/api/v1/metrics', {});
+  return reportedMetricNames(metrics);
 }
 
-export function listCategories(): Promise<{ featured: string[]; all: string[] }> {
-  return mock.listCategories();
+export async function searchCatalog(req: CatalogRequest): Promise<CatalogResponse> {
+  if (API_MODE === 'mock') return mock.searchCatalog(req);
+  const names = await reportedMetrics();
+  const q = req.query.trim().toLowerCase();
+  const integrations = mock
+    .catalogMetadata()
+    .map((entry): IntegrationSummary => ({
+      ...entry,
+      status: hasReportedMetrics(entry.id, mock.integrationMetadata(entry.id).metrics, names) ? 'detected' : 'available',
+    }))
+    .filter((s) => req.status === 'all' || s.status === req.status)
+    .filter((s) => !req.category || s.categories.includes(req.category))
+    .filter((s) => !q || s.name.toLowerCase().includes(q) || s.categories.some((c) => c.toLowerCase().includes(q)))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return { integrations };
 }
 
-export function getIntegration(id: string): Promise<IntegrationDetail> {
-  return mock.getIntegration(id);
+export const listCategories = mock.listCategories;
+
+export async function getIntegration(id: string): Promise<IntegrationDetail> {
+  if (API_MODE === 'mock') return mock.getIntegration(id);
+  const detail = mock.integrationMetadata(id);
+  return { ...detail, status: hasReportedMetrics(id, detail.metrics, await reportedMetrics()) ? 'detected' : 'available' };
 }
 
 export function installIntegration(id: string): Promise<IntegrationDetail> {
-  return mock.installIntegration(id);
+  if (API_MODE === 'mock') return mock.installIntegration(id);
+  return Promise.reject(new Error('Apply the collector configuration manually. Remote installation is not available.'));
 }
 
 export function uninstallIntegration(id: string): Promise<IntegrationDetail> {
-  return mock.uninstallIntegration(id);
+  if (API_MODE === 'mock') return mock.uninstallIntegration(id);
+  return Promise.reject(new Error('Remove the configuration from your collector to stop collection.'));
 }
 
 export function searchMarketplace(req: MarketplaceRequest): Promise<MarketplaceApp[]> {
-  return mock.searchMarketplace(req);
+  return API_MODE === 'mock' ? mock.searchMarketplace(req) : Promise.resolve([]);
 }

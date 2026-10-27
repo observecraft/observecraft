@@ -2269,6 +2269,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/query/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute a dashboard in one request, preserving a separate result/error for every query ID. */
+        post: operations["dashboard_query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/query/dashboard/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A single POST SSE stream sends a full snapshot then aligned bucket replacements every 10s.
+         *     Identical subscriptions within the same organization share the plan, scans and retained history. */
+        post: operations["dashboard_live"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/query/distribution": {
         parameters: {
             query?: never;
@@ -3015,6 +3050,22 @@ export interface components {
             id: string;
             name: string;
         };
+        DashboardMetricQuery: {
+            id: string;
+            /** Format: int32 */
+            points?: number | null;
+            query: string;
+        };
+        DashboardMetricSeries: {
+            name: string;
+            points: [
+                number,
+                number
+            ][];
+            tags: {
+                [key: string]: string;
+            };
+        };
         DashboardPatch: {
             description?: string | null;
             layoutType?: null | components["schemas"]["LayoutType"];
@@ -3024,6 +3075,33 @@ export interface components {
             templateVariables?: components["schemas"]["TemplateVariable"][] | null;
             title?: string | null;
             widgets?: Record<string, never>[] | null;
+        };
+        DashboardQueryFrame: {
+            /** @description Actual telemetry SELECTs, excluding metadata discovery; independent of panel count. */
+            data_scans: number;
+            error?: string | null;
+            range: components["schemas"]["TimeRange"];
+            results: components["schemas"]["DashboardQueryResult"][];
+            unique_queries: number;
+        };
+        DashboardQueryRequest: {
+            queries: components["schemas"]["DashboardMetricQuery"][];
+            range: components["schemas"]["TimeRange"];
+        };
+        DashboardQueryResult: {
+            error?: string | null;
+            id: string;
+            /** @description gauge | counter | delta | updown | histogram | exponential_histogram | summary | span | unknown */
+            kind: string;
+            /**
+             * Format: int64
+             * @description Replace existing points at or after this aligned timestamp (also removes vanished series).
+             */
+            replace_from: number;
+            series: components["schemas"]["DashboardMetricSeries"][];
+            /** Format: int64 */
+            step_ms: number;
+            unit?: string | null;
         };
         DashboardSearchPage: {
             dashboards: components["schemas"]["DashboardSummary"][];
@@ -9805,6 +9883,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProfileList"];
+                };
+            };
+        };
+    };
+    dashboard_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardQueryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardQueryFrame"];
+                };
+            };
+        };
+    };
+    dashboard_live: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardQueryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["DashboardQueryFrame"];
                 };
             };
         };

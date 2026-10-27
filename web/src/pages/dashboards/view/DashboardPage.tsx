@@ -1,3 +1,4 @@
+import { useDashboardExecution } from '../execution';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { Layout } from 'react-grid-layout';
@@ -53,7 +54,7 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
   const update = useUpdateDashboard(d.id);
   const clone = useCloneDashboard();
   const del = useDeleteDashboards();
-  const { range: live } = useTime();
+  const { range: live, live: streaming, refreshVersion } = useTime();
   const { from, to } = snapRange(live);
   const range = useMemo(() => ({ from, to }), [from, to]);
   const canEdit = d.kind === 'custom' && d.deletedAt === null;
@@ -97,15 +98,18 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
   }, []);
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
+  const resolve = useCallback((query: string) => resolveQuery(query, d.templateVariables, values), [d.templateVariables, values]);
+  const metrics = useDashboardExecution(d.widgets, resolve, range, streaming, refreshVersion);
+
   const { mutate } = update; // stable across renders
   const saveWidgets = useCallback((widgets: Widget[]) => mutate({ widgets }), [mutate]);
 
   const ctx = useMemo<DashboardContextValue>(
     () => ({
       range,
-      resolve: (query) => resolveQuery(query, d.templateVariables, values),
-      resolveSearch: (query) =>
-        [query, ...d.templateVariables.filter((tv) => values[tv.name] && values[tv.name] !== '*').map((tv) => `${tv.prefix}:${values[tv.name]}`)].filter(Boolean).join(' '),
+      metrics,
+      resolve,
+      resolveSearch: (query) => [query, ...d.templateVariables.filter((tv) => values[tv.name] && values[tv.name] !== '*').map((tv) => `${tv.prefix}:${values[tv.name]}`)].filter(Boolean).join(' '),
       canEdit,
       onEdit: (w) => setEditing({ widget: w, isNew: false }),
       onClone: (wid) => saveWidgets(cloneWidget(d.widgets, wid)),
@@ -117,7 +121,7 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
       onGroupLayout: (gid, layouts) =>
         saveWidgets(updateWidget(d.widgets, gid, (g) => (g.definition.type === 'group' ? { ...g, definition: { ...g.definition, widgets: applyLayouts(g.definition.widgets, layouts) } } : g))),
     }),
-    [range, d.widgets, d.templateVariables, values, canEdit, saveWidgets, showToast],
+    [range, metrics, resolve, d.widgets, d.templateVariables, values, canEdit, saveWidgets, showToast],
   );
 
   const onLayout = (layouts: Layout[]) => saveWidgets(applyLayouts(d.widgets, layouts));
@@ -135,7 +139,12 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
     } else if (groupId) {
       saveWidgets(
         updateWidget(d.widgets, groupId, (g) =>
-          g.definition.type === 'group' ? { ...g, definition: { ...g.definition, widgets: [...g.definition.widgets, { ...editing.widget, definition: def, layout: { ...editing.widget.layout, y: bottom(g.definition.widgets) } }] } } : g,
+          g.definition.type === 'group'
+            ? {
+                ...g,
+                definition: { ...g.definition, widgets: [...g.definition.widgets, { ...editing.widget, definition: def, layout: { ...editing.widget.layout, y: bottom(g.definition.widgets) } }] },
+              }
+            : g,
         ),
       );
     } else {
@@ -156,6 +165,16 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
   return (
     <DashboardContext.Provider value={ctx}>
       <div className="dash-page">
+        {metrics.error && (
+          <p role="alert" className="muted-text">
+            {metrics.error.message}
+          </p>
+        )}
+        {metrics.connectionError && (
+          <p role="status" className="muted-text">
+            Live updates interrupted. Reconnecting...
+          </p>
+        )}
         <header className="dash-header">
           <div className="dash-title-row">
             <button className={`icon-plain dash-star${d.starred ? ' on' : ''}`} title={d.starred ? 'Unstar' : 'Star'} onClick={() => update.mutate({ starred: !d.starred })}>
@@ -204,7 +223,11 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
                 }
                 items={[
                   { label: 'Template variables', icon: <Variable size={14} />, onClick: () => setTvEditor(true), disabled: !canEdit },
-                  { label: 'Export dashboard JSON', icon: <Download size={14} />, onClick: () => download(`${d.title}.json`, JSON.stringify({ title: d.title, layoutType: d.layoutType, templateVariables: d.templateVariables, widgets: d.widgets }, null, 2)) },
+                  {
+                    label: 'Export dashboard JSON',
+                    icon: <Download size={14} />,
+                    onClick: () => download(`${d.title}.json`, JSON.stringify({ title: d.title, layoutType: d.layoutType, templateVariables: d.templateVariables, widgets: d.widgets }, null, 2)),
+                  },
                   { label: 'Import dashboard JSON', icon: <Upload size={14} />, onClick: () => setImporting(true), disabled: !canEdit },
                   { label: 'Clone dashboard', icon: <Copy size={14} />, onClick: doClone },
                   { label: 'Delete dashboard', icon: <Trash2 size={14} />, onClick: () => setConfirmDelete(true), disabled: !canEdit },

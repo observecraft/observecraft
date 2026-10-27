@@ -18,6 +18,7 @@
 mod appmetrics;
 mod ci;
 mod hosts;
+mod kubernetes;
 mod network;
 mod profiles;
 
@@ -790,6 +791,7 @@ async fn main() -> anyhow::Result<()> {
     let metrics_url = format!("{endpoint}/v1/metrics");
     let logs_url = format!("{endpoint}/v1/logs");
     let profile_url = format!("{endpoint}/api/v2/profile");
+    let events_url = format!("{endpoint}/api/v1/events");
     let mut headers = reqwest::header::HeaderMap::new();
     if let Ok(key) = std::env::var("OC_INGEST_KEY") {
         headers.insert(
@@ -816,6 +818,8 @@ async fn main() -> anyhow::Result<()> {
         tracing::warn!(error = %e, "network backfill skipped");
     }
 
+    kubernetes::backfill(&http, &metrics_url, now_ns()).await;
+
     let mut host_state = hosts::initial_state(&mut rng, now_ns());
     let mut app_metrics = appmetrics::AppMetrics::new(now_ns());
     let mut tick = tokio::time::interval(Duration::from_secs(1));
@@ -833,6 +837,16 @@ async fn main() -> anyhow::Result<()> {
             {
                 tracing::warn!(error = %e, "metrics export failed");
             }
+            let payload = kubernetes::metrics_payload(now_ns());
+            if let Err(e) = http
+                .post(&metrics_url)
+                .json(&payload)
+                .send()
+                .await
+                .and_then(|r| r.error_for_status())
+            {
+                tracing::warn!(error = %e, "Kubernetes metrics export failed");
+            }
             let payload = app_metrics.payload(&mut rng, now_ns());
             if let Err(e) = http
                 .post(&metrics_url)
@@ -843,6 +857,9 @@ async fn main() -> anyhow::Result<()> {
             {
                 tracing::warn!(error = %e, "application metrics export failed");
             }
+        }
+        if seconds.is_multiple_of(60) {
+            kubernetes::send_events(&http, &events_url, now_ns()).await;
         }
         if seconds % 90 == 45 {
             send_ci(&http, &url, ci_push_ending_now(&mut rng)).await;
@@ -906,8 +923,20 @@ async fn send_ci(http: &reqwest::Client, url: &str, resource_spans: Vec<Value>) 
 }
 
 /// Fills the last 7 days with pipeline runs when ClickHouse has (almost) none yet.
-async fn send_network(http: &reqwest::Client, url: &str, rng: &mut Rng, now: u64, connections: bool) {
-    if let Err(e) = http.post(url).json(&network::payload(rng, now, connections)).send().await.and_then(|r| r.error_for_status()) {
+async fn send_network(
+    http: &reqwest::Client,
+    url: &str,
+    rng: &mut Rng,
+    now: u64,
+    connections: bool,
+) {
+    if let Err(e) = http
+        .post(url)
+        .json(&network::payload(rng, now, connections))
+        .send()
+        .await
+        .and_then(|r| r.error_for_status())
+    {
         tracing::warn!(error = %e, "network connections export failed");
     }
 }
@@ -949,7 +978,10 @@ async fn backfill_profiles(http: &reqwest::Client, url: &str, rng: &mut Rng) -> 
     let count: u64 = http
         .get(&ch)
         .basic_auth(user, Some(password))
-        .query(&[("query", "SELECT count() FROM otel.profiles WHERE Start > now() - INTERVAL 70 MINUTE")])
+        .query(&[(
+            "query",
+            "SELECT count() FROM otel.profiles WHERE Start > now() - INTERVAL 70 MINUTE",
+        )])
         .send()
         .await?
         .error_for_status()?

@@ -554,7 +554,7 @@ function QueryBuilder({ type, query, onChange }: { type: MonitorType; query: str
   const [raw, setRaw] = useState(false);
   const catalog = useQuery({
     queryKey: ['metric-catalog'],
-    queryFn: metricCatalog,
+    queryFn: ({ signal }) => metricCatalog(signal),
     staleTime: 300_000,
   });
   const parsed = parseMetricQuery(query);

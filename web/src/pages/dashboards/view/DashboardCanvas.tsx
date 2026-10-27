@@ -1,13 +1,11 @@
-import { useMemo } from 'react';
-import GridLayout, { WidthProvider, type Layout } from 'react-grid-layout';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import GridLayout, { type Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import type { LayoutType, Widget } from '../../../api/dashboards/types';
 import { useDashboardContext } from '../widgets/context';
 import { GroupFrame, WidgetFrame } from '../widgets/WidgetFrame';
 import { groupHeight } from '../tree';
-
-const Grid = WidthProvider(GridLayout);
 
 /** Grid geometry per layout type. Free layout uses a 4× finer grid and allows overlap. */
 export const GEOMETRY = {
@@ -25,6 +23,18 @@ interface GridProps {
 
 function WidgetGrid({ widgets, layoutType, editable, onLayout, nested = false }: GridProps) {
   const ctx = useDashboardContext();
+  const container = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const element = container.current!;
+    const measure = () => setWidth(element.clientWidth);
+    measure();
+    // WidthProvider only observes window resize. A nested grid also changes
+    // width when its parent group is positioned or resized by the outer grid.
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const g = GEOMETRY[layoutType];
   const dragClass = nested ? 'drag-l1' : 'drag-l0';
   const layout = useMemo<Layout[]>(
@@ -36,7 +46,7 @@ function WidgetGrid({ widgets, layoutType, editable, onLayout, nested = false }:
           x: w.layout.x,
           y: w.layout.y,
           w: w.layout.w,
-          h: group ? groupHeight(w.definition.type === 'group' ? w.definition.widgets : []) : w.layout.h,
+          h: w.definition.type === 'group' ? Math.max(w.layout.h, groupHeight(w.definition.widgets, w.definition.compact)) : w.layout.h,
           minW: layoutType === 'free' ? 4 : 2,
           minH: layoutType === 'free' ? 4 : 2,
           resizeHandles: group ? ['e'] : ['se'],
@@ -45,34 +55,39 @@ function WidgetGrid({ widgets, layoutType, editable, onLayout, nested = false }:
     [widgets, layoutType],
   );
   return (
-    <Grid
-      className={`dash-grid${nested ? ' nested' : ''}`}
-      layout={layout}
-      cols={g.cols}
-      rowHeight={g.rowHeight}
-      margin={nested ? [10, 10] : g.margin}
-      containerPadding={nested ? [10, 10] : [0, 0]}
-      isDraggable={editable}
-      isResizable={editable}
-      draggableHandle={`.${dragClass}`}
-      draggableCancel=".wf-nodrag"
-      compactType={layoutType === 'free' ? null : 'vertical'}
-      allowOverlap={layoutType === 'free'}
-      onDragStop={onLayout}
-      onResizeStop={onLayout}
-    >
-      {widgets.map((w) => (
-        <div key={w.id} className="dash-cell">
-          {w.definition.type === 'group' ? (
-            <GroupFrame widget={w} dragClass={dragClass}>
-              <WidgetGrid widgets={w.definition.widgets} layoutType="grid" editable={editable} nested onLayout={(l) => ctx.onGroupLayout(w.id, l)} />
-            </GroupFrame>
-          ) : (
-            <WidgetFrame widget={w} dragClass={dragClass} />
-          )}
-        </div>
-      ))}
-    </Grid>
+    <div ref={container} style={{ width: '100%', minWidth: 0 }}>
+      {width > 0 && (
+        <GridLayout
+          width={width}
+          className={`dash-grid${nested ? ' nested' : ''}`}
+          layout={layout}
+          cols={g.cols}
+          rowHeight={g.rowHeight}
+          margin={nested ? [10, 10] : g.margin}
+          containerPadding={nested ? [10, 10] : [0, 0]}
+          isDraggable={editable}
+          isResizable={editable}
+          draggableHandle={`.${dragClass}`}
+          draggableCancel=".wf-nodrag"
+          compactType={layoutType === 'free' ? null : 'vertical'}
+          allowOverlap={layoutType === 'free'}
+          onDragStop={onLayout}
+          onResizeStop={onLayout}
+        >
+          {widgets.map((w) => (
+            <div key={w.id} className="dash-cell">
+              {w.definition.type === 'group' ? (
+                <GroupFrame widget={w} dragClass={dragClass}>
+                  <WidgetGrid widgets={w.definition.widgets} layoutType="grid" editable={editable} nested onLayout={(l) => ctx.onGroupLayout(w.id, l)} />
+                </GroupFrame>
+              ) : (
+                <WidgetFrame widget={w} dragClass={dragClass} />
+              )}
+            </div>
+          ))}
+        </GridLayout>
+      )}
+    </div>
   );
 }
 

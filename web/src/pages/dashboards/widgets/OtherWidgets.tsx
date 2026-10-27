@@ -23,7 +23,7 @@ export function NoteWidget({ def }: { def: Def<'note'> }) {
 }
 
 export function ImageWidget({ def }: { def: Def<'image'> }) {
-  if (def.src && /^(https?:|data:image\/)/.test(def.src)) {
+  if (def.src && /^(https?:|data:image\/|\/(?!\/))/.test(def.src)) {
     return <img className="img-widget" src={def.src} alt={def.title ?? ''} />;
   }
   return (

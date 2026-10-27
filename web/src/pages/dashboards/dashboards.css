@@ -768,6 +768,20 @@
   font-weight: var(--fw-semibold);
 }
 
+.wg-compact .wg-head {
+  height: 36px;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 38px;
+}
+
+.wg-compact .wg-title {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .wg-actions {
   position: absolute;
   right: 8px;
@@ -1653,4 +1667,10 @@
 
 .import-area {
   font-size: 12px;
+}
+
+/* Authored diagrams must remain legible in narrow imported image tiles. */
+.img-widget[src^='/images/dashboard-'] {
+  object-fit: contain;
+  background: #eef7f6;
 }

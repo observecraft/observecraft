@@ -523,3 +523,28 @@ export function searchMarketplace(req: MarketplaceRequest): Promise<MarketplaceA
       .sort((a, b) => a.name.localeCompare(b.name)),
   );
 }
+
+/** Static catalog metadata, without the demo installation state or generated hosts. */
+export function catalogMetadata(): IntegrationSummary[] {
+  return CATALOG.map((e) => ({ ...summary(e), status: 'available', warning: undefined }));
+}
+
+export function integrationMetadata(id: string): IntegrationDetail {
+  const e = find(id);
+  return {
+    ...detail(e),
+    status: 'available',
+    warning: undefined,
+    hosts: [],
+    resources: [],
+    releaseNotes: [],
+    setupSteps:
+      e.collect.kind === 'notify'
+        ? ['Configure a supported notification channel in Organization Settings. This catalog does not provision provider connections.']
+        : [
+            'Apply the configuration template to your own collector and supply the required endpoints and credentials.',
+            'Add the receiver to the appropriate collector service pipeline and configure an exporter to the ObserveCraft intake with your organization ingest key.',
+            'Restart or reload the collector. Detection is based on matching metrics received during the last 24 hours.',
+          ],
+  };
+}

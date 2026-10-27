@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { API_MODE } from '../../api/http';
+import { Link } from 'react-router-dom';
 import { Check, ChevronDown, LayoutDashboard, Plus, Siren, TriangleAlert, X } from 'lucide-react';
 import type { IntegrationDetail, IntegrationStatus } from '../../api/integrations/types';
 import { CodeBlock } from '../../components/code/CodeBlock';
@@ -7,7 +9,7 @@ import { Menu } from '../../components/ui/Dropdown';
 import { Modal } from '../../components/ui/Modal';
 import { timeAgo } from '../../lib/format';
 import { IntegrationLogo } from './IntegrationLogo';
-import { useInstallToggle, useIntegration } from './queries';
+import { useInstallToggle, useIntegration, useIntegrationDashboards } from './queries';
 
 const TABS = ['Overview', 'Configure', 'Data Collected', 'Hosts', 'Monitoring Resources', 'Support', 'Release Notes'] as const;
 type Tab = (typeof TABS)[number];
@@ -70,7 +72,7 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
             </div>
           ) : (
             <button className="btn btn-primary" disabled={toggle.isPending} onClick={() => setTab('Configure')}>
-              <Plus size={14} /> Install
+              <Plus size={14} /> {API_MODE === 'live' ? 'Configure' : 'Install'}
             </button>
           )}
           <button className="icon-plain" title="Close (Esc)" onClick={onClose}>
@@ -105,6 +107,7 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
             <p>For help, contact your ObserveCraft administrator or open a support ticket with the integration name and the collector version from the Hosts tab.</p>
           </div>
         )}
+        {tab === 'Release Notes' && d.releaseNotes.length === 0 && <p className="im-text muted-text">No published release notes for this configuration template.</p>}
         {tab === 'Release Notes' && (
           <div className="im-text">
             {d.releaseNotes.map((r) => (
@@ -173,7 +176,7 @@ function Configure({ d, installed, pending, onInstall }: { d: IntegrationDetail;
         ))}
       </ol>
 
-      {d.settings.length > 0 && (
+      {API_MODE === 'mock' && d.settings.length > 0 && (
         <div className="im-settings">
           {d.settings.map((s) => (
             <label key={s.key}>
@@ -198,17 +201,29 @@ function Configure({ d, installed, pending, onInstall }: { d: IntegrationDetail;
           badge={<span className={`cfg-target cfg-${c.target}`}>{c.target === 'vector' ? 'Vector' : 'OTel Collector'}</span>}
         />
       ))}
-      {d.configs.length > 0 && <p className="muted-text">Fragments are merged into each collector's config by the fleet manager; the shared exporter and processors are defined once.</p>}
+      {d.configs.length > 0 && (
+        <p className="muted-text">
+          Configuration templates require review for your collector version. Merge the receiver into your collector configuration and add it to the service pipeline before restarting.
+        </p>
+      )}
 
       <div className="im-install-row">
-        {installed ? (
-          <span className="im-installed-note">
-            <Check size={15} /> Installed. Configuration is rolled out to matching collectors.
-          </span>
+        {API_MODE === 'live' ? (
+          <p className="muted-text">
+            ObserveCraft detects matching metrics received in the last 24 hours. Configure collection on your infrastructure; this page does not deploy or remove collectors.
+          </p>
         ) : (
-          <button className="btn btn-primary" disabled={pending || missing} onClick={onInstall} title={missing ? 'Fill in all settings first' : undefined}>
-            <Plus size={14} /> {pending ? 'Installing…' : `Install ${d.name}`}
-          </button>
+          <>
+            {installed ? (
+              <span className="im-installed-note">
+                <Check size={15} /> Installed. Configuration is rolled out to matching collectors.
+              </span>
+            ) : (
+              <button className="btn btn-primary" disabled={pending || missing} onClick={onInstall} title={missing ? 'Fill in all settings first' : undefined}>
+                <Plus size={14} /> {pending ? 'Installing…' : `Install ${d.name}`}
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -251,7 +266,15 @@ function DataCollected({ d }: { d: IntegrationDetail }) {
 
 function Hosts({ d }: { d: IntegrationDetail }) {
   if (d.hosts.length === 0)
-    return <p className="im-text muted-text">{d.status === 'available' ? 'No hosts are running this integration.' : 'This integration is not host-based (it runs through the provider API).'}</p>;
+    return (
+      <p className="im-text muted-text">
+        {API_MODE === 'live'
+          ? 'No verified host inventory is available for this integration.'
+          : d.status === 'available'
+            ? 'No hosts are running this integration.'
+            : 'This integration is not host-based (it runs through the provider API).'}
+      </p>
+    );
   return (
     <div className="im-text">
       <table className="im-table">
@@ -282,22 +305,44 @@ function Hosts({ d }: { d: IntegrationDetail }) {
 }
 
 function Resources({ d, installed }: { d: IntegrationDetail; installed: boolean }) {
-  if (d.resources.length === 0) return <p className="im-text muted-text">No dashboards or monitors ship with this integration.</p>;
+  const dashboards = useIntegrationDashboards(d.id);
+  if (d.resources.length === 0 && !dashboards.isFetching && !dashboards.isError && !dashboards.data?.length)
+    return <p className="im-text muted-text">No dashboards or monitors ship with this integration.</p>;
   return (
     <div className="im-text">
       <ul className="im-resources">
-        {d.resources.map((r) => (
-          <li key={r.name}>
-            {r.kind === 'dashboard' ? <LayoutDashboard size={16} /> : <Siren size={16} />}
+        {dashboards.isFetching && <li>Loading dashboards…</li>}
+        {dashboards.isError && (
+          <li>
+            <ErrorState error={dashboards.error} onRetry={() => dashboards.refetch()} />
+          </li>
+        )}
+        {dashboards.data?.map((dashboard) => (
+          <li key={dashboard.id}>
+            <LayoutDashboard size={16} />
             <div>
-              <strong>{r.name}</strong>
-              <div className="muted-text">{r.description}</div>
+              <strong>{dashboard.title}</strong>
+              <div className="muted-text">Bundled integration dashboard. Collect metrics to populate its charts.</div>
             </div>
-            <button className="btn" disabled={!installed} title={installed ? undefined : 'Install the integration first'}>
-              {r.kind === 'dashboard' ? 'Open dashboard' : 'Create monitor'}
-            </button>
+            <Link className="btn" to={`/dashboards/${dashboard.id}`}>
+              Open dashboard
+            </Link>
           </li>
         ))}
+        {d.resources
+          .filter((r) => r.kind !== 'dashboard')
+          .map((r) => (
+            <li key={r.name}>
+              {r.kind === 'dashboard' ? <LayoutDashboard size={16} /> : <Siren size={16} />}
+              <div>
+                <strong>{r.name}</strong>
+                <div className="muted-text">{r.description}</div>
+              </div>
+              <button className="btn" disabled={!installed} title={installed ? undefined : 'Install the integration first'}>
+                {r.kind === 'dashboard' ? 'Open dashboard' : 'Create monitor'}
+              </button>
+            </li>
+          ))}
       </ul>
     </div>
   );
