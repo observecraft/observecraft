@@ -1845,7 +1845,7 @@
         "tags": [
           "error-tracking"
         ],
-        "summary": "Marks an issue reviewed, ignored, resolved or back for review.",
+        "summary": "Sets an issue's status (reviewed, ignored, resolved, back for review) and/or its assignee.",
         "operationId": "set_issue_state",
         "parameters": [
           {
@@ -1861,7 +1861,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/IssueStateUpdate"
+                "$ref": "#/components/schemas/IssueUpdate"
               }
             }
           },
@@ -11524,9 +11524,13 @@
         ],
         "properties": {
           "assignee": {
-            "type": [
-              "string",
-              "null"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UserRef"
+              }
             ]
           },
           "count": {
@@ -11667,15 +11671,22 @@
           }
         }
       },
-      "IssueStateUpdate": {
+      "IssueUpdate": {
         "type": "object",
-        "required": [
-          "status"
-        ],
         "properties": {
+          "assigneeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A user of the organization, `null` to unassign; absent leaves it as is."
+          },
           "status": {
-            "type": "string",
-            "description": "for_review, reviewed, ignored or resolved."
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "for_review, reviewed, ignored or resolved; absent leaves it as is."
           }
         }
       },

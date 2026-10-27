@@ -872,7 +872,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Marks an issue reviewed, ignored, resolved or back for review. */
+        /** Sets an issue's status (reviewed, ignored, resolved, back for review) and/or its assignee. */
         post: operations["set_issue_state"];
         delete?: never;
         options?: never;
@@ -4228,7 +4228,7 @@ export interface components {
             roleIds?: string[];
         };
         IssueOut: {
-            assignee?: string | null;
+            assignee?: null | components["schemas"]["UserRef"];
             /** Format: int64 */
             count: number;
             errorType: string;
@@ -4270,9 +4270,11 @@ export interface components {
             /** @description for_review | reviewed | ignored | resolved | all */
             state?: string;
         };
-        IssueStateUpdate: {
-            /** @description for_review, reviewed, ignored or resolved. */
-            status: string;
+        IssueUpdate: {
+            /** @description A user of the organization, `null` to unassign; absent leaves it as is. */
+            assigneeId?: string | null;
+            /** @description for_review, reviewed, ignored or resolved; absent leaves it as is. */
+            status?: string | null;
         };
         KubeContainer: {
             cpu: components["schemas"]["KubeUtilization"];
@@ -7486,7 +7488,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["IssueStateUpdate"];
+                "application/json": components["schemas"]["IssueUpdate"];
             };
         };
         responses: {

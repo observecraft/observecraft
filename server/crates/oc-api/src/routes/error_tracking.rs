@@ -113,17 +113,31 @@ pub(crate) fn platform_of(error_type: &str, message: &str) -> &'static str {
     }
 }
 
-/// A saved review state (Postgres `error_issue_states`).
+/// A user an issue is assigned to.
+#[derive(Serialize, ToSchema, Clone, Debug)]
+pub struct UserRef {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+}
+
+/// A saved decision (Postgres `error_issue_states`).
 pub(crate) struct Saved {
     pub status: String,
-    /// Unix ms of the decision.
+    /// Unix ms of the last status change.
     pub updated_at: i64,
+    pub assignee: Option<UserRef>,
 }
 
 const STATES: [&str; 4] = ["for_review", "reviewed", "ignored", "resolved"];
 
-/// An issue with its status and whether it regressed.
-pub(crate) type StatedIssue = (IssueGroup, String, bool);
+/// An issue with its status, whether it regressed, and its assignee.
+pub(crate) struct StatedIssue {
+    pub group: IssueGroup,
+    pub status: String,
+    pub regression: bool,
+    pub assignee: Option<UserRef>,
+}
 
 /// Issues with their status (`for_review` unless saved) and whether they regressed (resolved, then
 /// seen again after the resolution), filtered to `state` (or `all`), and the totals per state.
@@ -132,14 +146,15 @@ pub(crate) fn apply_states(issues: Vec<IssueGroup>, saved: &HashMap<String, Save
     totals.insert("all".into(), issues.len());
     let mut shown = Vec::new();
     for g in issues {
-        let (status, regression) = match saved.get(&g.id) {
+        let saved = saved.get(&g.id);
+        let (status, regression) = match saved {
             Some(s) if s.status == "resolved" && g.last_seen > s.updated_at => ("for_review".to_string(), true),
             Some(s) => (s.status.clone(), false),
             None => ("for_review".to_string(), false),
         };
         *totals.entry(status.clone()).or_default() += 1;
         if state == "all" || state == status {
-            shown.push((g, status, regression));
+            shown.push(StatedIssue { group: g, status, regression, assignee: saved.and_then(|s| s.assignee.clone()) });
         }
     }
     (shown, totals)
@@ -190,7 +205,7 @@ pub struct IssueOut {
     pub count: u64,
     pub sparkline: Vec<u64>,
     pub status: String,
-    pub assignee: Option<String>,
+    pub assignee: Option<UserRef>,
     pub team: Option<String>,
     pub is_crash: bool,
     pub is_regression: bool,
@@ -242,14 +257,19 @@ pub async fn search_issues(State(st): State<AppState>, OrgId(org): OrgId, Json(r
         Some("first_seen") => issues.sort_by(|a, b| b.first_seen.cmp(&a.first_seen)),
         _ => {}
     }
-    let saved: HashMap<String, Saved> = sqlx::query_as::<_, (String, String, i64)>(
-        "SELECT issue_id, status, (extract(epoch FROM updated_at) * 1000)::bigint FROM error_issue_states WHERE org_id = $1",
+    type SavedRow = (String, String, i64, Option<String>, Option<String>, Option<String>);
+    let saved: HashMap<String, Saved> = sqlx::query_as::<_, SavedRow>(
+        "SELECT s.issue_id, s.status, (extract(epoch FROM s.status_at) * 1000)::bigint, u.id::text, u.name, u.email \
+         FROM error_issue_states s LEFT JOIN users u ON u.id = s.assignee AND u.org_id = s.org_id WHERE s.org_id = $1",
     )
     .bind(&org)
     .fetch_all(&st.postgres)
     .await?
     .into_iter()
-    .map(|(id, status, updated_at)| (id, Saved { status, updated_at }))
+    .map(|(id, status, updated_at, uid, name, email)| {
+        let assignee = uid.map(|id| UserRef { id, name: name.unwrap_or_default(), email: email.unwrap_or_default() });
+        (id, Saved { status, updated_at, assignee })
+    })
     .collect();
     let (issues, totals) = apply_states(issues, &saved, &req.state);
     let offset = req.cursor.as_deref().and_then(|c| c.parse::<usize>().ok()).unwrap_or(0);
@@ -259,12 +279,12 @@ pub async fn search_issues(State(st): State<AppState>, OrgId(org): OrgId, Json(r
         .into_iter()
         .skip(offset)
         .take(limit)
-        .map(|(g, status, regression)| IssueOut {
+        .map(|StatedIssue { group: g, status, regression, assignee }| IssueOut {
             platform: platform_of(&g.error_type, &g.message).into(),
             persona: "backend".into(),
             source: "logs".into(),
             status,
-            assignee: None,
+            assignee,
             team: None,
             is_crash: false,
             is_regression: regression,
@@ -282,29 +302,57 @@ pub async fn search_issues(State(st): State<AppState>, OrgId(org): OrgId, Json(r
     Ok(Json(IssueSearchPage { issues: page, next_cursor, totals }))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct IssueStateUpdate {
-    /// for_review, reviewed, ignored or resolved.
-    pub status: String,
+/// `null` → `Some(None)` (unassign), absent → `None` (leave as is).
+fn present<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Option<String>>, D::Error> {
+    Option::<String>::deserialize(d).map(Some)
 }
 
-/// Marks an issue reviewed, ignored, resolved or back for review.
-#[utoipa::path(post, path = "/api/v1/error-tracking/issues/{id}/state", params(("id" = String, Path)), request_body = IssueStateUpdate, responses((status = 204)), tag = "error-tracking")]
-pub async fn set_issue_state(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<String>, Json(u): Json<IssueStateUpdate>) -> Result<StatusCode, ApiError> {
-    if !STATES.contains(&u.status.as_str()) {
-        return Err(ApiError::BadRequest(format!("unknown status {}", u.status)));
+#[derive(Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueUpdate {
+    /// for_review, reviewed, ignored or resolved; absent leaves it as is.
+    #[serde(default)]
+    pub status: Option<String>,
+    /// A user of the organization, `null` to unassign; absent leaves it as is.
+    #[serde(default, deserialize_with = "present")]
+    #[schema(value_type = Option<String>)]
+    pub assignee_id: Option<Option<String>>,
+}
+
+/// Sets an issue's status (reviewed, ignored, resolved, back for review) and/or its assignee.
+#[utoipa::path(post, path = "/api/v1/error-tracking/issues/{id}/state", params(("id" = String, Path)), request_body = IssueUpdate, responses((status = 204)), tag = "error-tracking")]
+pub async fn set_issue_state(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<String>, Json(u): Json<IssueUpdate>) -> Result<StatusCode, ApiError> {
+    if let Some(status) = &u.status {
+        if !STATES.contains(&status.as_str()) {
+            return Err(ApiError::BadRequest(format!("unknown status {status}")));
+        }
     }
     if id.len() != 16 || !id.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err(ApiError::BadRequest("invalid issue id".into()));
     }
+    // An assignee must be a user of this organization.
+    if let Some(Some(user)) = &u.assignee_id {
+        let known: Option<(String,)> = sqlx::query_as("SELECT id::text FROM users WHERE id::text = $1 AND org_id = $2").bind(user).bind(&ctx.org_id).fetch_optional(&st.postgres).await?;
+        if known.is_none() {
+            return Err(ApiError::BadRequest("unknown assignee".into()));
+        }
+    }
+    let set_assignee = u.assignee_id.is_some();
     sqlx::query(
-        "INSERT INTO error_issue_states (org_id, issue_id, status, updated_by, updated_at) VALUES ($1, $2, $3, $4::uuid, now()) \
-         ON CONFLICT (org_id, issue_id) DO UPDATE SET status = EXCLUDED.status, updated_by = EXCLUDED.updated_by, updated_at = now()",
+        "INSERT INTO error_issue_states (org_id, issue_id, status, status_at, assignee, updated_by, updated_at) \
+         VALUES ($1, $2, COALESCE($3, 'for_review'), now(), $4::uuid, $5::uuid, now()) \
+         ON CONFLICT (org_id, issue_id) DO UPDATE SET \
+           status = COALESCE($3, error_issue_states.status), \
+           status_at = CASE WHEN $3 IS NULL OR $3 = error_issue_states.status THEN error_issue_states.status_at ELSE now() END, \
+           assignee = CASE WHEN $6 THEN $4::uuid ELSE error_issue_states.assignee END, \
+           updated_by = EXCLUDED.updated_by, updated_at = now()",
     )
     .bind(&ctx.org_id)
     .bind(&id)
     .bind(&u.status)
+    .bind(u.assignee_id.flatten())
     .bind(&ctx.user_id)
+    .bind(set_assignee)
     .execute(&st.postgres)
     .await?;
     Ok(StatusCode::NO_CONTENT)
@@ -340,23 +388,34 @@ mod tests {
     }
 
     #[test]
+    fn an_update_tells_a_missing_assignee_from_unassigning() {
+        let u: IssueUpdate = serde_json::from_str(r#"{"status":"reviewed"}"#).unwrap();
+        assert_eq!((u.status.as_deref(), u.assignee_id), (Some("reviewed"), None));
+        let u: IssueUpdate = serde_json::from_str(r#"{"assigneeId":null}"#).unwrap();
+        assert_eq!(u.assignee_id, Some(None));
+        let u: IssueUpdate = serde_json::from_str(r#"{"assigneeId":"0c4f1d2e-0000-4000-8000-000000000001"}"#).unwrap();
+        assert_eq!(u.assignee_id, Some(Some("0c4f1d2e-0000-4000-8000-000000000001".into())));
+    }
+
+    #[test]
     fn saved_states_apply_and_a_resolved_issue_that_comes_back_regresses() {
         let saved = HashMap::from([
-            ("a".to_string(), Saved { status: "reviewed".into(), updated_at: 500 }),
-            ("b".to_string(), Saved { status: "resolved".into(), updated_at: 500 }),
-            ("c".to_string(), Saved { status: "resolved".into(), updated_at: 500 }),
+            ("a".to_string(), Saved { status: "reviewed".into(), updated_at: 500, assignee: Some(UserRef { id: "u1".into(), name: "Ana".into(), email: "ana@example.com".into() }) }),
+            ("b".to_string(), Saved { status: "resolved".into(), updated_at: 500, assignee: None }),
+            ("c".to_string(), Saved { status: "resolved".into(), updated_at: 500, assignee: None }),
         ]);
         // a: reviewed; b: resolved, not seen since; c: resolved, seen again after → for review, regression; d: unknown → for review.
         let issues = vec![group("a", 900), group("b", 400), group("c", 900), group("d", 900)];
         let (shown, totals) = apply_states(issues, &saved, "all");
-        let state = |id: &str| shown.iter().find(|(g, ..)| g.id == id).map(|(_, s, r)| (s.as_str(), *r)).unwrap();
+        let state = |id: &str| shown.iter().find(|i| i.group.id == id).map(|i| (i.status.as_str(), i.regression)).unwrap();
+        assert_eq!(shown.iter().find(|i| i.group.id == "a").unwrap().assignee.as_ref().map(|u| u.name.as_str()), Some("Ana"));
         assert_eq!(state("a"), ("reviewed", false));
         assert_eq!(state("b"), ("resolved", false));
         assert_eq!(state("c"), ("for_review", true));
         assert_eq!(state("d"), ("for_review", false));
         assert_eq!((totals["for_review"], totals["reviewed"], totals["resolved"], totals["ignored"], totals["all"]), (2, 1, 1, 0, 4));
         let (resolved, _) = apply_states(vec![group("b", 400), group("d", 900)], &saved, "resolved");
-        assert_eq!(resolved.iter().map(|(g, ..)| g.id.as_str()).collect::<Vec<_>>(), vec!["b"]);
+        assert_eq!(resolved.iter().map(|i| i.group.id.as_str()).collect::<Vec<_>>(), vec!["b"]);
     }
 
     #[test]

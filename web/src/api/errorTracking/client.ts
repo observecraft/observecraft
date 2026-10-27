@@ -48,8 +48,8 @@ export async function updateIssue(id: string, patch: IssuePatch): Promise<void> 
     await mock.updateIssue(id, patch);
     return;
   }
-  if (patch.assigneeId !== undefined || patch.suspectedCause !== undefined) throw new Error('Assigning issues and setting their cause come next; only the status can be changed for now.');
-  if (patch.status) await postTo('/api/v1/error-tracking/issues/{id}/state', { id }, { status: patch.status });
+  if (patch.suspectedCause !== undefined) throw new Error('Setting the suspected cause comes next; status and assignee can be changed.');
+  await postTo('/api/v1/error-tracking/issues/{id}/state', { id }, { status: patch.status, assigneeId: patch.assigneeId });
 }
 
 export function addComment(id: string, text: string): Promise<ActivityEntry> {
@@ -62,8 +62,10 @@ export function getErrorSample(req: ErrorSampleRequest): Promise<ErrorSamplePage
   return mock.getErrorSample(req);
 }
 
-export function listUsers(): Promise<User[]> {
-  return mock.listUsers();
+export async function listUsers(): Promise<User[]> {
+  if (API_MODE !== 'live') return mock.listUsers();
+  const page = await post('/api/v1/users/search', { query: '', limit: 500, offset: 0 });
+  return page.users.map((u) => ({ id: u.id, name: u.name, email: u.email }));
 }
 
 export function listTeams(): Promise<string[]> {
