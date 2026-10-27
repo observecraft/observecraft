@@ -36,7 +36,7 @@ processors:
       - { key: host.name, value: "${env:OC_HOST_NAME}", action: upsert }
       - { key: deployment.environment, value: dev, action: upsert }
       - { key: observecraft.collector, value: otel, action: upsert }
-      - { key: observecraft.collector.version, value: otelcol-contrib 0.112.0, action: upsert }
+      - { key: observecraft.collector.version, value: otelcol-contrib 0.163.2, action: upsert }
       - { key: os.type, value: linux, action: upsert }
       - { key: oc.org_id, value: "${env:OC_HOST_ORG}", action: upsert }
 

@@ -105,7 +105,7 @@ fn host_resource(h: &Host) -> Vec<(String, Value)> {
         kv("team", h.team),
         kv("host.cpu.count", h.cpus as i64),
         kv("observecraft.collector", h.collector),
-        kv("observecraft.collector.version", if h.collector == "otel" { "otelcol-contrib 0.112.0" } else { "observecraft-collector 1.4.2" }),
+        kv("observecraft.collector.version", if h.collector == "otel" { "otelcol-contrib 0.163.2" } else { "observecraft-collector 1.4.2" }),
     ];
     if let Some(c) = h.cluster {
         r.push(kv("k8s.cluster.name", c));
