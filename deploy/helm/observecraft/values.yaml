@@ -120,7 +120,7 @@ intake:
 collector:
   image:
     repository: otel/opentelemetry-collector-contrib
-    tag: "0.112.0"
+    tag: "0.163.2"
   replicas: 2
   memoryLimitMiB: 1536
   persistence:

@@ -69,7 +69,7 @@ The agent is also reachable through the node-local service `<release>-observecra
 | `node.dataHostPath` | `/var/lib/observecraft-agent` | Send queue and log read positions, kept across agent restarts. |
 | `cluster.objectsInterval`, `cluster.events` | `60s`, `true` | Object snapshots for the Kubernetes Explorer, and events. |
 | `node.extraConfig` / `cluster.extraConfig` | `{}` | Merged over the generated Collector configuration (extra receivers, processors, …). |
-| `image.repository` / `image.tag` | `otel/opentelemetry-collector-contrib` / `0.112.0` | Collector image. |
+| `image.repository` / `image.tag` | `otel/opentelemetry-collector-contrib` / `0.163.2` | Collector image. |
 
 Every value is documented in [`values.yaml`](https://github.com/observecraft/observecraft/blob/main/deploy/helm/observecraft-agent/values.yaml)
 and validated by `values.schema.json`.

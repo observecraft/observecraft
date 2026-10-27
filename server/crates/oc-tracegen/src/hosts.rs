@@ -219,7 +219,7 @@ fn host_resource(h: &Host) -> Vec<(String, Value)> {
         kv(
             "observecraft.collector.version",
             if h.collector == "otel" {
-                "otelcol-contrib 0.112.0"
+                "otelcol-contrib 0.163.2"
             } else {
                 "observecraft-collector 1.4.2"
             },
