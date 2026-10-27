@@ -94,12 +94,7 @@ function ExplorerBody() {
     <div className="hosts-page ox-page">
       <OrchestrationHeader product={product} active="Explorer" />
       <div className="ox-subbar">
-        <button className="link-btn ox-views">
-          <PanelLeft size={15} /> Views
-        </button>
-        <span className="ox-myview">
-          My View <EllipsisVertical size={15} className="muted" />
-        </span>
+        <span className="ox-myview">My View</span>
         {product === 'kubernetes' && (
           <span className="ox-subtabs">
             <button className={`ox-subtab${sub === 'inventory' ? ' active' : ''}`} onClick={() => setParam({ sub: null })}>

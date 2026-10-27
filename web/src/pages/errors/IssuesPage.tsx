@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronRight, EllipsisVertical, Globe, PanelLeft, PanelLeftClose, Pin, Sparkles, Upload } from 'lucide-react';
+import { ChevronRight, Globe, PanelLeft, PanelLeftClose, Pin, Sparkles, Upload } from 'lucide-react';
 import { suggestIssueQuery } from '../../api/errorTracking/client';
 import type { DataSource, IssueSort, IssueStateTab, Persona, SuspectedCause } from '../../api/errorTracking/types';
 import { FacetPanel } from '../../components/facets/FacetPanel';
@@ -40,10 +40,7 @@ const SOURCES: Option<DataSource | 'all'>[] = [
   { value: 'apm', label: 'APM' },
 ];
 
-const CAUSES: Option<SuspectedCause | 'all'>[] = [
-  { value: 'all', label: 'All' },
-  ...(Object.keys(CAUSE_LABEL) as SuspectedCause[]).map((c) => ({ value: c, label: CAUSE_LABEL[c] })),
-];
+const CAUSES: Option<SuspectedCause | 'all'>[] = [{ value: 'all', label: 'All' }, ...(Object.keys(CAUSE_LABEL) as SuspectedCause[]).map((c) => ({ value: c, label: CAUSE_LABEL[c] }))];
 
 const SORTS: Option<IssueSort>[] = [
   { value: 'relevance', label: 'Relevance' },
@@ -119,11 +116,7 @@ export function IssuesPage() {
     return () => io.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const assigneeOptions: Option<string>[] = [
-    { value: 'all', label: 'All' },
-    { value: 'unassigned', label: 'Unassigned' },
-    ...(users.data ?? []).map((u) => ({ value: u.id, label: u.name })),
-  ];
+  const assigneeOptions: Option<string>[] = [{ value: 'all', label: 'All' }, { value: 'unassigned', label: 'Unassigned' }, ...(users.data ?? []).map((u) => ({ value: u.id, label: u.name }))];
   const teamOptions: Option<string>[] = [{ value: 'all', label: 'All' }, ...(teams.data ?? []).map((t) => ({ value: t, label: t }))];
 
   const facetHeader = (
@@ -154,12 +147,7 @@ export function IssuesPage() {
         <span className="et-side-toggle">
           <Sparkles size={14} className="brand-icon" /> Investigation Ready
         </span>
-        <button
-          role="switch"
-          aria-checked={investigationReady}
-          className={`switch${investigationReady ? ' on' : ''}`}
-          onClick={() => setInvestigationReady((x) => !x)}
-        />
+        <button role="switch" aria-checked={investigationReady} className={`switch${investigationReady ? ' on' : ''}`} onClick={() => setInvestigationReady((x) => !x)} />
       </label>
     </>
   );
@@ -168,13 +156,7 @@ export function IssuesPage() {
     <div className="issues-page">
       <div className="section-header et-section-header">
         <div className="section-header-left">
-          <button className="page-tab et-views">
-            <PanelLeft size={15} /> Views
-          </button>
-          <div className="page-tab active">
-            My View
-            <EllipsisVertical size={16} className="muted" />
-          </div>
+          <div className="page-tab active">My View</div>
         </div>
         <TimePicker compact />
       </div>
