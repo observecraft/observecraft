@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Columns3, Download, EllipsisVertical, List, Megaphone, Network, PanelLeft, PanelLeftClose, Search, Server, Sparkles, X } from 'lucide-react';
+import { Columns3, Download, EllipsisVertical, Hexagon, List, Megaphone, PanelLeft, PanelLeftClose, Search, Server, Sparkles, X } from 'lucide-react';
 import type { HostSortField, HostSummary, MetricFilter } from '../../api/infrastructure/types';
 import { TimePicker } from '../../components/shell/PageHeader';
 import { TimeProvider, useTime } from '../../components/shell/TimeContext';
@@ -12,10 +12,13 @@ import { snapRange } from '../../lib/time';
 import { HostFilters } from './HostFilters';
 import { ALL_COLUMNS, HostTable, type HostColumn } from './HostTable';
 import { HostPanel } from './panel/HostPanel';
+import { HostMap } from './HostMap';
 import { useHosts } from './queries';
 import './infrastructure.css';
 
 const PAGE_SIZE = 20;
+/** Hosts the Host Map draws at once. */
+const MAP_LIMIT = 1000;
 const BANNER_KEY = 'oc.infra.bannerDismissed';
 
 const GROUP_OPTIONS = [
@@ -93,6 +96,7 @@ function HostsPageBody() {
   const [sortField, sortDir] = (params.get('sort') ?? 'cpu:desc').split(':') as [HostSortField, 'asc' | 'desc'];
   const offset = Number(params.get('offset') ?? 0);
   const openHost = params.get('host');
+  const view = params.get('view') === 'map' ? 'map' : 'list';
 
   const setParam = useCallback(
     (updates: Record<string, string | null>, push = false) =>
@@ -127,8 +131,9 @@ function HostsPageBody() {
     metricFilters: activeFilters,
     groupBy,
     sort: { field: sortField, dir: sortDir },
-    offset,
-    limit: PAGE_SIZE,
+    // The map shows every host at once.
+    offset: view === 'map' ? 0 : offset,
+    limit: view === 'map' ? MAP_LIMIT : PAGE_SIZE,
   });
 
   const onSort = (field: HostSortField) => {
@@ -170,12 +175,12 @@ function HostsPageBody() {
             My View <EllipsisVertical size={16} className="muted" />
           </div>
           <div className="hosts-tabs">
-            <span className="hosts-tab active">
+            <button className={`hosts-tab${view === 'list' ? ' active' : ''}`} onClick={() => setParam({ view: null })}>
               <List size={15} /> Hosts
-            </span>
-            <span className="hosts-tab" title="Not built yet">
-              <Network size={15} /> Infrastructure Diagram <span className="badge-new">NEW</span>
-            </span>
+            </button>
+            <button className={`hosts-tab${view === 'map' ? ' active' : ''}`} onClick={() => setParam({ view: 'map', offset: null })}>
+              <Hexagon size={15} /> Host Map
+            </button>
           </div>
         </div>
         <TimePicker compact />
@@ -224,7 +229,20 @@ function HostsPageBody() {
         )}
 
         <div className="hosts-body">
-          {showFilters && <HostFilters terms={terms} onTerms={(t) => { setDraft(formatQuery(t)); setTerms(t); }} metricFilters={metricFilters} onMetricFilters={(f) => { setMetricFilters(f); setParam({ offset: null }); }} />}
+          {showFilters && (
+            <HostFilters
+              terms={terms}
+              onTerms={(t) => {
+                setDraft(formatQuery(t));
+                setTerms(t);
+              }}
+              metricFilters={metricFilters}
+              onMetricFilters={(f) => {
+                setMetricFilters(f);
+                setParam({ offset: null });
+              }}
+            />
+          )}
 
           <div className="hosts-main">
             <div className="hosts-toolbar">
@@ -251,8 +269,14 @@ function HostsPageBody() {
               <Empty>No hosts match these filters.</Empty>
             ) : (
               <div className={hostsQ.isPlaceholderData ? 'is-stale' : undefined}>
-                <HostTable page={page} columns={columns} sort={{ field: sortField, dir: sortDir }} onSort={onSort} selected={openHost} onOpen={(h) => setParam({ host: h }, true)} />
-                <Pager offset={offset} limit={PAGE_SIZE} total={total} onChange={(o) => setParam({ offset: o ? String(o) : null })} />
+                {view === 'map' ? (
+                  <HostMap hosts={page.hosts} selected={openHost} onOpen={(h) => setParam({ host: h }, true)} />
+                ) : (
+                  <>
+                    <HostTable page={page} columns={columns} sort={{ field: sortField, dir: sortDir }} onSort={onSort} selected={openHost} onOpen={(h) => setParam({ host: h }, true)} />
+                    <Pager offset={offset} limit={PAGE_SIZE} total={total} onChange={(o) => setParam({ offset: o ? String(o) : null })} />
+                  </>
+                )}
               </div>
             )}
           </div>

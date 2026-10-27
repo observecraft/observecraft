@@ -495,3 +495,24 @@ test('a group finds its usage series even when the metrics carry no cluster, if 
   assert.equal(groupSeries(series, 'kube_cluster_name:aks-dev, kube_namespace:shop', false), undefined, 'several clusters: no guessing');
   assert.equal(groupSeries(series, 'kube_cluster_name:aks-dev, kube_namespace:other', true), undefined);
 });
+
+test('host map: hosts grouped as the list groups them, colored from green (idle) to red (busy)', async () => {
+  const { mapGroups, fillColor } = await import('../web/src/pages/infrastructure/hostMapLayout.ts');
+  const hosts = [
+    { name: 'a', group: 'prod', cpuPct: 10 },
+    { name: 'b', group: 'stage', cpuPct: 95 },
+    { name: 'c', group: 'prod', cpuPct: 50 },
+    { name: 'd', cpuPct: 5 },
+  ];
+  assert.deepEqual(
+    mapGroups(hosts).map((g) => [g.key, g.hosts.map((h) => h.name)]),
+    [
+      ['prod', ['a', 'c']],
+      ['stage', ['b']],
+      ['All hosts', ['d']],
+    ],
+  );
+  assert.equal(fillColor(0), 'hsl(130 55% 45%)');
+  assert.equal(fillColor(100), 'hsl(0 55% 45%)');
+  assert.equal(fillColor(null), 'var(--bg-subtle)');
+});
