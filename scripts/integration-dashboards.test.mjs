@@ -435,3 +435,19 @@ test('a log pattern opens as a search for its service and longest fixed text', a
   // Quotes can't be escaped in a search phrase: the longest piece between them is used.
   assert.equal(patternQuery({ pattern: 'say "hello" * now', service: '' }, ''), '"hello"');
 });
+
+test('a log search opens in a dashboard as a log stream widget', async () => {
+  const { logStreamWidgets } = await import('../web/src/pages/dashboards/tree.ts');
+  const [w] = logStreamWidgets('service:billing status:error');
+  assert.equal(w.definition.type, 'log_stream');
+  assert.equal(w.definition.query, 'service:billing status:error');
+  assert.equal(w.definition.title, 'service:billing status:error');
+  assert.deepEqual(w.layout, { x: 0, y: 0, w: 12, h: 8 });
+  assert.equal(logStreamWidgets('')[0].definition.title, 'All logs');
+});
+
+test('log messages are shown without ANSI color codes', async () => {
+  const { stripAnsi } = await import('../web/src/lib/format.ts');
+  assert.equal(stripAnsi('INFO:\u001b[94m\u001b[1mGET\u001b[0m /metrics \u001b[32m200\u001b[0m'), 'INFO:GET /metrics 200');
+  assert.equal(stripAnsi('plain [94m text'), 'plain [94m text');
+});

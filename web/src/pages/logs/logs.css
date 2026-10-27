@@ -277,6 +277,14 @@
   width: 110px;
 }
 
+/* Long host and service names give way to the message. */
+.log-table td.col-host,
+.log-table td.col-service {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .col-content {
   overflow: hidden;
   text-overflow: ellipsis;

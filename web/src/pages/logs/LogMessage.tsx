@@ -1,4 +1,5 @@
 import { memo, type ReactNode } from 'react';
+import { stripAnsi } from '../../lib/format';
 
 // Highlighting rules for raw log lines, matching how the log list colours them:
 // leading timestamps and [TAGS] muted; URLs, paths, `key=value` and `word:` labels in link blue.
@@ -33,5 +34,5 @@ export function highlight(message: string): ReactNode[] {
 }
 
 export const LogMessage = memo(function LogMessage({ message }: { message: string }) {
-  return <>{highlight(message)}</>;
+  return <>{highlight(stripAnsi(message))}</>;
 });

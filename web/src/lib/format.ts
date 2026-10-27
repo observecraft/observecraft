@@ -44,3 +44,9 @@ export function hhmm(t: number): string {
   const d = new Date(t);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+/** A terminal line without its ANSI color and style codes (`ESC[94m`), as logs are displayed. */
+export function stripAnsi(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/\u001b\[[0-9;]*[A-Za-z]/g, '');
+}

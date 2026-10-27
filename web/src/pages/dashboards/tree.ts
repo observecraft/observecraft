@@ -122,3 +122,8 @@ export function defaultDefinition(type: WidgetType): WidgetDefinition {
       return { type, title: 'Logs', query: 'status:error', limit: 15 };
   }
 }
+
+/** A log search as dashboard widgets (Log Explorer → Open in Dashboards). */
+export function logStreamWidgets(query: string): Widget[] {
+  return [{ id: newWidgetId(), definition: { type: 'log_stream', title: query.trim() || 'All logs', query, limit: 50 }, layout: { x: 0, y: 0, ...DEFAULT_SIZE.log_stream } }];
+}

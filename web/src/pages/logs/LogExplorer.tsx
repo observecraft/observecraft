@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { ChevronDown, Download, EllipsisVertical, LayoutDashboard, PanelLeft, ScanSearch, Settings, Sheet } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Download, LayoutDashboard, PanelLeft, Settings } from 'lucide-react';
 import { searchLogs, suggestLogQuery } from '../../api/client';
 import type { LogEvent, LogInsight, LogSearchResult } from '../../api/types';
 import { TimePicker } from '../../components/shell/PageHeader';
@@ -13,7 +13,10 @@ import { AggregateView, type VizMode } from './AggregateView';
 import { InsightsPanel } from './InsightsPanel';
 import { LogDetail } from './LogDetail';
 import { LogHistogram } from './LogHistogram';
-import { LogTable } from './LogTable';
+import { DEFAULT_TABLE_OPTIONS, LogTable, OptionsMenu, type LogTableOptions } from './LogTable';
+import { logStreamWidgets } from '../dashboards/tree';
+import { useCreateDashboard } from '../dashboards/queries';
+import { updateDashboard } from '../../api/dashboards/client';
 import { VizPicker } from './VizPicker';
 import { PatternsTable } from './PatternsTable';
 import { patternQuery } from './patterns';
@@ -38,6 +41,16 @@ export function LogExplorer() {
   const [query, setQuery] = useState(() => params.get('query') ?? '');
   const [viz, setViz] = useState<VizMode>('list');
   const [groupInto, setGroupInto] = useState<'fields' | 'patterns'>('fields');
+  const [tableOptions, setTableOptions] = useState<LogTableOptions>(DEFAULT_TABLE_OPTIONS);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const navigate = useNavigate();
+  const createDashboard = useCreateDashboard();
+  // Open in Dashboards: a new dashboard with this search as a log stream.
+  const openInDashboard = async () => {
+    const d = await createDashboard.mutateAsync({ title: `Logs: ${query.trim() || 'all logs'}`, teams: [], layoutType: 'grid' });
+    await updateDashboard(d.id, { widgets: logStreamWidgets(query) });
+    navigate(`/dashboards/${d.id}`);
+  };
   const [showFacets, setShowFacets] = useState(true);
   const [selectedLog, setSelectedLog] = useState<LogEvent | null>(null);
   const [result, setResult] = useState<LogSearchResult | null>(null);
@@ -67,13 +80,7 @@ export function LogExplorer() {
     <div className="log-explorer">
       <div className="section-header">
         <div className="section-header-left">
-          <div className="page-tab">
-            <ScanSearch size={18} /> Findings <span className="badge-new">NEW</span>
-          </div>
-          <div className="page-tab active">
-            My View
-            <EllipsisVertical size={16} className="muted" />
-          </div>
+          <div className="page-tab active">My View</div>
         </div>
         <TimePicker />
       </div>
@@ -112,32 +119,18 @@ export function LogExplorer() {
                 </button>
                 <span className="log-count">{(result?.total ?? 0).toLocaleString()} logs</span>
                 <div className="toolbar-right">
-                  <div className="btn-group">
-                    <span className="btn btn-label">Open in</span>
-                    <button className="btn">
-                      <LayoutDashboard size={14} /> Dashboards
-                    </button>
-                    <button className="btn">
-                      <Sheet size={14} /> Sheets
-                    </button>
-                    <button className="btn">
-                      <ChevronDown size={14} />
-                    </button>
-                  </div>
-                  <div className="btn-group">
-                    <button className="btn" onClick={() => downloadCsv(logs)}>
-                      <Download size={14} /> CSV
-                    </button>
-                    <button className="btn">
-                      <ChevronDown size={14} />
-                    </button>
-                  </div>
-                  <button className="toolbar-link">
-                    <ScanSearch size={14} /> Add Finding <span className="badge-new">NEW</span>
+                  <button className="btn" onClick={openInDashboard} disabled={createDashboard.isPending}>
+                    <LayoutDashboard size={14} /> Open in Dashboards
                   </button>
-                  <button className="toolbar-icon" title="Options">
-                    <Settings size={15} />
+                  <button className="btn" onClick={() => downloadCsv(logs)}>
+                    <Download size={14} /> CSV
                   </button>
+                  <div className="options-anchor">
+                    <button className={`toolbar-icon${optionsOpen ? ' active' : ''}`} title="Options" onClick={() => setOptionsOpen((o) => !o)}>
+                      <Settings size={15} />
+                    </button>
+                    {optionsOpen && <OptionsMenu value={tableOptions} onChange={setTableOptions} />}
+                  </div>
                 </div>
               </div>
 
@@ -152,7 +145,7 @@ export function LogExplorer() {
                   }}
                 />
               ) : viz === 'list' ? (
-                <LogTable logs={rows} selectedId={selectedLog?.id ?? null} onSelect={setSelectedLog} />
+                <LogTable logs={rows} selectedId={selectedLog?.id ?? null} onSelect={setSelectedLog} options={tableOptions} />
               ) : (
                 <div className="agg-wrap">
                   <AggregateView mode={viz} logs={logs} histogram={result?.histogram ?? []} />

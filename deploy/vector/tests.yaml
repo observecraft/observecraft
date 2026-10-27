@@ -246,3 +246,22 @@ tests:
           - type: vrl
             source: |
               assert_eq!(.status, "warn")
+
+  - name: Datadog Agent's own log line with a piped ERROR level is error
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "2026-10-27 20:10:53 UTC | CORE | ERROR | (pkg/collector/worker/check_logger.go:71 in Error) | check:redisdb | Error running check"
+          .status = "info"
+          .ddsource = "agent"
+          .service = "agent"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "error")
