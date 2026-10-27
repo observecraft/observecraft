@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { dataSettings, listIndexes, updateDataSettings } from '../../api/logIndexes/client';
+import { dataSettings, listIndexes, updateDataSettings, type MetricRetention, type OrgDataSettings } from '../../api/logIndexes/client';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { useProfile } from './queries';
 
@@ -16,7 +16,7 @@ export function DataRetentionPage() {
   const ix = useQuery({ queryKey: ['log-indexes'], queryFn: listIndexes });
   const [span, setSpan] = useState<number | null>(null);
   const save = useMutation({
-    mutationFn: (d: number) => updateDataSettings(d),
+    mutationFn: (d: number) => updateDataSettings({ spanRetentionDays: d }),
     onSuccess: () => {
       setSpan(null);
       void qc.invalidateQueries({ queryKey: ['data-settings'] });
@@ -97,9 +97,12 @@ export function DataRetentionPage() {
           <tr>
             <td>
               <b>Metrics</b>
+              <div className="muted small">Long ranges read the rollups. Applies to metrics received from now on.</div>
             </td>
-            <td>{d.metricsRetentionDays} days</td>
-            <td className="muted">Install-wide</td>
+            <td>
+              <MetricRetentionEdit settings={d} editable={isAdmin} />
+            </td>
+            <td className="muted">Here</td>
           </tr>
           <tr>
             <td>
@@ -122,5 +125,61 @@ export function DataRetentionPage() {
       {save.error && <p className="form-error">{(save.error as Error).message}</p>}
       <p className="muted small">Every log is also kept unindexed for {Math.round(d.rawLogsHours / 24)} days so archives receive it, even when no index keeps it.</p>
     </div>
+  );
+}
+
+const METRIC_LEVELS: { key: keyof MetricRetention; label: string }[] = [
+  { key: 'raw', label: 'Full resolution' },
+  { key: 'rollup5m', label: '5-minute rollups' },
+  { key: 'rollup1h', label: '1-hour rollups' },
+];
+
+/** The org's metric retention per resolution, editable by org admins within the install's limits. */
+function MetricRetentionEdit({ settings: d, editable }: { settings: OrgDataSettings; editable: boolean }) {
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<MetricRetention | null>(null);
+  const save = useMutation({
+    mutationFn: (metrics: MetricRetention) => updateDataSettings({ metrics }),
+    onSuccess: () => {
+      setDraft(null);
+      void qc.invalidateQueries({ queryKey: ['data-settings'] });
+    },
+  });
+  const value = draft ?? d.metrics;
+  const changed = draft !== null && METRIC_LEVELS.some(({ key }) => draft[key] !== d.metrics[key]);
+  return (
+    <>
+      {METRIC_LEVELS.map(({ key, label }) => {
+        const options = d.metricRetentionTiers.filter((x) => x <= d.maxMetrics[key]);
+        if (!options.includes(d.metrics[key])) options.push(d.metrics[key]);
+        return (
+          <div key={key} className="dr-edit">
+            <span className="muted">{label}:</span>{' '}
+            {editable ? (
+              <select value={value[key]} onChange={(e) => setDraft({ ...value, [key]: Number(e.target.value) })}>
+                {options
+                  .sort((a, b) => a - b)
+                  .map((x) => (
+                    <option key={x} value={x}>
+                      {x} days
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              `${d.metrics[key]} days`
+            )}
+          </div>
+        );
+      })}
+      {changed && (
+        <button className="btn btn-primary btn-sm" onClick={() => save.mutate(value)} disabled={save.isPending}>
+          Save
+        </button>
+      )}
+      <div className="muted small">
+        Up to {d.maxMetrics.raw} / {d.maxMetrics.rollup5m} / {d.maxMetrics.rollup1h} days
+      </div>
+      {save.error && <p className="form-error">{(save.error as Error).message}</p>}
+    </>
   );
 }

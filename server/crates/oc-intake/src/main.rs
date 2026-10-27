@@ -119,8 +119,27 @@ impl Config {
     }
 }
 
-/// What a key resolves to: its org and the org's span retention.
-pub type KeyOrg = (String, i32);
+/// The org an ingest key sends as, and its retention (days; 0 = the install's default).
+#[derive(Clone, Debug, sqlx::FromRow)]
+pub struct KeyOrg {
+    pub org_id: String,
+    pub span_retention_days: i32,
+    pub metrics_retention_days: i32,
+    pub metrics_5m_days: i32,
+    pub metrics_1h_days: i32,
+}
+
+/// Headers every forwarded body carries; the collector turns them into resource attributes
+/// (`oc.org_id`, `oc.retention_days`, `oc.metrics_retention_*`), replacing what a sender set.
+fn org_headers(o: &KeyOrg) -> [(&'static str, String); 5] {
+    [
+        (ORG_HEADER, o.org_id.clone()),
+        (RETENTION_HEADER, o.span_retention_days.to_string()),
+        ("x-oc-metrics-retention-days", o.metrics_retention_days.to_string()),
+        ("x-oc-metrics-retention-5m-days", o.metrics_5m_days.to_string()),
+        ("x-oc-metrics-retention-1h-days", o.metrics_1h_days.to_string()),
+    ]
+}
 
 struct CachedKey {
     org: Option<KeyOrg>,
@@ -207,7 +226,8 @@ async fn resolve(st: &Shared, key: &str) -> anyhow::Result<Option<KeyOrg>> {
         return Ok(org);
     }
     let org: Option<KeyOrg> = sqlx::query_as(
-        "SELECT k.org_id, COALESCE(s.span_retention_days, 0) FROM ingest_keys k JOIN orgs o ON o.id = k.org_id \
+        "SELECT k.org_id, COALESCE(s.span_retention_days, 0) AS span_retention_days, COALESCE(s.metrics_retention_days, 0) AS metrics_retention_days, \
+         COALESCE(s.metrics_5m_days, 0) AS metrics_5m_days, COALESCE(s.metrics_1h_days, 0) AS metrics_1h_days FROM ingest_keys k JOIN orgs o ON o.id = k.org_id \
          LEFT JOIN org_data_settings s ON s.org_id = k.org_id WHERE k.key_hash = $1 AND k.revoked_at IS NULL AND o.status = 'active'",
     )
     .bind(&hash)
@@ -276,7 +296,7 @@ async fn admit(st: &Shared, headers: &HeaderMap, bytes: usize) -> Result<KeyOrg,
             ));
         }
     };
-    if !within_limits(st, &org.0, bytes) {
+    if !within_limits(st, &org.org_id, bytes) {
         return Err(Rejection::new(
             StatusCode::TOO_MANY_REQUESTS,
             "rate limit exceeded for this organization",
@@ -295,18 +315,16 @@ pub struct Upstream {
 /// Sends one admitted body to `target`, stamped with its org.
 async fn send(
     st: &Shared,
-    (org, retention): &KeyOrg,
+    org: &KeyOrg,
     target: &str,
     content_type: Option<&HeaderValue>,
     content_encoding: Option<&HeaderValue>,
     body: Bytes,
 ) -> Result<Upstream, Rejection> {
-    let mut req = st
-        .http
-        .post(target)
-        .header(ORG_HEADER, org)
-        .header(RETENTION_HEADER, retention.to_string())
-        .body(body);
+    let mut req = st.http.post(target).body(body);
+    for (name, value) in org_headers(org) {
+        req = req.header(name, value);
+    }
     if let Some(v) = content_type {
         req = req.header(header::CONTENT_TYPE, v);
     }
@@ -368,8 +386,8 @@ async fn forward(st: Shared, headers: HeaderMap, body: Bytes, target: String) ->
 /// `POST /api/v2/profile`: a profiler upload (multipart) from the Datadog Agent, passed unchanged to
 /// the server's internal listener, which stores it.
 async fn profile(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
-    let (org, _) = match admit(&st, &headers, body.len()).await {
-        Ok(org) => org,
+    let org = match admit(&st, &headers, body.len()).await {
+        Ok(org) => org.org_id,
         Err(r) => return r.into_response(),
     };
     let mut req = st
@@ -541,6 +559,21 @@ async fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn org_headers_carry_its_retention() {
+        let org = KeyOrg { org_id: "acme".into(), span_retention_days: 15, metrics_retention_days: 30, metrics_5m_days: 90, metrics_1h_days: 395 };
+        assert_eq!(
+            org_headers(&org),
+            [
+                ("x-oc-org", "acme".to_string()),
+                ("x-oc-retention-days", "15".to_string()),
+                ("x-oc-metrics-retention-days", "30".to_string()),
+                ("x-oc-metrics-retention-5m-days", "90".to_string()),
+                ("x-oc-metrics-retention-1h-days", "395".to_string()),
+            ]
+        );
+    }
 
     #[test]
     fn key_headers() {

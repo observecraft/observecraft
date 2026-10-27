@@ -69,6 +69,10 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
         "0005_profile_totals",
         include_str!("../../../migrations/clickhouse/0005_profile_totals.sql"),
     ),
+    (
+        "0006_metrics_storage",
+        include_str!("../../../migrations/clickhouse/0006_metrics_storage.sql"),
+    ),
 ];
 
 /// Migrations of the schema before 0001_schema (no org-first sort keys, no cluster support).
@@ -281,19 +285,49 @@ pub struct RetentionDays {
     pub traces: u32,
     /// Longest span retention any org may choose (the trace-id lookup table keeps this long).
     pub traces_max: u32,
+    /// Raw metric samples, and the 5-minute and 1-hour rollups, of orgs that didn't choose.
     pub metrics: u32,
+    pub metrics_5m: u32,
+    pub metrics_1h: u32,
     pub ci: u32,
     /// Hours every ingested log stays in `oc.logs_raw` (archives read it).
     pub raw_logs_hours: u32,
+    /// Days after which metric samples and rollups move to the `cold` volume of the
+    /// [`COLD_STORAGE_POLICY`] (object storage); 0 = no cold storage.
+    pub metrics_cold_after_days: u32,
 }
 
-/// Sets the tables' TTLs. Indexed logs and spans carry their own retention per row (set by the org's
-/// log indexes and span retention); the rest use install-wide values. A metadata change only:
-/// expired parts are dropped at the next merges instead of rewriting the tables now.
-pub async fn apply_retention(cfg: &ClickHouseConfig, r: RetentionDays) -> anyhow::Result<()> {
-    let admin = cfg.admin().with_option("materialize_ttl_after_modify", "0");
+/// Storage policy with a `default` (local) and a `cold` (object storage) volume, declared in the
+/// ClickHouse server config when cold storage is on (the Helm chart's `clickhouse.bundled.coldStorage`).
+pub const COLD_STORAGE_POLICY: &str = "observecraft_tiered";
+
+/// The metric storage tables that move to cold storage (not the series table: small, read by every query).
+const COLD_TABLES: &[&str] = &[
+    "otel.metrics_samples",
+    "otel.metrics_rollup_5m",
+    "otel.metrics_rollup_1h",
+    "otel.metrics_dist_samples",
+    "otel.metrics_dist_rollup_5m",
+    "otel.metrics_dist_rollup_1h",
+];
+
+/// Each table's TTL expression for `r`.
+fn retention_ttls(r: RetentionDays) -> Vec<(&'static str, String)> {
+    let mut ttls = delete_ttls(r);
+    if r.metrics_cold_after_days > 0 {
+        for (_, ttl) in ttls.iter_mut().filter(|(t, _)| COLD_TABLES.contains(t)) {
+            // The same time column as the delete TTL (TimeUnix or Bucket).
+            let time = ttl.split(" + ").next().unwrap_or_default().to_string();
+            *ttl = format!("{time} + toIntervalDay({}) TO VOLUME 'cold', {ttl}", r.metrics_cold_after_days);
+        }
+    }
+    ttls
+}
+
+/// Each table's delete TTL for `r`.
+fn delete_ttls(r: RetentionDays) -> Vec<(&'static str, String)> {
     // Rehydrated logs (oc.logs_rehydrated) expire with their rehydration, not by age.
-    let tables: [(&str, String); 11] = [
+    vec![
         ("oc.logs", "toDateTime(timestamp) + toIntervalDay(retention_days)".into()),
         ("oc.logs_raw", format!("toDateTime(timestamp) + INTERVAL {} HOUR", r.raw_logs_hours)),
         ("otel.otel_traces", format!("toDate(Timestamp) + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.traces)),
@@ -305,16 +339,65 @@ pub async fn apply_retention(cfg: &ClickHouseConfig, r: RetentionDays) -> anyhow
         ("otel.otel_metrics_histogram", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
         ("otel.otel_metrics_exponential_histogram", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
         ("otel.otel_metrics_summary", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
-    ];
-    for (table, ttl) in tables {
-        let (local, on) = (cfg.local(table), cfg.on_cluster());
+        ("otel.metrics_samples", format!("toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics)),
+        ("otel.metrics_rollup_5m", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_5m)),
+        ("otel.metrics_rollup_1h", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_1h)),
+        ("otel.metrics_dist_samples", format!("toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics)),
+        ("otel.metrics_dist_rollup_5m", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_5m)),
+        ("otel.metrics_dist_rollup_1h", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_1h)),
+        ("otel.metrics_series", format!("LastSeen + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics.max(r.metrics_5m).max(r.metrics_1h))),
+    ]
+}
+
+/// Sets the tables' TTLs. Indexed logs, spans and the metrics storage carry their own retention per
+/// row (the org's choice); the rest, and rows without a choice, use install-wide values. A changed
+/// TTL is recalculated for existing parts without rewriting them; expired parts are dropped at the
+/// next merges.
+pub async fn apply_retention(cfg: &ClickHouseConfig, r: RetentionDays) -> anyhow::Result<()> {
+    let admin = cfg.admin().with_option("materialize_ttl_after_modify", "0");
+    let on = cfg.on_cluster();
+    for (table, ttl) in retention_ttls(r) {
+        let local = cfg.local(table);
+        let (db, name) = local.split_once('.').unwrap_or(("default", &local));
+        let definition = || {
+            admin
+                .query("SELECT engine_full FROM system.tables WHERE database = ? AND name = ?")
+                .bind(db)
+                .bind(name)
+                .fetch_one::<String>()
+        };
+        let before = definition().await.with_context(|| format!("definition of {table}"))?;
+        if r.metrics_cold_after_days > 0 && COLD_TABLES.contains(&table) && !before.contains(COLD_STORAGE_POLICY) {
+            // Its `default` volume is the default policy's, so existing parts stay where they are.
+            admin
+                .query(&format!("ALTER TABLE {local}{on} MODIFY SETTING storage_policy = '{COLD_STORAGE_POLICY}'"))
+                .execute()
+                .await
+                .with_context(|| format!("cold storage policy on {table} (is {COLD_STORAGE_POLICY} in the ClickHouse config?)"))?;
+        }
         admin
             .query(&format!("ALTER TABLE {local}{on} MODIFY TTL {ttl}"))
             .execute()
             .await
             .with_context(|| format!("set retention of {table}"))?;
+        // A new TTL only applies to parts written from now on: recalculate the existing parts' TTL
+        // (no rewrite; expired parts are dropped by the next merges). Only when it changed, and in
+        // the background so startup doesn't wait on big tables.
+        if definition().await? != before {
+            admin
+                .query(&format!("ALTER TABLE {local}{on} MODIFY SETTING materialize_ttl_recalculate_only = 1"))
+                .execute()
+                .await
+                .with_context(|| format!("recalculate-only TTL on {table}"))?;
+            admin
+                .query(&format!("ALTER TABLE {local}{on} MATERIALIZE TTL"))
+                .execute()
+                .await
+                .with_context(|| format!("materialize retention of {table}"))?;
+            tracing::info!(table, ttl, "retention changed; recalculating existing parts");
+        }
     }
-    tracing::info!(traces = r.traces, traces_max = r.traces_max, metrics = r.metrics, ci = r.ci, raw_logs_hours = r.raw_logs_hours, "retention applied");
+    tracing::info!(traces = r.traces, traces_max = r.traces_max, metrics = r.metrics, metrics_5m = r.metrics_5m, metrics_1h = r.metrics_1h, ci = r.ci, raw_logs_hours = r.raw_logs_hours, "retention applied");
     Ok(())
 }
 
@@ -354,19 +437,28 @@ mod tests {
             .iter()
             .filter(|s| s.starts_with("CREATE TABLE"))
             .collect();
-        let locals = creates
-            .iter()
-            .filter(|s| s.contains("_local ON CLUSTER 'oc'") && s.contains("ENGINE = Replicated"))
-            .count();
-        let distributed = creates
+        let name = |s: &str| s.split_whitespace().nth(5).unwrap_or_default().to_string();
+        let distributed: Vec<String> = creates
             .iter()
             .filter(|s| s.contains("ENGINE = Distributed('oc'"))
-            .count();
-        assert_eq!(
-            locals, distributed,
-            "every local table has its Distributed table"
-        );
-        assert!(distributed >= 15);
+            .map(|s| name(s))
+            .collect();
+        // Replicated tables are read and written through their Distributed table.
+        for local in creates
+            .iter()
+            .filter(|s| s.contains("_local ON CLUSTER 'oc'") && s.contains("ENGINE = Replicated"))
+        {
+            let table = name(local).trim_end_matches("_local").to_string();
+            assert!(distributed.contains(&table), "no Distributed table for {table}");
+        }
+        // Every Distributed table is over a shard-local table (Null ones too: the metrics ingest).
+        for table in &distributed {
+            assert!(
+                creates.iter().any(|s| name(s) == format!("{table}_local")),
+                "no local table under {table}"
+            );
+        }
+        assert!(distributed.len() >= 15);
         assert!(stmts
             .iter()
             .any(|s| s
@@ -398,6 +490,42 @@ mod tests {
                 &s[..80.min(s.len())]
             );
         }
+    }
+
+    #[test]
+    fn metrics_storage_ttls_default_to_the_install_retention() {
+        let r = RetentionDays { traces: 15, traces_max: 90, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 0 };
+        let ttls = retention_ttls(r);
+        let ttl = |t: &str| ttls.iter().find(|(table, _)| *table == t).map(|(_, ttl)| ttl.clone()).unwrap_or_else(|| panic!("no TTL for {t}"));
+        // Rows without an org choice (RetentionDays = 0) use the install's retention.
+        assert_eq!(ttl("otel.metrics_samples"), "toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, 30, RetentionDays))");
+        assert_eq!(ttl("otel.metrics_rollup_5m"), "Bucket + toIntervalDay(if(RetentionDays = 0, 90, RetentionDays))");
+        assert_eq!(ttl("otel.metrics_rollup_1h"), "Bucket + toIntervalDay(if(RetentionDays = 0, 395, RetentionDays))");
+        // Distributions follow the same retention.
+        assert_eq!(ttl("otel.metrics_dist_samples"), "toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, 30, RetentionDays))");
+        assert_eq!(ttl("otel.metrics_dist_rollup_5m"), "Bucket + toIntervalDay(if(RetentionDays = 0, 90, RetentionDays))");
+        assert_eq!(ttl("otel.metrics_dist_rollup_1h"), "Bucket + toIntervalDay(if(RetentionDays = 0, 395, RetentionDays))");
+        // A series lives as long as the longest of its data.
+        assert_eq!(ttl("otel.metrics_series"), "LastSeen + toIntervalDay(if(RetentionDays = 0, 395, RetentionDays))");
+    }
+
+    #[test]
+    fn metric_storage_moves_to_cold_storage_when_configured() {
+        let r = RetentionDays { traces: 15, traces_max: 90, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 7 };
+        let ttls = retention_ttls(r);
+        let ttl = |t: &str| ttls.iter().find(|(table, _)| *table == t).map(|(_, ttl)| ttl.clone()).unwrap();
+        // Parts older than a week move to the cold volume, then are dropped at their retention.
+        assert_eq!(
+            ttl("otel.metrics_rollup_1h"),
+            "Bucket + toIntervalDay(7) TO VOLUME 'cold', Bucket + toIntervalDay(if(RetentionDays = 0, 395, RetentionDays))"
+        );
+        assert!(ttl("otel.metrics_samples").starts_with("toDateTime(TimeUnix) + toIntervalDay(7) TO VOLUME 'cold', "));
+        assert!(ttl("otel.metrics_dist_rollup_5m").contains("TO VOLUME 'cold'"));
+        // Not the series table (small, read by every query) nor other telemetry.
+        assert!(!ttl("otel.metrics_series").contains("VOLUME"));
+        assert!(!ttl("otel.otel_traces").contains("VOLUME"));
+        let off = retention_ttls(RetentionDays { metrics_cold_after_days: 0, ..r });
+        assert!(off.iter().all(|(_, t)| !t.contains("VOLUME")));
     }
 
     #[test]

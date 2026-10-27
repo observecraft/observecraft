@@ -94,6 +94,16 @@
           "minimum": 1,
           "maximum": 3650
         },
+        "metrics5mDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650
+        },
+        "metrics1hDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650
+        },
         "ciDays": {
           "type": "integer",
           "minimum": 1,
@@ -603,6 +613,24 @@
                   "minimum": 1
                 },
                 "asyncInsertBusyTimeoutMs": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "coldStorage": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "endpoint": {
+                  "type": "string"
+                },
+                "existingSecret": {
+                  "type": "string"
+                },
+                "moveAfterDays": {
                   "type": "integer",
                   "minimum": 1
                 }

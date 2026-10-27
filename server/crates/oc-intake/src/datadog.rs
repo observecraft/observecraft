@@ -637,10 +637,11 @@ pub fn host_meta(v: &Value) -> Option<HostMeta> {
 /// `POST /intake/` (and `/api/v2/host_metadata`): the Agent's host metadata is stored (the host list
 /// and host page show it) and its events go to the events table; process summaries are acknowledged.
 pub async fn intake(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
-    let (org, retention) = match admit(&st, &headers, body.len()).await {
+    let key_org = match admit(&st, &headers, body.len()).await {
         Ok(org) => org,
         Err(r) => return r.into_response(),
     };
+    let org = key_org.org_id.clone();
     let payload: Value = match inflate(&headers, &body).and_then(|raw| serde_json::from_slice(&raw).map_err(|e| format!("invalid JSON payload: {e}"))) {
         Ok(v) => v,
         Err(e) => return bad_request(e),
@@ -673,7 +674,7 @@ pub async fn intake(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -
             return Rejection { status: StatusCode::SERVICE_UNAVAILABLE, message: "temporarily unavailable" }.into_response();
         }
     }
-    if let Err(r) = crate::datadog_events::deliver(&st, &(org, retention), &crate::datadog_events::intake_events(&payload)).await {
+    if let Err(r) = crate::datadog_events::deliver(&st, &key_org, &crate::datadog_events::intake_events(&payload)).await {
         return r.into_response();
     }
     (StatusCode::ACCEPTED, Json(json!({}))).into_response()

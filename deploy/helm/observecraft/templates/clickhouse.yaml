@@ -29,6 +29,30 @@ data:
         <number_of_free_entries_in_pool_to_execute_mutation>{{ $t.backgroundPoolSize }}</number_of_free_entries_in_pool_to_execute_mutation>
         <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>{{ $t.backgroundPoolSize }}</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
       </merge_tree>
+      {{- if $ch.bundled.coldStorage.enabled }}
+      <!-- Cold storage: metric samples and rollups move to the "cold" volume after
+           clickhouse.bundled.coldStorage.moveAfterDays (the server sets their TTLs). -->
+      <storage_configuration>
+        <disks>
+          <cold>
+            <type>s3</type>
+            <endpoint>{{ required "clickhouse.bundled.coldStorage.endpoint is required" $ch.bundled.coldStorage.endpoint }}</endpoint>
+            <access_key_id from_env="OC_CH_COLD_ACCESS_KEY_ID"/>
+            <secret_access_key from_env="OC_CH_COLD_SECRET_ACCESS_KEY"/>
+            <metadata_path>/var/lib/clickhouse/disks/cold/</metadata_path>
+          </cold>
+        </disks>
+        <policies>
+          <observecraft_tiered>
+            <volumes>
+              <!-- Named like the default policy's volume, so existing tables can switch to this one. -->
+              <default><disk>default</disk></default>
+              <cold><disk>cold</disk></cold>
+            </volumes>
+          </observecraft_tiered>
+        </policies>
+      </storage_configuration>
+      {{- end }}
       <!-- Diagnostic logs we don't read; query_log and part_log stay. -->
       <trace_log remove="1"/>
       <processors_profile_log remove="1"/>
@@ -132,6 +156,13 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ $secret }}, key: clickhouse-password } }
             - name: OC_CH_INGEST_PASSWORD
               valueFrom: { secretKeyRef: { name: {{ $secret }}, key: clickhouse-ingest-password } }
+            {{- if $ch.bundled.coldStorage.enabled }}
+            {{- $cold := required "clickhouse.bundled.coldStorage.existingSecret is required" $ch.bundled.coldStorage.existingSecret }}
+            - name: OC_CH_COLD_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: {{ $cold }}, key: access-key-id } }
+            - name: OC_CH_COLD_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: {{ $cold }}, key: secret-access-key } }
+            {{- end }}
           ports:
             - { name: http, containerPort: 8123 }
             - { name: native, containerPort: 9000 }

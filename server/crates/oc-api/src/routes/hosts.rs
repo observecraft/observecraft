@@ -17,13 +17,17 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::logs::TimeRange;
-use super::metrics::{evaluate_query, MetricSeries};
+use super::metrics::{evaluate_query, name_list, now_ms, points_subquery, with_window, MetricSeries, OPEN_END_MS};
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, OrgId};
 
 const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
 /// Hosts considered in one search; beyond this the list needs server-side paging in SQL.
 const MAX_HOSTS: u64 = 5000;
+/// CPU of OpenTelemetry hosts (by state, 0–1) and Datadog Agents (percent).
+const HOST_CPU: &[&str] = &["system.cpu.utilization", "system.cpu.idle", "system.cpu.user"];
+/// Memory, load and uptime for the host list.
+const HOST_VALUES: &[&str] = &["system.memory.utilization", "system.mem.pct_usable", "system.cpu.load_average.1m", "system.load.1", "system.uptime"];
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Copy, PartialEq, Eq, Debug)]
 #[serde(rename_all = "snake_case")]
@@ -167,36 +171,38 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
         load1: f64,
         uptime: f64,
     }
-    let inventory = st
-        .ch(org)
-        .query(
+    let cpu_src = points_subquery("gauge", HOST_CPU);
+    let values_src = points_subquery("gauge", HOST_VALUES);
+    let inventory = with_window(st.ch(org), range.from, range.to)
+        .query(&format!(
             // OpenTelemetry hosts report system.cpu.utilization by state (0–1); Datadog Agents
             // system.cpu.idle / system.cpu.user in percent.
             "SELECT ResourceAttributes['host.name'] AS name, toJSONString(argMax(ResourceAttributes, TimeUnix)) AS res, \
              avgIf(if(MetricName = 'system.cpu.idle', Value / 100, Value), (MetricName = 'system.cpu.idle' OR Attributes['state'] = 'idle') AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS idle, \
              avgIf(if(MetricName = 'system.cpu.user', Value / 100, Value), (MetricName = 'system.cpu.user' OR Attributes['state'] = 'user') AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS user \
-             FROM otel.otel_metrics_gauge \
-             WHERE OrgId = {oc_org:String} AND MetricName IN ('system.cpu.utilization', 'system.cpu.idle', 'system.cpu.user') \
+             FROM {cpu_src} \
+             WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) \
              AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) AND name != '' \
              GROUP BY name ORDER BY name LIMIT ?",
-        )
+            names = name_list(HOST_CPU),
+        ))
         .bind(recent_from)
         .bind(recent_from)
         .bind(range.from)
         .bind(range.to)
         .bind(MAX_HOSTS)
         .fetch_all::<Inventory>();
-    let values = st
-        .ch(org)
-        .query(
+    let values = with_window(st.ch(org), recent_from, range.to)
+        .query(&format!(
             "SELECT ResourceAttributes['host.name'] AS name, \
              avgIf(if(MetricName = 'system.mem.pct_usable', 1 - Value, Value), MetricName = 'system.mem.pct_usable' OR (MetricName = 'system.memory.utilization' AND Attributes['state'] = 'used')) AS mem, \
              avgIf(Value, MetricName IN ('system.cpu.load_average.1m', 'system.load.1')) AS load1, \
              maxIf(Value, MetricName = 'system.uptime') AS uptime \
-             FROM otel.otel_metrics_gauge \
-             WHERE OrgId = {oc_org:String} AND MetricName IN ('system.memory.utilization', 'system.mem.pct_usable', 'system.cpu.load_average.1m', 'system.load.1', 'system.uptime') \
+             FROM {values_src} \
+             WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) \
              AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) GROUP BY name",
-        )
+            names = name_list(HOST_VALUES),
+        ))
         .bind(recent_from)
         .bind(range.to)
         .fetch_all::<Vals>();
@@ -575,9 +581,10 @@ pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, Path(name): P
         .bind(req.range.from)
         .bind(req.range.to)
         .fetch_one::<u64>();
-    let has_procs = st
-        .ch(&org)
-        .query("SELECT count() FROM otel.otel_metrics_gauge WHERE OrgId = {oc_org:String} AND MetricName = 'process.cpu.utilization' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 15 MINUTE")
+    let now = now_ms();
+    let procs_src = points_subquery("gauge", &["process.cpu.utilization"]);
+    let has_procs = with_window(st.ch(&org), now - 15 * 60_000, now + OPEN_END_MS)
+        .query(&format!("SELECT count() FROM {procs_src} WHERE OrgId = {{oc_org:String}} AND MetricName = 'process.cpu.utilization' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 15 MINUTE"))
         .bind(&name)
         .fetch_one::<u64>();
     let (has_logs, has_procs) = tokio::try_join!(has_logs, has_procs)?;
@@ -685,15 +692,16 @@ pub async fn metrics(State(st): State<AppState>, OrgId(org): OrgId, Path(name): 
         name: String,
         rss: f64,
     }
-    let procs = st
-        .ch(&org)
-        .query(
+    let now = now_ms();
+    let mem_src = points_subquery("sum", &["process.memory.usage"]);
+    let procs = with_window(st.ch(&org), now - 10 * 60_000, now + OPEN_END_MS)
+        .query(&format!(
             "SELECT name, sum(rss) AS rss FROM (\
                SELECT ResourceAttributes['process.pid'] AS pid, any(ResourceAttributes['process.executable.name']) AS name, argMax(Value, TimeUnix) AS rss \
-               FROM otel.otel_metrics_sum \
-               WHERE OrgId = {oc_org:String} AND MetricName = 'process.memory.usage' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE \
-               GROUP BY pid) GROUP BY name ORDER BY rss DESC",
-        )
+               FROM {mem_src} \
+               WHERE OrgId = {{oc_org:String}} AND MetricName = 'process.memory.usage' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE \
+               GROUP BY pid) GROUP BY name ORDER BY rss DESC"
+        ))
         .bind(&name)
         .fetch_all::<Proc>()
         .await?;
@@ -752,15 +760,17 @@ pub async fn processes(State(st): State<AppState>, OrgId(org): OrgId, Path(name)
         cpu: f64,
         rss: f64,
     }
-    let rows = st
-        .ch(&org)
-        .query(
+    let now = now_ms();
+    let cpu_src = points_subquery("gauge", &["process.cpu.utilization"]);
+    let mem_src = points_subquery("sum", &["process.memory.usage"]);
+    let rows = with_window(st.ch(&org), now - 10 * 60_000, now + OPEN_END_MS)
+        .query(&format!(
             "SELECT ResourceAttributes['process.pid'] AS pid, any(ResourceAttributes['process.command']) AS command, any(ResourceAttributes['process.owner']) AS user, \
              avgIf(Value, MetricName = 'process.cpu.utilization') AS cpu, argMaxIf(Value, TimeUnix, MetricName = 'process.memory.usage') AS rss FROM (\
-               SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM otel.otel_metrics_gauge WHERE OrgId = {oc_org:String} AND MetricName = 'process.cpu.utilization' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE \
-               UNION ALL SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM otel.otel_metrics_sum WHERE OrgId = {oc_org:String} AND MetricName = 'process.memory.usage' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE) \
-             GROUP BY pid ORDER BY cpu DESC",
-        )
+               SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM {cpu_src} WHERE OrgId = {{oc_org:String}} AND MetricName = 'process.cpu.utilization' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE \
+               UNION ALL SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM {mem_src} WHERE OrgId = {{oc_org:String}} AND MetricName = 'process.memory.usage' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 10 MINUTE) \
+             GROUP BY pid ORDER BY cpu DESC"
+        ))
         .bind(&name)
         .bind(&name)
         .fetch_all::<Row>()

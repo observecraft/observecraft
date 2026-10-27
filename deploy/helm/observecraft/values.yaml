@@ -49,7 +49,11 @@ retention:
   logsMaxDays: 365
   tracesDays: 15
   tracesMaxDays: 90
+  # -- Days metrics are kept at full resolution, as 5-minute and as 1-hour rollups (long ranges read
+  # the rollups), for orgs that haven't chosen.
   metricsDays: 30
+  metrics5mDays: 90
+  metrics1hDays: 395
   ciDays: 30
   # -- Hours every ingested log stays in the raw table that archives read.
   rawLogsHours: 72
@@ -178,7 +182,7 @@ clickhouse:
   bundled:
     image:
       repository: clickhouse/clickhouse-server
-      tag: "24.8"
+      tag: "26.8"
     persistence:
       size: 50Gi
     resources:
@@ -195,6 +199,15 @@ clickhouse:
       backgroundPoolSize: 4
       # -- How long the server gathers async inserts from the collector and Vector into one part.
       asyncInsertBusyTimeoutMs: 1000
+    # Cold storage: metric samples and rollups older than moveAfterDays move to an S3-compatible
+    # bucket (e.g. RustFS) and stay queryable. The bucket must exist.
+    coldStorage:
+      enabled: false
+      # -- Path-style URL of the bucket and a prefix, e.g. http://rustfs.storage:9000/observecraft-metrics/clickhouse/
+      endpoint: ""
+      # -- Secret with the keys access-key-id and secret-access-key.
+      existingSecret: ""
+      moveAfterDays: 7
     nodeSelector: {}
     tolerations: []
     affinity: {}
@@ -205,7 +218,7 @@ clickhouse:
     replicas: 2
     image:
       repository: clickhouse/clickhouse-server
-      tag: "24.8"
+      tag: "26.8"
     persistence:
       size: 100Gi
     resources:
@@ -215,7 +228,7 @@ clickhouse:
       replicas: 3
       image:
         repository: clickhouse/clickhouse-keeper
-        tag: "24.8"
+        tag: "26.8"
       persistence:
         size: 10Gi
   external:

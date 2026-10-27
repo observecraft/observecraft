@@ -12,6 +12,7 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use super::log_indexes::{install_metric_retention, validate_metric_limits, MetricRetention, StoredMetricRetention};
 use crate::auth::{self, InstanceAdmin};
 use crate::error::{ApiError, ApiResult};
 use crate::state::AppState;
@@ -28,6 +29,13 @@ const TELEMETRY_TABLES: &[(&str, &str)] = &[
     ("otel.otel_metrics_histogram", "OrgId"),
     ("otel.otel_metrics_exponential_histogram", "OrgId"),
     ("otel.otel_metrics_summary", "OrgId"),
+    ("otel.metrics_series", "OrgId"),
+    ("otel.metrics_samples", "OrgId"),
+    ("otel.metrics_rollup_5m", "OrgId"),
+    ("otel.metrics_rollup_1h", "OrgId"),
+    ("otel.metrics_dist_samples", "OrgId"),
+    ("otel.metrics_dist_rollup_5m", "OrgId"),
+    ("otel.metrics_dist_rollup_1h", "OrgId"),
     ("otel.otel_k8s_objects", "OrgId"),
     ("otel.k8s_resources", "OrgId"),
     ("otel.k8s_events", "OrgId"),
@@ -73,6 +81,13 @@ pub struct InstanceOrg {
     pub max_log_retention_days: i32,
     pub max_span_retention_days: i32,
     pub max_indexes: i32,
+    /// Longest metric retention at full resolution and as rollups.
+    #[sqlx(skip)]
+    pub max_metrics: MetricRetention,
+    #[sqlx(flatten)]
+    #[serde(skip)]
+    #[schema(ignore)]
+    stored_metrics: StoredMetricRetention,
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -99,7 +114,8 @@ pub async fn list_orgs(State(st): State<AppState>, _: InstanceAdmin) -> ApiResul
          (SELECT count(*) FROM users u WHERE u.org_id = o.id AND u.status = 'active') AS members, \
          COALESCE((SELECT array_agg(a.email ORDER BY a.email) FROM users u JOIN accounts a ON a.id = u.account_id \
                    JOIN user_roles r ON r.user_id = u.id AND r.role_id = o.id || '-admin' WHERE u.org_id = o.id AND u.status <> 'deactivated'), '{}') AS admins, \
-         COALESCE(d.max_log_retention_days, 30) AS max_log_retention_days, COALESCE(d.max_span_retention_days, 30) AS max_span_retention_days, COALESCE(d.max_indexes, 20) AS max_indexes \
+         COALESCE(d.max_log_retention_days, 30) AS max_log_retention_days, COALESCE(d.max_span_retention_days, 30) AS max_span_retention_days, COALESCE(d.max_indexes, 20) AS max_indexes, \
+         d.metrics_retention_days, d.metrics_5m_days, d.metrics_1h_days, d.max_metrics_retention_days, d.max_metrics_5m_days, d.max_metrics_1h_days \
          FROM orgs o LEFT JOIN org_data_settings d ON d.org_id = o.id ORDER BY (o.id = $1) DESC, lower(o.name)",
     )
     .bind(&st.config.dev_org)
@@ -113,6 +129,7 @@ pub async fn list_orgs(State(st): State<AppState>, _: InstanceAdmin) -> ApiResul
         r.logs_24h = logs.get(&r.id).copied().unwrap_or(0);
         r.spans_24h = spans.get(&r.id).copied().unwrap_or(0);
         r.primary = r.id == st.config.dev_org;
+        r.max_metrics = r.stored_metrics.effective(install_metric_retention(&st.config.retention)).1;
     }
     Ok(Json(rows))
 }
@@ -246,6 +263,8 @@ pub struct OrgLimits {
     pub max_log_retention_days: i32,
     pub max_span_retention_days: i32,
     pub max_indexes: i32,
+    /// Longest metric retentions (tiers, full resolution ≤ 5-minute ≤ 1-hour); unchanged when absent.
+    pub max_metrics: Option<MetricRetention>,
 }
 
 /// Sets what an org may configure. Lowering a ceiling also lowers settings above it.
@@ -258,8 +277,31 @@ pub async fn update_limits(State(st): State<AppState>, InstanceAdmin(ctx): Insta
             r.logs_max_days, r.traces_max_days
         )));
     }
+    if let Some(m) = l.max_metrics {
+        validate_metric_limits(m).map_err(ApiError::BadRequest)?;
+    }
     super::log_indexes::data_settings(&st, &id).await?;
     let mut tx = st.postgres.begin().await?;
+    if let Some(m) = l.max_metrics {
+        // A retention above its new limit comes down to it; unset ones keep following the install's
+        // default unless that is above the limit.
+        let d = install_metric_retention(&st.config.retention);
+        sqlx::query(
+            "UPDATE org_data_settings SET max_metrics_retention_days = $2, max_metrics_5m_days = $3, max_metrics_1h_days = $4, \
+             metrics_retention_days = CASE WHEN COALESCE(metrics_retention_days, $5) > $2 THEN $2 ELSE metrics_retention_days END, \
+             metrics_5m_days = CASE WHEN COALESCE(metrics_5m_days, $6) > $3 THEN $3 ELSE metrics_5m_days END, \
+             metrics_1h_days = CASE WHEN COALESCE(metrics_1h_days, $7) > $4 THEN $4 ELSE metrics_1h_days END WHERE org_id = $1",
+        )
+        .bind(&id)
+        .bind(m.raw)
+        .bind(m.rollup_5m)
+        .bind(m.rollup_1h)
+        .bind(d.raw)
+        .bind(d.rollup_5m)
+        .bind(d.rollup_1h)
+        .execute(&mut *tx)
+        .await?;
+    }
     sqlx::query(
         "UPDATE org_data_settings SET max_log_retention_days = $2, max_span_retention_days = $3, max_indexes = $4, \
          span_retention_days = least(span_retention_days, $3), updated_at = now() WHERE org_id = $1",
@@ -272,7 +314,10 @@ pub async fn update_limits(State(st): State<AppState>, InstanceAdmin(ctx): Insta
     .await?;
     sqlx::query("UPDATE log_indexes SET retention_days = least(retention_days, $2) WHERE org_id = $1").bind(&id).bind(l.max_log_retention_days).execute(&mut *tx).await?;
     tx.commit().await?;
-    let detail = format!("logs ≤ {} d, spans ≤ {} d, {} indexes", l.max_log_retention_days, l.max_span_retention_days, l.max_indexes);
+    let mut detail = format!("logs ≤ {} d, spans ≤ {} d, {} indexes", l.max_log_retention_days, l.max_span_retention_days, l.max_indexes);
+    if let Some(m) = l.max_metrics {
+        detail.push_str(&format!(", metrics ≤ {} / {} / {} d", m.raw, m.rollup_5m, m.rollup_1h));
+    }
     auth::instance_audit(&st.postgres, &ctx, "org.limits_changed", &id, &detail).await;
     Ok(StatusCode::NO_CONTENT)
 }
