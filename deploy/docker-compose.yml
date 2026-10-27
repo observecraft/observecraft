@@ -82,7 +82,7 @@ services:
       nats: { condition: service_healthy }
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.112.0
+    image: otel/opentelemetry-collector-contrib:0.163.2
     restart: unless-stopped
     command: ["--config=/etc/otelcol-contrib/config.yaml", "--config=/etc/otelcol-contrib/hostmetrics.yaml"]
     environment:

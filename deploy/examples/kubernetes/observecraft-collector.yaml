@@ -209,7 +209,7 @@ spec:
         - operator: Exists
       containers:
         - name: collector
-          image: otel/opentelemetry-collector-contrib:0.112.0
+          image: otel/opentelemetry-collector-contrib:0.163.2
           args: ["--config=/conf/config.yaml"]
           env:
             - { name: K8S_NODE_NAME, valueFrom: { fieldRef: { fieldPath: spec.nodeName } } }
@@ -324,7 +324,7 @@ spec:
       serviceAccountName: observecraft-collector
       containers:
         - name: collector
-          image: otel/opentelemetry-collector-contrib:0.112.0
+          image: otel/opentelemetry-collector-contrib:0.163.2
           args: ["--config=/conf/config.yaml"]
           env:
             - { name: OBSERVECRAFT_API_KEY, valueFrom: { secretKeyRef: { name: observecraft, key: api-key } } }

@@ -7,7 +7,7 @@
 #     -v $PWD/collector.yaml:/etc/otelcol-contrib/config.yaml:ro \
 #     -e OBSERVECRAFT_ENDPOINT=https://intake.observecraft.example.com -e OBSERVECRAFT_API_KEY=ocik_… \
 #     -e OBSERVECRAFT_HOSTFS=/hostfs -e HOST_PROC_MOUNTINFO=/hostfs/proc/1 \
-#     otel/opentelemetry-collector-contrib:0.112.0
+#     otel/opentelemetry-collector-contrib:0.163.2
 #
 #   OBSERVECRAFT_ENDPOINT  intake URL, e.g. https://intake.observecraft.example.com
 #   OBSERVECRAFT_API_KEY   ingest API key (Organization Settings → API Keys)
