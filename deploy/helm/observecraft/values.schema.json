@@ -587,6 +587,27 @@
                 }
               }
             },
+            "tuning": {
+              "type": "object",
+              "properties": {
+                "markCacheBytes": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxConcurrentQueries": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "backgroundPoolSize": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "asyncInsertBusyTimeoutMs": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
             "nodeSelector": {
               "type": "object"
             },

@@ -269,7 +269,7 @@ scope = (to_string(get(., ["scope", "name"]) ?? "") ?? "")
 
 . = {
   "org_id": org,
-  "id": uuid_v4(),
+  "id": uuid_v7(ts),
   "timestamp": ts,
   "ts_ms": to_unix_timestamp(ts, unit: "milliseconds"),
   "status": status,

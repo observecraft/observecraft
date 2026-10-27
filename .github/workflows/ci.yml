@@ -116,7 +116,7 @@ jobs:
       - name: Collector config
         run: >-
           docker run --rm -e CLICKHOUSE_USER=x -e CLICKHOUSE_PASSWORD=y -e OC_HOST_NAME=h -e OC_HOST_ORG=default
-          -v $PWD/deploy/otel:/c:ro otel/opentelemetry-collector-contrib:0.112.0
+          -v $PWD/deploy/otel:/c:ro otel/opentelemetry-collector-contrib:0.163.2
           validate --config=/c/collector.yaml --config=/c/hostmetrics.yaml
       - name: Vector config and VRL tests
         run: >-
