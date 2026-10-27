@@ -2,13 +2,15 @@
 
 use std::collections::HashMap;
 
-use axum::extract::State;
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use axum::Json;
 use oc_query::{parse_query, Param};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::error::ApiResult;
+use crate::auth::Writer;
+use crate::error::{ApiError, ApiResult};
 use crate::routes::logs::{bind, pattern_of, scope, TimeRange};
 use crate::state::{AppState, OrgId};
 
@@ -111,9 +113,33 @@ pub(crate) fn platform_of(error_type: &str, message: &str) -> &'static str {
     }
 }
 
-/// Issue states aren't saved yet: every issue is "for review".
-pub(crate) fn state_matches(state: &str) -> bool {
-    matches!(state, "for_review" | "all")
+/// A saved review state (Postgres `error_issue_states`).
+pub(crate) struct Saved {
+    pub status: String,
+    /// Unix ms of the decision.
+    pub updated_at: i64,
+}
+
+const STATES: [&str; 4] = ["for_review", "reviewed", "ignored", "resolved"];
+
+/// Issues with their status (`for_review` unless saved) and whether they regressed (resolved, then
+/// seen again after the resolution), filtered to `state` (or `all`), and the totals per state.
+pub(crate) fn apply_states(issues: Vec<IssueGroup>, saved: &HashMap<String, Saved>, state: &str) -> (Vec<(IssueGroup, String, bool)>, HashMap<String, usize>) {
+    let mut totals: HashMap<String, usize> = STATES.iter().map(|s| (s.to_string(), 0)).collect();
+    totals.insert("all".into(), issues.len());
+    let mut shown = Vec::new();
+    for g in issues {
+        let (status, regression) = match saved.get(&g.id) {
+            Some(s) if s.status == "resolved" && g.last_seen > s.updated_at => ("for_review".to_string(), true),
+            Some(s) => (s.status.clone(), false),
+            None => ("for_review".to_string(), false),
+        };
+        *totals.entry(status.clone()).or_default() += 1;
+        if state == "all" || state == status {
+            shown.push((g, status, regression));
+        }
+    }
+    (shown, totals)
 }
 
 /// Pre-aggregated groups read per search (service × kind × message shape × bucket).
@@ -213,11 +239,16 @@ pub async fn search_issues(State(st): State<AppState>, OrgId(org): OrgId, Json(r
         Some("first_seen") => issues.sort_by(|a, b| b.first_seen.cmp(&a.first_seen)),
         _ => {}
     }
-    let total = issues.len();
-    let totals = HashMap::from([("for_review".into(), total), ("reviewed".into(), 0), ("ignored".into(), 0), ("resolved".into(), 0), ("all".into(), total)]);
-    if !state_matches(&req.state) {
-        issues.clear();
-    }
+    let saved: HashMap<String, Saved> = sqlx::query_as::<_, (String, String, i64)>(
+        "SELECT issue_id, status, (extract(epoch FROM updated_at) * 1000)::bigint FROM error_issue_states WHERE org_id = $1",
+    )
+    .bind(&org)
+    .fetch_all(&st.postgres)
+    .await?
+    .into_iter()
+    .map(|(id, status, updated_at)| (id, Saved { status, updated_at }))
+    .collect();
+    let (issues, totals) = apply_states(issues, &saved, &req.state);
     let offset = req.cursor.as_deref().and_then(|c| c.parse::<usize>().ok()).unwrap_or(0);
     let limit = req.limit.clamp(1, 200);
     let next_cursor = (offset + limit < issues.len()).then(|| (offset + limit).to_string());
@@ -225,15 +256,15 @@ pub async fn search_issues(State(st): State<AppState>, OrgId(org): OrgId, Json(r
         .into_iter()
         .skip(offset)
         .take(limit)
-        .map(|g| IssueOut {
+        .map(|(g, status, regression)| IssueOut {
             platform: platform_of(&g.error_type, &g.message).into(),
             persona: "backend".into(),
             source: "logs".into(),
-            status: "for_review".into(),
+            status,
             assignee: None,
             team: None,
             is_crash: false,
-            is_regression: false,
+            is_regression: regression,
             suspected_cause: None,
             id: g.id,
             error_type: g.error_type,
@@ -246,6 +277,34 @@ pub async fn search_issues(State(st): State<AppState>, OrgId(org): OrgId, Json(r
         })
         .collect();
     Ok(Json(IssueSearchPage { issues: page, next_cursor, totals }))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct IssueStateUpdate {
+    /// for_review, reviewed, ignored or resolved.
+    pub status: String,
+}
+
+/// Marks an issue reviewed, ignored, resolved or back for review.
+#[utoipa::path(post, path = "/api/v1/error-tracking/issues/{id}/state", params(("id" = String, Path)), request_body = IssueStateUpdate, responses((status = 204)), tag = "error-tracking")]
+pub async fn set_issue_state(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<String>, Json(u): Json<IssueStateUpdate>) -> Result<StatusCode, ApiError> {
+    if !STATES.contains(&u.status.as_str()) {
+        return Err(ApiError::BadRequest(format!("unknown status {}", u.status)));
+    }
+    if id.len() != 16 || !id.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(ApiError::BadRequest("invalid issue id".into()));
+    }
+    sqlx::query(
+        "INSERT INTO error_issue_states (org_id, issue_id, status, updated_by, updated_at) VALUES ($1, $2, $3, $4::uuid, now()) \
+         ON CONFLICT (org_id, issue_id) DO UPDATE SET status = EXCLUDED.status, updated_by = EXCLUDED.updated_by, updated_at = now()",
+    )
+    .bind(&ctx.org_id)
+    .bind(&id)
+    .bind(&u.status)
+    .bind(&ctx.user_id)
+    .execute(&st.postgres)
+    .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[cfg(test)]
@@ -273,11 +332,28 @@ mod tests {
         assert_eq!(platform_of("Error", "connection refused"), "unknown");
     }
 
+    fn group(id: &str, last_seen: i64) -> IssueGroup {
+        IssueGroup { id: id.into(), service: "billing".into(), error_type: "Error".into(), message: String::new(), count: 1, first_seen: 0, last_seen, sparkline: vec![] }
+    }
+
     #[test]
-    fn without_saved_states_every_issue_is_for_review() {
-        assert!(state_matches("for_review"));
-        assert!(state_matches("all"));
-        assert!(!state_matches("resolved"));
+    fn saved_states_apply_and_a_resolved_issue_that_comes_back_regresses() {
+        let saved = HashMap::from([
+            ("a".to_string(), Saved { status: "reviewed".into(), updated_at: 500 }),
+            ("b".to_string(), Saved { status: "resolved".into(), updated_at: 500 }),
+            ("c".to_string(), Saved { status: "resolved".into(), updated_at: 500 }),
+        ]);
+        // a: reviewed; b: resolved, not seen since; c: resolved, seen again after → for review, regression; d: unknown → for review.
+        let issues = vec![group("a", 900), group("b", 400), group("c", 900), group("d", 900)];
+        let (shown, totals) = apply_states(issues, &saved, "all");
+        let state = |id: &str| shown.iter().find(|(g, ..)| g.id == id).map(|(_, s, r)| (s.as_str(), *r)).unwrap();
+        assert_eq!(state("a"), ("reviewed", false));
+        assert_eq!(state("b"), ("resolved", false));
+        assert_eq!(state("c"), ("for_review", true));
+        assert_eq!(state("d"), ("for_review", false));
+        assert_eq!((totals["for_review"], totals["reviewed"], totals["resolved"], totals["ignored"], totals["all"]), (2, 1, 1, 0, 4));
+        let (resolved, _) = apply_states(vec![group("b", 400), group("d", 900)], &saved, "resolved");
+        assert_eq!(resolved.iter().map(|(g, ..)| g.id.as_str()).collect::<Vec<_>>(), vec!["b"]);
     }
 
     #[test]

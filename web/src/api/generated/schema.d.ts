@@ -863,6 +863,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/error-tracking/issues/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marks an issue reviewed, ignored, resolved or back for review. */
+        post: operations["set_issue_state"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/search": {
         parameters: {
             query?: never;
@@ -4253,6 +4270,10 @@ export interface components {
             /** @description for_review | reviewed | ignored | resolved | all */
             state?: string;
         };
+        IssueStateUpdate: {
+            /** @description for_review, reviewed, ignored or resolved. */
+            status: string;
+        };
         KubeContainer: {
             cpu: components["schemas"]["KubeUtilization"];
             image: string;
@@ -7451,6 +7472,29 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["IssueSearchPage"];
                 };
+            };
+        };
+    };
+    set_issue_state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueStateUpdate"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

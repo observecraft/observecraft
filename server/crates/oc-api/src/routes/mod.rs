@@ -43,6 +43,7 @@ use crate::state::AppState;
         logs::facets,
         logs::top,
         error_tracking::search_issues,
+        error_tracking::set_issue_state,
         logs::patterns,
         logs::fields,
         logs::suggest,
@@ -259,6 +260,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/logs/facets", post(logs::facets))
         .route("/api/v1/logs/top", post(logs::top))
         .route("/api/v1/error-tracking/issues/search", post(error_tracking::search_issues))
+        .route("/api/v1/error-tracking/issues/:id/state", post(error_tracking::set_issue_state))
         .route("/api/v1/logs/patterns", post(logs::patterns))
         .route("/api/v1/logs/fields", post(logs::fields))
         .route("/api/v1/logs/suggest", post(logs::suggest))

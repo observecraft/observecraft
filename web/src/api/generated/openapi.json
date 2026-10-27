@@ -1840,6 +1840,40 @@
         }
       }
     },
+    "/api/v1/error-tracking/issues/{id}/state": {
+      "post": {
+        "tags": [
+          "error-tracking"
+        ],
+        "summary": "Marks an issue reviewed, ignored, resolved or back for review.",
+        "operationId": "set_issue_state",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueStateUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/events/search": {
       "post": {
         "tags": [
@@ -11630,6 +11664,18 @@
           "state": {
             "type": "string",
             "description": "for_review | reviewed | ignored | resolved | all"
+          }
+        }
+      },
+      "IssueStateUpdate": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "for_review, reviewed, ignored or resolved."
           }
         }
       },

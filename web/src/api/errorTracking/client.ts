@@ -10,7 +10,7 @@
 // Live: issues come from the server (error logs grouped into issues); the rest (issue detail, states,
 // comments, samples) isn't on the server yet and fails with an explanation rather than showing
 // example data as if it were real. Mock mode answers everything in the browser.
-import { API_MODE, post } from '../http';
+import { API_MODE, post, postTo } from '../http';
 import * as mock from '../mock/errorTracking';
 import type { TimeRange } from '../types';
 
@@ -43,9 +43,13 @@ export function getIssue(id: string, range: TimeRange): Promise<IssueDetail> {
   return mock.getIssue(id, range);
 }
 
-export function updateIssue(id: string, patch: IssuePatch): Promise<IssueDetail> {
-  requireMock();
-  return mock.updateIssue(id, patch);
+export async function updateIssue(id: string, patch: IssuePatch): Promise<void> {
+  if (API_MODE !== 'live') {
+    await mock.updateIssue(id, patch);
+    return;
+  }
+  if (patch.assigneeId !== undefined || patch.suspectedCause !== undefined) throw new Error('Assigning issues and setting their cause come next; only the status can be changed for now.');
+  if (patch.status) await postTo('/api/v1/error-tracking/issues/{id}/state', { id }, { status: patch.status });
 }
 
 export function addComment(id: string, text: string): Promise<ActivityEntry> {
