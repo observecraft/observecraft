@@ -387,6 +387,40 @@ fn extra_facets(extra: &[String]) -> Vec<String> {
     out
 }
 
+/// The facets whose key no filter of the search uses: their counts share one scan.
+fn shared_facet_keys<'a>(keys: &[&'a str], terms: &[Term]) -> Vec<&'a str> {
+    keys.iter().copied().filter(|k| !terms.iter().any(|t| matches!(t, Term::Tag { key, .. } if key == k))).collect()
+}
+
+#[derive(clickhouse::Row, Deserialize)]
+struct KeyValueRow {
+    k: String,
+    v: String,
+    n: u64,
+}
+
+/// One scan for the top `limit` values of every key: each matching log becomes (key, value) pairs.
+fn shared_facets_query(keys: &[&str], s: Scope, limit: i64) -> (String, Vec<Param>) {
+    let mut params = Vec::new();
+    let mut pairs = Vec::new();
+    for key in keys {
+        let (expr, key_param) = LogsSchema.field(key);
+        params.push(Param::Str((*key).to_string()));
+        params.extend(key_param);
+        pairs.push(format!("(?, toString({expr}))"));
+    }
+    params.extend(s.params);
+    params.push(Param::Int(limit));
+    let sql = format!(
+        "SELECT kv.1 AS k, kv.2 AS v, count() AS n FROM (SELECT [{}] AS kvs FROM {} WHERE {}) ARRAY JOIN kvs AS kv \
+         WHERE v != '' GROUP BY k, v ORDER BY k, n DESC LIMIT ? BY k",
+        pairs.join(", "),
+        s.table,
+        s.clause
+    );
+    (sql, params)
+}
+
 /// Top values per facet. Each facet ignores its own filter so unchecked values keep their counts.
 #[utoipa::path(post, path = "/api/v1/logs/facets", request_body = LogFacetsRequest,
     responses((status = 200, body = Vec<Facet>)), tag = "logs")]
@@ -394,11 +428,30 @@ pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
     req.range.validate()?;
     let terms = parse_query(&req.query);
     let extra = extra_facets(&req.extra);
-    let (results, indexes, added) = tokio::try_join!(
-        try_join_all(FACETS.iter().map(|(key, _, _)| values_for(&st, &org, req.range, &terms, key, None, 10, true))),
+    let keys: Vec<&str> = FACETS.iter().map(|(k, _, _)| *k).chain(extra.iter().map(String::as_str)).collect();
+    let shared = shared_facet_keys(&keys, &terms);
+    let own: Vec<&str> = keys.iter().copied().filter(|k| !shared.contains(k)).collect();
+    let shared_rows = async {
+        if shared.is_empty() {
+            return Ok(Vec::new());
+        }
+        let (sql, params) = shared_facets_query(&shared, scope(&org, req.range, &terms, None), 10);
+        Ok::<_, ApiError>(bind(st.ch(&org).query(&sql), &params).fetch_all::<KeyValueRow>().await?)
+    };
+    let (shared_rows, own_rows, indexes) = tokio::try_join!(
+        shared_rows,
+        try_join_all(own.iter().map(|key| values_for(&st, &org, req.range, &terms, key, None, 10, true))),
         values_for(&st, &org, req.range, &terms, "index", None, 50, true),
-        try_join_all(extra.iter().map(|key| values_for(&st, &org, req.range, &terms, key, None, 10, true))),
     )?;
+    let mut by_key: HashMap<String, Vec<ValueRow>> = HashMap::new();
+    for r in shared_rows {
+        by_key.entry(r.k).or_default().push(ValueRow { v: r.v, n: r.n });
+    }
+    for (key, rows) in own.iter().zip(own_rows) {
+        by_key.insert((*key).to_string(), rows);
+    }
+    let results: Vec<Vec<ValueRow>> = FACETS.iter().map(|(k, _, _)| by_key.remove(*k).unwrap_or_default()).collect();
+    let added: Vec<Vec<ValueRow>> = extra.iter().map(|k| by_key.remove(k).unwrap_or_default()).collect();
     let mut out = vec![Facet { key: "index".into(), label: "Index".into(), group: "CORE".into(), values: indexes.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect() }];
     for ((key, label, group), rows) in FACETS.iter().zip(results) {
         let mut values: Vec<FacetValue> = rows.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect();
@@ -867,6 +920,20 @@ mod tests {
         let keys = |v: &[&str]| v.iter().map(|k| k.to_string()).collect::<Vec<_>>();
         assert_eq!(extra_facets(&keys(&["kube_node", "service", "@http.url", "kube_node", "", "a b"])), keys(&["kube_node", "@http.url"]));
         assert_eq!(extra_facets(&(0..30).map(|i| format!("k{i}")).collect::<Vec<_>>()).len(), 20);
+    }
+
+    #[test]
+    fn facets_without_their_own_filter_share_one_scan() {
+        let terms = parse_query("service:billing env:prod");
+        let keys = ["source", "service", "kube_namespace", "@http.method"];
+        // `service` filters itself, so it keeps its own query; the others share one.
+        assert_eq!(shared_facet_keys(&keys, &terms), vec!["source", "kube_namespace", "@http.method"]);
+        let scope = scope("o", TimeRange { from: 0, to: 1 }, &terms, None);
+        let scope_params = scope.params.len();
+        let (sql, params) = shared_facets_query(&["source", "kube_namespace", "@http.method"], scope, 10);
+        assert!(sql.contains("ARRAY JOIN") && sql.contains("LIMIT ? BY k"), "{sql}");
+        // A label per key, a field parameter per tag or attribute, the scope, the limit.
+        assert_eq!(params.len(), 3 + 2 + scope_params + 1);
     }
 
     #[test]
