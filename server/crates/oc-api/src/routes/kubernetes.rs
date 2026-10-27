@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
 
-use super::metrics::{name_list, now_ms, points_source, with_window, OPEN_END_MS};
+use super::metrics::{name_list, now_ms, points_subquery, with_window, OPEN_END_MS};
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, OrgId};
 
@@ -466,11 +466,11 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
     // Points of the last 15 minutes (5 for processes), from the new storage once it has them.
     let now = now_ms();
     let (recent, procs_from, end) = (now - 15 * 60_000, now - 5 * 60_000, now + OPEN_END_MS);
-    let usage_src = points_source(st, org, "gauge", K8S_USAGE, recent).await?;
-    let dd_src = points_source(st, org, "gauge", DD_USAGE, recent).await?;
-    let ecs_src = points_source(st, org, "gauge", ECS_USAGE, recent).await?;
-    let proc_cpu_src = points_source(st, org, "gauge", &["process.cpu.utilization"], procs_from).await?;
-    let proc_mem_src = points_source(st, org, "sum", &["process.memory.usage"], procs_from).await?;
+    let usage_src = points_subquery("gauge", K8S_USAGE);
+    let dd_src = points_subquery("gauge", DD_USAGE);
+    let ecs_src = points_subquery("gauge", ECS_USAGE);
+    let proc_cpu_src = points_subquery("gauge", &["process.cpu.utilization"]);
+    let proc_mem_src = points_subquery("sum", &["process.memory.usage"]);
     // Pod, container and node gauges in one pass; the `usage` names are the newer spellings.
     let usage = with_window(st.ch(org), recent, end)
         .query(&format!(

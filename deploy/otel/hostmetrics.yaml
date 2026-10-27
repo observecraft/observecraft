@@ -45,4 +45,4 @@ service:
     metrics/host:
       receivers: [hostmetrics]
       processors: [memory_limiter, metricstransform/cpu, resource/host, batch]
-      exporters: [clickhouse, clickhouse/metrics]
+      exporters: [clickhouse/metrics]

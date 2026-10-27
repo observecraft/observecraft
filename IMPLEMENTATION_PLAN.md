@@ -155,20 +155,24 @@ Verified:
 
 Status: Complete
 
-## Stage 5: Distributions, transition and TTL fix
+## Stage 5: No transition, distributions, TTL fix
+
+Decision (2026-10-27): existing metric data doesn't need to survive the upgrade.
+- The collector writes metrics only to the new storage.
+- Readers no longer fall back to the exporter's tables.
+- The old `otel.otel_metrics_*` tables are left unused (not dropped by a migration) and empty out through their TTL.
+- Parity tests keep the exporter-table SQL as their oracle.
 
 Goal:
-- Histograms, exponential histograms and summaries on the same model.
-- The old `otel.otel_metrics_*` tables are read only for ranges before the cutover, until their TTL empties them,
-  then dropped.
-- Install-wide TTL changes reach existing parts (`MATERIALIZE TTL` with `materialize_ttl_recalculate_only`).
+- Histograms, exponential histograms and summaries on the same model: series, samples and rollups.
+- Install-wide TTL changes reach existing parts: `MATERIALIZE TTL` with `materialize_ttl_recalculate_only`.
 
 Success criteria:
-- Percentile and heatmap tests match the old path.
-- A query across the cutover returns continuous series.
-- Raising or lowering an install-wide TTL affects existing parts (test on ClickHouse 24.8).
+- Percentile, count/sum/avg/min/max and heatmap results match the oracle on the exporter's tables, at raw and
+  rollup resolution, for cumulative and delta series.
+- Raising or lowering an install-wide TTL affects existing parts (test on ClickHouse 26.8).
 
-Status: Not Started
+Status: In Progress
 
 ## Stage 6: Cold storage for old metric partitions
 

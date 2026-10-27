@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::logs::TimeRange;
-use super::metrics::{evaluate_query, name_list, now_ms, points_source, with_window, MetricSeries, OPEN_END_MS};
+use super::metrics::{evaluate_query, name_list, now_ms, points_subquery, with_window, MetricSeries, OPEN_END_MS};
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, OrgId};
 
@@ -171,8 +171,8 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
         load1: f64,
         uptime: f64,
     }
-    let cpu_src = points_source(st, org, "gauge", HOST_CPU, range.from).await?;
-    let values_src = points_source(st, org, "gauge", HOST_VALUES, recent_from).await?;
+    let cpu_src = points_subquery("gauge", HOST_CPU);
+    let values_src = points_subquery("gauge", HOST_VALUES);
     let inventory = with_window(st.ch(org), range.from, range.to)
         .query(&format!(
             // OpenTelemetry hosts report system.cpu.utilization by state (0–1); Datadog Agents
@@ -582,7 +582,7 @@ pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, Path(name): P
         .bind(req.range.to)
         .fetch_one::<u64>();
     let now = now_ms();
-    let procs_src = points_source(&st, &org, "gauge", &["process.cpu.utilization"], now - 15 * 60_000).await?;
+    let procs_src = points_subquery("gauge", &["process.cpu.utilization"]);
     let has_procs = with_window(st.ch(&org), now - 15 * 60_000, now + OPEN_END_MS)
         .query(&format!("SELECT count() FROM {procs_src} WHERE OrgId = {{oc_org:String}} AND MetricName = 'process.cpu.utilization' AND ResourceAttributes['host.name'] = ? AND TimeUnix > now() - INTERVAL 15 MINUTE"))
         .bind(&name)
@@ -693,7 +693,7 @@ pub async fn metrics(State(st): State<AppState>, OrgId(org): OrgId, Path(name): 
         rss: f64,
     }
     let now = now_ms();
-    let mem_src = points_source(&st, &org, "sum", &["process.memory.usage"], now - 10 * 60_000).await?;
+    let mem_src = points_subquery("sum", &["process.memory.usage"]);
     let procs = with_window(st.ch(&org), now - 10 * 60_000, now + OPEN_END_MS)
         .query(&format!(
             "SELECT name, sum(rss) AS rss FROM (\
@@ -761,8 +761,8 @@ pub async fn processes(State(st): State<AppState>, OrgId(org): OrgId, Path(name)
         rss: f64,
     }
     let now = now_ms();
-    let cpu_src = points_source(&st, &org, "gauge", &["process.cpu.utilization"], now - 10 * 60_000).await?;
-    let mem_src = points_source(&st, &org, "sum", &["process.memory.usage"], now - 10 * 60_000).await?;
+    let cpu_src = points_subquery("gauge", &["process.cpu.utilization"]);
+    let mem_src = points_subquery("sum", &["process.memory.usage"]);
     let rows = with_window(st.ch(&org), now - 10 * 60_000, now + OPEN_END_MS)
         .query(&format!(
             "SELECT ResourceAttributes['process.pid'] AS pid, any(ResourceAttributes['process.command']) AS command, any(ResourceAttributes['process.owner']) AS user, \
