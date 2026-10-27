@@ -313,20 +313,41 @@ fn http_client() -> Result<openidconnect::reqwest::Client, ApiError> {
         .map_err(|e| ApiError::Internal(anyhow::anyhow!("http client: {e}")))
 }
 
-/// Discovery documents are cached for 10 minutes per issuer.
+/// Discovery documents are cached for 10 minutes per issuer. The issuer must match the provider's
+/// exactly (OIDC Discovery §4.3), trailing slash included: some providers (e.g. Authentik) end it with
+/// one, most don't. When only that differs, the provider's form is used, so either spelling works.
 async fn discover(issuer: &str) -> Result<CoreProviderMetadata, String> {
     static CACHE: OnceLock<Mutex<HashMap<String, (CoreProviderMetadata, Instant)>>> = OnceLock::new();
     let cache = CACHE.get_or_init(Default::default);
+    let issuer = issuer.trim();
     if let Some((m, at)) = cache.lock().unwrap().get(issuer) {
         if at.elapsed() < Duration::from_secs(600) {
             return Ok(m.clone());
         }
     }
-    let url = IssuerUrl::new(issuer.to_string()).map_err(|e| format!("invalid issuer URL: {e}"))?;
     let client = http_client().map_err(|e| e.to_string())?;
-    let m = CoreProviderMetadata::discover_async(url, &client).await.map_err(|e| format!("OIDC discovery failed for {issuer}: {e}"))?;
+    let fetch = |i: String| {
+        let client = client.clone();
+        async move {
+            let url = IssuerUrl::new(i.clone()).map_err(|e| format!("invalid issuer URL: {e}"))?;
+            CoreProviderMetadata::discover_async(url, &client).await.map_err(|e| format!("OIDC discovery failed for {i}: {e}"))
+        }
+    };
+    let m = match fetch(issuer.to_string()).await {
+        Ok(m) => m,
+        Err(e) if e.contains("unexpected issuer") => {
+            let other = issuer.strip_suffix('/').map(str::to_string).unwrap_or_else(|| format!("{issuer}/"));
+            fetch(other).await.map_err(|_| e)?
+        }
+        Err(e) => return Err(e),
+    };
     cache.lock().unwrap().insert(issuer.to_string(), (m.clone(), Instant::now()));
     Ok(m)
+}
+
+/// The issuer as the provider names it, for an issuer URL typed with or without a trailing slash.
+async fn resolve_issuer(entered: &str) -> Result<String, String> {
+    Ok(discover(entered).await?.issuer().to_string())
 }
 
 #[utoipa::path(get, path = "/api/v1/auth/oidc/{org}/login", params(("org" = String, Path), LoginParams), responses((status = 303, description = "Redirect to the IdP")), tag = "auth")]
@@ -709,11 +730,12 @@ pub async fn update_settings(State(st): State<AppState>, Admin(ctx): Admin, Json
     } else if u.saml_enabled {
         return Err(ApiError::BadRequest("Provide the IdP metadata before enabling SAML".into()));
     }
-    let issuer = opt(u.oidc_issuer.clone()).map(|i| i.trim_end_matches('/').to_string());
+    let mut issuer = opt(u.oidc_issuer.clone()).map(|i| i.trim().to_string());
     let client_id = opt(u.oidc_client_id.clone());
     if u.oidc_enabled {
         let (Some(i), Some(_)) = (&issuer, &client_id) else { return Err(ApiError::BadRequest("OIDC needs an issuer URL and a client ID".into())) };
-        discover(i).await.map_err(ApiError::BadRequest)?;
+        // Stored as the provider names it (trailing slash or not).
+        issuer = Some(resolve_issuer(i).await.map_err(ApiError::BadRequest)?);
     }
     if !u.password_enabled && !u.saml_enabled && !u.oidc_enabled {
         return Err(ApiError::BadRequest("Enable at least one login method".into()));
@@ -766,7 +788,47 @@ pub async fn update_settings(State(st): State<AppState>, Admin(ctx): Admin, Json
 
 #[cfg(test)]
 mod tests {
-    use super::safe_redirect;
+    use super::{resolve_issuer, safe_redirect};
+
+    /// A local OIDC provider whose discovery document names `issuer` (given its base URL).
+    async fn provider(issuer: impl Fn(&str) -> String + Send + Sync + 'static) -> String {
+        use axum::routing::get;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}/application/o/observecraft", listener.local_addr().unwrap());
+        let doc = serde_json::json!({
+            "issuer": issuer(&base),
+            "authorization_endpoint": format!("{base}/authorize"),
+            "token_endpoint": format!("{base}/token"),
+            "jwks_uri": format!("{base}/jwks"),
+            "response_types_supported": ["code"],
+            "subject_types_supported": ["public"],
+            "id_token_signing_alg_values_supported": ["RS256"],
+        });
+        let app = axum::Router::new()
+            .route("/application/o/observecraft/.well-known/openid-configuration", get(move || async move { axum::Json(doc) }))
+            .route("/application/o/observecraft/jwks", get(|| async { axum::Json(serde_json::json!({ "keys": [] })) }));
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        base
+    }
+
+    #[tokio::test]
+    async fn issuer_matches_the_provider_with_or_without_a_trailing_slash() {
+        // Authentik-style: the issuer ends with a slash.
+        let base = provider(|b| format!("{b}/")).await;
+        assert_eq!(resolve_issuer(&base).await.unwrap(), format!("{base}/"));
+        assert_eq!(resolve_issuer(&format!("{base}/")).await.unwrap(), format!("{base}/"));
+        // Most providers: no trailing slash.
+        let base = provider(|b| b.to_string()).await;
+        assert_eq!(resolve_issuer(&format!("{base}/")).await.unwrap(), base);
+        assert_eq!(resolve_issuer(&format!("  {base} ")).await.unwrap(), base);
+    }
+
+    #[tokio::test]
+    async fn a_different_issuer_is_still_refused() {
+        let base = provider(|_| "https://idp.example.com/other".to_string()).await;
+        let err = resolve_issuer(&base).await.unwrap_err();
+        assert!(err.contains("unexpected issuer"), "{err}");
+    }
 
     #[test]
     fn redirects_stay_in_app() {
