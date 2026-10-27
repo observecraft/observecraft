@@ -1380,8 +1380,80 @@ pub async fn tag_values(
     Ok(Json(values))
 }
 
+#[derive(clickhouse::Row, Deserialize)]
+pub(crate) struct VolumeRow {
+    pub name: String,
+    pub kind: String,
+    /// Distinct series (tag combinations) seen in the range.
+    pub series: u64,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricVolumeEntry {
+    pub name: String,
+    pub kind: String,
+    pub series: u64,
+    /// 0..1 of all the metrics' series.
+    pub share: f64,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricVolume {
+    pub total_series: u64,
+    pub metrics: Vec<MetricVolumeEntry>,
+}
+
+/// Metrics by active series, most first (then by name), with their share of the total.
+pub(crate) fn volume_page(rows: Vec<VolumeRow>) -> MetricVolume {
+    let total_series: u64 = rows.iter().map(|r| r.series).sum();
+    let mut metrics: Vec<MetricVolumeEntry> = rows
+        .into_iter()
+        .map(|r| MetricVolumeEntry { share: if total_series == 0 { 0.0 } else { r.series as f64 / total_series as f64 }, name: r.name, kind: r.kind, series: r.series })
+        .collect();
+    metrics.sort_by(|a, b| b.series.cmp(&a.series).then_with(|| a.name.cmp(&b.name)));
+    MetricVolume { total_series, metrics }
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct VolumeRequest {
+    pub range: TimeRange,
+}
+
+/// Metrics by cardinality: the distinct series each reported in the range.
+#[utoipa::path(post, path = "/api/v1/metrics/volume", request_body = VolumeRequest, responses((status = 200, body = MetricVolume)), tag = "metrics")]
+pub async fn volume(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<VolumeRequest>) -> ApiResult<MetricVolume> {
+    req.range.validate()?;
+    let rows = st
+        .ch(&org)
+        .query(
+            "SELECT MetricName AS name, toString(any(MetricType)) AS kind, uniqExact(SeriesId) AS series FROM otel.metrics_series \
+             WHERE OrgId = {oc_org:String} AND LastSeen >= toDateTime(intDiv(?, 1000)) GROUP BY MetricName",
+        )
+        .bind(req.range.from)
+        .fetch_all::<VolumeRow>()
+        .await?;
+    Ok(Json(volume_page(rows)))
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn volume_ranks_metrics_by_active_series_with_their_share() {
+        let rows = vec![
+            VolumeRow { name: "system.cpu.user".into(), kind: "gauge".into(), series: 10 },
+            VolumeRow { name: "kubernetes.cpu.usage.total".into(), kind: "gauge".into(), series: 30 },
+            VolumeRow { name: "http.requests".into(), kind: "sum".into(), series: 10 },
+        ];
+        let v = volume_page(rows);
+        assert_eq!(v.total_series, 50);
+        assert_eq!(v.metrics.iter().map(|m| (m.name.as_str(), m.series)).collect::<Vec<_>>(), vec![("kubernetes.cpu.usage.total", 30), ("http.requests", 10), ("system.cpu.user", 10)]);
+        assert_eq!(v.metrics[0].share, 0.6);
+        assert_eq!(volume_page(vec![]).total_series, 0);
+    }
+
     use super::*;
 
     fn exporter_table(d: Dist) -> &'static str {

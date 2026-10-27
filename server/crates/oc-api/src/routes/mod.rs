@@ -72,6 +72,7 @@ use crate::state::AppState;
         metrics::grouped,
         metrics::distribution,
         metrics::catalog,
+        metrics::volume,
         metrics::tag_values,
         dashboards::search,
         dashboards::recent,
@@ -299,6 +300,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/query/grouped", post(metrics::grouped))
         .route("/api/v1/query/distribution", post(metrics::distribution))
         .route("/api/v1/metrics", get(metrics::catalog))
+        .route("/api/v1/metrics/volume", post(metrics::volume))
         .route("/api/v1/tags/:key/values", get(metrics::tag_values))
         .route("/api/v1/dashboards", post(dashboards::create))
         .route("/api/v1/dashboards/search", post(dashboards::search))

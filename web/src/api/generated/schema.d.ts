@@ -2007,6 +2007,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/metrics/volume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Metrics by cardinality: the distinct series each reported in the range. */
+        post: operations["volume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/monitors": {
         parameters: {
             query?: never;
@@ -4870,6 +4887,22 @@ export interface components {
             /** @description The metric's unit (`byte`, `nanocore`, `byte/second`…): its sender's, else its integration's. */
             unit?: string;
         };
+        MetricVolume: {
+            metrics: components["schemas"]["MetricVolumeEntry"][];
+            /** Format: int64 */
+            totalSeries: number;
+        };
+        MetricVolumeEntry: {
+            kind: string;
+            name: string;
+            /** Format: int64 */
+            series: number;
+            /**
+             * Format: double
+             * @description 0..1 of all the metrics' series.
+             */
+            share: number;
+        };
         MfaSetup: {
             /** @description `otpauth://` URI for the QR code. */
             otpauthUrl: string;
@@ -6294,6 +6327,9 @@ export interface components {
             roles: components["schemas"]["RoleRef"][];
             status: components["schemas"]["UserStatus"];
             title?: string | null;
+        };
+        VolumeRequest: {
+            range: components["schemas"]["TimeRange"];
         };
     };
     responses: never;
@@ -9772,6 +9808,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetricCatalogEntry"][];
+                };
+            };
+        };
+    };
+    volume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VolumeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricVolume"];
                 };
             };
         };

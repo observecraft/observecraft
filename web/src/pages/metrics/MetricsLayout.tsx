@@ -3,7 +3,7 @@ import { Gauge } from 'lucide-react';
 import { TimeProvider } from '../../components/shell/TimeContext';
 import './metrics.css';
 
-/** Metrics product frame: Explorer and Summary share one time range (past hour by default). */
+/** Metrics product frame: Explorer, Summary and Volume share one time range (past hour by default). */
 export function MetricsLayout() {
   return (
     <TimeProvider initial="1h">
@@ -19,6 +19,9 @@ export function MetricsLayout() {
             </NavLink>
             <NavLink to="/metrics/summary" className={({ isActive }) => `product-tab${isActive ? ' active' : ''}`}>
               Summary
+            </NavLink>
+            <NavLink to="/metrics/volume" className={({ isActive }) => `product-tab${isActive ? ' active' : ''}`}>
+              Volume
             </NavLink>
           </nav>
         </header>

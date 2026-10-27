@@ -7,6 +7,7 @@ import { RehydrationsPage } from './pages/logs/RehydrationsPage';
 import { MetricsLayout } from './pages/metrics/MetricsLayout';
 import { MetricsExplorer } from './pages/metrics/MetricsExplorer';
 import { MetricsSummary } from './pages/metrics/MetricsSummary';
+import { MetricsVolume } from './pages/metrics/MetricsVolume';
 import { ApiKeysPage } from './pages/settings/ApiKeysPage';
 import { InstanceOrgsPage } from './pages/instance/InstanceOrgsPage';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
@@ -185,6 +186,7 @@ function Shell() {
             <Route path="/metrics" element={<MetricsLayout />}>
               <Route index element={<MetricsExplorer />} />
               <Route path="summary" element={<MetricsSummary />} />
+              <Route path="volume" element={<MetricsVolume />} />
             </Route>
             <Route path="/instance/orgs" element={<InstanceOrgsPage />} />
             <Route path="/organization-settings" element={<OrgSettingsLayout />}>

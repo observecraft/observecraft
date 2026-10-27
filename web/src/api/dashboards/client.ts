@@ -138,6 +138,14 @@ export async function metricCatalog(signal?: AbortSignal): Promise<MetricCatalog
   return (await get('/api/v1/metrics', {}, signal)).map((m) => ({ ...m, unit: m.unit ?? undefined }));
 }
 
+export type MetricVolume = components['schemas']['MetricVolume'];
+
+/** Metrics by cardinality: the distinct series each reported in the range. */
+export async function metricVolume(range: TimeRange, signal?: AbortSignal): Promise<MetricVolume> {
+  if (!live) return metrics.metricVolume();
+  return post('/api/v1/metrics/volume', { range }, signal);
+}
+
 export async function queryDashboard(queries: DashboardMetricQuery[], range: TimeRange, signal?: AbortSignal): Promise<DashboardQueryFrame> {
   if (live) return post('/api/v1/query/dashboard', { queries, range }, signal);
   const catalog = await metrics.metricCatalog();

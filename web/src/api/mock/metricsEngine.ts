@@ -14,7 +14,7 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-const pick = <T,>(r: () => number, a: readonly T[]) => a[Math.floor(r() * a.length)];
+const pick = <T>(r: () => number, a: readonly T[]) => a[Math.floor(r() * a.length)];
 
 // ---------------------------------------------------------------- entity sets
 
@@ -39,9 +39,7 @@ const SETS: Record<string, Tags[]> = {
     const cluster = pick(r, CLUSTERS);
     return { host: `i-0${(hash(`h${i}`) >>> 0).toString(16).padStart(8, '0')}${i.toString(16)}`, kube_cluster_name: cluster, env: cluster.includes('prod') ? 'prod' : 'qa', team: pick(r, TEAMS) };
   }),
-  services: SERVICES.flatMap((service, i) =>
-    ['prod', 'qa'].map((env) => ({ service, env, team: TEAMS[i % TEAMS.length] })),
-  ),
+  services: SERVICES.flatMap((service, i) => ['prod', 'qa'].map((env) => ({ service, env, team: TEAMS[i % TEAMS.length] }))),
   monitors: build(320, 13, (r, i) => {
     const service = r() < 0.3 ? 'undefined' : pick(r, SERVICES);
     const name = pick(r, [
@@ -56,7 +54,15 @@ const SETS: Record<string, Tags[]> = {
       `[${service}] p95 latency above SLO`,
     ]);
     const s = r();
-    return { monitor_id: String(100000 + i), monitor_name: name, service, team: pick(r, TEAMS), env: r() < 0.7 ? 'prod' : 'qa', host: `i-0${hash(`mh${i % 40}`).toString(16)}`, status: s < 0.08 ? 'alert' : s < 0.1 ? 'warn' : s < 0.92 ? 'ok' : 'nodata' };
+    return {
+      monitor_id: String(100000 + i),
+      monitor_name: name,
+      service,
+      team: pick(r, TEAMS),
+      env: r() < 0.7 ? 'prod' : 'qa',
+      host: `i-0${hash(`mh${i % 40}`).toString(16)}`,
+      status: s < 0.08 ? 'alert' : s < 0.1 ? 'warn' : s < 0.92 ? 'ok' : 'nodata',
+    };
   }),
 };
 
@@ -83,8 +89,20 @@ const METRICS: Record<string, MetricDef> = {
   'kubernetes_state.deployment.replicas_desired': { set: 'deployments', description: 'Desired replicas', base: REPLICAS, noise: 0.01, integer: true },
   'kubernetes_state.deployment.replicas_available': { set: 'deployments', description: 'Available replicas', base: (e, r) => REPLICAS(e, r) * 0.98, noise: 0.02, integer: true },
   'kubernetes_state.deployment.replicas_updated': { set: 'deployments', description: 'Updated replicas', base: (e, r) => REPLICAS(e, r) * 0.99, noise: 0.01, integer: true },
-  'kubernetes_state.deployment.replicas_unavailable': { set: 'deployments', description: 'Unavailable replicas', base: (_e, r) => (r() < 0.15 ? 1 + Math.floor(r() * 4) : 0), noise: 0.4, integer: true },
-  'kubernetes_state.deployment.replicas_desired_not_available': { set: 'deployments', description: 'Desired but not available replicas', base: (_e, r) => (r() < 0.6 ? 2 + r() * 30 : 0), noise: 0.5, integer: true },
+  'kubernetes_state.deployment.replicas_unavailable': {
+    set: 'deployments',
+    description: 'Unavailable replicas',
+    base: (_e, r) => (r() < 0.15 ? 1 + Math.floor(r() * 4) : 0),
+    noise: 0.4,
+    integer: true,
+  },
+  'kubernetes_state.deployment.replicas_desired_not_available': {
+    set: 'deployments',
+    description: 'Desired but not available replicas',
+    base: (_e, r) => (r() < 0.6 ? 2 + r() * 30 : 0),
+    noise: 0.5,
+    integer: true,
+  },
   'kubernetes_state.deployment.outdated': { set: 'deployments', description: 'Deployments with outdated replicas', base: (_e, r) => (r() < 0.01 ? 1 : 0), noise: 0, integer: true },
   'kubernetes_state.pod.running': { set: 'deployments', description: 'Running pods', base: (e, r) => REPLICAS(e, r) * 0.97, noise: 0.02, integer: true },
   'kubernetes_state.pod.pending': { set: 'deployments', description: 'Pending pods', base: (_e, r) => (r() < 0.1 ? 1 + r() * 3 : 0), noise: 0.6, integer: true },
@@ -101,11 +119,25 @@ const METRICS: Record<string, MetricDef> = {
   'trace.http.request.errors': { set: 'services', description: 'HTTP request errors', unit: 'err/s', base: (_e, r) => r() * 6, noise: 0.5 },
   'trace.http.request.error_rate': { set: 'services', description: 'HTTP error rate', unit: '%', base: (_e, r) => 0.2 + r() * 4, noise: 0.4, max: 100 },
   'trace.http.request.duration.p95': { set: 'services', description: 'p95 latency', unit: 'ms', base: (_e, r) => 40 + r() * 400, noise: 0.15 },
-  'observecraft.monitor.notifications': { set: 'monitors', description: 'Monitor notifications sent', base: (e, r) => (e.status === 'ok' ? r() * 0.12 : e.status === 'nodata' ? 0 : r() * 0.25), noise: 1.2, integer: false },
+  'observecraft.monitor.notifications': {
+    set: 'monitors',
+    description: 'Monitor notifications sent',
+    base: (e, r) => (e.status === 'ok' ? r() * 0.12 : e.status === 'nodata' ? 0 : r() * 0.25),
+    noise: 1.2,
+    integer: false,
+  },
 };
 
 export function metricCatalog(): MetricCatalogEntry[] {
   return Object.entries(METRICS).map(([name, d]) => ({ name, tags: Object.keys(SETS[d.set][0]), unit: d.unit, description: d.description }));
+}
+
+/** Metrics by series: one series per entity of the metric's set. */
+export function metricVolume(): { totalSeries: number; metrics: { name: string; kind: string; series: number; share: number }[] } {
+  const rows = Object.entries(METRICS).map(([name, d]) => ({ name, kind: 'gauge', series: SETS[d.set].length }));
+  const totalSeries = rows.reduce((n, r) => n + r.series, 0);
+  const metrics = rows.map((r) => ({ ...r, share: totalSeries ? r.series / totalSeries : 0 })).sort((a, b) => b.series - a.series || a.name.localeCompare(b.name));
+  return { totalSeries, metrics };
 }
 
 export function tagValues(key: string): string[] {
@@ -195,7 +227,10 @@ function evaluate(query: string, range: TimeRange, points: number): GroupSeries[
   for (const g of groups.values()) {
     const pts: [number, number][] = [];
     for (let t = start; t <= range.to; t += step) {
-      const v = combine(g.members.map((e) => entityValue(q.metric, def, e, t)), q.aggregator);
+      const v = combine(
+        g.members.map((e) => entityValue(q.metric, def, e, t)),
+        q.aggregator,
+      );
       pts.push([t, Math.round(v * 100) / 100]);
     }
     out.push({ tags: g.tags, points: pts });
@@ -220,8 +255,8 @@ function reduce(points: [number, number][], agg: TimeAggregator): number {
   }
 }
 
-const delay = <T,>(v: T, ms = 60 + Math.random() * 140) => new Promise<T>((r) => setTimeout(() => r(v), ms));
-const attempt = <T,>(fn: () => T): Promise<T> => {
+const delay = <T>(v: T, ms = 60 + Math.random() * 140) => new Promise<T>((r) => setTimeout(() => r(v), ms));
+const attempt = <T>(fn: () => T): Promise<T> => {
   try {
     return delay(fn());
   } catch (e) {
@@ -248,7 +283,16 @@ export function queryScalar(req: ScalarRequest): Promise<number> {
     // A grouped query reduced to one number: combine groups per timestamp first.
     const q = parseMetricQuery(req.query)!;
     if (groups.length === 0) return 0;
-    const merged = groups[0].points.map(([t], i) => [t, combine(groups.map((g) => g.points[i]?.[1] ?? 0), q.aggregator)] as [number, number]);
+    const merged = groups[0].points.map(
+      ([t], i) =>
+        [
+          t,
+          combine(
+            groups.map((g) => g.points[i]?.[1] ?? 0),
+            q.aggregator,
+          ),
+        ] as [number, number],
+    );
     return reduce(merged, req.aggregator);
   });
 }
@@ -266,7 +310,11 @@ export function queryDistribution(req: { query: string; range: TimeRange }): Pro
     const q = parseMetricQuery(req.query);
     if (!q) throw new Error(`Invalid query: ${req.query}`);
     // Distribution across entities: re-run without grouping but keep each entity separate.
-    const perEntity = evaluate(`${q.aggregator}:${q.metric}{${q.filters.map((f) => `${f.negate ? '!' : ''}${f.key}:${f.value}`).join(',') || '*'}} by {${Object.keys(SETS[METRICS[q.metric].set][0]).join(',')}}`, req.range, 40);
+    const perEntity = evaluate(
+      `${q.aggregator}:${q.metric}{${q.filters.map((f) => `${f.negate ? '!' : ''}${f.key}:${f.value}`).join(',') || '*'}} by {${Object.keys(SETS[METRICS[q.metric].set][0]).join(',')}}`,
+      req.range,
+      40,
+    );
     const all = perEntity.flatMap((s) => s.points.map((p) => p[1]));
     const max = Math.max(1, ...all);
     const bucketCount = 10;

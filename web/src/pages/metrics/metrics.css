@@ -192,3 +192,26 @@
   border-color: var(--primary, #3b6fd8);
   background: color-mix(in srgb, var(--primary, #3b6fd8) 10%, transparent);
 }
+
+/* ---------- Volume ---------- */
+.mx-volume .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.mx-share {
+  display: inline-block;
+  width: 160px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  vertical-align: middle;
+  overflow: hidden;
+}
+
+.mx-share-bar {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}

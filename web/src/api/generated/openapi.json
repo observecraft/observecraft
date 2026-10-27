@@ -4818,6 +4818,37 @@
         }
       }
     },
+    "/api/v1/metrics/volume": {
+      "post": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Metrics by cardinality: the distinct series each reported in the range.",
+        "operationId": "volume",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VolumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricVolume"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/monitors": {
       "post": {
         "tags": [
@@ -13664,6 +13695,53 @@
           }
         }
       },
+      "MetricVolume": {
+        "type": "object",
+        "required": [
+          "totalSeries",
+          "metrics"
+        ],
+        "properties": {
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricVolumeEntry"
+            }
+          },
+          "totalSeries": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "MetricVolumeEntry": {
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "series",
+          "share"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "series": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "share": {
+            "type": "number",
+            "format": "double",
+            "description": "0..1 of all the metrics' series."
+          }
+        }
+      },
       "MfaSetup": {
         "type": "object",
         "required": [
@@ -18315,6 +18393,17 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "VolumeRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
           }
         }
       }
