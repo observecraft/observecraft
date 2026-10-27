@@ -52,8 +52,8 @@ export function ApiKeysPage() {
         )}
       </div>
       <p className="muted">
-        API keys send telemetry to <b>{me.data?.org.name ?? 'this organization'}</b>: OTLP traces, metrics and logs, and JSON logs. Everything sent with a key belongs to this organization. To call the
-        ObserveCraft API, use an application key (Personal Settings) instead.
+        API keys send telemetry to <b>{me.data?.org.name ?? 'this organization'}</b>: the Datadog Agent and Datadog tracing libraries (as their API key), OpenTelemetry (OTLP) and JSON logs. Everything
+        sent with a key belongs to this organization. To call the ObserveCraft API, use an application key (Personal Settings) instead.
       </p>
       {isAdmin && (
         <form className="security-form" onSubmit={(e) => (e.preventDefault(), create.mutate(name.trim(), { onSuccess: (k) => (setCreated(k.key), setName('')) }))}>
