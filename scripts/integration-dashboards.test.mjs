@@ -478,3 +478,20 @@ test('template variables: first five, plus later ones in use; the rest behind +N
   assert.equal(visibleVariables(vars, {}, true).hidden, 0);
   assert.equal(visibleVariables(vars.slice(0, 6), {}, false).hidden, 0, 'one extra is shown rather than folded as +1');
 });
+
+test('utilization graphs read OpenTelemetry names, else the Datadog Agent ones (nanocores → cores)', async () => {
+  const { usageSeries } = await import('../web/src/api/kubernetes/usage.ts');
+  const s = (name, v) => ({ name, points: [[0, v]] });
+  assert.deepEqual(usageSeries('cpu', [s('ns:a', 0.5)], [s('ns:a', 9e8)]), [s('ns:a', 0.5)]);
+  assert.deepEqual(usageSeries('cpu', [], [s('ns:a', 9e8)]), [s('ns:a', 0.9)]);
+  assert.deepEqual(usageSeries('memory', [], [s('ns:a', 1024)]), [s('ns:a', 1024)]);
+  assert.deepEqual(usageSeries('cpu', [], []), []);
+});
+
+test('a group finds its usage series even when the metrics carry no cluster, if there is only one cluster', async () => {
+  const { groupSeries } = await import('../web/src/api/kubernetes/usage.ts');
+  const series = new Map([['kube_cluster_name:N/A, kube_namespace:shop', { name: 'x', points: [] }]]);
+  assert.ok(groupSeries(series, 'kube_cluster_name:aks-dev, kube_namespace:shop', true));
+  assert.equal(groupSeries(series, 'kube_cluster_name:aks-dev, kube_namespace:shop', false), undefined, 'several clusters: no guessing');
+  assert.equal(groupSeries(series, 'kube_cluster_name:aks-dev, kube_namespace:other', true), undefined);
+});
