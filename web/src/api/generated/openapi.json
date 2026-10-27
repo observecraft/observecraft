@@ -1809,6 +1809,37 @@
         }
       }
     },
+    "/api/v1/error-tracking/issues/facets": {
+      "post": {
+        "tags": [
+          "error-tracking"
+        ],
+        "summary": "How many issues have logs with each service, env and version.",
+        "operationId": "issue_facets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueFacetsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueFacetsOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/error-tracking/issues/search": {
       "post": {
         "tags": [
@@ -11654,6 +11685,39 @@
           }
         }
       },
+      "IssueFacetsOut": {
+        "type": "object",
+        "required": [
+          "facets",
+          "totalAvailable"
+        ],
+        "properties": {
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Facet"
+            }
+          },
+          "totalAvailable": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "IssueFacetsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
       "IssueOut": {
         "type": "object",
         "required": [
@@ -16067,9 +16131,15 @@
         "type": "object",
         "required": [
           "index",
-          "total"
+          "total",
+          "available"
         ],
         "properties": {
+          "available": {
+            "type": "integer",
+            "description": "Logs that can be paged through (the newest or oldest 2,000).",
+            "minimum": 0
+          },
           "index": {
             "type": "integer",
             "minimum": 0
@@ -16086,6 +16156,8 @@
           },
           "total": {
             "type": "integer",
+            "format": "int64",
+            "description": "The issue's logs in range.",
             "minimum": 0
           }
         }

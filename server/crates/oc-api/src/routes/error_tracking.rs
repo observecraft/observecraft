@@ -11,7 +11,7 @@ use utoipa::ToSchema;
 
 use crate::auth::Writer;
 use crate::error::{ApiError, ApiResult};
-use crate::routes::logs::{bind, scope, TimeRange};
+use crate::routes::logs::{bind, scope, Facet, FacetValue, TimeRange};
 use crate::state::{AppState, OrgId};
 
 /// Error logs of one issue key (service, kind, [`shape_key`]), aggregated by ClickHouse.
@@ -554,7 +554,10 @@ pub struct SampleOut {
 pub struct SamplePage {
     pub sample: Option<SampleOut>,
     pub index: usize,
-    pub total: usize,
+    /// The issue's logs in range.
+    pub total: u64,
+    /// Logs that can be paged through (the newest or oldest 2,000).
+    pub available: usize,
 }
 
 /// One log of the issue (the `index`-th newest or oldest in range), and how many there are.
@@ -563,11 +566,11 @@ pub async fn issue_samples(State(st): State<AppState>, OrgId(org): OrgId, Path(i
     valid_issue_id(&id)?;
     req.range.validate()?;
     let Some(group) = load_issues(&st, &org, req.range, &req.query, 1, None).await?.into_iter().find(|g| g.id == id) else {
-        return Ok(Json(SamplePage { sample: None, index: 0, total: 0 }));
+        return Ok(Json(SamplePage { sample: None, index: 0, total: 0, available: 0 }));
     };
     let logs = issue_logs(&st, &org, req.range, &req.query, &group, req.order.as_deref() == Some("oldest")).await?;
-    let total = logs.len();
-    let index = req.index.min(total.saturating_sub(1));
+    let available = logs.len();
+    let index = req.index.min(available.saturating_sub(1));
     let sample = logs.into_iter().nth(index).map(|l| {
         let mut json: serde_json::Value = serde_json::from_str(&l.attributes).unwrap_or(serde_json::json!({}));
         if let Some(o) = json.as_object_mut() {
@@ -586,7 +589,70 @@ pub async fn issue_samples(State(st): State<AppState>, OrgId(org): OrgId, Path(i
             json,
         }
     });
-    Ok(Json(SamplePage { sample, index, total }))
+    Ok(Json(SamplePage { sample, index, total: group.count, available }))
+}
+
+/// Facets of the issue list: the log fields an issue search can filter on.
+const ISSUE_FACETS: [(&str, &str); 3] = [("service", "Service"), ("env", "Env"), ("version", "Version")];
+
+#[derive(clickhouse::Row, Deserialize)]
+pub(crate) struct FacetRow {
+    pub k: String,
+    pub v: String,
+    /// Issues with logs of this value.
+    pub n: u64,
+}
+
+/// Facets in [`ISSUE_FACETS`] order, most issues first, without empty values.
+pub(crate) fn issue_facets_of(rows: Vec<FacetRow>) -> Vec<Facet> {
+    let mut facets: Vec<Facet> = ISSUE_FACETS.iter().map(|(key, label)| Facet { key: key.to_string(), label: label.to_string(), group: String::new(), values: Vec::new() }).collect();
+    for r in rows.into_iter().filter(|r| !r.v.is_empty()) {
+        if let Some(f) = facets.iter_mut().find(|f| f.key == r.k) {
+            f.values.push(FacetValue { value: r.v, count: r.n });
+        }
+    }
+    for f in &mut facets {
+        f.values.sort_by(|a, b| b.count.cmp(&a.count).then(a.value.cmp(&b.value)));
+    }
+    facets
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct IssueFacetsRequest {
+    pub range: TimeRange,
+    #[serde(default)]
+    pub query: String,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueFacetsOut {
+    pub facets: Vec<Facet>,
+    pub total_available: usize,
+}
+
+/// Values per facet in range: 20 per facet.
+const FACET_VALUES: i64 = 20;
+
+/// How many issues have logs with each service, env and version.
+#[utoipa::path(post, path = "/api/v1/error-tracking/issues/facets", request_body = IssueFacetsRequest, responses((status = 200, body = IssueFacetsOut)), tag = "error-tracking")]
+pub async fn issue_facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<IssueFacetsRequest>) -> ApiResult<IssueFacetsOut> {
+    req.range.validate()?;
+    let s = scope(&org, req.range, &parse_query(&req.query), None);
+    let mut params = s.params;
+    params.push(Param::Int(FACET_VALUES));
+    let rows = bind(
+        st.ch(&org).query(&format!(
+            "SELECT kv.1 AS k, kv.2 AS v, uniqExact(service, error_kind, error_key) AS n \
+             FROM {} ARRAY JOIN [('service', toString(service)), ('env', tags['env']), ('version', tags['version'])] AS kv \
+             WHERE {} AND status = 'error' GROUP BY k, v ORDER BY n DESC LIMIT ? BY k",
+            s.table, s.clause
+        )),
+        &params,
+    )
+    .fetch_all::<FacetRow>()
+    .await?;
+    Ok(Json(IssueFacetsOut { facets: issue_facets_of(rows), total_available: ISSUE_FACETS.len() }))
 }
 
 /// `null` → `Some(None)` (unassign), absent → `None` (leave as is).
@@ -718,6 +784,23 @@ mod tests {
         assert_eq!(strip_ansi("plain [92m text"), "plain [92m text");
         let issues = group_issues(vec![row("billing", "\u{1b}[31mValueError\u{1b}[0m: bad", 1, 0, 0, (vec![0], vec![1]))], 1);
         assert_eq!(issues[0].message, "ValueError: bad");
+    }
+
+    #[test]
+    fn facets_count_issues_per_value_in_a_fixed_order() {
+        let rows = vec![
+            FacetRow { k: "env".into(), v: "prod".into(), n: 3 },
+            FacetRow { k: "service".into(), v: "billing".into(), n: 2 },
+            FacetRow { k: "service".into(), v: "checkout".into(), n: 5 },
+            FacetRow { k: "env".into(), v: String::new(), n: 9 },
+        ];
+        let facets = issue_facets_of(rows);
+        assert_eq!(facets.iter().map(|f| (f.key.as_str(), f.label.as_str())).collect::<Vec<_>>(), vec![("service", "Service"), ("env", "Env"), ("version", "Version")]);
+        let values = |i: usize| facets[i].values.iter().map(|v| (v.value.as_str(), v.count)).collect::<Vec<_>>();
+        assert_eq!(values(0), vec![("checkout", 5), ("billing", 2)]);
+        // Logs without the tag don't make an empty value.
+        assert_eq!(values(1), vec![("prod", 3)]);
+        assert!(values(2).is_empty());
     }
 
     #[test]

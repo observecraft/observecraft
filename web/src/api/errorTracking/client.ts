@@ -28,8 +28,8 @@ export async function searchIssues(req: IssueSearchRequest): Promise<IssueSearch
 }
 
 export function issueFacets(req: IssueFacetsRequest): Promise<IssueFacets> {
-  // Facets over real issues come next; until then live shows none.
-  if (API_MODE === 'live') return Promise.resolve({ facets: [], totalAvailable: 0 });
+  // Live: issues per service, env and version (persona, team and cause filters come with saved issues).
+  if (API_MODE === 'live') return post('/api/v1/error-tracking/issues/facets', { range: req.range, query: req.query }) as Promise<IssueFacets>;
   return mock.issueFacets(req);
 }
 

@@ -142,7 +142,10 @@ export interface ErrorSampleRequest {
 export interface ErrorSamplePage {
   sample: ErrorSample | null;
   index: number;
+  /** The issue's errors in range. */
   total: number;
+  /** Errors that can be paged through (live: the newest or oldest 2,000). */
+  available: number;
 }
 
 export interface IssuePatch {

@@ -846,6 +846,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/error-tracking/issues/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** How many issues have logs with each service, env and version. */
+        post: operations["issue_facets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/error-tracking/issues/search": {
         parameters: {
             query?: never;
@@ -4278,6 +4295,14 @@ export interface components {
             query?: string;
             range: components["schemas"]["TimeRange"];
         };
+        IssueFacetsOut: {
+            facets: components["schemas"]["Facet"][];
+            totalAvailable: number;
+        };
+        IssueFacetsRequest: {
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
         IssueOut: {
             assignee?: null | components["schemas"]["UserRef"];
             /** Format: int64 */
@@ -5595,8 +5620,14 @@ export interface components {
             timestamp: number;
         };
         SamplePage: {
+            /** @description Logs that can be paged through (the newest or oldest 2,000). */
+            available: number;
             index: number;
             sample?: null | components["schemas"]["SampleOut"];
+            /**
+             * Format: int64
+             * @description The issue's logs in range.
+             */
             total: number;
         };
         SampleRequest: {
@@ -7542,6 +7573,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    issue_facets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueFacetsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueFacetsOut"];
+                };
             };
         };
     };
