@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { convertDashboard, PINNED_REVISION } from './import-integration-dashboards.mjs';
-import { formula, metricPlan, preparePanelQuery } from '../web/src/api/integrations/evaluate.ts';
+import { convertDashboard, metricUnits, PINNED_REVISION } from './import-integration-dashboards.mjs';
+import { formula, metricPlan, preparePanelQuery, timeShifts } from '../web/src/api/integrations/evaluate.ts';
+import { byteAxisInterval, formatMetricValue } from '../web/src/api/integrations/units.ts';
+import { changeRows } from '../web/src/api/integrations/change.ts';
+import { shades } from '../web/src/theme/shades.ts';
 import { resolveQuery } from '../web/src/lib/metricQuery.ts';
 
 test('explicit template values resolve StatefulSet filters and preserve the selected workload', () => {
@@ -35,7 +38,7 @@ test('query modifiers remain explicit and unknown modifiers are rejected', () =>
   assert.equal(metricPlan('sum:a{*}.weighted()').operations[0].name, 'weighted');
   assert.throws(() => metricPlan('sum:a{*}.unsupported()'), /unsupported/);
 });
-test('import preserves upstream requests, formulas and thresholds without image assets', () => {
+test('import preserves upstream requests, formulas and thresholds; linked images become our artwork', () => {
   const definition = {
     type: 'query_value',
     title: 'Available replicas',
@@ -55,15 +58,19 @@ test('import preserves upstream requests, formulas and thresholds without image 
   );
   assert.deepEqual(d.widgets[0].definition.original, definition);
   assert.equal(d.widgets.length, 2);
-  assert.equal(d.widgets[1].definition.src, '/images/dashboard-kubernetes-capacity.svg');
+  assert.equal(d.widgets[1].definition.src, '/images/integrations/kubernetes-banner.svg');
   assert.equal(d.widgets[0].layout.w, 6);
 });
-test('all 12 bundled dashboards contain real upstream panels and no embedded artwork', () => {
+test('all 12 bundled dashboards contain real upstream panels and no Datadog-hosted images', () => {
   const raw = readFileSync(new URL('../server/seeds/integrations/kubernetes/dashboards.json', import.meta.url), 'utf8');
   const docs = JSON.parse(raw);
   assert.equal(docs.length, 12);
   assert.equal(new Set(docs.map((d) => d.id)).size, 12);
-  assert.ok(!raw.includes('data:image') && !raw.includes('banner_img'));
+  assert.ok(!raw.includes('/static/images') && !raw.includes('banner_img'));
+  const images = [];
+  const walk = (w) => (w.definition.type === 'image' && images.push(w.definition.src), (w.definition.widgets ?? []).forEach(walk));
+  docs.forEach((d) => d.widgets.forEach(walk));
+  assert.ok(images.length && images.every((src) => src.startsWith('data:image/') || src.startsWith('/images/integrations/')), 'only embedded or our own images');
   for (const d of docs) {
     assert.equal(d.source.revision, PINNED_REVISION);
     assert.ok(d.widgets.length);
@@ -154,4 +161,185 @@ test('CPU formula conversions carry units without modifying the original input',
   assert.equal(result[0].unit, '{core}');
   assert.equal(result[0].points[0][1], 2.6);
   assert.equal(q[0].points[0][1], 2600000000);
+});
+
+test('metric units come from metadata.csv, quoted descriptions included', () => {
+  const csv = [
+    'metric_name,metric_type,interval,unit_name,per_unit_name,description,orientation,integration,short_name,curated_metric',
+    'kubernetes.cpu.usage.total,gauge,,nanocore,,"The number of cores used by the host, in nanocores",0,kubelet,cpu usage,',
+    'kubernetes.network.rx_bytes,gauge,,byte,second,The amount of bytes per second received,0,kubelet,network rx,',
+    'kubernetes.pods.running,gauge,,,,The number of running pods,0,kubelet,running pods,',
+  ].join('\n');
+  assert.deepEqual(metricUnits(csv), [
+    ['kubernetes.cpu.usage.total', 'nanocore'],
+    ['kubernetes.network.rx_bytes', 'byte/second'],
+  ]);
+});
+
+test('values read in their unit, compactly', () => {
+  // Units as integrations-core's metadata.csv names them.
+  assert.equal(formatMetricValue(1951856526.53, 'nanocore'), '1.95 cores');
+  assert.equal(formatMetricValue(7e9, 'nanocore'), '7 cores');
+  assert.equal(formatMetricValue(17503632530.29, 'byte'), '16.3 GiB');
+  assert.equal(formatMetricValue(1234567, 'byte/second'), '1.18 MiB/s');
+  assert.equal(formatMetricValue(42.5, 'percent'), '42.5%');
+  assert.equal(formatMetricValue(0.85, 'fraction'), '85%');
+  assert.equal(formatMetricValue(1500, 'millisecond'), '1.5 s');
+  assert.equal(formatMetricValue(0.00025, 'second'), '250 µs');
+  assert.equal(formatMetricValue(12.25, 'request/second'), '12.25 req/s');
+  // No unit: large numbers are compacted, small ones kept.
+  assert.equal(formatMetricValue(1234567), '1.23M');
+  assert.equal(formatMetricValue(2.5e9), '2.5B');
+  assert.equal(formatMetricValue(950), '950');
+  assert.equal(formatMetricValue(0.125), '0.13');
+});
+
+test('element-wise formula functions', () => {
+  const at = (values, step = 10_000) => [{ name: '*', points: values.map((v, i) => [i * step, v]) }];
+  assert.deepEqual(formula('abs(a)', { a: at([-2, 3]) })[0].points, [
+    [0, 2],
+    [10_000, 3],
+  ]);
+  assert.deepEqual(formula('cumsum(a)', { a: at([1, 2, 3]) })[0].points, [
+    [0, 1],
+    [10_000, 3],
+    [20_000, 6],
+  ]);
+  assert.deepEqual(formula('log10(a)', { a: at([100]) })[0].points, [[0, 2]]);
+  assert.deepEqual(formula('clamp_max(a, 5)', { a: at([2, 9]) })[0].points, [
+    [0, 2],
+    [10_000, 5],
+  ]);
+  // A counter's change per second, minute and hour over 10s intervals.
+  assert.deepEqual(formula('per_second(a)', { a: at([0, 50, 100]) })[0].points, [
+    [10_000, 5],
+    [20_000, 5],
+  ]);
+  assert.deepEqual(formula('per_minute(a)', { a: at([0, 50]) })[0].points, [[10_000, 300]]);
+  assert.deepEqual(formula('per_hour(a)', { a: at([0, 1]) })[0].points, [[10_000, 360]]);
+  // A reset counts from zero.
+  assert.deepEqual(formula('monotonic_diff(a)', { a: at([5, 8, 2]) })[0].points, [
+    [10_000, 3],
+    [20_000, 2],
+  ]);
+});
+
+test('time shifts become queries over earlier ranges', () => {
+  assert.deepEqual(timeShifts('week_before(query1)'), { text: 'query1__shift604800', shifts: [{ name: 'query1__shift604800', query: 'query1', seconds: 604800 }] });
+  assert.deepEqual(timeShifts('query1 - day_before(query1)'), { text: 'query1 - query1__shift86400', shifts: [{ name: 'query1__shift86400', query: 'query1', seconds: 86400 }] });
+  assert.deepEqual(timeShifts('timeshift(query2, -3600) + month_before(query1)').shifts, [
+    { name: 'query2__shift3600', query: 'query2', seconds: 3600 },
+    { name: 'query1__shift2419200', query: 'query1', seconds: 2419200 },
+  ]);
+  assert.deepEqual(timeShifts('query1 / query2'), { text: 'query1 / query2', shifts: [] });
+});
+
+test('formula functions are only the known ones', () => {
+  const a = [{ name: '*', points: [[0, 1]] }];
+  assert.throws(() => formula('toString(a)', { a }), /not supported/);
+  assert.throws(() => formula('constructor(a)', { a }), /not supported/);
+  // A shift into the future isn't a comparison with the past.
+  assert.deepEqual(timeShifts('timeshift(query1, 3600)').shifts, []);
+});
+
+test('change panels compare each group with its earlier value', () => {
+  const v = (column, group, value) => ({ name: group, column, group, points: [[0, value]], display: 'line', dashed: false });
+  const series = [
+    v('query1__shift604800', 'kube_deployment:api', 4),
+    v('query1', 'kube_deployment:api', 5),
+    v('query1__shift604800', 'kube_deployment:web', 10),
+    v('query1', 'kube_deployment:web', 8),
+  ];
+  assert.deepEqual(changeRows(series, { change_type: 'absolute', increase_good: true, order_by: 'change', order_dir: 'desc' }), [
+    { group: 'kube_deployment:api', present: 5, past: 4, change: 1, good: true },
+    { group: 'kube_deployment:web', present: 8, past: 10, change: -2, good: false },
+  ]);
+  const relative = changeRows(series, { change_type: 'relative', increase_good: false, order_by: 'name', order_dir: 'asc' });
+  assert.deepEqual(
+    relative.map((r) => [r.group, r.change, r.good]),
+    [
+      ['kube_deployment:api', 25, false],
+      ['kube_deployment:web', -20, true],
+    ],
+  );
+});
+
+test('single-hue palettes are shades of one of our chart colors', () => {
+  assert.deepEqual(shades('#3d7fe0', 3), ['#3d7fe0', '#77a5e9', '#b1ccf3']);
+  assert.equal(shades('#3d7fe0', 1)[0], '#3d7fe0');
+});
+
+test('imported dashboards keep their notes, colors and embedded images; hosted artwork becomes ours', () => {
+  const doc = {
+    title: 'Kubernetes - Overview',
+    layout_type: 'ordered',
+    widgets: [
+      {
+        id: 1,
+        definition: {
+          type: 'group',
+          title: 'Infrastructure',
+          background_color: 'vivid_purple',
+          banner_img: '/static/images/integration_dashboard/kubernetes_hero_2.jpeg',
+          layout_type: 'ordered',
+          widgets: [
+            {
+              id: 2,
+              definition: { type: 'note', content: '## How to use\n\nPick a cluster.', background_color: 'vivid_blue', font_size: '24', text_align: 'center', show_tick: true },
+              layout: { x: 0, y: 0, width: 6, height: 2 },
+            },
+          ],
+        },
+        layout: { x: 0, y: 0, width: 12, height: 4 },
+      },
+      { id: 3, definition: { type: 'image', url: 'data:image/png;base64,iVBORw0KGgo=', sizing: 'cover' }, layout: { x: 0, y: 4, width: 6, height: 3 } },
+      { id: 4, definition: { type: 'image', url: '/static/images/integration_dashboard/kubernetes_hero_2.jpeg' }, layout: { x: 6, y: 4, width: 6, height: 3 } },
+    ],
+  };
+  const d = convertDashboard(doc, 'kubernetes', 'assets/dashboards/kubernetes_dashboard.json', PINNED_REVISION);
+  const group = d.widgets[0].definition;
+  assert.equal(group.color, 'purple');
+  assert.equal(group.compact, false);
+  // The group's banner is our own artwork, above its widgets.
+  assert.deepEqual(group.widgets[0].definition, { type: 'image', title: 'Kubernetes', src: '/images/integrations/kubernetes-banner.svg' });
+  const note = group.widgets[1].definition;
+  assert.deepEqual(note, { type: 'note', content: '## How to use\n\nPick a cluster.', background: 'blue', align: 'center', fontSize: 'lg', pointer: true });
+  assert.ok(group.widgets[1].layout.y >= group.widgets[0].layout.y + group.widgets[0].layout.h, 'the note sits below the banner');
+  assert.equal(d.widgets[1].definition.src, 'data:image/png;base64,iVBORw0KGgo=');
+  assert.equal(d.widgets[2].definition.src, '/images/integrations/kubernetes-banner.svg');
+});
+
+test('note markdown: numbered steps are an ordered list, bullets an unordered one', async () => {
+  const { markdownBlocks } = await import('../web/src/pages/dashboards/widgets/markdownBlocks.ts');
+  assert.deepEqual(markdownBlocks('## Use\nIntro\n1. Select a timeframe\n2. Pick a cluster\n\n- one\n* two\n---'), [
+    { type: 'heading', level: 2, text: 'Use' },
+    { type: 'paragraph', text: 'Intro' },
+    { type: 'list', ordered: true, items: ['Select a timeframe', 'Pick a cluster'] },
+    { type: 'list', ordered: false, items: ['one', 'two'] },
+    { type: 'rule' },
+  ]);
+});
+
+test('one core is singular', () => {
+  assert.equal(formatMetricValue(1e9, 'nanocore'), '1 core');
+});
+
+test('note markdown decodes the HTML entities integrations-core notes use, as text', async () => {
+  const { markdownBlocks } = await import('../web/src/pages/dashboards/widgets/markdownBlocks.ts');
+  assert.deepEqual(markdownBlocks('docs&nbsp;↗ &amp; &lt;b&gt;'), [{ type: 'paragraph', text: 'docs ↗ & <b>' }]);
+});
+
+test('kubernetes_state "cpu" is the same unit as cores; count units are plural except for one', () => {
+  assert.equal(formatMetricValue(180, 'cpu'), '180 cores');
+  assert.equal(formatMetricValue(14, 'node'), '14 nodes');
+  assert.equal(formatMetricValue(1, 'node'), '1 node');
+  assert.equal(formatMetricValue(0.4, 'packet/second'), '0.4 packets/s');
+  assert.equal(formatMetricValue(3, 'bytes'), '3 B');
+});
+
+test('byte axes step in round binary units', () => {
+  const GiB = 1024 ** 3;
+  assert.equal(byteAxisInterval(651 * GiB), 200 * GiB);
+  assert.equal(byteAxisInterval(48 * 1024 ** 2), 10 * 1024 ** 2);
+  assert.equal(byteAxisInterval(0), undefined);
 });

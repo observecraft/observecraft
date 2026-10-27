@@ -19,7 +19,7 @@ export interface IntegrationRequest {
   formulas?: IntegrationFormula[];
   aggregator?: string;
   display_type?: string;
-  style?: { line_type?: string };
+  style?: { line_type?: string; palette?: string };
   conditional_formats?: { comparator: string; value: number; palette: string }[];
 }
 export interface IntegrationWidgetDefinition {
@@ -28,7 +28,7 @@ export interface IntegrationWidgetDefinition {
   requests: IntegrationRequest[];
   precision?: number;
   custom_unit?: string;
-  yaxis?: { min?: string; max?: string; scale?: string };
+  yaxis?: { min?: string; max?: string; scale?: string; include_zero?: boolean };
   show_legend?: boolean;
   [key: string]: unknown;
 }
@@ -106,6 +106,32 @@ export function aggregate(values: number[], method = 'avg'): number | undefined 
   }
 }
 
+const POINTWISE: Record<string, (v: number) => number> = { abs: Math.abs, log2: Math.log2, log10: Math.log10 };
+const PER_UNIT: Record<string, number> = { per_second: 1, per_minute: 60, per_hour: 3600 };
+
+/** Seconds each time-comparison function looks back (month_before is 28 days, as in Datadog). */
+const LOOK_BACK: Record<string, number> = { hour_before: 3600, day_before: 86_400, week_before: 604_800, month_before: 2_419_200 };
+
+/**
+ * Rewrites time comparisons (`week_before(query1)`, `timeshift(query1, -3600)`, …) into inputs read
+ * over an earlier range: `query1__shift604800` is query1 queried `seconds` earlier, its points moved
+ * back onto the current range.
+ */
+export function timeShifts(text: string): { text: string; shifts: { name: string; query: string; seconds: number }[] } {
+  const shifts: { name: string; query: string; seconds: number }[] = [];
+  const shift = (query: string, seconds: number) => {
+    const name = `${query}__shift${seconds}`;
+    if (!shifts.some((s) => s.name === name)) shifts.push({ name, query, seconds });
+    return name;
+  };
+  const rewritten = text
+    .replace(/\b(hour_before|day_before|week_before|month_before)\(\s*(\w+)\s*\)/g, (_, fn: string, query: string) => shift(query, LOOK_BACK[fn]))
+    .replace(/\btimeshift\(\s*(\w+)\s*,\s*-(\d+)\s*\)/g, (_, query: string, seconds: string) => shift(query, Number(seconds)));
+  // Report shifts in the order they appear in the formula.
+  shifts.sort((a, b) => rewritten.indexOf(a.name) - rewritten.indexOf(b.name));
+  return { text: rewritten, shifts };
+}
+
 export function formula(text: string, inputs: Record<string, Vector>): Vector {
   const tokens = text.match(/'[^']*'|"[^"]*"|\d+(?:\.\d+)?(?:e[+-]?\d+)?|[a-zA-Z_]\w*|[()+*/,\-]/g) ?? [];
   if (tokens.join('') !== text.replace(/\s/g, '')) throw new Error(`Unsupported formula: ${text}`);
@@ -157,6 +183,19 @@ export function formula(text: string, inputs: Record<string, Vector>): Vector {
             return groups.every((v) => v !== '' && v !== 'N/A');
           });
         else if (token === 'clamp_min' && second) value = binary(arg, second, Math.max);
+        else if (token === 'clamp_max' && second) value = binary(arg, second, Math.min);
+        else if (Object.hasOwn(POINTWISE, token)) value = arg.map((s) => ({ ...s, points: s.points.map(([t, v]) => [t, POINTWISE[token](v)]) }));
+        else if (token === 'cumsum')
+          value = arg.map((s) => {
+            let total = 0;
+            return { ...s, points: s.points.map(([t, v]) => [t, (total += v)]) };
+          });
+        else if (Object.hasOwn(PER_UNIT, token))
+          // Change per second / minute / hour between consecutive points (counters).
+          value = arg.map((s) => ({ ...s, points: s.points.slice(1).map(([t, v], j) => [t, ((v - s.points[j][1]) * PER_UNIT[token] * 1000) / (t - s.points[j][0])]) }));
+        else if (token === 'monotonic_diff')
+          // A drop is a counter reset: the new value is the increase since it.
+          value = arg.map((s) => ({ ...s, points: s.points.slice(1).map(([t, v], j) => [t, v >= s.points[j][1] ? v - s.points[j][1] : v]) }));
         else if (token === 'diff') value = arg.map((s) => ({ ...s, points: s.points.slice(1).map(([t, v], j) => [t, v - s.points[j][1]]) }));
         else if (token === 'count_nonzero' || token === 'count_not_null') {
           const counts = new Map<number, number>();

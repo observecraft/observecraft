@@ -188,7 +188,9 @@ impl Plan {
                 .fetch_all::<Meta>()
                 .await?
             {
-                units.insert(meta.name.clone(), meta.unit);
+                if let Some(unit) = metric_unit(&meta.name, &meta.unit) {
+                    units.insert(meta.name.clone(), unit);
+                }
                 metadata.entry(meta.name).or_insert(meta.kind);
             }
         }
@@ -724,9 +726,35 @@ fn merge_frame(snapshot: &mut DashboardQueryFrame, delta: &DashboardQueryFrame) 
     }
 }
 
+/// Units of integration metrics from integrations-core's metadata.csv (BSD-3-Clause, see
+/// server/seeds/integrations/kubernetes/LICENSE): the Datadog Agent sends none.
+const INTEGRATION_UNITS: &str = include_str!("../../../../../seeds/integrations/kubernetes/units.csv");
+
+/// A metric's unit: what its sender reported, else the integration's, else none.
+pub(super) fn metric_unit(metric: &str, reported: &str) -> Option<String> {
+    static UNITS: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    if !reported.is_empty() {
+        return Some(reported.to_string());
+    }
+    let units = UNITS.get_or_init(|| INTEGRATION_UNITS.lines().filter(|l| !l.starts_with('#')).filter_map(|l| l.split_once(',')).collect());
+    units.get(metric).map(|u| u.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn integration_metrics_get_their_units_when_senders_send_none() {
+        // The Datadog Agent sends no units; integrations-core's metadata.csv has them.
+        assert_eq!(metric_unit("kubernetes.cpu.usage.total", ""), Some("nanocore".to_string()));
+        assert_eq!(metric_unit("kubernetes.memory.usage", ""), Some("byte".to_string()));
+        assert_eq!(metric_unit("kubernetes.network.rx_bytes", ""), Some("byte/second".to_string()));
+        assert_eq!(metric_unit("system.mem.used", ""), Some("byte".to_string()));
+        // What a sender reported wins; counts have no unit.
+        assert_eq!(metric_unit("kubernetes.cpu.usage.total", "{core}"), Some("{core}".to_string()));
+        assert_eq!(metric_unit("kubernetes_state.deployment.replicas", ""), None);
+    }
 
     /// Exercise the actual shared SQL against the storage introduced in ADR-0001.
     /// The existing per-query evaluator is the oracle for all three resolutions.

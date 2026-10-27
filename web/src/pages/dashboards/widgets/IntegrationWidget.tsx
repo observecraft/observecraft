@@ -4,11 +4,12 @@ import { Chart } from '../../../components/charts/Chart';
 import type { IntegrationWidgetDefinition } from '../../../api/integrations/evaluate';
 import { queryIntegrationPanel } from '../../../api/integrations/panels';
 import { aggregate } from '../../../api/integrations/evaluate';
-import { palette } from '../../../theme/chartTheme';
+import { palette, seriesPalette } from '../../../theme/chartTheme';
+import { changeRows } from '../../../api/integrations/change';
 import { useDashboardContext } from './context';
 import { WidgetState } from './MetricWidgets';
 import { searchEvents } from '../../../api/events/client';
-import { formatMetricValue, formatUnitValue, presentationUnit } from '../../../api/integrations/units';
+import { byteAxisInterval, formatMetricValue, formatUnitValue, presentationUnit } from '../../../api/integrations/units';
 
 /** Renders the actual upstream requests; never substitutes a different metric or formula. */
 export function IntegrationWidget({ def }: { def: IntegrationWidgetDefinition }) {
@@ -65,6 +66,21 @@ function IntegrationEvents({ def }: { def: IntegrationWidgetDefinition }) {
   );
 }
 
+/** A series' color: its request's palette, in order within the series sharing that palette. */
+function seriesColors(series: { palette?: string }[]): (s: { palette?: string }, index: number) => string {
+  const positions = new Map<number, number>();
+  const seen = new Map<string, number>();
+  series.forEach((s, i) => {
+    const key = s.palette ?? '';
+    positions.set(i, seen.get(key) ?? 0);
+    seen.set(key, (seen.get(key) ?? 0) + 1);
+  });
+  return (s, index) => {
+    const colors = seriesPalette(s.palette);
+    return colors[(positions.get(index) ?? index) % colors.length];
+  };
+}
+
 function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
   const { range, resolve, metrics } = useDashboardContext();
   const identity = JSON.stringify(def).replace(/\$[a-zA-Z_]\w*/g, (v) => resolve(`avg:scope{${v}}`));
@@ -80,6 +96,7 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
     retry: false,
   });
   const series = data.data ?? [];
+  const colorOf = seriesColors(series);
   const values = series.map((s) => ({
     name: s.name,
     unit: s.unit,
@@ -110,14 +127,72 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
     const formats = def.requests[0]?.conditional_formats ?? [];
     const match = formats.find((f) => v !== undefined && { '>': v > f.value, '>=': v >= f.value, '<': v < f.value, '<=': v <= f.value, '==': v === f.value }[f.comparator]);
     const color = match?.palette.includes('red') ? 'var(--qv-red)' : match?.palette.includes('green') ? 'var(--qv-green)' : undefined;
+    const text = v === undefined ? '—' : formatMetricValue(v, series[0]?.unit, def.precision ?? 2);
+    // Long values ("14 nodes") shrink to fit the tile's width.
+    const fontSize = `min(62cqh, 30cqw, ${Math.round(150 / (text.length + 0.3 * (def.custom_unit?.length ?? 0)))}cqw)`;
     content = (
       <div className="qv">
-        <span className="qv-value" style={{ color }}>
-          {v === undefined ? '—' : formatMetricValue(v, series[0]?.unit, def.precision ?? 2)}
+        <span className="qv-value" style={{ color, fontSize }}>
+          {text}
           {def.custom_unit && <small>{def.custom_unit}</small>}
         </span>
       </div>
     );
+  } else if (def.type === 'change') {
+    const request = def.requests[0] as (typeof def.requests)[number] & { change_type?: string; increase_good?: boolean; order_by?: string; order_dir?: string };
+    const rows = changeRows(series, request);
+    const unit = series.find((s) => !s.column?.includes('__shift'))?.unit;
+    content = (
+      <div className="wt">
+        <div className="wt-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Group</th>
+                <th className="num">Value</th>
+                <th className="num">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.group}>
+                  <td>{r.group === '*' ? def.title : r.group}</td>
+                  <td className="num">{formatMetricValue(r.present, unit, 2)}</td>
+                  <td className={`num change ${r.change === 0 || Number.isNaN(r.change) ? '' : r.good ? 'change-good' : 'change-bad'}`}>
+                    {Number.isNaN(r.change)
+                      ? '—'
+                      : `${r.change > 0 ? '▲ ' : r.change < 0 ? '▼ ' : ''}${request.change_type === 'relative' ? `${Math.abs(r.change).toLocaleString('en-US', { maximumFractionDigits: 1 })}%` : formatMetricValue(Math.abs(r.change), unit, 2)}`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  } else if (def.type === 'heatmap') {
+    // How the series' values spread over time: series per value bucket per point in time.
+    const times = [...new Set(series.flatMap((s) => s.points.map(([t]) => t)))].sort((a, b) => a - b);
+    const all = series.flatMap((s) => s.points.map(([, v]) => v * presentationUnit(s.unit).scale));
+    const [lo, hi] = [Math.min(...all), Math.max(...all)];
+    const buckets = 10;
+    const width = hi > lo ? (hi - lo) / buckets : 1;
+    const counts = new Map<string, number>();
+    for (const s of series)
+      for (const [t, v] of s.points) {
+        const b = Math.min(buckets - 1, Math.floor((v * presentationUnit(s.unit).scale - lo) / width));
+        counts.set(`${times.indexOf(t)},${b}`, (counts.get(`${times.indexOf(t)},${b}`) ?? 0) + 1);
+      }
+    const unit = presentationUnit(series[0]?.unit).unit;
+    const option: EChartsOption = {
+      grid: { left: 8, right: 16, top: 12, bottom: 26, containLabel: true },
+      tooltip: { confine: true },
+      xAxis: { type: 'category', data: times.map((t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) },
+      yAxis: { type: 'category', data: Array.from({ length: buckets }, (_, b) => formatUnitValue(lo + b * width, unit, 2)) },
+      visualMap: { show: false, min: 0, max: Math.max(1, ...counts.values()), inRange: { color: seriesPalette('blue').reverse() } },
+      series: [{ type: 'heatmap', data: [...counts].map(([k, n]) => [...k.split(',').map(Number), n]) }],
+    };
+    content = <Chart option={option} height="100%" />;
   } else if (def.type === 'query_table') {
     const columns = [...new Set(series.map((s) => s.column ?? s.name))];
     const columnUnits = new Map(series.map((s) => [s.column ?? s.name, s.unit]));
@@ -188,6 +263,19 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
     );
   } else {
     const axisUnits = [...new Set(series.map((s) => presentationUnit(s.unit).unit))];
+    /** Largest value drawn on an axis: stacked areas add up. */
+    const axisMax = (unit: string) => {
+      const totals = new Map<number, number>();
+      let max = 0;
+      for (const s of series.filter((s) => presentationUnit(s.unit).unit === unit)) {
+        for (const [t, value] of s.points) {
+          const v = value * presentationUnit(s.unit).scale;
+          max = Math.max(max, v);
+          if (s.display === 'area') totals.set(t, (totals.get(t) ?? 0) + v);
+        }
+      }
+      return Math.max(max, ...totals.values());
+    };
     const option: EChartsOption = ['sunburst', 'treemap'].includes(def.type)
       ? {
           tooltip: { trigger: 'item', confine: true, valueFormatter: (value) => formatMetricValue(Number(value), series[0]?.unit) },
@@ -197,20 +285,28 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
         }
       : {
           color: palette(),
-          grid: { left: 85, right: axisUnits.length > 1 ? 85 : 16, top: 12, bottom: def.show_legend ? 50 : 26 },
+          grid: { left: 8, right: 16, top: 12, bottom: def.show_legend ? 50 : 26, containLabel: true },
           tooltip: { trigger: 'axis', confine: true },
           legend: def.show_legend ? { bottom: 0, type: 'scroll' } : undefined,
-          xAxis: { type: 'time' },
-          yAxis: axisUnits.map((unit, index) => ({
-            position: index === 0 ? 'left' : 'right',
-            offset: Math.max(0, index - 1) * 65,
-            type: def.yaxis?.scale === 'log' ? 'log' : 'value',
-            min: def.yaxis?.min && def.yaxis.min !== 'auto' ? Number(def.yaxis.min) : undefined,
-            max: def.yaxis?.max && def.yaxis.max !== 'auto' ? Number(def.yaxis.max) : undefined,
-            axisLabel: { formatter: (value: number) => formatUnitValue(value, unit, 2) },
-          })) as EChartsOption['yAxis'],
-          series: series.map((s) => ({
+          xAxis: { type: 'time', axisLabel: { hideOverlap: true } },
+          yAxis: axisUnits.map((unit, index) => {
+            // Binary units tick in round KiB/MiB/GiB, not in decimal steps of bytes.
+            const interval = unit.split('/')[0] === 'By' && def.yaxis?.scale !== 'log' ? byteAxisInterval(axisMax(unit)) : undefined;
+            return {
+              position: index === 0 ? 'left' : 'right',
+              offset: Math.max(0, index - 1) * 65,
+              type: def.yaxis?.scale === 'log' ? 'log' : 'value',
+              // Axes start at zero unless the panel says otherwise.
+              scale: def.yaxis?.include_zero === false,
+              min: def.yaxis?.min && def.yaxis.min !== 'auto' ? Number(def.yaxis.min) : undefined,
+              max: def.yaxis?.max && def.yaxis.max !== 'auto' ? Number(def.yaxis.max) : interval ? ({ max }: { max: number }) => Math.ceil(max / interval) * interval : undefined,
+              interval,
+              axisLabel: { formatter: (value: number) => formatUnitValue(value, unit, 2) },
+            };
+          }) as EChartsOption['yAxis'],
+          series: series.map((s, i) => ({
             name: s.name,
+            color: colorOf(s, i),
             data: s.points.map(([t, value]) => [t, value * presentationUnit(s.unit).scale]),
             yAxisIndex: axisUnits.indexOf(presentationUnit(s.unit).unit),
             tooltip: { valueFormatter: (value: unknown) => formatUnitValue(Number(value), presentationUnit(s.unit).unit) },
@@ -222,7 +318,7 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
         };
     content = <Chart option={option} height="100%" />;
   }
-  const supported = ['timeseries', 'query_value', 'query_table', 'toplist', 'sunburst', 'treemap', 'check_status'].includes(def.type);
+  const supported = ['timeseries', 'query_value', 'query_table', 'toplist', 'sunburst', 'treemap', 'check_status', 'change', 'heatmap'].includes(def.type);
   return (
     <WidgetState loading={data.isPending} error={!supported ? new Error(`The ${def.type} panel requires a data source that is not supported yet.`) : data.error} empty={!series.length}>
       {content}

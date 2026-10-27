@@ -1669,8 +1669,15 @@
   font-size: 12px;
 }
 
-/* Authored diagrams must remain legible in narrow imported image tiles. */
-.img-widget[src^='/images/dashboard-'] {
-  object-fit: contain;
-  background: #eef7f6;
+/* Numbers and their unit stay on one line (715.61 mCPU). */
+.wt td.num {
+  white-space: nowrap;
+}
+
+/* Change panels: the direction of a change, colored by whether it is the good way. */
+.wt td.change-good {
+  color: var(--status-ok);
+}
+.wt td.change-bad {
+  color: var(--status-error);
 }

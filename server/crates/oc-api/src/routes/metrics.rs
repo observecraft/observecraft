@@ -1246,7 +1246,7 @@ pub async fn catalog(
             tags.insert(short_tag(&k).map(str::to_string).unwrap_or(k));
         }
         let tags: Vec<String> = tags.into_iter().collect();
-        let unit = Some(e.unit).filter(|u| !u.is_empty() && u != "1");
+        let unit = dashboard::metric_unit(&e.name, &e.unit).filter(|u| u != "1");
         if e.kind == "gauge" || e.kind == "sum" {
             out.push(MetricCatalogEntry {
                 name: e.name,

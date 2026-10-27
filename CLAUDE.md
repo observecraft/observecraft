@@ -39,8 +39,10 @@ the origin in a comment):
 
 **Not OK:** Datadog's web app, its design system, icons, logos, illustrations and screenshots are proprietary. Use
 our own interface code and assets; never copy their frontend code or images, and don't use the
-Datadog name or logo as our branding (naming it to describe compatibility is fine). Don't paste Datadog documentation
-text into the repo; write our own. Avoid copyleft or source-available code (GPL, AGPL, SSPL, BSL, Elastic License,
+Datadog name or logo as our branding (naming it to describe compatibility is fine). Don't paste text from Datadog's
+documentation site into the repo; write our own. Files in `integrations-core` are BSD-3-Clause and may be kept as they
+are, notes and images embedded in them included; images they only link to (`/static/images/…`, hosted by Datadog)
+are not part of the repository and are replaced by our own artwork. Avoid copyleft or source-available code (GPL, AGPL, SSPL, BSL, Elastic License,
 Commons Clause): no Grafana/Loki/Tempo/Mimir source (AGPL), Elasticsearch/Kibana, etc. Our new dependencies in
 `Cargo.toml` and `package.json` must be permissive too (MIT, Apache-2.0, BSD, ISC, Zlib, MPL-2.0 unmodified).
 
@@ -76,7 +78,8 @@ or SDK features.
   - What to reuse per integration:
     - `metadata.csv` (metric names, types, units, descriptions) for the metric catalog;
     - `assets/service_checks.json`;
-    - `assets/dashboards/*.json`, converted to our dashboard format;
+    - `assets/dashboards/*.json`, converted to our dashboard format by `scripts/import-integration-dashboards.mjs`
+      (which also writes the units from `metadata.csv` that the Agent doesn't send);
     - `assets/monitors/*.json` as recommended monitors;
     - the log pipelines in `assets/logs/`, once log pipelines exist.
   - Keep their copyright and LICENSE text with anything copied, and note the source path and version.
@@ -108,7 +111,7 @@ make server     # API on :8080 (applies migrations)
 make intake     # intake on :4318
 make tracegen   # demo traces, logs, metrics, CI pipelines
 make web        # UI on :5173   (make web-mock: UI against in-browser mocks, no backend)
-make test       # cargo test + web typecheck
+make test       # cargo test, web typecheck, integration dashboard tests
 make openapi    # regenerate the OpenAPI doc and web/src/api/generated/* after API changes
 ```
 

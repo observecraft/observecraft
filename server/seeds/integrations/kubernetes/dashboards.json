@@ -66,21 +66,34 @@
           "type": "group",
           "title": "Banner",
           "color": "blue",
-          "compact": true,
-          "logo": "kubernetes",
+          "compact": false,
           "widgets": [
             {
-              "id": "upstream-24",
+              "id": "upstream-2212964864025960-banner",
               "definition": {
-                "type": "note",
-                "content": "## Kubernetes overview\n\nStart with node health and available capacity, then inspect pod readiness and resource use.\n\n[Cluster architecture](https://kubernetes.io/docs/concepts/architecture/)\n\n[Resource metrics](https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/)",
-                "background": "white",
-                "align": "left",
-                "fontSize": "md"
+                "type": "image",
+                "title": "Kubernetes",
+                "src": "/images/integrations/kubernetes-banner.svg"
               },
               "layout": {
                 "x": 0,
                 "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
+            {
+              "id": "upstream-24",
+              "definition": {
+                "type": "note",
+                "content": "# Kubernetes Overview\n\n**Kubernetes monitoring guides**\n\n[Autoscale Kubernetes workloads with any Datadog metric](https://www.datadoghq.com/blog/autoscale-kubernetes-datadog/)\n\n[How to monitor Kubernetes + Docker with Datadog](https://www.datadoghq.com/blog/monitor-kubernetes-docker/)\n\n[Monitoring in the Kubernetes era](https://www.datadoghq.com/blog/monitoring-kubernetes-era/)\n\n[Monitoring Kubernetes performance metrics](https://www.datadoghq.com/blog/monitoring-kubernetes-performance-metrics/)\n\n[Collecting metrics with built-in Kubernetes monitoring tools](https://www.datadoghq.com/blog/how-to-collect-and-graph-kubernetes-metrics/)\n\n[Monitoring Kubernetes with Datadog](https://www.datadoghq.com/blog/monitoring-kubernetes-with-datadog/)",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
                 "w": 6,
                 "h": 6
               }
@@ -89,14 +102,14 @@
               "id": "upstream-6152894268304392",
               "definition": {
                 "type": "note",
-                "content": "## Read this dashboard\n\nInfrastructure panels summarize cluster and node capacity. Pod panels describe scheduling and readiness. Network and disk charts show activity over the selected interval.\n\nUse the filters above to keep every panel focused on the same resources.",
+                "content": "This dashboard gives you an overview of your Kubernetes infrastructure. Allowing you to have a broad visibility of your scale, status, and resource usage of your cluster and its containers.\n\n[**Datadog Kubernetes integration docs&nbsp;↗**](https://docs.datadoghq.com/integrations/kubernetes/)",
                 "background": "white",
                 "align": "left",
-                "fontSize": "md"
+                "fontSize": "lg"
               },
               "layout": {
                 "x": 6,
-                "y": 0,
+                "y": 5,
                 "w": 6,
                 "h": 6
               }
@@ -107,7 +120,7 @@
           "x": 0,
           "y": 0,
           "w": 6,
-          "h": 12
+          "h": 13
         }
       },
       {
@@ -116,7 +129,7 @@
           "type": "group",
           "title": "Infrastructure",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-46",
@@ -919,7 +932,7 @@
           "type": "group",
           "title": "Events",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-22",
@@ -1015,7 +1028,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 12,
+          "y": 13,
           "w": 6,
           "h": 16
         }
@@ -1026,7 +1039,7 @@
           "type": "group",
           "title": "Pods",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-3058234695851247",
@@ -1193,7 +1206,7 @@
           "type": "group",
           "title": "Containers",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-29",
@@ -1408,7 +1421,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 28,
+          "y": 29,
           "w": 6,
           "h": 12
         }
@@ -1419,7 +1432,7 @@
           "type": "group",
           "title": "Deployments",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-6325719402873830",
@@ -1738,7 +1751,7 @@
           "type": "group",
           "title": "DaemonSets",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-6579122346657630",
@@ -2051,7 +2064,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 40,
+          "y": 41,
           "w": 6,
           "h": 12
         }
@@ -2062,7 +2075,7 @@
           "type": "group",
           "title": "StatefulSets",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-2859504264161943",
@@ -2386,7 +2399,7 @@
           "type": "group",
           "title": "CronJobs",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-2745687301902470",
@@ -2576,7 +2589,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 52,
+          "y": 53,
           "w": 6,
           "h": 12
         }
@@ -2646,21 +2659,34 @@
           "type": "group",
           "title": "Introduction",
           "color": "blue",
-          "compact": true,
-          "logo": "kubernetes",
+          "compact": false,
           "widgets": [
             {
-              "id": "upstream-4034119923918144",
+              "id": "upstream-8736901664750432-banner",
               "definition": {
-                "type": "note",
-                "content": "## Our Kubernetes dashboard gives you broad visibility into the scale, status, and resource usage of your cluster and its containers.\n\nInspect Introduction over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
-                "background": "white",
-                "align": "left",
-                "fontSize": "md"
+                "type": "image",
+                "title": "Kubernetes",
+                "src": "/images/integrations/kubernetes-banner.svg"
               },
               "layout": {
                 "x": 0,
                 "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
+            {
+              "id": "upstream-4034119923918144",
+              "definition": {
+                "type": "note",
+                "content": "### Our Kubernetes dashboard gives you broad visibility into the scale, status, and resource usage of your cluster and its containers.\n\nFurther reading for Kubernetes monitoring\n\n- [Autoscale Kubernetes workloads with any Datadog metric](https://www.datadoghq.com/blog/autoscale-kubernetes-datadog/)\n\n- [How to monitor Kubernetes + Docker with Datadog](https://www.datadoghq.com/blog/monitor-kubernetes-docker/)\n\n- [Monitoring in the Kubernetes era](https://www.datadoghq.com/blog/monitoring-kubernetes-era/)\n\n- [Monitoring Kubernetes performance metrics](https://www.datadoghq.com/blog/monitoring-kubernetes-performance-metrics/)\n\n- [Collecting metrics with built-in Kubernetes monitoring tools](https://www.datadoghq.com/blog/how-to-collect-and-graph-kubernetes-metrics/)\n\n- [Monitoring Kubernetes with Datadog](https://www.datadoghq.com/blog/monitoring-kubernetes-with-datadog/)\n\n- [Datadog's Kubernetes integration docs](https://docs.datadoghq.com/integrations/kubernetes/)",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
                 "w": 12,
                 "h": 8
               }
@@ -2671,7 +2697,7 @@
           "x": 0,
           "y": 0,
           "w": 4,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -2680,7 +2706,7 @@
           "type": "group",
           "title": "Pod Health",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-6607738371783763",
@@ -2922,8 +2948,8 @@
         "definition": {
           "type": "group",
           "title": "Inventory",
-          "color": "blue",
-          "compact": true,
+          "color": "purple",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-1985117676647061",
@@ -3098,7 +3124,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 14,
+          "y": 15,
           "w": 12,
           "h": 12
         }
@@ -3108,8 +3134,8 @@
         "definition": {
           "type": "group",
           "title": "Resource Utilization",
-          "color": "blue",
-          "compact": true,
+          "color": "green",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-6182039475128364",
@@ -3754,7 +3780,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 26,
+          "y": 27,
           "w": 12,
           "h": 18
         }
@@ -3804,9 +3830,22 @@
           "type": "group",
           "title": "Overview",
           "color": "blue",
-          "compact": true,
-          "logo": "kubernetes",
+          "compact": false,
           "widgets": [
+            {
+              "id": "upstream-2414038207369976-banner",
+              "definition": {
+                "type": "image",
+                "title": "Kubernetes",
+                "src": "/images/integrations/kubernetes-banner.svg"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
             {
               "id": "upstream-29",
               "definition": {
@@ -3850,7 +3889,7 @@
               },
               "layout": {
                 "x": 0,
-                "y": 0,
+                "y": 5,
                 "w": 3,
                 "h": 4
               }
@@ -3898,7 +3937,7 @@
               },
               "layout": {
                 "x": 3,
-                "y": 0,
+                "y": 5,
                 "w": 3,
                 "h": 4
               }
@@ -3960,7 +3999,7 @@
               },
               "layout": {
                 "x": 6,
-                "y": 0,
+                "y": 5,
                 "w": 6,
                 "h": 6
               }
@@ -4012,7 +4051,7 @@
               },
               "layout": {
                 "x": 0,
-                "y": 4,
+                "y": 9,
                 "w": 3,
                 "h": 4
               }
@@ -4060,7 +4099,7 @@
               },
               "layout": {
                 "x": 3,
-                "y": 4,
+                "y": 9,
                 "w": 3,
                 "h": 4
               }
@@ -4125,7 +4164,7 @@
               },
               "layout": {
                 "x": 6,
-                "y": 6,
+                "y": 11,
                 "w": 6,
                 "h": 6
               }
@@ -4156,7 +4195,7 @@
               },
               "layout": {
                 "x": 0,
-                "y": 8,
+                "y": 13,
                 "w": 3,
                 "h": 4
               }
@@ -4185,7 +4224,7 @@
               },
               "layout": {
                 "x": 3,
-                "y": 8,
+                "y": 13,
                 "w": 3,
                 "h": 4
               }
@@ -4196,7 +4235,7 @@
           "x": 0,
           "y": 0,
           "w": 8,
-          "h": 18
+          "h": 19
         }
       },
       {
@@ -4205,7 +4244,7 @@
           "type": "group",
           "title": "Node Conditions",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-14",
@@ -4402,7 +4441,7 @@
           "type": "group",
           "title": "Nodes Utilization",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-36",
@@ -4862,7 +4901,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 18,
+          "y": 19,
           "w": 12,
           "h": 18
         }
@@ -4873,7 +4912,7 @@
           "type": "group",
           "title": "Cluster Utilization",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-32",
@@ -5165,7 +5204,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 36,
+          "y": 37,
           "w": 12,
           "h": 14
         }
@@ -5176,7 +5215,7 @@
           "type": "group",
           "title": "Pods and Containers",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-22",
@@ -5416,7 +5455,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 50,
+          "y": 51,
           "w": 12,
           "h": 10
         }
@@ -5427,7 +5466,7 @@
           "type": "group",
           "title": "Events and Certificates",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-15",
@@ -5600,7 +5639,7 @@
               "id": "upstream-16",
               "definition": {
                 "type": "note",
-                "content": "## Events and Certificates\n\nInspect Events and Certificates over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+                "content": "[Blog post: Monitoring Kubernetes performance metrics](https://www.datadoghq.com/blog/monitoring-kubernetes-performance-metrics/#toc-correlate-with-events10)",
                 "background": "white",
                 "align": "left",
                 "fontSize": "md"
@@ -5616,7 +5655,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 60,
+          "y": 61,
           "w": 12,
           "h": 14
         }
@@ -5627,7 +5666,7 @@
           "type": "group",
           "title": "Allocatable Resources per Node",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-21",
@@ -5908,7 +5947,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 74,
+          "y": 75,
           "w": 12,
           "h": 14
         }
@@ -5919,7 +5958,7 @@
           "type": "group",
           "title": "Disk I/O & Network",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-10",
@@ -6169,7 +6208,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 88,
+          "y": 89,
           "w": 12,
           "h": 10
         }
@@ -6219,21 +6258,34 @@
           "type": "group",
           "title": "Overview",
           "color": "blue",
-          "compact": true,
-          "logo": "kubernetes",
+          "compact": false,
           "widgets": [
             {
-              "id": "upstream-6607616231283734",
+              "id": "upstream-7055697993101880-banner",
               "definition": {
-                "type": "note",
-                "content": "## Our Kubernetes Deployments dashboard gives you broad visibility into the scale, status, and resource usage of your deployment workloads.\n\nInspect Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
-                "background": "white",
-                "align": "left",
-                "fontSize": "md"
+                "type": "image",
+                "title": "Kubernetes",
+                "src": "/images/integrations/kubernetes-banner.svg"
               },
               "layout": {
                 "x": 0,
                 "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
+            {
+              "id": "upstream-6607616231283734",
+              "definition": {
+                "type": "note",
+                "content": "## Our Kubernetes Deployments dashboard gives you broad visibility into the scale, status, and resource usage of your deployment workloads. \n\n----\n\nFurther reading for Kubernetes monitoring:\n\n- [Autoscale Kubernetes workloads with any Datadog metric](https://www.datadoghq.com/blog/autoscale-kubernetes-datadog/)\n\n- [How to monitor Kubernetes + Docker with Datadog](https://www.datadoghq.com/blog/monitor-kubernetes-docker/)\n\n- [Monitoring in the Kubernetes era](https://www.datadoghq.com/blog/monitoring-kubernetes-era/)\n\n- [Monitoring Kubernetes performance metrics](https://www.datadoghq.com/blog/monitoring-kubernetes-performance-metrics/)\n\n- [Collecting metrics with built-in Kubernetes monitoring tools](https://www.datadoghq.com/blog/how-to-collect-and-graph-kubernetes-metrics/)\n\n- [Monitoring Kubernetes with Datadog](https://www.datadoghq.com/blog/monitoring-kubernetes-with-datadog/)\n\n- [Datadog's Kubernetes integration docs](https://docs.datadoghq.com/integrations/kubernetes/)",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
                 "w": 12,
                 "h": 12
               }
@@ -6244,7 +6296,7 @@
           "x": 0,
           "y": 0,
           "w": 4,
-          "h": 18
+          "h": 19
         }
       },
       {
@@ -6253,7 +6305,7 @@
           "type": "group",
           "title": "Overview",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-38",
@@ -6862,7 +6914,7 @@
           "type": "group",
           "title": "Replicas by Deployment",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-3",
@@ -7312,7 +7364,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 46,
+          "y": 47,
           "w": 12,
           "h": 18
         }
@@ -7323,7 +7375,7 @@
           "type": "group",
           "title": "CPU Resources",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-22",
@@ -7515,7 +7567,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 18,
+          "y": 19,
           "w": 6,
           "h": 14
         }
@@ -7526,7 +7578,7 @@
           "type": "group",
           "title": "Memory Resources",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-23",
@@ -7729,7 +7781,7 @@
           "type": "group",
           "title": "Disk Resources",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-34",
@@ -7924,7 +7976,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 32,
+          "y": 33,
           "w": 6,
           "h": 14
         }
@@ -7935,7 +7987,7 @@
           "type": "group",
           "title": "Network Resources",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-32",
@@ -8475,10 +8527,10 @@
         "id": "upstream-15",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Replicasets Overview\n\nInspect Kubernetes Replicasets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Overview",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -8688,10 +8740,10 @@
         "id": "upstream-20",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Replicasets Overview\n\nInspect Kubernetes Replicasets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Replicas by ReplicaSets",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -8704,10 +8756,10 @@
         "id": "upstream-21",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Replicasets Overview\n\nInspect Kubernetes Replicasets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Resources",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -9034,10 +9086,10 @@
         "id": "upstream-28",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Replicasets Overview\n\nInspect Kubernetes Replicasets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "CPU",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -9050,10 +9102,10 @@
         "id": "upstream-29",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Replicasets Overview\n\nInspect Kubernetes Replicasets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Memory",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 24,
@@ -9066,10 +9118,10 @@
         "id": "upstream-30",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Replicasets Overview\n\nInspect Kubernetes Replicasets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Disk",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -9082,10 +9134,10 @@
         "id": "upstream-31",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Replicasets Overview\n\nInspect Kubernetes Replicasets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Network",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 24,
@@ -9614,10 +9666,10 @@
         "id": "upstream-15",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Services Overview\n\nInspect Kubernetes Services Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Overview",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -9677,10 +9729,10 @@
         "id": "upstream-21",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Services Overview\n\nInspect Kubernetes Services Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Resources",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -9895,10 +9947,10 @@
         "id": "upstream-28",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Services Overview\n\nInspect Kubernetes Services Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "CPU",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -9911,10 +9963,10 @@
         "id": "upstream-29",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Services Overview\n\nInspect Kubernetes Services Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Memory",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 24,
@@ -9927,10 +9979,10 @@
         "id": "upstream-30",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Services Overview\n\nInspect Kubernetes Services Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Disk",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -9943,10 +9995,10 @@
         "id": "upstream-31",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes Services Overview\n\nInspect Kubernetes Services Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Network",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 24,
@@ -10705,10 +10757,10 @@
         "id": "upstream-7",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes DaemonSets Overview\n\nInspect Kubernetes DaemonSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Overview",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -10869,10 +10921,10 @@
         "id": "upstream-12",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes DaemonSets Overview\n\nInspect Kubernetes DaemonSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Replicas by DaemonSets",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -10885,10 +10937,10 @@
         "id": "upstream-13",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes DaemonSets Overview\n\nInspect Kubernetes DaemonSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Resources",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -11217,10 +11269,10 @@
         "id": "upstream-20",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes DaemonSets Overview\n\nInspect Kubernetes DaemonSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "CPU",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -11233,10 +11285,10 @@
         "id": "upstream-21",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes DaemonSets Overview\n\nInspect Kubernetes DaemonSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Memory",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 24,
@@ -11249,10 +11301,10 @@
         "id": "upstream-22",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes DaemonSets Overview\n\nInspect Kubernetes DaemonSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Disk",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -11265,10 +11317,10 @@
         "id": "upstream-23",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes DaemonSets Overview\n\nInspect Kubernetes DaemonSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Network",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 24,
@@ -11879,7 +11931,7 @@
           "type": "group",
           "title": "Overview",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-495495303234449",
@@ -12604,8 +12656,8 @@
         "definition": {
           "type": "group",
           "title": "Jobs overview",
-          "color": "blue",
-          "compact": true,
+          "color": "purple",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-5568031515431654",
@@ -13085,8 +13137,8 @@
         "definition": {
           "type": "group",
           "title": "CronJob overview",
-          "color": "blue",
-          "compact": true,
+          "color": "purple",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-4331347145875336",
@@ -13814,10 +13866,10 @@
         "id": "upstream-5",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes StatefulSets Overview\n\nInspect Kubernetes StatefulSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Overview",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -13953,10 +14005,10 @@
         "id": "upstream-9",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes StatefulSets Overview\n\nInspect Kubernetes StatefulSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Replicas by StatefulSets",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -13969,10 +14021,10 @@
         "id": "upstream-10",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes StatefulSets Overview\n\nInspect Kubernetes StatefulSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Resources",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -14315,10 +14367,10 @@
         "id": "upstream-17",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes StatefulSets Overview\n\nInspect Kubernetes StatefulSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "CPU",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -14331,10 +14383,10 @@
         "id": "upstream-18",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes StatefulSets Overview\n\nInspect Kubernetes StatefulSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Memory",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 24,
@@ -14347,10 +14399,10 @@
         "id": "upstream-19",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes StatefulSets Overview\n\nInspect Kubernetes StatefulSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Disk",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 0,
@@ -14363,10 +14415,10 @@
         "id": "upstream-20",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes StatefulSets Overview\n\nInspect Kubernetes StatefulSets Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+          "content": "Network",
           "background": "gray",
-          "align": "left",
-          "fontSize": "md"
+          "align": "center",
+          "fontSize": "lg"
         },
         "layout": {
           "x": 24,
@@ -15039,21 +15091,34 @@
           "type": "group",
           "title": "New group",
           "color": "blue",
-          "compact": true,
-          "logo": "kubernetes",
+          "compact": false,
           "widgets": [
             {
-              "id": "upstream-2538956346653136",
+              "id": "upstream-895563546267612-banner",
               "definition": {
-                "type": "note",
-                "content": "## The Datadog Kubernetes dashboard gives you broad visibility into the scale, status, and resource usage of your cluster and its containers.\n\nInspect New group over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
-                "background": "white",
-                "align": "left",
-                "fontSize": "md"
+                "type": "image",
+                "title": "Kubernetes",
+                "src": "/images/integrations/kubernetes-banner.svg"
               },
               "layout": {
                 "x": 0,
                 "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
+            {
+              "id": "upstream-2538956346653136",
+              "definition": {
+                "type": "note",
+                "content": "### The Datadog Kubernetes dashboard gives you broad visibility into the scale, status, and resource usage of your cluster and its containers.\n\nFurther reading for Kubernetes monitoring\n\n- [Autoscale Kubernetes workloads with any Datadog metric](https://www.datadoghq.com/blog/autoscale-kubernetes-datadog/)\n\n- [How to monitor Kubernetes + Docker with Datadog](https://www.datadoghq.com/blog/monitor-kubernetes-docker/)\n\n- [Monitoring in the Kubernetes era](https://www.datadoghq.com/blog/monitoring-kubernetes-era/)\n\n- [Monitoring Kubernetes performance metrics](https://www.datadoghq.com/blog/monitoring-kubernetes-performance-metrics/)\n\n- [Collecting metrics with built-in Kubernetes monitoring tools](https://www.datadoghq.com/blog/how-to-collect-and-graph-kubernetes-metrics/)\n\n- [Monitoring Kubernetes with Datadog](https://www.datadoghq.com/blog/monitoring-kubernetes-with-datadog/)\n\n- [Datadog's Kubernetes integration docs](https://docs.datadoghq.com/integrations/kubernetes/)",
+                "background": "white",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
                 "w": 12,
                 "h": 8
               }
@@ -15073,7 +15138,7 @@
           "type": "group",
           "title": "Cluster Health Overview",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-8660996379592338",
@@ -15650,7 +15715,7 @@
           "type": "group",
           "title": "Resource Overview",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-872000446733412",
@@ -16131,8 +16196,8 @@
         "definition": {
           "type": "group",
           "title": "Nodes",
-          "color": "blue",
-          "compact": true,
+          "color": "green",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-5868007822292984",
@@ -16337,10 +16402,10 @@
               "id": "upstream-2013683498736414",
               "definition": {
                 "type": "note",
-                "content": "## Nodes\n\nInspect Nodes over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+                "content": "View more in the [Kubernetes Nodes Overview Dashboard](https://app.datadoghq.com/dash/integration/30340/kubernetes-nodes-overview?tpl_var_cluster=$cluster.value)",
                 "background": "white",
                 "align": "left",
-                "fontSize": "md"
+                "fontSize": "sm"
               },
               "layout": {
                 "x": 10,
@@ -16712,8 +16777,8 @@
         "definition": {
           "type": "group",
           "title": "Deployments",
-          "color": "blue",
-          "compact": true,
+          "color": "green",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-5885014027400048",
@@ -16946,10 +17011,10 @@
               "id": "upstream-6729461427788548",
               "definition": {
                 "type": "note",
-                "content": "## Deployments\n\nInspect Deployments over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+                "content": "View more in the [Kubernetes Deployments Overview Dashboard](https://app.datadoghq.com/dash/integration/30341/kubernetes-deployments-overview?tpl_var_kube_cluster_name=$cluster.value&tpl_var_scope=$scope.value)\n",
                 "background": "white",
                 "align": "left",
-                "fontSize": "md"
+                "fontSize": "sm"
               },
               "layout": {
                 "x": 10,
@@ -17408,8 +17473,8 @@
         "definition": {
           "type": "group",
           "title": "DaemonSets",
-          "color": "blue",
-          "compact": true,
+          "color": "green",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-8694086522074152",
@@ -17603,10 +17668,10 @@
               "id": "upstream-8418587404903026",
               "definition": {
                 "type": "note",
-                "content": "## DaemonSets\n\nInspect DaemonSets over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+                "content": "View more in the [Kubernetes Daemonset Overview Dashboard](https://app.datadoghq.com/screen/integration/30537/kubernetes-daemonsets-overview?tpl_var_kube_cluster_name=$cluster.value&tpl_var_scope=$scope.value)",
                 "background": "white",
-                "align": "left",
-                "fontSize": "md"
+                "align": "center",
+                "fontSize": "sm"
               },
               "layout": {
                 "x": 10,
@@ -17838,8 +17903,8 @@
         "definition": {
           "type": "group",
           "title": "StatefulSets",
-          "color": "blue",
-          "compact": true,
+          "color": "green",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-7698883867722820",
@@ -18226,8 +18291,8 @@
         "definition": {
           "type": "group",
           "title": "Jobs",
-          "color": "blue",
-          "compact": true,
+          "color": "green",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-1517359151328290",
@@ -18606,8 +18671,8 @@
         "definition": {
           "type": "group",
           "title": "Replicasets",
-          "color": "blue",
-          "compact": true,
+          "color": "green",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-4058410585819612",
@@ -18801,10 +18866,10 @@
               "id": "upstream-1657224010062908",
               "definition": {
                 "type": "note",
-                "content": "## Replicasets\n\nInspect Replicasets over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+                "content": "View more in the [Kubernetes Replicasets Overview Dashboard](https://app.datadoghq.com/screen/integration/30402/kubernetes-replicasets-overview?tpl_var_kube_cluster_name=$cluster.value&tpl_var_scope=$scope.value)",
                 "background": "white",
                 "align": "left",
-                "fontSize": "md"
+                "fontSize": "sm"
               },
               "layout": {
                 "x": 10,
@@ -19031,8 +19096,8 @@
         "definition": {
           "type": "group",
           "title": "Pods",
-          "color": "blue",
-          "compact": true,
+          "color": "green",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-4566822265811362",
@@ -19223,10 +19288,10 @@
               "id": "upstream-8623142729278714",
               "definition": {
                 "type": "note",
-                "content": "## Pods\n\nInspect Pods over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+                "content": "View more in the [Kubernetes Pods Overview Dashboard](/dash/integration/Kubernetes%20-%20Pods?tpl_var_cluster=$cluster.value&tpl_var_scope=$scope.value)",
                 "background": "white",
                 "align": "left",
-                "fontSize": "md"
+                "fontSize": "sm"
               },
               "layout": {
                 "x": 10,
@@ -19434,8 +19499,8 @@
         "definition": {
           "type": "group",
           "title": "Services",
-          "color": "blue",
-          "compact": true,
+          "color": "green",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-2847962601795574",
@@ -19603,10 +19668,10 @@
               "id": "upstream-5223510160062584",
               "definition": {
                 "type": "note",
-                "content": "## Services\n\nInspect Services over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+                "content": "View more in the [Kubernetes Services Overview Dashboard](https://app.datadoghq.com/screen/integration/30403/kubernetes-services-overview?tpl_var_kube_cluster_name=$cluster.value&tpl_var_scope=$scope.value)",
                 "background": "white",
                 "align": "left",
-                "fontSize": "md"
+                "fontSize": "sm"
               },
               "layout": {
                 "x": 10,
@@ -19629,8 +19694,8 @@
         "definition": {
           "type": "group",
           "title": "Containers",
-          "color": "blue",
-          "compact": true,
+          "color": "purple",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-180815323239794",
@@ -19917,8 +19982,8 @@
         "definition": {
           "type": "group",
           "title": "Disk I/O & Network",
-          "color": "blue",
-          "compact": true,
+          "color": "green",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-7803966643128",
@@ -20320,7 +20385,7 @@
           "type": "group",
           "title": "Events",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-5203642607444658",
@@ -20478,10 +20543,10 @@
         "id": "upstream-443466849361936",
         "definition": {
           "type": "note",
-          "content": "## Kubernetes capacity planning\n\nFind workloads whose resource reservations differ from observed use. Review CPU and memory separately, then inspect workload history before resizing.",
+          "content": "# Kubernetes Capacity Planning\n\nThis dashboard aims to provide the relevant information for Kubernetes administrators and users to identify if the CPU and Mem requests are properly configured and not generating unnecessary waste.",
           "background": "gray",
           "align": "left",
-          "fontSize": "md"
+          "fontSize": "sm"
         },
         "layout": {
           "x": 0,
@@ -20494,10 +20559,10 @@
         "id": "upstream-446586294053350",
         "definition": {
           "type": "note",
-          "content": "## Explore capacity\n\n- Choose a cluster and a time range that includes normal traffic and peaks.\n- Compare requested CPU and memory with observed use.\n- Select a workload to inspect its behavior over time.",
+          "content": "## How to use this dashboard\n\n1. Select a large timeframe (recommended 1 week+)\n2. Select the cluster of interest\n3. Once a deployment or daemonset is identified, select it to visualize its usage across time.",
           "background": "gray",
           "align": "left",
-          "fontSize": "md"
+          "fontSize": "sm"
         },
         "layout": {
           "x": 3,
@@ -20510,10 +20575,10 @@
         "id": "upstream-7328840637400146",
         "definition": {
           "type": "note",
-          "content": "## Resource requests and limits\n\nRequests influence scheduling. Limits constrain resource use: CPU can be throttled, and exceeding a memory limit can terminate a container.\n\nCompare sustained use and peak use before changing a workload.\n\n[Resource configuration](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)",
+          "content": "## Requests and Limits\n\nRequests define the minimum amount of resources that containers need.\n\nFor instance, if you think that your app requires at least 256MB of memory to operate, this is the request value. The application can use more than 256MB, but Kubernetes guarantees a minimum of 256MB to the container.\n\nLimits define the max amount of resources that the container can consume.\n\n### Overprovisioned Pods\n\nIf the utilization vs request is low, it means that some pods have a resource request higher than their nominal utilization and should be resized. This will help Kubernetes allocate pods more properly.\n",
           "background": "gray",
           "align": "left",
-          "fontSize": "md"
+          "fontSize": "sm"
         },
         "layout": {
           "x": 5,
@@ -20526,8 +20591,8 @@
         "id": "upstream-3857869053162142",
         "definition": {
           "type": "image",
-          "title": "Kubernetes resource model",
-          "src": "/images/dashboard-kubernetes-capacity.svg"
+          "title": "Kubernetes",
+          "src": "/images/integrations/kubernetes-banner.svg"
         },
         "layout": {
           "x": 9,
@@ -20541,17 +20606,17 @@
         "definition": {
           "type": "group",
           "title": "Cluster Capacity Review",
-          "color": "blue",
-          "compact": true,
+          "color": "purple",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-3018187039179016",
               "definition": {
                 "type": "note",
-                "content": "## Cluster capacity\n\nInspect reserved resources and remaining capacity by cluster. Positive idle CPU and unused requested memory indicate a gap between reservations and measured use.",
+                "content": "## Cluster Capacity Review\n\n",
                 "background": "gray",
                 "align": "left",
-                "fontSize": "md"
+                "fontSize": "sm"
               },
               "layout": {
                 "x": 0,
@@ -20669,10 +20734,11 @@
               "id": "upstream-8268929096975252",
               "definition": {
                 "type": "note",
-                "content": "## Workload utilization\n\nEach row identifies a workload. Read resource requests alongside measured CPU and memory use; a low average alone does not establish that a request is excessive.",
+                "content": "## Utilization per Kubernetes object\n\n- Each line represent a specific Kubernetes object: daemonset, deployment, etc.\n- The last two columns represent the average usage vs the request setup\n\n",
                 "background": "gray",
                 "align": "left",
-                "fontSize": "md"
+                "fontSize": "sm",
+                "pointer": true
               },
               "layout": {
                 "x": 0,
@@ -20978,17 +21044,17 @@
         "definition": {
           "type": "group",
           "title": "Capacity Review per Kubernetes Object",
-          "color": "blue",
-          "compact": true,
+          "color": "purple",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-1326422038975066",
               "definition": {
                 "type": "note",
-                "content": "## Compare a workload\n\nSelect a deployment or daemonset above. Compare environments and clusters, then narrow the filters to investigate a difference.",
+                "content": "## How to use this section\n\n1. Select a deployment or daemonset\n2. It is preferable to not set a cluster or environment for this section to see the impact cross clusters and environments. This can help observe different behavior and different \"request\" needs for different environments and clusters",
                 "background": "gray",
                 "align": "left",
-                "fontSize": "md"
+                "fontSize": "sm"
               },
               "layout": {
                 "x": 0,
@@ -21128,10 +21194,11 @@
               "id": "upstream-2377355700631554",
               "definition": {
                 "type": "note",
-                "content": "## Check variability\n\nLook for bursts and sustained load in the adjacent charts. Compare peaks with typical use before reducing a resource request.",
+                "content": "Use the two graphs on the right to identify if the utilization has spikes or if this is relatively stable through time.",
                 "background": "gray",
                 "align": "left",
-                "fontSize": "md"
+                "fontSize": "sm",
+                "pointer": true
               },
               "layout": {
                 "x": 0,
@@ -21320,10 +21387,11 @@
               "id": "upstream-4085731654655840",
               "definition": {
                 "type": "note",
-                "content": "## Review request sizing\n\nUse observed utilization as evidence for a request change. Keep room for bursts, and check application latency and restarts after a change.",
+                "content": "Use the two graphs on the right to identify the right request to set. Do not hesitate to filter per cluster to improve the clarity.",
                 "background": "gray",
                 "align": "left",
-                "fontSize": "md"
+                "fontSize": "sm",
+                "pointer": true
               },
               "layout": {
                 "x": 0,
@@ -21554,8 +21622,8 @@
         "definition": {
           "type": "group",
           "title": "CPU and Memory utilization per cluster",
-          "color": "blue",
-          "compact": true,
+          "color": "purple",
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-3899377194392834",
@@ -21817,21 +21885,34 @@
           "type": "group",
           "title": "Kubernetes Control Plane Overview",
           "color": "blue",
-          "compact": true,
-          "logo": "kubernetes",
+          "compact": false,
           "widgets": [
+            {
+              "id": "upstream-7973807627760301-banner",
+              "definition": {
+                "type": "image",
+                "title": "Kubernetes",
+                "src": "/images/integrations/kubernetes-banner.svg"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
             {
               "id": "upstream-1396413511120281",
               "definition": {
                 "type": "note",
-                "content": "## Kubernetes Control-Plane monitoring\n\nInspect Kubernetes Control Plane Overview over the selected interval. Use cluster, namespace and workload filters to narrow the results. Empty panels indicate no matching telemetry for that selection.",
+                "content": "## Kubernetes Control-Plane monitoring\n\nThis dashboard shows different metrics/logs from kubernetes control-plane components (kube-api server, kube-scheduler, etcd).\n\nThis dashboard helps you monitor kubernetes control-plane.\n\nIt requires the control-plane monitoring checks to be enabled using [this tutorial](https://docs.datadoghq.com/containers/kubernetes/control_plane/?tab=datadogoperator).\n\nFind more detailed monitoring for each component on their dedicated dashboards:\n\n- Kubernetes API server - [here](https://app.datadoghq.com/dash/integration/Kubernetes%20API%20Server%20-%20Overview)\n- Etcd - [here](https://app.datadoghq.com/dash/integration/Etcd%20Overview)\n- Kubernetes Scheduler - [here](https://app.datadoghq.com/dash/integration/kube_scheduler)\n- Kubernetes Controller manager - [here](https://app.datadoghq.com/dash/integration/kube_controller_manager)",
                 "background": "white",
                 "align": "left",
                 "fontSize": "md"
               },
               "layout": {
                 "x": 0,
-                "y": 0,
+                "y": 5,
                 "w": 12,
                 "h": 4
               }
@@ -21842,7 +21923,7 @@
           "x": 0,
           "y": 0,
           "w": 4,
-          "h": 10
+          "h": 11
         }
       },
       {
@@ -21851,7 +21932,7 @@
           "type": "group",
           "title": "API Req/s",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-2910320272243625",
@@ -22306,7 +22387,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 10,
+          "y": 11,
           "w": 4,
           "h": 6
         }
@@ -22357,7 +22438,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 16,
+          "y": 17,
           "w": 4,
           "h": 4
         }
@@ -22368,7 +22449,7 @@
           "type": "group",
           "title": "Kubernetes API server",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-8092086570660128",
@@ -23077,7 +23158,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 20,
+          "y": 21,
           "w": 12,
           "h": 26
         }
@@ -23088,7 +23169,7 @@
           "type": "group",
           "title": "Etcd",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-1639655680757989",
@@ -23884,7 +23965,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 46,
+          "y": 47,
           "w": 12,
           "h": 20
         }
@@ -23895,7 +23976,7 @@
           "type": "group",
           "title": "Kubernetes scheduler",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-3489560228035212",
@@ -24480,7 +24561,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 66,
+          "y": 67,
           "w": 12,
           "h": 26
         }
@@ -24491,7 +24572,7 @@
           "type": "group",
           "title": "Kube controller manager",
           "color": "blue",
-          "compact": true,
+          "compact": false,
           "widgets": [
             {
               "id": "upstream-8853295397091082",
@@ -25028,7 +25109,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 92,
+          "y": 93,
           "w": 12,
           "h": 20
         }
