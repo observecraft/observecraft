@@ -138,8 +138,7 @@
 .profile-banner {
   height: 100px;
   background:
-    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.12) 0 18px, transparent 19px),
-    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.1) 0 26px, transparent 27px),
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.12) 0 18px, transparent 19px), radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.1) 0 26px, transparent 27px),
     linear-gradient(120deg, var(--brand-strong), var(--brand) 55%, #1d8a84);
 }
 
@@ -1142,4 +1141,22 @@
   border-radius: 4px;
   padding: 0 6px;
   font: inherit;
+}
+
+/* Organization settings entries without a page yet */
+.settings-link-soon {
+  color: var(--text-muted);
+  opacity: 0.6;
+  cursor: default;
+}
+
+.badge-soon {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
 }

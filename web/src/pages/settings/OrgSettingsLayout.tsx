@@ -9,16 +9,18 @@ interface Item {
   label: string;
   badge?: 'NEW' | 'PREVIEW';
   chevron?: boolean;
+  /** No page yet: listed (greyed) so the roadmap stays visible, but not a link. */
+  soon?: boolean;
 }
 
-/** Organization settings navigation. Items without a page yet open a placeholder. */
+/** Organization settings navigation, Datadog's sections; items without a page yet are marked `soon`. */
 export const ORG_NAV: { section: string; items: Item[] }[] = [
   {
     section: 'IDENTITY & ACCOUNTS',
     items: [
       { to: 'users', label: 'Users' },
       { to: '/teams', label: 'Teams', chevron: true },
-      { to: 'service-accounts', label: 'Service Accounts' },
+      { to: 'service-accounts', label: 'Service Accounts', soon: true },
     ],
   },
   {
@@ -32,19 +34,19 @@ export const ORG_NAV: { section: string; items: Item[] }[] = [
     section: 'ACCESS',
     items: [
       { to: 'api-keys', label: 'API Keys' },
-      { to: 'access-tokens', label: 'Access Tokens', badge: 'NEW' },
+      { to: 'access-tokens', label: 'Access Tokens', badge: 'NEW', soon: true },
       { to: 'roles', label: 'Roles' },
-      { to: 'client-tokens', label: 'Client Tokens' },
-      { to: 'events-api-emails', label: 'Events API Emails' },
-      { to: 'cross-org', label: 'Cross-Org Visibility' },
+      { to: 'client-tokens', label: 'Client Tokens', soon: true },
+      { to: 'events-api-emails', label: 'Events API Emails', soon: true },
+      { to: 'cross-org', label: 'Cross-Org Visibility', soon: true },
     ],
   },
   {
     section: 'SECURITY',
     items: [
-      { to: 'safety-center', label: 'Safety Center', badge: 'NEW' },
-      { to: 'public-sharing', label: 'Public Sharing' },
-      { to: 'remote-config', label: 'Remote Configuration' },
+      { to: 'safety-center', label: 'Safety Center', badge: 'NEW', soon: true },
+      { to: 'public-sharing', label: 'Public Sharing', soon: true },
+      { to: 'remote-config', label: 'Remote Configuration', soon: true },
     ],
   },
   {
@@ -52,27 +54,27 @@ export const ORG_NAV: { section: string; items: Item[] }[] = [
     items: [
       { to: 'audit-trail', label: 'Audit Trail' },
       { to: 'data-retention', label: 'Data Retention' },
-      { to: 'sensitive-data-scanner', label: 'Sensitive Data Scanner' },
-      { to: 'tagging-policies', label: 'Tagging Policies', badge: 'PREVIEW' },
+      { to: 'sensitive-data-scanner', label: 'Sensitive Data Scanner', soon: true },
+      { to: 'tagging-policies', label: 'Tagging Policies', badge: 'PREVIEW', soon: true },
     ],
   },
   {
     section: 'PRODUCTS',
     items: [
       { to: '/apm', label: 'APM' },
-      { to: 'ci', label: 'CI' },
-      { to: 'cloud-cost', label: 'Cloud Cost' },
-      { to: 'event-management', label: 'Event Management' },
+      { to: 'ci', label: 'CI', soon: true },
+      { to: 'cloud-cost', label: 'Cloud Cost', soon: true },
+      { to: 'event-management', label: 'Event Management', soon: true },
       { to: '/incidents', label: 'Incidents' },
       { to: '/integrations', label: 'Integrations' },
       { to: '/logs', label: 'Logs' },
-      { to: 'monitors', label: 'Monitors' },
-      { to: 'on-call', label: 'On-Call' },
-      { to: 'processes', label: 'Processes' },
-      { to: 'rum', label: 'RUM' },
-      { to: 'security', label: 'Security' },
-      { to: 'software-catalog', label: 'Software Catalog' },
-      { to: 'synthetics', label: 'Synthetic Tests' },
+      { to: 'monitors', label: 'Monitors', soon: true },
+      { to: 'on-call', label: 'On-Call', soon: true },
+      { to: 'processes', label: 'Processes', soon: true },
+      { to: 'rum', label: 'RUM', soon: true },
+      { to: 'security', label: 'Security', soon: true },
+      { to: 'software-catalog', label: 'Software Catalog', soon: true },
+      { to: 'synthetics', label: 'Synthetic Tests', soon: true },
     ],
   },
 ];
@@ -97,13 +99,20 @@ export function OrgSettingsLayout() {
               return (
                 <div key={g.section} className="org-nav-group">
                   <div className="org-nav-section">{g.section}</div>
-                  {items.map((i) => (
-                    <NavLink key={i.to} to={i.to.startsWith('/') ? i.to : `/organization-settings/${i.to}`} className={({ isActive }) => `settings-link${isActive ? ' active' : ''}`}>
-                      {i.label}
-                      {i.badge && <span className={i.badge === 'NEW' ? 'badge-new' : 'badge-preview'}>{i.badge}</span>}
-                      {i.chevron && <ChevronRight size={16} className="org-nav-chevron" />}
-                    </NavLink>
-                  ))}
+                  {items.map((i) =>
+                    i.soon ? (
+                      <span key={i.to} className="settings-link settings-link-soon" title={`${i.label} isn't built yet`}>
+                        {i.label}
+                        <span className="badge-soon">SOON</span>
+                      </span>
+                    ) : (
+                      <NavLink key={i.to} to={i.to.startsWith('/') ? i.to : `/organization-settings/${i.to}`} className={({ isActive }) => `settings-link${isActive ? ' active' : ''}`}>
+                        {i.label}
+                        {i.badge && <span className={i.badge === 'NEW' ? 'badge-new' : 'badge-preview'}>{i.badge}</span>}
+                        {i.chevron && <ChevronRight size={16} className="org-nav-chevron" />}
+                      </NavLink>
+                    ),
+                  )}
                 </div>
               );
             })}
