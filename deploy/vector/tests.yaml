@@ -113,3 +113,60 @@ tests:
           - type: vrl
             source: |
               if .service == "kube-controller-manager" { assert_eq!(.status, "error") } else { assert_eq!(.status, "warn") }
+
+  - name: Datadog Agent stderr line with a leading INFO level is info
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "INFO:catalog.api.middleware: GET /api/v1/items 200"
+          .status = "error"
+          .ddsource = "python"
+          .service = "catalog-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "info")
+
+  - name: Datadog Agent stderr JSON line with level info is info
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "{\"level\":\"info\",\"msg\":\"order placed\"}"
+          .status = "error"
+          .ddsource = "go"
+          .service = "order-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "info")
+
+  - name: Datadog Agent stderr line without a level keeps the stream status
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "Traceback (most recent call last):"
+          .status = "error"
+          .ddsource = "python"
+          .service = "billing"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "error")

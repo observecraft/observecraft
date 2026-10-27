@@ -90,8 +90,11 @@ if otlp {
   lvl = .severity_text
   if lvl == "" { lvl = null }
 }
+# The Datadog Agent sets `status` from the output stream (stderr → error): the level the line itself
+# carries (a JSON field or a leading word) comes first, the stream only when there is none.
+agent = !otlp && exists(.ddsource)
 for_each(["status", "severity", "level", "syslog.severity"]) -> |_i, k| {
-  if is_null(lvl) {
+  if is_null(lvl) && !(agent && k == "status") {
     v = get(flat, [k]) ?? null
     if !is_null(v) { lvl = v; used = push(used, k) }
   }
@@ -104,8 +107,15 @@ if is_null(lvl) && msg != "" {
   if klog != null {
     lvl = get!(klog, ["l"])
   } else {
-    word = parse_regex(head, r'(?i)^\s*(?:\S+\s+){0,2}?[\[<]?(?P<l>trace|debug|info|notice|warn|warning|error|err|fatal|critical|panic)[\]>:]?(?:\s|$)') ?? null
+    word = parse_regex(head, r'(?i)^\s*(?:\S+\s+){0,2}?[\[<]?(?P<l>trace|debug|info|notice|warn|warning|error|err|fatal|critical|panic)[\]>]?(?::|\s|$)') ?? null
     if word != null { lvl = get!(word, ["l"]) }
+  }
+}
+if agent {
+  stream = get(flat, ["status"]) ?? null
+  if !is_null(stream) {
+    used = push(used, "status")
+    if is_null(lvl) { lvl = stream }
   }
 }
 sev = to_int(.severity_number) ?? 0
