@@ -186,6 +186,17 @@ export function metricUnits(csv) {
     .map((f) => [f[name], f[per] ? `${f[unit]}/${f[per]}` : f[unit]]);
 }
 
+/** [metric, description] for every metric of a metadata.csv with a description (its first line). */
+export function metricDescriptions(csv) {
+  const [header, ...rows] = csv.trim().split('\n');
+  const cols = csvFields(header);
+  const [name, description] = ['metric_name', 'description'].map((c) => cols.indexOf(c));
+  return rows
+    .map(csvFields)
+    .filter((f) => /^[\w.]+$/.test(f[name] ?? '') && f[description]?.trim())
+    .map((f) => [f[name], f[description].trim().replace(/\s+/g, ' ')]);
+}
+
 async function main() {
   const integration = process.argv[2] ?? 'kubernetes';
   const revision = process.argv[3] ?? PINNED_REVISION;
@@ -206,8 +217,11 @@ async function main() {
     dashboards.push(convertDashboard(JSON.parse(await read(`${integration}/${path}`)), integration, path, revision));
   }
   const units = new Map(AGENT_UNITS[integration] ?? []);
+  const descriptions = new Map();
   for (const source of UNIT_SOURCES[integration] ?? [integration]) {
-    for (const [metric, unit] of metricUnits(await read(`${source}/metadata.csv`))) if (!units.has(metric)) units.set(metric, unit);
+    const metadata = await read(`${source}/metadata.csv`);
+    for (const [metric, unit] of metricUnits(metadata)) if (!units.has(metric)) units.set(metric, unit);
+    for (const [metric, text] of metricDescriptions(metadata)) if (!descriptions.has(metric)) descriptions.set(metric, text);
   }
   const target = new URL(`../server/seeds/integrations/${integration}/`, import.meta.url);
   await mkdir(target, { recursive: true });
@@ -221,6 +235,12 @@ async function main() {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([m, u]) => `${m},${u}`)
         .join('\n') +
+      '\n',
+  );
+  await writeFile(
+    new URL('descriptions.tsv', target),
+    `# Metric descriptions from DataDog/integrations-core@${revision} (${sources}); BSD-3-Clause, see LICENSE.\n` +
+      [...descriptions].sort(([a], [b]) => a.localeCompare(b)).map(([m, d]) => `${m}\t${d}`).join('\n') +
       '\n',
   );
   await writeFile(new URL('LICENSE', target), license);

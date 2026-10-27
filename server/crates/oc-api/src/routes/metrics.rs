@@ -1247,12 +1247,13 @@ pub async fn catalog(
         }
         let tags: Vec<String> = tags.into_iter().collect();
         let unit = dashboard::metric_unit(&e.name, &e.unit).filter(|u| u != "1");
+        let description = dashboard::metric_description(&e.name, &e.description);
         if e.kind == "gauge" || e.kind == "sum" {
             out.push(MetricCatalogEntry {
                 name: e.name,
                 tags,
                 unit,
-                description: e.description,
+                description,
                 kind: e.kind,
             });
             continue;
@@ -1264,10 +1265,10 @@ pub async fn catalog(
                 "sum" => unit.as_ref().map(|u| format!("{u}/s")),
                 _ => unit.clone(),
             };
-            let description = if e.description.is_empty() {
+            let description = if description.is_empty() {
                 what.to_string()
             } else {
-                format!("{} — {}", e.description, what.to_lowercase())
+                format!("{description} — {}", what.to_lowercase())
             };
             out.push(MetricCatalogEntry {
                 name: format!("{}.{stat}", e.name),

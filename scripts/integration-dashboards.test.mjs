@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { convertDashboard, metricUnits, PINNED_REVISION } from './import-integration-dashboards.mjs';
+import { convertDashboard, metricDescriptions, metricUnits, PINNED_REVISION } from './import-integration-dashboards.mjs';
 import { formula, metricPlan, preparePanelQuery, timeShifts } from '../web/src/api/integrations/evaluate.ts';
 import { byteAxisInterval, formatMetricValue } from '../web/src/api/integrations/units.ts';
 import { changeRows } from '../web/src/api/integrations/change.ts';
@@ -515,4 +515,17 @@ test('host map: hosts grouped as the list groups them, colored from green (idle)
   assert.equal(fillColor(0), 'hsl(130 55% 45%)');
   assert.equal(fillColor(100), 'hsl(0 55% 45%)');
   assert.equal(fillColor(null), 'var(--bg-subtle)');
+});
+
+test('metric descriptions come from metadata.csv, one line each', () => {
+  const csv = [
+    'metric_name,metric_type,interval,unit_name,per_unit_name,description,orientation,integration,short_name,curated_metric',
+    'kubernetes.cpu.usage.total,gauge,,nanocore,,"The number of cores used by the host, in nanocores",0,kubelet,cpu usage,',
+    'kubernetes.pods.running,gauge,,,,"The number of running pods\nper node",0,kubelet,pods,',
+    'kubernetes.empty,gauge,,,,,0,kubelet,,',
+  ].join('\n');
+  assert.deepEqual(metricDescriptions(csv), [
+    ['kubernetes.cpu.usage.total', 'The number of cores used by the host, in nanocores'],
+    ['kubernetes.pods.running', 'The number of running pods'],
+  ]);
 });

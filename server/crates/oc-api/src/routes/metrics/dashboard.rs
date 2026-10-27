@@ -729,6 +729,7 @@ fn merge_frame(snapshot: &mut DashboardQueryFrame, delta: &DashboardQueryFrame) 
 /// Units of integration metrics from integrations-core's metadata.csv (BSD-3-Clause, see
 /// server/seeds/integrations/kubernetes/LICENSE): the Datadog Agent sends none.
 const INTEGRATION_UNITS: &str = include_str!("../../../../../seeds/integrations/kubernetes/units.csv");
+const INTEGRATION_DESCRIPTIONS: &str = include_str!("../../../../../seeds/integrations/kubernetes/descriptions.tsv");
 
 /// A metric's unit: what its sender reported, else the integration's, else none.
 pub(super) fn metric_unit(metric: &str, reported: &str) -> Option<String> {
@@ -740,9 +741,26 @@ pub(super) fn metric_unit(metric: &str, reported: &str) -> Option<String> {
     units.get(metric).map(|u| u.to_string())
 }
 
+/// What a metric measures: as its sender described it, else integrations-core's description.
+pub(super) fn metric_description(metric: &str, reported: &str) -> String {
+    static DESCRIPTIONS: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    if !reported.is_empty() {
+        return reported.to_string();
+    }
+    let descriptions = DESCRIPTIONS.get_or_init(|| INTEGRATION_DESCRIPTIONS.lines().filter(|l| !l.starts_with('#')).filter_map(|l| l.split_once('\t')).collect());
+    descriptions.get(metric).map(|d| d.to_string()).unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn integration_metrics_get_their_descriptions_when_senders_send_none() {
+        assert_eq!(metric_description("kubernetes.cpu.usage.total", ""), "The number of cores used");
+        assert_eq!(metric_description("kubernetes.cpu.usage.total", "Sent by the app"), "Sent by the app");
+        assert_eq!(metric_description("my.custom.metric", ""), "");
+    }
 
     #[test]
     fn integration_metrics_get_their_units_when_senders_send_none() {
