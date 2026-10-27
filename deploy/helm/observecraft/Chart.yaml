@@ -4,13 +4,14 @@ description: >-
   ObserveCraft, a self-hosted observability platform (logs, APM, metrics,
   Kubernetes, monitors) with a multi-tenant intake.
 type: application
-version: 0.1.0
-appVersion: 0.1.0
+version: 0.2.1
+appVersion: 0.2.1
 kubeVersion: '>=1.26.0-0'
 home: https://github.com/observecraft/observecraft
 sources:
   - https://github.com/observecraft/observecraft
-icon: https://raw.githubusercontent.com/observecraft/observecraft/main/docs/assets/logo.svg
+icon: >-
+  https://raw.githubusercontent.com/observecraft/observecraft/main/docs/assets/logo.svg
 keywords:
   - observability
   - logs

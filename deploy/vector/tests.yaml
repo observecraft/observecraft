@@ -32,6 +32,8 @@ tests:
               assert_eq!(.tags.env, "prod")
               assert_eq!(.attr.order_id, "42")
               assert!(!exists(.tags."oc.org_id"))
+              # Time-ordered ids (UUIDv7) compress; random ones (v4) don't.
+              assert!(match(string!(.id), r'^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-'))
 
   - name: ECS FireLens record with a JSON `log` (oc-intake JSON logs)
     inputs:

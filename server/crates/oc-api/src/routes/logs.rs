@@ -198,13 +198,13 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
     page_params.push(Param::Int(limit as i64));
 
     let rows_q = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT toString(id) AS id, toUnixTimestamp64Milli(timestamp) AS ts, status, service, host, source, message, \
              toJSONString(tags) AS tags_json, attributes, trace_id, span_id FROM {table} WHERE {page_clause} ORDER BY timestamp DESC, id DESC LIMIT ?"
         )),
         &page_params,
     );
-    let count_q = bind(st.clickhouse.query(&format!("SELECT count() AS n FROM {table} WHERE {}", s.clause)), &s.params);
+    let count_q = bind(st.ch(&org).query(&format!("SELECT count() AS n FROM {table} WHERE {}", s.clause)), &s.params);
 
     let (rows, count) = tokio::try_join!(rows_q.fetch_all::<LogRow>(), count_q.fetch_one::<Count>())?;
     let next_cursor = if rows.len() as u64 == limit { rows.last().map(|r| format!("{}:{}", r.ts, r.id)) } else { None };
@@ -262,7 +262,7 @@ pub async fn histogram(State(st): State<AppState>, OrgId(org): OrgId, Json(req):
     let mut params = vec![Param::Int(size / 1000)];
     params.extend(s.params);
     let rows = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT toUnixTimestamp(toStartOfInterval(timestamp, toIntervalSecond(?))) * 1000 AS t, toString(status) AS status, count() AS n \
              FROM {table} WHERE {} GROUP BY t, status ORDER BY t",
             s.clause
@@ -342,7 +342,7 @@ async fn values_for(st: &AppState, org: &str, range: TimeRange, terms: &[Term], 
     }
     params.push(Param::Int(limit));
     Ok(bind(
-        st.clickhouse.query(&format!(
+        st.ch(org).query(&format!(
             "SELECT toString({expr}) AS v, count() AS n FROM {table} WHERE {} AND {expr} != ''{extra} GROUP BY v ORDER BY n DESC LIMIT ?",
             s.clause
         )),
@@ -463,7 +463,7 @@ pub async fn insights(State(st): State<AppState>, OrgId(org): OrgId, Json(req): 
     let s = scope(&org, req.range, &[], None);
     let table = s.table;
     let rows = bind(
-        st.clickhouse.query(&format!(
+        st.ch(&org).query(&format!(
             "SELECT toString(service) AS service, countIf(status = 'error') AS errors, count() AS total FROM {table} WHERE {} GROUP BY service",
             s.clause
         )),
@@ -554,7 +554,7 @@ pub(crate) async fn log_counts(st: &AppState, org: &str, search: &str, by: &[Str
     let step_s = (step_ms / 1000).max(1);
     params.extend(s.params);
     let rows = bind(
-        st.clickhouse.query(&format!(
+        st.ch(org).query(&format!(
             "SELECT {g} AS g, toInt64(toUnixTimestamp(toStartOfInterval(timestamp, INTERVAL {step_s} SECOND))) * 1000 AS ts, count() AS n \
              FROM {table} WHERE {} GROUP BY g, ts ORDER BY g, ts",
             s.clause

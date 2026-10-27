@@ -299,9 +299,14 @@ fn chrono_now() -> i64 {
 
 // ================================================================ OIDC
 
+/// Sent on every request to the identity provider: reqwest sends no User-Agent by default, and providers behind a
+/// WAF (or CDN bot rules) answer 403 to requests without one.
+const OIDC_USER_AGENT: &str = concat!("ObserveCraft-SSO/", env!("CARGO_PKG_VERSION"), " (+https://github.com/observecraft/observecraft)");
+
 fn http_client() -> Result<openidconnect::reqwest::Client, ApiError> {
     // No redirects: following them during discovery/token exchange enables SSRF.
     openidconnect::reqwest::ClientBuilder::new()
+        .user_agent(OIDC_USER_AGENT)
         .redirect(openidconnect::reqwest::redirect::Policy::none())
         .timeout(Duration::from_secs(10))
         .build()
@@ -771,5 +776,23 @@ mod tests {
         assert_eq!(safe_redirect(Some("https://evil.example")), "/");
         assert_eq!(safe_redirect(Some("/api/v1/me")), "/");
         assert_eq!(safe_redirect(None), "/");
+    }
+
+    /// The identity provider sees a User-Agent on discovery, JWKS, token and userinfo requests.
+    #[tokio::test]
+    async fn oidc_requests_carry_a_user_agent() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut sock, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 4096];
+            let n = sock.read(&mut buf).await.unwrap();
+            sock.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\nconnection: close\r\n\r\n").await.unwrap();
+            String::from_utf8_lossy(&buf[..n]).to_lowercase()
+        });
+        super::http_client().unwrap().get(format!("http://{addr}/.well-known/openid-configuration")).send().await.unwrap();
+        let request = server.await.unwrap();
+        assert!(request.contains(&format!("user-agent: {}", super::OIDC_USER_AGENT.to_lowercase())), "{request}");
     }
 }

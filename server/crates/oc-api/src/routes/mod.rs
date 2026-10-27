@@ -666,4 +666,25 @@ mod tests {
             missing.join("\n")
         );
     }
+
+    /// Read queries behind the UI go through `AppState::ch(org)`, which bounds their time and
+    /// memory and counts them against the org's quota; the bare client has no limits.
+    #[test]
+    fn ui_queries_use_the_bounded_client() {
+        let sources = [("logs.rs", include_str!("logs.rs"))];
+        let unbounded: Vec<String> = sources
+            .iter()
+            .flat_map(|(file, src)| {
+                src.lines()
+                    .enumerate()
+                    .filter(|(_, l)| l.contains("st.clickhouse."))
+                    .map(move |(i, l)| format!("{file}:{}: {}", i + 1, l.trim()))
+            })
+            .collect();
+        assert!(
+            unbounded.is_empty(),
+            "queries on the unbounded ClickHouse client (use st.ch(&org)):\n{}",
+            unbounded.join("\n")
+        );
+    }
 }
