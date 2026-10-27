@@ -372,3 +372,58 @@ test('a group without a header is only as tall as its widgets and padding', asyn
   assert.equal(groupHeight(children), 8);
   assert.equal(groupHeight(children, false, false), 6);
 });
+
+test('infrastructure lists become Explorer searches: kind, template variables, alternatives, columns and sort', async () => {
+  const { infrastructureList } = await import('../web/src/api/integrations/infrastructure.ts');
+  const vars = { cluster: 'kube_cluster_name:aks-dev', namespace: '' };
+  const resolveVar = (name) => vars[name] ?? '';
+  const list = infrastructureList(
+    {
+      request_type: 'infrastructure_list',
+      query: {
+        data_source: 'infrastructure',
+        resource_type: 'pod',
+        query_string: '$cluster $namespace ((field#metadata.creationTimestamp:>=1hr AND NOT kube_condition_ready:true) OR pod_phase:failed)',
+      },
+      columns: [{ field: 'name' }, { field: 'status' }, { field: 'restarts' }, { field: 'cpu_usage_limits' }, { field: 'memory_usage_limits' }, { field: 'memory_usage' }],
+      sort: { column: 'restarts', order: 'desc' },
+    },
+    resolveVar,
+  );
+  assert.equal(list.kind, 'pods');
+  // (A AND NOT B) OR C, with the unsupported field# filter left out.
+  assert.deepEqual(list.queries, ['kube_cluster_name:aks-dev -kube_condition_ready:true', 'kube_cluster_name:aks-dev pod_phase:failed']);
+  assert.deepEqual(list.columns, ['name', 'status', 'restarts', 'cpu', 'memory']);
+  assert.deepEqual(list.sort, { column: 'restarts', desc: true });
+
+  const deployments = infrastructureList({ query: { data_source: 'infrastructure', resource_type: 'daemonSet', query_string: '$scope $cluster' }, columns: [] }, resolveVar);
+  assert.equal(deployments.kind, 'daemonsets');
+  assert.deepEqual(deployments.queries, ['kube_cluster_name:aks-dev']);
+  assert.equal(deployments.columns, undefined, 'no columns: the kind’s default ones');
+  assert.equal(deployments.sort, undefined);
+});
+
+test('infrastructure lists drop unresolved variables and match-all filters', async () => {
+  const { infrastructureList } = await import('../web/src/api/integrations/infrastructure.ts');
+  const list = infrastructureList({ query: { data_source: 'infrastructure', resource_type: 'pod', query_string: '$scope $cluster pod_phase:running' } }, (name) =>
+    name === 'cluster' ? 'kube_cluster_name:*' : `$${name}`,
+  );
+  assert.deepEqual(list.queries, ['pod_phase:running']);
+});
+
+test('log queries count logs per facet value; throughput divides by the range', async () => {
+  const { logRequest, logSeries, throughputs } = await import('../web/src/api/integrations/logs.ts');
+  const query = {
+    name: 'query1',
+    data_source: 'logs',
+    search: { query: 'kube_cluster_name:$kube_cluster_name.value AND source:(*kube* OR etcd)' },
+    group_by: [{ facet: 'source', limit: 10 }],
+    compute: { aggregation: 'count' },
+  };
+  const resolve = (q) => q.replace('$kube_cluster_name.value', 'aks-dev');
+  assert.deepEqual(logRequest(query, resolve), { query: 'kube_cluster_name:aks-dev AND source:(*kube* OR etcd)', key: 'source', limit: 10 });
+  assert.throws(() => logRequest({ ...query, compute: { aggregation: 'cardinality', metric: '@usr.id' } }, resolve), /count/);
+  const range = { from: 0, to: 60_000 };
+  assert.deepEqual(logSeries([{ value: 'etcd', count: 120 }], 'source', range), [{ name: 'source:etcd', points: [[60_000, 120]] }]);
+  assert.deepEqual(throughputs('throughput(query1) * 2'), { text: 'query1__throughput * 2', names: ['query1'] });
+});

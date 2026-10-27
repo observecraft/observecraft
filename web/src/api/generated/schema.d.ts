@@ -1622,6 +1622,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/top": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The most frequent values of a key among the matching logs (dashboard toplists and sunbursts). */
+        post: operations["top"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -4517,6 +4534,17 @@ export interface components {
             /**
              * Format: int64
              * @description Page size (max 1000). Default 100.
+             */
+            limit?: number | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        LogTopRequest: {
+            /** @description The key to count logs by: `source`, `service`, a tag (`kube_namespace`) or an attribute (`@http.status_code`). */
+            key: string;
+            /**
+             * Format: int64
+             * @description How many values, 1–100 (default 10).
              */
             limit?: number | null;
             query?: string;
@@ -8858,6 +8886,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuerySuggestion"][];
+                };
+            };
+        };
+    };
+    top: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogTopRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FacetValue"][];
                 };
             };
         };

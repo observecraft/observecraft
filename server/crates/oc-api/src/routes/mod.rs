@@ -40,6 +40,7 @@ use crate::state::AppState;
         logs::search,
         logs::histogram,
         logs::facets,
+        logs::top,
         logs::suggest,
         logs::insights,
         live::live,
@@ -252,6 +253,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/logs/search", post(logs::search))
         .route("/api/v1/logs/histogram", post(logs::histogram))
         .route("/api/v1/logs/facets", post(logs::facets))
+        .route("/api/v1/logs/top", post(logs::top))
         .route("/api/v1/logs/suggest", post(logs::suggest))
         .route("/api/v1/logs/insights", post(logs::insights))
         .route("/api/v1/logs/live", get(live::live))

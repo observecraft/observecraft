@@ -4079,6 +4079,40 @@
         }
       }
     },
+    "/api/v1/logs/top": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "The most frequent values of a key among the matching logs (dashboard toplists and sunbursts).",
+        "operationId": "top",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogTopRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FacetValue"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me": {
       "get": {
         "tags": [
@@ -12665,6 +12699,33 @@
             "format": "int64",
             "description": "Page size (max 1000). Default 100.",
             "minimum": 0
+          },
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "LogTopRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "key"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "The key to count logs by: `source`, `service`, a tag (`kube_namespace`) or an attribute (`@http.status_code`)."
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "How many values, 1–100 (default 10)."
           },
           "query": {
             "type": "string"

@@ -338,9 +338,11 @@ const FACETS: &[(&str, &str, &str)] = &[
     ("@http.status_code", "Status Code", "HTTP"),
 ];
 
-async fn values_for(st: &AppState, org: &str, range: TimeRange, terms: &[Term], key: &str, filter: Option<&str>, limit: i64) -> Result<Vec<ValueRow>, ApiError> {
+/// Top values of `key`; `skip_own` drops the key's own filter (facets keep showing unchecked values).
+#[allow(clippy::too_many_arguments)]
+async fn values_for(st: &AppState, org: &str, range: TimeRange, terms: &[Term], key: &str, filter: Option<&str>, limit: i64, skip_own: bool) -> Result<Vec<ValueRow>, ApiError> {
     let (expr, key_param) = LogsSchema.field(key);
-    let s = scope(org, range, terms, Some(key));
+    let s = if skip_own { scope(org, range, terms, Some(key)) } else { top_scope(org, range, terms) };
     let table = s.table;
     let mut params = Vec::new();
     params.extend(key_param.clone()); // SELECT expr
@@ -370,8 +372,8 @@ pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
     req.range.validate()?;
     let terms = parse_query(&req.query);
     let (results, indexes) = tokio::try_join!(
-        try_join_all(FACETS.iter().map(|(key, _, _)| values_for(&st, &org, req.range, &terms, key, None, 10))),
-        values_for(&st, &org, req.range, &terms, "index", None, 50),
+        try_join_all(FACETS.iter().map(|(key, _, _)| values_for(&st, &org, req.range, &terms, key, None, 10, true))),
+        values_for(&st, &org, req.range, &terms, "index", None, 50, true),
     )?;
     let mut out = vec![Facet { key: "index".into(), label: "Index".into(), group: "CORE".into(), values: indexes.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect() }];
     for ((key, label, group), rows) in FACETS.iter().zip(results) {
@@ -388,6 +390,38 @@ pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
         out.push(Facet { key: (*key).into(), label: (*label).into(), group: (*group).into(), values });
     }
     Ok(Json(out))
+}
+
+// ---------------------------------------------------------------- top values
+
+#[derive(Deserialize, ToSchema)]
+pub struct LogTopRequest {
+    pub range: TimeRange,
+    #[serde(default)]
+    pub query: String,
+    /// The key to count logs by: `source`, `service`, a tag (`kube_namespace`) or an attribute (`@http.status_code`).
+    pub key: String,
+    /// How many values, 1–100 (default 10).
+    pub limit: Option<i64>,
+}
+
+/// The scope of top values: every filter applies, the counted key's own included.
+fn top_scope(org: &str, range: TimeRange, terms: &[Term]) -> Scope {
+    scope(org, range, terms, None)
+}
+
+fn top_limit(limit: Option<i64>) -> i64 {
+    limit.unwrap_or(10).clamp(1, 100)
+}
+
+/// The most frequent values of a key among the matching logs (dashboard toplists and sunbursts).
+#[utoipa::path(post, path = "/api/v1/logs/top", request_body = LogTopRequest,
+    responses((status = 200, body = Vec<FacetValue>)), tag = "logs")]
+pub async fn top(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogTopRequest>) -> ApiResult<Vec<FacetValue>> {
+    req.range.validate()?;
+    let terms = parse_query(&req.query);
+    let rows = values_for(&st, &org, req.range, &terms, &req.key, None, top_limit(req.limit), false).await?;
+    Ok(Json(rows.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect()))
 }
 
 // ---------------------------------------------------------------- suggestions
@@ -421,7 +455,7 @@ pub async fn suggest(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
         if key.is_empty() || !key.chars().all(|c| c.is_ascii_alphanumeric() || "_.-@".contains(c)) {
             return Ok(Json(vec![]));
         }
-        let rows = values_for(&st, &org, req.range, &[], key, (!value.is_empty()).then_some(value), 6).await?;
+        let rows = values_for(&st, &org, req.range, &[], key, (!value.is_empty()).then_some(value), 6, true).await?;
         return Ok(Json(rows.into_iter().map(|r| QuerySuggestion { text: format!("{neg}{key}:{}", r.v), count: r.n }).collect()));
     }
     let lower = p.to_lowercase();
@@ -435,7 +469,7 @@ pub async fn suggest(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
         return Ok(Json(keys));
     }
     // Values containing the text, across the common keys.
-    let per_key = try_join_all(["service", "host", "env", "kube_namespace"].iter().map(|k| values_for(&st, &org, req.range, &[], k, Some(&lower), 3))).await?;
+    let per_key = try_join_all(["service", "host", "env", "kube_namespace"].iter().map(|k| values_for(&st, &org, req.range, &[], k, Some(&lower), 3, true))).await?;
     let mut pairs: Vec<QuerySuggestion> = ["service", "host", "env", "kube_namespace"]
         .iter()
         .zip(per_key)
@@ -595,6 +629,17 @@ pub(crate) async fn log_counts(st: &AppState, org: &str, search: &str, by: &[Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn top_values_count_with_the_keys_own_filter() {
+        let range = TimeRange { from: 0, to: 1 };
+        let terms = parse_query("source:(etcd OR coredns) env:prod");
+        // Facets drop their own key's filter; top values keep it.
+        assert!(top_scope("o", range, &terms).params.len() > scope("o", range, &terms, Some("source")).params.len());
+        assert_eq!(top_limit(None), 10);
+        assert_eq!(top_limit(Some(0)), 1);
+        assert_eq!(top_limit(Some(5000)), 100);
+    }
 
     #[test]
     fn log_monitor_queries() {

@@ -814,6 +814,17 @@ fn pod_utilization(containers: &[KubeContainer], pick: impl Fn(&KubeContainer) -
 }
 
 /// Turns one object into a row (without the cross-object rollups, done in [`build`]).
+/// A pod's `pod_phase` and `kube_condition_ready` tags (as the Datadog Agent tags pods), for queries.
+fn pod_tags(status: &Value) -> Vec<String> {
+    let phase = s(status, &["phase"]).map(|p| format!("pod_phase:{}", p.to_lowercase()));
+    let ready = arr(status, &["conditions"])
+        .iter()
+        .find(|c| s(c, &["type"]) == Some("Ready"))
+        .and_then(|c| s(c, &["status"]))
+        .map(|v| format!("kube_condition_ready:{}", v.to_lowercase()));
+    phase.into_iter().chain(ready).collect()
+}
+
 fn to_row(kind: KubeKind, cluster: &str, seen: i64, body: &Value, inv: &Inventory) -> KubeResource {
     let meta = body.get("metadata").cloned().unwrap_or(Value::Null);
     let uid = s(&meta, &["uid"]).unwrap_or_default().to_string();
@@ -847,7 +858,7 @@ fn to_row(kind: KubeKind, cluster: &str, seen: i64, body: &Value, inv: &Inventor
             r.node = s(&spec, &["nodeName"]).map(str::to_string);
             r.ip = s(&status, &["podIP"]).map(str::to_string);
             r.qos = s(&status, &["qosClass"]).map(str::to_string);
-            r.tags = s(&status, &["phase"]).map(|p| format!("pod_phase:{}", p.to_lowercase())).into_iter().collect();
+            r.tags = pod_tags(&status);
             r.images = regular.iter().map(|c| c.image.clone()).collect();
             let usage = inv.pod_usage.get(&r.uid);
             r.cpu = Some(pod_utilization(&r.containers, |c| &c.cpu, usage.and_then(|u| measured(u.0))));
@@ -1915,6 +1926,13 @@ pub async fn host_inventory(st: &AppState, org: &str, host: &str) -> Result<(Opt
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pod_tags_carry_phase_and_readiness() {
+        let status = serde_json::json!({ "phase": "Running", "conditions": [{ "type": "PodScheduled", "status": "True" }, { "type": "Ready", "status": "False" }] });
+        assert_eq!(pod_tags(&status), vec!["pod_phase:running", "kube_condition_ready:false"]);
+        assert_eq!(pod_tags(&serde_json::json!({ "phase": "Pending" })), vec!["pod_phase:pending"]);
+    }
 
     #[test]
     fn quantities() {

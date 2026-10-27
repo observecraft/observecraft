@@ -9,12 +9,73 @@ import { changeRows } from '../../../api/integrations/change';
 import { useDashboardContext } from './context';
 import { WidgetState } from './MetricWidgets';
 import { searchEvents } from '../../../api/events/client';
+import { useNavigate } from 'react-router-dom';
+import { searchKubernetes } from '../../../api/kubernetes/client';
+import { infrastructureList, type InfrastructureRequest } from '../../../api/integrations/infrastructure';
+import { COLUMNS } from '../../kubernetes/columns';
 import { byteAxisInterval, formatMetricValue, formatUnitValue, presentationUnit } from '../../../api/integrations/units';
 
 /** Renders the actual upstream requests; never substitutes a different metric or formula. */
 export function IntegrationWidget({ def }: { def: IntegrationWidgetDefinition }) {
+  if (def.type === 'list_stream' && def.requests?.[0]?.query?.data_source === 'infrastructure') return <InfrastructureListWidget def={def} />;
   return def.type === 'list_stream' || def.requests?.some((r) => r.queries?.some((q) => q.data_source === 'events')) ? <IntegrationEvents def={def} /> : <IntegrationMetric def={def} />;
 }
+
+/** Kubernetes resources, as the Kubernetes Explorer lists them; a row opens it in the Explorer. */
+function InfrastructureListWidget({ def }: { def: IntegrationWidgetDefinition }) {
+  const { resolve } = useDashboardContext();
+  const navigate = useNavigate();
+  // `avg:scope{$cluster}` → `avg:scope{kube_cluster_name:aks-dev}`, or `{*}` when it matches everything.
+  const resolveVar = (name: string) => /\{(.*)\}/.exec(resolve(`avg:scope{$${name}}`))?.[1].replace(/^\*$/, '') ?? '';
+  const list = infrastructureList(def.requests[0] as unknown as InfrastructureRequest, resolveVar);
+  const result = useQuery({
+    queryKey: ['kubernetes', 'integration-list', list],
+    queryFn: async () => {
+      const pages = await Promise.all(list.queries.map((query) => searchKubernetes({ kind: list.kind, query, limit: LIST_LIMIT, sort: list.sort?.column, desc: list.sort?.desc })));
+      const rows = new Map(pages.flatMap((p) => p.items).map((r) => [r.uid, r]));
+      return [...rows.values()].slice(0, LIST_LIMIT);
+    },
+    placeholderData: keepPreviousData,
+  });
+  const all = COLUMNS[list.kind];
+  // Without columns, the kind's own ones minus the cluster and namespace a dashboard already filters by.
+  const cols = list.columns ? list.columns.flatMap((key) => all.filter((c) => c.key === key)) : all.filter((c) => c.key !== 'cluster' && c.key !== 'namespace');
+  const explorer = (params: Record<string, string>) => navigate(`/orchestration/explorer?${new URLSearchParams({ resource: list.kind, ...params })}`);
+  const ctx = { filter: (key: string, value: string) => explorer({ q: `${key}:${value}` }) };
+  return (
+    <WidgetState loading={result.isPending} error={result.error} empty={!result.data?.length}>
+      <div className="wt">
+        <div className="wt-scroll">
+          <table className="ox-table">
+            <thead>
+              <tr>
+                {cols.map((c) => (
+                  <th key={c.key} className={c.num ? 'num' : undefined}>
+                    {c.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {result.data?.map((r) => (
+                <tr key={r.uid} className="wt-link" onClick={() => explorer({ q: list.queries[0] ?? '', panel: r.uid })}>
+                  {cols.map((c) => (
+                    <td key={c.key} className={c.num ? 'num' : undefined}>
+                      {c.render(r, ctx)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </WidgetState>
+  );
+}
+
+/** Rows an infrastructure list shows (Datadog shows the first page too). */
+const LIST_LIMIT = 50;
 
 function IntegrationEvents({ def }: { def: IntegrationWidgetDefinition }) {
   const { range, resolveSearch } = useDashboardContext();

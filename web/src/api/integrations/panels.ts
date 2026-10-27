@@ -1,6 +1,8 @@
 import type { PanelDataSource } from './panelQueries';
 import { metricCatalog, queryTimeseries } from '../dashboards/client';
 import type { MetricSeries, TimeRange } from '../types';
+import { topLogValues } from '../client';
+import { logRequest, logSeries, throughputs, type LogPanelQuery } from './logs';
 import { aggregate, formula, preparePanelQuery, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
 
 export interface PanelSeries extends MetricSeries {
@@ -33,15 +35,20 @@ export async function queryIntegrationPanel(
   const scalar = def.type !== 'timeseries';
   // Reject unsupported expressions before waiting on any network request.
   for (const request of def.requests) {
-    for (const query of request.queries ?? (request.q ? [{ query: request.q }] : [])) preparePanelQuery(query.query, resolve, range);
+    for (const query of request.queries ?? (request.q ? [{ name: 'query1', query: request.q, data_source: 'metrics' }] : [])) {
+      if (query.data_source === 'logs') logRequest(query as unknown as LogPanelQuery, resolve);
+      else if (query.data_source === 'metrics') preparePanelQuery(query.query, resolve, range);
+      else throw new Error(`Data source ${query.data_source} is not supported by this panel yet`);
+    }
   }
   const catalog = await source.catalog();
   return (
     await Promise.all(
       def.requests.map(async (request) => {
         const queries = request.queries ?? (request.q ? [{ name: 'query1', query: request.q, data_source: 'metrics' }] : []);
-        const formulas: IntegrationFormula[] = (request.formulas ?? queries.map((q) => ({ formula: q.name }))).map((f) => ({ ...f, formula: timeShifts(f.formula).text }));
+        const formulas: IntegrationFormula[] = (request.formulas ?? queries.map((q) => ({ formula: q.name }))).map((f) => ({ ...f, formula: throughputs(timeShifts(f.formula).text).text }));
         const shifts = (request.formulas ?? []).flatMap((f) => timeShifts(f.formula).shifts);
+        const perSecond = [...new Set((request.formulas ?? []).flatMap((f) => throughputs(f.formula).names))];
         const inputs: Record<string, MetricSeries[]> = {};
         // A query over `range` moved back by `seconds`, its points moved onto `range` (time comparisons).
         // The dashboard's shared stream only has the current range, so earlier ranges are fetched directly.
@@ -51,7 +58,10 @@ export async function queryIntegrationPanel(
           return (await loadQuery(query, shifted, from)).map((s) => ({ ...s, points: s.points.map(([t, v]) => [t + seconds * 1000, v]) }));
         };
         const loadQuery = async (query: (typeof queries)[number], range: TimeRange, source: PanelDataSource): Promise<MetricSeries[]> => {
-          if (query.data_source !== 'metrics') throw new Error(`Data source ${query.data_source} is not supported by this panel yet`);
+          if (query.data_source === 'logs') {
+            const request = logRequest(query as unknown as LogPanelQuery, resolve);
+            return logSeries(await topLogValues({ range, ...request }), request.key, range);
+          }
           const { plan, text, points } = preparePanelQuery(query.query, resolve, range);
           let series: MetricSeries[];
           try {
@@ -107,10 +117,19 @@ export async function queryIntegrationPanel(
             inputs[shift.name] = await load(query, shift.seconds);
           }),
         ]);
+        // throughput(query): the query's counts per second over the range.
+        for (const name of perSecond) {
+          if (!inputs[name]) throw new Error(`Unknown formula query: ${name}`);
+          inputs[`${name}__throughput`] = inputs[name].map((s) => ({
+            ...s,
+            unit: s.unit ? `${s.unit}/second` : '1/second',
+            points: s.points.map(([t, v]) => [t, (v * 1000) / (range.to - range.from)]),
+          }));
+        }
         // Scalar requests aggregate each named query before evaluating its formulas.
         if (scalar) {
           for (const [name, series] of Object.entries(inputs)) {
-            const query = queries.find((q) => q.name === name.split('__shift')[0]);
+            const query = queries.find((q) => q.name === name.split('__')[0]);
             inputs[name] = series.flatMap((s) => {
               const value = aggregate(
                 s.points.map((p) => p[1]),

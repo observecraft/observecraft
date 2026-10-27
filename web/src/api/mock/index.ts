@@ -1,18 +1,7 @@
 // In-browser stand-in for the query service. Implements the same contract (types.ts)
 // so pages don't change when client.ts switches to fetch()/SSE.
 import { parseQuery } from '../../lib/searchQuery';
-import type {
-  Facet,
-  HistogramBucket,
-  LiveTailBatch,
-  LogEvent,
-  LogInsight,
-  LogQuery,
-  LogSearchResult,
-  MetricSeries,
-  QuerySuggestion,
-  TimeRange,
-} from '../types';
+import type { Facet, FacetValue, HistogramBucket, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, MetricSeries, QuerySuggestion, TimeRange } from '../types';
 import { generateLog, rng } from './generator';
 import { logField, matchLog } from './match';
 
@@ -95,18 +84,33 @@ export function mockSearchLogs(q: LogQuery): LogSearchResult {
       if (v !== undefined) counts.set(v, (counts.get(v) ?? 0) + 1);
     }
     const order = ['error', 'warn', 'info', 'debug'];
-    const values = [...counts.entries()]
-      .map(([v, count]) => ({ value: v, count }))
-      .sort((a, b) => (key === 'status' ? order.indexOf(a.value) - order.indexOf(b.value) : b.count - a.count));
+    const values = [...counts.entries()].map(([v, count]) => ({ value: v, count })).sort((a, b) => (key === 'status' ? order.indexOf(a.value) - order.indexOf(b.value) : b.count - a.count));
     return { key, label, group, values };
   });
 
   return { logs: hits, total: hits.length, facets, histogram: histogramFor(hits, q.range), insights: insights(scope) };
 }
 
+/** The most frequent values of `key` among the matching logs, every filter applied. */
+export function mockTopLogValues(q: LogQuery & { key: string; limit?: number }): FacetValue[] {
+  const terms = parseQuery(q.query);
+  const counts = new Map<string, number>();
+  for (const l of inRange(q.range)) {
+    const v = matchLog(l, terms) ? logField(l, q.key) : undefined;
+    if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, q.limit ?? 10);
+}
+
 export function mockHistogram(q: LogQuery): HistogramBucket[] {
   const terms = parseQuery(q.query);
-  return histogramFor(inRange(q.range).filter((l) => matchLog(l, terms)), q.range);
+  return histogramFor(
+    inRange(q.range).filter((l) => matchLog(l, terms)),
+    q.range,
+  );
 }
 
 /** Services whose share of errors is far above their share of traffic. */
@@ -204,7 +208,7 @@ export function mockLiveTail(query: string, onBatch: (b: LiveTailBatch) => void)
     const matched = fresh.filter((l) => matchLog(l, terms));
     const cap = Math.ceil((DISPLAY_CAP_PER_SEC * (now - last)) / 1000);
     const shown = matched.length > cap ? matched.filter(() => r() < cap / matched.length) : matched;
-    matchedRate = matchedRate * 0.8 + (matched.length * 1000) / (now - last) * 0.2;
+    matchedRate = matchedRate * 0.8 + ((matched.length * 1000) / (now - last)) * 0.2;
     last = now;
     onBatch({
       events: shown,

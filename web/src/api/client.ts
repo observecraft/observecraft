@@ -2,8 +2,8 @@
 // otherwise the in-browser mock answers, so the UI still runs without a backend.
 import { API_MODE, post } from './http';
 import type { components } from './generated/schema';
-import { mockHistogram, mockLiveTail, mockMetric, mockSearchLogs, mockSuggest } from './mock';
-import type { HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, LogStatus, MetricSeries, QuerySuggestion, TimeRange } from './types';
+import { mockHistogram, mockLiveTail, mockTopLogValues, mockMetric, mockSearchLogs, mockSuggest } from './mock';
+import type { FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, LogStatus, MetricSeries, QuerySuggestion, TimeRange } from './types';
 
 /** The UI loads at most this many rows per search; aggregate views work on this sample. */
 const LIVE_PAGE = 1000;
@@ -33,6 +33,12 @@ export async function searchLogs(q: LogQuery): Promise<LogSearchResult> {
   };
 }
 
+/** The most frequent values of a key among the matching logs (dashboard toplists and sunbursts). */
+export async function topLogValues(q: LogQuery & { key: string; limit?: number }): Promise<FacetValue[]> {
+  if (API_MODE !== 'live') return mockTopLogValues(q);
+  return post('/api/v1/logs/top', { range: q.range, query: q.query, key: q.key, limit: q.limit });
+}
+
 /** Status-stacked counts only — cheaper than a full search, used by Live Tail. */
 export async function logHistogram(q: LogQuery): Promise<HistogramBucket[]> {
   if (API_MODE !== 'live') return mockHistogram(q);
@@ -57,11 +63,6 @@ export function subscribeLiveTail(query: string, onBatch: (b: LiveTailBatch) => 
   return () => es.close();
 }
 
-export async function queryMetric(
-  name: string,
-  range: TimeRange,
-  groups: string[],
-  opts: { base: number; noise: number },
-): Promise<MetricSeries[]> {
+export async function queryMetric(name: string, range: TimeRange, groups: string[], opts: { base: number; noise: number }): Promise<MetricSeries[]> {
   return mockMetric(name, range, groups, opts.base, opts.noise);
 }

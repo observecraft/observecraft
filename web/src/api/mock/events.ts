@@ -3,12 +3,48 @@
 import type { EventItem, EventPage, EventSearchRequest } from '../events/client';
 
 const SOURCES = [
-  { source: 'Kubernetes', alert: 'warning', title: (i: number) => `Back-off restarting failed container in pod checkout-7d9f${i % 7}`, text: 'Readiness probe failed: HTTP probe failed with statuscode: 503', tags: ['kube_namespace:shop', 'kube_deployment:checkout', 'env:prod'] },
-  { source: 'Kubernetes', alert: 'info', title: (i: number) => `Scaled up replica set storefront-api-5c${i % 9} to 4`, text: 'Deployment storefront-api scaled from 3 to 4 replicas', tags: ['kube_namespace:shop', 'kube_deployment:storefront-api', 'env:prod'] },
-  { source: 'Change Tracking', alert: 'info', title: (i: number) => `order-service deployed version 1.4.${i % 5}`, text: 'Rolled out by the delivery pipeline', tags: ['service:order-service', 'env:prod', 'version:1.4.2'] },
-  { source: 'Monitor Alert', alert: 'error', title: () => '[Triggered] High error rate on billing', text: 'trace.http.request.errors for service:billing is above 5%', tags: ['service:billing', 'env:prod', 'monitor'] },
-  { source: 'Monitor Alert', alert: 'success', title: () => '[Recovered] High error rate on billing', text: 'trace.http.request.errors for service:billing is back below 5%', tags: ['service:billing', 'env:prod', 'monitor'] },
-  { source: 'containerd', alert: 'info', title: (i: number) => `Image pulled: example-org/catalog-service:2.${i % 4}.0`, text: 'Pulled image in 1.2s', tags: ['image_name:example-org/catalog-service', 'env:prod'] },
+  {
+    source: 'Kubernetes',
+    alert: 'warning',
+    title: (i: number) => `Back-off restarting failed container in pod checkout-7d9f${i % 7}`,
+    text: 'Readiness probe failed: HTTP probe failed with statuscode: 503',
+    tags: ['kube_namespace:shop', 'kube_deployment:checkout', 'env:prod'],
+  },
+  {
+    source: 'Kubernetes',
+    alert: 'info',
+    title: (i: number) => `Scaled up replica set storefront-api-5c${i % 9} to 4`,
+    text: 'Deployment storefront-api scaled from 3 to 4 replicas',
+    tags: ['kube_namespace:shop', 'kube_deployment:storefront-api', 'env:prod'],
+  },
+  {
+    source: 'Change Tracking',
+    alert: 'info',
+    title: (i: number) => `order-service deployed version 1.4.${i % 5}`,
+    text: 'Rolled out by the delivery pipeline',
+    tags: ['service:order-service', 'env:prod', 'version:1.4.2'],
+  },
+  {
+    source: 'Monitor Alert',
+    alert: 'error',
+    title: () => '[Triggered] High error rate on billing',
+    text: 'trace.http.request.errors for service:billing is above 5%',
+    tags: ['service:billing', 'env:prod', 'monitor'],
+  },
+  {
+    source: 'Monitor Alert',
+    alert: 'success',
+    title: () => '[Recovered] High error rate on billing',
+    text: 'trace.http.request.errors for service:billing is back below 5%',
+    tags: ['service:billing', 'env:prod', 'monitor'],
+  },
+  {
+    source: 'containerd',
+    alert: 'info',
+    title: (i: number) => `Image pulled: example-org/catalog-service:2.${i % 4}.0`,
+    text: 'Pulled image in 1.2s',
+    tags: ['image_name:example-org/catalog-service', 'env:prod'],
+  },
   { source: 'System', alert: 'info', title: () => 'Agent Startup', text: 'Version 7.84.6', tags: [] },
 ];
 
@@ -41,7 +77,7 @@ function matches(e: EventItem, token: string): boolean {
   if (i > 0) {
     const k = t.slice(0, i);
     const v = t.slice(i + 1);
-    if (k === 'source') hit = e.source === v;
+    if (k === 'source') hit = e.source.toLowerCase() === v.toLowerCase();
     else if (k === 'host') hit = e.host === v;
     else if (k === 'status') hit = e.alertType === v;
     else if (k === 'priority') hit = e.priority === v;
