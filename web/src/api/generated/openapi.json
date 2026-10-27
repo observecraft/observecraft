@@ -10949,12 +10949,20 @@
           "os",
           "collectors",
           "software",
+          "apps",
           "gpu",
           "monitors",
           "cpuPct",
           "memPct"
         ],
         "properties": {
+          "apps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Integrations the host's Datadog Agent runs (`system` for its host checks)."
+          },
           "cloud": {
             "$ref": "#/components/schemas/Cloud"
           },

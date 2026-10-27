@@ -72,6 +72,7 @@ function hosts(): StoredHost[] {
       os: 'linux',
       collectors: ['observecraft'],
       software: ['kubernetes'],
+      apps: ['kubelet', 'ntp', 'system'],
       env: 'prod',
       service: null,
       team: 'billing',
@@ -90,6 +91,7 @@ function hosts(): StoredHost[] {
       os: 'linux',
       collectors: r() < 0.15 ? ['observecraft', 'otel'] : ['observecraft'],
       software: ['kubernetes'],
+      apps: ['kubelet', 'ntp', 'system'],
       env: pick(r, ['prod', 'prod', 'qa', 'staging']),
       service: null,
       team,
@@ -106,6 +108,7 @@ function hosts(): StoredHost[] {
       os: 'windows',
       collectors: ['observecraft'],
       software: [],
+      apps: [],
       env: 'prod',
       service: null,
       team: 'platform',
@@ -122,6 +125,7 @@ function hosts(): StoredHost[] {
       distro: 'ubuntu',
       collectors: ['observecraft'],
       software: ['docker'],
+      apps: ['docker', 'nginx', 'system'],
       env: r() < 0.3 ? null : 'prod',
       service: null,
       team: 'billing',
@@ -137,6 +141,7 @@ function hosts(): StoredHost[] {
       os: r() < 0.5 ? 'windows' : 'linux',
       collectors: ['otel'],
       software: [],
+      apps: [],
       env: 'staging',
       service: null,
       team: 'payments',
@@ -151,6 +156,7 @@ function hosts(): StoredHost[] {
       os: 'linux',
       collectors: ['otel'],
       software: ['kubernetes'],
+      apps: ['kubelet', 'ntp', 'system'],
       env: 'qa',
       service: null,
       team: 'platform',
@@ -166,6 +172,7 @@ function hosts(): StoredHost[] {
       os: 'darwin',
       collectors: ['observecraft'],
       software: [],
+      apps: [],
       env: null,
       service: 'ci-runner',
       team: 'platform',
@@ -173,7 +180,20 @@ function hosts(): StoredHost[] {
       cluster: null,
       region: null,
     });
-  add({ name: 'oci-erp-01', cloud: 'oracle', os: 'linux', collectors: ['otel'], software: [], env: 'prod', service: 'erp', team: 'billing', gpu: false, cluster: null, region: 'eu-frankfurt-1' });
+  add({
+    name: 'oci-erp-01',
+    cloud: 'oracle',
+    os: 'linux',
+    collectors: ['otel'],
+    software: [],
+    apps: [],
+    env: 'prod',
+    service: 'erp',
+    team: 'billing',
+    gpu: false,
+    cluster: null,
+    region: 'eu-frankfurt-1',
+  });
 
   store = out;
   return out;

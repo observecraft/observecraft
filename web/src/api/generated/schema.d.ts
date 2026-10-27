@@ -4090,6 +4090,8 @@ export interface components {
         /** @enum {string} */
         HostSortField: "name" | "cpu" | "mem" | "env" | "monitors";
         HostSummary: {
+            /** @description Integrations the host's Datadog Agent runs (`system` for its host checks). */
+            apps: string[];
             cloud: components["schemas"]["Cloud"];
             collectors: components["schemas"]["CollectorKind"][];
             /** Format: double */

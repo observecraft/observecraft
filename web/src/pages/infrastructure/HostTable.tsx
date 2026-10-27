@@ -3,6 +3,9 @@ import { ArrowDownWideNarrow, ArrowUpNarrowWide, Plus } from 'lucide-react';
 import type { HostSearchPage, HostSortField, HostSummary } from '../../api/infrastructure/types';
 import { CloudIcon, CollectorIcon, GpuIcon, OsIcon, SoftwareIcon } from './hostIcons';
 
+/** Apps listed in the Software column before "+N". */
+const APPS_SHOWN = 3;
+
 export type HostColumn = 'configurations' | 'software' | 'env' | 'service' | 'monitors' | 'cpu' | 'errors';
 export const ALL_COLUMNS: { key: HostColumn; label: string }[] = [
   { key: 'configurations', label: 'Configurations' },
@@ -56,6 +59,16 @@ const Row = memo(function Row({ h, columns, selected, onOpen }: { h: HostSummary
             {h.software.map((s) => (
               <SoftwareIcon key={s} kind={s} size={15} />
             ))}
+            {h.apps.slice(0, APPS_SHOWN).map((a) => (
+              <span key={a} className="tag-chip">
+                {a}
+              </span>
+            ))}
+            {h.apps.length > APPS_SHOWN && (
+              <span className="tag-chip" title={h.apps.slice(APPS_SHOWN).join(', ')}>
+                +{h.apps.length - APPS_SHOWN}
+              </span>
+            )}
           </span>
         </td>
       )}
@@ -74,7 +87,15 @@ const Row = memo(function Row({ h, columns, selected, onOpen }: { h: HostSummary
           </span>
         </td>
       )}
-      {columns.has('errors') && <td>{h.errorSpans ? <span className="err-pill">{h.errorSpans} {h.errorSpans === 1 ? 'SPAN' : 'SPANS'}</span> : null}</td>}
+      {columns.has('errors') && (
+        <td>
+          {h.errorSpans ? (
+            <span className="err-pill">
+              {h.errorSpans} {h.errorSpans === 1 ? 'SPAN' : 'SPANS'}
+            </span>
+          ) : null}
+        </td>
+      )}
     </tr>
   );
 });

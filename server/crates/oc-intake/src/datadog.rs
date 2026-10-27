@@ -651,8 +651,28 @@ pub fn host_meta(v: &Value) -> Option<HostMeta> {
     })
 }
 
-/// `POST /intake/` (and `/api/v2/host_metadata`): the Agent's host metadata is stored (the host list
-/// and host page show it) and its events go to the events table; process summaries are acknowledged.
+/// The host and the checks its Agent runs, from the `agent_checks` metadata payload (each entry
+/// `[name, name, id, status, message, …]`); checks that failed to load (`initialization`) aren't running.
+pub fn agent_checks(v: &Value) -> Option<(String, Vec<String>)> {
+    let entries = v.get("agent_checks")?.as_array()?;
+    let s = |v: Option<&Value>| v.and_then(Value::as_str).unwrap_or("").to_string();
+    let host = [s(v.get("internalHostname")), s(v.pointer("/meta/hostname"))].into_iter().find(|h| !h.is_empty())?;
+    let mut checks: Vec<String> = entries
+        .iter()
+        .filter_map(Value::as_array)
+        .filter(|e| e.get(2).and_then(Value::as_str) != Some("initialization"))
+        .filter_map(|e| e.first().and_then(Value::as_str))
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
+        .collect();
+    checks.sort();
+    checks.dedup();
+    Some((host, checks))
+}
+
+/// `POST /intake/` (and `/api/v2/host_metadata`): the Agent's host metadata and running checks are stored
+/// (the host list and host page show them) and its events go to the events table; process summaries are
+/// acknowledged.
 pub async fn intake(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
     let key_org = match admit(&st, &headers, body.len()).await {
         Ok(org) => org,
@@ -691,6 +711,14 @@ pub async fn intake(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -
             return Rejection { status: StatusCode::SERVICE_UNAVAILABLE, message: "temporarily unavailable" }.into_response();
         }
         st.host_tags.set(&org, &m.host, m.tags);
+    }
+    if let Some((host, checks)) = agent_checks(&payload) {
+        // The host's row comes with its host metadata (at startup, then every 30 minutes).
+        let stored = sqlx::query("UPDATE datadog_hosts SET agent_checks = $3 WHERE org_id = $1 AND host = $2").bind(&org).bind(&host).bind(&checks).execute(&st.pg).await;
+        if let Err(e) = stored {
+            tracing::warn!(error = %e, "storing Datadog agent checks failed");
+            return Rejection { status: StatusCode::SERVICE_UNAVAILABLE, message: "temporarily unavailable" }.into_response();
+        }
     }
     if let Err(r) = crate::datadog_events::deliver(&st, &key_org, &crate::datadog_events::intake_events(&payload)).await {
         return r.into_response();
@@ -870,6 +898,25 @@ mod tests {
         assert_eq!(m.cloud, "aws");
         assert_eq!(m.tags, vec!["env:prod", "team:web"]);
         assert!(host_meta(&serde_json::json!({"events": {}})).is_none());
+    }
+
+    #[test]
+    fn the_agent_checks_payload_names_the_hosts_running_checks() {
+        let v = serde_json::json!({
+            "internalHostname": "web-1", "meta": {"hostname": "web-1"},
+            "agent_checks": [
+                ["kubelet", "kubelet", "kubelet:abc", "OK", "", "", []],
+                ["cpu", "cpu", "cpu", "OK", "", "", []],
+                ["redisdb", "redisdb", "redisdb:1", "ERROR", "connection refused", "", []],
+                ["kubelet", "kubelet", "kubelet:def", "OK", "", "", []],
+                ["postgres", "postgres", "initialization", "ERROR", "[]", []]
+            ]
+        });
+        let (host, checks) = agent_checks(&v).unwrap();
+        assert_eq!(host, "web-1");
+        // Running checks, once each; one that never loaded isn't running.
+        assert_eq!(checks, vec!["cpu", "kubelet", "redisdb"]);
+        assert!(agent_checks(&serde_json::json!({"systemStats": {}})).is_none());
     }
 
     #[test]

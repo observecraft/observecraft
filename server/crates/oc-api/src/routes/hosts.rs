@@ -79,6 +79,8 @@ pub struct HostSummary {
     pub distro: Option<String>,
     pub collectors: Vec<CollectorKind>,
     pub software: Vec<Software>,
+    /// Integrations the host's Datadog Agent runs (`system` for its host checks).
+    pub apps: Vec<String>,
     pub env: Option<String>,
     pub service: Option<String>,
     pub team: Option<String>,
@@ -88,6 +90,35 @@ pub struct HostSummary {
     pub mem_pct: f64,
     /// APM error spans from this host in range; null when no services on it send traces.
     pub error_spans: Option<u64>,
+}
+
+/// The Datadog Agent's host checks, shown together as the `system` app.
+const SYSTEM_CHECKS: [&str; 8] = ["cpu", "disk", "file_handle", "io", "load", "memory", "network", "uptime"];
+/// Checks the Agent runs for itself, not integrations.
+const INTERNAL_CHECKS: [&str; 6] = ["telemetry", "container_lifecycle", "container_image", "sbom", "orchestrator_pod", "orchestrator_kubelet_config"];
+
+/// A host's apps (the integrations its Agent runs), sorted.
+pub(crate) fn host_apps(checks: &[String]) -> Vec<String> {
+    let mut apps: Vec<String> = checks
+        .iter()
+        .filter(|c| !INTERNAL_CHECKS.contains(&c.as_str()))
+        .map(|c| if SYSTEM_CHECKS.contains(&c.as_str()) { "system".to_string() } else { c.clone() })
+        .collect();
+    apps.sort();
+    apps.dedup();
+    apps
+}
+
+/// Kubernetes when the host is in a cluster or runs the kubelet check; Docker when it runs the docker check.
+pub(crate) fn host_software(res: &HashMap<String, String>, apps: &[String]) -> Vec<Software> {
+    let mut software = Vec::new();
+    if res.get("k8s.cluster.name").is_some_and(|c| !c.is_empty()) || apps.iter().any(|a| a == "kubelet") {
+        software.push(Software::Kubernetes);
+    }
+    if apps.iter().any(|a| a == "docker") {
+        software.push(Software::Docker);
+    }
+    software
 }
 
 /// Everything known about a host, gathered once per request.
@@ -230,9 +261,10 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
         cloud: String,
         instance_id: String,
         host_tags: Vec<String>,
+        agent_checks: Vec<String>,
     }
     let dd_hosts = sqlx::query_as::<_, DdHost>(
-        "SELECT host, agent_version, os, platform, kernel, arch, cpu_cores, memory_bytes, cloud, instance_id, host_tags FROM datadog_hosts WHERE org_id = $1",
+        "SELECT host, agent_version, os, platform, kernel, arch, cpu_cores, memory_bytes, cloud, instance_id, host_tags, agent_checks FROM datadog_hosts WHERE org_id = $1",
     )
     .bind(org)
     .fetch_all(&st.postgres);
@@ -315,11 +347,8 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
                 Some("datadog-agent") => CollectorKind::Datadog,
                 _ => CollectorKind::Otel,
             };
-            let software = if get("k8s.cluster.name").is_some() {
-                vec![Software::Kubernetes]
-            } else {
-                vec![]
-            };
+            let apps = dd_hosts.get(&i.name).map(|d| host_apps(&d.agent_checks)).unwrap_or_default();
+            let software = host_software(&res, &apps);
             let summary = HostSummary {
                 name: i.name.clone(),
                 cloud,
@@ -327,6 +356,7 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
                 distro,
                 collectors: vec![collector],
                 software,
+                apps,
                 env: get("deployment.environment"),
                 service: span.map(|s| s.service.clone()).filter(|s| !s.is_empty()),
                 team: get("team"),
@@ -902,4 +932,26 @@ pub async fn containers(State(st): State<AppState>, OrgId(org): OrgId, Path(name
     items.sort_by(|a, b| b.rss_bytes.unwrap_or(0.0).total_cmp(&a.rss_bytes.unwrap_or(0.0)).then(a.name.cmp(&b.name)));
     let total = items.len();
     Ok(Json(HostContainerPage { items: items.into_iter().skip(req.offset).take(req.limit.min(500)).collect(), total }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn agent_checks_become_the_hosts_apps() {
+        let checks: Vec<String> = ["cpu", "disk", "kubelet", "telemetry", "container_lifecycle", "ntp", "redisdb", "memory"].map(String::from).to_vec();
+        // The Agent's host checks show as one `system` app; its internal checks aren't apps.
+        assert_eq!(host_apps(&checks), vec!["kubelet", "ntp", "redisdb", "system"]);
+        assert!(host_apps(&[]).is_empty());
+    }
+
+    #[test]
+    fn kubernetes_and_docker_software_from_cluster_or_checks() {
+        let res = HashMap::new();
+        assert_eq!(host_software(&res, &["kubelet".into(), "docker".into()]).len(), 2);
+        let res = HashMap::from([("k8s.cluster.name".to_string(), "aks-dev".to_string())]);
+        assert!(matches!(host_software(&res, &[])[..], [Software::Kubernetes]));
+        assert!(host_software(&HashMap::new(), &["system".into()]).is_empty());
+    }
 }
