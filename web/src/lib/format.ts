@@ -50,3 +50,9 @@ export function stripAnsi(text: string): string {
   // eslint-disable-next-line no-control-regex
   return text.replace(/\u001b\[[0-9;]*[A-Za-z]/g, '');
 }
+
+/** A Datadog event's text: the Markdown between its `%%%` markers, or the text as it is. */
+export function eventMarkdown(text: string): string {
+  const m = /^\s*%%%([\s\S]*?)%%%\s*$/.exec(text);
+  return (m ? m[1] : text).trim();
+}

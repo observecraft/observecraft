@@ -1017,12 +1017,43 @@
 .note-body {
   flex: 1;
   padding: 14px 22px;
-  overflow: auto;
+  /* No scrollbar unless expanded: a scrollbar would change the width the "More" check measures. */
+  overflow: hidden;
   line-height: 1.55;
 }
 
 .note-body > :first-child {
   margin-top: 0;
+}
+
+/* Too long for the widget: clipped with a fade and a "More" button. */
+.note-body.note-clipped {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
+}
+
+.note-body.note-expanded {
+  overflow: auto;
+  padding-bottom: 36px;
+}
+
+.note-more {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.note-more:hover {
+  color: var(--text);
 }
 
 .note-body h1,
@@ -1704,4 +1735,9 @@
 }
 .wt td.change-bad {
   color: var(--status-error);
+}
+
+/* Event text (Markdown) inside event lists */
+.event-text p {
+  margin: 2px 0;
 }

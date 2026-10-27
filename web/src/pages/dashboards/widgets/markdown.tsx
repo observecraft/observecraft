@@ -6,7 +6,7 @@ import { markdownBlocks } from './markdownBlocks';
 
 function inline(text: string, key: string): ReactNode[] {
   const out: ReactNode[] = [];
-  const re = /(\*\*[^*]+\*\*)|(\*[^*]+\*)|(`[^`]+`)|(\[[^\]]+\]\([^)\s]+\))/g;
+  const re = /(\*\*[^*]+\*\*)|(\*[^*]+\*)|((?<!\w)_[^_\n]+_(?!\w))|(`[^`]+`)|(\[[^\]]+\]\([^)\s]+\))/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let i = 0;

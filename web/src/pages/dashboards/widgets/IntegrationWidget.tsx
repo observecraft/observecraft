@@ -10,6 +10,8 @@ import { useDashboardContext } from './context';
 import { WidgetState } from './MetricWidgets';
 import { searchEvents } from '../../../api/events/client';
 import { useNavigate } from 'react-router-dom';
+import { Markdown } from './markdown';
+import { eventMarkdown } from '../../../lib/format';
 import { searchKubernetes } from '../../../api/kubernetes/client';
 import { infrastructureList, type InfrastructureRequest } from '../../../api/integrations/infrastructure';
 import { COLUMNS } from '../../kubernetes/columns';
@@ -114,7 +116,9 @@ function IntegrationEvents({ def }: { def: IntegrationWidgetDefinition }) {
                     <td>{event.alertType}</td>
                     <td>
                       <strong>{event.title}</strong>
-                      <div>{event.text}</div>
+                      <div className="event-text">
+                        <Markdown source={eventMarkdown(event.text)} />
+                      </div>
                     </td>
                   </tr>
                 ))}

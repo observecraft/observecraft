@@ -458,3 +458,9 @@ test('view in context centers the time range on the log, never past now', async 
   assert.equal(centeredEnd(100 * min, 15 * min, 200 * min), 107.5 * min);
   assert.equal(centeredEnd(199 * min, 15 * min, 200 * min), 200 * min);
 });
+
+test('Datadog event text: the markdown between %%% markers', async () => {
+  const { eventMarkdown } = await import('../web/src/lib/format.ts');
+  assert.equal(eventMarkdown('%%% \n1 **Killing**: Stopping container build\n %%%'), '1 **Killing**: Stopping container build');
+  assert.equal(eventMarkdown('plain text'), 'plain text');
+});

@@ -1,24 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
-import {
-  ChevronDown,
-  Code2,
-  Copy,
-  EllipsisVertical,
-  LayoutDashboard,
-  LayoutGrid,
-  LineChart,
-  List,
-  ListOrdered,
-  PanelLeft,
-  PanelLeftClose,
-  Pin,
-  Settings,
-  Table2,
-  X,
-} from 'lucide-react';
+import { ChevronDown, Code2, Copy, EllipsisVertical, LayoutDashboard, LayoutGrid, LineChart, List, ListOrdered, PanelLeft, PanelLeftClose, Pin, Settings, Table2, X } from 'lucide-react';
 import { searchEvents, type EventItem, type EventPage } from '../../api/events/client';
 import { Chart } from '../../components/charts/Chart';
+import { Markdown } from '../dashboards/widgets/markdown';
+import { eventMarkdown } from '../../lib/format';
 import { FacetPanel } from '../../components/facets/FacetPanel';
 import { QueryBar } from '../../components/query/QueryBar';
 import { TimePicker } from '../../components/shell/PageHeader';
@@ -118,13 +104,15 @@ function Aggregate({ viz, page }: { viz: Viz; page: EventPage }) {
         </tr>
       </thead>
       <tbody>
-        {[...groups].sort((a, b) => b[1].count - a[1].count).map(([k, g]) => (
-          <tr key={k}>
-            <td>{k}</td>
-            <td>{g.sample.source}</td>
-            <td className="num">{g.count}</td>
-          </tr>
-        ))}
+        {[...groups]
+          .sort((a, b) => b[1].count - a[1].count)
+          .map(([k, g]) => (
+            <tr key={k}>
+              <td>{k}</td>
+              <td>{g.sample.source}</td>
+              <td className="num">{g.count}</td>
+            </tr>
+          ))}
       </tbody>
     </table>
   );
@@ -142,7 +130,11 @@ function EventDetail({ event, onClose, onFilter }: { event: EventItem; onClose: 
         </button>
       </header>
       <h2>{event.title}</h2>
-      {event.text && <pre className="ev-detail-text">{event.text}</pre>}
+      {event.text && (
+        <div className="ev-detail-text">
+          <Markdown source={eventMarkdown(event.text)} />
+        </div>
+      )}
       <dl>
         <dt>Source</dt>
         <dd>
