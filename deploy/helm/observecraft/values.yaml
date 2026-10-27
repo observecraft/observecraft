@@ -178,7 +178,7 @@ clickhouse:
   bundled:
     image:
       repository: clickhouse/clickhouse-server
-      tag: "24.8"
+      tag: "26.8"
     persistence:
       size: 50Gi
     resources:
@@ -205,7 +205,7 @@ clickhouse:
     replicas: 2
     image:
       repository: clickhouse/clickhouse-server
-      tag: "24.8"
+      tag: "26.8"
     persistence:
       size: 100Gi
     resources:
@@ -215,7 +215,7 @@ clickhouse:
       replicas: 3
       image:
         repository: clickhouse/clickhouse-keeper
-        tag: "24.8"
+        tag: "26.8"
       persistence:
         size: 10Gi
   external:
