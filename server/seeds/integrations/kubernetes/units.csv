@@ -448,11 +448,11 @@ system.fs.inodes.in_use,fraction
 system.fs.inodes.total,inode
 system.fs.inodes.used,inode
 system.fs.inodes.utilized,percent
-system.mem.free,byte
+system.mem.free,mebibyte
 system.mem.pct_usable,fraction
-system.mem.total,byte
-system.mem.usable,byte
-system.mem.used,byte
+system.mem.total,mebibyte
+system.mem.usable,mebibyte
+system.mem.used,mebibyte
 system.net.aws.ec2.bw_in_allowance_exceeded,packet
 system.net.aws.ec2.bw_out_allowance_exceeded,packet
 system.net.aws.ec2.conntrack_allowance_available,connection

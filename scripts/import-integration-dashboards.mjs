@@ -6,7 +6,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 export const PINNED_REVISION = 'c7dbc72cac1946294acda77f6491ecd081d9b498';
 
-/** Units of the Agent's own host metrics (they have no integrations-core metadata.csv). */
+/** Units of the Agent's own host metrics (they have no integrations-core metadata.csv); memory is in MiB. */
 const AGENT_UNITS = {
   kubernetes: [
     ['system.cpu.idle', 'percent'],
@@ -14,11 +14,11 @@ const AGENT_UNITS = {
     ['system.cpu.system', 'percent'],
     ['system.cpu.user', 'percent'],
     ['system.cpu.num_cores', 'core'],
-    ['system.mem.free', 'byte'],
+    ['system.mem.free', 'mebibyte'],
     ['system.mem.pct_usable', 'fraction'],
-    ['system.mem.total', 'byte'],
-    ['system.mem.usable', 'byte'],
-    ['system.mem.used', 'byte'],
+    ['system.mem.total', 'mebibyte'],
+    ['system.mem.usable', 'mebibyte'],
+    ['system.mem.used', 'mebibyte'],
   ],
 };
 

@@ -13111,6 +13111,10 @@
               ]
             },
             "description": "`[timestamp ms, value]` pairs."
+          },
+          "unit": {
+            "type": "string",
+            "description": "The metric's unit (`byte`, `nanocore`, `byte/second`…): its sender's, else its integration's."
           }
         }
       },

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Search, X } from 'lucide-react';
 import type { MetricCatalogEntry } from '../../api/dashboards/types';
@@ -81,10 +81,25 @@ function MetricPicker({ value, catalog, onChange }: { value: string; catalog: Me
 
 /** Metrics → Explorer: build queries row by row and graph them over the page's time range. */
 export function MetricsExplorer() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const { range } = useTime();
   const catalog = useMetricCatalog();
-  const [rows, setRows] = useState<Row[]>(() => [{ agg: 'avg', metric: params.get('metric') ?? 'trace.latency.p95', from: '', by: params.get('by') ?? 'service' }]);
+  // Starts empty, as Datadog's does; the first query lives in the URL so a graph can be shared or reloaded.
+  const [rows, setRows] = useState<Row[]>(() => [{ agg: (params.get('agg') as Agg | null) ?? 'avg', metric: params.get('metric') ?? '', from: params.get('from') ?? '', by: params.get('by') ?? '' }]);
+  useEffect(() => {
+    const first = rows[0];
+    setParams(
+      (p) => {
+        const next = new URLSearchParams(p);
+        for (const [k, v] of Object.entries({ metric: first.metric, from: first.from, by: first.by, agg: first.agg === 'avg' ? '' : first.agg })) {
+          if (v) next.set(k, v);
+          else next.delete(k);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }, [rows, setParams]);
   const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const queries = rows.filter((r) => r.metric).map(toQuery);
   const ctx = useMemo<DashboardContextValue>(

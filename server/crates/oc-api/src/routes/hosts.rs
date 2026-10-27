@@ -670,6 +670,8 @@ pub async fn metrics(State(st): State<AppState>, OrgId(org): OrgId, Path(name): 
     let series = |label: String, groups: Vec<super::metrics::Group>, scale: f64| MetricSeries {
         name: label,
         points: groups.into_iter().next().map(|g| g.points.into_iter().map(|(t, v)| (t, (v * scale * 100.0).round() / 100.0)).collect()).unwrap_or_default(),
+        // The host panel labels its own charts.
+        unit: None,
     };
     let cpu_states = ["user", "system", "iowait", "idle"];
     let mut cpu = Vec::new();

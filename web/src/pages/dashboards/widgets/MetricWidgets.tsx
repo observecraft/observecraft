@@ -1,6 +1,7 @@
 // Renderers for metric-backed widgets. Each resolves template variables, fetches through the
 // shared query hooks, and renders loading / error / empty states inside its frame.
 import { useMemo, useState, type ReactNode } from 'react';
+import { formatUnitValue, presentationUnit } from '../../../api/integrations/units';
 import type { EChartsOption } from 'echarts';
 import { ArrowDown, ArrowUp, Search } from 'lucide-react';
 import type { ConditionalFormat, WidgetDefinition } from '../../../api/dashboards/types';
@@ -13,7 +14,12 @@ import { formatValue, useDashboardContext } from './context';
 type Def<T extends WidgetDefinition['type']> = Extract<WidgetDefinition, { type: T }>;
 
 export function WidgetState({ loading, error, empty, children }: { loading: boolean; error: unknown; empty?: boolean; children: ReactNode }) {
-  if (loading) return <div className="wd-state"><span className="spinner" /></div>;
+  if (loading)
+    return (
+      <div className="wd-state">
+        <span className="spinner" />
+      </div>
+    );
   if (error) return <div className="wd-state wd-error">{error instanceof Error ? error.message : 'Query failed'}</div>;
   if (empty) return <div className="wd-state">No data</div>;
   return <>{children}</>;
@@ -33,13 +39,17 @@ export function TimeseriesWidget({ def }: { def: Def<'timeseries'> }) {
   const option = useMemo<EChartsOption>(() => {
     const series = q.data ?? [];
     const span = range.to - range.from;
+    // One unit shared by every series: values in a readable unit (cores, GiB, MiB/s…) on the axis and in the tooltip.
+    const units = new Set(series.map((s) => s.unit ?? ''));
+    const display = units.size === 1 ? presentationUnit([...units][0]) : { unit: '', scale: 1 };
+    const format = (v: number) => (display.unit ? formatUnitValue(v, display.unit, 2) : formatValue(v, Math.abs(v) < 1 ? 3 : 1));
     const showLegend = series.length > 1 && series.length <= 12;
     return {
       grid: { left: 40, right: 10, top: 10, bottom: showLegend ? 46 : 22 },
-      tooltip: { trigger: 'axis', confine: true, order: 'valueDesc' },
+      tooltip: { trigger: 'axis', confine: true, order: 'valueDesc', valueFormatter: (v) => format(Number(v)) },
       legend: showLegend ? { type: 'scroll', bottom: 0, left: 0, right: 0, formatter: (n: string) => (n.length > 32 ? `${n.slice(0, 32)}…` : n) } : undefined,
       xAxis: { type: 'time', axisLabel: { formatter: (v: number) => axisLabel(v, span) } },
-      yAxis: { type: 'value', max: def.yMax, axisLabel: { formatter: (v: number) => formatValue(v, Math.abs(v) < 1 ? 3 : 1) } },
+      yAxis: { type: 'value', max: def.yMax, axisLabel: { formatter: format } },
       series: series.map((s, i) => ({
         name: def.requests.length > 1 && def.requests[i]?.alias ? def.requests[i].alias : s.name,
         type: def.display === 'bars' ? 'bar' : 'line',
@@ -47,7 +57,7 @@ export function TimeseriesWidget({ def }: { def: Def<'timeseries'> }) {
         areaStyle: def.display === 'area' ? { opacity: 0.55 } : undefined,
         lineStyle: { width: def.display === 'area' ? 0.8 : 1.4 },
         barMaxWidth: 10,
-        data: s.points,
+        data: display.scale === 1 ? s.points : s.points.map(([t, v]) => [t, v * display.scale]),
       })),
     };
   }, [q.data, def, range]);
@@ -174,8 +184,25 @@ export function PieWidget({ def }: { def: Def<'pie'> | Def<'treemap'> }) {
     const data = rows.map((r, i) => ({ name: Object.values(r.tags).join(', ') || r.group, value: r.value, itemStyle: { color: palette()[i % 8] } }));
     if (def.type === 'treemap')
       return {
-        tooltip: { formatter: (p: unknown) => { const x = p as { name: string; value: number }; return `${x.name}: ${formatValue(x.value, 1)}`; } },
-        series: [{ type: 'treemap', roam: false, nodeClick: false, breadcrumb: { show: false }, width: '100%', height: '100%', itemStyle: { borderColor: token('--bg'), borderWidth: 2 }, label: { fontSize: 12 }, data }],
+        tooltip: {
+          formatter: (p: unknown) => {
+            const x = p as { name: string; value: number };
+            return `${x.name}: ${formatValue(x.value, 1)}`;
+          },
+        },
+        series: [
+          {
+            type: 'treemap',
+            roam: false,
+            nodeClick: false,
+            breadcrumb: { show: false },
+            width: '100%',
+            height: '100%',
+            itemStyle: { borderColor: token('--bg'), borderWidth: 2 },
+            label: { fontSize: 12 },
+            data,
+          },
+        ],
       };
     return {
       tooltip: { trigger: 'item', confine: true },
@@ -228,7 +255,7 @@ export function TableWidget({ def }: { def: Def<'table'> }) {
                   <th key={k}>#{k.toUpperCase()}</th>
                 ))}
                 {def.requests.map((r, i) => (
-                  <th key={i} className="num" onClick={() => setSort((s) => ({ col: i, dir: s.col === i ? ((-s.dir) as 1 | -1) : -1 }))}>
+                  <th key={i} className="num" onClick={() => setSort((s) => ({ col: i, dir: s.col === i ? (-s.dir as 1 | -1) : -1 }))}>
                     {sort.col === i && (sort.dir < 0 ? '↓ ' : '↑ ')}
                     {(r.alias ?? r.query).toUpperCase()}
                   </th>

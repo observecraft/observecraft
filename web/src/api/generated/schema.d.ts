@@ -4675,6 +4675,8 @@ export interface components {
                 number,
                 number
             ][];
+            /** @description The metric's unit (`byte`, `nanocore`, `byte/second`…): its sender's, else its integration's. */
+            unit?: string;
         };
         MfaSetup: {
             /** @description `otpauth://` URI for the QR code. */

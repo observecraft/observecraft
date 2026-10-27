@@ -15,7 +15,7 @@ use utoipa::ToSchema;
 
 use super::super::logs::TimeRange;
 use super::{
-    bind, group_array, group_label, inner_query_at_step, parse, resolve_alias, round, step_ms,
+    bind, group_array, group_label, inner_query_at_step, parse, round, step_ms,
     Kind, Row, Source, SPAN_METRICS,
 };
 use crate::error::{ApiError, ApiResult};
@@ -146,7 +146,7 @@ impl Plan {
                 Ok(q) => (q, None),
                 Err(e) => (parse("avg:invalid{*}")?, Some(e.to_string())),
             };
-            let (query, scale) = resolve_alias(&query);
+            let (query, scale) = super::resolve_alias_if_missing(st, org, &query).await?;
             seen.insert(key.clone(), items.len());
             items.push(Prepared {
                 query,
@@ -226,7 +226,8 @@ impl Plan {
                 .map(|(name, _)| name);
             p.unit = super::ALIASES
                 .iter()
-                .find(|a| Some(a.0) == original)
+                // The alias's unit only when the alias stood in (its values are scaled to it).
+                .find(|a| Some(a.0) == original && p.query.metric != a.0)
                 .map(|a| a.4.to_string())
                 .or_else(|| units.get(&p.query.metric).cloned())
                 .filter(|u| !u.is_empty());
@@ -753,6 +754,7 @@ pub(super) fn metric_description(metric: &str, reported: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::super::resolve_alias;
     use super::*;
 
     #[test]
@@ -768,7 +770,8 @@ mod tests {
         assert_eq!(metric_unit("kubernetes.cpu.usage.total", ""), Some("nanocore".to_string()));
         assert_eq!(metric_unit("kubernetes.memory.usage", ""), Some("byte".to_string()));
         assert_eq!(metric_unit("kubernetes.network.rx_bytes", ""), Some("byte/second".to_string()));
-        assert_eq!(metric_unit("system.mem.used", ""), Some("byte".to_string()));
+        // The Agent reports host memory in MiB (Datadog's metadata: mebibyte).
+        assert_eq!(metric_unit("system.mem.used", ""), Some("mebibyte".to_string()));
         // What a sender reported wins; counts have no unit.
         assert_eq!(metric_unit("kubernetes.cpu.usage.total", "{core}"), Some("{core}".to_string()));
         assert_eq!(metric_unit("kubernetes_state.deployment.replicas", ""), None);

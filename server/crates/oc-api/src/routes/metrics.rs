@@ -233,6 +233,15 @@ fn resolve_alias(q: &MetricQuery) -> (MetricQuery, f64) {
     }
 }
 
+/// [`resolve_alias`] only for a metric that isn't there itself: the Datadog Agent sends
+/// `system.mem.used`, `system.cpu.user`, … under those names, with no OpenTelemetry base metric.
+pub(super) async fn resolve_alias_if_missing(st: &AppState, org: &str, q: &MetricQuery) -> Result<(MetricQuery, f64), ApiError> {
+    if ALIASES.iter().any(|a| a.0 == q.metric) && metric_kind(st, org, &q.metric).await?.is_some() {
+        return Ok((q.clone(), 1.0));
+    }
+    Ok(resolve_alias(q))
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Kind {
     Gauge,
@@ -727,7 +736,7 @@ async fn inner_query_at_step(
         );
         return Ok((sql, params, step));
     }
-    let (q, scale) = resolve_alias(q);
+    let (q, scale) = resolve_alias_if_missing(st, org, q).await?;
     let q = &q;
     let Some(kind) = metric_kind(st, org, &q.metric).await? else {
         // `<distribution>.<stat>`: histogram, exponential histogram or summary.
@@ -1033,6 +1042,30 @@ pub struct MetricSeries {
     pub name: String,
     /// `[timestamp ms, value]` pairs.
     pub points: Vec<(i64, f64)>,
+    /// The metric's unit (`byte`, `nanocore`, `byte/second`…): its sender's, else its integration's.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(nullable = false)]
+    pub unit: Option<String>,
+}
+
+#[derive(clickhouse::Row, Deserialize)]
+struct UnitRow {
+    name: String,
+    unit: String,
+}
+
+/// Units of the queried metrics (a distribution statistic takes its base metric's).
+async fn series_units(st: &AppState, org: &str, metrics: &[String]) -> Result<HashMap<String, String>, ApiError> {
+    let bases: Vec<String> = metrics.iter().map(|n| split_stat(n).map(|(b, _)| b.to_string()).unwrap_or(n.clone())).collect();
+    let marks = vec!["?"; bases.len()].join(",");
+    let sql = format!("SELECT MetricName AS name, any(MetricUnit) AS unit FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND MetricName IN ({marks}) GROUP BY MetricName");
+    let params: Vec<Param> = bases.iter().cloned().map(Param::Str).collect();
+    let reported: HashMap<String, String> = bind(st.ch(org).query(&sql), &params).fetch_all::<UnitRow>().await?.into_iter().map(|r| (r.name, r.unit)).collect();
+    Ok(metrics
+        .iter()
+        .zip(&bases)
+        .filter_map(|(m, b)| dashboard::metric_unit(b, reported.get(b).map(String::as_str).unwrap_or("")).map(|u| (m.clone(), u)))
+        .collect())
 }
 
 /// Timeseries for one or more queries; one series per `by` group.
@@ -1054,6 +1087,8 @@ pub async fn timeseries(
             .map(|q| evaluate(&st, &org, q, req.range, points)),
     )
     .await?;
+    let metrics: Vec<String> = results.iter().map(|(q, _)| q.metric.clone()).collect::<std::collections::HashSet<_>>().into_iter().collect();
+    let units = series_units(&st, &org, &metrics).await?;
     let mut out = Vec::new();
     for ((q, groups), text) in results.into_iter().zip(&req.queries) {
         for g in groups {
@@ -1065,6 +1100,7 @@ pub async fn timeseries(
                     group_label(&g.tags)
                 },
                 points: g.points,
+                unit: units.get(&q.metric).cloned(),
             });
         }
     }
