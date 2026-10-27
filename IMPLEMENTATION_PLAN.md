@@ -95,15 +95,28 @@ Status: Complete
 ## Stage 3: Remaining readers
 
 Goal:
-- `hosts.rs`, `kubernetes.rs`, the metric catalog and `tag_values` read the series table.
-- Monitors go through the stage 2 path.
+- `hosts.rs` and `kubernetes.rs` select their points from `points_source`: series + samples, with the exporter's
+  table's columns, once the new storage covers the window.
+- The metric catalog and `tag_values` read the series table once it covers the last day.
+- Monitors already go through the stage 2 path.
 
 Success criteria:
 - Existing route tests pass.
 - Host, Kubernetes and monitor pages show the same data in live and mock mode.
 - The catalog and tag values no longer scan a day of points.
 
-Status: Not Started
+Verified:
+- `direct_readers_match_the_exporter_tables`: host-list-, pod- and process-shaped queries, the catalog and the tag
+  values give identical rows from both storages.
+- The real server, run twice on the same data:
+  - first with the new storage empty of history (exporter's tables), then with it covering the window, as shown by
+    `query_log`;
+  - identical JSON for host search, host detail, host processes, Kubernetes processes, the metric catalog, tag
+    values and timeseries;
+  - no server errors.
+- Not checked: the web pages in a browser. The API responses they render are identical.
+
+Status: Complete
 
 ## Stage 4: Per-organization metrics retention
 

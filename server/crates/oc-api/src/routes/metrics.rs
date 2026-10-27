@@ -443,7 +443,7 @@ async fn inner_query(st: &AppState, org: &str, q: &MetricQuery, range: TimeRange
     Ok((sql, params, step))
 }
 
-fn now_ms() -> i64 {
+pub(crate) fn now_ms() -> i64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64)
 }
 
@@ -466,6 +466,54 @@ async fn storage_start(st: &AppState, org: &str) -> Result<Option<i64>, ApiError
     let start = (first > 0).then_some(first + 3_600_000);
     cache.lock().unwrap().insert(org.to_string(), (start, Instant::now()));
     Ok(start)
+}
+
+/// Upper bound of a window that ends "now" (samples a little ahead of this server's clock count).
+pub(crate) const OPEN_END_MS: i64 = 3_600_000;
+
+/// Sets the `{oc_from:Int64}` / `{oc_to:Int64}` window (epoch ms) that [`points_subquery`] reads.
+pub(crate) fn with_window(c: clickhouse::Client, from: i64, to: i64) -> clickhouse::Client {
+    c.with_option("param_oc_from", from.to_string()).with_option("param_oc_to", to.to_string())
+}
+
+/// Points of the `kind` ("gauge" or "sum") metrics `names` in the window, with the columns of the
+/// exporter's tables that direct readers use (OrgId, MetricName, ServiceName, ResourceAttributes,
+/// Attributes, TimeUnix, Value), from series + samples. `names` are the caller's constants.
+pub(crate) fn points_subquery(kind: &str, names: &[&str]) -> String {
+    assert!(matches!(kind, "gauge" | "sum"));
+    let names = name_list(names);
+    format!(
+        "(SELECT x.OrgId AS OrgId, x.MetricName AS MetricName, s.ServiceName AS ServiceName, s.ResourceAttributes AS ResourceAttributes, s.Attributes AS Attributes, \
+                 x.TimeUnix AS TimeUnix, x.Value AS Value FROM otel.metrics_samples AS x \
+          INNER JOIN (SELECT SeriesId, any(ServiceName) AS ServiceName, any(ResourceAttributes) AS ResourceAttributes, any(Attributes) AS Attributes FROM otel.metrics_series \
+                      WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) AND MetricType = '{kind}' AND LastSeen >= toDateTime(intDiv({{oc_from:Int64}}, 1000)) \
+                      GROUP BY SeriesId) AS s ON x.SeriesId = s.SeriesId \
+          WHERE x.OrgId = {{oc_org:String}} AND x.MetricName IN ({names}) \
+            AND x.TimeUnix >= fromUnixTimestamp64Milli({{oc_from:Int64}}) AND x.TimeUnix <= fromUnixTimestamp64Milli({{oc_to:Int64}}))"
+    )
+}
+
+/// `'a', 'b'` for an SQL `IN (...)` of metric name constants (never user input).
+pub(crate) fn name_list(names: &[&str]) -> String {
+    names
+        .iter()
+        .map(|n| {
+            assert!(n.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_')), "metric name constant: {n}");
+            format!("'{n}'")
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// What a direct reader selects `kind` points `names` from since `from`: [`points_subquery`] once
+/// the new storage has the window, the exporter's table before (the transition). The client needs
+/// [`with_window`].
+pub(crate) async fn points_source(st: &AppState, org: &str, kind: &str, names: &[&str], from: i64) -> Result<String, ApiError> {
+    Ok(match storage_start(st, org).await? {
+        Some(start) if from >= start => points_subquery(kind, names),
+        _ if kind == "sum" => "otel.otel_metrics_sum".to_string(),
+        _ => "otel.otel_metrics_gauge".to_string(),
+    })
 }
 
 /// Per-series, per-interval values (g, t, sid, v) of a gauge or sum metric, from the exporter's
@@ -743,6 +791,56 @@ pub struct MetricCatalogEntry {
     pub kind: String,
 }
 
+/// Metrics reported in the last day: (name, kind, unit, description, attr_keys, res_keys) per
+/// metric and kind. Gauges and sums from the series table (`new`) or the exporter's tables;
+/// distributions (`distributions`) from the exporter's tables.
+fn catalog_sql(new: bool, distributions: bool) -> String {
+    let part = |table: &str, kind: &str| {
+        format!(
+            "SELECT MetricName AS name, '{kind}' AS kind, any(MetricUnit) AS unit, any(MetricDescription) AS description, \
+             arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(Attributes)))) AS attr_keys, \
+             arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(ResourceAttributes)))) AS res_keys \
+             FROM {table} WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY GROUP BY MetricName"
+        )
+    };
+    let mut parts = if new {
+        vec!["SELECT MetricName AS name, toString(MetricType) AS kind, any(MetricUnit) AS unit, any(MetricDescription) AS description, \
+              arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(Attributes)))) AS attr_keys, \
+              arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(ResourceAttributes)))) AS res_keys \
+              FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND MetricType IN ('gauge', 'sum') AND LastSeen > now() - INTERVAL 1 DAY GROUP BY MetricName, MetricType"
+            .to_string()]
+    } else {
+        vec![part("otel.otel_metrics_gauge", "gauge"), part("otel.otel_metrics_sum", "sum")]
+    };
+    if distributions {
+        for d in [Dist::Histogram, Dist::ExpHistogram, Dist::Summary] {
+            parts.push(part(d.table(), d.name()));
+        }
+    }
+    parts.join(" UNION ALL ")
+}
+
+/// Values of the tag `expr` (with its `params`) on metrics in the last day: gauges and sums from
+/// the series table (`new`) or the exporter's tables, histograms from the exporter's table.
+fn tag_values_sql(new: bool, expr: &str, params: &[Param]) -> (String, Vec<Param>) {
+    let sql = if new {
+        format!(
+            "SELECT DISTINCT v FROM (\
+               SELECT toString({expr}) AS v FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND MetricType IN ('gauge', 'sum') AND LastSeen > now() - INTERVAL 1 DAY \
+               UNION ALL SELECT toString({expr}) AS v FROM otel.otel_metrics_histogram WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY) WHERE v != ''"
+        )
+    } else {
+        format!(
+            "SELECT DISTINCT v FROM (\
+               SELECT toString({expr}) AS v FROM otel.otel_metrics_gauge WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY \
+               UNION ALL SELECT toString({expr}) AS v FROM otel.otel_metrics_sum WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY \
+               UNION ALL SELECT toString({expr}) AS v FROM otel.otel_metrics_histogram WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY) WHERE v != ''"
+        )
+    };
+    let n = if new { 2 } else { 3 };
+    (sql, (0..n).flat_map(|_| params.iter().cloned()).collect())
+}
+
 /// Metrics reported in the last day plus the span-derived `trace.*` metrics.
 #[utoipa::path(get, path = "/api/v1/metrics", responses((status = 200, body = Vec<MetricCatalogEntry>)), tag = "metrics")]
 pub async fn catalog(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<Vec<MetricCatalogEntry>> {
@@ -755,22 +853,9 @@ pub async fn catalog(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult
         attr_keys: Vec<String>,
         res_keys: Vec<String>,
     }
-    let part = |table: &str, kind: &str| {
-        format!(
-            "SELECT MetricName AS name, '{kind}' AS kind, any(MetricUnit) AS unit, any(MetricDescription) AS description, \
-             arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(Attributes)))) AS attr_keys, \
-             arrayDistinct(arrayFlatten(groupUniqArray(mapKeys(ResourceAttributes)))) AS res_keys \
-             FROM {table} WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY GROUP BY MetricName"
-        )
-    };
-    let sql = [
-        part("otel.otel_metrics_gauge", "gauge"),
-        part("otel.otel_metrics_sum", "sum"),
-        part(Dist::Histogram.table(), Dist::Histogram.name()),
-        part(Dist::ExpHistogram.table(), Dist::ExpHistogram.name()),
-        part(Dist::Summary.table(), Dist::Summary.name()),
-    ]
-    .join(" UNION ALL ");
+    // The series table once the new storage has the whole last day.
+    let new = storage_start(&st, &org).await?.is_some_and(|start| start <= now_ms() - 86_400_000);
+    let sql = catalog_sql(new, true);
     let rows = st.ch(&org).query(&sql).fetch_all::<Entry>().await?;
     let mut out: Vec<MetricCatalogEntry> = Vec::new();
     for e in rows {
@@ -823,15 +908,9 @@ pub async fn tag_values(State(st): State<AppState>, OrgId(org): OrgId, Path(key)
         return Err(ApiError::BadRequest("invalid tag key".into()));
     }
     let (m_expr, m_params) = metric_field(&key);
-    let mut params = m_params.clone();
-    params.extend(m_params.clone());
-    params.extend(m_params);
-    let mut sql = format!(
-        "SELECT DISTINCT v FROM (\
-           SELECT toString({m_expr}) AS v FROM otel.otel_metrics_gauge WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY \
-           UNION ALL SELECT toString({m_expr}) AS v FROM otel.otel_metrics_sum WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY \
-           UNION ALL SELECT toString({m_expr}) AS v FROM otel.otel_metrics_histogram WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 1 DAY"
-    );
+    let new = storage_start(&st, &org).await?.is_some_and(|start| start <= now_ms() - 86_400_000);
+    let (metrics, mut params) = tag_values_sql(new, &m_expr, &m_params);
+    let mut sql = format!("SELECT DISTINCT v FROM ({metrics}");
     if SPAN_TAGS.contains(&key.as_str()) {
         let (s_expr, s_params) = span_field(&key);
         sql.push_str(&format!(" UNION ALL SELECT toString({s_expr}) AS v FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND Timestamp > now() - INTERVAL 1 HOUR"));
@@ -923,6 +1002,86 @@ mod tests {
                     assert!((o.value - n.value).abs() <= 1e-9 * o.value.abs().max(1.0), "{query} step {step_s} from {source:?} at {}: {} vs {}", o.ts, o.value, n.value);
                 }
             }
+        }
+    }
+
+    /// Readers that query points directly (hosts, Kubernetes), the metric catalog and tag values
+    /// give the same rows from the exporter's tables and from series + samples. Skipped unless
+    /// OC_TEST_CLICKHOUSE_URL is set (see above).
+    #[tokio::test]
+    async fn direct_readers_match_the_exporter_tables() {
+        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
+            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
+            return;
+        };
+        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+        let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
+        oc_store::migrate_clickhouse(&cfg, false).await.expect("migrate");
+        let org = format!("readers-{}", std::process::id());
+        let now = now_ms();
+        // Open-ended like the `now() - INTERVAL` readers: points written after `now` count too.
+        let (from, to) = (now - 15 * 60_000, now + OPEN_END_MS);
+        let ch = with_window(clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_option("param_oc_org", &org), from, to);
+
+        // Two hosts with CPU by state and memory, pods with a process metric (sum), over 10 minutes.
+        let gauge = format!(
+            "SELECT map('oc.org_id', '{org}', 'host.name', concat('i-0a1b2c3d4e5f6000', toString(number % 2)), 'k8s.pod.name', concat('storefront-', toString(number % 4)), 'cloud.region', 'eu-west-1') AS ResourceAttributes, \
+             'storefront-api' AS ServiceName, if(number % 3 = 0, 'system.memory.utilization', 'system.cpu.utilization') AS MetricName, \
+             map('state', ['user', 'idle', 'used'][number % 3 + 1]) AS Attributes, now64(9) - toIntervalSecond(number) AS TimeUnix, (number % 11) / 11 AS Value FROM numbers(600)"
+        );
+        let sum = format!(
+            "SELECT map('oc.org_id', '{org}', 'host.name', 'i-0a1b2c3d4e5f60001', 'process.pid', toString(number % 3)) AS ResourceAttributes, 'order-service' AS ServiceName, \
+             'process.memory.usage' AS MetricName, map() AS Attributes, now64(9) - toIntervalSecond(number) AS TimeUnix, toFloat64(number * 1000) AS Value, 2 AS AggregationTemporality, false AS IsMonotonic FROM numbers(300)"
+        );
+        for (table, select) in [("gauge", &gauge), ("sum", &sum)] {
+            let cols = "ResourceAttributes, ServiceName, MetricName, Attributes, TimeUnix, Value";
+            let cols = if table == "sum" { format!("{cols}, AggregationTemporality, IsMonotonic") } else { cols.to_string() };
+            for target in [format!("otel.otel_metrics_{table}"), format!("otel.metrics_ingest_{table}")] {
+                ch.query(&format!("INSERT INTO {target} ({cols}) SELECT {cols} FROM ({select})")).execute().await.unwrap_or_else(|e| panic!("{target}: {e}"));
+            }
+        }
+
+        async fn rows(ch: &clickhouse::Client, sql: &str) -> Vec<String> {
+            ch.query(&format!("SELECT toString(tuple(*)) FROM ({sql}) ORDER BY 1")).fetch_all::<String>().await.unwrap_or_else(|e| panic!("{sql}: {e}"))
+        }
+        // Shaped like the host list and the Kubernetes pod usage queries.
+        let host_query = |src: &str| {
+            format!(
+                "SELECT ResourceAttributes['host.name'] AS name, ServiceName, round(avgIf(Value, Attributes['state'] = 'user'), 9) AS user, count() AS n, \
+                 toJSONString(mapSort(mapFilter((k, v) -> NOT startsWith(k, 'oc.'), argMax(ResourceAttributes, TimeUnix)))) AS res \
+                 FROM {src} WHERE OrgId = {{oc_org:String}} AND MetricName IN ('system.cpu.utilization', 'system.memory.utilization') \
+                 AND TimeUnix >= fromUnixTimestamp64Milli({{oc_from:Int64}}) GROUP BY name, ServiceName"
+            )
+        };
+        let pod_query = |src: &str| format!("SELECT ResourceAttributes['k8s.pod.name'] AS pod, round(avg(Value), 9) AS cpu FROM {src} WHERE OrgId = {{oc_org:String}} AND MetricName = 'system.cpu.utilization' AND TimeUnix > now() - INTERVAL 15 MINUTE GROUP BY pod");
+        let process_query = |src: &str| format!("SELECT ResourceAttributes['process.pid'] AS pid, argMax(Value, TimeUnix) AS mem FROM {src} WHERE OrgId = {{oc_org:String}} AND MetricName = 'process.memory.usage' GROUP BY pid");
+        let gauges = points_subquery("gauge", &["system.cpu.utilization", "system.memory.utilization"]);
+        let sums = points_subquery("sum", &["process.memory.usage"]);
+        for (old, new) in [
+            (host_query("otel.otel_metrics_gauge"), host_query(&gauges)),
+            (pod_query("otel.otel_metrics_gauge"), pod_query(&gauges)),
+            (process_query("otel.otel_metrics_sum"), process_query(&sums)),
+        ] {
+            let (o, n) = (rows(&ch, &old).await, rows(&ch, &new).await);
+            assert!(!o.is_empty(), "no data: {old}");
+            assert_eq!(o, n, "{new}");
+        }
+
+        // The catalog and tag values (`oc.*` resource keys are the org's stamps, not tags).
+        let catalog = |new: bool| format!("SELECT name, kind, unit, description, arraySort(arrayFilter(k -> NOT startsWith(k, 'oc.'), attr_keys)), arraySort(arrayFilter(k -> NOT startsWith(k, 'oc.'), res_keys)) FROM ({})", catalog_sql(new, false));
+        assert_eq!(rows(&ch, &catalog(false)).await, rows(&ch, &catalog(true)).await);
+        assert_eq!(rows(&ch, &catalog(true)).await.len(), 3);
+        for key in ["host", "pod_name", "region", "state"] {
+            let (expr, p) = metric_field(key);
+            let values = |new: bool| {
+                let sql = tag_values_sql(new, &expr, &p);
+                let ch = ch.clone();
+                async move { bind(ch.query(&format!("SELECT * FROM ({}) ORDER BY 1", sql.0)), &sql.1).fetch_all::<String>().await.unwrap_or_else(|e| panic!("{}: {e}", sql.0)) }
+            };
+            let (o, n) = (values(false).await, values(true).await);
+            assert!(!o.is_empty(), "no values for {key}");
+            assert_eq!(o, n, "values of {key}");
         }
     }
 

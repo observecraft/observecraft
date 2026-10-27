@@ -20,11 +20,36 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
 
+use super::metrics::{name_list, now_ms, points_source, with_window, OPEN_END_MS};
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, OrgId};
 
 /// Objects are pulled every minute; one not seen for this long has been deleted.
 const STALE_MINUTES: u32 = 3;
+/// Usage gauges: OpenTelemetry (kubeletstats; the `usage` names are the newer spellings), the
+/// Datadog Agent's kubelet check, and ECS.
+const K8S_USAGE: &[&str] = &[
+    "k8s.pod.cpu.utilization",
+    "k8s.pod.cpu.usage",
+    "container.cpu.utilization",
+    "container.cpu.usage",
+    "k8s.node.cpu.utilization",
+    "k8s.node.cpu.usage",
+    "k8s.pod.memory.working_set",
+    "container.memory.working_set",
+    "k8s.node.memory.working_set",
+];
+const DD_USAGE: &[&str] = &["kubernetes.cpu.usage.total", "kubernetes.memory.working_set"];
+const ECS_USAGE: &[&str] = &[
+    "ecs.task.cpu.reserved",
+    "container.cpu.reserved",
+    "ecs.task.memory.reserved",
+    "container.memory.reserved",
+    "ecs.task.cpu.usage.vcpu",
+    "container.cpu.usage.vcpu",
+    "ecs.task.memory.usage",
+    "container.memory.usage",
+];
 const MAX_OBJECTS: u64 = 50_000;
 
 /// The resource types of the explorer's "Select Resources" menu.
@@ -438,19 +463,25 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
              WHERE OrgId = {{oc_org:String}} AND LastSeen > now64(3) - INTERVAL {STALE_MINUTES} MINUTE LIMIT {MAX_OBJECTS}"
         ))
         .fetch_all::<Obj>();
+    // Points of the last 15 minutes (5 for processes), from the new storage once it has them.
+    let now = now_ms();
+    let (recent, procs_from, end) = (now - 15 * 60_000, now - 5 * 60_000, now + OPEN_END_MS);
+    let usage_src = points_source(st, org, "gauge", K8S_USAGE, recent).await?;
+    let dd_src = points_source(st, org, "gauge", DD_USAGE, recent).await?;
+    let ecs_src = points_source(st, org, "gauge", ECS_USAGE, recent).await?;
+    let proc_cpu_src = points_source(st, org, "gauge", &["process.cpu.utilization"], procs_from).await?;
+    let proc_mem_src = points_source(st, org, "sum", &["process.memory.usage"], procs_from).await?;
     // Pod, container and node gauges in one pass; the `usage` names are the newer spellings.
-    let usage = st
-        .ch(org)
-        .query(
+    let usage = with_window(st.ch(org), recent, end)
+        .query(&format!(
             "SELECT ResourceAttributes['k8s.cluster.name'] AS cluster, ResourceAttributes['k8s.node.name'] AS node, ResourceAttributes['k8s.pod.uid'] AS pod, \
              ResourceAttributes['k8s.container.name'] AS container, \
              ifNotFinite(avgIf(Value, MetricName IN ('k8s.pod.cpu.utilization', 'k8s.pod.cpu.usage', 'container.cpu.utilization', 'container.cpu.usage', 'k8s.node.cpu.utilization', 'k8s.node.cpu.usage')), -1) AS cpu, \
              ifNotFinite(avgIf(Value, MetricName IN ('k8s.pod.memory.working_set', 'container.memory.working_set', 'k8s.node.memory.working_set')), -1) AS mem \
-             FROM otel.otel_metrics_gauge WHERE OrgId = {oc_org:String} AND TimeUnix > now() - INTERVAL 15 MINUTE AND MetricName IN \
-             ('k8s.pod.cpu.utilization', 'k8s.pod.cpu.usage', 'container.cpu.utilization', 'container.cpu.usage', 'k8s.node.cpu.utilization', 'k8s.node.cpu.usage', \
-              'k8s.pod.memory.working_set', 'container.memory.working_set', 'k8s.node.memory.working_set') \
+             FROM {usage_src} WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 15 MINUTE AND MetricName IN ({names}) \
              GROUP BY cluster, node, pod, container",
-        )
+            names = name_list(K8S_USAGE),
+        ))
         .fetch_all::<Usage>();
     // The Datadog Agent's kubelet check: per-container nanocores and bytes, tagged with the pod's
     // namespace and name (no uid); node-level rows have no pod.
@@ -464,38 +495,36 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         cpu: f64,
         mem: f64,
     }
-    let dd_usage = st
-        .ch(org)
-        .query(
+    let dd_usage = with_window(st.ch(org), recent, end)
+        .query(&format!(
             "SELECT ResourceAttributes['k8s.cluster.name'] AS cluster, ResourceAttributes['host.name'] AS node, \
              ResourceAttributes['k8s.namespace.name'] AS namespace, ResourceAttributes['k8s.pod.name'] AS pod, ResourceAttributes['k8s.container.name'] AS container, \
              ifNotFinite(avgIf(Value / 1e9, MetricName = 'kubernetes.cpu.usage.total'), -1) AS cpu, \
              ifNotFinite(avgIf(Value, MetricName = 'kubernetes.memory.working_set'), -1) AS mem \
-             FROM otel.otel_metrics_gauge WHERE OrgId = {oc_org:String} AND TimeUnix > now() - INTERVAL 15 MINUTE \
-             AND MetricName IN ('kubernetes.cpu.usage.total', 'kubernetes.memory.working_set') \
+             FROM {dd_src} WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 15 MINUTE \
+             AND MetricName IN ({names}) \
              GROUP BY cluster, node, namespace, pod, container",
-        )
+            names = name_list(DD_USAGE),
+        ))
         .fetch_all::<DdUsage>();
     // ECS task and container gauges (vCPU, MiB reservations; vCPU and bytes used).
-    let ecs = st
-        .ch(org)
-        .query(
+    let ecs = with_window(st.ch(org), recent, end)
+        .query(&format!(
             "SELECT ResourceAttributes['aws.ecs.task.arn'] AS arn, ResourceAttributes['container.name'] AS container, toJSONString(any(ResourceAttributes)) AS res_json, \
              toUnixTimestamp64Milli(max(TimeUnix)) AS seen, \
              maxIfOrNull(Value, MetricName IN ('ecs.task.cpu.reserved', 'container.cpu.reserved')) AS cpu_reserved, \
              maxIfOrNull(Value, MetricName IN ('ecs.task.memory.reserved', 'container.memory.reserved')) AS mem_reserved, \
              avgIfOrNull(Value, MetricName IN ('ecs.task.cpu.usage.vcpu', 'container.cpu.usage.vcpu')) AS cpu, \
              avgIfOrNull(Value, MetricName IN ('ecs.task.memory.usage', 'container.memory.usage')) AS mem \
-             FROM otel.otel_metrics_gauge WHERE OrgId = {oc_org:String} AND TimeUnix > now() - INTERVAL 15 MINUTE \
-             AND MetricName IN ('ecs.task.cpu.reserved', 'container.cpu.reserved', 'ecs.task.memory.reserved', 'container.memory.reserved', \
-               'ecs.task.cpu.usage.vcpu', 'container.cpu.usage.vcpu', 'ecs.task.memory.usage', 'container.memory.usage') \
+             FROM {ecs_src} WHERE OrgId = {{oc_org:String}} AND TimeUnix > now() - INTERVAL 15 MINUTE \
+             AND MetricName IN ({names}) \
              AND ResourceAttributes['aws.ecs.task.arn'] != '' GROUP BY arn, container LIMIT 50000",
-        )
+            names = name_list(ECS_USAGE),
+        ))
         .fetch_all::<EcsRow>();
     // Processes: the latest CPU (fraction of a core) and RSS of each (host, pid).
-    let processes = st
-        .ch(org)
-        .query(
+    let processes = with_window(st.ch(org), procs_from, end)
+        .query(&format!(
             "SELECT ResourceAttributes['host.name'] AS host, ResourceAttributes['process.pid'] AS pid, \
              any(ResourceAttributes['process.executable.name']) AS exe, any(ResourceAttributes['process.command_line']) AS cmdline, \
              any(ResourceAttributes['process.owner']) AS user, any(ResourceAttributes['process.create_time']) AS created, \
@@ -504,10 +533,10 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
              ifNotFinite(argMaxIf(Value, TimeUnix, MetricName = 'process.cpu.utilization'), 0) AS cpu, \
              ifNotFinite(argMaxIf(Value, TimeUnix, MetricName = 'process.memory.usage'), 0) AS rss, toInt64(toUnixTimestamp64Milli(max(TimeUnix))) AS seen \
              FROM ( \
-               SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM otel.otel_metrics_gauge WHERE OrgId = {oc_org:String} AND MetricName = 'process.cpu.utilization' AND TimeUnix > now() - INTERVAL 5 MINUTE \
-               UNION ALL SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM otel.otel_metrics_sum WHERE OrgId = {oc_org:String} AND MetricName = 'process.memory.usage' AND TimeUnix > now() - INTERVAL 5 MINUTE) \
-             WHERE pid != '' GROUP BY host, pid LIMIT 50000",
-        )
+               SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM {proc_cpu_src} WHERE OrgId = {{oc_org:String}} AND MetricName = 'process.cpu.utilization' AND TimeUnix > now() - INTERVAL 5 MINUTE \
+               UNION ALL SELECT ResourceAttributes, MetricName, Value, TimeUnix FROM {proc_mem_src} WHERE OrgId = {{oc_org:String}} AND MetricName = 'process.memory.usage' AND TimeUnix > now() - INTERVAL 5 MINUTE) \
+             WHERE pid != '' GROUP BY host, pid LIMIT 50000"
+        ))
         .fetch_all::<ProcRow>();
     let host_cpus = sqlx::query_as::<_, (String, i32)>(
         "SELECT host, cpu_cores FROM datadog_hosts WHERE org_id = $1 AND cpu_cores IS NOT NULL",
