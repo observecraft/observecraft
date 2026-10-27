@@ -127,7 +127,6 @@ pub(crate) type StatedIssue = (IssueGroup, String, bool);
 
 /// Issues with their status (`for_review` unless saved) and whether they regressed (resolved, then
 /// seen again after the resolution), filtered to `state` (or `all`), and the totals per state.
-
 pub(crate) fn apply_states(issues: Vec<IssueGroup>, saved: &HashMap<String, Saved>, state: &str) -> (Vec<StatedIssue>, HashMap<String, usize>) {
     let mut totals: HashMap<String, usize> = STATES.iter().map(|s| (s.to_string(), 0)).collect();
     totals.insert("all".into(), issues.len());
