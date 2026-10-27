@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { convertDashboard, metricDescriptions, metricUnits, PINNED_REVISION } from './import-integration-dashboards.mjs';
+import { convertDashboard, convertMonitor, metricDescriptions, metricUnits, PINNED_REVISION } from './import-integration-dashboards.mjs';
 import { formula, metricPlan, preparePanelQuery, timeShifts } from '../web/src/api/integrations/evaluate.ts';
 import { byteAxisInterval, formatMetricValue } from '../web/src/api/integrations/units.ts';
 import { changeRows } from '../web/src/api/integrations/change.ts';
@@ -528,4 +528,34 @@ test('metric descriptions come from metadata.csv, one line each', () => {
     ['kubernetes.cpu.usage.total', 'The number of cores used by the host, in nanocores'],
     ['kubernetes.pods.running', 'The number of running pods'],
   ]);
+});
+
+test('recommended monitors from integrations-core become templates; ones our monitors cannot express are skipped', () => {
+  const crash = convertMonitor(
+    {
+      name: 'Pod {{pod_name.name}} is CrashloopBackOff',
+      message: 'pod {{pod_name.name}} is in CrashloopBackOff',
+      query: 'max(last_10m):default_zero(max:kubernetes_state.container.status_report.count.waiting{reason:crashloopbackoff} by {kube_cluster_name,kube_namespace,pod_name}) >= 1',
+      options: { thresholds: { critical: 1 } },
+    },
+    'kubernetes',
+    'Pod is in a CrashloopBackOff state',
+  );
+  assert.equal(crash.query, 'max:kubernetes_state.container.status_report.count.waiting{reason:crashloopbackoff} by {kube_cluster_name,kube_namespace,pod_name}');
+  assert.deepEqual(
+    { ...crash.options, thresholds: crash.options.thresholds.critical },
+    { detection: 'threshold', timeAggregation: 'max', windowMinutes: 10, comparator: 'above_or_equal', thresholds: 1, notifyNoData: false, noDataMinutes: 10, changeMode: null, changeMinutes: null },
+  );
+  assert.equal(crash.source, 'KUBERNETES');
+  assert.equal(crash.title, 'Pod is in a CrashloopBackOff state');
+
+  const restarts = convertMonitor(
+    { name: 'r', message: '', query: 'change(max(last_5m),last_5m):sum:kubernetes.containers.restarts{*} by {kube_cluster_name,pod_name} > 5', options: { thresholds: { critical: 5, warning: 3 } } },
+    'kubernetes',
+    'Pods are restarting',
+  );
+  assert.deepEqual([restarts.options.detection, restarts.options.changeMode, restarts.options.changeMinutes, restarts.options.thresholds.warning], ['change', 'change', 5, 3]);
+
+  // Arithmetic between queries isn't a single monitor query.
+  assert.equal(convertMonitor({ name: 'd', message: '', query: 'avg(last_15m):avg:a.b{*} by {x} - avg:c.d{*} by {x} >= 2', options: { thresholds: { critical: 2 } } }, 'kubernetes', 'd'), null);
 });

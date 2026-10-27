@@ -1,5 +1,6 @@
 // Built-in monitor templates: a query, thresholds and a message to start from.
 import type { MonitorOptions, MonitorType } from '../../api/monitors/client';
+import { KUBERNETES_TEMPLATES } from './kubernetesTemplates.generated';
 
 export interface MonitorTemplate {
   id: string;
@@ -171,6 +172,8 @@ export const TEMPLATES: MonitorTemplate[] = [
     message: '{{service.name}} stopped receiving requests.',
     keywords: ['availability', 'down', 'outage', 'uptime', 'heartbeat', 'dead'],
   },
+  // integrations-core's recommended monitors (generated, BSD-3-Clause).
+  ...KUBERNETES_TEMPLATES,
 ];
 
 /** Picks templates for a plain-language request ("I want to monitor my checkout latency"). */
