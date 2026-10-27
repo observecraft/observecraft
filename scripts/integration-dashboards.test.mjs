@@ -590,3 +590,12 @@ test('event list rows show the text without Markdown markers', async () => {
     '42 FailedGetResourceMetric: failed to get cpu docs Events emitted by the hpa',
   );
 });
+
+test('monitor templates: valid queries, and host templates use the metrics the Datadog Agent sends', () => {
+  // templates.ts imports without extensions (Vite), so read its templates' ids, types and queries as text.
+  const source = readFileSync(new URL('../web/src/pages/monitors/templates.ts', import.meta.url), 'utf8');
+  const templates = [...source.matchAll(/id: '([^']+)',[\s\S]*?type: '(\w+)',[\s\S]*?query: '([^']+)'/g)].map(([, id, type, query]) => ({ id, type, query }));
+  assert.ok(templates.length >= 5);
+  for (const t of templates.filter((t) => t.type !== 'log')) assert.ok(formulaQueries(t.query), `${t.id}: ${t.query}`);
+  assert.equal(templates.find((t) => t.id === 'mem-high').query, '100 - avg:system.mem.pct_usable{*} by {host} * 100');
+});
