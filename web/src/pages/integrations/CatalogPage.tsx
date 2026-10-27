@@ -1,4 +1,5 @@
 import { useCallback, useDeferredValue } from 'react';
+import { API_MODE } from '../../api/http';
 import { useSearchParams } from 'react-router-dom';
 import { CircleHelp } from 'lucide-react';
 import type { IntegrationStatus, IntegrationSummary } from '../../api/integrations/types';
@@ -18,7 +19,14 @@ const STATUSES: Option<IntegrationStatus | 'all'>[] = [
 ];
 
 const SECTIONS: { title: string; hint?: string; match: (s: IntegrationStatus) => boolean }[] = [
-  { title: 'Autodetected Integrations', hint: 'Software running on your hosts that has an integration but is not configured yet.', match: (s) => s === 'detected' },
+  {
+    title: 'Autodetected Integrations',
+    hint:
+      API_MODE === 'live'
+        ? 'Matching integration metrics received by this organization in the last 24 hours. This does not verify collector installation or health.'
+        : 'Software running on your hosts that has an integration but is not configured yet.',
+    match: (s) => s === 'detected',
+  },
   { title: 'Installed', match: (s) => s === 'installed' || s === 'warning' },
   { title: 'Available', match: (s) => s === 'available' },
 ];
@@ -64,7 +72,9 @@ export function CatalogPage() {
       ) : catalog.isError ? (
         <ErrorState error={catalog.error} onRetry={() => catalog.refetch()} />
       ) : items.length === 0 ? (
-        <Empty>No integrations match “{query}”{category ? ` in ${category}` : ''}.</Empty>
+        <Empty>
+          No integrations match “{query}”{category ? ` in ${category}` : ''}.
+        </Empty>
       ) : (
         <div className={catalog.isPlaceholderData ? 'is-stale' : undefined}>
           {SECTIONS.map((s) => {

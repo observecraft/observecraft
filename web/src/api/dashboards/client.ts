@@ -6,6 +6,8 @@ import * as metrics from '../mock/metricsEngine';
 import type { components } from '../generated/schema';
 import { API_MODE, get, patch, post, postTo } from '../http';
 import type { TimeRange } from '../types';
+import { postStream } from '../http';
+import type { DashboardMetricQuery, DashboardQueryFrame } from './execution';
 import type {
   CreateDashboardRequest,
   Dashboard,
@@ -111,9 +113,9 @@ export const mockUser = (): User => dash.CURRENT_USER;
 
 // ---------------------------------------------------------------- metric queries
 
-export async function queryTimeseries(req: TimeseriesRequest): Promise<MetricSeries[]> {
+export async function queryTimeseries(req: TimeseriesRequest, signal?: AbortSignal): Promise<MetricSeries[]> {
   if (!live) return metrics.queryTimeseries(req);
-  return post('/api/v1/query/timeseries', req);
+  return post('/api/v1/query/timeseries', req, signal);
 }
 
 export async function queryScalar(req: ScalarRequest): Promise<number> {
@@ -131,9 +133,59 @@ export async function queryDistribution(req: { query: string; range: TimeRange }
   return post('/api/v1/query/distribution', req);
 }
 
-export async function metricCatalog(): Promise<MetricCatalogEntry[]> {
+export async function metricCatalog(signal?: AbortSignal): Promise<MetricCatalogEntry[]> {
   if (!live) return metrics.metricCatalog();
-  return (await get('/api/v1/metrics', {})).map((m) => ({ ...m, unit: m.unit ?? undefined }));
+  return (await get('/api/v1/metrics', {}, signal)).map((m) => ({ ...m, unit: m.unit ?? undefined }));
+}
+
+export async function queryDashboard(queries: DashboardMetricQuery[], range: TimeRange, signal?: AbortSignal): Promise<DashboardQueryFrame> {
+  if (live) return post('/api/v1/query/dashboard', { queries, range }, signal);
+  const catalog = await metrics.metricCatalog();
+  return {
+    range,
+    data_scans: 0,
+    unique_queries: queries.length,
+    error: null,
+    results: await Promise.all(
+      queries.map(async (q) => {
+        try {
+          const name = /:([^{}]+)\{/.exec(q.query)?.[1];
+          return {
+            id: q.id,
+            series: await metrics.queryTimeseries({ queries: [q.query.replace(/\.weighted\(\)$/, '')], range, points: q.points }),
+            kind: catalog.find((m) => m.name === name)?.kind ?? 'gauge',
+            unit: catalog.find((m) => m.name === name)?.unit,
+            step_ms: Math.max(10000, (range.to - range.from) / q.points),
+            replace_from: range.from,
+            error: null,
+          };
+        } catch (error) {
+          return { id: q.id, series: [], kind: 'unknown', step_ms: 10000, replace_from: range.from, error: error instanceof Error ? error.message : 'Query failed' };
+        }
+      }),
+    ),
+  };
+}
+
+export async function streamDashboard(queries: DashboardMetricQuery[], range: TimeRange, onFrame: (frame: DashboardQueryFrame, snapshot: boolean) => void, signal: AbortSignal): Promise<void> {
+  if (live) return postStream('/api/v1/query/dashboard/live', { queries, range }, (event, frame) => onFrame(frame, event === 'snapshot'), signal);
+  const duration = range.to - range.from;
+  while (!signal.aborted) {
+    const to = Date.now();
+    const frame = await queryDashboard(queries, { from: to - duration, to }, signal);
+    if (signal.aborted) return;
+    onFrame(frame, true);
+    if (signal.aborted) return;
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', done);
+        resolve();
+      };
+      const timer = setTimeout(done, 10000);
+      signal.addEventListener('abort', done, { once: true });
+    });
+  }
 }
 
 export async function tagValues(key: string): Promise<string[]> {

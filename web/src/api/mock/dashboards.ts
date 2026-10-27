@@ -18,11 +18,12 @@ import { parseQuery } from '../../lib/searchQuery';
 import { rng } from './generator';
 import { matchesTerms } from './match';
 import { monitorEntities } from './metricsEngine';
+import { integrationDashboards } from '../integrations/dashboards';
 
 // Bump the version when seed definitions change so stale copies are replaced.
 const STORAGE_KEY = 'oc.mock.dashboards.v5';
 const DAY = 86400e3;
-const delay = <T,>(v: T, ms = 80 + Math.random() * 140) => new Promise<T>((r) => setTimeout(() => r(structuredClone(v)), ms));
+const delay = <T>(v: T, ms = 80 + Math.random() * 140) => new Promise<T>((r) => setTimeout(() => r(structuredClone(v)), ms));
 
 export const CURRENT_USER: User = { id: 'u-1', name: 'Alex Morgan' };
 const AUTHORS: User[] = [CURRENT_USER, { id: 'u-2', name: 'Priya Shah' }, { id: 'u-3', name: 'Daniel Kim' }, { id: 'u-4', name: 'Sara Levi' }, { id: 'u-5', name: 'Omar Haddad' }];
@@ -107,12 +108,57 @@ function k8sDeployments(): Omit<Dashboard, keyof DashboardMeta> {
             W(qv('Desired', `sum:kubernetes_state.deployment.replicas_desired${F}`, { formats: [{ comparator: '>=', value: 0, palette: 'green' }] }), 6, 0, 3, 4),
             W(qv('Available', `sum:kubernetes_state.deployment.replicas_available${F}`, { formats: [{ comparator: '>=', value: 0, palette: 'green' }] }), 9, 0, 3, 4),
             W(qv('Updated', `sum:kubernetes_state.deployment.replicas_updated${F}`, { formats: [{ comparator: '>=', value: 0, palette: 'green' }] }), 0, 4, 3, 4),
-            W(qv('Unavailable', `sum:kubernetes_state.deployment.replicas_unavailable${F}`, { formats: [{ comparator: '>', value: 0, palette: 'red' }, { comparator: '<=', value: 0, palette: 'green' }] }), 3, 4, 3, 4),
-            W(qv('Desired Not Available', `sum:kubernetes_state.deployment.replicas_desired_not_available${F}`, { formats: [{ comparator: '>', value: 0, palette: 'red' }, { comparator: '<=', value: 0, palette: 'green' }] }), 6, 4, 3, 4),
-            W(qv('Outdated', `sum:kubernetes_state.deployment.outdated${F}`, { formats: [{ comparator: '>', value: 0, palette: 'yellow' }, { comparator: '<=', value: 0, palette: 'green' }] }), 9, 4, 3, 4),
+            W(
+              qv('Unavailable', `sum:kubernetes_state.deployment.replicas_unavailable${F}`, {
+                formats: [
+                  { comparator: '>', value: 0, palette: 'red' },
+                  { comparator: '<=', value: 0, palette: 'green' },
+                ],
+              }),
+              3,
+              4,
+              3,
+              4,
+            ),
+            W(
+              qv('Desired Not Available', `sum:kubernetes_state.deployment.replicas_desired_not_available${F}`, {
+                formats: [
+                  { comparator: '>', value: 0, palette: 'red' },
+                  { comparator: '<=', value: 0, palette: 'green' },
+                ],
+              }),
+              6,
+              4,
+              3,
+              4,
+            ),
+            W(
+              qv('Outdated', `sum:kubernetes_state.deployment.outdated${F}`, {
+                formats: [
+                  { comparator: '>', value: 0, palette: 'yellow' },
+                  { comparator: '<=', value: 0, palette: 'green' },
+                ],
+              }),
+              9,
+              4,
+              3,
+              4,
+            ),
             W(ts('Deployments', [`sum:kubernetes_state.deployment.count${F}`]), 0, 8, 6, 5),
             W(ts('Replicas per Deployments', [`sum:kubernetes_state.deployment.replicas${BY}`]), 6, 8, 6, 5),
-            W({ type: 'change', title: 'Replicas per Deployments', request: { query: `sum:kubernetes_state.deployment.replicas{$kube_cluster_name,$kube_namespace} by {kube_cluster_name,kube_namespace,kube_deployment}` }, aggregator: 'avg', limit: 20 }, 0, 13, 6, 6),
+            W(
+              {
+                type: 'change',
+                title: 'Replicas per Deployments',
+                request: { query: `sum:kubernetes_state.deployment.replicas{$kube_cluster_name,$kube_namespace} by {kube_cluster_name,kube_namespace,kube_deployment}` },
+                aggregator: 'avg',
+                limit: 20,
+              },
+              0,
+              13,
+              6,
+              6,
+            ),
             W(ts('Replicas Desired but Not Available', [`sum:kubernetes_state.deployment.replicas_desired_not_available${BY}`], 'area', { stacked: true }), 6, 13, 6, 6),
           ],
         },
@@ -153,7 +199,17 @@ function monitorNotifications(): Omit<Dashboard, keyof DashboardMeta> {
     templateVariables: [tv('env'), tv('monitor_name'), tv('service'), tv('team'), tv('monitor_id')],
     widgets: [
       W(note('### ⚡ LIVE Monitor Status', { align: 'center' }), 0, 0, 6, 2),
-      W(note('This is a live status summary of your current monitors. This widget is always showing real-time data independent of the dashboard time frame.', { background: 'yellow', align: 'center', pointer: true }), 0, 2, 6, 3),
+      W(
+        note('This is a live status summary of your current monitors. This widget is always showing real-time data independent of the dashboard time frame.', {
+          background: 'yellow',
+          align: 'center',
+          pointer: true,
+        }),
+        0,
+        2,
+        6,
+        3,
+      ),
       W({ type: 'monitor_summary', query: '' }, 0, 5, 6, 12),
       W(
         {
@@ -161,10 +217,38 @@ function monitorNotifications(): Omit<Dashboard, keyof DashboardMeta> {
           title: 'Notifications Overview',
           color: 'purple',
           widgets: [
-            W(note('"Notifications" are created every time a Monitor changes status. These widgets follow the global timeframe, allowing you to compare trends over time.', { background: 'yellow', align: 'center', pointer: true }), 0, 0, 12, 3),
-            W(qv('Alert Events', `sum:observecraft.monitor.notifications{status:alert,${F.slice(1)}`, { aggregator: 'sum', fill: true, formats: [{ comparator: '>=', value: 0, palette: 'red' }] }), 0, 3, 4, 3),
-            W(qv('Warn Events', `sum:observecraft.monitor.notifications{status:warn,${F.slice(1)}`, { aggregator: 'sum', fill: true, formats: [{ comparator: '>=', value: 0, palette: 'yellow' }] }), 4, 3, 4, 3),
-            W(qv('OK Events', `sum:observecraft.monitor.notifications{status:ok,${F.slice(1)}`, { aggregator: 'sum', fill: true, formats: [{ comparator: '>=', value: 0, palette: 'green' }] }), 8, 3, 4, 3),
+            W(
+              note('"Notifications" are created every time a Monitor changes status. These widgets follow the global timeframe, allowing you to compare trends over time.', {
+                background: 'yellow',
+                align: 'center',
+                pointer: true,
+              }),
+              0,
+              0,
+              12,
+              3,
+            ),
+            W(
+              qv('Alert Events', `sum:observecraft.monitor.notifications{status:alert,${F.slice(1)}`, { aggregator: 'sum', fill: true, formats: [{ comparator: '>=', value: 0, palette: 'red' }] }),
+              0,
+              3,
+              4,
+              3,
+            ),
+            W(
+              qv('Warn Events', `sum:observecraft.monitor.notifications{status:warn,${F.slice(1)}`, { aggregator: 'sum', fill: true, formats: [{ comparator: '>=', value: 0, palette: 'yellow' }] }),
+              4,
+              3,
+              4,
+              3,
+            ),
+            W(
+              qv('OK Events', `sum:observecraft.monitor.notifications{status:ok,${F.slice(1)}`, { aggregator: 'sum', fill: true, formats: [{ comparator: '>=', value: 0, palette: 'green' }] }),
+              8,
+              3,
+              4,
+              3,
+            ),
             W(
               {
                 type: 'timeseries',
@@ -252,8 +336,30 @@ function k8sPods(): Omit<Dashboard, keyof DashboardMeta> {
     templateVariables: [tv('kube_cluster_name'), tv('kube_namespace')],
     widgets: [
       W(qv('Running pods', `sum:kubernetes_state.pod.running${F}`, { formats: [{ comparator: '>=', value: 0, palette: 'green' }] }), 0, 0, 4, 4),
-      W(qv('Pending pods', `sum:kubernetes_state.pod.pending${F}`, { formats: [{ comparator: '>', value: 0, palette: 'yellow' }, { comparator: '<=', value: 0, palette: 'green' }] }), 4, 0, 4, 4),
-      W(qv('Failed pods', `sum:kubernetes_state.pod.failed${F}`, { formats: [{ comparator: '>', value: 0, palette: 'red' }, { comparator: '<=', value: 0, palette: 'green' }] }), 8, 0, 4, 4),
+      W(
+        qv('Pending pods', `sum:kubernetes_state.pod.pending${F}`, {
+          formats: [
+            { comparator: '>', value: 0, palette: 'yellow' },
+            { comparator: '<=', value: 0, palette: 'green' },
+          ],
+        }),
+        4,
+        0,
+        4,
+        4,
+      ),
+      W(
+        qv('Failed pods', `sum:kubernetes_state.pod.failed${F}`, {
+          formats: [
+            { comparator: '>', value: 0, palette: 'red' },
+            { comparator: '<=', value: 0, palette: 'green' },
+          ],
+        }),
+        8,
+        0,
+        4,
+        4,
+      ),
       W(ts('Running pods by namespace', [`sum:kubernetes_state.pod.running${F} by {kube_namespace}`], 'area', { stacked: true }), 0, 4, 8, 6),
       W({ type: 'pie', title: 'Pods by cluster', request: { query: `sum:kubernetes_state.pod.running${F} by {kube_cluster_name}` }, aggregator: 'last' }, 8, 4, 4, 6),
       W({ type: 'treemap', title: 'Memory by namespace', request: { query: `sum:kubernetes.memory.usage${F} by {kube_namespace}` }, aggregator: 'avg' }, 0, 10, 6, 6),
@@ -287,8 +393,38 @@ function serviceOverview(): Omit<Dashboard, keyof DashboardMeta> {
     templateVariables: [tv('env', 'env', 'prod'), tv('service')],
     widgets: [
       W(qv('Requests / s', 'sum:trace.http.request.hits{$env,$service}', { aggregator: 'avg', unit: ' req/s', formats: [{ comparator: '>=', value: 0, palette: 'green' }] }), 0, 0, 3, 4),
-      W(qv('Error rate', 'avg:trace.http.request.error_rate{$env,$service}', { aggregator: 'avg', precision: 2, unit: '%', fill: true, formats: [{ comparator: '>', value: 3, palette: 'red' }, { comparator: '>', value: 1, palette: 'yellow' }, { comparator: '<=', value: 1, palette: 'green' }] }), 3, 0, 3, 4),
-      W(qv('p95 latency', 'avg:trace.http.request.duration.p95{$env,$service}', { aggregator: 'avg', unit: ' ms', formats: [{ comparator: '>', value: 300, palette: 'red' }, { comparator: '>', value: 150, palette: 'yellow' }, { comparator: '<=', value: 150, palette: 'green' }] }), 6, 0, 3, 4),
+      W(
+        qv('Error rate', 'avg:trace.http.request.error_rate{$env,$service}', {
+          aggregator: 'avg',
+          precision: 2,
+          unit: '%',
+          fill: true,
+          formats: [
+            { comparator: '>', value: 3, palette: 'red' },
+            { comparator: '>', value: 1, palette: 'yellow' },
+            { comparator: '<=', value: 1, palette: 'green' },
+          ],
+        }),
+        3,
+        0,
+        3,
+        4,
+      ),
+      W(
+        qv('p95 latency', 'avg:trace.http.request.duration.p95{$env,$service}', {
+          aggregator: 'avg',
+          unit: ' ms',
+          formats: [
+            { comparator: '>', value: 300, palette: 'red' },
+            { comparator: '>', value: 150, palette: 'yellow' },
+            { comparator: '<=', value: 150, palette: 'green' },
+          ],
+        }),
+        6,
+        0,
+        3,
+        4,
+      ),
       W(top('Top hosts by CPU', 'avg:system.cpu.user{*} by {host}', 5), 9, 0, 3, 4),
       W(ts('Requests by service', ['sum:trace.http.request.hits{$env,$service} by {service}']), 0, 4, 6, 6),
       W(ts('p95 latency by service', ['avg:trace.http.request.duration.p95{$env,$service} by {service}'], 'area', { stacked: true }), 6, 4, 6, 6),
@@ -300,7 +436,38 @@ function serviceOverview(): Omit<Dashboard, keyof DashboardMeta> {
 
 type DashboardMeta = Pick<Dashboard, 'id' | 'author' | 'teams' | 'popularity' | 'createdAt' | 'modifiedAt' | 'viewedAt' | 'starred' | 'deletedAt'>;
 
-const GENERIC_NAMES = ['Checkout', 'Business KPIs', 'pager-sync', 'Anomaly Overview - NOC', 'checkout-devops', 'Payments SLOs', 'Checkout funnel', 'Returns intake', 'Subscription renewal', 'Partner portal', 'Mobile app health', 'API Gateway', 'Batch jobs', 'Data pipelines', 'Kafka lag', 'Mongo clusters', 'Redis caches', 'NOC wallboard', 'On-call handover', 'Release health', 'Cost overview', 'Security posture', 'Billing reconciliation', 'Notifications service', 'Search latency', 'Auth service', 'Billing', 'Workflow engine', 'Order backend', 'Web vitals'];
+const GENERIC_NAMES = [
+  'Checkout',
+  'Business KPIs',
+  'pager-sync',
+  'Anomaly Overview - NOC',
+  'checkout-devops',
+  'Payments SLOs',
+  'Checkout funnel',
+  'Returns intake',
+  'Subscription renewal',
+  'Partner portal',
+  'Mobile app health',
+  'API Gateway',
+  'Batch jobs',
+  'Data pipelines',
+  'Kafka lag',
+  'Mongo clusters',
+  'Redis caches',
+  'NOC wallboard',
+  'On-call handover',
+  'Release health',
+  'Cost overview',
+  'Security posture',
+  'Billing reconciliation',
+  'Notifications service',
+  'Search latency',
+  'Auth service',
+  'Billing',
+  'Workflow engine',
+  'Order backend',
+  'Web vitals',
+];
 const INTEGRATION_DASHES: [string, string][] = [
   ['Redis - Overview', 'redis'],
   ['NGINX - Overview', 'nginx'],
@@ -412,6 +579,34 @@ function db(): Store {
       /* storage unavailable */
     }
   }
+  // Add/update bundled integration documents without resetting user-created dashboards.
+  let changed = false;
+  const bundledIds = new Set(integrationDashboards.map((d) => d.id));
+  const retained = store.dashboards.filter((d) => d.kind !== 'integration' || d.logo !== 'kubernetes' || bundledIds.has(d.id));
+  if (retained.length !== store.dashboards.length) {
+    store.dashboards = retained;
+    changed = true;
+  }
+  for (const doc of integrationDashboards) {
+    const existing = store.dashboards.find((d) => d.id === doc.id);
+    if (existing && JSON.stringify(existing.widgets) === JSON.stringify(doc.widgets) && existing.title === doc.title && existing.layoutType === doc.layoutType) continue;
+    const dashboard: Dashboard = {
+      ...doc,
+      id: doc.id,
+      author: null,
+      teams: [],
+      popularity: existing?.popularity ?? 0,
+      createdAt: existing?.createdAt ?? Date.now(),
+      modifiedAt: Date.now(),
+      viewedAt: existing?.viewedAt ?? null,
+      starred: existing?.starred ?? false,
+      deletedAt: existing?.deletedAt ?? null,
+    };
+    if (existing) Object.assign(existing, dashboard);
+    else store.dashboards.push(dashboard);
+    changed = true;
+  }
+  if (changed) persist();
   return store;
 }
 
@@ -522,7 +717,19 @@ export function updateDashboard(id: string, patch: DashboardPatch): Promise<Dash
 export function cloneDashboard(id: string): Promise<Dashboard> {
   const src = find(id);
   const now = Date.now();
-  const copy: Dashboard = { ...structuredClone(src), id: newId(), title: `Clone of ${src.title}`, kind: 'custom', logo: src.logo, author: CURRENT_USER, createdAt: now, modifiedAt: now, viewedAt: now, starred: false, popularity: 0 };
+  const copy: Dashboard = {
+    ...structuredClone(src),
+    id: newId(),
+    title: `Clone of ${src.title}`,
+    kind: 'custom',
+    logo: src.logo,
+    author: CURRENT_USER,
+    createdAt: now,
+    modifiedAt: now,
+    viewedAt: now,
+    starred: false,
+    popularity: 0,
+  };
   db().dashboards.unshift(copy);
   persist();
   return delay(copy);

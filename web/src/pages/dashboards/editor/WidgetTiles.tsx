@@ -1,6 +1,7 @@
 import type { WidgetType } from '../../../api/dashboards/types';
 
 export const WIDGET_LABEL: Record<WidgetType, string> = {
+  integration: 'Integration Panel',
   timeseries: 'Timeseries',
   query_value: 'Query Value',
   toplist: 'Top List',
@@ -78,7 +79,9 @@ export function WidgetIllustration({ type }: { type: WidgetType }) {
       case 'distribution':
         return <polygon points="8,42 18,40 24,30 30,14 36,24 42,32 50,40 56,42" fill={g} />;
       case 'heatmap':
-        return [0, 1, 2, 3].flatMap((r) => [0, 1, 2, 3, 4, 5].map((c) => <rect key={`${r}${c}`} x={8 + c * 8} y={8 + r * 9} width="7" height="8" fill={g} opacity={0.25 + ((r * 3 + c * 5) % 7) / 10} />));
+        return [0, 1, 2, 3].flatMap((r) =>
+          [0, 1, 2, 3, 4, 5].map((c) => <rect key={`${r}${c}`} x={8 + c * 8} y={8 + r * 9} width="7" height="8" fill={g} opacity={0.25 + ((r * 3 + c * 5) % 7) / 10} />),
+        );
       case 'change':
         return (
           <>

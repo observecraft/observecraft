@@ -26,6 +26,7 @@ interface TimeState {
   shift: (direction: -1 | 1) => void;
   zoomOut: () => void;
   refresh: () => void;
+  refreshVersion: number;
 }
 
 const Ctx = createContext<TimeState | null>(null);
@@ -38,6 +39,7 @@ export function TimeProvider({ children, initial = '1h' }: { children: ReactNode
   const [relative, setRel] = useState(() => RELATIVE_RANGES.find((r) => r.key === initial) ?? RELATIVE_RANGES[1]);
   const [to, setTo] = useState(() => Date.now());
   const [live, setLive] = useState(true);
+  const [refreshVersion, setRefreshVersion] = useState(0);
 
   // Live mode slides the window forward every 10s.
   useEffect(() => {
@@ -76,9 +78,13 @@ export function TimeProvider({ children, initial = '1h' }: { children: ReactNode
       setLive,
       shift,
       zoomOut,
-      refresh: () => setTo(live ? Date.now() : to),
+      refresh: () => {
+        setTo(live ? Date.now() : to);
+        setRefreshVersion((v) => v + 1);
+      },
+      refreshVersion,
     }),
-    [relative, to, live, setRelative, shift, zoomOut],
+    [relative, to, live, refreshVersion, setRelative, shift, zoomOut],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

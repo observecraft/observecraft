@@ -56,6 +56,8 @@ use crate::state::AppState;
         apm::anomalies,
         apm::envs,
         metrics::timeseries,
+        metrics::dashboard::dashboard_query,
+        metrics::dashboard::dashboard_live,
         metrics::scalar,
         metrics::grouped,
         metrics::distribution,
@@ -266,6 +268,14 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/apm/anomalies", post(apm::anomalies))
         .route("/api/v1/apm/envs", post(apm::envs))
         .route("/api/v1/query/timeseries", post(metrics::timeseries))
+        .route(
+            "/api/v1/query/dashboard",
+            post(metrics::dashboard::dashboard_query),
+        )
+        .route(
+            "/api/v1/query/dashboard/live",
+            post(metrics::dashboard::dashboard_live),
+        )
         .route("/api/v1/query/scalar", post(metrics::scalar))
         .route("/api/v1/query/grouped", post(metrics::grouped))
         .route("/api/v1/query/distribution", post(metrics::distribution))
@@ -585,6 +595,7 @@ mod tests {
             include_str!("log_indexes.rs"),
             include_str!("logs.rs"),
             include_str!("metrics.rs"),
+            include_str!("metrics/dashboard.rs"),
         ];
         let mut seen = std::collections::HashSet::new();
         for src in sources {
@@ -626,6 +637,7 @@ mod tests {
             ("log_indexes.rs", include_str!("log_indexes.rs")),
             ("logs.rs", include_str!("logs.rs")),
             ("metrics.rs", include_str!("metrics.rs")),
+            ("metrics/dashboard.rs", include_str!("metrics/dashboard.rs")),
             ("monitor_engine.rs", include_str!("monitor_engine.rs")),
             ("monitors.rs", include_str!("monitors.rs")),
             ("spans.rs", include_str!("spans.rs")),

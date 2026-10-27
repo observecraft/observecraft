@@ -13,8 +13,8 @@ use serde_json::{json, Value};
 use sqlx::{Postgres, QueryBuilder};
 use utoipa::{IntoParams, ToSchema};
 
-use crate::auth::Writer;
 use super::monitor_engine::MonitorStatus;
+use crate::auth::Writer;
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, CurrentUser, OrgId};
 
@@ -126,8 +126,15 @@ fn popularity(views: i32) -> u8 {
 impl Row {
     fn summary(self) -> DashboardSummary {
         DashboardSummary {
-            author: self.author_id.map(|id| UserRef { id, name: self.author_name.unwrap_or_default() }),
-            kind: if self.kind == "integration" { DashboardKind::Integration } else { DashboardKind::Custom },
+            author: self.author_id.map(|id| UserRef {
+                id,
+                name: self.author_name.unwrap_or_default(),
+            }),
+            kind: if self.kind == "integration" {
+                DashboardKind::Integration
+            } else {
+                DashboardKind::Custom
+            },
             popularity: popularity(self.view_count),
             id: self.id,
             title: self.title,
@@ -144,8 +151,10 @@ impl Row {
 
     fn dashboard(mut self) -> Dashboard {
         let def = self.definition.take().unwrap_or(Value::Null);
-        let layout_type = serde_json::from_value(def["layoutType"].clone()).unwrap_or(LayoutType::Grid);
-        let template_variables = serde_json::from_value(def["templateVariables"].clone()).unwrap_or_default();
+        let layout_type =
+            serde_json::from_value(def["layoutType"].clone()).unwrap_or(LayoutType::Grid);
+        let template_variables =
+            serde_json::from_value(def["templateVariables"].clone()).unwrap_or_default();
         let widgets = serde_json::from_value(def["widgets"].clone()).unwrap_or_default();
         let s = self.summary();
         Dashboard {
@@ -171,16 +180,27 @@ impl Row {
 
 async fn load(st: &AppState, org: &str, user: &str, id: &str) -> Result<Dashboard, ApiError> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(SELECT);
-    qb.push(", d.definition, NULL::bigint AS total").push(FROM).push_bind(user).push("::uuid WHERE d.org_id = ").push_bind(org).push(" AND d.id = ").push_bind(id);
+    qb.push(", d.definition, NULL::bigint AS total")
+        .push(FROM)
+        .push_bind(user)
+        .push("::uuid WHERE d.org_id = ")
+        .push_bind(org)
+        .push(" AND d.id = ")
+        .push_bind(id);
     let row: Option<Row> = qb.build_query_as().fetch_optional(&st.postgres).await?;
-    row.map(Row::dashboard).ok_or_else(|| ApiError::NotFound(format!("Dashboard {id} not found")))
+    row.map(Row::dashboard)
+        .ok_or_else(|| ApiError::NotFound(format!("Dashboard {id} not found")))
 }
 
 /// Short, URL-friendly ids like `k3x-9vq-2mf`.
 fn new_id() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let n = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos() as u64 ^ SEQ.fetch_add(0x9E37_79B9_7F4A_7C15, std::sync::atomic::Ordering::Relaxed);
+    let n = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64
+        ^ SEQ.fetch_add(0x9E37_79B9_7F4A_7C15, std::sync::atomic::Ordering::Relaxed);
     let mut x = n.wrapping_mul(0xBF58_476D_1CE4_E5B9);
     let alphabet = b"abcdefghijkmnpqrstuvwxyz23456789";
     let mut out = String::new();
@@ -195,7 +215,12 @@ fn new_id() -> String {
 }
 
 fn ilike(s: &str) -> String {
-    format!("%{}%", s.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_"))
+    format!(
+        "%{}%",
+        s.replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_")
+    )
 }
 
 // ================================================================ search
@@ -253,10 +278,23 @@ pub struct DashboardSearchPage {
 
 /// Dashboards matching a preset list, custom list, team and title/author text; starred first.
 #[utoipa::path(post, path = "/api/v1/dashboards/search", operation_id = "search_dashboards", request_body = DashboardSearchRequest, responses((status = 200, body = DashboardSearchPage)), tag = "dashboards")]
-pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(user): CurrentUser, Json(req): Json<DashboardSearchRequest>) -> ApiResult<DashboardSearchPage> {
+pub async fn search(
+    State(st): State<AppState>,
+    OrgId(org): OrgId,
+    CurrentUser(user): CurrentUser,
+    Json(req): Json<DashboardSearchRequest>,
+) -> ApiResult<DashboardSearchPage> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(SELECT);
-    qb.push(", NULL::jsonb AS definition, count(*) OVER () AS total").push(FROM).push_bind(&user).push("::uuid WHERE d.org_id = ").push_bind(&org);
-    qb.push(if req.preset == PresetList::Deleted { " AND d.deleted_at IS NOT NULL" } else { " AND d.deleted_at IS NULL" });
+    qb.push(", NULL::jsonb AS definition, count(*) OVER () AS total")
+        .push(FROM)
+        .push_bind(&user)
+        .push("::uuid WHERE d.org_id = ")
+        .push_bind(&org);
+    qb.push(if req.preset == PresetList::Deleted {
+        " AND d.deleted_at IS NOT NULL"
+    } else {
+        " AND d.deleted_at IS NULL"
+    });
     match req.preset {
         PresetList::Custom => {
             qb.push(" AND d.kind = 'custom'");
@@ -265,7 +303,9 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(u
             qb.push(" AND d.kind = 'integration'");
         }
         PresetList::Mine => {
-            qb.push(" AND d.author_id = ").push_bind(&user).push("::uuid");
+            qb.push(" AND d.author_id = ")
+                .push_bind(&user)
+                .push("::uuid");
         }
         PresetList::Starred => {
             qb.push(" AND s.starred");
@@ -273,7 +313,13 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(u
         PresetList::All | PresetList::Deleted => {}
     }
     if let Some(list) = &req.list_id {
-        qb.push(" AND d.id = ANY(SELECT unnest(dashboard_ids) FROM dashboard_lists WHERE org_id = ").push_bind(&org).push(" AND id = ").push_bind(list).push(")");
+        qb.push(
+            " AND d.id = ANY(SELECT unnest(dashboard_ids) FROM dashboard_lists WHERE org_id = ",
+        )
+        .push_bind(&org)
+        .push(" AND id = ")
+        .push_bind(list)
+        .push(")");
     }
     if let Some(team) = &req.team {
         qb.push(" AND ").push_bind(team).push(" = ANY(d.teams)");
@@ -281,7 +327,11 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(u
     let text = req.query.trim();
     if !text.is_empty() {
         let p = ilike(text);
-        qb.push(" AND (d.title ILIKE ").push_bind(p.clone()).push(" OR u.name ILIKE ").push_bind(p).push(")");
+        qb.push(" AND (d.title ILIKE ")
+            .push_bind(p.clone())
+            .push(" OR u.name ILIKE ")
+            .push_bind(p)
+            .push(")");
     }
     let dir = match req.sort.dir {
         SortDir::Asc => "ASC",
@@ -293,10 +343,16 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(u
         SortField::Popularity => "d.view_count",
     };
     qb.push(format!(" ORDER BY starred DESC, {field} {dir}, d.id"));
-    qb.push(" LIMIT ").push_bind(req.limit.clamp(1, 200)).push(" OFFSET ").push_bind(req.offset.max(0));
+    qb.push(" LIMIT ")
+        .push_bind(req.limit.clamp(1, 200))
+        .push(" OFFSET ")
+        .push_bind(req.offset.max(0));
     let rows: Vec<Row> = qb.build_query_as().fetch_all(&st.postgres).await?;
     let total = rows.first().and_then(|r| r.total).unwrap_or(0);
-    Ok(Json(DashboardSearchPage { total, dashboards: rows.into_iter().map(Row::summary).collect() }))
+    Ok(Json(DashboardSearchPage {
+        total,
+        dashboards: rows.into_iter().map(Row::summary).collect(),
+    }))
 }
 
 #[derive(Deserialize, IntoParams)]
@@ -307,10 +363,22 @@ pub struct RecentParams {
 
 /// Dashboards this user opened most recently.
 #[utoipa::path(get, path = "/api/v1/dashboards/recent", params(RecentParams), responses((status = 200, body = Vec<DashboardSummary>)), tag = "dashboards")]
-pub async fn recent(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(user): CurrentUser, Query(p): Query<RecentParams>) -> ApiResult<Vec<DashboardSummary>> {
+pub async fn recent(
+    State(st): State<AppState>,
+    OrgId(org): OrgId,
+    CurrentUser(user): CurrentUser,
+    Query(p): Query<RecentParams>,
+) -> ApiResult<Vec<DashboardSummary>> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(SELECT);
-    qb.push(", NULL::jsonb AS definition, NULL::bigint AS total").push(FROM).push_bind(&user).push("::uuid WHERE d.org_id = ").push_bind(&org);
-    qb.push(" AND d.deleted_at IS NULL AND s.viewed_at IS NOT NULL ORDER BY s.viewed_at DESC LIMIT ").push_bind(p.limit.unwrap_or(10).clamp(1, 50));
+    qb.push(", NULL::jsonb AS definition, NULL::bigint AS total")
+        .push(FROM)
+        .push_bind(&user)
+        .push("::uuid WHERE d.org_id = ")
+        .push_bind(&org);
+    qb.push(
+        " AND d.deleted_at IS NULL AND s.viewed_at IS NOT NULL ORDER BY s.viewed_at DESC LIMIT ",
+    )
+    .push_bind(p.limit.unwrap_or(10).clamp(1, 50));
     let rows: Vec<Row> = qb.build_query_as().fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(Row::summary).collect()))
 }
@@ -319,8 +387,19 @@ pub async fn recent(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(u
 
 /// Opens a dashboard: also records the view (recently viewed, popularity).
 #[utoipa::path(get, path = "/api/v1/dashboards/{id}", params(("id" = String, Path)), responses((status = 200, body = Dashboard), (status = 404, body = crate::error::ErrorBody)), tag = "dashboards")]
-pub async fn get_one(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(user): CurrentUser, Path(id): Path<String>) -> ApiResult<Dashboard> {
-    let updated = sqlx::query("UPDATE dashboards SET view_count = view_count + 1 WHERE org_id = $1 AND id = $2").bind(&org).bind(&id).execute(&st.postgres).await?;
+pub async fn get_one(
+    State(st): State<AppState>,
+    OrgId(org): OrgId,
+    CurrentUser(user): CurrentUser,
+    Path(id): Path<String>,
+) -> ApiResult<Dashboard> {
+    let updated = sqlx::query(
+        "UPDATE dashboards SET view_count = view_count + 1 WHERE org_id = $1 AND id = $2",
+    )
+    .bind(&org)
+    .bind(&id)
+    .execute(&st.postgres)
+    .await?;
     if updated.rows_affected() == 0 {
         return Err(ApiError::NotFound(format!("Dashboard {id} not found")));
     }
@@ -347,13 +426,21 @@ pub struct CreateDashboardRequest {
 fn check_title(t: &str) -> Result<String, ApiError> {
     let t = t.trim();
     if t.is_empty() || t.chars().count() > 200 {
-        return Err(ApiError::BadRequest("title must be 1–200 characters".into()));
+        return Err(ApiError::BadRequest(
+            "title must be 1–200 characters".into(),
+        ));
     }
     Ok(t.to_string())
 }
 
 #[utoipa::path(post, path = "/api/v1/dashboards", request_body = CreateDashboardRequest, responses((status = 200, body = Dashboard)), tag = "dashboards")]
-pub async fn create(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, CurrentUser(user): CurrentUser, Json(req): Json<CreateDashboardRequest>) -> ApiResult<Dashboard> {
+pub async fn create(
+    State(st): State<AppState>,
+    _: Writer,
+    OrgId(org): OrgId,
+    CurrentUser(user): CurrentUser,
+    Json(req): Json<CreateDashboardRequest>,
+) -> ApiResult<Dashboard> {
     let title = check_title(&req.title)?;
     let id = new_id();
     let def = json!({ "layoutType": req.layout_type, "templateVariables": [], "widgets": [] });
@@ -384,15 +471,37 @@ pub struct DashboardPatch {
 }
 
 #[utoipa::path(patch, path = "/api/v1/dashboards/{id}", params(("id" = String, Path)), request_body = DashboardPatch, responses((status = 200, body = Dashboard), (status = 404, body = crate::error::ErrorBody)), tag = "dashboards")]
-pub async fn update(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, CurrentUser(user): CurrentUser, Path(id): Path<String>, Json(p): Json<DashboardPatch>) -> ApiResult<Dashboard> {
+pub async fn update(
+    State(st): State<AppState>,
+    _: Writer,
+    OrgId(org): OrgId,
+    CurrentUser(user): CurrentUser,
+    Path(id): Path<String>,
+    Json(p): Json<DashboardPatch>,
+) -> ApiResult<Dashboard> {
     let mut tx = st.postgres.begin().await?;
-    let def: Option<(Value,)> = sqlx::query_as("SELECT definition FROM dashboards WHERE org_id = $1 AND id = $2 FOR UPDATE").bind(&org).bind(&id).fetch_optional(&mut *tx).await?;
-    let Some((mut def,)) = def else { return Err(ApiError::NotFound(format!("Dashboard {id} not found"))) };
-    let content_changed = p.title.is_some() || p.description.is_some() || p.widgets.is_some() || p.template_variables.is_some() || p.layout_type.is_some() || p.teams.is_some();
+    let def: Option<(Value,)> = sqlx::query_as(
+        "SELECT definition FROM dashboards WHERE org_id = $1 AND id = $2 FOR UPDATE",
+    )
+    .bind(&org)
+    .bind(&id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some((mut def,)) = def else {
+        return Err(ApiError::NotFound(format!("Dashboard {id} not found")));
+    };
+    let content_changed = p.title.is_some()
+        || p.description.is_some()
+        || p.widgets.is_some()
+        || p.template_variables.is_some()
+        || p.layout_type.is_some()
+        || p.teams.is_some();
     if content_changed {
         if let Some(w) = p.widgets {
             if w.len() > 500 {
-                return Err(ApiError::BadRequest("a dashboard may hold at most 500 widgets".into()));
+                return Err(ApiError::BadRequest(
+                    "a dashboard may hold at most 500 widgets".into(),
+                ));
             }
             def["widgets"] = Value::Array(w);
         }
@@ -432,7 +541,13 @@ pub async fn update(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, Cu
 }
 
 #[utoipa::path(post, path = "/api/v1/dashboards/{id}/clone", params(("id" = String, Path)), responses((status = 200, body = Dashboard), (status = 404, body = crate::error::ErrorBody)), tag = "dashboards")]
-pub async fn clone(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, CurrentUser(user): CurrentUser, Path(id): Path<String>) -> ApiResult<Dashboard> {
+pub async fn clone(
+    State(st): State<AppState>,
+    _: Writer,
+    OrgId(org): OrgId,
+    CurrentUser(user): CurrentUser,
+    Path(id): Path<String>,
+) -> ApiResult<Dashboard> {
     let new = new_id();
     let done = sqlx::query(
         "INSERT INTO dashboards (id, org_id, title, description, kind, logo, author_id, teams, definition) \
@@ -457,14 +572,28 @@ pub struct IdsRequest {
 
 /// Soft delete (restorable from the Deleted list).
 #[utoipa::path(post, path = "/api/v1/dashboards/delete", request_body = IdsRequest, responses((status = 204)), tag = "dashboards")]
-pub async fn delete(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, Json(req): Json<IdsRequest>) -> Result<StatusCode, ApiError> {
+pub async fn delete(
+    State(st): State<AppState>,
+    _: Writer,
+    OrgId(org): OrgId,
+    Json(req): Json<IdsRequest>,
+) -> Result<StatusCode, ApiError> {
     sqlx::query("UPDATE dashboards SET deleted_at = now() WHERE org_id = $1 AND id = ANY($2) AND deleted_at IS NULL").bind(&org).bind(&req.ids).execute(&st.postgres).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(post, path = "/api/v1/dashboards/{id}/restore", params(("id" = String, Path)), responses((status = 204), (status = 404, body = crate::error::ErrorBody)), tag = "dashboards")]
-pub async fn restore(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, Path(id): Path<String>) -> Result<StatusCode, ApiError> {
-    let done = sqlx::query("UPDATE dashboards SET deleted_at = NULL WHERE org_id = $1 AND id = $2").bind(&org).bind(&id).execute(&st.postgres).await?;
+pub async fn restore(
+    State(st): State<AppState>,
+    _: Writer,
+    OrgId(org): OrgId,
+    Path(id): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    let done = sqlx::query("UPDATE dashboards SET deleted_at = NULL WHERE org_id = $1 AND id = $2")
+        .bind(&org)
+        .bind(&id)
+        .execute(&st.postgres)
+        .await?;
     if done.rows_affected() == 0 {
         return Err(ApiError::NotFound(format!("Dashboard {id} not found")));
     }
@@ -493,7 +622,12 @@ pub struct CreateListRequest {
 }
 
 #[utoipa::path(post, path = "/api/v1/dashboard-lists", request_body = CreateListRequest, responses((status = 200, body = DashboardList)), tag = "dashboards")]
-pub async fn create_list(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, Json(req): Json<CreateListRequest>) -> ApiResult<DashboardList> {
+pub async fn create_list(
+    State(st): State<AppState>,
+    _: Writer,
+    OrgId(org): OrgId,
+    Json(req): Json<CreateListRequest>,
+) -> ApiResult<DashboardList> {
     let name = check_title(&req.name)?;
     let row = sqlx::query_as("INSERT INTO dashboard_lists (id, org_id, name) VALUES ($1, $2, $3) RETURNING id, name, dashboard_ids")
         .bind(format!("l-{}", new_id()))
@@ -511,7 +645,13 @@ pub struct ListItemsRequest {
 }
 
 #[utoipa::path(post, path = "/api/v1/dashboard-lists/{id}/items", params(("id" = String, Path)), request_body = ListItemsRequest, responses((status = 200, body = DashboardList), (status = 404, body = crate::error::ErrorBody)), tag = "dashboards")]
-pub async fn add_to_list(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, Path(id): Path<String>, Json(req): Json<ListItemsRequest>) -> ApiResult<DashboardList> {
+pub async fn add_to_list(
+    State(st): State<AppState>,
+    _: Writer,
+    OrgId(org): OrgId,
+    Path(id): Path<String>,
+    Json(req): Json<ListItemsRequest>,
+) -> ApiResult<DashboardList> {
     let row: Option<DashboardList> = sqlx::query_as(
         "UPDATE dashboard_lists SET dashboard_ids = ARRAY(SELECT DISTINCT unnest(dashboard_ids || $3::text[])) \
          WHERE org_id = $1 AND id = $2 RETURNING id, name, dashboard_ids",
@@ -521,7 +661,8 @@ pub async fn add_to_list(State(st): State<AppState>, _: Writer, OrgId(org): OrgI
     .bind(&req.dashboard_ids)
     .fetch_optional(&st.postgres)
     .await?;
-    row.map(Json).ok_or_else(|| ApiError::NotFound(format!("List {id} not found")))
+    row.map(Json)
+        .ok_or_else(|| ApiError::NotFound(format!("List {id} not found")))
 }
 
 // ================================================================ monitor summary widget
@@ -556,8 +697,17 @@ pub struct MonitorSummary {
 }
 
 #[utoipa::path(post, path = "/api/v1/monitors/summary", request_body = MonitorSummaryRequest, responses((status = 200, body = MonitorSummary)), tag = "dashboards")]
-pub async fn monitor_summary(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<MonitorSummaryRequest>) -> ApiResult<MonitorSummary> {
-    let text = req.query.split_whitespace().filter(|t| !t.contains(':')).collect::<Vec<_>>().join(" ");
+pub async fn monitor_summary(
+    State(st): State<AppState>,
+    OrgId(org): OrgId,
+    Json(req): Json<MonitorSummaryRequest>,
+) -> ApiResult<MonitorSummary> {
+    let text = req
+        .query
+        .split_whitespace()
+        .filter(|t| !t.contains(':'))
+        .collect::<Vec<_>>()
+        .join(" ");
     let rows = super::monitors::summary(&st, &org, &text).await?;
     let mut counts = MonitorCounts::default();
     let monitors = rows
@@ -569,7 +719,12 @@ pub async fn monitor_summary(State(st): State<AppState>, OrgId(org): OrgId, Json
                 MonitorStatus::Ok => counts.ok += 1,
                 MonitorStatus::NoData => counts.nodata += 1,
             }
-            MonitorRef { id: id.to_string(), name, status: status.as_str().to_string(), muted }
+            MonitorRef {
+                id: id.to_string(),
+                name,
+                status: status.as_str().to_string(),
+                muted,
+            }
         })
         .collect();
     Ok(Json(MonitorSummary { counts, monitors }))
@@ -580,26 +735,61 @@ pub async fn monitor_summary(State(st): State<AppState>, OrgId(org): OrgId, Json
 /// Built-in dashboards, (re)installed for the org at startup. Integration dashboards are owned by
 /// the product, so their definition is refreshed; the example custom dashboard is only created once.
 const SEEDS: &[(&str, &str)] = &[
-    ("host-overview", include_str!("../../../../seeds/dashboards/host-overview.json")),
-    ("apm-services", include_str!("../../../../seeds/dashboards/apm-services.json")),
-    ("service-overview-prod", include_str!("../../../../seeds/dashboards/service-overview-prod.json")),
+    (
+        "host-overview",
+        include_str!("../../../../seeds/dashboards/host-overview.json"),
+    ),
+    (
+        "apm-services",
+        include_str!("../../../../seeds/dashboards/apm-services.json"),
+    ),
+    (
+        "service-overview-prod",
+        include_str!("../../../../seeds/dashboards/service-overview-prod.json"),
+    ),
 ];
 
-pub async fn install_seeds(pg: &sqlx::PgPool, org: &str, user: &str) -> anyhow::Result<()> {
+// Generated from the pinned integrations-core revision recorded on each document.
+// Copyright and BSD-3-Clause terms: server/seeds/integrations/kubernetes/LICENSE.
+const INTEGRATION_BUNDLES: &[&str] = &[include_str!(
+    "../../../../seeds/integrations/kubernetes/dashboards.json"
+)];
+
+fn seed_documents() -> anyhow::Result<Vec<(String, Value)>> {
+    let mut documents = Vec::new();
     for (id, raw) in SEEDS {
-        let doc: Value = serde_json::from_str(raw).map_err(|e| anyhow::anyhow!("seed {id}: {e}"))?;
+        documents.push((id.to_string(), serde_json::from_str(raw)?));
+    }
+    for raw in INTEGRATION_BUNDLES {
+        for doc in serde_json::from_str::<Vec<Value>>(raw)? {
+            let id = doc["id"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("integration dashboard has no id"))?
+                .to_string();
+            documents.push((id, doc));
+        }
+    }
+    Ok(documents)
+}
+
+pub async fn install_seeds(pg: &sqlx::PgPool, org: &str, user: &str) -> anyhow::Result<()> {
+    for (id, doc) in seed_documents()? {
         let kind = doc["kind"].as_str().unwrap_or("custom");
         let teams: Vec<String> = serde_json::from_value(doc["teams"].clone()).unwrap_or_default();
         let def = json!({ "layoutType": doc["layoutType"], "templateVariables": doc["templateVariables"], "widgets": doc["widgets"] });
         let author = (kind == "custom").then_some(user);
-        let refresh = if kind == "integration" { "DO UPDATE SET definition = EXCLUDED.definition, title = EXCLUDED.title, description = EXCLUDED.description" } else { "DO NOTHING" };
+        let refresh = if kind == "integration" {
+            "DO UPDATE SET definition = EXCLUDED.definition, title = EXCLUDED.title, description = EXCLUDED.description WHERE dashboards.org_id = EXCLUDED.org_id"
+        } else {
+            "DO NOTHING"
+        };
         sqlx::query(&format!(
             "INSERT INTO dashboards (id, org_id, title, description, kind, logo, author_id, teams, definition) \
              VALUES ($1, $2, $3, $4, $5, $6, $7::uuid, $8, $9) ON CONFLICT (id) {refresh}"
         ))
         .bind(if org == "default" { id.to_string() } else { format!("{org}-{id}") })
         .bind(org)
-        .bind(doc["title"].as_str().unwrap_or(id))
+        .bind(doc["title"].as_str().unwrap_or(&id))
         .bind(doc["description"].as_str())
         .bind(kind)
         .bind(doc["logo"].as_str())

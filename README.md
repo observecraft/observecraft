@@ -106,6 +106,34 @@ make tracegen  # demo traces, logs, metrics and CI pipelines, sent through the i
 make web       # UI → http://localhost:5173
 ```
 
+The demo generator also exports fictional Kubernetes telemetry for `shop-prod-eks` and
+`shop-staging-eks`: nodes, pods, deployments, ReplicaSets, StatefulSets, DaemonSets, a completed
+CronJob job and a healthy control plane. It sends compatibility metrics through the authenticated
+OTLP intake every 10 seconds, so integration dashboards use the same storage/query path as real
+telemetry. On startup it replays 30 minutes at one-minute resolution; set
+`OC_K8S_BACKFILL_MINUTES=0` to disable replay (maximum: 60). Resources carry
+`telemetry.synthetic=true`. The generator also sends kubelet service-check statuses every 10 seconds and workload
+reconciliation events every minute. It does not produce Kubernetes object snapshots;
+connect a real collector to populate the Kubernetes Explorer inventory.
+
+Dashboard metric panels share a query plan. In live mode, a single authenticated
+`POST /api/v1/query/dashboard/live` SSE connection returns the initial history and then
+replaces the last two aligned buckets every 10 seconds. Compatible gauge/counter queries
+share telemetry scans; distributions and span-derived metrics retain their own evaluators.
+Identical subscriptions within an organization share the live plan and history. A paused view
+uses `POST /api/v1/query/dashboard` once. Logs, events and distribution heatmaps use their
+respective data-source endpoints. Shared metric frames include units from telemetry; display
+conversions leave formula inputs unchanged. `exclude_null()` removes missing group tags while
+retaining valid zero values. Event charts use the server's status histogram; integration tables
+join formula columns by series group. Bundled notes contain ObserveCraft-authored guidance and
+illustrations rather than upstream marketing copy or artwork.
+
+The dashboard `weighted()` modifier accepts gauge sums and weights transient series using their
+observed regular submission cadence, including incomplete live buckets. Without enough samples
+to infer a cadence it keeps the unweighted sum. This is inferred from telemetry, not configured
+submission-interval metadata. `top()` supports bounded ranking by a requested aggregation.
+Forecasts, historical-shift formulas, and unsupported panel types remain explicit errors.
+
 On first start the server logs a one-time link to set the admin password:
 
 ```

@@ -5377,6 +5377,68 @@
         }
       }
     },
+    "/api/v1/query/dashboard": {
+      "post": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Execute a dashboard in one request, preserving a separate result/error for every query ID.",
+        "operationId": "dashboard_query",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardQueryFrame"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/query/dashboard/live": {
+      "post": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "A single POST SSE stream sends a full snapshot then aligned bucket replacements every 10s.\nIdentical subscriptions within the same organization share the plan, scans and retained history.",
+        "operationId": "dashboard_live",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardQueryFrame"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/query/distribution": {
       "post": {
         "tags": [
@@ -7632,6 +7694,68 @@
           }
         }
       },
+      "DashboardMetricQuery": {
+        "type": "object",
+        "required": [
+          "id",
+          "query"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "points": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string"
+          }
+        }
+      },
+      "DashboardMetricSeries": {
+        "type": "object",
+        "required": [
+          "name",
+          "points",
+          "tags"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            }
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "DashboardPatch": {
         "type": "object",
         "properties": {
@@ -7690,6 +7814,105 @@
             "items": {
               "type": "object"
             }
+          }
+        }
+      },
+      "DashboardQueryFrame": {
+        "type": "object",
+        "required": [
+          "results",
+          "range",
+          "data_scans",
+          "unique_queries"
+        ],
+        "properties": {
+          "data_scans": {
+            "type": "integer",
+            "description": "Actual telemetry SELECTs, excluding metadata discovery; independent of panel count.",
+            "minimum": 0
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardQueryResult"
+            }
+          },
+          "unique_queries": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "DashboardQueryRequest": {
+        "type": "object",
+        "required": [
+          "queries",
+          "range"
+        ],
+        "properties": {
+          "queries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardMetricQuery"
+            }
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "DashboardQueryResult": {
+        "type": "object",
+        "required": [
+          "id",
+          "series",
+          "kind",
+          "step_ms",
+          "replace_from"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "gauge | counter | delta | updown | histogram | exponential_histogram | summary | span | unknown"
+          },
+          "replace_from": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Replace existing points at or after this aligned timestamp (also removes vanished series)."
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardMetricSeries"
+            }
+          },
+          "step_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },

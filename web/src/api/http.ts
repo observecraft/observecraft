@@ -1,3 +1,4 @@
+import { readEventStream } from './eventStream';
 // Typed HTTP client for the ObserveCraft API. Paths, request bodies and responses are checked
 // against src/api/generated/schema.d.ts, which is generated from the Rust server (`make openapi`).
 import type { paths } from './generated/schema';
@@ -38,7 +39,7 @@ type PatchOk<P extends PatchPath> = PatchOp<P> extends { responses: { 200: { con
 /** `{name}` segments of a templated path, e.g. "/traces/{trace_id}" → "trace_id". */
 type PathParams<P extends string> = P extends `${string}{${infer K}}${infer Rest}` ? K | PathParams<Rest> : never;
 
-async function request<T>(url: string, init: RequestInit): Promise<T> {
+async function checkedFetch(url: string, init: RequestInit): Promise<Response> {
   const res = await fetch(url, { ...init, credentials: 'same-origin' });
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
@@ -52,6 +53,11 @@ async function request<T>(url: string, init: RequestInit): Promise<T> {
     if (res.status === 401 && !url.startsWith('/api/v1/auth/')) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
     throw new ApiError(message, res.status);
   }
+  return res;
+}
+
+async function request<T>(url: string, init: RequestInit): Promise<T> {
+  const res = await checkedFetch(url, init);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
@@ -86,4 +92,12 @@ export function put<P extends PutPath>(path: P, params: Record<PathParams<P>, st
 
 export function del<P extends DeletePath>(path: P, params: Record<PathParams<P>, string>, signal?: AbortSignal): Promise<void> {
   return request(fill(path, params), { method: 'DELETE', signal });
+}
+
+/** POST SSE keeps the query plan out of URLs and uses the same auth/error handling as JSON calls. */
+type StreamOk<P extends PostPath> = PostOp<P> extends { responses: { 200: { content: { 'text/event-stream': infer R } } } } ? R : never;
+export async function postStream<P extends PostPath>(path: P, body: Body<P>, onEvent: (event: string, data: StreamOk<P>) => void, signal: AbortSignal): Promise<void> {
+  const res = await checkedFetch(path, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'text/event-stream' }, body: JSON.stringify(body), signal });
+  if (!res.body || !res.headers.get('content-type')?.includes('text/event-stream')) throw new Error('Expected a dashboard event stream');
+  await readEventStream(res.body, (event, data) => onEvent(event, data as StreamOk<P>));
 }

@@ -20,7 +20,10 @@ export function parseMetricQuery(q: string): ParsedMetricQuery | null {
   if (!m) return null;
   const filters: ParsedMetricQuery['filters'] = [];
   const vars: string[] = [];
-  for (const raw of m[3].split(',').map((s) => s.trim()).filter(Boolean)) {
+  for (const raw of m[3]
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)) {
     if (raw === '*') continue;
     if (raw.startsWith('$')) {
       vars.push(raw);
@@ -31,7 +34,10 @@ export function parseMetricQuery(q: string): ParsedMetricQuery | null {
     const i = body.indexOf(':');
     if (i > 0) filters.push({ key: body.slice(0, i), value: body.slice(i + 1), negate });
   }
-  const by = (m[4] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const by = (m[4] ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   return { aggregator: m[1] as SpaceAggregator, metric: m[2], filters, vars, by };
 }
 
@@ -50,7 +56,12 @@ export function resolveTemplateVars(q: ParsedMetricQuery, values: TemplateVarVal
   for (const ref of q.vars) {
     const name = ref.slice(1);
     const value = values[name];
-    if (value && value !== '*') filters.push({ key: prefixes[name] ?? name, value, negate: false });
+    if (value && value !== '*') {
+      if (prefixes[name] === '') {
+        const parsed = parseMetricQuery(`avg:scope{${value}}`);
+        if (parsed) filters.push(...parsed.filters);
+      } else filters.push({ key: prefixes[name] ?? name, value, negate: false });
+    }
   }
   return { ...q, filters, vars: [] };
 }

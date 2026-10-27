@@ -5,10 +5,14 @@ import { Menu } from '../../../components/ui/Dropdown';
 import { useDashboardContext } from './context';
 import { BarChartWidget, ChangeWidget, HeatmapWidget, PieWidget, QueryValueWidget, TableWidget, TimeseriesWidget, ToplistWidget } from './MetricWidgets';
 import { ImageWidget, LogStreamWidget, MonitorSummaryWidget, NoteWidget } from './OtherWidgets';
+import { IntegrationWidget } from './IntegrationWidget';
+import { IntegrationLogo } from '../../integrations/IntegrationLogo';
 
 /** Renders a widget's content (no frame). Groups are handled by the canvas. */
 export function WidgetContent({ def }: { def: WidgetDefinition }) {
   switch (def.type) {
+    case 'integration':
+      return <IntegrationWidget def={def.original} />;
     case 'timeseries':
       return <TimeseriesWidget def={def} />;
     case 'query_value':
@@ -91,11 +95,12 @@ export function GroupFrame({ widget, children, dragClass = 'drag-l0' }: { widget
   const def = widget.definition as Extract<WidgetDefinition, { type: 'group' }>;
   const [open, setOpen] = useState(true);
   return (
-    <div className="wg">
+    <div className={`wg${def.compact ? ' wg-compact' : ''}`}>
       <div className={`wg-head ${dragClass}`} style={{ background: GROUP_COLORS[def.color] }}>
         <button className="wg-toggle wf-nodrag" onClick={() => setOpen((o) => !o)} title={open ? 'Collapse' : 'Expand'}>
           {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
         </button>
+        {def.logo && <IntegrationLogo logo={def.logo} name={def.title || def.logo} size={24} />}
         <span className="wg-title">{def.title}</span>
         <span className="wf-actions wf-nodrag wg-actions">
           <WidgetMenu widget={widget} />

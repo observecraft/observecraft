@@ -1,6 +1,7 @@
 // Dashboards wire contract. A dashboard is a JSON document (layout + template variables +
 // widget definitions); widgets carry metric queries that the query service evaluates.
 import type { MetricSeries, TimeRange } from '../types';
+import type { IntegrationWidgetDefinition } from '../integrations/evaluate';
 
 // ---------------------------------------------------------------- metric queries
 
@@ -69,6 +70,7 @@ interface Base {
 }
 
 export type WidgetDefinition =
+  | (Base & { type: 'integration'; original: IntegrationWidgetDefinition })
   | (Base & { type: 'timeseries'; requests: MetricRequest[]; display: 'line' | 'area' | 'bars'; stacked?: boolean; yMax?: number })
   | (Base & { type: 'query_value'; request: MetricRequest; aggregator: TimeAggregator; precision: number; unit?: string; formats: ConditionalFormat[]; fill?: boolean })
   | (Base & { type: 'toplist'; request: MetricRequest; aggregator: TimeAggregator; limit: number; showChange?: boolean })
@@ -90,7 +92,7 @@ export type WidgetDefinition =
       pointer?: boolean;
     })
   | (Base & { type: 'image'; src?: string; logo?: string; background?: string })
-  | (Base & { type: 'group'; color: 'blue' | 'purple' | 'green' | 'gray' | 'orange'; widgets: Widget[] })
+  | (Base & { type: 'group'; color: 'blue' | 'purple' | 'green' | 'gray' | 'orange'; widgets: Widget[]; compact?: boolean; logo?: string })
   | (Base & { type: 'monitor_summary'; query: string })
   | (Base & { type: 'log_stream'; query: string; limit: number });
 

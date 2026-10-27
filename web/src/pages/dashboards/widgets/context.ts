@@ -1,3 +1,4 @@
+import type { DashboardExecution } from '../execution';
 import { createContext, useContext } from 'react';
 import type { Widget } from '../../../api/dashboards/types';
 import type { TimeRange } from '../../../api/types';
@@ -5,6 +6,7 @@ import type { TimeRange } from '../../../api/types';
 /** Everything a widget needs from its dashboard: the time range, query resolution and edit callbacks. */
 export interface DashboardContextValue {
   range: TimeRange;
+  metrics?: DashboardExecution;
   /** Resolves template variables in a metric query. */
   resolve: (query: string) => string;
   /** Applies the dashboard's `$var` values to a log/monitor search query. */
