@@ -38,9 +38,10 @@ export function suggestIssueQuery(range: TimeRange, partial: string): Promise<Qu
   return mock.suggest(range, partial);
 }
 
-export function getIssue(id: string, range: TimeRange): Promise<IssueDetail> {
-  requireMock();
-  return mock.getIssue(id, range);
+export async function getIssue(id: string, range: TimeRange): Promise<IssueDetail> {
+  if (API_MODE !== 'live') return mock.getIssue(id, range);
+  const detail = await postTo('/api/v1/error-tracking/issues/{id}', { id }, { range, query: '' });
+  return detail as unknown as IssueDetail;
 }
 
 export async function updateIssue(id: string, patch: IssuePatch): Promise<void> {
@@ -57,9 +58,11 @@ export function addComment(id: string, text: string): Promise<ActivityEntry> {
   return mock.addComment(id, text);
 }
 
-export function getErrorSample(req: ErrorSampleRequest): Promise<ErrorSamplePage> {
-  requireMock();
-  return mock.getErrorSample(req);
+export async function getErrorSample(req: ErrorSampleRequest): Promise<ErrorSamplePage> {
+  if (API_MODE !== 'live') return mock.getErrorSample(req);
+  // Samples are among the issue's newest (or oldest) 2,000 logs in range.
+  const page = await postTo('/api/v1/error-tracking/issues/{id}/samples', { id: req.issueId }, { range: req.range, query: req.query, index: req.index, order: req.order });
+  return page as unknown as ErrorSamplePage;
 }
 
 export async function listUsers(): Promise<User[]> {

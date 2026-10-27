@@ -1840,6 +1840,88 @@
         }
       }
     },
+    "/api/v1/error-tracking/issues/{id}": {
+      "post": {
+        "tags": [
+          "error-tracking"
+        ],
+        "summary": "One issue in the range: its histogram, the tags of its logs and its saved state.",
+        "operationId": "issue_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueDetailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueDetailOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/error-tracking/issues/{id}/samples": {
+      "post": {
+        "tags": [
+          "error-tracking"
+        ],
+        "summary": "One log of the issue (the `index`-th newest or oldest in range), and how many there are.",
+        "operationId": "issue_samples",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SampleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SamplePage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/error-tracking/issues/{id}/state": {
       "post": {
         "tags": [
@@ -10297,6 +10379,24 @@
           }
         }
       },
+      "HistogramPoint": {
+        "type": "object",
+        "required": [
+          "t",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "HostContainer": {
         "type": "object",
         "required": [
@@ -11501,6 +11601,56 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "IssueDetailOut": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IssueOut"
+          },
+          {
+            "type": "object",
+            "required": [
+              "histogram",
+              "tags",
+              "activity"
+            ],
+            "properties": {
+              "activity": {
+                "type": "array",
+                "items": {}
+              },
+              "histogram": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/HistogramPoint"
+                }
+              },
+              "impact": {
+                "description": "Sessions and users affected (RUM only)."
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TagShare"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "IssueDetailRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
           }
         }
       },
@@ -15871,6 +16021,102 @@
           }
         }
       },
+      "SampleOut": {
+        "type": "object",
+        "required": [
+          "id",
+          "timestamp",
+          "tags",
+          "stack",
+          "timeline",
+          "attributeGroups",
+          "json"
+        ],
+        "properties": {
+          "attributeGroups": {
+            "type": "array",
+            "items": {}
+          },
+          "id": {
+            "type": "string"
+          },
+          "json": {},
+          "stack": {
+            "$ref": "#/components/schemas/StackOut"
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "timeline": {
+            "type": "array",
+            "items": {}
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SamplePage": {
+        "type": "object",
+        "required": [
+          "index",
+          "total"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sample": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SampleOut"
+              }
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "SampleRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "index"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "description": "Position within `order`.",
+            "minimum": 0
+          },
+          "order": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "latest | oldest"
+          },
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
       "SampleType": {
         "type": "object",
         "required": [
@@ -16791,6 +17037,27 @@
           }
         }
       },
+      "StackOut": {
+        "type": "object",
+        "required": [
+          "title",
+          "frames",
+          "raw"
+        ],
+        "properties": {
+          "frames": {
+            "type": "array",
+            "items": {},
+            "description": "Parsed frames (none yet: `raw` holds the message and stack as logged)."
+          },
+          "raw": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
       "StatusCounts": {
         "type": "object",
         "required": [
@@ -16869,6 +17136,27 @@
         ],
         "properties": {
           "org": {
+            "type": "string"
+          }
+        }
+      },
+      "TagShare": {
+        "type": "object",
+        "required": [
+          "key",
+          "value",
+          "share"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "share": {
+            "type": "number",
+            "format": "double",
+            "description": "0..1 of the issue's logs."
+          },
+          "value": {
             "type": "string"
           }
         }

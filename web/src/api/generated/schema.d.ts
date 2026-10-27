@@ -863,6 +863,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/error-tracking/issues/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One issue in the range: its histogram, the tags of its logs and its saved state. */
+        post: operations["issue_detail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/error-tracking/issues/{id}/samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One log of the issue (the `index`-th newest or oldest in range), and how many there are. */
+        post: operations["issue_samples"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/error-tracking/issues/{id}/state": {
         parameters: {
             query?: never;
@@ -3900,6 +3934,12 @@ export interface components {
              */
             t: number;
         };
+        HistogramPoint: {
+            /** Format: int64 */
+            count: number;
+            /** Format: int64 */
+            t: number;
+        };
         HostContainer: {
             /**
              * Format: double
@@ -4226,6 +4266,17 @@ export interface components {
         InviteRequest: {
             emails: string[];
             roleIds?: string[];
+        };
+        IssueDetailOut: components["schemas"]["IssueOut"] & {
+            activity: unknown[];
+            histogram: components["schemas"]["HistogramPoint"][];
+            /** @description Sessions and users affected (RUM only). */
+            impact?: unknown;
+            tags: components["schemas"]["TagShare"][];
+        };
+        IssueDetailRequest: {
+            query?: string;
+            range: components["schemas"]["TimeRange"];
         };
         IssueOut: {
             assignee?: null | components["schemas"]["UserRef"];
@@ -5531,6 +5582,31 @@ export interface components {
             /** @description Why the stored metadata can't be used, if it can't. */
             problem?: string | null;
         };
+        SampleOut: {
+            attributeGroups: unknown[];
+            id: string;
+            json: unknown;
+            stack: components["schemas"]["StackOut"];
+            tags: {
+                [key: string]: string;
+            };
+            timeline: unknown[];
+            /** Format: int64 */
+            timestamp: number;
+        };
+        SamplePage: {
+            index: number;
+            sample?: null | components["schemas"]["SampleOut"];
+            total: number;
+        };
+        SampleRequest: {
+            /** @description Position within `order`. */
+            index: number;
+            /** @description latest | oldest */
+            order?: string | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
         SampleType: {
             /** @description e.g. cpu-time, wall-time, alloc-space, inuse-space, lock-acquire-wait */
             type: string;
@@ -5802,6 +5878,12 @@ export interface components {
             /** @description Where the browser goes to start this sign-in. */
             loginUrl: string;
         };
+        StackOut: {
+            /** @description Parsed frames (none yet: `raw` holds the message and stack as logged). */
+            frames: unknown[];
+            raw: string;
+            title: string;
+        };
         StatusCounts: {
             /** Format: int64 */
             debug: number;
@@ -5827,6 +5909,15 @@ export interface components {
         };
         SwitchOrgRequest: {
             org: string;
+        };
+        TagShare: {
+            key: string;
+            /**
+             * Format: double
+             * @description 0..1 of the issue's logs.
+             */
+            share: number;
+            value: string;
         };
         Team: {
             createdVia: string;
@@ -7473,6 +7564,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IssueSearchPage"];
+                };
+            };
+        };
+    };
+    issue_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueDetailRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueDetailOut"];
+                };
+            };
+        };
+    };
+    issue_samples: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SampleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SamplePage"];
                 };
             };
         };

@@ -672,7 +672,7 @@ pub async fn patterns(State(st): State<AppState>, OrgId(org): OrgId, Json(req): 
     params.push(Param::Int(PATTERN_SAMPLE));
     let rows = bind(
         st.ch(&org).query(&format!(
-            "SELECT substring(message, 1, 300) AS message, toString(status) AS status, toString(service) AS service FROM {} WHERE {} ORDER BY timestamp DESC LIMIT ?",
+            "SELECT substringUTF8(message, 1, 300) AS message, toString(status) AS status, toString(service) AS service FROM {} WHERE {} ORDER BY timestamp DESC LIMIT ?",
             s.table, s.clause
         )),
         &params,
