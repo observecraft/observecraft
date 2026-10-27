@@ -1982,17 +1982,17 @@ mod tests {
 
     #[test]
     fn datadog_hosts_map_to_their_kubernetes_node() {
-        let nodes = HashMap::from([("aks-infra-1-vmss000016", "aks-dev"), ("worker-1", "prod")]);
+        let nodes = HashMap::from([("aks-pool-1-vmss000003", "shop-prod"), ("worker-1", "prod")]);
         // The Agent names a Kubernetes host `<node>-<cluster>`.
-        assert_eq!(node_of_host("aks-infra-1-vmss000016-aks-dev", "", &nodes), Some(("aks-dev", "aks-infra-1-vmss000016")));
-        assert_eq!(node_of_host("aks-infra-1-vmss000016-aks-dev", "aks-dev", &nodes), Some(("aks-dev", "aks-infra-1-vmss000016")));
+        assert_eq!(node_of_host("aks-pool-1-vmss000003-shop-prod", "", &nodes), Some(("shop-prod", "aks-pool-1-vmss000003")));
+        assert_eq!(node_of_host("aks-pool-1-vmss000003-shop-prod", "shop-prod", &nodes), Some(("shop-prod", "aks-pool-1-vmss000003")));
         assert_eq!(node_of_host("worker-1", "", &nodes), Some(("prod", "worker-1")));
         assert_eq!(node_of_host("laptop", "", &nodes), None);
     }
 
     #[test]
     fn a_nodes_usage_sums_its_containers() {
-        let key = |n: &str| ("aks-dev".to_string(), n.to_string());
+        let key = |n: &str| ("shop-prod".to_string(), n.to_string());
         let totals = node_totals([(key("n1"), (0.25, 100.0)), (key("n1"), (0.5, -1.0)), (key("n2"), (-1.0, 50.0))]);
         assert_eq!(totals[&key("n1")], (0.75, 100.0));
         // -1: not measured; a node with nothing measured stays unmeasured.

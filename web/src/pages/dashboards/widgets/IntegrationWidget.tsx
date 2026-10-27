@@ -27,7 +27,7 @@ export function IntegrationWidget({ def }: { def: IntegrationWidgetDefinition })
 function InfrastructureListWidget({ def }: { def: IntegrationWidgetDefinition }) {
   const { resolve } = useDashboardContext();
   const navigate = useNavigate();
-  // `avg:scope{$cluster}` → `avg:scope{kube_cluster_name:aks-dev}`, or `{*}` when it matches everything.
+  // `avg:scope{$cluster}` → `avg:scope{kube_cluster_name:shop-prod}`, or `{*}` when it matches everything.
   const resolveVar = (name: string) => /\{(.*)\}/.exec(resolve(`avg:scope{$${name}}`))?.[1].replace(/^\*$/, '') ?? '';
   const list = infrastructureList(def.requests[0] as unknown as InfrastructureRequest, resolveVar);
   const result = useQuery({

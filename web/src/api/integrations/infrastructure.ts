@@ -90,7 +90,7 @@ function alternatives(text: string): Dnf {
 
 /**
  * The Explorer searches for an upstream infrastructure list. `resolveVar` gives a template
- * variable's filter (`kube_cluster_name:aks-dev`), or '' when it matches everything.
+ * variable's filter (`kube_cluster_name:shop-prod`), or '' when it matches everything.
  */
 export function infrastructureList(request: InfrastructureRequest, resolveVar: (name: string) => string): InfrastructureList {
   const kind = KINDS[request.query.resource_type ?? ''];

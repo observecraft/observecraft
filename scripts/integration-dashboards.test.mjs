@@ -375,7 +375,7 @@ test('a group without a header is only as tall as its widgets and padding', asyn
 
 test('infrastructure lists become Explorer searches: kind, template variables, alternatives, columns and sort', async () => {
   const { infrastructureList } = await import('../web/src/api/integrations/infrastructure.ts');
-  const vars = { cluster: 'kube_cluster_name:aks-dev', namespace: '' };
+  const vars = { cluster: 'kube_cluster_name:shop-prod', namespace: '' };
   const resolveVar = (name) => vars[name] ?? '';
   const list = infrastructureList(
     {
@@ -392,13 +392,13 @@ test('infrastructure lists become Explorer searches: kind, template variables, a
   );
   assert.equal(list.kind, 'pods');
   // (A AND NOT B) OR C, with the unsupported field# filter left out.
-  assert.deepEqual(list.queries, ['kube_cluster_name:aks-dev -kube_condition_ready:true', 'kube_cluster_name:aks-dev pod_phase:failed']);
+  assert.deepEqual(list.queries, ['kube_cluster_name:shop-prod -kube_condition_ready:true', 'kube_cluster_name:shop-prod pod_phase:failed']);
   assert.deepEqual(list.columns, ['name', 'status', 'restarts', 'cpu', 'memory']);
   assert.deepEqual(list.sort, { column: 'restarts', desc: true });
 
   const deployments = infrastructureList({ query: { data_source: 'infrastructure', resource_type: 'daemonSet', query_string: '$scope $cluster' }, columns: [] }, resolveVar);
   assert.equal(deployments.kind, 'daemonsets');
-  assert.deepEqual(deployments.queries, ['kube_cluster_name:aks-dev']);
+  assert.deepEqual(deployments.queries, ['kube_cluster_name:shop-prod']);
   assert.equal(deployments.columns, undefined, 'no columns: the kind’s default ones');
   assert.equal(deployments.sort, undefined);
 });
@@ -420,8 +420,8 @@ test('log queries count logs per facet value; throughput divides by the range', 
     group_by: [{ facet: 'source', limit: 10 }],
     compute: { aggregation: 'count' },
   };
-  const resolve = (q) => q.replace('$kube_cluster_name.value', 'aks-dev');
-  assert.deepEqual(logRequest(query, resolve), { query: 'kube_cluster_name:aks-dev AND source:(*kube* OR etcd)', key: 'source', limit: 10 });
+  const resolve = (q) => q.replace('$kube_cluster_name.value', 'shop-prod');
+  assert.deepEqual(logRequest(query, resolve), { query: 'kube_cluster_name:shop-prod AND source:(*kube* OR etcd)', key: 'source', limit: 10 });
   assert.throws(() => logRequest({ ...query, compute: { aggregation: 'cardinality', metric: '@usr.id' } }, resolve), /count/);
   const range = { from: 0, to: 60_000 };
   assert.deepEqual(logSeries([{ value: 'etcd', count: 120 }], 'source', range), [{ name: 'source:etcd', points: [[60_000, 120]] }]);
@@ -491,9 +491,9 @@ test('utilization graphs read OpenTelemetry names, else the Datadog Agent ones (
 test('a group finds its usage series even when the metrics carry no cluster, if there is only one cluster', async () => {
   const { groupSeries } = await import('../web/src/api/kubernetes/usage.ts');
   const series = new Map([['kube_cluster_name:N/A, kube_namespace:shop', { name: 'x', points: [] }]]);
-  assert.ok(groupSeries(series, 'kube_cluster_name:aks-dev, kube_namespace:shop', true));
-  assert.equal(groupSeries(series, 'kube_cluster_name:aks-dev, kube_namespace:shop', false), undefined, 'several clusters: no guessing');
-  assert.equal(groupSeries(series, 'kube_cluster_name:aks-dev, kube_namespace:other', true), undefined);
+  assert.ok(groupSeries(series, 'kube_cluster_name:shop-prod, kube_namespace:shop', true));
+  assert.equal(groupSeries(series, 'kube_cluster_name:shop-prod, kube_namespace:shop', false), undefined, 'several clusters: no guessing');
+  assert.equal(groupSeries(series, 'kube_cluster_name:shop-prod, kube_namespace:other', true), undefined);
 });
 
 test('host map: hosts grouped as the list groups them, colored from green (idle) to red (busy)', async () => {

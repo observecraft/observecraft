@@ -950,7 +950,7 @@ mod tests {
     fn kubernetes_and_docker_software_from_cluster_or_checks() {
         let res = HashMap::new();
         assert_eq!(host_software(&res, &["kubelet".into(), "docker".into()]).len(), 2);
-        let res = HashMap::from([("k8s.cluster.name".to_string(), "aks-dev".to_string())]);
+        let res = HashMap::from([("k8s.cluster.name".to_string(), "shop-prod".to_string())]);
         assert!(matches!(host_software(&res, &[])[..], [Software::Kubernetes]));
         assert!(host_software(&HashMap::new(), &["system".into()]).is_empty());
     }
