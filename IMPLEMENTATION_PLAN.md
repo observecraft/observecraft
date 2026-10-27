@@ -121,9 +121,14 @@ Status: Complete
 ## Stage 4: Per-organization metrics retention
 
 Goal:
-- Postgres: per-org raw, 5m and 1h retention, plus per-org limits set by the instance admin.
-- Intake stamps `oc.metrics_retention_days` (raw, 5m, 1h).
-- UI: Organization Settings → Data Retention gets metrics; Instance → Orgs → Retention limits gets the metric limits.
+- Postgres (`0017_metric_retention`): the org's raw / 5m / 1h retention and the instance admin's limits. NULL means
+  the install's default (30 / 90 / 395).
+- The API accepts only tiers (7, 15, 30, 90, 180, 395, 760), within the limits, with full resolution ≤ 5m ≤ 1h.
+- The intake stamps `x-oc-metrics-retention-*-days` on every forwarded body; the collector turns those into the
+  `oc.metrics_retention_*` resource attributes, replacing whatever a sender set.
+- Queries pick the resolution and range limit from the org's tiers.
+- UI: Organization Settings → Data Retention edits metrics; Instance → Orgs → Retention limits sets the metric
+  limits.
 
 Success criteria:
 - API tests reject values outside the tiers and the limits.
@@ -131,7 +136,24 @@ Success criteria:
 - Partitions per tier expire by dropping whole parts.
 - The UI shows the change applies to new data.
 
-Status: Not Started
+Verified:
+- Unit tests:
+  - validation (tiers, limits, order);
+  - effective retention (unset = install default);
+  - intake headers.
+- Locally (server + intake + collector 0.163.2 + ClickHouse 26.8):
+  - the API rejects non-tiers, a finer resolution kept longer, and values over the limit;
+  - raising the limit from Instance works;
+  - OTLP and Datadog series sent through the intake land with the org's 15 / 180 / 760 days on samples, rollups and
+    series, even when the sender set `oc.metrics_retention_days` itself;
+  - partitions are per tier;
+  - an expired 7-day row is dropped while a 15-day row of the same age stays.
+- In the browser (live mode):
+  - Data Retention shows and saves the metric retention;
+  - the Retention limits dialog shows and edits the metric limits.
+- These settings pages have no in-browser mocks; they had none before either.
+
+Status: Complete
 
 ## Stage 5: Distributions, transition and TTL fix
 
@@ -147,3 +169,21 @@ Success criteria:
 - Raising or lowering an install-wide TTL affects existing parts (test on ClickHouse 24.8).
 
 Status: Not Started
+
+## Stage 6: Cold storage for old metric partitions
+
+Goal:
+- Optional tiered storage for the bundled and operator ClickHouse: an S3 / RustFS disk in a storage policy.
+- The rollup tables (and optionally samples) move partitions older than N days there
+  (`TTL … TO VOLUME 'cold'`) and stay queryable with the same SQL.
+- Helm values for the bucket, credentials and the move age.
+- Logs already have their cold path: hourly Parquet archives in the org's bucket, with Archive Search and
+  rehydration.
+
+Success criteria:
+- On a local RustFS, partitions past the move age land on the S3 disk (`system.parts.disk_name`).
+- The parity and range queries return the same results before and after the move.
+- Without the values set, nothing changes (single disk).
+
+Status: Not Started
+

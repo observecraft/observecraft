@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Plus, X } from 'lucide-react';
 import { createOrg, deleteOrg, instanceAudit, listOrgs, updateOrg, updateOrgLimits, type InstanceOrg } from '../../api/instance/client';
+import { dataSettings, type MetricRetention } from '../../api/logIndexes/client';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Menu } from '../../components/ui/Dropdown';
 import { Modal } from '../../components/ui/Modal';
@@ -93,8 +94,8 @@ export function InstanceOrgsPage() {
                 </td>
                 <td>{compact(o.logs24h)}</td>
                 <td>{compact(o.spans24h)}</td>
-                <td className="muted small" title="Longest log retention, span retention and number of log indexes the org may configure">
-                  logs ≤ {o.maxLogRetentionDays} d · spans ≤ {o.maxSpanRetentionDays} d · {o.maxIndexes} indexes
+                <td className="muted small" title="Longest log, span and metric retention (full resolution / 5-minute / 1-hour rollups) and number of log indexes the org may configure">
+                  logs ≤ {o.maxLogRetentionDays} d · spans ≤ {o.maxSpanRetentionDays} d · metrics ≤ {o.maxMetrics.raw}/{o.maxMetrics.rollup5m}/{o.maxMetrics.rollup1h} d · {o.maxIndexes} indexes
                 </td>
                 <td>{timeAgo(o.createdAt)}</td>
                 <td className="col-actions">
@@ -249,7 +250,13 @@ function LimitsModal({ org, onClose, onSaved }: { org: InstanceOrg; onClose: () 
   const [logs, setLogs] = useState(org.maxLogRetentionDays);
   const [spans, setSpans] = useState(org.maxSpanRetentionDays);
   const [indexes, setIndexes] = useState(org.maxIndexes);
-  const save = useMutation({ mutationFn: () => updateOrgLimits(org.id, { maxLogRetentionDays: logs, maxSpanRetentionDays: spans, maxIndexes: indexes }), onSuccess: onSaved });
+  const [metrics, setMetrics] = useState<MetricRetention>(org.maxMetrics);
+  // The metric retention tiers (the same for every org).
+  const tiers = useQuery({ queryKey: ['data-settings'], queryFn: dataSettings }).data?.metricRetentionTiers ?? [];
+  const save = useMutation({
+    mutationFn: () => updateOrgLimits(org.id, { maxLogRetentionDays: logs, maxSpanRetentionDays: spans, maxIndexes: indexes, maxMetrics: metrics }),
+    onSuccess: onSaved,
+  });
   return (
     <Modal onClose={onClose} label="Retention limits" width={520} height="auto">
       <form
@@ -278,6 +285,26 @@ function LimitsModal({ org, onClose, onSaved }: { org: InstanceOrg; onClose: () 
           Log indexes
           <input type="number" min={1} max={1000} value={indexes} onChange={(e) => setIndexes(Number(e.target.value))} required />
         </label>
+        {(
+          [
+            ['raw', 'Longest metric retention at full resolution (days)'],
+            ['rollup5m', 'Longest metric retention as 5-minute rollups (days)'],
+            ['rollup1h', 'Longest metric retention as 1-hour rollups (days)'],
+          ] as const
+        ).map(([key, label]) => (
+          <label key={key} className="form-label">
+            {label}
+            <select value={metrics[key]} onChange={(e) => setMetrics({ ...metrics, [key]: Number(e.target.value) })}>
+              {[...new Set([...tiers, metrics[key]])]
+                .sort((a, b) => a - b)
+                .map((x) => (
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
+                ))}
+            </select>
+          </label>
+        ))}
         {save.error && <p className="form-error">{(save.error as Error).message}</p>}
         <div className="small-modal-actions">
           <button type="button" className="btn" onClick={onClose}>

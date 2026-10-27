@@ -41,6 +41,14 @@ processors:
       # The org's span retention in days (the spans table TTL reads it).
       - { key: oc.retention_days, action: delete }
       - { key: oc.retention_days, from_context: metadata.x-oc-retention-days, action: upsert }
+      # The org's metric retention: full resolution, 5-minute and 1-hour rollups (the metric tables
+      # partition by them).
+      - { key: oc.metrics_retention_days, action: delete }
+      - { key: oc.metrics_retention_days, from_context: metadata.x-oc-metrics-retention-days, action: upsert }
+      - { key: oc.metrics_retention_5m_days, action: delete }
+      - { key: oc.metrics_retention_5m_days, from_context: metadata.x-oc-metrics-retention-5m-days, action: upsert }
+      - { key: oc.metrics_retention_1h_days, action: delete }
+      - { key: oc.metrics_retention_1h_days, from_context: metadata.x-oc-metrics-retention-1h-days, action: upsert }
 connectors:
   # Kubernetes object snapshots and events (the cluster collector marks them oc.signal = k8s.objects)
   # are inventory for the Kubernetes Explorer, not log lines.

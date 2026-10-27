@@ -429,11 +429,7 @@ async fn inner_query(st: &AppState, org: &str, q: &MetricQuery, range: TimeRange
     let step = step_ms(range, points, if kind == Kind::Counter { 30_000 } else { 10_000 });
     let source = match storage_start(st, org).await? {
         // The new storage has the whole range: pick its resolution.
-        Some(start) if range.from >= start => {
-            let r = &st.config.retention;
-            let tiers = Tiers { raw_days: r.metrics_days, rollup_5m_days: r.metrics_5m_days, rollup_1h_days: r.metrics_1h_days };
-            Some(resolution(range, step, now_ms(), tiers))
-        }
+        Some(start) if range.from >= start => Some(resolution(range, step, now_ms(), org_tiers(st, org).await?)),
         // Before it started (the transition), the exporter's tables.
         _ => None,
     };
@@ -590,14 +586,31 @@ fn parse(query: &str) -> Result<MetricQuery, ApiError> {
     parse_metric_query(query).map_err(|e| ApiError::BadRequest(format!("Invalid query '{query}': {e}")))
 }
 
-/// Longest range a metric query may span: what the longest-kept rollup holds.
-fn validate_metric_range(st: &AppState, range: TimeRange) -> Result<(), ApiError> {
-    let r = &st.config.retention;
-    range.validate_within(r.metrics_days.max(r.metrics_5m_days).max(r.metrics_1h_days))
+/// Longest range a metric query may span: what the org's longest-kept rollup holds.
+async fn validate_metric_range(st: &AppState, org: &str, range: TimeRange) -> Result<(), ApiError> {
+    let t = org_tiers(st, org).await?;
+    range.validate_within(t.raw_days.max(t.rollup_5m_days).max(t.rollup_1h_days))
+}
+
+/// The org's metric retention (its choice or the install's default), cached for a minute.
+async fn org_tiers(st: &AppState, org: &str) -> Result<Tiers, ApiError> {
+    type Cache = Mutex<HashMap<String, (Tiers, Instant)>>;
+    static CACHE: OnceLock<Cache> = OnceLock::new();
+    let cache = CACHE.get_or_init(Default::default);
+    if let Some((t, at)) = cache.lock().unwrap().get(org) {
+        if at.elapsed() < Duration::from_secs(60) {
+            return Ok(*t);
+        }
+    }
+    let s = super::log_indexes::data_settings(st, org).await?;
+    let (m, _) = s.metrics.effective(super::log_indexes::install_metric_retention(&st.config.retention));
+    let t = Tiers { raw_days: m.raw.max(1) as u32, rollup_5m_days: m.rollup_5m.max(1) as u32, rollup_1h_days: m.rollup_1h.max(1) as u32 };
+    cache.lock().unwrap().insert(org.to_string(), (t, Instant::now()));
+    Ok(t)
 }
 
 async fn evaluate(st: &AppState, org: &str, query: &str, range: TimeRange, points: u32) -> Result<(MetricQuery, Vec<Group>), ApiError> {
-    validate_metric_range(st, range)?;
+    validate_metric_range(st, org, range).await?;
     let q = parse(query)?;
     let groups = evaluate_query(st, org, &q, range, points).await?;
     Ok((q, groups))
@@ -762,7 +775,7 @@ pub struct DistributionResponse {
 /// How individual series' values spread over time (heatmaps, distributions).
 #[utoipa::path(post, path = "/api/v1/query/distribution", request_body = DistributionRequest, responses((status = 200, body = DistributionResponse)), tag = "metrics")]
 pub async fn distribution(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<DistributionRequest>) -> ApiResult<DistributionResponse> {
-    validate_metric_range(&st, req.range)?;
+    validate_metric_range(&st, &org, req.range).await?;
     let q = parse(&req.query)?;
     let (inner, params, _) = inner_query(&st, &org, &q, req.range, 40).await?;
     let sql = format!("SELECT sid, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64(v) AS value FROM ({inner}) WHERE isFinite(v) ORDER BY ts");

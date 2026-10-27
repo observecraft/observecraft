@@ -5145,7 +5145,7 @@
         "tags": [
           "logs"
         ],
-        "summary": "Span retention applies to spans received from then on (within about a minute).",
+        "summary": "Span and metric retention apply to data received from then on (within about a minute).",
         "operationId": "update_org_data_settings",
         "requestBody": {
           "content": {
@@ -10993,7 +10993,8 @@
           "primary",
           "maxLogRetentionDays",
           "maxSpanRetentionDays",
-          "maxIndexes"
+          "maxIndexes",
+          "maxMetrics"
         ],
         "properties": {
           "admins": {
@@ -11023,6 +11024,10 @@
             "type": "integer",
             "format": "int32",
             "description": "What the org may configure (see PATCH …/limits)."
+          },
+          "maxMetrics": {
+            "$ref": "#/components/schemas/MetricRetention",
+            "description": "Longest metric retention at full resolution and as rollups."
           },
           "maxSpanRetentionDays": {
             "type": "integer",
@@ -12609,6 +12614,29 @@
           }
         }
       },
+      "MetricRetention": {
+        "type": "object",
+        "description": "Days metrics are kept at full resolution and as 5-minute and 1-hour rollups.",
+        "required": [
+          "raw",
+          "rollup5m",
+          "rollup1h"
+        ],
+        "properties": {
+          "raw": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rollup1h": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rollup5m": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "MetricSeries": {
         "type": "object",
         "required": [
@@ -13740,7 +13768,9 @@
           "maxSpanRetentionDays",
           "maxLogRetentionDays",
           "maxIndexes",
-          "metricsRetentionDays",
+          "metrics",
+          "maxMetrics",
+          "metricRetentionTiers",
           "ciRetentionDays",
           "rawLogsHours"
         ],
@@ -13748,6 +13778,7 @@
           "ciRetentionDays": {
             "type": "integer",
             "format": "int32",
+            "description": "Install-wide (not per org): CI retention, raw-log window feeding archives.",
             "minimum": 0
           },
           "maxIndexes": {
@@ -13758,16 +13789,25 @@
             "type": "integer",
             "format": "int32"
           },
+          "maxMetrics": {
+            "$ref": "#/components/schemas/MetricRetention"
+          },
           "maxSpanRetentionDays": {
             "type": "integer",
             "format": "int32",
             "description": "Ceilings set by the instance admin."
           },
-          "metricsRetentionDays": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Install-wide (not per org): metric and CI retention, raw-log window feeding archives.",
-            "minimum": 0
+          "metricRetentionTiers": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "description": "What metric retentions can be chosen."
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/MetricRetention",
+            "description": "Days the org's metrics are kept at full resolution and as rollups, and its limits."
           },
           "rawLogsHours": {
             "type": "integer",
@@ -13783,12 +13823,22 @@
       },
       "OrgDataSettingsPatch": {
         "type": "object",
-        "required": [
-          "spanRetentionDays"
-        ],
         "properties": {
+          "metrics": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MetricRetention"
+              }
+            ]
+          },
           "spanRetentionDays": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int32"
           }
         }
@@ -13808,6 +13858,17 @@
           "maxLogRetentionDays": {
             "type": "integer",
             "format": "int32"
+          },
+          "maxMetrics": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MetricRetention",
+                "description": "Longest metric retentions (tiers, full resolution ≤ 5-minute ≤ 1-hour); unchanged when absent."
+              }
+            ]
           },
           "maxSpanRetentionDays": {
             "type": "integer",
