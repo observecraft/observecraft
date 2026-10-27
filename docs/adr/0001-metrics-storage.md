@@ -66,7 +66,7 @@ This is ClickHouse's own layout for metrics:
 - **Rollups.** Materialized views into aggregating tables, as in the
   [time-series query guide](https://clickhouse.com/docs/use-cases/time-series/query-performance).
 - **Server version.** **ClickHouse 26.8 LTS** (stage 0). 24.8 no longer gets fixes; only 26.3 and 26.8 are
-  supported LTS releases, and 26.8 has the ALP codec. Our migrations, the bundled tuning, the ingest profile and
+  supported LTS releases. Our migrations, the bundled tuning, the ingest profile and
   collector 0.163.2 all work on 26.8. We verified that end to end.
 
 1. **Ingest.** The collector's exporter writes to `otel.metrics_ingest_*` tables with the `Null` engine, set
@@ -81,8 +81,8 @@ This is ClickHouse's own layout for metrics:
    - TTL: `LastSeen` + the org's longest tier.
    - Readers filter and group on this small table, then join samples by `SeriesId`.
 3. **`otel.metrics_samples`** (gauge and sum): `(OrgId, MetricName, SeriesId, TimeUnix, Value, RetentionDays)`.
-   - Codecs: Delta-family on time; `Gorilla` or `ALP` on values, whichever compresses real samples better
-     in stage 1 (`ALP` needs 26.x).
+   - Codecs: Delta on time, `Gorilla` on values. `ALP`, which `TimeSeries` uses, is still experimental in 26.8
+     (`enable_alp_codec`). Revisit it once it is GA.
    - `ORDER BY (OrgId, MetricName, SeriesId, TimeUnix)`, `PARTITION BY (toDate(TimeUnix), RetentionDays)`.
    - `ttl_only_drop_parts = 1`.
    - Distributions get their own samples tables (buckets as arrays) with the same keys.

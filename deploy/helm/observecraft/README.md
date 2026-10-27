@@ -104,6 +104,7 @@ only the traffic each component needs; secrets are generated once and kept acros
 | `image.tag` | chart `appVersion` | ObserveCraft image version. |
 | `secrets.existingSecret` | `""` | Secret with `secret-key`, `internal-token`, `clickhouse-password`, `clickhouse-ingest-password`, `postgres-password`, `postgres-url`, `smtp-url` (missing keys are generated). |
 | `retention.logsDays` / `tracesDays` / `metricsDays` / `ciDays` | `15` / `15` / `30` / `30` | Default retention. `logsMaxDays` / `tracesMaxDays` cap what the instance admin can grant an organization. |
+| `retention.metrics5mDays` / `metrics1hDays` | `90` / `395` | How long metrics are kept as 5-minute and 1-hour rollups, which long ranges read. |
 | `query.timeoutSeconds` / `maxMemoryBytes` | `60` / `4 GiB` | Limits on each query, so one organization can't starve the others. |
 | `smtp.url` / `smtp.from` | | Email for monitor notifications (put the URL in the secret key `smtp-url`). |
 | `server.replicas`, `intake.replicas` | `2` | Plus `autoscaling.*`, `podDisruptionBudget.*`, `resources`, scheduling for each component. |

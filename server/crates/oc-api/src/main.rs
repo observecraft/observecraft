@@ -197,6 +197,8 @@ async fn migrate(
             traces: r.traces_days,
             traces_max: r.traces_max_days,
             metrics: r.metrics_days,
+            metrics_5m: r.metrics_5m_days,
+            metrics_1h: r.metrics_1h_days,
             ci: r.ci_days,
             raw_logs_hours: r.raw_logs_hours,
         },

@@ -49,7 +49,11 @@ retention:
   logsMaxDays: 365
   tracesDays: 15
   tracesMaxDays: 90
+  # -- Days metrics are kept at full resolution, as 5-minute and as 1-hour rollups (long ranges read
+  # the rollups), for orgs that haven't chosen.
   metricsDays: 30
+  metrics5mDays: 90
+  metrics1hDays: 395
   ciDays: 30
   # -- Hours every ingested log stays in the raw table that archives read.
   rawLogsHours: 72

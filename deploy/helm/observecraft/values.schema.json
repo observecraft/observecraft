@@ -94,6 +94,16 @@
           "minimum": 1,
           "maximum": 3650
         },
+        "metrics5mDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650
+        },
+        "metrics1hDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650
+        },
         "ciDays": {
           "type": "integer",
           "minimum": 1,

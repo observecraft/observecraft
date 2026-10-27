@@ -83,6 +83,26 @@ exporters:
     sending_queue:
       queue_size: 1000
       storage: file_storage/queue
+  # Metrics also go to the new storage (series, samples, rollups; docs/adr/0001-metrics-storage.md)
+  # through its ingest tables, while readers move over. The tables above stay until then.
+  clickhouse/metrics:
+    endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
+    database: otel
+    username: ${env:CLICKHOUSE_USER}
+    password: ${env:CLICKHOUSE_PASSWORD}
+    create_schema: false
+    timeout: 10s
+    metrics_tables:
+      gauge: { name: metrics_ingest_gauge }
+      sum: { name: metrics_ingest_sum }
+      summary: { name: metrics_ingest_summary }
+      histogram: { name: metrics_ingest_histogram }
+      exponential_histogram: { name: metrics_ingest_exponential_histogram }
+    retry_on_failure:
+      enabled: true
+    sending_queue:
+      queue_size: 1000
+      storage: file_storage/queue
   clickhouse/k8s:
     endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
     database: otel
@@ -179,4 +199,4 @@ service:
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, resource/org, resourcedetection, batch]
-      exporters: [clickhouse]
+      exporters: [clickhouse, clickhouse/metrics]

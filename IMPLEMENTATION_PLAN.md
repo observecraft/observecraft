@@ -27,14 +27,14 @@ Status: Complete
 ## Stage 1: Storage tables and ingest views
 
 Goal:
-- Migration `0006` adds the following, with the `${...}` placeholders for cluster mode:
-  - `otel.metrics_ingest_*` (Null engine);
-  - `otel.metrics_series`;
-  - `otel.metrics_samples` (+ distribution samples);
-  - `otel.metrics_rollup_5m` and `otel.metrics_rollup_1h`;
+- Migration `0006_metrics_storage` adds, with the `${...}` placeholders for cluster mode:
+  - `otel.metrics_ingest_*`: Null tables for all five point types, sharded by series in a cluster;
+  - `otel.metrics_points`: a Null table where gauge and sum are normalized once;
+  - `otel.metrics_series`, `otel.metrics_samples`, `otel.metrics_rollup_5m`, `otel.metrics_rollup_1h`;
   - the materialized views between them.
-- The collector writes to both the old and the new tables during the transition: a second exporter with
+- The collector writes to both the old and the new tables: a second exporter, `clickhouse/metrics`, with
   `metrics_tables` names.
+- Install-wide defaults for the rollups: `retention.metrics5mDays` (90) and `retention.metrics1hDays` (395).
 
 Success criteria:
 - A test inserting OTLP-shaped rows into the ingest tables finds:
@@ -44,7 +44,22 @@ Success criteria:
 - The migration is idempotent, and the cluster test shards a series and its rollups onto one shard.
 - The e2e run (collector 0.163 + telemetrygen) fills all new tables with no exporter errors.
 
-Status: Not Started
+Verified:
+- `oc-store/tests/metrics_storage.rs` on 26.8:
+  - the same labels in another key order are one series;
+  - a gauge and a sum sharing a name are two series;
+  - every point lands in samples;
+  - rollups match the samples;
+  - `oc.*` attributes aren't labels;
+  - migrations run twice cleanly.
+- `oc-store/tests/cluster.rs` on 2 shards + Keeper: samples, series and both rollups of each series are on one shard,
+  and the series spread over both shards.
+- e2e on 26.8 with the chart's users and ingest profile: the old and new tables get every point, with no exporter
+  errors.
+- Distribution types have ingest tables but no views yet (stage 5).
+- The integration tests need a ClickHouse (`OC_TEST_CLICKHOUSE_URL`) and are skipped in CI, like the cluster test.
+
+Status: Complete
 
 ## Stage 2: Query layer on the new tables
 
