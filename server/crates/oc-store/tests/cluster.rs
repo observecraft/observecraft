@@ -75,5 +75,5 @@ async fn schema_on_a_cluster() {
     .await;
     assert_eq!(apart, 0, "a series' samples and its labels are on different shards");
     // Retention changes reach every shard's local table.
-    oc_store::apply_retention(&cfg, oc_store::RetentionDays { traces: 7, traces_max: 30, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72 }).await.expect("retention");
+    oc_store::apply_retention(&cfg, oc_store::RetentionDays { traces: 7, traces_max: 30, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 0 }).await.expect("retention");
 }

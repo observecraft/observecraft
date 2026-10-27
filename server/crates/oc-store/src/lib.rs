@@ -292,10 +292,40 @@ pub struct RetentionDays {
     pub ci: u32,
     /// Hours every ingested log stays in `oc.logs_raw` (archives read it).
     pub raw_logs_hours: u32,
+    /// Days after which metric samples and rollups move to the `cold` volume of the
+    /// [`COLD_STORAGE_POLICY`] (object storage); 0 = no cold storage.
+    pub metrics_cold_after_days: u32,
 }
+
+/// Storage policy with a `default` (local) and a `cold` (object storage) volume, declared in the
+/// ClickHouse server config when cold storage is on (the Helm chart's `clickhouse.bundled.coldStorage`).
+pub const COLD_STORAGE_POLICY: &str = "observecraft_tiered";
+
+/// The metric storage tables that move to cold storage (not the series table: small, read by every query).
+const COLD_TABLES: &[&str] = &[
+    "otel.metrics_samples",
+    "otel.metrics_rollup_5m",
+    "otel.metrics_rollup_1h",
+    "otel.metrics_dist_samples",
+    "otel.metrics_dist_rollup_5m",
+    "otel.metrics_dist_rollup_1h",
+];
 
 /// Each table's TTL expression for `r`.
 fn retention_ttls(r: RetentionDays) -> Vec<(&'static str, String)> {
+    let mut ttls = delete_ttls(r);
+    if r.metrics_cold_after_days > 0 {
+        for (_, ttl) in ttls.iter_mut().filter(|(t, _)| COLD_TABLES.contains(t)) {
+            // The same time column as the delete TTL (TimeUnix or Bucket).
+            let time = ttl.split(" + ").next().unwrap_or_default().to_string();
+            *ttl = format!("{time} + toIntervalDay({}) TO VOLUME 'cold', {ttl}", r.metrics_cold_after_days);
+        }
+    }
+    ttls
+}
+
+/// Each table's delete TTL for `r`.
+fn delete_ttls(r: RetentionDays) -> Vec<(&'static str, String)> {
     // Rehydrated logs (oc.logs_rehydrated) expire with their rehydration, not by age.
     vec![
         ("oc.logs", "toDateTime(timestamp) + toIntervalDay(retention_days)".into()),
@@ -337,6 +367,14 @@ pub async fn apply_retention(cfg: &ClickHouseConfig, r: RetentionDays) -> anyhow
                 .fetch_one::<String>()
         };
         let before = definition().await.with_context(|| format!("definition of {table}"))?;
+        if r.metrics_cold_after_days > 0 && COLD_TABLES.contains(&table) && !before.contains(COLD_STORAGE_POLICY) {
+            // Its `default` volume is the default policy's, so existing parts stay where they are.
+            admin
+                .query(&format!("ALTER TABLE {local}{on} MODIFY SETTING storage_policy = '{COLD_STORAGE_POLICY}'"))
+                .execute()
+                .await
+                .with_context(|| format!("cold storage policy on {table} (is {COLD_STORAGE_POLICY} in the ClickHouse config?)"))?;
+        }
         admin
             .query(&format!("ALTER TABLE {local}{on} MODIFY TTL {ttl}"))
             .execute()
@@ -456,7 +494,7 @@ mod tests {
 
     #[test]
     fn metrics_storage_ttls_default_to_the_install_retention() {
-        let r = RetentionDays { traces: 15, traces_max: 90, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72 };
+        let r = RetentionDays { traces: 15, traces_max: 90, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 0 };
         let ttls = retention_ttls(r);
         let ttl = |t: &str| ttls.iter().find(|(table, _)| *table == t).map(|(_, ttl)| ttl.clone()).unwrap_or_else(|| panic!("no TTL for {t}"));
         // Rows without an org choice (RetentionDays = 0) use the install's retention.
@@ -469,6 +507,25 @@ mod tests {
         assert_eq!(ttl("otel.metrics_dist_rollup_1h"), "Bucket + toIntervalDay(if(RetentionDays = 0, 395, RetentionDays))");
         // A series lives as long as the longest of its data.
         assert_eq!(ttl("otel.metrics_series"), "LastSeen + toIntervalDay(if(RetentionDays = 0, 395, RetentionDays))");
+    }
+
+    #[test]
+    fn metric_storage_moves_to_cold_storage_when_configured() {
+        let r = RetentionDays { traces: 15, traces_max: 90, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 7 };
+        let ttls = retention_ttls(r);
+        let ttl = |t: &str| ttls.iter().find(|(table, _)| *table == t).map(|(_, ttl)| ttl.clone()).unwrap();
+        // Parts older than a week move to the cold volume, then are dropped at their retention.
+        assert_eq!(
+            ttl("otel.metrics_rollup_1h"),
+            "Bucket + toIntervalDay(7) TO VOLUME 'cold', Bucket + toIntervalDay(if(RetentionDays = 0, 395, RetentionDays))"
+        );
+        assert!(ttl("otel.metrics_samples").starts_with("toDateTime(TimeUnix) + toIntervalDay(7) TO VOLUME 'cold', "));
+        assert!(ttl("otel.metrics_dist_rollup_5m").contains("TO VOLUME 'cold'"));
+        // Not the series table (small, read by every query) nor other telemetry.
+        assert!(!ttl("otel.metrics_series").contains("VOLUME"));
+        assert!(!ttl("otel.otel_traces").contains("VOLUME"));
+        let off = retention_ttls(RetentionDays { metrics_cold_after_days: 0, ..r });
+        assert!(off.iter().all(|(_, t)| !t.contains("VOLUME")));
     }
 
     #[test]

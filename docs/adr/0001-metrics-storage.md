@@ -1,6 +1,6 @@
 # ADR-0001: Metrics storage for per-organization retention
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-27
 **Deciders:** maintainers
 
@@ -99,6 +99,14 @@ This is ClickHouse's own layout for metrics:
    tier and the step is under 5 minutes, then 5m, then 1h. The 31-day cap becomes the org's retention.
 7. **Cluster.** Every new table is sharded by `cityHash64(OrgId, MetricName, SeriesId)`, so a series and its
    rollups live on one shard.
+
+8. **No transition.** Existing metric data doesn't have to survive the upgrade.
+   - The collector writes metrics only to the new storage.
+   - Readers don't fall back to the exporter's tables.
+   - The old `otel.otel_metrics_*` tables are left unused (no migration drops them) and empty out through their TTL.
+9. **Cold storage.** Optionally, metric samples and rollups older than N days move to an S3 / RustFS volume of the
+   `observecraft_tiered` storage policy, and stay queryable with the same SQL. Logs already have their cold path:
+   Parquet archives.
 
 ## Options considered
 

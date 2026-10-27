@@ -73,6 +73,8 @@ pub struct Retention {
     pub ci_days: u32,
     /// Hours every ingested log stays in the raw table (archive source).
     pub raw_logs_hours: u32,
+    /// Days after which metric samples and rollups move to cold (object) storage; 0 = off.
+    pub metrics_cold_after_days: u32,
 }
 
 fn days(key: &str, default: u32) -> u32 {
@@ -144,6 +146,7 @@ impl Config {
                 logs_max_days: days("OC_RETENTION_LOGS_MAX_DAYS", 365),
                 traces_max_days: days("OC_RETENTION_TRACES_MAX_DAYS", 90),
                 raw_logs_hours: var("OC_RAW_LOGS_HOURS", "72").parse::<u32>().unwrap_or(72).clamp(2, 24 * 30),
+                metrics_cold_after_days: var("OC_METRICS_COLD_AFTER_DAYS", "0").parse().unwrap_or(0),
             },
             demo_ingest_key: env::var("OC_DEMO_INGEST_KEY").ok().filter(|k| k.starts_with("ocik_") && k.len() >= 20 && var("OC_SEED_DEMO", "true") == "true"),
         }

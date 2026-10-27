@@ -618,6 +618,24 @@
                 }
               }
             },
+            "coldStorage": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "endpoint": {
+                  "type": "string"
+                },
+                "existingSecret": {
+                  "type": "string"
+                },
+                "moveAfterDays": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
             "nodeSelector": {
               "type": "object"
             },

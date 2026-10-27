@@ -192,17 +192,25 @@ Status: Complete
 ## Stage 6: Cold storage for old metric partitions
 
 Goal:
-- Optional tiered storage for the bundled and operator ClickHouse: an S3 / RustFS disk in a storage policy.
-- The rollup tables (and optionally samples) move partitions older than N days there
-  (`TTL … TO VOLUME 'cold'`) and stay queryable with the same SQL.
-- Helm values for the bucket, credentials and the move age.
+- `clickhouse.bundled.coldStorage` declares an S3 / RustFS disk and the `observecraft_tiered` storage policy, with
+  volumes `default` (local; named like the default policy's so existing tables can switch) and `cold`.
+- `OC_METRICS_COLD_AFTER_DAYS` makes `apply_retention` switch the metric samples and rollups to that policy and add
+  `TO VOLUME 'cold'` to their TTL.
+- The series table stays local.
 - Logs already have their cold path: hourly Parquet archives in the org's bucket, with Archive Search and
   rehydration.
 
 Success criteria:
 - On a local RustFS, partitions past the move age land on the S3 disk (`system.parts.disk_name`).
-- The parity and range queries return the same results before and after the move.
+- Queries return the same results before and after the move.
 - Without the values set, nothing changes (single disk).
 
-Status: Not Started
+Verified:
+- `old_metric_parts_move_to_cold_storage`, on ClickHouse 26.8 with the chart's rendered config and RustFS:
+  - a 3-day-old part moves to `cold` (objects in the bucket);
+  - a 1-day-old part stays local;
+  - all rows stay queryable.
+- Unit test: TTLs only gain the move when it is configured, and only on the metric samples and rollups.
+- The chart requires the endpoint and the secret when cold storage is on.
 
+Status: Complete

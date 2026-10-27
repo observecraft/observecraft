@@ -136,7 +136,7 @@ async fn retention_changes_reach_existing_parts() {
     migrate_clickhouse(&cfg, false).await.expect("migrate");
     let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_option("mutations_sync", "2");
     let org = format!("retention-test-{}", std::process::id());
-    let days = |raw: u32| oc_store::RetentionDays { traces: 15, traces_max: 90, metrics: raw, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72 };
+    let days = |raw: u32| oc_store::RetentionDays { traces: 15, traces_max: 90, metrics: raw, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 0 };
     let count = || {
         let (ch, org) = (ch.clone(), org.clone());
         async move { ch.query(&format!("SELECT count() FROM otel.metrics_samples WHERE OrgId = '{org}'")).fetch_one::<u64>().await.expect("count") }
@@ -192,4 +192,51 @@ async fn wait_mutations(ch: &clickhouse::Client) {
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
     panic!("TTL recalculation didn't finish");
+}
+
+/// With cold storage on, metric parts past the move age go to the object-storage volume and stay
+/// queryable. Skipped unless OC_TEST_CLICKHOUSE_COLD_URL points at a ClickHouse server whose
+/// config declares the `observecraft_tiered` storage policy (the Helm chart's coldStorage).
+#[tokio::test]
+async fn old_metric_parts_move_to_cold_storage() {
+    let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_COLD_URL") else {
+        eprintln!("OC_TEST_CLICKHOUSE_COLD_URL unset: skipping");
+        return;
+    };
+    let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+    let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+    let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
+    migrate_clickhouse(&cfg, false).await.expect("migrate");
+    let r = oc_store::RetentionDays { traces: 15, traces_max: 90, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 2 };
+    oc_store::apply_retention(&cfg, r).await.expect("retention with cold storage");
+    let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password);
+    let org = format!("cold-test-{}", std::process::id());
+    for age in [1, 3] {
+        ch.query(&format!(
+            "INSERT INTO otel.metrics_ingest_gauge (ResourceAttributes, MetricName, Attributes, TimeUnix, Value) \
+             SELECT map('oc.org_id', '{org}'), 'system.cpu.utilization', map('cpu', toString(number)), now64(9) - INTERVAL {age} DAY, number FROM numbers(10)"
+        ))
+        .execute()
+        .await
+        .expect("insert");
+    }
+    // Moves happen in the background, at merges or on schedule.
+    ch.query("OPTIMIZE TABLE otel.metrics_samples FINAL").execute().await.expect("optimize");
+    // (age in days, disk) of each part.
+    let mut disks = Vec::new();
+    for _ in 0..60 {
+        disks = ch
+            .query("SELECT concat(toString(dateDiff('day', toDate(min_time), today())), ':', disk_name) FROM system.parts WHERE active AND database = 'otel' AND table = 'metrics_samples' ORDER BY 1")
+            .fetch_all::<String>()
+            .await
+            .expect("parts");
+        if disks.iter().any(|d| d.ends_with(":cold")) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+    assert!(disks.contains(&"3:cold".to_string()), "the 3-day-old part is on the cold disk: {disks:?}");
+    assert!(disks.contains(&"1:default".to_string()), "the 1-day-old part stays local: {disks:?}");
+    let n: u64 = ch.query(&format!("SELECT count() FROM otel.metrics_samples WHERE OrgId = '{org}'")).fetch_one().await.expect("count");
+    assert_eq!(n, 20, "cold parts stay queryable");
 }

@@ -201,6 +201,7 @@ async fn migrate(
             metrics_1h: r.metrics_1h_days,
             ci: r.ci_days,
             raw_logs_hours: r.raw_logs_hours,
+            metrics_cold_after_days: r.metrics_cold_after_days,
         },
     )
     .await

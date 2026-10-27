@@ -111,6 +111,7 @@ only the traffic each component needs; secrets are generated once and kept acros
 | `intake.orgRequestsPerSecond` / `orgMegabytesPerSecond` | `500` / `50` | Per-organization ingest limits (over them, senders get 429 and retry). |
 | `clickhouse.mode` | `bundled` | `bundled`, `operator` (Altinity, sharded and replicated) or `external`. |
 | `clickhouse.quota.*` | enabled | Per-organization ClickHouse query quota. |
+| `clickhouse.bundled.coldStorage.*` | off | Moves metric samples and rollups older than `moveAfterDays` to an S3-compatible bucket (e.g. RustFS); they stay queryable. `endpoint` is the path-style bucket URL with a prefix, `existingSecret` holds `access-key-id` and `secret-access-key`. With `operator` or `external` ClickHouse, declare an `observecraft_tiered` storage policy (volumes `default` and `cold`) yourself and set `OC_METRICS_COLD_AFTER_DAYS` in `extraEnv`. |
 | `clickhouse.bundled.tuning.*` | small server | Caches, concurrent queries, merge threads and async insert buffering for the bundled server. Raise them with `clickhouse.bundled.resources`. |
 | `postgres.mode` | `bundled` | `bundled`, `operator` (CloudNativePG) or `external`. |
 | `nats.enabled` | `true` | `false` to use `nats.external.url`. |
