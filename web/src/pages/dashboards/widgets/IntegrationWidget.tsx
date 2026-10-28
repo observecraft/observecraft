@@ -1,10 +1,11 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import type { EChartsOption } from 'echarts';
+import type { EChartsOption, SeriesOption } from 'echarts';
 import { Chart } from '../../../components/charts/Chart';
 import type { IntegrationWidgetDefinition } from '../../../api/integrations/evaluate';
 import { queryIntegrationPanel } from '../../../api/integrations/panels';
 import { aggregate } from '../../../api/integrations/evaluate';
-import { palette, seriesPalette } from '../../../theme/chartTheme';
+import { palette, seriesPalette, token } from '../../../theme/chartTheme';
+import { overlaySeries, overlayStatusToken } from '../../../lib/overlays';
 import { changeRows } from '../../../api/integrations/change';
 import { useDashboardContext } from './context';
 import { WidgetState } from './MetricWidgets';
@@ -147,7 +148,7 @@ function seriesColors(series: { palette?: string }[]): (s: { palette?: string },
 }
 
 function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
-  const { range, resolve, metrics } = useDashboardContext();
+  const { range, resolve, metrics, overlays } = useDashboardContext();
   const identity = JSON.stringify(def).replace(/\$[a-zA-Z_]\w*/g, (v) => resolve(`avg:scope{${v}}`));
   const data = useQuery({
     queryKey: ['integration-panel', identity, range, metrics?.version],
@@ -369,17 +370,20 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
               axisLabel: { formatter: (value: number) => formatUnitValue(value, unit, 2) },
             };
           }) as EChartsOption['yAxis'],
-          series: series.map((s, i) => ({
-            name: s.name,
-            color: colorOf(s, i),
-            data: s.points.map(([t, value]) => [t, value * presentationUnit(s.unit).scale]),
-            yAxisIndex: axisUnits.indexOf(presentationUnit(s.unit).unit),
-            tooltip: { valueFormatter: (value: unknown) => formatUnitValue(Number(value), presentationUnit(s.unit).unit) },
-            type: s.display === 'bars' ? 'bar' : 'line',
-            showSymbol: false,
-            lineStyle: { type: s.dashed ? 'dashed' : 'solid' },
-            ...(s.display === 'area' ? { areaStyle: { opacity: 0.4 }, stack: 'total' } : {}),
-          })),
+          series: [
+            ...(series.map((s, i) => ({
+              name: s.name,
+              color: colorOf(s, i),
+              data: s.points.map(([t, value]) => [t, value * presentationUnit(s.unit).scale]),
+              yAxisIndex: axisUnits.indexOf(presentationUnit(s.unit).unit),
+              tooltip: { valueFormatter: (value: unknown) => formatUnitValue(Number(value), presentationUnit(s.unit).unit) },
+              type: s.display === 'bars' ? 'bar' : 'line',
+              showSymbol: false,
+              lineStyle: { type: s.dashed ? 'dashed' : 'solid' },
+              ...(s.display === 'area' ? { areaStyle: { opacity: 0.4 }, stack: 'total' } : {}),
+            })) as SeriesOption[]),
+            ...(overlays?.length ? [overlaySeries(overlays, (status) => token(overlayStatusToken(status)))] : []),
+          ],
         };
     content = <Chart option={option} height="100%" />;
   }

@@ -1759,3 +1759,12 @@
 .tv-more:hover {
   color: var(--text);
 }
+
+.dash-overlays {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}

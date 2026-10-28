@@ -612,3 +612,26 @@ test('explorer formulas: letters become their queries, and the mock evaluates th
   assert.equal(evalFormula('Q0 - Q1', [5, null]), null);
   assert.equal(evalFormula('Q0 / Q1', [5, 0]), null);
 });
+
+test('dashboard overlays: events in the same minute make one marker, the worst status colours it', async () => {
+  const { overlayMarks, overlaySeries } = await import('../web/src/lib/overlays.ts');
+  const t = Date.UTC(2026, 0, 1, 10, 0);
+  const marks = overlayMarks([
+    { timestamp: t + 5_000, title: 'Deploy order-service 1.4.2', alertType: 'info' },
+    { timestamp: t + 40_000, title: 'Pod checkout-7d9 OOMKilled', alertType: 'error' },
+    { timestamp: t + 120_000, title: 'Back-off restarting', alertType: 'warning' },
+  ]);
+  assert.deepEqual(
+    marks.map((m) => [m.t, m.status, m.titles.length]),
+    [
+      [t, 'error', 2],
+      [t + 120_000, 'warning', 1],
+    ],
+  );
+  const s = overlaySeries(marks, (status) => `color-${status}`);
+  assert.equal(s.markLine.data.length, 2);
+  assert.equal(s.markLine.data[0].xAxis, t);
+  assert.equal(s.markLine.data[0].lineStyle.color, 'color-error');
+  assert.match(s.markLine.data[0].name, /Pod checkout-7d9 OOMKilled/);
+  assert.equal(overlaySeries([], () => '').markLine.data.length, 0);
+});

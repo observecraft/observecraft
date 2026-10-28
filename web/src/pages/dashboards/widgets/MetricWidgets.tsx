@@ -7,6 +7,7 @@ import { ArrowDown, ArrowUp, Search } from 'lucide-react';
 import type { ConditionalFormat, WidgetDefinition } from '../../../api/dashboards/types';
 import { Chart } from '../../../components/charts/Chart';
 import { hhmm } from '../../../lib/format';
+import { overlaySeries, overlayStatusToken } from '../../../lib/overlays';
 import { palette, token } from '../../../theme/chartTheme';
 import { useDistributionData, useGroupedData, useScalarData, useTimeseriesData } from '../queries';
 import { formatValue, useDashboardContext } from './context';
@@ -33,7 +34,7 @@ function axisLabel(v: number, span: number): string {
 // ---------------------------------------------------------------- timeseries
 
 export function TimeseriesWidget({ def }: { def: Def<'timeseries'> }) {
-  const { range, resolve } = useDashboardContext();
+  const { range, resolve, overlays } = useDashboardContext();
   const queries = def.requests.map((r) => resolve(r.query));
   const q = useTimeseriesData(queries, range);
   const option = useMemo<EChartsOption>(() => {
@@ -50,17 +51,20 @@ export function TimeseriesWidget({ def }: { def: Def<'timeseries'> }) {
       legend: showLegend ? { type: 'scroll', bottom: 0, left: 0, right: 0, formatter: (n: string) => (n.length > 32 ? `${n.slice(0, 32)}…` : n) } : undefined,
       xAxis: { type: 'time', axisLabel: { formatter: (v: number) => axisLabel(v, span) } },
       yAxis: { type: 'value', max: def.yMax, axisLabel: { formatter: format } },
-      series: series.map((s, i) => ({
-        name: def.requests.length > 1 && def.requests[i]?.alias ? def.requests[i].alias : s.name,
-        type: def.display === 'bars' ? 'bar' : 'line',
-        stack: def.stacked || def.display === 'bars' ? 'total' : undefined,
-        areaStyle: def.display === 'area' ? { opacity: 0.55 } : undefined,
-        lineStyle: { width: def.display === 'area' ? 0.8 : 1.4 },
-        barMaxWidth: 10,
-        data: display.scale === 1 ? s.points : s.points.map(([t, v]) => [t, v * display.scale]),
-      })),
-    };
-  }, [q.data, def, range]);
+      series: [
+        ...series.map((s, i) => ({
+          name: def.requests.length > 1 && def.requests[i]?.alias ? def.requests[i].alias : s.name,
+          type: def.display === 'bars' ? 'bar' : 'line',
+          stack: def.stacked || def.display === 'bars' ? 'total' : undefined,
+          areaStyle: def.display === 'area' ? { opacity: 0.55 } : undefined,
+          lineStyle: { width: def.display === 'area' ? 0.8 : 1.4 },
+          barMaxWidth: 10,
+          data: display.scale === 1 ? s.points : s.points.map(([t, v]) => [t, v * display.scale]),
+        })),
+        ...(overlays?.length ? [overlaySeries(overlays, (status) => token(overlayStatusToken(status)))] : []),
+      ],
+    } as EChartsOption;
+  }, [q.data, def, range, overlays]);
   return (
     <WidgetState loading={q.isPending} error={q.error} empty={q.data?.length === 0}>
       <Chart option={option} height="100%" />

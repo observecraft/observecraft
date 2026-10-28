@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { useDashboardExecution } from '../execution';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -20,7 +21,11 @@ import { DashboardContext, type DashboardContextValue } from '../widgets/context
 import { GroupFrame, WidgetFrame } from '../widgets/WidgetFrame';
 import { DashboardCanvas } from './DashboardCanvas';
 import { TemplateVarBar, TemplateVarEditor } from './TemplateVarBar';
+import { searchEvents } from '../../../api/events/client';
+import { overlayMarks } from '../../../lib/overlays';
 import '../dashboards.css';
+
+const OVERLAYS_KEY = 'oc.dashboards.overlays';
 
 const VAR_PREFIX = 'tpl_var_';
 
@@ -104,10 +109,35 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
   const { mutate } = update; // stable across renders
   const saveWidgets = useCallback((widgets: Widget[]) => mutate({ widgets }), [mutate]);
 
+  // "Show Overlays": warning and error events over the timeseries (kept per browser).
+  const [showOverlays, setShowOverlays] = useState(() => {
+    try {
+      return localStorage.getItem(OVERLAYS_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleOverlays = () =>
+    setShowOverlays((on) => {
+      try {
+        localStorage.setItem(OVERLAYS_KEY, on ? '0' : '1');
+      } catch {
+        // Private windows: the choice lasts until the page is left.
+      }
+      return !on;
+    });
+  const events = useQuery({
+    queryKey: ['dashboards', 'overlays', range],
+    queryFn: () => searchEvents({ range, query: '-status:info -status:success', limit: 500, offset: 0 }),
+    enabled: showOverlays,
+  });
+  const overlays = useMemo(() => (showOverlays && events.data ? overlayMarks(events.data.items) : undefined), [showOverlays, events.data]);
+
   const ctx = useMemo<DashboardContextValue>(
     () => ({
       range,
       metrics,
+      overlays,
       resolve,
       resolveSearch: (query) => [query, ...d.templateVariables.filter((tv) => values[tv.name] && values[tv.name] !== '*').map((tv) => `${tv.prefix}:${values[tv.name]}`)].filter(Boolean).join(' '),
       canEdit,
@@ -121,7 +151,7 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
       onGroupLayout: (gid, layouts) =>
         saveWidgets(updateWidget(d.widgets, gid, (g) => (g.definition.type === 'group' ? { ...g, definition: { ...g.definition, widgets: applyLayouts(g.definition.widgets, layouts) } } : g))),
     }),
-    [range, metrics, resolve, d.widgets, d.templateVariables, values, canEdit, saveWidgets, showToast],
+    [range, metrics, overlays, resolve, d.widgets, d.templateVariables, values, canEdit, saveWidgets, showToast],
   );
 
   const onLayout = (layouts: Layout[]) => saveWidgets(applyLayouts(d.widgets, layouts));
@@ -251,6 +281,10 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
           </div>
           <div className="dash-filter-row">
             <TemplateVarBar dashboardId={d.id} variables={d.templateVariables} values={values} onValues={setValues} canEdit={canEdit} onEditVariables={() => setTvEditor(true)} />
+            <label className="dash-overlays" title="Warning and error events over the timeseries">
+              <button role="switch" aria-checked={showOverlays} className={`switch${showOverlays ? ' on' : ''}`} onClick={toggleOverlays} />
+              Show Overlays
+            </label>
             <TimePicker />
           </div>
         </header>
