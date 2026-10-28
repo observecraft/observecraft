@@ -2862,6 +2862,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/status-pages/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The read-only page at `/status/<slug>`, without sign-in. Public pages answer to anyone; internal
+         *     pages only to signed-in members of the page's org. Everyone else gets 404, as for an unknown slug. */
+        get: operations["get_public_status_page"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/query/dashboard": {
         parameters: {
             query?: never;
@@ -3124,6 +3142,91 @@ export interface paths {
         put: operations["update_slo"];
         post?: never;
         delete: operations["delete_slo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/status-pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_status_pages"];
+        put?: never;
+        post: operations["create_status_page"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/status-pages/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_status_page"];
+        /** Replaces the page's fields and components. Components sent with the id of an existing one keep
+         *     it (and its notice history); the others get new ids. */
+        put: operations["update_status_page"];
+        post?: never;
+        delete: operations["delete_status_page"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/status-pages/{id}/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Opens a notice with its first update. */
+        post: operations["create_status_page_notice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/status-pages/{id}/notices/{notice_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Deletes a notice posted by mistake, with its updates; it no longer counts in the uptime bars. */
+        delete: operations["delete_status_page_notice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/status-pages/{id}/notices/{notice_id}/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Posts an update to an open notice; `resolved` resolves it. */
+        post: operations["update_status_page_notice"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3669,6 +3772,11 @@ export interface components {
         CollectorKind: "observecraft" | "otel" | "datadog";
         /** @enum {string} */
         Comparator: "above" | "above_or_equal" | "below" | "below_or_equal";
+        /**
+         * @description Ordered from best to worst.
+         * @enum {string}
+         */
+        ComponentStatus: "operational" | "degraded_performance" | "partial_outage" | "major_outage";
         /** @enum {string} */
         CorrectionCategory: "scheduled_maintenance" | "outside_business_hours" | "deployment" | "other";
         CreateAppKey: {
@@ -6007,6 +6115,48 @@ export interface components {
              */
             viewedAt?: number | null;
         };
+        NoticeImpact: {
+            componentId: string;
+            /** @description Degraded performance, partial outage or major outage. */
+            impact: components["schemas"]["ComponentStatus"];
+        };
+        NoticeInput: {
+            impacts?: components["schemas"]["NoticeImpact"][];
+            /**
+             * Format: int32
+             * @description IR number of an incident of the org.
+             */
+            incidentId?: number | null;
+            /** @description Markdown: the first update. */
+            message: string;
+            status: components["schemas"]["NoticeStatus"];
+            title: string;
+        };
+        /** @enum {string} */
+        NoticeStatus: "investigating" | "identified" | "monitoring" | "resolved";
+        NoticeUpdate: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy?: string | null;
+            /** Format: int64 */
+            id: number;
+            /** @description The impacts from this update on. */
+            impacts: components["schemas"]["NoticeImpact"][];
+            /** @description Markdown. */
+            message: string;
+            status: components["schemas"]["NoticeStatus"];
+        };
+        NoticeUpdateInput: {
+            /** @description New impacts; omit to keep the current ones. */
+            impacts?: components["schemas"]["NoticeImpact"][] | null;
+            /** @description Markdown. */
+            message: string;
+            /** @description `resolved` resolves the notice; no update can follow. */
+            status: components["schemas"]["NoticeStatus"];
+        };
         Notification: {
             author: string;
             automated: boolean;
@@ -6340,6 +6490,25 @@ export interface components {
                 [key: string]: number;
             };
             version: string;
+        };
+        /** @description The read-only rendering at `/status/<slug>`: no ids of users, incidents or the org. */
+        PublicStatusPage: {
+            components: components["schemas"]["StatusPageComponent"][];
+            description: string;
+            emailSubscriptions: boolean;
+            logoUrl: string;
+            name: string;
+            /** @description Open notices and those resolved in the last 60 days, newest first, without authors or incident links. */
+            notices: components["schemas"]["StatusPageNotice"][];
+            overallStatus: components["schemas"]["ComponentStatus"];
+            slackSubscriptions: boolean;
+            slug: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            updatedAt: number;
+            visibility: components["schemas"]["StatusPageVisibility"];
         };
         QualityIssue: {
             description: string;
@@ -7201,6 +7370,107 @@ export interface components {
             /** Format: int64 */
             warn: number;
         };
+        StatusPageComponent: {
+            /** @description The worst of `status` and the impacts of the open notices. */
+            currentStatus: components["schemas"]["ComponentStatus"];
+            group?: string | null;
+            id: string;
+            name: string;
+            /** @description The status set on the page. */
+            status: components["schemas"]["ComponentStatus"];
+        };
+        StatusPageComponentInput: {
+            /** @description Components with the same group are shown together under it. */
+            group?: string | null;
+            /** @description The id of an existing component to keep (and its notice history); omit for a new one. */
+            id?: string | null;
+            name: string;
+            status?: components["schemas"]["ComponentStatus"];
+        };
+        StatusPageDetail: {
+            components: components["schemas"]["StatusPageComponent"][];
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy?: string | null;
+            description: string;
+            /** @description The page offers to subscribe to its updates by email / in Slack. */
+            emailSubscriptions: boolean;
+            id: string;
+            /** @description Shown in the page's header instead of its name; empty for none. */
+            logoUrl: string;
+            name: string;
+            /** @description Open notices and those resolved in the last 60 days, newest first. */
+            notices: components["schemas"]["StatusPageNotice"][];
+            overallStatus: components["schemas"]["ComponentStatus"];
+            slackSubscriptions: boolean;
+            slug: string;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+            visibility: components["schemas"]["StatusPageVisibility"];
+        };
+        StatusPageInput: {
+            /** @description In display order. */
+            components?: components["schemas"]["StatusPageComponentInput"][];
+            description?: string;
+            /** @description Show a subscribe button offering email / Slack updates (subscriptions aren't delivered yet). */
+            emailSubscriptions?: boolean;
+            /** @description An http(s) image URL shown in the header instead of the name; empty for none. */
+            logoUrl?: string;
+            name: string;
+            slackSubscriptions?: boolean;
+            /** @description 1–64 lowercase letters, digits and dashes (not first or last); unique across the instance. */
+            slug: string;
+            visibility: components["schemas"]["StatusPageVisibility"];
+        };
+        StatusPageNotice: {
+            createdBy?: string | null;
+            id: string;
+            /** @description The impacts of the latest update. */
+            impacts: components["schemas"]["NoticeImpact"][];
+            /**
+             * Format: int32
+             * @description The linked incident's IR number.
+             */
+            incidentId?: number | null;
+            /** Format: int64 */
+            resolvedAt?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            startedAt: number;
+            /** @description The status of the latest update. */
+            status: components["schemas"]["NoticeStatus"];
+            title: string;
+            /** @description Newest first; the last one opened the notice. */
+            updates: components["schemas"]["NoticeUpdate"][];
+        };
+        StatusPageSummary: {
+            /** Format: int64 */
+            componentCount: number;
+            id: string;
+            name: string;
+            /**
+             * Format: int64
+             * @description Notices not resolved yet.
+             */
+            openNotices: number;
+            overallStatus: components["schemas"]["ComponentStatus"];
+            slug: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            updatedAt: number;
+            updatedBy?: string | null;
+            visibility: components["schemas"]["StatusPageVisibility"];
+        };
+        /** @enum {string} */
+        StatusPageVisibility: "public" | "internal";
         StatusSegment: {
             /** Format: int64 */
             from: number;
@@ -12686,6 +12956,35 @@ export interface operations {
             };
         };
     };
+    get_public_status_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicStatusPage"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     dashboard_query: {
         parameters: {
             query?: never;
@@ -13283,6 +13582,264 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_status_pages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageSummary"][];
+                };
+            };
+        };
+    };
+    create_status_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StatusPageInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageDetail"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_status_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_status_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StatusPageInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageDetail"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_status_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_status_page_notice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoticeInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageDetail"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_status_page_notice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                notice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_status_page_notice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                notice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoticeUpdateInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageDetail"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };

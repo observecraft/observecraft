@@ -151,7 +151,10 @@ fn origin_allowed(st: &AppState, headers: &HeaderMap) -> bool {
 }
 
 fn is_public(path: &str) -> bool {
-    !path.starts_with("/api/") || path == "/api/openapi.json" || path.starts_with("/api/v1/auth/")
+    !path.starts_with("/api/")
+        || path == "/api/openapi.json"
+        || path.starts_with("/api/v1/auth/")
+        || path.starts_with("/api/v1/public/")
 }
 
 // ================================================================ middleware
@@ -524,6 +527,8 @@ mod tests {
         assert!(is_public("/"));
         assert!(is_public("/dashboards/abc"));
         assert!(is_public("/api/v1/auth/login"));
+        assert!(is_public("/api/v1/public/status-pages/storefront"));
+        assert!(!is_public("/api/v1/status-pages"));
         assert!(!is_public("/api/v1/logs/search"));
         assert!(!is_public("/api/v1/me"));
     }

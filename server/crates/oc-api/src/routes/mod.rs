@@ -33,6 +33,7 @@ pub mod spans;
 pub mod standard_attributes;
 pub mod slo_math;
 pub mod slos;
+pub mod status_pages;
 pub mod sso;
 
 use axum::routing::{delete, get, patch, post};
@@ -239,6 +240,15 @@ use crate::state::AppState;
         reference_tables::get_one,
         reference_tables::replace,
         reference_tables::delete,
+        status_pages::list,
+        status_pages::create,
+        status_pages::get_one,
+        status_pages::update,
+        status_pages::delete,
+        status_pages::create_notice,
+        status_pages::update_notice,
+        status_pages::delete_notice,
+        status_pages::get_public,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -304,7 +314,7 @@ use crate::state::AppState;
         (name = "profiles", description = "Continuous profiles from Datadog's profilers: explorer, flame graphs and insights"),
         (name = "orchestration", description = "Kubernetes and ECS Explorers: objects, containers, utilization and events sent by the collectors"),
         (name = "identity", description = "Profile, users, roles, teams and SAML group mappings"),
-        (name = "incidents", description = "Incident management"),
+        (name = "incidents", description = "Incident management and status pages"),
         (name = "ci", description = "Software Delivery: CI pipeline executions, flaky tests and DORA metrics from CI/CD traces"),
         (name = "monitors", description = "Monitors, their evaluation history and downtimes"),
         (name = "slos", description = "Service level objectives, their status and error budget, and corrections"),
@@ -608,6 +618,22 @@ pub fn router() -> Router<AppState> {
                 .delete(reference_tables::delete)
                 .layer(axum::extract::DefaultBodyLimit::max(reference_tables::MAX_BODY_BYTES)),
         )
+        .route("/api/v1/status-pages", get(status_pages::list).post(status_pages::create))
+        .route(
+            "/api/v1/status-pages/:id",
+            get(status_pages::get_one).put(status_pages::update).delete(status_pages::delete),
+        )
+        .route("/api/v1/status-pages/:id/notices", post(status_pages::create_notice))
+        .route(
+            "/api/v1/status-pages/:id/notices/:notice_id",
+            axum::routing::delete(status_pages::delete_notice),
+        )
+        .route(
+            "/api/v1/status-pages/:id/notices/:notice_id/updates",
+            post(status_pages::update_notice),
+        )
+        // Needs no sign-in (auth::is_public); answers only for public pages or members of the page's org.
+        .route("/api/v1/public/status-pages/:slug", get(status_pages::get_public))
         .route(
             "/api/v1/org/data-settings",
             get(log_indexes::get_settings).patch(log_indexes::update_settings),
@@ -776,6 +802,7 @@ mod tests {
             include_str!("notebooks.rs"),
             include_str!("profiles.rs"),
             include_str!("reference_tables.rs"),
+            include_str!("status_pages.rs"),
             include_str!("identity.rs"),
             include_str!("incidents.rs"),
             include_str!("incident_views.rs"),
@@ -830,6 +857,7 @@ mod tests {
             ("network.rs", include_str!("network.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),
+            ("status_pages.rs", include_str!("status_pages.rs")),
             ("kubernetes.rs", include_str!("kubernetes.rs")),
             ("live.rs", include_str!("live.rs")),
             ("log_indexes.rs", include_str!("log_indexes.rs")),
@@ -939,6 +967,7 @@ mod tests {
             ("reference_tables.rs", include_str!("reference_tables.rs")),
             ("slo_math.rs", include_str!("slo_math.rs")),
             ("slos.rs", include_str!("slos.rs")),
+            ("status_pages.rs", include_str!("status_pages.rs")),
             ("spans.rs", include_str!("spans.rs")),
             ("sso.rs", include_str!("sso.rs")),
             ("standard_attributes.rs", include_str!("standard_attributes.rs")),

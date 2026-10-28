@@ -47,6 +47,10 @@ import { SloEditor } from './pages/slo/SloEditor';
 import { SloLayout } from './pages/slo/SloLayout';
 import { SloListPage } from './pages/slo/SloListPage';
 import { IncidentsPage } from './pages/incidents/IncidentsPage';
+import { PublicStatusPage } from './pages/statusPages/PublicStatusPage';
+import { StatusPageEditorPage } from './pages/statusPages/StatusPageEditorPage';
+import { StatusPagePage } from './pages/statusPages/StatusPagePage';
+import { StatusPagesPage } from './pages/statusPages/StatusPagesPage';
 import { AuditTrailPage } from './pages/settings/AuditTrailPage';
 import { LoginMethodsPage } from './pages/settings/LoginMethodsPage';
 import { OrgComingSoon, OrgSettingsLayout } from './pages/settings/OrgSettingsLayout';
@@ -214,6 +218,10 @@ function Shell() {
             </Route>
             <Route path="/incidents" element={<IncidentsPage />} />
             <Route path="/incidents/:id" element={<IncidentPage />} />
+            <Route path="/status-pages" element={<StatusPagesPage />} />
+            <Route path="/status-pages/new" element={<StatusPageEditorPage />} />
+            <Route path="/status-pages/:id" element={<StatusPagePage />} />
+            <Route path="/status-pages/:id/edit" element={<StatusPageEditorPage />} />
             <Route path="/account/profile" element={<PersonalSettings />} />
             <Route path="/teams" element={<TeamsPage />} />
             <Route path="/metrics" element={<MetricsLayout />}>
@@ -246,6 +254,8 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/login/link/:token" element={<LinkPage />} />
+      {/* Read-only status pages: no sign-in for public ones (the API decides what a visitor may see). */}
+      <Route path="/status/:slug" element={<PublicStatusPage />} />
       <Route
         path="*"
         element={

@@ -7038,6 +7038,47 @@
         }
       }
     },
+    "/api/v1/public/status-pages/{slug}": {
+      "get": {
+        "tags": [
+          "incidents"
+        ],
+        "summary": "The read-only page at `/status/<slug>`, without sign-in. Public pages answer to anyone; internal\npages only to signed-in members of the page's org. Everyone else gets 404, as for an unknown slug.",
+        "operationId": "get_public_status_page",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStatusPage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/query/dashboard": {
       "post": {
         "tags": [
@@ -7888,6 +7929,369 @@
         "responses": {
           "204": {
             "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/status-pages": {
+      "get": {
+        "tags": [
+          "incidents"
+        ],
+        "operationId": "list_status_pages",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatusPageSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "incidents"
+        ],
+        "operationId": "create_status_page",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusPageInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusPageDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/status-pages/{id}": {
+      "get": {
+        "tags": [
+          "incidents"
+        ],
+        "operationId": "get_status_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusPageDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "incidents"
+        ],
+        "summary": "Replaces the page's fields and components. Components sent with the id of an existing one keep\nit (and its notice history); the others get new ids.",
+        "operationId": "update_status_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusPageInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusPageDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "incidents"
+        ],
+        "operationId": "delete_status_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/status-pages/{id}/notices": {
+      "post": {
+        "tags": [
+          "incidents"
+        ],
+        "summary": "Opens a notice with its first update.",
+        "operationId": "create_status_page_notice",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoticeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusPageDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/status-pages/{id}/notices/{notice_id}": {
+      "delete": {
+        "tags": [
+          "incidents"
+        ],
+        "summary": "Deletes a notice posted by mistake, with its updates; it no longer counts in the uptime bars.",
+        "operationId": "delete_status_page_notice",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "notice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/status-pages/{id}/notices/{notice_id}/updates": {
+      "post": {
+        "tags": [
+          "incidents"
+        ],
+        "summary": "Posts an update to an open notice; `resolved` resolves it.",
+        "operationId": "update_status_page_notice",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "notice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoticeUpdateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusPageDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         }
       }
@@ -9536,6 +9940,16 @@
           "above_or_equal",
           "below",
           "below_or_equal"
+        ]
+      },
+      "ComponentStatus": {
+        "type": "string",
+        "description": "Ordered from best to worst.",
+        "enum": [
+          "operational",
+          "degraded_performance",
+          "partial_outage",
+          "major_outage"
         ]
       },
       "CorrectionCategory": {
@@ -17470,6 +17884,133 @@
           }
         }
       },
+      "NoticeImpact": {
+        "type": "object",
+        "required": [
+          "componentId",
+          "impact"
+        ],
+        "properties": {
+          "componentId": {
+            "type": "string"
+          },
+          "impact": {
+            "$ref": "#/components/schemas/ComponentStatus",
+            "description": "Degraded performance, partial outage or major outage."
+          }
+        }
+      },
+      "NoticeInput": {
+        "type": "object",
+        "required": [
+          "title",
+          "message",
+          "status"
+        ],
+        "properties": {
+          "impacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NoticeImpact"
+            }
+          },
+          "incidentId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "IR number of an incident of the org."
+          },
+          "message": {
+            "type": "string",
+            "description": "Markdown: the first update."
+          },
+          "status": {
+            "$ref": "#/components/schemas/NoticeStatus"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "NoticeStatus": {
+        "type": "string",
+        "enum": [
+          "investigating",
+          "identified",
+          "monitoring",
+          "resolved"
+        ]
+      },
+      "NoticeUpdate": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "message",
+          "impacts",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "impacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NoticeImpact"
+            },
+            "description": "The impacts from this update on."
+          },
+          "message": {
+            "type": "string",
+            "description": "Markdown."
+          },
+          "status": {
+            "$ref": "#/components/schemas/NoticeStatus"
+          }
+        }
+      },
+      "NoticeUpdateInput": {
+        "type": "object",
+        "required": [
+          "message",
+          "status"
+        ],
+        "properties": {
+          "impacts": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/NoticeImpact"
+            },
+            "description": "New impacts; omit to keep the current ones."
+          },
+          "message": {
+            "type": "string",
+            "description": "Markdown."
+          },
+          "status": {
+            "$ref": "#/components/schemas/NoticeStatus",
+            "description": "`resolved` resolves the notice; no update can follow."
+          }
+        }
+      },
       "Notification": {
         "type": "object",
         "required": [
@@ -18577,6 +19118,67 @@
           },
           "version": {
             "type": "string"
+          }
+        }
+      },
+      "PublicStatusPage": {
+        "type": "object",
+        "description": "The read-only rendering at `/status/<slug>`: no ids of users, incidents or the org.",
+        "required": [
+          "name",
+          "slug",
+          "visibility",
+          "description",
+          "logoUrl",
+          "emailSubscriptions",
+          "slackSubscriptions",
+          "components",
+          "overallStatus",
+          "notices",
+          "updatedAt"
+        ],
+        "properties": {
+          "components": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatusPageComponent"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "emailSubscriptions": {
+            "type": "boolean"
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatusPageNotice"
+            },
+            "description": "Open notices and those resolved in the last 60 days, newest first, without authors or incident links."
+          },
+          "overallStatus": {
+            "$ref": "#/components/schemas/ComponentStatus"
+          },
+          "slackSubscriptions": {
+            "type": "boolean"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/StatusPageVisibility"
           }
         }
       },
@@ -21334,6 +21936,309 @@
           }
         }
       },
+      "StatusPageComponent": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "currentStatus"
+        ],
+        "properties": {
+          "currentStatus": {
+            "$ref": "#/components/schemas/ComponentStatus",
+            "description": "The worst of `status` and the impacts of the open notices."
+          },
+          "group": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ComponentStatus",
+            "description": "The status set on the page."
+          }
+        }
+      },
+      "StatusPageComponentInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "group": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Components with the same group are shown together under it."
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The id of an existing component to keep (and its notice history); omit for a new one."
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ComponentStatus"
+          }
+        }
+      },
+      "StatusPageDetail": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "visibility",
+          "description",
+          "logoUrl",
+          "emailSubscriptions",
+          "slackSubscriptions",
+          "components",
+          "overallStatus",
+          "notices",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "components": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatusPageComponent"
+            }
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "emailSubscriptions": {
+            "type": "boolean",
+            "description": "The page offers to subscribe to its updates by email / in Slack."
+          },
+          "id": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string",
+            "description": "Shown in the page's header instead of its name; empty for none."
+          },
+          "name": {
+            "type": "string"
+          },
+          "notices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatusPageNotice"
+            },
+            "description": "Open notices and those resolved in the last 60 days, newest first."
+          },
+          "overallStatus": {
+            "$ref": "#/components/schemas/ComponentStatus"
+          },
+          "slackSubscriptions": {
+            "type": "boolean"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/StatusPageVisibility"
+          }
+        }
+      },
+      "StatusPageInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "slug",
+          "visibility"
+        ],
+        "properties": {
+          "components": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatusPageComponentInput"
+            },
+            "description": "In display order."
+          },
+          "description": {
+            "type": "string"
+          },
+          "emailSubscriptions": {
+            "type": "boolean",
+            "description": "Show a subscribe button offering email / Slack updates (subscriptions aren't delivered yet)."
+          },
+          "logoUrl": {
+            "type": "string",
+            "description": "An http(s) image URL shown in the header instead of the name; empty for none."
+          },
+          "name": {
+            "type": "string"
+          },
+          "slackSubscriptions": {
+            "type": "boolean"
+          },
+          "slug": {
+            "type": "string",
+            "description": "1–64 lowercase letters, digits and dashes (not first or last); unique across the instance."
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/StatusPageVisibility"
+          }
+        }
+      },
+      "StatusPageNotice": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "impacts",
+          "startedAt",
+          "updates"
+        ],
+        "properties": {
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "impacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NoticeImpact"
+            },
+            "description": "The impacts of the latest update."
+          },
+          "incidentId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The linked incident's IR number."
+          },
+          "resolvedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "startedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "status": {
+            "$ref": "#/components/schemas/NoticeStatus",
+            "description": "The status of the latest update."
+          },
+          "title": {
+            "type": "string"
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NoticeUpdate"
+            },
+            "description": "Newest first; the last one opened the notice."
+          }
+        }
+      },
+      "StatusPageSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "visibility",
+          "componentCount",
+          "overallStatus",
+          "openNotices",
+          "updatedAt"
+        ],
+        "properties": {
+          "componentCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "openNotices": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Notices not resolved yet."
+          },
+          "overallStatus": {
+            "$ref": "#/components/schemas/ComponentStatus"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "updatedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/StatusPageVisibility"
+          }
+        }
+      },
+      "StatusPageVisibility": {
+        "type": "string",
+        "enum": [
+          "public",
+          "internal"
+        ]
+      },
       "StatusSegment": {
         "type": "object",
         "required": [
@@ -22572,7 +23477,7 @@
     },
     {
       "name": "incidents",
-      "description": "Incident management"
+      "description": "Incident management and status pages"
     },
     {
       "name": "ci",
