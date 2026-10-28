@@ -13,6 +13,7 @@ import { MetricsExplorer } from './pages/metrics/MetricsExplorer';
 import { MetricsSummary } from './pages/metrics/MetricsSummary';
 import { MetricsVolume } from './pages/metrics/MetricsVolume';
 import { ReleaseNotesPage } from './pages/releaseNotes/ReleaseNotesPage';
+import { SetupGuidePage } from './pages/setup/SetupGuidePage';
 import { ApiKeysPage } from './pages/settings/ApiKeysPage';
 import { InstanceOrgsPage } from './pages/instance/InstanceOrgsPage';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
@@ -146,6 +147,8 @@ function Shell() {
             </Route>
             <Route path="/infrastructure" element={<HostsPage />} />
             <Route path="/infrastructure/map" element={<Navigate to="/infrastructure?view=map" replace />} />
+            <Route path="/infrastructure/add" element={<SetupGuidePage kind="infrastructure" />} />
+            <Route path="/logs/onboarding" element={<SetupGuidePage kind="logs" />} />
             <Route path="/release-notes" element={<ReleaseNotesPage />} />
             <Route path="/kubernetes" element={<KubernetesOverview />} />
             <Route path="/orchestration/explorer" element={<OrchestrationExplorer />} />

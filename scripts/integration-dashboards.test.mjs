@@ -778,3 +778,19 @@ test('release notes: the changelog as releases with their sections', async () =>
   assert.deepEqual(releases[0].sections[1].items[0], { scope: 'integrations', text: 'add live Kubernetes dashboards ([#29](https://x/29)) ([52fb11e](https://x/52fb11e))' });
   assert.deepEqual(releases[1].sections[0].items[0], { scope: null, text: 'fix one' });
 });
+
+test('setup guides: sources per page, snippets filled with the intake URL', async () => {
+  const { SOURCES, sourcesFor, fill } = await import('../web/src/pages/setup/sources.ts');
+  const logs = sourcesFor('logs').map((s) => s.id);
+  const infra = sourcesFor('infrastructure').map((s) => s.id);
+  assert.ok(logs.includes('http-api') && logs.includes('kubernetes-datadog'));
+  // The HTTP API only sends logs; infrastructure needs an agent on the hosts.
+  assert.ok(!infra.includes('http-api') && infra.includes('host-datadog'));
+  assert.ok(SOURCES.every((s) => s.steps.length > 0 && s.category));
+  assert.equal(fill('curl {{intake}}/api/v2/logs -H "DD-API-KEY: {{apiKey}}"', { intake: 'https://intake.example.com', apiKey: '<API_KEY>' }), 'curl https://intake.example.com/api/v2/logs -H "DD-API-KEY: <API_KEY>"');
+  // Host:port forms for agents that take one.
+  assert.equal(fill('{{intakeHost}}', { intake: 'https://intake.example.com', apiKey: 'k' }), 'intake.example.com:443');
+  assert.equal(fill('{{intakeHost}}', { intake: 'http://10.0.0.5:4318', apiKey: 'k' }), '10.0.0.5:4318');
+  assert.equal(fill('{{logsNoSsl}}', { intake: 'http://10.0.0.5:4318', apiKey: 'k' }), 'true');
+  assert.equal(fill('{{logsNoSsl}}', { intake: 'https://intake.example.com', apiKey: 'k' }), 'false');
+});
