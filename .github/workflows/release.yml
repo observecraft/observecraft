@@ -225,7 +225,11 @@ jobs:
           exit-code: "1"
       - if: always()
         uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
-        with: { sarif_file: trivy.sarif, category: "container-image-${{ matrix.arch }}" }
+        with:
+          sarif_file: trivy.sarif
+          category: container-image-${{ matrix.arch }}
+          ref: refs/heads/main
+          sha: ${{ env.SOURCE_SHA }}
 
   charts:
     needs: [prepare, promote]
