@@ -1,5 +1,5 @@
 import type { Widget, MetricSeries } from './types';
-import { preparePanelQuery } from '../integrations/evaluate';
+import { normalizeRequest, preparePanelQuery } from '../integrations/evaluate';
 import type { TimeRange } from '../types';
 
 export interface DashboardMetricQuery {
@@ -40,7 +40,7 @@ export function collectDashboardQueries(widgets: Widget[], resolve: (query: stri
           add(resolve(`max:service_check.status{check:${typeof def.check === 'string' ? def.check : ''},${tags.join(',')}} by {host}`));
         } else if (def.type !== 'list_stream') {
           const planned = (def.requests ?? [])
-            .flatMap((r) => r.queries ?? (r.q ? [{ query: r.q, data_source: 'metrics' }] : []))
+            .flatMap((r) => normalizeRequest(r).queries)
             .map((q) => {
               if (q.data_source !== 'metrics') throw new Error('Unsupported data source');
               return preparePanelQuery(q.query, resolve, range);

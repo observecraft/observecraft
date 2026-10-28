@@ -334,7 +334,9 @@ function evaluateFormula(formula: string, range: TimeRange, points: number): Gro
 
 export function queryTimeseries(req: TimeseriesRequest): Promise<MetricSeries[]> {
   return attempt(() =>
-    req.queries.flatMap((query) => {
+    req.queries.flatMap((raw) => {
+      // The mock averages every interval: a `.rollup(method)` suffix is accepted and ignored.
+      const query = raw.replace(/\.rollup\([^()]*\)$/, '');
       const q = parseMetricQuery(query);
       if (!q) return evaluateFormula(query, req.range, req.points ?? 120).map((g) => ({ name: Object.keys(g.tags).length ? groupLabel(g.tags) : query, points: g.points }));
       return evaluate(query, req.range, req.points ?? 120).map((g) => ({

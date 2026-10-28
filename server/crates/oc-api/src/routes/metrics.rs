@@ -29,6 +29,7 @@ use axum::extract::{Path, State};
 use axum::Json;
 use oc_query::{
     metric_field, metric_filter, parse_metric_query, short_tag, span_field, MetricQuery, Param,
+    Rollup,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -831,9 +832,22 @@ fn points_query(
     scale: f64,
 ) -> (String, Vec<Param>) {
     // Raw points (Value, TimeUnix) or rollup buckets (Sum, Count, Min, Max, Start, End).
-    let v = match (kind, source != Source::Samples) {
-        (Kind::Gauge | Kind::UpDown, false) => "avg(Value)".to_string(),
-        (Kind::Gauge | Kind::UpDown, true) => "sum(Sum) / sum(Count)".to_string(),
+    let rolled = source != Source::Samples;
+    // A gauge's `.rollup(method)`: the method over raw points, or over the rollup buckets' columns.
+    let gauge = match (q.rollup.unwrap_or(Rollup::Avg), rolled) {
+        (Rollup::Avg, false) => "avg(Value)",
+        (Rollup::Avg, true) => "sum(Sum) / sum(Count)",
+        (Rollup::Max, false) => "max(Value)",
+        (Rollup::Max, true) => "max(Max)",
+        (Rollup::Min, false) => "min(Value)",
+        (Rollup::Min, true) => "min(Min)",
+        (Rollup::Sum, false) => "sum(Value)",
+        (Rollup::Sum, true) => "sum(Sum)",
+        (Rollup::Count, false) => "count()",
+        (Rollup::Count, true) => "sum(Count)",
+    };
+    let v = match (kind, rolled) {
+        (Kind::Gauge | Kind::UpDown, _) => gauge.to_string(),
         (Kind::Counter, false) => "greatest(max(Value) - min(Value), 0) * 1000 / greatest(dateDiff('millisecond', min(TimeUnix), max(TimeUnix)), 1)".to_string(),
         (Kind::Counter, true) => "greatest(max(Max) - min(Min), 0) * 1000 / greatest(dateDiff('millisecond', min(Start), max(End)), 1)".to_string(),
         (Kind::Delta, false) => format!("sum(Value) / {step_s}"),
@@ -1453,6 +1467,18 @@ pub async fn volume(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_rollup_method_combines_a_gauges_points_within_the_interval() {
+        let range = TimeRange { from: 0, to: 3_600_000 };
+        let sql = |q: &str, source| points_query(Kind::Gauge, source, &parse_metric_query(q).unwrap(), range, 60, 1.0).0;
+        assert!(sql("sum:k.terminated{*}", Source::Samples).contains("avg(Value) AS v"));
+        assert!(sql("sum:k.terminated{*}.rollup(max)", Source::Samples).contains("max(Value) AS v"));
+        assert!(sql("sum:k.terminated{*}.rollup(max)", Source::Rollup5m).contains("max(Max) AS v"));
+        assert!(sql("sum:k.terminated{*}.rollup(sum)", Source::Rollup5m).contains("sum(Sum) AS v"));
+        assert!(sql("sum:k.terminated{*}.rollup(count)", Source::Samples).contains("count() AS v"));
+    }
+
 
     #[test]
     fn volume_ranks_metrics_by_active_series_with_their_share() {

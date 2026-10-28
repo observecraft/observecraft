@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { convertDashboard, convertMonitor, metricDescriptions, metricUnits, PINNED_REVISION } from './import-integration-dashboards.mjs';
-import { formula, metricPlan, preparePanelQuery, timeShifts } from '../web/src/api/integrations/evaluate.ts';
+import { formula, normalizeRequest, metricPlan, preparePanelQuery, timeShifts } from '../web/src/api/integrations/evaluate.ts';
 import { byteAxisInterval, formatMetricValue } from '../web/src/api/integrations/units.ts';
 import { changeRows } from '../web/src/api/integrations/change.ts';
 import { shades } from '../web/src/theme/shades.ts';
@@ -638,4 +638,41 @@ test('dashboard overlays: events in the same minute make one marker, the worst s
   assert.equal(s.markLine.data[0].lineStyle.color, 'color-error');
   assert.match(s.markLine.data[0].name, /Pod checkout-7d9 OOMKilled/);
   assert.equal(overlaySeries([], () => '').markLine.data.length, 0);
+});
+
+test('panel requests: a function around a metric query becomes a formula over that query', () => {
+  const inner = 'avg:kubernetes_state.replicaset.replicas{$scope} by {kube_replica_set}';
+  // Legacy `q`.
+  assert.deepEqual(normalizeRequest({ q: `top(${inner}, 10, 'mean', 'desc')` }), {
+    queries: [{ name: 'query1', query: inner, data_source: 'metrics' }],
+    formulas: [{ formula: "top(query1, 10, 'mean', 'desc')" }],
+  });
+  // A named query wrapping its metric query, with or without formulas.
+  assert.deepEqual(normalizeRequest({ queries: [{ name: 'query1', query: `top(${inner}, 10, 'mean', 'desc')`, data_source: 'metrics', aggregator: 'avg' }] }), {
+    queries: [{ name: 'query1', query: inner, data_source: 'metrics', aggregator: 'avg' }],
+    formulas: [{ formula: "top(query1, 10, 'mean', 'desc')" }],
+  });
+  assert.deepEqual(normalizeRequest({ queries: [{ name: 'a', query: `top(${inner}, 5, 'last', 'desc')`, data_source: 'metrics' }], formulas: [{ formula: 'a * 2', alias: 'x' }] }).formulas, [
+    { formula: "(top(a, 5, 'last', 'desc')) * 2", alias: 'x' },
+  ]);
+  // A time comparison of the query is wrapped whole, so it stays a time comparison.
+  assert.deepEqual(
+    normalizeRequest({ queries: [{ name: 'query1', query: `top(${inner}, 10, 'mean', 'desc')`, data_source: 'metrics' }], formulas: [{ formula: 'hour_before(query1)' }, { formula: 'query1' }] })
+      .formulas,
+    [{ formula: "(top(hour_before(query1), 10, 'mean', 'desc'))" }, { formula: "(top(query1, 10, 'mean', 'desc'))" }],
+  );
+  assert.equal(timeShifts("(top(hour_before(query1), 10, 'mean', 'desc'))").text, "(top(query1__shift3600, 10, 'mean', 'desc'))");
+  // Plain queries and log queries are unchanged.
+  const plain = { queries: [{ name: 'query1', query: 'sum:kubernetes.pods.running{*} by {kube_namespace}', data_source: 'metrics' }] };
+  assert.deepEqual(normalizeRequest(plain), { queries: plain.queries, formulas: undefined });
+  assert.deepEqual(normalizeRequest({ q: 'sum:kubernetes.pods.running{*}' }), { queries: [{ name: 'query1', query: 'sum:kubernetes.pods.running{*}', data_source: 'metrics' }], formulas: undefined });
+});
+
+test('panel queries keep a rollup method other than avg, for the API to apply', () => {
+  const range = { from: 0, to: 3_600_000 };
+  const same = (q) => q;
+  assert.equal(preparePanelQuery('sum:k.terminated{reason:oomkilled} by {pod_name}.rollup(max)', same, range).text, 'sum:k.terminated{reason:oomkilled} by {pod_name}.rollup(max)');
+  assert.equal(preparePanelQuery('avg:k.cpu{*}.rollup(avg, 60)', same, range).text, 'avg:k.cpu{*}');
+  assert.equal(preparePanelQuery('avg:k.cpu{*}.rollup(sum, 60)', same, range).points, 60);
+  assert.throws(() => preparePanelQuery('avg:k.cpu{*}.rollup(median)', same, range), /Rollup median/);
 });

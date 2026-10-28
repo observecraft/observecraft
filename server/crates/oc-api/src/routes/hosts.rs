@@ -692,7 +692,7 @@ pub struct HostMetrics {
 fn host_query(agg: SpaceAgg, metric: &str, host: &str, extra: &[(&str, &str, bool)]) -> MetricQuery {
     let mut filters = vec![TagFilter { key: "host".into(), value: host.into(), negate: false }];
     filters.extend(extra.iter().map(|(k, v, n)| TagFilter { key: k.to_string(), value: v.to_string(), negate: *n }));
-    MetricQuery { agg, metric: metric.into(), filters, by: vec![] }
+    MetricQuery { agg, metric: metric.into(), filters, by: vec![], rollup: None }
 }
 
 #[utoipa::path(post, path = "/api/v1/hosts/{name}/metrics", params(("name" = String, Path)), request_body = HostRequest, responses((status = 200, body = HostMetrics)), tag = "infrastructure")]

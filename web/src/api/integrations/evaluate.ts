@@ -33,6 +33,39 @@ export interface IntegrationWidgetDefinition {
   [key: string]: unknown;
 }
 
+/** A metric query (with its `.fill()`-style functions) inside a function such as top(…). */
+const WRAPPED_QUERY = /(?:avg|sum|min|max):[\w./-]+\{[^{}]*\}(?:\s+by\s+\{[\w, -]+\})?(?:\.[a-z_]+\([^()]*\))*/;
+
+/**
+ * A request's metric queries and formulas, with a legacy `q` as query1 and any function wrapped
+ * around a metric query (`top(avg:…, 10, 'mean', 'desc')`) moved into the formulas, where it applies
+ * to that query's name.
+ */
+export function normalizeRequest(request: Pick<IntegrationRequest, 'q' | 'queries' | 'formulas'>): { queries: IntegrationQuery[]; formulas?: IntegrationFormula[] } {
+  const raw: IntegrationQuery[] = request.queries ?? (request.q ? [{ name: 'query1', query: request.q, data_source: 'metrics' }] : []);
+  const wrappers = new Map<string, string>();
+  const queries = raw.map((q) => {
+    const m = q.data_source === 'metrics' ? WRAPPED_QUERY.exec(q.query) : null;
+    if (!m || m[0] === q.query.trim()) return q;
+    wrappers.set(q.name, q.query.replace(m[0], q.name));
+    return { ...q, query: m[0] };
+  });
+  if (!wrappers.size) return { queries, formulas: request.formulas };
+  // A time comparison of a wrapped query (hour_before(query1)) is wrapped whole: top(hour_before(query1), …).
+  const wrap = (text: string) =>
+    text.replace(
+      /\b(?:(?:hour_before|day_before|week_before|month_before)\(\s*(\w+)\s*\)|(?:timeshift|calendar_shift)\(\s*(\w+)\s*,[^()]*\)|(\w+))/g,
+      (call: string, a?: string, b?: string, bare?: string) => {
+        const name = a ?? b ?? bare ?? '';
+        const wrapper = wrappers.get(name);
+        if (!wrapper) return call;
+        return `(${wrapper.replace(new RegExp(`\\b${name}\\b`), call)})`;
+      },
+    );
+  const formulas = request.formulas?.map((f) => ({ ...f, formula: wrap(f.formula) })) ?? queries.map((q) => ({ formula: wrappers.get(q.name) ?? q.name }));
+  return { queries, formulas };
+}
+
 export function metricPlan(text: string) {
   const m = /^((?:avg|sum|min|max):[\w./-]+\{[^{}]*\}(?:\s+by\s+\{[\w, -]+\})?)(.*)$/.exec(text);
   if (!m) throw new Error(`Unsupported metric expression: ${text}`);
@@ -231,11 +264,13 @@ export function formula(text: string, inputs: Record<string, Vector>): Vector {
 export function preparePanelQuery(query: string, resolve: (query: string) => string, range: { from: number; to: number }) {
   const plan = metricPlan(query);
   const rollup = plan.operations.find((o) => o.name === 'rollup');
-  if (rollup && rollup.args[0] !== 'avg') throw new Error(`Rollup ${rollup.args[0]} is not supported yet`);
+  if (rollup && !['avg', 'max', 'min', 'sum', 'count'].includes(rollup.args[0])) throw new Error(`Rollup ${rollup.args[0]} is not supported yet`);
+  // Methods other than avg (the API's default) travel with the query; the interval sets the points.
+  const method = rollup && rollup.args[0] !== 'avg' ? `.rollup(${rollup.args[0]})` : '';
   const interval = rollup?.args[1] ? Number(rollup.args[1]) : undefined;
   if (interval !== undefined && (!Number.isFinite(interval) || interval < 1)) throw new Error('Invalid rollup interval');
   const points = interval ? Math.min(1000, Math.max(10, Math.ceil((range.to - range.from) / (interval * 1000)))) : 120;
   const weighted = plan.operations.find((o) => o.name === 'weighted');
   if (weighted && (weighted.args.some(Boolean) || !plan.query.startsWith('sum:'))) throw new Error('weighted() requires sum and no arguments');
-  return { plan, text: resolve(plan.query) + (weighted ? '.weighted()' : ''), points };
+  return { plan, text: resolve(plan.query) + method + (weighted ? '.weighted()' : ''), points };
 }

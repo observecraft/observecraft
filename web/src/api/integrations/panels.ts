@@ -3,7 +3,7 @@ import { metricCatalog, queryTimeseries } from '../dashboards/client';
 import type { MetricSeries, TimeRange } from '../types';
 import { topLogValues } from '../client';
 import { logRequest, logSeries, throughputs, type LogPanelQuery } from './logs';
-import { aggregate, formula, preparePanelQuery, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
+import { aggregate, formula, normalizeRequest, preparePanelQuery, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
 
 export interface PanelSeries extends MetricSeries {
   column?: string;
@@ -35,7 +35,7 @@ export async function queryIntegrationPanel(
   const scalar = def.type !== 'timeseries';
   // Reject unsupported expressions before waiting on any network request.
   for (const request of def.requests) {
-    for (const query of request.queries ?? (request.q ? [{ name: 'query1', query: request.q, data_source: 'metrics' }] : [])) {
+    for (const query of normalizeRequest(request).queries) {
       if (query.data_source === 'logs') logRequest(query as unknown as LogPanelQuery, resolve);
       else if (query.data_source === 'metrics') preparePanelQuery(query.query, resolve, range);
       else throw new Error(`Data source ${query.data_source} is not supported by this panel yet`);
@@ -45,10 +45,11 @@ export async function queryIntegrationPanel(
   return (
     await Promise.all(
       def.requests.map(async (request) => {
-        const queries = request.queries ?? (request.q ? [{ name: 'query1', query: request.q, data_source: 'metrics' }] : []);
-        const formulas: IntegrationFormula[] = (request.formulas ?? queries.map((q) => ({ formula: q.name }))).map((f) => ({ ...f, formula: throughputs(timeShifts(f.formula).text).text }));
-        const shifts = (request.formulas ?? []).flatMap((f) => timeShifts(f.formula).shifts);
-        const perSecond = [...new Set((request.formulas ?? []).flatMap((f) => throughputs(f.formula).names))];
+        // A legacy `q` is query1; a function around a metric query (top(…)) becomes a formula.
+        const { queries, formulas: requestFormulas } = normalizeRequest(request);
+        const formulas: IntegrationFormula[] = (requestFormulas ?? queries.map((q) => ({ formula: q.name }))).map((f) => ({ ...f, formula: throughputs(timeShifts(f.formula).text).text }));
+        const shifts = (requestFormulas ?? []).flatMap((f) => timeShifts(f.formula).shifts);
+        const perSecond = [...new Set((requestFormulas ?? []).flatMap((f) => throughputs(f.formula).names))];
         const inputs: Record<string, MetricSeries[]> = {};
         // A query over `range` moved back by `seconds`, its points moved onto `range` (time comparisons).
         // The dashboard's shared stream only has the current range, so earlier ranges are fetched directly.
