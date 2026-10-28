@@ -721,3 +721,18 @@ test('API keys: the status filter and search', async () => {
     ['b2'],
   );
 });
+
+test('split graph: one small chart per group, the busiest first, at most the limit', async () => {
+  const { splitSeries } = await import('../web/src/pages/metrics/split.ts');
+  const s = (name, values) => ({ name, points: values.map((v, i) => [i, v]) });
+  const series = [s('host:a', [1, 2]), s('host:b', [5, 9]), s('host:c', [3, 3]), s('host:d', [])];
+  assert.deepEqual(
+    splitSeries(series, 2).shown.map((x) => x.name),
+    ['host:b', 'host:c'],
+  );
+  assert.equal(splitSeries(series, 2).hidden, 2);
+  assert.deepEqual(
+    splitSeries(series, 24).shown.map((x) => x.name),
+    ['host:b', 'host:c', 'host:a', 'host:d'],
+  );
+});

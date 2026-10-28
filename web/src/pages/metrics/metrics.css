@@ -230,3 +230,36 @@
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
 }
+
+/* ---------- Split graph ---------- */
+.mx-split-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.mx-split {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.mx-split-cell {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.mx-split-title {
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mx-chart.mx-chart-split {
+  height: auto;
+}

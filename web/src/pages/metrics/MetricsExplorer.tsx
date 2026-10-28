@@ -6,8 +6,10 @@ import { TimePicker } from '../../components/shell/PageHeader';
 import { useTime } from '../../components/shell/TimeContext';
 import { expandFormula } from '../../lib/metricFormula';
 import { usePopover } from '../../components/ui/Dropdown';
-import { useMetricCatalog } from '../dashboards/queries';
-import { DashboardContext, type DashboardContextValue } from '../dashboards/widgets/context';
+import { useMetricCatalog, useTimeseriesData } from '../dashboards/queries';
+import { Chart } from '../../components/charts/Chart';
+import { splitSeries } from './split';
+import { DashboardContext, formatValue, type DashboardContextValue } from '../dashboards/widgets/context';
 import { TimeseriesWidget } from '../dashboards/widgets/MetricWidgets';
 import { KIND_LABEL } from './MetricsLayout';
 
@@ -108,6 +110,9 @@ export function MetricsExplorer() {
   const byLetter = Object.fromEntries(rows.flatMap((r, i) => (r.metric ? [[LETTERS[i], toQuery(r)]] : [])));
   const expanded = formula?.trim() ? expandFormula(formula, byLetter) : null;
   const graphed = expanded ? [expanded] : queries;
+  // Split graph: one small chart per group, for a single grouped query.
+  const [split, setSplit] = useState(false);
+  const canSplit = graphed.length === 1 && (Boolean(expanded) || Boolean(rows.find((r) => r.metric)?.by.trim()));
   const ctx = useMemo<DashboardContextValue>(
     () => ({ range, resolve: (q) => q, resolveSearch: (q) => q, canEdit: false, onEdit: () => {}, onClone: () => {}, onDelete: () => {}, onFullscreen: () => {}, onGroupLayout: () => {} }),
     [range],
@@ -182,14 +187,19 @@ export function MetricsExplorer() {
               {q}
             </code>
           ))}
+          {canSplit && (
+            <label className="mx-split-toggle" title="One graph per group">
+              <input type="checkbox" className="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} /> Split graph
+            </label>
+          )}
         </div>
       </div>
-      <div className="mx-chart">
+      <div className={`mx-chart${split && canSplit ? ' mx-chart-split' : ''}`}>
         {graphed.length === 0 ? (
           <div className="wd-state">Pick a metric to graph it.</div>
         ) : (
           <DashboardContext.Provider value={ctx}>
-            <TimeseriesWidget def={{ type: 'timeseries', display: 'line', requests: graphed.map((query) => ({ query })) }} />
+            {split && canSplit ? <SplitGraph query={graphed[0]} /> : <TimeseriesWidget def={{ type: 'timeseries', display: 'line', requests: graphed.map((query) => ({ query })) }} />}
           </DashboardContext.Provider>
         )}
       </div>
@@ -206,5 +216,41 @@ export function MetricsExplorer() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Groups shown as small graphs at most. */
+const SPLIT_LIMIT = 24;
+
+/** One small graph per group of the query, the busiest first. */
+function SplitGraph({ query }: { query: string }) {
+  const { range } = useTime();
+  const q = useTimeseriesData([query], range);
+  if (q.isPending) return <div className="wd-state">Loading…</div>;
+  if (q.isError) return <div className="wd-state wd-error">{q.error.message}</div>;
+  const { shown, hidden } = splitSeries(q.data, SPLIT_LIMIT);
+  return (
+    <>
+      <div className="mx-split">
+        {shown.map((s) => (
+          <div key={s.name} className="mx-split-cell">
+            <div className="mx-split-title" title={s.name}>
+              {s.name}
+            </div>
+            <Chart
+              height={120}
+              option={{
+                grid: { left: 40, right: 8, top: 8, bottom: 20 },
+                tooltip: { trigger: 'axis', confine: true },
+                xAxis: { type: 'time', axisLabel: { fontSize: 10, hideOverlap: true } },
+                yAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: (v: number) => formatValue(v, Math.abs(v) < 1 ? 2 : 0) } },
+                series: [{ name: s.name, type: 'line', showSymbol: false, lineStyle: { width: 1.2 }, data: s.points }],
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      {hidden > 0 && <p className="muted">{hidden} more groups not shown.</p>}
+    </>
   );
 }
