@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { EChartsOption } from 'echarts';
-import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
-import { BellPlus, Cpu, LayoutDashboard, PanelLeft, Wrench, X } from 'lucide-react';
+import { NavLink, useNavigate, useSearchParams } from 'react-router-dom';
+import { Cpu, ExternalLink, MoreHorizontal, PanelLeft, X } from 'lucide-react';
 import { gpuTimeseries, searchGpus, type GpuDevice, type GpuSearchPage, type GpuSeries, type GpuState } from '../../api/gpu/client';
 import { Chart } from '../../components/charts/Chart';
 import { FacetPanel } from '../../components/facets/FacetPanel';
 import { QueryBar } from '../../components/query/QueryBar';
 import { TimePicker } from '../../components/shell/PageHeader';
 import { useTime } from '../../components/shell/TimeContext';
-import { Select } from '../../components/ui/Dropdown';
+import { Menu, Select } from '../../components/ui/Dropdown';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
 import { formatBytes, UsageBar } from '../../components/ui/Pager';
@@ -67,6 +67,7 @@ function useGpus(full: string) {
 export function GpuMonitoringPage({ view }: { view: 'summary' | 'explorer' }) {
   const { query, vendor, full, set, params } = useGpuQuery();
   const [setup, setSetup] = useState(false);
+  const navigate = useNavigate();
   const page = useGpus(full);
   // Facets count every GPU, whatever the query: the vendor list stays complete.
   const vendors = page.data?.facets.find((f) => f.key === 'vendor')?.values.map((v) => v.value) ?? [];
@@ -93,20 +94,23 @@ export function GpuMonitoringPage({ view }: { view: 'summary' | 'explorer' }) {
             Explorer
           </NavLink>
         </nav>
-        <div className="gpu-header-right">
-          <Link className="btn btn-sm" to="/monitors/create/metric">
-            <BellPlus size={14} /> Monitors
-          </Link>
-          <Link className="btn btn-sm" to="/dashboards">
-            <LayoutDashboard size={14} /> Dashboards
-          </Link>
-          <button className="btn btn-sm" onClick={() => setSetup(true)}>
-            <Wrench size={14} /> Setup
-          </button>
-          <TimePicker />
-        </div>
+        <Menu
+          align="left"
+          triggerClassName="product-tab gpu-more"
+          trigger={<MoreHorizontal size={18} />}
+          items={[
+            { label: 'Monitors', onClick: () => navigate('/monitors/create/metric') },
+            { label: 'Dashboards', onClick: () => navigate('/dashboards') },
+            { label: 'GPU Monitoring Setup', onClick: () => setSetup(true) },
+          ]}
+        />
       </header>
       <div className="gpu-body">
+        {page.data?.enabled && (
+          <div className="gpu-toolbar">
+            <TimePicker />
+          </div>
+        )}
         {page.isError ? (
           <ErrorState error={page.error} onRetry={() => page.refetch()} />
         ) : !page.data ? (
@@ -139,14 +143,18 @@ export function GpuMonitoringPage({ view }: { view: 'summary' | 'explorer' }) {
 function GpuEmpty({ onSetup }: { onSetup: () => void }) {
   return (
     <div className="gpu-empty">
-      <Cpu size={44} strokeWidth={1.4} />
-      <h2>No GPU metrics yet</h2>
+      <Cpu size={88} strokeWidth={1.6} />
+      <h2>
+        No GPU monitoring
+        <br />
+        data yet
+      </h2>
       <p>See how busy every GPU in your fleet is, which ones sit idle, and which workloads use them, from the GPU metrics your hosts already collect.</p>
       <div className="gpu-empty-sep">
-        <span>Datadog Agent GPU check · DCGM exporter with OpenTelemetry</span>
+        <span>Setup guide</span>
       </div>
-      <button className="btn btn-primary" onClick={onSetup}>
-        GPU Monitoring Setup
+      <button className="btn gpu-empty-btn" onClick={onSetup}>
+        GPU Monitoring Setup <ExternalLink size={15} />
       </button>
     </div>
   );

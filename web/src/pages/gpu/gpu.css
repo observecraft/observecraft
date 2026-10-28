@@ -11,18 +11,25 @@
   padding-right: 12px;
 }
 
-.gpu-header-right {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.gpu-page .product-title {
+  white-space: nowrap;
 }
 
-.gpu-header-right .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  text-decoration: none;
+.gpu-more {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+}
+
+.gpu-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.btn.gpu-empty-btn {
+  height: 32px;
+  font-size: var(--fs-lg);
 }
 
 .gpu-body {
@@ -32,17 +39,18 @@
   padding: 14px 16px 32px;
 }
 
-/* Empty state */
+/* Empty state: a dashed panel on a dotted grid */
 .gpu-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  max-width: 760px;
-  margin: 48px auto;
+  gap: 14px;
+  margin: 32px 32px;
   padding: 48px 32px;
-  border: 2px dashed var(--border-strong);
-  border-radius: var(--radius-lg);
+  border: 1px dashed var(--primary);
+  border-radius: 12px;
+  background-image: radial-gradient(circle, var(--border-strong) 1px, transparent 1.2px);
+  background-size: 16px 16px;
   text-align: center;
   color: var(--text-muted);
 }
@@ -52,31 +60,38 @@
 }
 
 .gpu-empty h2 {
-  margin: 4px 0 0;
-  font-size: 20px;
+  margin: 0;
+  font-size: clamp(28px, 3.4vw, 46px);
   font-weight: var(--fw-semibold);
+  line-height: 1.2;
   color: var(--text);
 }
 
 .gpu-empty p {
-  max-width: 520px;
+  max-width: 660px;
   margin: 0;
+  font-size: 17px;
+  line-height: 1.45;
 }
 
 .gpu-empty-sep {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
-  margin: 10px 0 4px;
-  font-size: var(--fs-sm);
+  width: min(640px, 100%);
+  margin: 8px 0 4px;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .gpu-empty-sep::before,
 .gpu-empty-sep::after {
   content: '';
   flex: 1;
-  border-top: 1px solid var(--border);
+  border-top: 2px dotted var(--primary);
 }
 
 /* Setup modal */
