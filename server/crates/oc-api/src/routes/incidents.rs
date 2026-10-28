@@ -144,6 +144,15 @@ pub struct IncidentSearchRequest {
     pub mine: bool,
     #[serde(default)]
     pub teams: Vec<String>,
+    #[serde(default)]
+    pub services: Vec<String>,
+    #[serde(default)]
+    pub detection_methods: Vec<String>,
+    #[serde(default)]
+    pub incident_types: Vec<String>,
+    /// Only incidents with (true) or without (false) customer impact.
+    #[serde(default)]
+    pub customer_impact: Option<bool>,
     /// Declared within this range.
     pub range: TimeRange,
     pub offset: i64,
@@ -168,6 +177,14 @@ pub struct IncidentSearchPage {
     pub severity_counts: BTreeMap<String, i64>,
     /// Per team, ignoring the team filter.
     pub team_counts: BTreeMap<String, i64>,
+    /// Per service, ignoring the service filter.
+    pub service_counts: BTreeMap<String, i64>,
+    /// Per detection method, ignoring the detection method filter.
+    pub detection_counts: BTreeMap<String, i64>,
+    /// Per incident type, ignoring the incident type filter.
+    pub type_counts: BTreeMap<String, i64>,
+    /// `yes` / `no`, ignoring the customer impact filter.
+    pub impact_counts: BTreeMap<String, i64>,
 }
 
 /// A filter left out of a facet's own counts.
@@ -175,6 +192,24 @@ pub struct IncidentSearchPage {
 enum Facet {
     Severity,
     Team,
+    Service,
+    Detection,
+    IncidentType,
+    Impact,
+}
+
+impl Facet {
+    /// The value counted and the rows it's counted over.
+    fn select(self) -> &'static str {
+        match self {
+            Facet::Severity => "SELECT i.severity, count(*) FROM incidents i",
+            Facet::Team => "SELECT t.v, count(*) FROM incidents i CROSS JOIN LATERAL unnest(i.teams) AS t(v)",
+            Facet::Service => "SELECT t.v, count(*) FROM incidents i CROSS JOIN LATERAL unnest(i.services) AS t(v)",
+            Facet::Detection => "SELECT i.detection_method, count(*) FROM incidents i",
+            Facet::IncidentType => "SELECT i.incident_type, count(*) FROM incidents i",
+            Facet::Impact => "SELECT CASE WHEN i.customer_impact THEN 'yes' ELSE 'no' END, count(*) FROM incidents i",
+        }
+    }
 }
 
 fn push_filters(qb: &mut QueryBuilder<Postgres>, org: &str, me: &str, req: &IncidentSearchRequest, skip: Option<Facet>) {
@@ -196,9 +231,30 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, org: &str, me: &str, req: &Inci
     if !req.teams.is_empty() && skip != Some(Facet::Team) {
         qb.push(" AND i.teams && ").push_bind(req.teams.clone());
     }
+    if !req.services.is_empty() && skip != Some(Facet::Service) {
+        qb.push(" AND i.services && ").push_bind(req.services.clone());
+    }
+    if !req.detection_methods.is_empty() && skip != Some(Facet::Detection) {
+        qb.push(" AND i.detection_method = ANY(").push_bind(req.detection_methods.clone()).push(")");
+    }
+    if !req.incident_types.is_empty() && skip != Some(Facet::IncidentType) {
+        qb.push(" AND i.incident_type = ANY(").push_bind(req.incident_types.clone()).push(")");
+    }
+    if let Some(impact) = req.customer_impact.filter(|_| skip != Some(Facet::Impact)) {
+        qb.push(" AND i.customer_impact = ").push_bind(impact);
+    }
     if req.mine {
         qb.push(" AND (i.commander_id::text = ").push_bind(me.to_string()).push(" OR i.id IN (SELECT incident_id FROM incident_responders WHERE user_id::text = ").push_bind(me.to_string()).push("))");
     }
+}
+
+/// Incidents per value of `facet` under every filter but the facet's own.
+async fn facet_counts(st: &AppState, org: &str, me: &str, req: &IncidentSearchRequest, facet: Facet) -> Result<BTreeMap<String, i64>, ApiError> {
+    let mut q: QueryBuilder<Postgres> = QueryBuilder::new(facet.select());
+    push_filters(&mut q, org, me, req, Some(facet));
+    push_statuses(&mut q, req);
+    q.push(" GROUP BY 1");
+    Ok(q.build_query_as::<(String, i64)>().fetch_all(&st.postgres).await?.into_iter().collect())
 }
 
 fn push_statuses(qb: &mut QueryBuilder<Postgres>, req: &IncidentSearchRequest) {
@@ -230,18 +286,16 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(m
             _ => counts.resolved = n,
         }
     }
-    let mut sq: QueryBuilder<Postgres> = QueryBuilder::new("SELECT i.severity, count(*) FROM incidents i");
-    push_filters(&mut sq, &org, &me, &req, Some(Facet::Severity));
-    push_statuses(&mut sq, &req);
-    sq.push(" GROUP BY i.severity");
-    let severity_counts: BTreeMap<String, i64> = sq.build_query_as::<(String, i64)>().fetch_all(&st.postgres).await?.into_iter().collect();
-    let mut tq: QueryBuilder<Postgres> = QueryBuilder::new("SELECT t.team, count(*) FROM incidents i CROSS JOIN LATERAL unnest(i.teams) AS t(team)");
-    push_filters(&mut tq, &org, &me, &req, Some(Facet::Team));
-    push_statuses(&mut tq, &req);
-    tq.push(" GROUP BY t.team");
-    let team_counts: BTreeMap<String, i64> = tq.build_query_as::<(String, i64)>().fetch_all(&st.postgres).await?.into_iter().collect();
+    let (severity_counts, team_counts, service_counts, detection_counts, type_counts, impact_counts) = tokio::try_join!(
+        facet_counts(&st, &org, &me, &req, Facet::Severity),
+        facet_counts(&st, &org, &me, &req, Facet::Team),
+        facet_counts(&st, &org, &me, &req, Facet::Service),
+        facet_counts(&st, &org, &me, &req, Facet::Detection),
+        facet_counts(&st, &org, &me, &req, Facet::IncidentType),
+        facet_counts(&st, &org, &me, &req, Facet::Impact),
+    )?;
     let total = rows.first().and_then(|r| r.total).unwrap_or(0);
-    Ok(Json(IncidentSearchPage { incidents: rows.iter().map(Row::summary).collect(), total, counts, severity_counts, team_counts }))
+    Ok(Json(IncidentSearchPage { incidents: rows.iter().map(Row::summary).collect(), total, counts, severity_counts, team_counts, service_counts, detection_counts, type_counts, impact_counts }))
 }
 
 // ================================================================ detail
@@ -605,7 +659,11 @@ mod tests {
     use super::*;
 
     fn req() -> IncidentSearchRequest {
-        serde_json::from_value(serde_json::json!({"severities": ["SEV-1"], "teams": ["payments"], "range": {"from": 0, "to": 1}, "offset": 0, "limit": 10})).unwrap()
+        serde_json::from_value(serde_json::json!({
+            "severities": ["SEV-1"], "teams": ["payments"], "services": ["billing"], "detectionMethods": ["monitor"], "incidentTypes": ["Security Incident"], "customerImpact": true,
+            "range": {"from": 0, "to": 1}, "offset": 0, "limit": 10
+        }))
+        .unwrap()
     }
 
     fn sql(skip: Option<Facet>) -> String {
@@ -621,5 +679,9 @@ mod tests {
         assert!(!sql(Some(Facet::Team)).contains("i.teams &&") && sql(Some(Facet::Team)).contains("i.severity = ANY"));
         // The organization is always filtered.
         assert!(sql(Some(Facet::Team)).contains("i.org_id = $1"));
+        for (facet, clause) in [(Facet::Service, "i.services &&"), (Facet::Detection, "i.detection_method = ANY"), (Facet::IncidentType, "i.incident_type = ANY"), (Facet::Impact, "i.customer_impact =")] {
+            assert!(sql(None).contains(clause), "{clause}");
+            assert!(!sql(Some(facet)).contains(clause), "{clause}");
+        }
     }
 }

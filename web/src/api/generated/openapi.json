@@ -11468,17 +11468,54 @@
           "total",
           "counts",
           "severityCounts",
-          "teamCounts"
+          "teamCounts",
+          "serviceCounts",
+          "detectionCounts",
+          "typeCounts",
+          "impactCounts"
         ],
         "properties": {
           "counts": {
             "$ref": "#/components/schemas/IncidentCounts",
             "description": "Per status for the same filters, ignoring the status filter (facet counts)."
           },
+          "detectionCounts": {
+            "type": "object",
+            "description": "Per detection method, ignoring the detection method filter.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "impactCounts": {
+            "type": "object",
+            "description": "`yes` / `no`, ignoring the customer impact filter.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
           "incidents": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/IncidentSummary"
+            }
+          },
+          "serviceCounts": {
+            "type": "object",
+            "description": "Per service, ignoring the service filter.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "propertyNames": {
+              "type": "string"
             }
           },
           "severityCounts": {
@@ -11506,6 +11543,17 @@
           "total": {
             "type": "integer",
             "format": "int64"
+          },
+          "typeCounts": {
+            "type": "object",
+            "description": "Per incident type, ignoring the incident type filter.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         }
       },
@@ -11517,6 +11565,25 @@
           "limit"
         ],
         "properties": {
+          "customerImpact": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Only incidents with (true) or without (false) customer impact."
+          },
+          "detectionMethods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "incidentTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "limit": {
             "type": "integer",
             "format": "int64"
@@ -11536,6 +11603,12 @@
           "range": {
             "$ref": "#/components/schemas/TimeRange",
             "description": "Declared within this range."
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "severities": {
             "type": "array",

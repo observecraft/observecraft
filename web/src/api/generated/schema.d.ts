@@ -4247,7 +4247,19 @@ export interface components {
         IncidentSearchPage: {
             /** @description Per status for the same filters, ignoring the status filter (facet counts). */
             counts: components["schemas"]["IncidentCounts"];
+            /** @description Per detection method, ignoring the detection method filter. */
+            detectionCounts: {
+                [key: string]: number;
+            };
+            /** @description `yes` / `no`, ignoring the customer impact filter. */
+            impactCounts: {
+                [key: string]: number;
+            };
             incidents: components["schemas"]["IncidentSummary"][];
+            /** @description Per service, ignoring the service filter. */
+            serviceCounts: {
+                [key: string]: number;
+            };
             /** @description Per severity, ignoring the severity filter. */
             severityCounts: {
                 [key: string]: number;
@@ -4258,8 +4270,16 @@ export interface components {
             };
             /** Format: int64 */
             total: number;
+            /** @description Per incident type, ignoring the incident type filter. */
+            typeCounts: {
+                [key: string]: number;
+            };
         };
         IncidentSearchRequest: {
+            /** @description Only incidents with (true) or without (false) customer impact. */
+            customerImpact?: boolean | null;
+            detectionMethods?: string[];
+            incidentTypes?: string[];
             /** Format: int64 */
             limit: number;
             /** @description Only incidents the current user commands or responds to. */
@@ -4270,6 +4290,7 @@ export interface components {
             query?: string;
             /** @description Declared within this range. */
             range: components["schemas"]["TimeRange"];
+            services?: string[];
             severities?: string[];
             statuses?: components["schemas"]["IncidentStatus"][];
             teams?: string[];

@@ -267,7 +267,7 @@ function detailOf(i: IncidentRow): S['IncidentDetail'] {
 
 // ================================================================ search
 
-type Facet = 'severity' | 'team';
+type Facet = 'severity' | 'team' | 'service' | 'detection' | 'type' | 'impact';
 
 function matches(i: IncidentRow, req: S['IncidentSearchRequest'], skip?: Facet): boolean {
   if (i.declaredAt < req.range.from || i.declaredAt > req.range.to) return false;
@@ -281,6 +281,10 @@ function matches(i: IncidentRow, req: S['IncidentSearchRequest'], skip?: Facet):
   }
   if (req.severities?.length && skip !== 'severity' && !req.severities.includes(i.severity)) return false;
   if (req.teams?.length && skip !== 'team' && !i.teams.some((t) => req.teams!.includes(t))) return false;
+  if (req.services?.length && skip !== 'service' && !i.services.some((x) => req.services!.includes(x))) return false;
+  if (req.detectionMethods?.length && skip !== 'detection' && !req.detectionMethods.includes(i.detectionMethod)) return false;
+  if (req.incidentTypes?.length && skip !== 'type' && !req.incidentTypes.includes(i.incidentType)) return false;
+  if (req.customerImpact != null && skip !== 'impact' && i.customerImpact !== req.customerImpact) return false;
   if (req.mine) {
     const me = mockMe().id;
     if (i.commanderId !== me && !i.responders.some((x) => x.userId === me)) return false;
@@ -295,13 +299,27 @@ export async function searchIncidents(req: S['IncidentSearchRequest']): Promise<
   const hits = all.filter((i) => matches(i, req) && statusOk(i, req)).sort((a, b) => Number(a.status === 'resolved') - Number(b.status === 'resolved') || b.declaredAt - a.declaredAt);
   const counts = { active: 0, stable: 0, resolved: 0 };
   for (const i of all) if (matches(i, req)) counts[i.status]++;
-  const severityCounts: Record<string, number> = {};
-  for (const i of all) if (matches(i, req, 'severity') && statusOk(i, req)) severityCounts[i.severity] = (severityCounts[i.severity] ?? 0) + 1;
-  const teamCounts: Record<string, number> = {};
-  for (const i of all) if (matches(i, req, 'team') && statusOk(i, req)) for (const t of i.teams) teamCounts[t] = (teamCounts[t] ?? 0) + 1;
+  // Each facet's counts honour every filter but its own.
+  const facetCounts = (facet: Facet, values: (i: IncidentRow) => string[]) => {
+    const out: Record<string, number> = {};
+    for (const i of all) if (matches(i, req, facet) && statusOk(i, req)) for (const v of values(i)) out[v] = (out[v] ?? 0) + 1;
+    return out;
+  };
+  const severityCounts = facetCounts('severity', (i) => [i.severity]);
+  const teamCounts = facetCounts('team', (i) => i.teams);
   const offset = Math.max(0, req.offset);
   const limit = Math.min(200, Math.max(1, req.limit));
-  return { incidents: hits.slice(offset, offset + limit).map(summaryOf), total: hits.length, counts, severityCounts, teamCounts };
+  return {
+    incidents: hits.slice(offset, offset + limit).map(summaryOf),
+    total: hits.length,
+    counts,
+    severityCounts,
+    teamCounts,
+    serviceCounts: facetCounts('service', (i) => i.services),
+    detectionCounts: facetCounts('detection', (i) => [i.detectionMethod]),
+    typeCounts: facetCounts('type', (i) => [i.incidentType]),
+    impactCounts: facetCounts('impact', (i) => [i.customerImpact ? 'yes' : 'no']),
+  };
 }
 
 // ================================================================ detail, declare, update
