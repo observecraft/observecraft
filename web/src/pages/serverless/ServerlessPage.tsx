@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { EChartsOption } from 'echarts';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, ArrowUpCircle, Check, ChevronDown, ChevronRight, ExternalLink, Lightbulb, MoreHorizontal, Settings, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpCircle, Check, ChevronDown, ChevronRight, Clock, ExternalLink, Lightbulb, MoreHorizontal, Settings, X } from 'lucide-react';
 import { searchLogPage } from '../../api/client';
 import { functionInvocations, searchFunctions, serverlessTimeseries, type LambdaFunction, type LambdaInsightKind, type ServerlessSearchPage, type ServerlessSeries } from '../../api/serverless/client';
 import type { Facet } from '../../api/types';
@@ -130,6 +130,8 @@ export function ServerlessPage() {
   });
   const provider = PROVIDERS.find((x) => x.value === p.provider) ?? PROVIDERS[0];
   const selected = page.data?.functions.find((f) => f.id === p.selected) ?? null;
+  // Nothing reports yet: only the view list and the two ways to start, no search or facets.
+  const noFunctions = page.data?.enabled === false;
   return (
     <div className="sls-page">
       <header className="product-header">
@@ -175,11 +177,19 @@ export function ServerlessPage() {
         </div>
         <TimePicker compact />
       </div>
-      <div className="sls-search">
-        <QueryBar value={p.query} onChange={(q) => p.set({ q: q || null })} placeholder="Search for any tag on any function" />
-      </div>
+      {!noFunctions && (
+        <div className="sls-search">
+          <QueryBar value={p.query} onChange={(q) => p.set({ q: q || null })} placeholder="Search for any tag on any function" />
+        </div>
+      )}
       <div className="sls-body">
-        <SidePanel page={page.data} params={p} />
+        {noFunctions ? (
+          <div className="sls-side">
+            <ViewList params={p} />
+          </div>
+        ) : (
+          <SidePanel page={page.data} params={p} />
+        )}
         <main className="sls-main">
           {p.provider !== 'aws' ? (
             <NotAvailable title={`${provider.label} serverless functions are not available yet`}>
@@ -231,32 +241,42 @@ function NotAvailable({ title, children }: { title: string; children: ReactNode 
   );
 }
 
+/** No functions yet: instrument your own, or look around with the demo generator's functions. */
 function ServerlessEmpty({ onSetup }: { onSetup: () => void }) {
   return (
     <div className="sls-empty">
-      <span className="sls-fx sls-fx-large" aria-hidden>
-        ƒx
-      </span>
-      <h2>No Lambda functions yet</h2>
-      <p>See every function's invocations, errors, cold starts, duration, memory and cost, with the issues worth fixing, from the Datadog Lambda extension, the AWS metrics or OpenTelemetry.</p>
-      <button className="btn btn-primary" onClick={onSetup}>
-        Set up Serverless <ExternalLink size={14} />
-      </button>
+      <section>
+        <span className="sls-fx sls-fx-large" aria-hidden>
+          ƒx
+        </span>
+        <h2>Monitor my own functions</h2>
+        <p className="sls-empty-time">
+          <Clock size={14} /> About 15 minutes
+        </p>
+        <p>Point the Datadog Lambda extension, the AWS Lambda metrics or OpenTelemetry at ObserveCraft and every function shows up here with its invocations, errors, cold starts and cost.</p>
+        <button className="btn btn-primary" onClick={onSetup}>
+          Set up Serverless
+        </button>
+      </section>
+      <section>
+        <span className="sls-fx sls-fx-large" aria-hidden>
+          ƒx
+        </span>
+        <h2>Try it with demo functions</h2>
+        <p className="sls-empty-time">
+          <Clock size={14} /> About 2 minutes
+        </p>
+        <p>The demo generator sends five Lambda functions of a fictional shop, traced and with enhanced metrics. Run it next to the server:</p>
+        <code className="sls-empty-cmd">make tracegen</code>
+      </section>
     </div>
   );
 }
 
 // ---------------------------------------------------------------- left column
 
-function SidePanel({ page, params }: { page: ServerlessSearchPage | undefined; params: ReturnType<typeof useServerlessParams> }) {
-  const [teamsOpen, setTeamsOpen] = useState(true);
-  const terms = useMemo(() => parseQuery(params.query), [params.query]);
-  const teams = page?.facets.find((f) => f.key === 'team')?.values ?? [];
-  const facets: Facet[] = FACETS.flatMap((d) => {
-    const f = page?.facets.find((x) => x.key === d.key);
-    return f ? [{ key: d.key, label: d.label, group: d.group, values: f.values }] : [];
-  });
-  const header = (
+function ViewList({ params }: { params: ReturnType<typeof useServerlessParams> }) {
+  return (
     <>
       <div className="sls-side-title">Select a view</div>
       <ul className="sls-view-list">
@@ -268,6 +288,21 @@ function SidePanel({ page, params }: { page: ServerlessSearchPage | undefined; p
           </li>
         ))}
       </ul>
+    </>
+  );
+}
+
+function SidePanel({ page, params }: { page: ServerlessSearchPage | undefined; params: ReturnType<typeof useServerlessParams> }) {
+  const [teamsOpen, setTeamsOpen] = useState(true);
+  const terms = useMemo(() => parseQuery(params.query), [params.query]);
+  const teams = page?.facets.find((f) => f.key === 'team')?.values ?? [];
+  const facets: Facet[] = FACETS.flatMap((d) => {
+    const f = page?.facets.find((x) => x.key === d.key);
+    return f ? [{ key: d.key, label: d.label, group: d.group, values: f.values }] : [];
+  });
+  const header = (
+    <>
+      <ViewList params={params} />
       <label className="sls-side-card">
         <span>
           <ArrowUpCircle size={14} /> Upgrade Available

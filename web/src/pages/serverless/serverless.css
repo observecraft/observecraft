@@ -526,32 +526,69 @@ div.sls-card {
   line-height: 1.5;
 }
 
+/* Two paths side by side, split by a rule: own functions, demo functions. */
 .sls-empty {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0 0 16px;
+  padding: 24px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.sls-empty section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  margin: 32px auto;
-  max-width: 760px;
-  padding: 48px 32px;
-  border: 1px dashed var(--primary);
-  border-radius: 12px;
-  text-align: center;
-  color: var(--text-muted);
+  gap: 12px;
+  padding: 24px 48px;
+}
+
+.sls-empty section + section {
+  border-left: 1px solid var(--border);
 }
 
 .sls-empty h2 {
   margin: 0;
-  font-size: 30px;
-  font-weight: var(--fw-semibold);
+  font-size: 26px;
+  font-weight: var(--fw-regular);
   color: var(--text);
 }
 
 .sls-empty p {
-  max-width: 620px;
+  max-width: 400px;
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.45;
+}
+
+.sls-empty .sls-empty-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+
+.sls-empty-cmd {
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+@media (max-width: 900px) {
+  .sls-empty {
+    grid-template-columns: 1fr;
+  }
+
+  .sls-empty section + section {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
 }
 
 .sls-setup {
