@@ -67,6 +67,7 @@ import { NotebookListPage, NotebookReportsPage, NotebookTemplatesPage } from './
 import { NotebookPage } from './pages/notebooks/NotebookPage';
 import { ErrorTrackingLayout } from './pages/errors/ErrorTrackingLayout';
 import { IssuesPage } from './pages/errors/IssuesPage';
+import { ChangesPage } from './pages/infrastructure/ChangesPage';
 import { ResourceCatalogPage } from './pages/infrastructure/ResourceCatalogPage';
 import { ResourcesLayout } from './pages/infrastructure/ResourcesLayout';
 import { HostsPage } from './pages/infrastructure/HostsPage';
@@ -165,6 +166,7 @@ function Shell() {
             <Route path="/infrastructure/add" element={<SetupGuidePage kind="infrastructure" />} />
             <Route element={<ResourcesLayout />}>
               <Route path="/infrastructure/catalog" element={<ResourceCatalogPage />} />
+              <Route path="/infrastructure/changes" element={<ChangesPage />} />
             </Route>
             <Route path="/logs/onboarding" element={<SetupGuidePage kind="logs" />} />
             <Route path="/release-notes" element={<ReleaseNotesPage />} />

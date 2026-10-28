@@ -2,6 +2,7 @@ pub mod apm;
 pub mod archives;
 pub mod auth;
 pub mod catalog;
+pub mod changes;
 pub mod ci;
 pub mod dashboards;
 pub mod downtimes;
@@ -121,6 +122,7 @@ use crate::state::AppState;
         hosts::pods,
         hosts::containers,
         catalog::search,
+        changes::search,
         kubernetes::search,
         kubernetes::detail,
         identity::me,
@@ -473,6 +475,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/hosts/:name/pods", post(hosts::pods))
         .route("/api/v1/hosts/:name/containers", post(hosts::containers))
         .route("/api/v1/infrastructure/catalog", post(catalog::search))
+        .route("/api/v1/infrastructure/changes", post(changes::search))
         .route("/api/v1/orchestration/search", post(kubernetes::search))
         .route(
             "/api/v1/orchestration/resources/*uid",
@@ -789,6 +792,7 @@ mod tests {
             include_str!("archives.rs"),
             include_str!("auth.rs"),
             include_str!("catalog.rs"),
+            include_str!("changes.rs"),
             include_str!("ci.rs"),
             include_str!("sso.rs"),
             include_str!("spans.rs"),
@@ -854,6 +858,7 @@ mod tests {
             ("apm.rs", include_str!("apm.rs")),
             ("archives.rs", include_str!("archives.rs")),
             ("catalog.rs", include_str!("catalog.rs")),
+            ("changes.rs", include_str!("changes.rs")),
             ("ci.rs", include_str!("ci.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),
             ("error_tracking.rs", include_str!("error_tracking.rs")),
@@ -941,6 +946,7 @@ mod tests {
             ("archives.rs", include_str!("archives.rs")),
             ("auth.rs", include_str!("auth.rs")),
             ("catalog.rs", include_str!("catalog.rs")),
+            ("changes.rs", include_str!("changes.rs")),
             ("ci.rs", include_str!("ci.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),
             ("downtimes.rs", include_str!("downtimes.rs")),

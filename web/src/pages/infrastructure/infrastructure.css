@@ -1231,7 +1231,7 @@
 }
 
 .rc-panel dd button {
-  color: var(--accent);
+  color: var(--link);
 }
 
 .rc-wrap {
@@ -1402,4 +1402,56 @@
 
 .rc-table .num {
   text-align: right;
+}
+
+.ct-histogram {
+  margin-top: 12px;
+  padding: 4px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ct-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ct-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rc-table td.ct-summary {
+  min-width: 240px;
+  white-space: normal;
+}
+
+.ct-table .rc-name {
+  max-width: 260px;
+}
+
+.ct-diff {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
+}
+
+.ct-diff > div {
+  display: flex;
+  gap: 8px;
+  padding: 6px 10px;
+  word-break: break-all;
+}
+
+.ct-diff-old {
+  background: var(--badge-error-bg, #fdecec);
+}
+
+.ct-diff-new {
+  background: var(--badge-ok-bg, #e7f6ec);
 }

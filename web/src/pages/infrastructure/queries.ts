@@ -1,6 +1,7 @@
 // TanStack Query bindings for Infrastructure.
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { searchCatalog, type CatalogSearchRequest } from '../../api/catalog/client';
+import { searchChanges, type ChangeSearchRequest } from '../../api/changes/client';
 import { getHost, getHostMetrics, listContainers, listPods, listProcesses, searchHosts } from '../../api/infrastructure/client';
 import type { HostSearchRequest, PageRequest } from '../../api/infrastructure/types';
 import type { TimeRange } from '../../api/types';
@@ -14,6 +15,7 @@ export const infraKeys = {
   containers: (req: PageRequest) => [...infraKeys.all, 'containers', req] as const,
   processes: (req: PageRequest) => [...infraKeys.all, 'processes', req] as const,
   catalog: (req: CatalogSearchRequest) => [...infraKeys.all, 'catalog', req] as const,
+  changes: (req: ChangeSearchRequest) => [...infraKeys.all, 'changes', req] as const,
 };
 
 export function useHosts(req: HostSearchRequest) {
@@ -42,4 +44,8 @@ export function useProcesses(req: PageRequest) {
 
 export function useCatalog(req: CatalogSearchRequest) {
   return useQuery({ queryKey: infraKeys.catalog(req), queryFn: () => searchCatalog(req), placeholderData: keepPreviousData });
+}
+
+export function useChanges(req: ChangeSearchRequest) {
+  return useQuery({ queryKey: infraKeys.changes(req), queryFn: () => searchChanges(req), placeholderData: keepPreviousData });
 }

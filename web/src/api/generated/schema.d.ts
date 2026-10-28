@@ -1355,6 +1355,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/infrastructure/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_changes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ingest-keys": {
         parameters: {
             query?: never;
@@ -3681,8 +3697,67 @@ export interface components {
          * @enum {string}
          */
         CatalogType: "host" | "kube_cluster" | "kube_node" | "kube_namespace" | "kube_deployment" | "kube_statefulset" | "kube_daemonset" | "kube_cronjob" | "kube_job" | "kube_pod" | "kube_service" | "kube_ingress" | "kube_persistent_volume_claim" | "kube_persistent_volume" | "container" | "ecs_cluster" | "ecs_service" | "ecs_task";
+        Change: {
+            author?: string | null;
+            changeType: components["schemas"]["ChangeType"];
+            cluster?: string | null;
+            current?: string | null;
+            details: {
+                [key: string]: string;
+            };
+            env?: string | null;
+            id: string;
+            kubeKind?: null | components["schemas"]["KubeKind"];
+            kubeUid?: string | null;
+            namespace?: string | null;
+            /** @description Before and after (images, replicas, versions), when the change has them. */
+            previous?: string | null;
+            resource: string;
+            /** @description `kube_deployment`, `service`, `monitor`, `host`, … */
+            resourceType: string;
+            service?: string | null;
+            source: components["schemas"]["ChangeSource"];
+            summary: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            timestamp: number;
+        };
+        /** @description Changes in one time bucket, by change type. */
+        ChangeBucket: {
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Format: int64
+             * @description Bucket start, epoch ms.
+             */
+            t: number;
+        };
         /** @enum {string} */
         ChangeMode: "change" | "pct_change";
+        ChangePage: {
+            facets: components["schemas"]["CatalogFacet"][];
+            histogram: components["schemas"]["ChangeBucket"][];
+            /** @description Newest first. */
+            items: components["schemas"]["Change"][];
+            total: number;
+        };
+        ChangeSearchRequest: {
+            limit: number;
+            offset?: number;
+            /** @description `change_type:rollout service:order-service env:prod cluster:shop-*` + free text. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        /**
+         * @description Where a change was found.
+         * @enum {string}
+         */
+        ChangeSource: "kubernetes" | "apm" | "ci" | "events" | "audit";
+        /** @enum {string} */
+        ChangeType: "deployment" | "rollout" | "scale" | "config" | "crash" | "feature_flag";
         CiAggregate: {
             /** Format: double */
             avgMs: number;
@@ -10262,6 +10337,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CatalogPage"];
+                };
+            };
+        };
+    };
+    search_changes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangePage"];
                 };
             };
         };

@@ -744,7 +744,7 @@ fn quantity(v: &Value, path: &[&str]) -> Option<f64> {
 }
 
 /// `docker.io/library/busybox:1.36` → (`docker.io/library/busybox`, `busybox`, `1.36`).
-fn image_parts(image: &str) -> (String, String, String) {
+pub(crate) fn image_parts(image: &str) -> (String, String, String) {
     let no_digest = image.split('@').next().unwrap_or(image);
     let (name, tag) = match no_digest.rsplit_once(':') {
         Some((n, t)) if !t.contains('/') => (n, t),

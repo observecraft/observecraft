@@ -3330,6 +3330,36 @@
         }
       }
     },
+    "/api/v1/infrastructure/changes": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "operationId": "search_changes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangePage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ingest-keys": {
       "get": {
         "tags": [
@@ -9632,11 +9662,225 @@
           "ecs_task"
         ]
       },
+      "Change": {
+        "type": "object",
+        "required": [
+          "id",
+          "timestamp",
+          "changeType",
+          "source",
+          "resourceType",
+          "resource",
+          "summary",
+          "details"
+        ],
+        "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "changeType": {
+            "$ref": "#/components/schemas/ChangeType"
+          },
+          "cluster": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "current": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kubeKind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KubeKind",
+                "description": "The Kubernetes Explorer kind and uid of the changed object, to open it there."
+              }
+            ]
+          },
+          "kubeUid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "namespace": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "previous": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Before and after (images, replicas, versions), when the change has them."
+          },
+          "resource": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string",
+            "description": "`kube_deployment`, `service`, `monitor`, `host`, …"
+          },
+          "service": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/ChangeSource"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          }
+        }
+      },
+      "ChangeBucket": {
+        "type": "object",
+        "description": "Changes in one time bucket, by change type.",
+        "required": [
+          "t",
+          "counts"
+        ],
+        "properties": {
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bucket start, epoch ms."
+          }
+        }
+      },
       "ChangeMode": {
         "type": "string",
         "enum": [
           "change",
           "pct_change"
+        ]
+      },
+      "ChangePage": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "facets",
+          "histogram"
+        ],
+        "properties": {
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogFacet"
+            }
+          },
+          "histogram": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChangeBucket"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            },
+            "description": "Newest first."
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ChangeSearchRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "limit"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "description": "`change_type:rollout service:order-service env:prod cluster:shop-*` + free text."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "ChangeSource": {
+        "type": "string",
+        "description": "Where a change was found.",
+        "enum": [
+          "kubernetes",
+          "apm",
+          "ci",
+          "events",
+          "audit"
+        ]
+      },
+      "ChangeType": {
+        "type": "string",
+        "enum": [
+          "deployment",
+          "rollout",
+          "scale",
+          "config",
+          "crash",
+          "feature_flag"
         ]
       },
       "CiAggregate": {

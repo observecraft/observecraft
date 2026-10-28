@@ -31,7 +31,7 @@ const JOB: &str = "SpanAttributes['cicd.pipeline.task.name']";
 const STAGE: &str = "SpanAttributes['ci.stage.name']";
 const TEST: &str = "SpanAttributes['test.case.name']";
 /// success | error | canceled | skipped, from the pipeline or job result (falling back to the span status).
-const STATUS: &str = "multiIf(\
+pub(crate) const STATUS: &str = "multiIf(\
     if(ParentSpanId = '', SpanAttributes['cicd.pipeline.result'], SpanAttributes['cicd.pipeline.task.run.result']) IN ('success', 'succeeded', 'pass'), 'success', \
     if(ParentSpanId = '', SpanAttributes['cicd.pipeline.result'], SpanAttributes['cicd.pipeline.task.run.result']) IN ('cancellation', 'canceled', 'cancelled'), 'canceled', \
     if(ParentSpanId = '', SpanAttributes['cicd.pipeline.result'], SpanAttributes['cicd.pipeline.task.run.result']) IN ('skip', 'skipped'), 'skipped', \
