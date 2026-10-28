@@ -28,22 +28,6 @@
 
 /* ---------------------------------------------------------------- summary */
 
-.onc-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  max-width: 1280px;
-  margin: -20px -24px 0;
-  padding: 0 24px;
-}
-
-.onc-hero {
-  margin: 0 -24px;
-  padding: 26px 32px 22px;
-  background: linear-gradient(110deg, var(--brand-subtle) 0%, var(--bg) 55%, color-mix(in srgb, var(--brand-accent) 14%, var(--bg)) 100%);
-  border-bottom: 1px solid var(--border);
-}
-
 .onc-kicker {
   display: inline-flex;
   align-items: center;
@@ -1619,4 +1603,149 @@
   .onc-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* ---------- Summary: one gradient page, a centred column, like the reference ---------- */
+.onc-summary {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  min-height: 100%;
+  margin: -20px -24px 0;
+  padding: 24px max(24px, calc((100% - 1090px) / 2)) 48px;
+  background: linear-gradient(160deg, var(--brand-subtle) 0%, var(--bg-subtle) 40%, color-mix(in srgb, var(--brand-accent) 8%, var(--bg-subtle)) 100%);
+  gap: 32px;
+}
+
+.onc-hero {
+  margin: 0 0 -16px;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.onc-summary .onc-kicker {
+  color: var(--link);
+  font-size: 15px;
+  font-weight: var(--fw-regular);
+}
+
+.onc-summary .onc-hero h1 {
+  max-width: none;
+  margin-top: 10px;
+  font-size: 24px;
+}
+
+.onc-summary .onc-card {
+  padding: 24px 22px;
+  border: 1px solid rgb(255 255 255 / 60%);
+  border-radius: 16px;
+  background: rgb(255 255 255 / 60%);
+}
+
+.onc-summary .onc-card h2 {
+  font-size: 24px;
+}
+
+.onc-summary .onc-card-head {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.onc-summary .onc-card-tools {
+  margin-left: 0;
+}
+
+.onc-summary .onc-card-tools .onc-view-all {
+  margin-left: auto;
+}
+
+/* the setup card: a coloured band over separate step cards */
+.onc-summary .onc-setup {
+  padding: 0 0 16px;
+}
+
+.onc-summary .onc-setup-band {
+  margin-bottom: 16px;
+}
+
+.onc-summary .onc-steps {
+  gap: 16px;
+  padding: 0 16px;
+}
+
+.onc-summary .onc-step {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.onc-summary .onc-step + .onc-step {
+  border-top: 1px solid var(--border);
+}
+
+.onc-summary .onc-step-head {
+  padding: 18px 16px;
+  font-size: 16px;
+}
+
+.onc-summary .onc-step-num {
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid var(--primary);
+  background: var(--bg);
+  color: var(--primary);
+  font-weight: var(--fw-regular);
+}
+
+.onc-summary .onc-step-num.done {
+  border-color: var(--status-ok);
+  background: var(--status-ok);
+  color: var(--text-inverse);
+}
+
+.onc-summary .onc-step-body {
+  padding: 0 16px 18px 62px;
+}
+
+/* ---------- schedule editor details ---------- */
+.onc-crumbs {
+  gap: 8px;
+  font-size: 20px;
+}
+
+.onc-crumbs a {
+  color: var(--link);
+}
+
+.onc-grid-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: var(--fw-semibold);
+}
+
+.onc-count {
+  padding: 0 7px;
+  border-radius: 10px;
+  background: var(--bg-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.onc-track-warn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+  font-size: var(--fs-md);
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
 }

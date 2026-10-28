@@ -47,7 +47,7 @@ export function SummaryPage() {
         <div className="onc-kicker">
           <PhoneCall size={14} /> On-Call
         </div>
-        <h1>Stay ahead of outages: the right person hears about it first, and someone always answers.</h1>
+        <h1>Stay ahead of outages, with the right person always on call</h1>
       </div>
       {!setupHidden && profile.data && !profile.data.configured && (
         <section className="onc-card onc-setup">

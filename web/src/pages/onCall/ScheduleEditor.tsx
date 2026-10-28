@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Copy, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, CalendarDays, ChevronLeft, ChevronRight, Copy, GripVertical, Layers, Pencil, PhoneCall, Plus, Trash2, X } from 'lucide-react';
 import type { OnCallLayer, OnCallRestriction, OnCallScheduleInput, OnCallScheduleShifts, OnCallWeekday } from '../../api/onCall/client';
 import { DAY, HOUR, WEEKDAYS, colorSlot, dayColumns, defaultScheduleName, formatLocal, layerProblem, parseLocal, rotationLabel, timelineBlock, utcToWall, wallToUtc } from '../../api/onCall/logic';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
@@ -85,7 +85,7 @@ function Editor({ id, initial }: { id?: string; initial: OnCallScheduleInput | n
   const [layerEdit, setLayerEdit] = useState<{ index: number; layer: OnCallLayer } | null>(null);
   const [viewTz, setViewTz] = useState(draft.timeZone);
   const [frame, setFrame] = useState<Frame>('week');
-  const [anchor, setAnchor] = useState(() => frameStart('week', utcToWall(draft.timeZone, now)));
+  const [anchor, setAnchor] = useState(() => frameStart('day', utcToWall(draft.timeZone, now)));
   const [overrideDraft, setOverrideDraft] = useState<{ start: number; end: number; userId: string } | null>(null);
   // New schedules default to "<first name>'s Schedule – <date>" once the profile is known.
   useEffect(() => {
@@ -120,6 +120,7 @@ function Editor({ id, initial }: { id?: string; initial: OnCallScheduleInput | n
     <div className="mon-layout onc-editor">
       <header className="product-header onc-editor-head">
         <div className="product-title onc-crumbs">
+          <PhoneCall size={20} />
           <Link to="/on-call">On-Call</Link>
           <ChevronRight size={14} />
           <Link to="/on-call/schedules">Schedules</Link>
@@ -162,7 +163,7 @@ function Editor({ id, initial }: { id?: string; initial: OnCallScheduleInput | n
       <div className="onc-editor-body">
         <div className="onc-editor-main">
           <div className="onc-toolbar">
-            <button className="btn btn-sm" onClick={() => setAnchor(frameStart(frame, utcToWall(viewTz, Date.now())))}>
+            <button className="btn btn-sm" onClick={() => setAnchor(frameStart('day', utcToWall(viewTz, Date.now())))}>
               Today
             </button>
             <button className="icon-btn" title="Previous" onClick={() => setAnchor(stepFrame(frame, anchor, -1))}>
@@ -203,7 +204,9 @@ function Editor({ id, initial }: { id?: string; initial: OnCallScheduleInput | n
               </div>
             </div>
             <div className="onc-grid-section">
-              <span>Layers ({draft.layers.length})</span>
+              <span className="onc-grid-title">
+                <Layers size={16} /> Layers <span className="onc-count">{draft.layers.length}</span>
+              </span>
               <button
                 className="link-btn"
                 disabled={draft.layers.length >= 10}
@@ -244,6 +247,11 @@ function Editor({ id, initial }: { id?: string; initial: OnCallScheduleInput | n
                   </span>
                 </div>
                 <Track from={from} to={to} nowLeft={nowBlock?.left} columns={columns}>
+                  {l.members.length === 0 && (
+                    <span className="onc-track-warn">
+                      <AlertTriangle size={13} /> Select responders for &quot;{l.name}&quot;
+                    </span>
+                  )}
                   {(preview.data?.layers.find((x) => x.layerId === l.id)?.shifts ?? []).map((s) => {
                     const b = timelineBlock(s.start, s.end, from, to);
                     return b && <Block key={`${s.userId}-${s.start}`} left={b.left} width={b.width} userId={s.userId} name={names.get(s.userId) ?? 'Unknown'} start={s.start} end={s.end} />;
@@ -253,7 +261,9 @@ function Editor({ id, initial }: { id?: string; initial: OnCallScheduleInput | n
             ))}
             {draft.layers.length === 0 && <p className="muted onc-pad">Add a layer to rotate responders.</p>}
             <div className="onc-grid-section">
-              <span>Final Schedule</span>
+              <span className="onc-grid-title">
+                <CalendarDays size={16} /> Final Schedule
+              </span>
               <Select
                 label="Max concurrent responders"
                 value={String(draft.maxConcurrent ?? 0)}
@@ -271,7 +281,6 @@ function Editor({ id, initial }: { id?: string; initial: OnCallScheduleInput | n
               canOverride={!!id}
               onPick={(start, end) => setOverrideDraft({ start, end, userId: me.data?.id ?? '' })}
             />
-            <p className="muted onc-hint onc-grid-hint">{id ? 'Click or drag to create override' : 'Create the schedule to add overrides.'}</p>
             {id && <OverrideList scheduleId={id} data={preview.data} />}
           </div>
           {problems.length > 0 && <p className="form-error onc-pad">{problems[0]}</p>}
@@ -400,7 +409,7 @@ function FinalRow({
   return (
     <div className="onc-grid-row onc-final">
       <div className="onc-grid-label">
-        <b>Final schedule</b>
+        <i className="muted ellipsis">{canOverride ? 'Click or drag to create override' : 'Create the schedule to add overrides'}</i>
       </div>
       <Track from={from} to={to} nowLeft={nowLeft} columns={columns} onMouseDown={down} className={canOverride ? 'pickable' : ''}>
         {(data?.finalShifts ?? []).flatMap((s) => {
