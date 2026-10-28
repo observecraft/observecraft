@@ -12,6 +12,9 @@ import { MetricsLayout } from './pages/metrics/MetricsLayout';
 import { MetricsExplorer } from './pages/metrics/MetricsExplorer';
 import { MetricsSummary } from './pages/metrics/MetricsSummary';
 import { MetricsVolume } from './pages/metrics/MetricsVolume';
+import { DerivedMetrics } from './pages/metrics/DerivedMetrics';
+import { FilteredMetricsPage, MetricRulesPage, MetricsSettingsLayout } from './pages/metrics/settings/MetricsSettings';
+import { CheckSummary } from './pages/checks/CheckSummary';
 import { ReleaseNotesPage } from './pages/releaseNotes/ReleaseNotesPage';
 import { SetupGuidePage } from './pages/setup/SetupGuidePage';
 import { ReferenceTableCreatePage } from './pages/integrations/ReferenceTableCreatePage';
@@ -129,6 +132,10 @@ import { LogsLayout } from './pages/logs/LogsLayout';
 import { EventExplorer } from './pages/events/EventExplorer';
 import { EventsLayout, EventsSummary } from './pages/events/EventsLayout';
 import { TriageInbox } from './pages/events/TriageInbox';
+import { EventGenerateMetricsPage, EventPipelinesPage, EventProjectsPage, EventSettingsLayout, IntelligentCorrelationPage } from './pages/events/settings/EventSettingsLayout';
+import { CorrelatorsPage } from './pages/events/settings/CorrelatorsPage';
+import { MaintenanceWindowsPage } from './pages/events/settings/MaintenanceWindowsPage';
+import { WorkItemAttributesPage } from './pages/events/settings/WorkItemAttributesPage';
 import { PortalLayout } from './pages/portal/PortalLayout';
 import { PortalHome } from './pages/portal/PortalHome';
 import { PortalSettings, PortalSettingsSoon } from './pages/portal/PortalSettings';
@@ -329,6 +336,17 @@ function Shell() {
               <Route path="inbox" element={<TriageInbox />} />
               <Route path="summary" element={<EventsSummary />} />
             </Route>
+            <Route path="/event/settings" element={<EventSettingsLayout />}>
+              <Route index element={<Navigate to="correlators" replace />} />
+              <Route path="projects" element={<EventProjectsPage />} />
+              <Route path="correlators" element={<CorrelatorsPage />} />
+              <Route path="intelligent-correlation" element={<IntelligentCorrelationPage />} />
+              <Route path="attributes" element={<WorkItemAttributesPage />} />
+              <Route path="maintenance-windows" element={<MaintenanceWindowsPage />} />
+              <Route path="pipelines" element={<EventPipelinesPage />} />
+              <Route path="generate-metrics" element={<EventGenerateMetricsPage />} />
+            </Route>
+            <Route path="/check/summary" element={<CheckSummary />} />
             <Route path="/portal" element={<PortalLayout />}>
               <Route index element={<Navigate to="/portal/home" replace />} />
               <Route path="home" element={<PortalHome />} />
@@ -399,6 +417,12 @@ function Shell() {
               <Route index element={<MetricsExplorer />} />
               <Route path="summary" element={<MetricsSummary />} />
               <Route path="volume" element={<MetricsVolume />} />
+              <Route path="derived" element={<DerivedMetrics />} />
+            </Route>
+            <Route path="/metrics/settings" element={<MetricsSettingsLayout />}>
+              <Route index element={<Navigate to="rules" replace />} />
+              <Route path="rules" element={<MetricRulesPage />} />
+              <Route path="filtered" element={<FilteredMetricsPage />} />
             </Route>
             <Route path="/instance/orgs" element={<InstanceOrgsPage />} />
             <Route path="/organization-settings" element={<OrgSettingsLayout />}>

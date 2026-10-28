@@ -8,6 +8,8 @@ import type { MetricSeries, TimeRange } from '../types';
 import { parseQuery } from '../../lib/searchQuery';
 import { rng } from './generator';
 import { generatedMetrics } from './logMetrics';
+import { derivedFormulas } from './derivedMetrics';
+import { derivedTags, expandDerived } from '../../lib/derivedMetrics';
 import { matchesTerms } from './match';
 
 type Tags = Record<string, string>;
@@ -238,7 +240,11 @@ const entitiesOf = (d: MetricDef) => d.entities ?? SETS[d.set];
 
 export function metricCatalog(): MetricCatalogEntry[] {
   const defs = { ...METRICS, ...generatedMetricDefs() };
-  return Object.entries(defs).map(([name, d]) => ({ name, tags: d.tags ?? Object.keys(SETS[d.set][0]), unit: d.unit, description: d.description }));
+  const entries: MetricCatalogEntry[] = Object.entries(defs).map(([name, d]) => ({ name, tags: d.tags ?? Object.keys(SETS[d.set][0]), unit: d.unit, description: d.description }));
+  // Derived metrics (mock/derivedMetrics.ts), with the tags of the metrics they read.
+  const tagsOf = (metric: string) => entries.find((e) => e.name === metric)?.tags ?? [];
+  for (const [name, formula] of Object.entries(derivedFormulas())) entries.push({ name, tags: derivedTags(formula, tagsOf), description: `Derived: ${formula}`, kind: 'derived' });
+  return entries;
 }
 
 /** Metrics by series: one series per entity of the metric's set. */
@@ -413,13 +419,20 @@ function evaluateFormula(formula: string, range: TimeRange, points: number): Gro
   }));
 }
 
+/** A query's groups; a derived metric's (mock/derivedMetrics.ts) are its formula's. */
+function evaluateAny(query: string, range: TimeRange, points: number): GroupSeries[] {
+  const resolved = expandDerived(query, derivedFormulas());
+  return resolved === query ? evaluate(query, range, points) : evaluateFormula(resolved, range, points);
+}
+
 export function queryTimeseries(req: TimeseriesRequest): Promise<MetricSeries[]> {
   return attempt(() =>
     req.queries.flatMap((raw) => {
       // The mock averages every interval: a `.rollup(method)` suffix is accepted and ignored.
       const query = raw.replace(/\.rollup\([^()]*\)$/, '');
-      const q = parseMetricQuery(query);
-      if (!q) return evaluateFormula(query, req.range, req.points ?? 120).map((g) => ({ name: Object.keys(g.tags).length ? groupLabel(g.tags) : query, points: g.points }));
+      const resolved = expandDerived(query, derivedFormulas());
+      const q = resolved === query ? parseMetricQuery(query) : null;
+      if (!q) return evaluateFormula(resolved, req.range, req.points ?? 120).map((g) => ({ name: Object.keys(g.tags).length ? groupLabel(g.tags) : query, points: g.points }));
       return evaluate(query, req.range, req.points ?? 120).map((g) => ({
         // Ungrouped series are named by their full query so several queries stay distinct.
         name: q?.by.length ? groupLabel(g.tags) : query,
@@ -431,7 +444,7 @@ export function queryTimeseries(req: TimeseriesRequest): Promise<MetricSeries[]>
 
 export function queryScalar(req: ScalarRequest): Promise<number> {
   return attempt(() => {
-    const groups = evaluate(req.query, req.range, 60);
+    const groups = evaluateAny(req.query, req.range, 60);
     // A grouped query reduced to one number: combine groups per timestamp first.
     const q = parseMetricQuery(req.query)!;
     if (groups.length === 0) return 0;
@@ -451,7 +464,7 @@ export function queryScalar(req: ScalarRequest): Promise<number> {
 
 export function queryGrouped(req: ScalarRequest): Promise<GroupedScalar[]> {
   return attempt(() =>
-    evaluate(req.query, req.range, 60)
+    evaluateAny(req.query, req.range, 60)
       .map((g) => ({ group: groupLabel(g.tags), tags: g.tags, value: Math.round(reduce(g.points, req.aggregator) * 100) / 100 }))
       .sort((a, b) => b.value - a.value),
   );

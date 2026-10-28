@@ -13,10 +13,10 @@ import { DashboardContext, formatValue, type DashboardContextValue } from '../da
 import { TimeseriesWidget } from '../dashboards/widgets/MetricWidgets';
 import { KIND_LABEL } from './MetricsLayout';
 
-const AGGS = ['avg', 'sum', 'min', 'max'] as const;
-type Agg = (typeof AGGS)[number];
+export const AGGS = ['avg', 'sum', 'min', 'max'] as const;
+export type Agg = (typeof AGGS)[number];
 
-interface Row {
+export interface Row {
   agg: Agg;
   metric: string;
   /** `env:prod, service:api-gateway` */
@@ -25,7 +25,7 @@ interface Row {
   by: string;
 }
 
-const LETTERS = 'abcdefghij';
+export const LETTERS = 'abcdefghij';
 
 /** Row → query text: `avg:metric{env:prod,service:x} by {host}`. */
 export function toQuery(r: Row): string {
@@ -43,7 +43,7 @@ export function toQuery(r: Row): string {
 }
 
 /** Metric name picker with search over the catalog. */
-function MetricPicker({ value, catalog, onChange }: { value: string; catalog: MetricCatalogEntry[]; onChange: (m: string) => void }) {
+export function MetricPicker({ value, catalog, onChange }: { value: string; catalog: MetricCatalogEntry[]; onChange: (m: string) => void }) {
   const { open, setOpen, ref } = usePopover();
   const [text, setText] = useState('');
   const t = text.trim().toLowerCase();

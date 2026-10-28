@@ -1,9 +1,11 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import { Gauge } from 'lucide-react';
+import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Gauge, Settings } from 'lucide-react';
 import { TimeProvider } from '../../components/shell/TimeContext';
 import './metrics.css';
 
-/** Metrics product frame: Explorer, Summary and Volume share one time range (past hour by default). */
+const tab = ({ isActive }: { isActive: boolean }) => `product-tab${isActive ? ' active' : ''}`;
+
+/** Metrics product frame: Explorer, Summary, Volume and Derived Metrics share one time range (past hour by default). */
 export function MetricsLayout() {
   return (
     <TimeProvider initial="1h">
@@ -14,16 +16,22 @@ export function MetricsLayout() {
             Metrics
           </div>
           <nav className="product-tabs">
-            <NavLink to="/metrics" end className={({ isActive }) => `product-tab${isActive ? ' active' : ''}`}>
+            <NavLink to="/metrics" end className={tab}>
               Explorer
             </NavLink>
-            <NavLink to="/metrics/summary" className={({ isActive }) => `product-tab${isActive ? ' active' : ''}`}>
+            <NavLink to="/metrics/summary" className={tab}>
               Summary
             </NavLink>
-            <NavLink to="/metrics/volume" className={({ isActive }) => `product-tab${isActive ? ' active' : ''}`}>
+            <NavLink to="/metrics/volume" className={tab}>
               Volume
             </NavLink>
+            <NavLink to="/metrics/derived" className={tab}>
+              Derived Metrics <span className="badge-new mx-tab-new">NEW</span>
+            </NavLink>
           </nav>
+          <Link to="/metrics/settings" className="mx-settings-link">
+            <Settings size={15} /> Settings
+          </Link>
         </header>
         <div className="metrics-section">
           <Outlet />
@@ -40,4 +48,5 @@ export const KIND_LABEL: Record<string, string> = {
   exponential_histogram: 'Exp. histogram',
   summary: 'Summary',
   span: 'From traces',
+  derived: 'Derived',
 };
