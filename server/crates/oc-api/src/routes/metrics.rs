@@ -1200,17 +1200,30 @@ pub async fn grouped(
     OrgId(org): OrgId,
     Json(req): Json<ScalarRequest>,
 ) -> ApiResult<Vec<GroupedScalar>> {
-    let (_, groups) = evaluate(&st, &org, &req.query, req.range, 60).await?;
+    Ok(Json(
+        grouped_values(&st, &org, &req.query, req.range, req.aggregator).await?,
+    ))
+}
+
+/// One value per group of a metric query, largest first (also the workflows' metric query step).
+pub(crate) async fn grouped_values(
+    st: &AppState,
+    org: &str,
+    query: &str,
+    range: TimeRange,
+    aggregator: TimeAggregator,
+) -> Result<Vec<GroupedScalar>, ApiError> {
+    let (_, groups) = evaluate(st, org, query, range, 60).await?;
     let mut out: Vec<GroupedScalar> = groups
         .into_iter()
         .map(|g| GroupedScalar {
             group: group_label(&g.tags),
-            value: round(reduce(&g.points, req.aggregator)),
+            value: round(reduce(&g.points, aggregator)),
             tags: g.tags,
         })
         .collect();
     out.sort_by(|a, b| b.value.total_cmp(&a.value));
-    Ok(Json(out))
+    Ok(out)
 }
 
 #[derive(Deserialize, ToSchema)]

@@ -514,7 +514,9 @@ pub async fn declare(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, C
             .await?;
     }
     tx.commit().await?;
-    Ok(Json(detail_of(&st, &org, id).await?))
+    let detail = detail_of(&st, &org, id).await?;
+    super::workflows::on_incident(&st, &org, "declared", &detail.incident).await;
+    Ok(Json(detail))
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -578,11 +580,14 @@ pub async fn update(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, Cu
     .bind(p.customer_impact)
     .execute(&mut *tx)
     .await?;
+    let resolved = p.status == Some(IncidentStatus::Resolved) && row.status != "resolved";
     for (kind, body) in events {
         sqlx::query("INSERT INTO incident_events (incident_id, kind, author, author_id, body) VALUES ($1, $2, $3, $4::uuid, $5)").bind(row.pk).bind(kind).bind(&author).bind(&me).bind(body).execute(&mut *tx).await?;
     }
     tx.commit().await?;
-    Ok(Json(detail_of(&st, &org, id).await?))
+    let detail = detail_of(&st, &org, id).await?;
+    super::workflows::on_incident(&st, &org, if resolved { "resolved" } else { "updated" }, &detail.incident).await;
+    Ok(Json(detail))
 }
 
 // ================================================================ timeline, impacts, follow-ups

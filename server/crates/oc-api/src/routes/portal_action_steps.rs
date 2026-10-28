@@ -137,6 +137,8 @@ pub struct RenderContext<'a> {
     pub secrets: &'a BTreeMap<String, String>,
     /// JSON responses of the requests sent so far.
     pub steps: Vec<Value>,
+    /// Workflows: the run's data under the names of [`TemplateScope::roots`] (`Trigger`, `Steps`, …).
+    pub vars: Option<&'a Value>,
 }
 
 /// Where a template is used, for validation: which names it may refer to.
@@ -147,6 +149,15 @@ pub struct TemplateScope<'a> {
     pub allow_secrets: bool,
     /// Requests answered before this one (`steps.1` … `steps.<n>`).
     pub prior_steps: usize,
+    /// Workflows: further names a placeholder may start with (`Trigger`, `Steps`, …).
+    pub roots: &'a [&'a str],
+}
+
+/// The first segment of a path, when it is one of the workflow names (not `inputs` or `user`, which
+/// self-service actions have too).
+fn workflow_root<'r>(path: &str, roots: &[&'r str]) -> Option<&'r str> {
+    let first = path.split('.').next()?;
+    roots.iter().copied().find(|r| *r == first && !matches!(*r, "inputs" | "user"))
 }
 
 // ================================================================ templates
@@ -217,6 +228,8 @@ pub fn check_template(template: &str, scope: &TemplateScope) -> Result<(), Strin
                 return Err(format!("There is no secret named {name} ({{{{{path}}}}})"));
             }
             true
+        } else if workflow_root(path, scope.roots).is_some() {
+            true
         } else if let Some((n, field)) = step_ref(path) {
             if n == 0 || n > scope.prior_steps || field.is_empty() {
                 return Err(format!("{{{{{path}}}}}: steps.{n} isn't available here; a request can read the JSON responses of the requests before it (steps.1.<field>)"));
@@ -248,6 +261,8 @@ fn lookup(ctx: &RenderContext, p: &Placeholder) -> Result<Value, String> {
         ctx.inputs.get(key).cloned().unwrap_or(Value::Null)
     } else if let Some(name) = path.strip_prefix("secrets.") {
         Value::String(ctx.secrets.get(name).cloned().ok_or_else(|| format!("There is no secret named {name}"))?)
+    } else if let Some(vars) = ctx.vars.filter(|_| !path.starts_with("steps.") && !path.starts_with("user.")) {
+        super::workflow_expr::lookup(vars, &super::workflow_expr::segments(path)).cloned().unwrap_or(Value::Null)
     } else if let Some((n, field)) = step_ref(path) {
         let missing = || format!("{path} is missing from the response of request {n}");
         let mut cur = ctx.steps.get(n.wrapping_sub(1)).ok_or_else(missing)?;
@@ -464,6 +479,11 @@ pub fn check_inputs(inputs: &[ActionInput]) -> Result<Vec<ActionInput>, String> 
 
 /// Checks a step against the inputs and secret names.
 pub fn check_step(step: &ActionStep, inputs: &[ActionInput], secrets: &HashSet<String>) -> Result<ActionStep, String> {
+    check_step_in(step, inputs, secrets, &[])
+}
+
+/// [`check_step`] where templates may also start with `roots` (a workflow's `Trigger`, `Steps`, …).
+pub fn check_step_in(step: &ActionStep, inputs: &[ActionInput], secrets: &HashSet<String>, roots: &[&str]) -> Result<ActionStep, String> {
     if step.kind == ActionStepKind::Http {
         if step.requests.is_empty() || step.requests.len() > MAX_REQUESTS {
             return Err(format!("An HTTP step sends 1–{MAX_REQUESTS} requests"));
@@ -473,13 +493,13 @@ pub fn check_step(step: &ActionStep, inputs: &[ActionInput], secrets: &HashSet<S
             .iter()
             .enumerate()
             .map(|(i, r)| {
-                check_request(r, &TemplateScope { inputs, secrets, allow_secrets: true, prior_steps: i }).map_err(|e| if step.requests.len() > 1 { format!("Request {}: {e}", i + 1) } else { e })
+                check_request(r, &TemplateScope { inputs, secrets, allow_secrets: true, prior_steps: i, roots }).map_err(|e| if step.requests.len() > 1 { format!("Request {}: {e}", i + 1) } else { e })
             })
             .collect::<Result<_, _>>()?;
         return Ok(ActionStep { kind: step.kind, requests, fields: BTreeMap::new() });
     }
     let allowed = step.kind.fields();
-    let scope = TemplateScope { inputs, secrets, allow_secrets: false, prior_steps: 0 };
+    let scope = TemplateScope { inputs, secrets, allow_secrets: false, prior_steps: 0, roots };
     if let Some(unknown) = step.fields.keys().find(|k| !allowed.iter().any(|(f, _)| f == k)) {
         return Err(format!("This step has no field {unknown} (fields: {})", allowed.iter().map(|(f, _)| *f).collect::<Vec<_>>().join(", ")));
     }
@@ -579,7 +599,7 @@ mod tests {
     }
 
     fn ctx<'a>(inputs: &'a Map<String, Value>, secrets: &'a BTreeMap<String, String>) -> RenderContext<'a> {
-        RenderContext { inputs, user_email: "dana@example.com", user_name: "Dana Lee", secrets, steps: vec![] }
+        RenderContext { inputs, user_email: "dana@example.com", user_name: "Dana Lee", secrets, steps: vec![], vars: None }
     }
 
     fn map(v: Value) -> Map<String, Value> {
@@ -656,7 +676,7 @@ mod tests {
     fn templates_only_refer_to_known_names() {
         let inputs = vec![input("repo", ActionInputKind::Text)];
         let names: HashSet<String> = ["github_token".to_string()].into();
-        let http = TemplateScope { inputs: &inputs, secrets: &names, allow_secrets: true, prior_steps: 1 };
+        let http = TemplateScope { inputs: &inputs, secrets: &names, allow_secrets: true, prior_steps: 1, roots: &[] };
         assert!(check_template("{{inputs.repo}} {{user.email}} {{user.name}} {{secrets.github_token}} {{steps.1.sha}} {{inputs.repo | path}}", &http).is_ok());
         assert!(check_template("{{inputs.other}}", &http).unwrap_err().contains("inputs.other"));
         assert!(check_template("{{secrets.aws}}", &http).unwrap_err().contains("secrets.aws"));
@@ -669,10 +689,28 @@ mod tests {
     }
 
     #[test]
+    fn workflow_templates_read_the_run_data() {
+        let roots = ["Trigger", "Steps", "inputs", "user"];
+        let names = HashSet::new();
+        let scope = TemplateScope { inputs: &[], secrets: &names, allow_secrets: true, prior_steps: 0, roots: &roots };
+        assert!(check_template("{{ Trigger.monitor.name }} {{Steps.check.output.items.0.id}} {{user.email}}", &scope).is_ok());
+        assert!(check_template("{{ Loop.item }}", &scope).unwrap_err().contains("Loop"), "only the given roots");
+        assert!(check_template("{{ inputs.missing }}", &scope).is_err(), "inputs are still checked against the form");
+        let vars = json!({"Trigger": {"monitor": {"name": "High error rate", "id": 7}}, "Steps": {"check": {"output": {"items": [{"id": "a b/c"}]}}}});
+        let i = Map::new();
+        let s = BTreeMap::new();
+        let c = RenderContext { vars: Some(&vars), ..ctx(&i, &s) };
+        assert_eq!(render_text("{{ Trigger.monitor.name }} by {{user.name}}", &c, true).unwrap(), "High error rate by Dana Lee");
+        assert_eq!(render_url("https://h.example.com/x/{{Steps.check.output.items.0.id}}", &c).unwrap(), "https://h.example.com/x/a%20b%2Fc");
+        assert_eq!(serde_json::from_str::<Value>(&render_json(r#"{"id": "{{Trigger.monitor.id}}"}"#, &c).unwrap()).unwrap(), json!({"id": 7}));
+        assert_eq!(render_text("[{{ Steps.absent.output }}]", &c, true).unwrap(), "[]");
+    }
+
+    #[test]
     fn requests_have_literal_hosts_and_json_bodies() {
         let inputs = vec![input("host", ActionInputKind::Text)];
         let names = HashSet::new();
-        let scope = TemplateScope { inputs: &inputs, secrets: &names, allow_secrets: true, prior_steps: 0 };
+        let scope = TemplateScope { inputs: &inputs, secrets: &names, allow_secrets: true, prior_steps: 0, roots: &[] };
         let req = |method: &str, url: &str, body: &str| ActionHttpRequest { method: method.into(), url: url.into(), headers: vec![], body: body.into() };
         let ok = check_request(&req("post", " https://api.github.com/repos/{{inputs.host}} ", r#"{"a": "{{inputs.host}}"}"#), &scope).unwrap();
         assert_eq!(ok.method, "POST");

@@ -288,6 +288,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_automation_apps"];
+        put?: never;
+        post: operations["create_automation_app"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_automation_app"];
+        put: operations["update_automation_app"];
+        post?: never;
+        delete: operations["delete_automation_app"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Presses a button: runs its workflow with the app's values. Read the run with `get_workflow_run`. */
+        post: operations["run_automation_app"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit": {
         parameters: {
             query?: never;
@@ -4798,6 +4847,155 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workflows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_workflows"];
+        put?: never;
+        post: operations["create_workflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_workflow"];
+        put: operations["update_workflow"];
+        post?: never;
+        delete: operations["delete_workflow"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publishes the saved draft: triggers run it from now on, as the signed-in member. */
+        post: operations["publish_workflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_workflow_runs"];
+        put?: never;
+        /** Runs the saved draft now, as the signed-in member. The run executes in the background. */
+        post: operations["run_workflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/runs/{run}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_workflow_run"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/runs/{run}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel_workflow_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates a new API trigger token (the previous one stops working). It is shown once. */
+        post: operations["create_workflow_token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/trigger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Starts the published workflow from a script: an application key authenticates the call and the
+         *     workflow's token (`X-Workflow-Token`) proves it may start this one. */
+        post: operations["trigger_workflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["unpublish_workflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -4920,6 +5118,44 @@ export interface components {
             query?: string;
             range: components["schemas"]["TimeRange"];
         };
+        /** @description A component of an app; the fields used depend on its kind. */
+        AppComponent: {
+            /** @description Metric: avg, sum, min, max or last. */
+            aggregation?: string;
+            /** @description Table: columns (keys of the list's items); all when empty. */
+            columns?: string[];
+            /** @description Inputs: pre-filled value. */
+            defaultValue?: string;
+            /** @description `[a-z0-9_]`, unique in the app (`components.<id>.value`). */
+            id: string;
+            /** @description Button: a template per workflow input key (`{{ components.env.value }}`). */
+            inputs?: {
+                [key: string]: string;
+            };
+            kind: components["schemas"]["AppComponentKind"];
+            label?: string;
+            /** @description Select: its options. */
+            options?: string[];
+            /** @description Table: path of the list in the run's data (`Steps.top.output.groups`). */
+            path?: string;
+            placeholder?: string;
+            /** @description Metric: the metric query. */
+            query?: string;
+            /** @description Table: the button whose latest run it shows. */
+            source?: string;
+            /** @description Heading and text: the content. */
+            text?: string;
+            unit?: string;
+            /**
+             * Format: int32
+             * @description Columns of the 12-column grid it spans (3, 4, 6, 8 or 12).
+             */
+            width?: number;
+            /** @description Button: the workflow it runs. */
+            workflowId?: string;
+        };
+        /** @enum {string} */
+        AppComponentKind: "heading" | "text" | "text_input" | "number_input" | "select" | "button" | "table" | "metric";
         AppKey: {
             /** Format: int64 */
             createdAt: number;
@@ -5063,6 +5299,44 @@ export interface components {
             saml: components["schemas"]["SamlStatus"];
             serviceProvider: components["schemas"]["ServiceProviderInfo"];
             ssoRequired: boolean;
+        };
+        AutomationApp: {
+            blueprint: string;
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            id: string;
+            name: string;
+            published: boolean;
+            spec: components["schemas"]["AutomationAppSpec"];
+            tags: string[];
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        AutomationAppInput: {
+            blueprint?: string;
+            description?: string;
+            name: string;
+            published?: boolean;
+            spec: components["schemas"]["AutomationAppSpec"];
+            tags?: string[];
+        };
+        AutomationAppRun: {
+            /** Format: int64 */
+            runId: number;
+            workflowId: string;
+        };
+        AutomationAppRunInput: {
+            /** @description The button pressed. */
+            component: string;
+            /** @description The app's input values, by component id. */
+            values?: {
+                [key: string]: unknown;
+            };
+        };
+        AutomationAppSpec: {
+            components?: components["schemas"]["AppComponent"][];
         };
         /**
          * @description What the error budget is counted in.
@@ -11928,6 +12202,176 @@ export interface components {
             query?: string;
             range: components["schemas"]["TimeRange"];
         };
+        Workflow: {
+            blueprint: string;
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            handle: string;
+            /** @description An API trigger token exists. */
+            hasApiToken: boolean;
+            id: string;
+            lastRun?: null | components["schemas"]["WorkflowLastRun"];
+            name: string;
+            /** Format: int64 */
+            nextScheduleAt?: number | null;
+            ownerTeam: string;
+            published: boolean;
+            /** Format: int64 */
+            publishedAt?: number | null;
+            publishedBy?: string | null;
+            publishedSpec?: null | components["schemas"]["WorkflowSpec"];
+            /** Format: int64 */
+            runs: number;
+            /** @description Names of the stored credentials (values are never returned). */
+            secretNames: string[];
+            service: string;
+            /** @description The saved draft. */
+            spec: components["schemas"]["WorkflowSpec"];
+            tags: string[];
+            /** @description The draft differs from the published version. */
+            unpublishedChanges: boolean;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        WorkflowApiToken: {
+            /** @description Send it as `X-Workflow-Token`; shown once. */
+            token: string;
+        };
+        WorkflowInput: {
+            blueprint?: string;
+            description?: string;
+            /** @description Mentioned as `@workflow-<handle>`; made from the name when empty at creation, kept otherwise. */
+            handle?: string;
+            name: string;
+            /** @description Team handle; empty for none. */
+            ownerTeam?: string;
+            /** @description Credentials by name: a value sets one, null removes it, names left out keep their value. */
+            secrets?: {
+                [key: string]: string | null;
+            };
+            service?: string;
+            spec: components["schemas"]["WorkflowSpec"];
+            tags?: string[];
+        };
+        WorkflowLastRun: {
+            /** Format: int64 */
+            createdAt: number;
+            /** Format: int64 */
+            id: number;
+            status: string;
+            triggerKind: string;
+        };
+        WorkflowRun: {
+            /** Format: int64 */
+            createdAt: number;
+            error?: string | null;
+            /** Format: int64 */
+            finishedAt?: number | null;
+            /** Format: int64 */
+            id: number;
+            inputs: {
+                [key: string]: unknown;
+            };
+            /**
+             * Format: int64
+             * @description Waiting: when it goes on.
+             */
+            nextAt?: number | null;
+            spec?: null | components["schemas"]["WorkflowSpec"];
+            /** Format: int64 */
+            startedAt?: number | null;
+            /** @description queued | running | waiting | succeeded | failed | canceled */
+            status: string;
+            /** @description Detail only: what each step did, in order. */
+            steps: components["schemas"]["WorkflowRunStep"][];
+            trigger: Record<string, never>;
+            /** @description manual | monitor | schedule | incident | api | app */
+            triggerKind: string;
+            triggeredBy: string;
+            workflowId: string;
+            workflowName: string;
+        };
+        WorkflowRunInput: {
+            /** @description Value per input key. */
+            inputs?: {
+                [key: string]: unknown;
+            };
+        };
+        WorkflowRunStep: {
+            /** Format: int32 */
+            attempts: number;
+            /** Format: double */
+            durationMs: number;
+            error?: string | null;
+            /** Format: int64 */
+            id: number;
+            inputs: Record<string, never>;
+            /**
+             * Format: int32
+             * @description The "for each" item it ran for, when inside one.
+             */
+            iteration?: number | null;
+            kind: string;
+            name: string;
+            output: Record<string, never>;
+            /** Format: int64 */
+            startedAt: number;
+            /** @description succeeded | failed */
+            status: string;
+            stepId: string;
+        };
+        /** @description What a workflow does: its form, triggers and steps. */
+        WorkflowSpec: {
+            inputs?: components["schemas"]["ActionInput"][];
+            steps?: components["schemas"]["WorkflowStep"][];
+            triggers?: components["schemas"]["WorkflowTrigger"][];
+        };
+        /** @description A step of a workflow. */
+        WorkflowStep: {
+            /** @description Action steps: a failure is recorded and the run goes on. */
+            continueOnError?: boolean;
+            /** @description If: run otherwise. */
+            elseSteps?: components["schemas"]["WorkflowStep"][];
+            /** @description If: the condition. For each: the list. */
+            expression?: string;
+            /** @description Action steps: a template per field. */
+            fields?: {
+                [key: string]: string;
+            };
+            /** @description `[a-z0-9_]`, unique in the workflow; others read its result as `Steps.<id>`. */
+            id: string;
+            kind: components["schemas"]["WorkflowStepKind"];
+            /** @description Shown on the canvas; the kind's name when empty. */
+            name?: string;
+            /** @description Http only. */
+            requests?: components["schemas"]["ActionHttpRequest"][];
+            /**
+             * Format: int32
+             * @description Action steps: attempts after a failure (0–3), 5 s apart.
+             */
+            retries?: number;
+            /** @description If: run when the condition holds. For each: run per item. */
+            steps?: components["schemas"]["WorkflowStep"][];
+        };
+        /** @enum {string} */
+        WorkflowStepKind: "http" | "create_incident" | "page_on_call" | "incident_comment" | "synthetic_run" | "notify" | "metric_query" | "log_count" | "wait" | "if" | "for_each";
+        WorkflowTrigger: {
+            /** @description Schedule: `minute hour day-of-month month day-of-week`. */
+            cron?: string;
+            /** @description Incident: declared, updated, resolved; all when empty. */
+            incidentEvents?: string[];
+            kind: components["schemas"]["WorkflowTriggerKind"];
+            /** @description Incident: severities that start a run; any when empty. */
+            severities?: string[];
+            /** @description Schedule: IANA time zone; UTC when empty. */
+            timezone?: string;
+            /** @description Monitor: the states that start a run (alert, warn, nodata, ok); alert when empty. */
+            transitions?: string[];
+        };
+        /** @enum {string} */
+        WorkflowTriggerKind: "manual" | "monitor" | "schedule" | "incident" | "api" | "app";
     };
     responses: never;
     parameters: never;
@@ -12323,6 +12767,194 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TraceDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_automation_apps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationApp"][];
+                };
+            };
+        };
+    };
+    create_automation_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationAppInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationApp"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_automation_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationApp"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_automation_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationAppInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationApp"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_automation_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_automation_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationAppRunInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationAppRun"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             404: {
@@ -21377,6 +22009,427 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoginLink"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_workflows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"][];
+                };
+            };
+        };
+    };
+    create_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    publish_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_workflow_runs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowRunInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_workflow_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                run: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    cancel_workflow_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                run: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_workflow_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowApiToken"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    trigger_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowRunInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    unpublish_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"];
                 };
             };
             404: {

@@ -1,4 +1,5 @@
 pub mod apm;
+pub mod apps;
 pub mod archives;
 pub mod auth;
 pub mod catalog;
@@ -49,6 +50,10 @@ pub mod portal_surveys;
 pub mod portal_catalog;
 pub mod portal_model;
 pub mod portal_reports;
+pub mod workflow_cron;
+pub mod workflow_engine;
+pub mod workflow_expr;
+pub mod workflows;
 pub mod profiles;
 pub mod reference_tables;
 pub mod resource_policies;
@@ -393,6 +398,25 @@ use crate::state::AppState;
         portal_reports::scorecards,
         portal_reports::list_dashboards,
         portal_reports::set_dashboards,
+        workflows::list_workflows,
+        workflows::get_workflow,
+        workflows::create_workflow,
+        workflows::update_workflow,
+        workflows::delete_workflow,
+        workflows::publish_workflow,
+        workflows::unpublish_workflow,
+        workflows::create_token,
+        workflows::run_workflow,
+        workflows::trigger_workflow,
+        workflows::list_runs,
+        workflows::get_run,
+        workflows::cancel_run,
+        apps::list_apps,
+        apps::get_app,
+        apps::create_app,
+        apps::update_app,
+        apps::delete_app,
+        apps::run_app,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -449,8 +473,9 @@ use crate::state::AppState;
         llm::trace,
         llm::evaluations,
     ),
-    // Sent inside the SSE stream rather than as a response body, so it must be listed explicitly.
-    components(schemas(live::LiveTailBatch)),
+    // Sent inside the SSE stream rather than as a response body, so it must be listed explicitly
+    // (and the kind of the recursive WorkflowStep, which `no_recursion` leaves out).
+    components(schemas(live::LiveTailBatch, workflow_engine::WorkflowStepKind)),
     tags(
         (name = "logs", description = "Log search, facets, histogram and live tail"),
         (name = "apm", description = "Services, endpoints, dependencies and traces computed from spans"),
@@ -474,6 +499,7 @@ use crate::state::AppState;
         (name = "scorecards", description = "Developer Portal scorecards: rules evaluated per service, their levels and service metadata"),
         (name = "feature_flags", description = "Feature flags, their targeting per environment and history; SDKs evaluate them over OFREP at the intake"),
         (name = "portal", description = "Developer Portal: home (connectors, identities, pull requests, tickets, entities, apps), the Software Catalog (telemetry and entity definitions v3), reports, settings, surveys and self-service actions"),
+        (name = "automation", description = "Workflow Automation (workflows, triggers, runs) and App Builder"),
         (name = "auth", description = "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"),
         (name = "health")
     )
@@ -865,6 +891,21 @@ pub fn router() -> Router<AppState> {
             get(portal_actions::get_action).put(portal_actions::update_action).delete(portal_actions::delete_action),
         )
         .route("/api/v1/portal/actions/:id/runs", get(portal_actions::list_runs).post(portal_actions::run_action))
+        .route("/api/v1/workflows", get(workflows::list_workflows).post(workflows::create_workflow))
+        .route(
+            "/api/v1/workflows/:id",
+            get(workflows::get_workflow).put(workflows::update_workflow).delete(workflows::delete_workflow),
+        )
+        .route("/api/v1/workflows/:id/publish", post(workflows::publish_workflow))
+        .route("/api/v1/workflows/:id/unpublish", post(workflows::unpublish_workflow))
+        .route("/api/v1/workflows/:id/token", post(workflows::create_token))
+        .route("/api/v1/workflows/:id/trigger", post(workflows::trigger_workflow))
+        .route("/api/v1/workflows/:id/runs", get(workflows::list_runs).post(workflows::run_workflow))
+        .route("/api/v1/workflows/:id/runs/:run", get(workflows::get_run))
+        .route("/api/v1/workflows/:id/runs/:run/cancel", post(workflows::cancel_run))
+        .route("/api/v1/apps", get(apps::list_apps).post(apps::create_app))
+        .route("/api/v1/apps/:id", get(apps::get_app).put(apps::update_app).delete(apps::delete_app))
+        .route("/api/v1/apps/:id/run", post(apps::run_app))
         .route("/api/v1/portal/catalog", post(portal_catalog::catalog))
         .route("/api/v1/portal/entities", get(portal_catalog::list_entities).post(portal_catalog::upsert_entity))
         .route("/api/v1/portal/entities/import", post(portal_catalog::import_entities))
@@ -1075,6 +1116,9 @@ mod tests {
             include_str!("portal_action_steps.rs"),
             include_str!("portal_actions.rs"),
             include_str!("portal_surveys.rs"),
+            include_str!("workflow_engine.rs"),
+            include_str!("workflows.rs"),
+            include_str!("apps.rs"),
             include_str!("health.rs"),
             include_str!("hosts.rs"),
             include_str!("gpu.rs"),
@@ -1302,6 +1346,11 @@ mod tests {
             ("portal_catalog.rs", include_str!("portal_catalog.rs")),
             ("portal_model.rs", include_str!("portal_model.rs")),
             ("portal_reports.rs", include_str!("portal_reports.rs")),
+            ("workflow_cron.rs", include_str!("workflow_cron.rs")),
+            ("workflow_engine.rs", include_str!("workflow_engine.rs")),
+            ("workflow_expr.rs", include_str!("workflow_expr.rs")),
+            ("workflows.rs", include_str!("workflows.rs")),
+            ("apps.rs", include_str!("apps.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),
             ("resource_policies.rs", include_str!("resource_policies.rs")),

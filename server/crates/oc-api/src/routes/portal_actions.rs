@@ -372,12 +372,14 @@ fn seal(st: &AppState, secrets: &BTreeMap<String, String>) -> Result<Option<Stri
 
 /// What one run produced.
 #[derive(Default)]
-struct Outcome {
-    ok: bool,
-    status_code: Option<i32>,
-    response: String,
-    error: Option<String>,
-    link: String,
+pub(crate) struct Outcome {
+    pub ok: bool,
+    pub status_code: Option<i32>,
+    pub response: String,
+    pub error: Option<String>,
+    pub link: String,
+    /// Workflows: what later steps read (`Steps.<id>.output`).
+    pub output: Value,
 }
 
 /// The message of an error from an internal step (storage errors stay in the server log).
@@ -391,7 +393,7 @@ fn step_error(e: ApiError) -> String {
     }
 }
 
-async fn run_http(st: &AppState, step: &ActionStep, rc: &mut RenderContext<'_>) -> Outcome {
+pub(crate) async fn run_http(st: &AppState, step: &ActionStep, rc: &mut RenderContext<'_>) -> Outcome {
     let mut out = Outcome::default();
     for (i, r) in step.requests.iter().enumerate() {
         let which = if step.requests.len() > 1 { format!("Request {}: ", i + 1) } else { String::new() };
@@ -425,6 +427,7 @@ async fn run_http(st: &AppState, step: &ActionStep, rc: &mut RenderContext<'_>) 
         if let Some(link) = steps::result_link(&json) {
             out.link = link;
         }
+        out.output = serde_json::json!({"statusCode": code, "body": if json.is_null() { Value::String(excerpt(&out.response, EXCERPT_CHARS)) } else { json.clone() }, "link": out.link});
         rc.steps.push(json);
     }
     out.ok = true;
@@ -435,10 +438,10 @@ fn host_of(url: &str) -> String {
     url::Url::parse(url).ok().and_then(|u| u.host_str().map(str::to_string)).unwrap_or_default()
 }
 
-async fn run_internal(st: &AppState, ctx: &AuthContext, step: &ActionStep, rc: &RenderContext<'_>) -> Outcome {
+pub(crate) async fn run_internal(st: &AppState, ctx: &AuthContext, step: &ActionStep, rc: &RenderContext<'_>) -> Outcome {
     let mut out = Outcome::default();
     let field = |name: &str| steps::render_text(step.fields.get(name).map(String::as_str).unwrap_or(""), rc, false).map(|s| s.trim().to_string());
-    let result: Result<(String, String), String> = async {
+    let result: Result<(String, String, Value), String> = async {
         match step.kind {
             ActionStepKind::CreateIncident => {
                 let severity = field("severity")?;
@@ -457,7 +460,8 @@ async fn run_internal(st: &AppState, ctx: &AuthContext, step: &ActionStep, rc: &
                 let Json(detail) =
                     super::incidents::declare(State(st.clone()), Writer(ctx.clone()), OrgId(ctx.org_id.clone()), CurrentUser(ctx.user_id.clone()), Json(req)).await.map_err(step_error)?;
                 let id = detail.incident.id;
-                Ok((format!("Declared incident IR-{id}: {}", detail.incident.title), format!("/incidents/{id}")))
+                let output = serde_json::json!({"incident": id, "title": detail.incident.title, "severity": detail.incident.severity});
+                Ok((format!("Declared incident IR-{id}: {}", detail.incident.title), format!("/incidents/{id}"), output))
             }
             ActionStepKind::PageOnCall => {
                 let urgency = field("urgency")?;
@@ -469,21 +473,22 @@ async fn run_internal(st: &AppState, ctx: &AuthContext, step: &ActionStep, rc: &
                     policy_id: None,
                 };
                 let Json(page) = super::on_call::create_page(State(st.clone()), Writer(ctx.clone()), Json(req)).await.map_err(step_error)?;
-                Ok((format!("Paged {}: {}", page.team.as_deref().map(|t| format!("@{t}")).unwrap_or_default(), page.title), format!("/on-call/pages/{}", page.id)))
+                let output = serde_json::json!({"page": page.id, "team": page.team, "title": page.title});
+                Ok((format!("Paged {}: {}", page.team.as_deref().map(|t| format!("@{t}")).unwrap_or_default(), page.title), format!("/on-call/pages/{}", page.id), output))
             }
             ActionStepKind::IncidentComment => {
                 let raw = field("incident")?;
                 let id = incident_number(&raw).ok_or_else(|| format!("{raw} isn't an incident number"))?;
                 let req = super::incidents::NoteRequest { body: field("body")? };
                 super::incidents::add_note(State(st.clone()), Writer(ctx.clone()), OrgId(ctx.org_id.clone()), CurrentUser(ctx.user_id.clone()), Path(id), Json(req)).await.map_err(step_error)?;
-                Ok((format!("Added a note to incident IR-{id}"), format!("/incidents/{id}")))
+                Ok((format!("Added a note to incident IR-{id}"), format!("/incidents/{id}"), serde_json::json!({"incident": id})))
             }
             ActionStepKind::SyntheticRun => {
                 let test = field("test")?;
                 let Json(result) = super::synthetics::run_now(State(st.clone()), Writer(ctx.clone()), Path(test.clone())).await.map_err(step_error)?;
                 let link = format!("/synthetics/tests/{test}");
                 if result.detail.passed {
-                    Ok(("The synthetic test passed".into(), link))
+                    Ok(("The synthetic test passed".into(), link, serde_json::json!({"test": test, "passed": true})))
                 } else {
                     let why = result.detail.error.clone().unwrap_or_else(|| "an assertion failed".into());
                     Err(format!("The synthetic test failed: {why}"))
@@ -494,10 +499,11 @@ async fn run_internal(st: &AppState, ctx: &AuthContext, step: &ActionStep, rc: &
     }
     .await;
     match result {
-        Ok((response, link)) => {
+        Ok((response, link, output)) => {
             out.ok = true;
             out.response = response;
             out.link = link;
+            out.output = output;
         }
         Err(e) => out.error = Some(e),
     }
@@ -614,7 +620,7 @@ pub async fn run_action(State(st): State<AppState>, Writer(ctx): Writer, Path(id
     let step = row.step()?;
     let secrets = row.secrets(&st)?;
     let (email,): (String,) = sqlx::query_as("SELECT email FROM users WHERE org_id = $1 AND id::text = $2").bind(&ctx.org_id).bind(&ctx.user_id).fetch_one(&st.postgres).await?;
-    let mut rc = RenderContext { inputs: &inputs, user_email: &email, user_name: &ctx.name, secrets: &secrets, steps: Vec::new() };
+    let mut rc = RenderContext { inputs: &inputs, user_email: &email, user_name: &ctx.name, secrets: &secrets, steps: Vec::new(), vars: None };
     let started = Instant::now();
     let outcome = if step.kind == ActionStepKind::Http { run_http(&st, &step, &mut rc).await } else { run_internal(&st, &ctx, &step, &rc).await };
     let duration_ms = started.elapsed().as_secs_f64() * 1000.0;

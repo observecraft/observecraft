@@ -567,6 +567,257 @@
         }
       }
     },
+    "/api/v1/apps": {
+      "get": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "list_automation_apps",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AutomationApp"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "create_automation_app",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationAppInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationApp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{id}": {
+      "get": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "get_automation_app",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationApp"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "update_automation_app",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationAppInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationApp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "delete_automation_app",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{id}/run": {
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "summary": "Presses a button: runs its workflow with the app's values. Read the run with `get_workflow_run`.",
+        "operationId": "run_automation_app",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationAppRunInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationAppRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/audit": {
       "get": {
         "tags": [
@@ -13006,6 +13257,599 @@
         }
       }
     },
+    "/api/v1/workflows": {
+      "get": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "list_workflows",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Workflow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "create_workflow",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{id}": {
+      "get": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "get_workflow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "update_workflow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "delete_workflow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{id}/publish": {
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "summary": "Publishes the saved draft: triggers run it from now on, as the signed-in member.",
+        "operationId": "publish_workflow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{id}/runs": {
+      "get": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "list_workflow_runs",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowRun"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "summary": "Runs the saved draft now, as the signed-in member. The run executes in the background.",
+        "operationId": "run_workflow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowRunInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{id}/runs/{run}": {
+      "get": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "get_workflow_run",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "run",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowRun"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{id}/runs/{run}/cancel": {
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "cancel_workflow_run",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "run",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowRun"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{id}/token": {
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "summary": "Creates a new API trigger token (the previous one stops working). It is shown once.",
+        "operationId": "create_workflow_token",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowApiToken"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{id}/trigger": {
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "summary": "Starts the published workflow from a script: an application key authenticates the call and the\nworkflow's token (`X-Workflow-Token`) proves it may start this one.",
+        "operationId": "trigger_workflow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowRunInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{id}/unpublish": {
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "unpublish_workflow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/healthz": {
       "get": {
         "tags": [
@@ -13326,6 +14170,103 @@
             "$ref": "#/components/schemas/TimeRange"
           }
         }
+      },
+      "AppComponent": {
+        "type": "object",
+        "description": "A component of an app; the fields used depend on its kind.",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "aggregation": {
+            "type": "string",
+            "description": "Metric: avg, sum, min, max or last."
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Table: columns (keys of the list's items); all when empty."
+          },
+          "defaultValue": {
+            "type": "string",
+            "description": "Inputs: pre-filled value."
+          },
+          "id": {
+            "type": "string",
+            "description": "`[a-z0-9_]`, unique in the app (`components.<id>.value`)."
+          },
+          "inputs": {
+            "type": "object",
+            "description": "Button: a template per workflow input key (`{{ components.env.value }}`).",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AppComponentKind"
+          },
+          "label": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Select: its options."
+          },
+          "path": {
+            "type": "string",
+            "description": "Table: path of the list in the run's data (`Steps.top.output.groups`)."
+          },
+          "placeholder": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "description": "Metric: the metric query."
+          },
+          "source": {
+            "type": "string",
+            "description": "Table: the button whose latest run it shows."
+          },
+          "text": {
+            "type": "string",
+            "description": "Heading and text: the content."
+          },
+          "unit": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Columns of the 12-column grid it spans (3, 4, 6, 8 or 12).",
+            "minimum": 0
+          },
+          "workflowId": {
+            "type": "string",
+            "description": "Button: the workflow it runs."
+          }
+        }
+      },
+      "AppComponentKind": {
+        "type": "string",
+        "enum": [
+          "heading",
+          "text",
+          "text_input",
+          "number_input",
+          "select",
+          "button",
+          "table",
+          "metric"
+        ]
       },
       "AppKey": {
         "type": "object",
@@ -13841,6 +14782,135 @@
           },
           "ssoRequired": {
             "type": "boolean"
+          }
+        }
+      },
+      "AutomationApp": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "tags",
+          "blueprint",
+          "spec",
+          "published",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "blueprint": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "published": {
+            "type": "boolean"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/AutomationAppSpec"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AutomationAppInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "spec"
+        ],
+        "properties": {
+          "blueprint": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "published": {
+            "type": "boolean"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/AutomationAppSpec"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AutomationAppRun": {
+        "type": "object",
+        "required": [
+          "workflowId",
+          "runId"
+        ],
+        "properties": {
+          "runId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "workflowId": {
+            "type": "string"
+          }
+        }
+      },
+      "AutomationAppRunInput": {
+        "type": "object",
+        "required": [
+          "component"
+        ],
+        "properties": {
+          "component": {
+            "type": "string",
+            "description": "The button pressed."
+          },
+          "values": {
+            "type": "object",
+            "description": "The app's input values, by component id.",
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AutomationAppSpec": {
+        "type": "object",
+        "properties": {
+          "components": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppComponent"
+            }
           }
         }
       },
@@ -36323,6 +37393,557 @@
             "$ref": "#/components/schemas/TimeRange"
           }
         }
+      },
+      "Workflow": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "handle",
+          "description",
+          "tags",
+          "ownerTeam",
+          "service",
+          "blueprint",
+          "spec",
+          "published",
+          "unpublishedChanges",
+          "secretNames",
+          "hasApiToken",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "runs"
+        ],
+        "properties": {
+          "blueprint": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "hasApiToken": {
+            "type": "boolean",
+            "description": "An API trigger token exists."
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastRun": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowLastRun"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "nextScheduleAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "ownerTeam": {
+            "type": "string"
+          },
+          "published": {
+            "type": "boolean"
+          },
+          "publishedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "publishedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publishedSpec": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowSpec",
+                "description": "What triggers run; none until published."
+              }
+            ]
+          },
+          "runs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "secretNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Names of the stored credentials (values are never returned)."
+          },
+          "service": {
+            "type": "string"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/WorkflowSpec",
+            "description": "The saved draft."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unpublishedChanges": {
+            "type": "boolean",
+            "description": "The draft differs from the published version."
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "WorkflowApiToken": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Send it as `X-Workflow-Token`; shown once."
+          }
+        }
+      },
+      "WorkflowInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "spec"
+        ],
+        "properties": {
+          "blueprint": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string",
+            "description": "Mentioned as `@workflow-<handle>`; made from the name when empty at creation, kept otherwise."
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerTeam": {
+            "type": "string",
+            "description": "Team handle; empty for none."
+          },
+          "secrets": {
+            "type": "object",
+            "description": "Credentials by name: a value sets one, null removes it, names left out keep their value.",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "service": {
+            "type": "string"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/WorkflowSpec"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "WorkflowLastRun": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "triggerKind",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string"
+          },
+          "triggerKind": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkflowRun": {
+        "type": "object",
+        "required": [
+          "id",
+          "workflowId",
+          "workflowName",
+          "triggerKind",
+          "triggeredBy",
+          "status",
+          "trigger",
+          "inputs",
+          "createdAt",
+          "steps"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finishedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "inputs": {
+            "type": "object",
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "nextAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Waiting: when it goes on."
+          },
+          "spec": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowSpec",
+                "description": "Detail only: the spec it ran."
+              }
+            ]
+          },
+          "startedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "description": "queued | running | waiting | succeeded | failed | canceled"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowRunStep"
+            },
+            "description": "Detail only: what each step did, in order."
+          },
+          "trigger": {
+            "type": "object"
+          },
+          "triggerKind": {
+            "type": "string",
+            "description": "manual | monitor | schedule | incident | api | app"
+          },
+          "triggeredBy": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "workflowName": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkflowRunInput": {
+        "type": "object",
+        "properties": {
+          "inputs": {
+            "type": "object",
+            "description": "Value per input key.",
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "WorkflowRunStep": {
+        "type": "object",
+        "required": [
+          "id",
+          "stepId",
+          "kind",
+          "name",
+          "status",
+          "inputs",
+          "output",
+          "attempts",
+          "startedAt",
+          "durationMs"
+        ],
+        "properties": {
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "inputs": {
+            "type": "object"
+          },
+          "iteration": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The \"for each\" item it ran for, when inside one."
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "output": {
+            "type": "object"
+          },
+          "startedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "description": "succeeded | failed"
+          },
+          "stepId": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkflowSpec": {
+        "type": "object",
+        "description": "What a workflow does: its form, triggers and steps.",
+        "properties": {
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionInput"
+            }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowStep"
+            }
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowTrigger"
+            }
+          }
+        }
+      },
+      "WorkflowStep": {
+        "type": "object",
+        "description": "A step of a workflow.",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "continueOnError": {
+            "type": "boolean",
+            "description": "Action steps: a failure is recorded and the run goes on."
+          },
+          "elseSteps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowStep"
+            },
+            "description": "If: run otherwise."
+          },
+          "expression": {
+            "type": "string",
+            "description": "If: the condition. For each: the list."
+          },
+          "fields": {
+            "type": "object",
+            "description": "Action steps: a template per field.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string",
+            "description": "`[a-z0-9_]`, unique in the workflow; others read its result as `Steps.<id>`."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WorkflowStepKind"
+          },
+          "name": {
+            "type": "string",
+            "description": "Shown on the canvas; the kind's name when empty."
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionHttpRequest"
+            },
+            "description": "Http only."
+          },
+          "retries": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Action steps: attempts after a failure (0–3), 5 s apart.",
+            "minimum": 0
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowStep"
+            },
+            "description": "If: run when the condition holds. For each: run per item."
+          }
+        }
+      },
+      "WorkflowStepKind": {
+        "type": "string",
+        "enum": [
+          "http",
+          "create_incident",
+          "page_on_call",
+          "incident_comment",
+          "synthetic_run",
+          "notify",
+          "metric_query",
+          "log_count",
+          "wait",
+          "if",
+          "for_each"
+        ]
+      },
+      "WorkflowTrigger": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "cron": {
+            "type": "string",
+            "description": "Schedule: `minute hour day-of-month month day-of-week`."
+          },
+          "incidentEvents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Incident: declared, updated, resolved; all when empty."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WorkflowTriggerKind"
+          },
+          "severities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Incident: severities that start a run; any when empty."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "Schedule: IANA time zone; UTC when empty."
+          },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Monitor: the states that start a run (alert, warn, nodata, ok); alert when empty."
+          }
+        }
+      },
+      "WorkflowTriggerKind": {
+        "type": "string",
+        "enum": [
+          "manual",
+          "monitor",
+          "schedule",
+          "incident",
+          "api",
+          "app"
+        ]
       }
     }
   },
@@ -36414,6 +38035,10 @@
     {
       "name": "portal",
       "description": "Developer Portal: home (connectors, identities, pull requests, tickets, entities, apps), the Software Catalog (telemetry and entity definitions v3), reports, settings, surveys and self-service actions"
+    },
+    {
+      "name": "automation",
+      "description": "Workflow Automation (workflows, triggers, runs) and App Builder"
     },
     {
       "name": "auth",

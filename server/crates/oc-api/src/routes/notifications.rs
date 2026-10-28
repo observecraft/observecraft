@@ -7,6 +7,8 @@
 //!   of the organization's members are mailed, so monitors can't be used to send mail to anyone.
 //! - `@oncall-<team>`: pages the team through On-Call (its escalation policy); a recovery resolves
 //!   the monitor's open pages for that group. Tests only check that the team exists.
+//! - `@workflow-<handle>`: starts the published workflow when it has a monitor trigger for the new
+//!   state. Tests only check that it can be started.
 //!
 //! On-Call pages reuse the same channels to reach responders ([`send`]).
 //! Each monitor transition that notifies creates one delivery per recipient; a background worker
@@ -216,6 +218,9 @@ impl Notice {
 pub(crate) async fn deliver(st: &AppState, recipient: &str, n: &Notice) -> Outcome {
     if let Some(team) = recipient.strip_prefix("oncall-") {
         return super::on_call::page_from_monitor(st, team, n).await;
+    }
+    if let Some(handle) = recipient.strip_prefix("workflow-") {
+        return super::workflows::start_from_monitor(st, handle, n).await;
     }
     let link = format!("{}/monitors/{}", st.config.public_url, n.monitor_id);
     send(st, recipient, &n.outgoing(&link)).await
