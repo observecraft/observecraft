@@ -215,7 +215,8 @@ GitHub Default setup remains enabled while this branch is reviewed. After mergin
 Code scanning from Default setup to Advanced setup and set repository Actions variable `CODEQL_ADVANCED`
 to `true`. Dispatch `codeql` and confirm all four language analyses finish successfully. Until the variable
 is set, the advanced jobs deliberately skip so they do not duplicate Default setup or attempt rejected
-uploads. Advanced setup retains main, PR and weekly analysis; newer PR commits cancel obsolete runs.
+uploads. Advanced setup retains all four languages on main and weekly runs; PRs select languages from changed files,
+and newer PR commits cancel obsolete runs.
 Do not disable main/weekly analysis: it supplies the default-branch baseline and detects newly published
 security queries. CodeQL findings are gated with a code-scanning ruleset if desired; a successful analysis
 job alone does not mean there are no security findings.
