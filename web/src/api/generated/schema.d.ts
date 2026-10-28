@@ -1346,6 +1346,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Every key of the organization, revoked ones included (with `revokedAt`), newest first. */
         get: operations["list_ingest_keys"];
         put?: never;
         post: operations["create_ingest_key"];
@@ -4299,6 +4300,11 @@ export interface components {
             lastUsedAt?: number | null;
             name: string;
             prefix: string;
+            /**
+             * Format: int64
+             * @description Set once revoked: the key no longer authenticates.
+             */
+            revokedAt?: number | null;
         };
         InstanceAuditEvent: {
             action: string;

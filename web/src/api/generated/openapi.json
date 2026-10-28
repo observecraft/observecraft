@@ -3281,6 +3281,7 @@
         "tags": [
           "ingest"
         ],
+        "summary": "Every key of the organization, revoked ones included (with `revokedAt`), newest first.",
         "operationId": "list_ingest_keys",
         "responses": {
           "200": {
@@ -11625,6 +11626,14 @@
           },
           "prefix": {
             "type": "string"
+          },
+          "revokedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Set once revoked: the key no longer authenticates."
           }
         }
       },

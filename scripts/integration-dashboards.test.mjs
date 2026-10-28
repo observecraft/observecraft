@@ -695,3 +695,29 @@ test('forecast() keeps the series and projects the next quarter of its span', ()
   ]);
   assert.throws(() => formula("forecast(a, 'magic', 1)", { a: wave }), /forecast/);
 });
+
+test('API keys: the status filter and search', async () => {
+  const { filterKeys } = await import('../web/src/pages/settings/apiKeys.ts');
+  const keys = [
+    { id: 'a1', name: 'prod-collector', prefix: 'ocik_ab12', createdAt: 1, revokedAt: null },
+    { id: 'b2', name: 'staging-agent', prefix: 'ocik_cd34', createdAt: 2, revokedAt: 5 },
+    { id: 'c3', name: 'prod-agent', prefix: 'ocik_ef56', createdAt: 3 },
+  ];
+  assert.deepEqual(
+    filterKeys(keys, 'active', '').map((k) => k.id),
+    ['a1', 'c3'],
+  );
+  assert.deepEqual(
+    filterKeys(keys, 'revoked', '').map((k) => k.id),
+    ['b2'],
+  );
+  assert.deepEqual(
+    filterKeys(keys, 'all', 'prod').map((k) => k.id),
+    ['a1', 'c3'],
+  );
+  // The search also finds a key by its ID or prefix.
+  assert.deepEqual(
+    filterKeys(keys, 'all', 'cd34').map((k) => k.id),
+    ['b2'],
+  );
+});

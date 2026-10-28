@@ -206,7 +206,8 @@ test('API keys and application keys show the secret only at creation', async () 
   assert.ok(!JSON.stringify(listed).includes(created.key), 'the secret is not listed');
   assert.ok(listed.every((k) => !('key' in k)));
   await id.revokeIngestKey(created.id);
-  assert.ok(!(await id.listIngestKeys()).some((k) => k.id === created.id));
+  // A revoked key stays listed, marked revoked (the page's Status filter shows it).
+  assert.ok((await id.listIngestKeys()).find((k) => k.id === created.id)?.revokedAt);
   await assert.rejects(id.revokeIngestKey(created.id), /not found/);
   await assert.rejects(id.createIngestKey('  '), /name/);
 

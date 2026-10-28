@@ -1160,3 +1160,10 @@
   color: var(--text-muted);
   border: 1px solid var(--border);
 }
+
+.keys-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 8px;
+}

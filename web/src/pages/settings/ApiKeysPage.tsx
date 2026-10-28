@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { KeyRound, Trash2 } from 'lucide-react';
+import { KeyRound, Search, Trash2 } from 'lucide-react';
 import { createIngestKey, listIngestKeys, revokeIngestKey } from '../../api/ingest/client';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { timeAgo } from '../../lib/format';
+import { filterKeys, type KeyStatus } from './apiKeys';
 import { useProfile } from './queries';
 import { CopyButton, errorText } from './SecuritySettings';
 
@@ -38,6 +39,8 @@ export function ApiKeysPage() {
   const q = useQuery({ queryKey: KEY, queryFn: listIngestKeys });
   const [name, setName] = useState('');
   const [created, setCreated] = useState<string | null>(null);
+  const [status, setStatus] = useState<KeyStatus>('active');
+  const [text, setText] = useState('');
   const create = useMutation({ mutationFn: createIngestKey, onSuccess: () => qc.invalidateQueries({ queryKey: KEY }) });
   const revoke = useMutation({ mutationFn: revokeIngestKey, onSuccess: () => qc.invalidateQueries({ queryKey: KEY }) });
 
@@ -92,36 +95,59 @@ export function ApiKeysPage() {
       ) : q.data.length === 0 ? (
         <p className="muted">No API keys yet. Create one to start sending data.</p>
       ) : (
-        <table className="settings-table">
-          <thead>
-            <tr>
-              <th>NAME</th>
-              <th>KEY</th>
-              <th>CREATED BY</th>
-              <th>CREATED</th>
-              <th>LAST USED</th>
-              {isAdmin && <th />}
-            </tr>
-          </thead>
-          <tbody>
-            {q.data.map((k) => (
-              <tr key={k.id}>
-                <td>{k.name}</td>
-                <td className="mono">{k.prefix}…</td>
-                <td>{k.createdBy ?? <span className="muted">System</span>}</td>
-                <td className="muted">{timeAgo(k.createdAt)}</td>
-                <td className="muted">{k.lastUsedAt ? timeAgo(k.lastUsedAt) : 'Never'}</td>
-                {isAdmin && (
-                  <td className="num">
-                    <button className="icon-plain" title="Revoke" onClick={() => window.confirm(`Revoke "${k.name}"? Senders using it are rejected within a minute.`) && revoke.mutate(k.id)}>
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                )}
+        <>
+          <div className="keys-filters">
+            <label className="tv-filter">
+              <Search size={15} />
+              <input placeholder="Search by name, key ID or key" value={text} onChange={(e) => setText(e.target.value)} />
+            </label>
+            <div className="btn-group" role="group" aria-label="Status">
+              {(['active', 'revoked', 'all'] as KeyStatus[]).map((s) => (
+                <button key={s} className={`btn${status === s ? ' btn-active' : ''}`} onClick={() => setStatus(s)}>
+                  {s === 'active' ? 'Active' : s === 'revoked' ? 'Revoked' : 'All'} <span className="muted">{filterKeys(q.data, s, '').length}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <table className="settings-table">
+            <thead>
+              <tr>
+                <th>NAME</th>
+                <th>KEY ID</th>
+                <th>KEY</th>
+                <th>CREATED BY</th>
+                <th>CREATED</th>
+                <th>LAST USED</th>
+                {isAdmin && <th />}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filterKeys(q.data, status, text).map((k) => (
+                <tr key={k.id} className={k.revokedAt ? 'muted' : undefined}>
+                  <td>{k.name}</td>
+                  <td className="mono">
+                    {k.id} <CopyButton text={k.id} />
+                  </td>
+                  <td className="mono">{k.prefix}…</td>
+                  <td>{k.createdBy ?? <span className="muted">System</span>}</td>
+                  <td className="muted">{timeAgo(k.createdAt)}</td>
+                  <td className="muted">{k.lastUsedAt ? timeAgo(k.lastUsedAt) : 'Never'}</td>
+                  {isAdmin && (
+                    <td className="num">
+                      {k.revokedAt ? (
+                        <span title={new Date(k.revokedAt).toLocaleString()}>Revoked {timeAgo(k.revokedAt)}</span>
+                      ) : (
+                        <button className="icon-plain" title="Revoke" onClick={() => window.confirm(`Revoke "${k.name}"? Senders using it are rejected within a minute.`) && revoke.mutate(k.id)}>
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
     </div>
   );

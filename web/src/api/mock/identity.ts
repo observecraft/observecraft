@@ -194,6 +194,8 @@ interface KeyRow {
   createdBy: string | null;
   createdAt: number;
   lastUsedAt: number | null;
+  /** Ingest keys: set once revoked (they stay listed). */
+  revokedAt?: number | null;
 }
 
 interface State {
@@ -245,6 +247,8 @@ function db(): State {
     key('prod-otel-collector', 'ocik_', users[0].name, 45, 0.02),
     key('staging-otel-collector', 'ocik_', users[7].name, 90, 30),
     key('Local demo generators', 'ocik_', null, 120, 0.01),
+    // Last used the day before it was revoked.
+    { ...key('legacy-fluentd', 'ocik_', users[2].name, 200, 151 * 24), revokedAt: Date.now() - 150 * 86_400_000 },
   ];
   const appKeys = [key('terraform-dashboards', 'ocak_', null, 17, 5), key('ci-export', 'ocak_', null, 63, null)];
   const audit: [actor: string, action: string, target: string, detail: string, hoursAgo: number][] = [
@@ -683,13 +687,15 @@ export async function revokeAppKey(id: string): Promise<void> {
 }
 
 export async function listIngestKeys(): Promise<S['IngestKey'][]> {
-  return [...db().ingestKeys].sort((a, b) => b.createdAt - a.createdAt).map((k) => ({ ...keyInfo(k), createdBy: k.createdBy }));
+  return [...db().ingestKeys]
+    .sort((a, b) => Number(Boolean(a.revokedAt)) - Number(Boolean(b.revokedAt)) || b.createdAt - a.createdAt)
+    .map((k) => ({ ...keyInfo(k), createdBy: k.createdBy, revokedAt: k.revokedAt ?? null }));
 }
 
 export async function createIngestKey(name: string): Promise<S['CreatedIngestKey']> {
   const s = db();
   const n = checkKeyName(name);
-  if (s.ingestKeys.length >= 50) fail('This organization already has 50 active keys. Revoke one first.');
+  if (s.ingestKeys.filter((k) => !k.revokedAt).length >= 50) fail('This organization already has 50 active keys. Revoke one first.');
   const key = token('ocik_');
   const row: KeyRow = { id: uuid(), name: n, prefix: key.slice(0, 10), createdBy: me().name, createdAt: Date.now(), lastUsedAt: null };
   s.ingestKeys.push(row);
@@ -699,7 +705,7 @@ export async function createIngestKey(name: string): Promise<S['CreatedIngestKey
 
 export async function revokeIngestKey(id: string): Promise<void> {
   const s = db();
-  const row = s.ingestKeys.find((k) => k.id === id) ?? fail('Key not found');
-  s.ingestKeys = s.ingestKeys.filter((k) => k !== row);
+  const row = s.ingestKeys.find((k) => k.id === id && !k.revokedAt) ?? fail('Key not found');
+  row.revokedAt = Date.now();
   audit('ingest_key.revoked', row.prefix, row.name);
 }
