@@ -72,6 +72,8 @@ import { ProfileInsights } from './pages/apm/profiles/ProfileInsights';
 import { CatalogPage } from './pages/integrations/CatalogPage';
 import { IntegrationsComingSoon, IntegrationsLayout } from './pages/integrations/IntegrationsLayout';
 import { MarketplacePage } from './pages/integrations/MarketplacePage';
+import { ReferenceTablePage } from './pages/integrations/ReferenceTablePage';
+import { ReferenceTablesPage } from './pages/integrations/ReferenceTablesPage';
 import { LiveTail } from './pages/logs/LiveTail';
 import { LogExplorer } from './pages/logs/LogExplorer';
 import { LOGS_CONFIG_SLUGS, LogsConfigComingSoon, LogsConfigLayout } from './pages/logs/LogsConfigLayout';
@@ -127,7 +129,8 @@ function Shell() {
             <Route path="/integrations" element={<IntegrationsLayout />}>
               <Route index element={<CatalogPage />} />
               <Route path="marketplace" element={<MarketplacePage />} />
-              <Route path="reference-tables" element={<IntegrationsComingSoon title="Reference Tables" />} />
+              <Route path="reference-tables" element={<ReferenceTablesPage />} />
+              <Route path="reference-tables/:name" element={<ReferenceTablePage />} />
               <Route path="source-code" element={<IntegrationsComingSoon title="Link Source Code" />} />
             </Route>
             <Route path="/apm" element={<ApmLayout />}>

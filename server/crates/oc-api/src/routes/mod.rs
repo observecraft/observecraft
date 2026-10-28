@@ -27,6 +27,7 @@ pub mod monitors;
 pub mod network;
 pub mod notifications;
 pub mod profiles;
+pub mod reference_tables;
 pub mod spans;
 pub mod standard_attributes;
 pub mod sso;
@@ -222,6 +223,11 @@ use crate::state::AppState;
         standard_attributes::update,
         standard_attributes::delete,
         standard_attributes::reset,
+        reference_tables::list,
+        reference_tables::create,
+        reference_tables::get_one,
+        reference_tables::replace,
+        reference_tables::delete,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -545,6 +551,19 @@ pub fn router() -> Router<AppState> {
             axum::routing::put(standard_attributes::update).delete(standard_attributes::delete),
         )
         .route(
+            "/api/v1/reference-tables",
+            get(reference_tables::list)
+                .post(reference_tables::create)
+                .layer(axum::extract::DefaultBodyLimit::max(reference_tables::MAX_BODY_BYTES)),
+        )
+        .route(
+            "/api/v1/reference-tables/:name",
+            get(reference_tables::get_one)
+                .put(reference_tables::replace)
+                .delete(reference_tables::delete)
+                .layer(axum::extract::DefaultBodyLimit::max(reference_tables::MAX_BODY_BYTES)),
+        )
+        .route(
             "/api/v1/org/data-settings",
             get(log_indexes::get_settings).patch(log_indexes::update_settings),
         )
@@ -708,6 +727,7 @@ mod tests {
             include_str!("events.rs"),
             include_str!("network.rs"),
             include_str!("profiles.rs"),
+            include_str!("reference_tables.rs"),
             include_str!("identity.rs"),
             include_str!("incidents.rs"),
             include_str!("incident_views.rs"),
@@ -761,6 +781,7 @@ mod tests {
             ("events.rs", include_str!("events.rs")),
             ("network.rs", include_str!("network.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
+            ("reference_tables.rs", include_str!("reference_tables.rs")),
             ("kubernetes.rs", include_str!("kubernetes.rs")),
             ("live.rs", include_str!("live.rs")),
             ("log_indexes.rs", include_str!("log_indexes.rs")),
@@ -865,6 +886,7 @@ mod tests {
             ("network.rs", include_str!("network.rs")),
             ("notifications.rs", include_str!("notifications.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
+            ("reference_tables.rs", include_str!("reference_tables.rs")),
             ("spans.rs", include_str!("spans.rs")),
             ("sso.rs", include_str!("sso.rs")),
             ("standard_attributes.rs", include_str!("standard_attributes.rs")),

@@ -2863,6 +2863,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reference-tables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_reference_tables"];
+        put?: never;
+        /** Creates a table from an uploaded file. */
+        post: operations["create_reference_table"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reference-tables/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The table and a page of its rows (in file order), optionally searched. */
+        get: operations["get_reference_table"];
+        /** Replaces every row with those of a new file, which must have the table's primary key column. */
+        put: operations["replace_reference_table"];
+        post?: never;
+        delete: operations["delete_reference_table"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roles": {
         parameters: {
             query?: never;
@@ -6074,6 +6109,57 @@ export interface components {
         RecommendationKind: "repeated_sequential_calls" | "high_error_rate" | "slow_endpoint";
         /** @enum {string} */
         Recurrence: "daily" | "weekly";
+        ReferenceTable: {
+            /** @description The file's header, in file order. */
+            columns: string[];
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            /** @description Names of the users who created it and last uploaded a file. */
+            createdBy?: string | null;
+            description: string;
+            /** @description Name of the last uploaded file. */
+            fileName: string;
+            /** @description Lowercase letters, digits and underscores; it identifies the table and can't be changed. */
+            name: string;
+            /** @description The column whose values identify rows (unique, never empty). */
+            primaryKey: string;
+            /** Format: int64 */
+            rowCount: number;
+            /** @description Where the rows come from: `local_file` (a CSV uploaded from the browser). */
+            source: string;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+        };
+        /** @description A new file for an existing table; its primary key column stays the same. */
+        ReferenceTableFile: {
+            columns: string[];
+            fileName?: string;
+            rows: string[][];
+        };
+        ReferenceTableInput: {
+            /** @description The CSV header. */
+            columns: string[];
+            description?: string;
+            fileName?: string;
+            name: string;
+            primaryKey: string;
+            /** @description The CSV rows after the header, each with one value per column. */
+            rows: string[][];
+        };
+        ReferenceTableRows: {
+            /** @description The matching rows in file order, each with one value per column of `table.columns`. */
+            rows: string[][];
+            table: components["schemas"]["ReferenceTable"];
+            /**
+             * Format: int64
+             * @description How many rows match.
+             */
+            total: number;
+        };
         RehydrateRequest: {
             archiveId: string;
             name: string;
@@ -11958,6 +12044,169 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetricSeries"][];
+                };
+            };
+        };
+    };
+    list_reference_tables: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceTable"][];
+                };
+            };
+        };
+    };
+    create_reference_table: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferenceTableInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceTable"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_reference_table: {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive text the primary key or a value contains. */
+                query?: string | null;
+                /** @description Search only this column (default: every column). */
+                column?: string | null;
+                /** @description Default 50, at most 500. */
+                limit?: number | null;
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceTableRows"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    replace_reference_table: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferenceTableFile"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceTable"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_reference_table: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

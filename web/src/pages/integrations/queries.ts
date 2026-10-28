@@ -1,9 +1,11 @@
-// TanStack Query bindings for Integrations / Marketplace.
+// TanStack Query bindings for Integrations / Marketplace / Reference Tables.
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getIntegration, installIntegration, listCategories, searchCatalog, searchMarketplace, uninstallIntegration } from '../../api/integrations/client';
 import type { CatalogRequest, MarketplaceRequest } from '../../api/integrations/types';
 import { searchDashboards } from '../../api/dashboards/client';
 import { integrationDashboards } from '../../api/integrations/dashboards';
+import { createReferenceTable, deleteReferenceTable, getReferenceTable, listReferenceTables, replaceReferenceTable } from '../../api/referenceTables/client';
+import type { ReferenceTableFile, ReferenceTableRowsQuery } from '../../api/referenceTables/types';
 
 export function useIntegrationDashboards(id: string) {
   const bundled = integrationDashboards.filter((d) => d.logo === id);
@@ -56,4 +58,37 @@ export function useInstallToggle(id: string) {
       qc.invalidateQueries({ queryKey: [...integrationKeys.all, 'catalog'] });
     },
   });
+}
+
+const referenceTableKeys = {
+  all: ['reference-tables'] as const,
+  list: () => [...referenceTableKeys.all, 'list'] as const,
+  rows: (name: string, q: ReferenceTableRowsQuery) => [...referenceTableKeys.all, 'rows', name, q] as const,
+};
+
+export function useReferenceTables() {
+  return useQuery({ queryKey: referenceTableKeys.list(), queryFn: listReferenceTables });
+}
+
+/** A table and a page of its rows. */
+export function useReferenceTable(name: string, q: ReferenceTableRowsQuery) {
+  return useQuery({ queryKey: referenceTableKeys.rows(name, q), queryFn: ({ signal }) => getReferenceTable(name, q, signal), placeholderData: keepPreviousData });
+}
+
+/** Create, replace and delete; every reference table query is refetched afterwards. */
+export function useReferenceTableMutations() {
+  const qc = useQueryClient();
+  const onSuccess = () => qc.invalidateQueries({ queryKey: referenceTableKeys.all });
+  return {
+    create: useMutation({ mutationFn: createReferenceTable, onSuccess }),
+    replace: useMutation({ mutationFn: ({ name, file }: { name: string; file: ReferenceTableFile }) => replaceReferenceTable(name, file), onSuccess }),
+    // The deleted table's rows are dropped rather than refetched (they would answer 404).
+    remove: useMutation({
+      mutationFn: deleteReferenceTable,
+      onSuccess: (_, name) => {
+        qc.removeQueries({ queryKey: [...referenceTableKeys.all, 'rows', name] });
+        return qc.invalidateQueries({ queryKey: referenceTableKeys.list() });
+      },
+    }),
+  };
 }
