@@ -121,7 +121,8 @@ function IssueCard({ issue }: { issue: Issue }) {
                 <div className="mon-q-mon">
                   <span className={`mon-q-badge q-${issue.kind}`}>{m.detail.toUpperCase()}</span>
                   <span className="mon-q-type">
-                    {m.type === 'apm' ? <Activity size={15} /> : <Gauge size={15} />} {m.type === 'apm' ? 'APM Monitor' : m.type === 'log' ? 'Logs Monitor' : 'Metric Monitor'}
+                    {m.type === 'apm' ? <Activity size={15} /> : <Gauge size={15} />}{' '}
+                    {m.type === 'apm' ? 'APM Monitor' : m.type === 'log' ? 'Logs Monitor' : m.type === 'synthetics' ? 'Synthetics Monitor' : 'Metric Monitor'}
                   </span>
                   <Link to={`/monitors/${m.id}`}>{m.name}</Link>
                 </div>

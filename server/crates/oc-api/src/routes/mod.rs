@@ -44,6 +44,9 @@ pub mod slo_math;
 pub mod slos;
 pub mod status_pages;
 pub mod sso;
+pub mod synthetics;
+pub mod synthetics_exec;
+pub mod synthetics_net;
 
 use axum::routing::{delete, get, patch, post};
 use axum::Router;
@@ -265,6 +268,16 @@ use crate::state::AppState;
         status_pages::update_notice,
         status_pages::delete_notice,
         status_pages::get_public,
+        synthetics::locations,
+        synthetics::search,
+        synthetics::get_one,
+        synthetics::create,
+        synthetics::update,
+        synthetics::delete,
+        synthetics::run_now,
+        synthetics::try_request,
+        synthetics::results,
+        synthetics::result,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -341,6 +354,7 @@ use crate::state::AppState;
         (name = "ci", description = "Software Delivery: CI pipeline executions, flaky tests and DORA metrics from CI/CD traces"),
         (name = "monitors", description = "Monitors, their evaluation history and downtimes"),
         (name = "slos", description = "Service level objectives, their status and error budget, and corrections"),
+        (name = "synthetics", description = "Synthetic API tests (HTTP, SSL, DNS, TCP) run by the server, their results and uptime"),
         (name = "auth", description = "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"),
         (name = "health")
     )
@@ -667,6 +681,17 @@ pub fn router() -> Router<AppState> {
             "/api/v1/status-pages/:id/notices/:notice_id/updates",
             post(status_pages::update_notice),
         )
+        .route("/api/v1/synthetics/locations", get(synthetics::locations))
+        .route("/api/v1/synthetics/tests", post(synthetics::create))
+        .route("/api/v1/synthetics/tests/search", post(synthetics::search))
+        .route(
+            "/api/v1/synthetics/tests/:id",
+            get(synthetics::get_one).put(synthetics::update).delete(synthetics::delete),
+        )
+        .route("/api/v1/synthetics/tests/:id/run", post(synthetics::run_now))
+        .route("/api/v1/synthetics/tests/:id/results", post(synthetics::results))
+        .route("/api/v1/synthetics/tests/:id/results/:result_id", get(synthetics::result))
+        .route("/api/v1/synthetics/try", post(synthetics::try_request))
         // Needs no sign-in (auth::is_public); answers only for public pages or members of the page's org.
         .route("/api/v1/public/status-pages/:slug", get(status_pages::get_public))
         .route(
@@ -844,6 +869,9 @@ mod tests {
             include_str!("profiles.rs"),
             include_str!("reference_tables.rs"),
             include_str!("status_pages.rs"),
+            include_str!("synthetics.rs"),
+            include_str!("synthetics_exec.rs"),
+            include_str!("synthetics_net.rs"),
             include_str!("identity.rs"),
             include_str!("incidents.rs"),
             include_str!("incident_views.rs"),
@@ -908,6 +936,9 @@ mod tests {
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),
             ("status_pages.rs", include_str!("status_pages.rs")),
+            ("synthetics.rs", include_str!("synthetics.rs")),
+            ("synthetics_exec.rs", include_str!("synthetics_exec.rs")),
+            ("synthetics_net.rs", include_str!("synthetics_net.rs")),
             ("kubernetes.rs", include_str!("kubernetes.rs")),
             ("live.rs", include_str!("live.rs")),
             ("llm.rs", include_str!("llm.rs")),
@@ -1029,6 +1060,9 @@ mod tests {
             ("slo_math.rs", include_str!("slo_math.rs")),
             ("slos.rs", include_str!("slos.rs")),
             ("status_pages.rs", include_str!("status_pages.rs")),
+            ("synthetics.rs", include_str!("synthetics.rs")),
+            ("synthetics_exec.rs", include_str!("synthetics_exec.rs")),
+            ("synthetics_net.rs", include_str!("synthetics_net.rs")),
             ("spans.rs", include_str!("spans.rs")),
             ("sso.rs", include_str!("sso.rs")),
             ("standard_attributes.rs", include_str!("standard_attributes.rs")),

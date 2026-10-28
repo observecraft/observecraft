@@ -140,6 +140,14 @@
         }
       }
     },
+    "synthetics": {
+      "type": "object",
+      "properties": {
+        "allowPrivateTargets": {
+          "type": "boolean"
+        }
+      }
+    },
     "seedDemo": {
       "type": "boolean"
     },

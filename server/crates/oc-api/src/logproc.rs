@@ -365,7 +365,7 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
 }
 
 /// `INSERT INTO <table> … FORMAT JSONEachRow` of NDJSON rows.
-async fn insert_rows(st: &AppState, table: &str, rows: Vec<u8>) -> Result<(), String> {
+pub(crate) async fn insert_rows(st: &AppState, table: &str, rows: Vec<u8>) -> Result<(), String> {
     let query = format!("INSERT INTO {table} SETTINGS input_format_skip_unknown_fields = 1, date_time_input_format = 'best_effort' FORMAT JSONEachRow");
     let res = reqwest::Client::new()
         .post(&st.config.clickhouse_url)

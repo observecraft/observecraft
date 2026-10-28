@@ -297,6 +297,7 @@ most important ones:
 | `OC_RAW_LOGS_HOURS` | `72` | Every log stays this long unindexed, as the source of archives |
 | `OC_LOGPROC_ADDR` / `OC_INTERNAL_TOKEN` | `0.0.0.0:8090` / — | Internal log indexer Vector posts to (keep it off the public network; the token is optional) |
 | `OC_SMTP_URL` / `OC_SMTP_FROM` | — | SMTP server for monitor emails (`smtps://user:pass@host:465`) |
+| `OC_SYNTHETICS_ALLOW_PRIVATE` | `false` | Let synthetic tests reach loopback, private, link-local (cloud metadata) and other internal addresses |
 | `OC_DATA_DIR` | `.oc-data` | Local cache for Archive Search and rehydration |
 | `OC_COOKIE_SECURE` | `false` | Set `true` when served over HTTPS |
 | `OC_SESSION_HOURS` | `12` | Idle session lifetime (sessions also end 7 days after sign-in) |

@@ -57,6 +57,9 @@ import { PublicStatusPage } from './pages/statusPages/PublicStatusPage';
 import { StatusPageEditorPage } from './pages/statusPages/StatusPageEditorPage';
 import { StatusPagePage } from './pages/statusPages/StatusPagePage';
 import { StatusPagesPage } from './pages/statusPages/StatusPagesPage';
+import { SyntheticTestEditor } from './pages/synthetics/SyntheticTestEditor';
+import { SyntheticTestPage } from './pages/synthetics/SyntheticTestPage';
+import { SyntheticTestsPage } from './pages/synthetics/SyntheticTestsPage';
 import { AuditTrailPage } from './pages/settings/AuditTrailPage';
 import { LoginMethodsPage } from './pages/settings/LoginMethodsPage';
 import { OrgComingSoon, OrgSettingsLayout } from './pages/settings/OrgSettingsLayout';
@@ -240,6 +243,11 @@ function Shell() {
               <Route path="evaluations" element={<EvaluationsPage />} />
               <Route path="setup" element={null} />
             </Route>
+            <Route path="/synthetics" element={<Navigate to="/synthetics/tests" replace />} />
+            <Route path="/synthetics/tests" element={<SyntheticTestsPage />} />
+            <Route path="/synthetics/create" element={<SyntheticTestEditor />} />
+            <Route path="/synthetics/tests/:id" element={<SyntheticTestPage />} />
+            <Route path="/synthetics/tests/:id/edit" element={<SyntheticTestEditor />} />
             <Route path="/event" element={<EventsLayout />}>
               <Route index element={<Navigate to="explorer" replace />} />
               <Route path="explorer" element={<EventExplorer />} />

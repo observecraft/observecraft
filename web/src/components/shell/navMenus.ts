@@ -320,6 +320,15 @@ export const NAV_SECTIONS: NavItem[][] = [
             ],
           ],
         },
+        {
+          title: 'Synthetic Tests',
+          columns: [
+            [
+              { label: 'Tests', to: '/synthetics/tests', isNew: true },
+              { label: 'New API Test', to: '/synthetics/create' },
+            ],
+          ],
+        },
       ],
     },
     {

@@ -40,6 +40,8 @@ const DEFAULT_QUERY: Record<MonitorType, string> = {
   metric: 'avg:system.load.1{*}',
   apm: 'avg:trace.error_rate{env:prod} by {service}',
   log: 'logs("status:error") by {service}',
+  // Created with their synthetic test, never in this editor.
+  synthetics: '',
 };
 
 /** `logs("<search>") by {a,b}` ⇄ parts (mirrors the server's parser). */

@@ -28,6 +28,8 @@ duckdb = { version = "=1.10506.0", features = ["bundled", "parquet"] }
 flate2 = "1"
 futures.workspace = true
 hmac = "0.12"
+# Synthetic DNS tests: record lookups (A, AAAA, CNAME, MX, TXT, NS) with the system's or a chosen server.
+hickory-resolver = { version = "0.25", default-features = false, features = ["system-config", "tokio"] }
 # Monitor notification email (SMTP over rustls).
 lettre = { version = "=0.11.23", default-features = false, features = ["builder", "hostname", "smtp-transport", "pool", "tokio1-rustls-tls"] }
 oc-query.workspace = true
@@ -35,7 +37,9 @@ oc-store.workspace = true
 openidconnect = "4"
 prost = "0.13"
 rand = "0.8"
-reqwest.workspace = true
+reqwest = { workspace = true, features = ["rustls-tls"] }
+# Synthetic SSL tests: the handshake and the server's certificate chain (the rustls reqwest uses).
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 # S3 request signing (sans-IO; requests are sent with reqwest).
 rusty-s3 = "0.10.2"
 samael = { version = "0.0.22", features = ["xmlsec"] }
@@ -47,9 +51,13 @@ sha2 = "0.10"
 sqlx.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
 tokio-stream.workspace = true
 tower-http.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 url = "2"
 utoipa.workspace = true
+webpki-roots = "1"
+# Synthetic SSL tests: the certificate's subject, issuer and validity.
+x509-cert = { version = "0.2", default-features = false, features = ["std"] }

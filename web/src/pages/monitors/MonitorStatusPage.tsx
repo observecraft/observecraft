@@ -88,13 +88,13 @@ function StatusInner() {
         <ChevronRight size={18} className="muted" />
         <span>Status</span>
         <span className="mon-crumbs-right">
-          <button className="icon-plain" title="Edit" onClick={() => navigate(`/monitors/${id}/edit`)}>
+          <button className="icon-plain" title="Edit" onClick={() => navigate(m.syntheticTestId ? `/synthetics/tests/${m.syntheticTestId}/edit` : `/monitors/${id}/edit`)}>
             <Pencil size={18} />
           </button>
           <button
             className="icon-plain"
             title="Clone"
-            disabled={clone.isPending}
+            disabled={clone.isPending || !!m.syntheticTestId}
             onClick={() =>
               clone.mutate(id, {
                 onSuccess: (c) => navigate(`/monitors/${c.id}/edit`),
@@ -117,6 +117,8 @@ function StatusInner() {
               },
               {
                 label: 'Delete',
+                // A synthetic test's monitor goes with its test.
+                disabled: !!m.syntheticTestId,
                 onClick: () => window.confirm(`Delete “${m.name}”? This can't be undone.`) && bulk.mutate({ ids: [id], action: 'delete' }, { onSuccess: () => navigate('/monitors') }),
               },
             ]}
@@ -164,14 +166,22 @@ function StatusInner() {
           </div>
         )}
         {details && <DetailsPanel m={m} />}
-        <History m={m} />
-        <section className="mon-query-box">
-          <div className="mon-query-head">
-            <span className="muted">Query</span>
-            <Link to={`/metrics?query=${encodeURIComponent(m.metricQuery)}`}>View in Metrics Explorer</Link>
+        {m.syntheticTestId && (
+          <div className="mon-muted-banner">
+            This monitor alerts for a synthetic test; its message, tags and alert conditions are edited with the test.
+            <Link to={`/synthetics/tests/${m.syntheticTestId}`}>View the test</Link>
           </div>
-          <code>{m.query}</code>
-        </section>
+        )}
+        <History m={m} />
+        {!m.syntheticTestId && (
+          <section className="mon-query-box">
+            <div className="mon-query-head">
+              <span className="muted">Query</span>
+              <Link to={`/metrics?query=${encodeURIComponent(m.metricQuery)}`}>View in Metrics Explorer</Link>
+            </div>
+            <code>{m.query}</code>
+          </section>
+        )}
         <Lower m={m} onMute={mute} onUnmute={unmute} onDeclare={() => setDeclaring(true)} />
       </div>
       {declaring && <DeclareModal onClose={() => setDeclaring(false)} initialTitle={`[Monitor] ${m.name}`} detection="monitor" />}
@@ -182,7 +192,7 @@ function StatusInner() {
 function DetailsPanel({ m }: { m: MonitorDetail }) {
   const o = m.options;
   const rows: [string, string][] = [
-    ['Type', m.type === 'apm' ? 'APM' : m.type === 'log' ? 'Logs' : 'Metric'],
+    ['Type', m.type === 'apm' ? 'APM' : m.type === 'log' ? 'Logs' : m.type === 'synthetics' ? 'Synthetic test' : 'Metric'],
     ['Priority', m.priority ? `P${m.priority}` : 'Not defined'],
     ['Detection', o?.detection === 'change' ? `Change (${o.changeMode === 'pct_change' ? '%' : 'absolute'}) vs ${o.changeMinutes} min before` : 'Threshold'],
     [

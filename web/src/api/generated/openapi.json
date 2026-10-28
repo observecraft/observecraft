@@ -8665,6 +8665,424 @@
         }
       }
     },
+    "/api/v1/synthetics/locations": {
+      "get": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "list_synthetic_locations",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SyntheticLocation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/tests": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Creates a test and its monitor; it first runs within seconds.",
+        "operationId": "create_synthetic_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticTestInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/tests/search": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "The org's tests, worst state first, with their uptime over the range.",
+        "operationId": "search_synthetic_tests",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticTestSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticTestsPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/tests/{id}": {
+      "get": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "get_synthetic_test",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticTest"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Replaces a test's definition (and updates its monitor). A changed request or assertions run soon.",
+        "operationId": "update_synthetic_test",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticTestInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Deletes a test with its results and its monitor.",
+        "operationId": "delete_synthetic_test",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/tests/{id}/results": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "A test's runs, alert state and uptime over a range.",
+        "operationId": "list_synthetic_results",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticResultsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticResults"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/tests/{id}/results/{result_id}": {
+      "get": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "get_synthetic_result",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/tests/{id}/run": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Runs a saved test now, once. The result is recorded; the alert state isn't changed.",
+        "operationId": "run_synthetic_test",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/try": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Sends a request once from the editor (nothing is stored) and suggests assertions for its response.",
+        "operationId": "try_synthetic_request",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticTryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticTryResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tags/{key}/values": {
       "get": {
         "tags": [
@@ -19184,6 +19602,13 @@
                     "$ref": "#/components/schemas/MonitorOptions"
                   }
                 ]
+              },
+              "syntheticTestId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Synthetics monitors: the test whose alert state this is."
               }
             }
           }
@@ -19912,7 +20337,8 @@
         "enum": [
           "metric",
           "apm",
-          "log"
+          "log",
+          "synthetics"
         ]
       },
       "MyOrg": {
@@ -24807,6 +25233,928 @@
           }
         }
       },
+      "SyntheticAssertion": {
+        "type": "object",
+        "required": [
+          "type",
+          "operator",
+          "target"
+        ],
+        "properties": {
+          "operator": {
+            "$ref": "#/components/schemas/SyntheticOperator"
+          },
+          "property": {
+            "type": "string",
+            "description": "Header name, JSON path or DNS record type; empty for the other types."
+          },
+          "target": {
+            "type": "string",
+            "description": "The expected value (a number for status codes, times and days; a regular expression for matches)."
+          },
+          "type": {
+            "$ref": "#/components/schemas/SyntheticAssertionType"
+          }
+        }
+      },
+      "SyntheticAssertionResult": {
+        "type": "object",
+        "required": [
+          "assertion",
+          "passed"
+        ],
+        "properties": {
+          "actual": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The value found (absent when there was none)."
+          },
+          "assertion": {
+            "$ref": "#/components/schemas/SyntheticAssertion"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "passed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SyntheticAssertionType": {
+        "type": "string",
+        "enum": [
+          "statusCode",
+          "responseTime",
+          "header",
+          "body",
+          "bodyJsonPath",
+          "certificate",
+          "recordEvery",
+          "recordSome"
+        ]
+      },
+      "SyntheticBasicAuth": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "SyntheticCertificate": {
+        "type": "object",
+        "required": [
+          "subject",
+          "issuer",
+          "notBefore",
+          "notAfter",
+          "daysLeft",
+          "trusted"
+        ],
+        "properties": {
+          "cipher": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "daysLeft": {
+            "type": "number",
+            "format": "double"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "notAfter": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "notBefore": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "protocol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subject": {
+            "type": "string"
+          },
+          "trustError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trusted": {
+            "type": "boolean",
+            "description": "The chain verified against the public web roots for the host name."
+          }
+        }
+      },
+      "SyntheticDnsRecord": {
+        "type": "object",
+        "required": [
+          "type",
+          "value",
+          "ttl"
+        ],
+        "properties": {
+          "ttl": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "type": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "SyntheticHeader": {
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "SyntheticLocation": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "privateTargets"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "privateTargets": {
+            "type": "boolean",
+            "description": "The operator allows tests of loopback, private and link-local addresses (`OC_SYNTHETICS_ALLOW_PRIVATE`)."
+          }
+        }
+      },
+      "SyntheticOperator": {
+        "type": "string",
+        "enum": [
+          "is",
+          "isNot",
+          "lessThan",
+          "moreThan",
+          "contains",
+          "doesNotContain",
+          "matches",
+          "doesNotMatch",
+          "isInMoreThan"
+        ]
+      },
+      "SyntheticRequest": {
+        "type": "object",
+        "description": "What a test sends. HTTP tests use `method`, `url`, `headers`, `body`, `basicAuth` and\n`followRedirects`; SSL, DNS and TCP tests use `host` and `port`; DNS tests may name a server.",
+        "properties": {
+          "acceptSelfSigned": {
+            "type": "boolean",
+            "description": "HTTP(S) and SSL: accept self-signed and otherwise untrusted certificates.",
+            "default": false
+          },
+          "basicAuth": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SyntheticBasicAuth"
+              }
+            ],
+            "default": null
+          },
+          "body": {
+            "type": "string",
+            "default": ""
+          },
+          "bodyType": {
+            "type": "string",
+            "description": "Content type sent with a body (`application/json`, `text/plain`, …).",
+            "default": ""
+          },
+          "dnsServer": {
+            "type": "string",
+            "description": "DNS: IP address of the server to ask; empty for the ObserveCraft server's resolver.",
+            "default": ""
+          },
+          "dnsServerPort": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "DNS server port (default 53).",
+            "default": null,
+            "minimum": 0
+          },
+          "followRedirects": {
+            "type": "boolean",
+            "description": "HTTP: follow up to 10 redirects.",
+            "default": true
+          },
+          "headers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticHeader"
+            },
+            "default": []
+          },
+          "host": {
+            "type": "string",
+            "description": "SSL, TCP: host name or IP address; DNS: the domain to look up.",
+            "default": ""
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP: GET, POST, PUT, PATCH, DELETE, HEAD or OPTIONS.",
+            "default": "GET"
+          },
+          "port": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "SSL (default 443) and TCP.",
+            "default": null,
+            "minimum": 0
+          },
+          "timeoutSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "1–60 seconds.",
+            "default": 30,
+            "minimum": 0
+          },
+          "url": {
+            "type": "string",
+            "description": "HTTP: an http or https URL.",
+            "default": ""
+          }
+        }
+      },
+      "SyntheticResult": {
+        "type": "object",
+        "required": [
+          "id",
+          "testId",
+          "location",
+          "startedAt",
+          "attempts",
+          "trigger",
+          "detail"
+        ],
+        "properties": {
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "detail": {
+            "$ref": "#/components/schemas/SyntheticRunDetail"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "location": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "testId": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "string"
+          }
+        }
+      },
+      "SyntheticResultSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "location",
+          "startedAt",
+          "durationMs",
+          "passed",
+          "attempts",
+          "trigger",
+          "failedAssertions"
+        ],
+        "properties": {
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failedAssertions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "location": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "startedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "statusCode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "trigger": {
+            "type": "string",
+            "description": "scheduled | manual"
+          }
+        }
+      },
+      "SyntheticResults": {
+        "type": "object",
+        "required": [
+          "segments",
+          "results",
+          "total"
+        ],
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticResultSummary"
+            },
+            "description": "Newest first, at most 5000."
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticUptimeSegment"
+            },
+            "description": "The test's alert state over the range."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Runs in the range."
+          },
+          "uptime": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "SyntheticResultsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "SyntheticRetry": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Retries of a failed run before it counts as failed (0–3)."
+          },
+          "intervalMs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Milliseconds between retries."
+          }
+        }
+      },
+      "SyntheticRunDetail": {
+        "type": "object",
+        "description": "One run of a test, as stored with its result.",
+        "properties": {
+          "assertions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticAssertionResult"
+            },
+            "default": []
+          },
+          "body": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The start of the body (up to 64 KiB); kept with failed runs and runs started by hand.",
+            "default": null
+          },
+          "bodySize": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "default": null,
+            "minimum": 0
+          },
+          "bodyTruncated": {
+            "type": "boolean",
+            "description": "The body was larger than the 1 MiB read.",
+            "default": false
+          },
+          "certificate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SyntheticCertificate"
+              }
+            ],
+            "default": null
+          },
+          "dnsServer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "durationMs": {
+            "type": "number",
+            "format": "double",
+            "description": "Response time in milliseconds: the whole HTTP exchange, the TLS handshake, the DNS lookups or the TCP connect.",
+            "default": 0.0
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the run failed before its assertions could be checked (timeout, refused address, …).",
+            "default": null
+          },
+          "method": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "passed": {
+            "type": "boolean",
+            "default": false
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticDnsRecord"
+            },
+            "default": []
+          },
+          "redirects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "resolvedIp": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The address connected to.",
+            "default": null
+          },
+          "responseHeaders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticHeader"
+            },
+            "default": []
+          },
+          "statusCode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "default": null,
+            "minimum": 0
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The URL that answered (after redirects).",
+            "default": null
+          }
+        }
+      },
+      "SyntheticTest": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "domain",
+          "request",
+          "assertions",
+          "locations",
+          "frequencySeconds",
+          "retry",
+          "minFailureDurationMinutes",
+          "minLocationFailed",
+          "env",
+          "team",
+          "tags",
+          "message",
+          "paused",
+          "status",
+          "muted",
+          "nextRunAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "assertions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticAssertion"
+            }
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "domain": {
+            "type": "string",
+            "description": "The host the test reaches (from the URL for HTTP tests)."
+          },
+          "env": {
+            "type": "string"
+          },
+          "failingSince": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "First failed scheduled run of the current failure streak."
+          },
+          "frequencySeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastRunAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "message": {
+            "type": "string"
+          },
+          "minFailureDurationMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minLocationFailed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "monitorId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "muted": {
+            "type": "boolean",
+            "description": "A downtime silences the test's notifications now."
+          },
+          "name": {
+            "type": "string"
+          },
+          "nextRunAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "request": {
+            "$ref": "#/components/schemas/SyntheticRequest"
+          },
+          "retry": {
+            "$ref": "#/components/schemas/SyntheticRetry"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MonitorStatus",
+            "description": "The alert state of the test's monitor."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "team": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/SyntheticTestType"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uptime": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Percent of the requested time range the test was OK (absent without a state in it)."
+          }
+        }
+      },
+      "SyntheticTestInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "request",
+          "frequencySeconds"
+        ],
+        "properties": {
+          "assertions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticAssertion"
+            }
+          },
+          "env": {
+            "type": "string"
+          },
+          "frequencySeconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "60, 300, 900, 1800, 3600, 21600, 43200, 86400 or 604800."
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Location ids; empty for the ObserveCraft server."
+          },
+          "message": {
+            "type": "string",
+            "description": "Notification message of the test's monitor (`{{#is_alert}}…{{/is_alert}}`, `@handles`)."
+          },
+          "minFailureDurationMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Alert once the test has failed for this many minutes (0: on the first failed run)."
+          },
+          "minLocationFailed": {
+            "type": "integer",
+            "format": "int32",
+            "description": "… from at least this many locations."
+          },
+          "name": {
+            "type": "string"
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "request": {
+            "$ref": "#/components/schemas/SyntheticRequest"
+          },
+          "retry": {
+            "$ref": "#/components/schemas/SyntheticRetry"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "team": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/SyntheticTestType"
+          }
+        }
+      },
+      "SyntheticTestSearchRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Words match name, domain and tags; `type:`, `env:`, `team:` and `status:` (ok, alert, nodata, paused) filter; other `key:value` words match tags."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange",
+            "description": "The uptime is computed over this range."
+          }
+        }
+      },
+      "SyntheticTestType": {
+        "type": "string",
+        "enum": [
+          "http",
+          "ssl",
+          "dns",
+          "tcp"
+        ]
+      },
+      "SyntheticTestsPage": {
+        "type": "object",
+        "required": [
+          "tests",
+          "location"
+        ],
+        "properties": {
+          "location": {
+            "$ref": "#/components/schemas/SyntheticLocation"
+          },
+          "tests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticTest"
+            }
+          }
+        }
+      },
+      "SyntheticTryRequest": {
+        "type": "object",
+        "required": [
+          "type",
+          "request"
+        ],
+        "properties": {
+          "assertions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticAssertion"
+            }
+          },
+          "request": {
+            "$ref": "#/components/schemas/SyntheticRequest"
+          },
+          "type": {
+            "$ref": "#/components/schemas/SyntheticTestType"
+          }
+        }
+      },
+      "SyntheticTryResult": {
+        "type": "object",
+        "required": [
+          "location",
+          "result",
+          "suggestedAssertions"
+        ],
+        "properties": {
+          "location": {
+            "$ref": "#/components/schemas/SyntheticLocation"
+          },
+          "result": {
+            "$ref": "#/components/schemas/SyntheticRunDetail"
+          },
+          "suggestedAssertions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticAssertion"
+            },
+            "description": "Assertions matching this response, to start the test from."
+          }
+        }
+      },
+      "SyntheticUptimeSegment": {
+        "type": "object",
+        "required": [
+          "status",
+          "from",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "status": {
+            "$ref": "#/components/schemas/MonitorStatus"
+          },
+          "to": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "TagShare": {
         "type": "object",
         "required": [
@@ -26035,6 +27383,10 @@
     {
       "name": "slos",
       "description": "Service level objectives, their status and error budget, and corrections"
+    },
+    {
+      "name": "synthetics",
+      "description": "Synthetic API tests (HTTP, SSL, DNS, TCP) run by the server, their results and uptime"
     },
     {
       "name": "auth",

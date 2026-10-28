@@ -1,0 +1,25 @@
+import type { components } from '../generated/schema';
+
+type S = components['schemas'];
+export type SyntheticTestType = S['SyntheticTestType'];
+export type SyntheticRequest = S['SyntheticRequest'];
+export type SyntheticHeader = S['SyntheticHeader'];
+export type SyntheticAssertion = S['SyntheticAssertion'];
+export type SyntheticAssertionType = S['SyntheticAssertionType'];
+export type SyntheticOperator = S['SyntheticOperator'];
+export type SyntheticAssertionResult = S['SyntheticAssertionResult'];
+export type SyntheticCertificate = S['SyntheticCertificate'];
+export type SyntheticDnsRecord = S['SyntheticDnsRecord'];
+export type SyntheticRunDetail = S['SyntheticRunDetail'];
+export type SyntheticTest = S['SyntheticTest'];
+export type SyntheticTestInput = S['SyntheticTestInput'];
+export type SyntheticTestsPage = S['SyntheticTestsPage'];
+export type SyntheticTestSearchRequest = S['SyntheticTestSearchRequest'];
+export type SyntheticLocation = S['SyntheticLocation'];
+export type SyntheticResults = S['SyntheticResults'];
+export type SyntheticResultSummary = S['SyntheticResultSummary'];
+export type SyntheticResult = S['SyntheticResult'];
+export type SyntheticUptimeSegment = S['SyntheticUptimeSegment'];
+export type SyntheticTryRequest = S['SyntheticTryRequest'];
+export type SyntheticTryResult = S['SyntheticTryResult'];
+export type SyntheticRetry = S['SyntheticRetry'];

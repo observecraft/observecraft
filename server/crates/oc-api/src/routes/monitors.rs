@@ -43,6 +43,9 @@ pub enum MonitorType {
     Apm,
     /// Count of logs matching a search: `logs("service:checkout status:error") by {service}`.
     Log,
+    /// The alert state of a synthetic test, kept by the test runner (`routes::synthetics`); edited
+    /// with its test, never evaluated here.
+    Synthetics,
 }
 
 impl MonitorType {
@@ -51,12 +54,14 @@ impl MonitorType {
             MonitorType::Metric => "metric",
             MonitorType::Apm => "apm",
             MonitorType::Log => "log",
+            MonitorType::Synthetics => "synthetics",
         }
     }
     fn parse(s: &str) -> Self {
         match s {
             "apm" => MonitorType::Apm,
             "log" => MonitorType::Log,
+            "synthetics" => MonitorType::Synthetics,
             _ => MonitorType::Metric,
         }
     }
@@ -66,6 +71,9 @@ impl MonitorType {
 /// matching logs per interval (per group), counted within `access` (the previewing user's, or
 /// every log of the org when the engine evaluates).
 async fn monitor_series(st: &AppState, org: &str, access: &LogAccess, kind: MonitorType, query: &str, range: TimeRange, points: u32) -> Result<Vec<Group>, ApiError> {
+    if kind == MonitorType::Synthetics {
+        return Err(ApiError::BadRequest("synthetic test monitors have no query to evaluate".into()));
+    }
     if kind == MonitorType::Log {
         let (search, by) = parse_log_monitor(query).map_err(ApiError::BadRequest)?;
         let step = ((range.to - range.from) / points.max(1) as i64).max(60_000);
@@ -543,6 +551,8 @@ pub struct MonitorDetail {
     pub message: String,
     pub groups: Vec<MonitorGroupState>,
     pub evaluated_at: Option<i64>,
+    /// Synthetics monitors: the test whose alert state this is.
+    pub synthetic_test_id: Option<String>,
 }
 
 fn detail(m: &Loaded, downtimes: &[Downtime]) -> MonitorDetail {
@@ -565,6 +575,7 @@ fn detail(m: &Loaded, downtimes: &[Downtime]) -> MonitorDetail {
             })
             .collect(),
         evaluated_at: m.row.evaluated_at,
+        synthetic_test_id: m.row.definition.get("syntheticTestId").and_then(Value::as_str).map(str::to_string),
     }
 }
 
@@ -597,10 +608,15 @@ pub struct MonitorInput {
     pub draft: bool,
 }
 
+const SYNTHETICS_MANAGED: &str = "synthetic test monitors are created and edited with their test (Digital Experience → Synthetic Tests)";
+
 fn validate(input: &mut MonitorInput) -> Result<(), ApiError> {
     input.name = input.name.trim().to_string();
     if input.name.is_empty() || input.name.len() > 500 {
         return Err(ApiError::BadRequest("the monitor name must be 1–500 characters".into()));
+    }
+    if input.r#type == MonitorType::Synthetics {
+        return Err(ApiError::BadRequest(SYNTHETICS_MANAGED.into()));
     }
     if input.r#type == MonitorType::Log {
         parse_log_monitor(&input.query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
@@ -656,6 +672,9 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut in
 pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<i64>, Json(mut input): Json<MonitorInput>) -> ApiResult<MonitorDetail> {
     validate(&mut input)?;
     let (before, _) = load_one(&st, &ctx.org_id, id).await?;
+    if MonitorType::parse(&before.row.kind) == MonitorType::Synthetics {
+        return Err(ApiError::BadRequest(SYNTHETICS_MANAGED.into()));
+    }
     let definition = serde_json::to_value(&input.options).map_err(anyhow::Error::from)?;
     let reset = before.row.query != input.query.trim() || before.row.definition != definition;
     let mut tx = st.postgres.begin().await?;
@@ -694,7 +713,7 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
 pub async fn clone(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<i64>) -> ApiResult<MonitorDetail> {
     let new: Option<(i64,)> = sqlx::query_as(
         "INSERT INTO monitors (org_id, name, type, query, definition, status, message, priority, tags, teams, draft, created_by) \
-         SELECT org_id, '[Clone] ' || name, type, query, definition, 'nodata', message, priority, tags, teams, draft, $3::uuid FROM monitors WHERE org_id = $1 AND id = $2 RETURNING id",
+         SELECT org_id, '[Clone] ' || name, type, query, definition, 'nodata', message, priority, tags, teams, draft, $3::uuid FROM monitors WHERE org_id = $1 AND id = $2 AND type <> 'synthetics' RETURNING id",
     )
     .bind(&ctx.org_id)
     .bind(id)
@@ -738,7 +757,13 @@ pub async fn bulk(State(st): State<AppState>, Writer(ctx): Writer, Json(req): Js
     if req.ids.is_empty() || req.ids.len() > 1000 {
         return Err(ApiError::BadRequest("select 1–1000 monitors".into()));
     }
-    let ids: Vec<i64> = sqlx::query_scalar("SELECT id FROM monitors WHERE org_id = $1 AND id = ANY($2)").bind(&ctx.org_id).bind(&req.ids).fetch_all(&st.postgres).await?;
+    // A synthetic test's monitor goes with its test: deleting it here is skipped.
+    let ids: Vec<i64> = sqlx::query_scalar("SELECT id FROM monitors WHERE org_id = $1 AND id = ANY($2) AND ($3 OR type <> 'synthetics')")
+        .bind(&ctx.org_id)
+        .bind(&req.ids)
+        .bind(req.action != BulkAction::Delete)
+        .fetch_all(&st.postgres)
+        .await?;
     let mut tx = st.postgres.begin().await?;
     match req.action {
         BulkAction::Mute => {
@@ -778,7 +803,7 @@ pub async fn bulk(State(st): State<AppState>, Writer(ctx): Writer, Json(req): Js
             sqlx::query("UPDATE monitors SET status = 'ok', state_changed_at = now() WHERE id = ANY($1) AND status <> 'ok'").bind(&ids).execute(&mut *tx).await?;
         }
         BulkAction::Delete => {
-            sqlx::query("DELETE FROM monitors WHERE org_id = $1 AND id = ANY($2)").bind(&ctx.org_id).bind(&ids).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM monitors WHERE org_id = $1 AND id = ANY($2) AND type <> 'synthetics'").bind(&ctx.org_id).bind(&ids).execute(&mut *tx).await?;
         }
     }
     tx.commit().await?;
@@ -1145,7 +1170,7 @@ pub async fn run_evaluator(st: AppState) {
         {
             continue;
         }
-        match sqlx::query_scalar::<_, i64>("SELECT id FROM monitors ORDER BY id")
+        match sqlx::query_scalar::<_, i64>("SELECT id FROM monitors WHERE type <> 'synthetics' ORDER BY id")
             .fetch_all(&st.postgres)
             .await
         {
@@ -1179,7 +1204,7 @@ pub async fn evaluate_one(st: &AppState, id: i64) {
 }
 
 async fn evaluate_inner(st: &AppState, id: i64, now: i64) -> Result<(), ApiError> {
-    let Some(row): Option<Row> = sqlx::query_as(&format!("{SELECT} WHERE m.id = $1")).bind(id).fetch_optional(&st.postgres).await? else {
+    let Some(row): Option<Row> = sqlx::query_as(&format!("{SELECT} WHERE m.id = $1 AND m.type <> 'synthetics'")).bind(id).fetch_optional(&st.postgres).await? else {
         return Ok(());
     };
     let groups: Vec<GroupRow> = sqlx::query_as(&format!("{GROUP_SELECT} WHERE g.monitor_id = $1")).bind(id).fetch_all(&st.postgres).await?;

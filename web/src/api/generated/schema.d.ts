@@ -3429,6 +3429,141 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/synthetics/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_synthetic_locations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates a test and its monitor; it first runs within seconds. */
+        post: operations["create_synthetic_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The org's tests, worst state first, with their uptime over the range. */
+        post: operations["search_synthetic_tests"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_synthetic_test"];
+        /** Replaces a test's definition (and updates its monitor). A changed request or assertions run soon. */
+        put: operations["update_synthetic_test"];
+        post?: never;
+        /** Deletes a test with its results and its monitor. */
+        delete: operations["delete_synthetic_test"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests/{id}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A test's runs, alert state and uptime over a range. */
+        post: operations["list_synthetic_results"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests/{id}/results/{result_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_synthetic_result"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Runs a saved test now, once. The result is recorded; the alert state isn't changed. */
+        post: operations["run_synthetic_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/try": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends a request once from the editor (nothing is stored) and suggests assertions for its response. */
+        post: operations["try_synthetic_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags/{key}/values": {
         parameters: {
             query?: never;
@@ -6559,6 +6694,8 @@ export interface components {
             /** @description The metric query alone (`avg:system.load.1{*} by {host}`). */
             metricQuery: string;
             options?: null | components["schemas"]["MonitorOptions"];
+            /** @description Synthetics monitors: the test whose alert state this is. */
+            syntheticTestId?: string | null;
         };
         MonitorEvent: {
             /** Format: int64 */
@@ -6783,7 +6920,7 @@ export interface components {
             query?: string;
         };
         /** @enum {string} */
-        MonitorType: "metric" | "apm" | "log";
+        MonitorType: "metric" | "apm" | "log" | "synthetics";
         MyOrg: {
             current: boolean;
             id: string;
@@ -8301,6 +8438,366 @@ export interface components {
         };
         SwitchOrgRequest: {
             org: string;
+        };
+        SyntheticAssertion: {
+            operator: components["schemas"]["SyntheticOperator"];
+            /** @description Header name, JSON path or DNS record type; empty for the other types. */
+            property?: string;
+            /** @description The expected value (a number for status codes, times and days; a regular expression for matches). */
+            target: string;
+            type: components["schemas"]["SyntheticAssertionType"];
+        };
+        SyntheticAssertionResult: {
+            /** @description The value found (absent when there was none). */
+            actual?: string | null;
+            assertion: components["schemas"]["SyntheticAssertion"];
+            error?: string | null;
+            passed: boolean;
+        };
+        /** @enum {string} */
+        SyntheticAssertionType: "statusCode" | "responseTime" | "header" | "body" | "bodyJsonPath" | "certificate" | "recordEvery" | "recordSome";
+        SyntheticBasicAuth: {
+            password: string;
+            username: string;
+        };
+        SyntheticCertificate: {
+            cipher?: string | null;
+            /** Format: double */
+            daysLeft: number;
+            issuer: string;
+            /** Format: int64 */
+            notAfter: number;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            notBefore: number;
+            protocol?: string | null;
+            subject: string;
+            trustError?: string | null;
+            /** @description The chain verified against the public web roots for the host name. */
+            trusted: boolean;
+        };
+        SyntheticDnsRecord: {
+            /** Format: int32 */
+            ttl: number;
+            type: string;
+            value: string;
+        };
+        SyntheticHeader: {
+            name: string;
+            value: string;
+        };
+        SyntheticLocation: {
+            id: string;
+            name: string;
+            /** @description The operator allows tests of loopback, private and link-local addresses (`OC_SYNTHETICS_ALLOW_PRIVATE`). */
+            privateTargets: boolean;
+        };
+        /** @enum {string} */
+        SyntheticOperator: "is" | "isNot" | "lessThan" | "moreThan" | "contains" | "doesNotContain" | "matches" | "doesNotMatch" | "isInMoreThan";
+        /** @description What a test sends. HTTP tests use `method`, `url`, `headers`, `body`, `basicAuth` and
+         *     `followRedirects`; SSL, DNS and TCP tests use `host` and `port`; DNS tests may name a server. */
+        SyntheticRequest: {
+            /**
+             * @description HTTP(S) and SSL: accept self-signed and otherwise untrusted certificates.
+             * @default false
+             */
+            acceptSelfSigned: boolean;
+            /** @default null */
+            basicAuth: null | components["schemas"]["SyntheticBasicAuth"];
+            /** @default  */
+            body: string;
+            /**
+             * @description Content type sent with a body (`application/json`, `text/plain`, …).
+             * @default
+             */
+            bodyType: string;
+            /**
+             * @description DNS: IP address of the server to ask; empty for the ObserveCraft server's resolver.
+             * @default
+             */
+            dnsServer: string;
+            /**
+             * Format: int32
+             * @description DNS server port (default 53).
+             * @default null
+             */
+            dnsServerPort: number | null;
+            /**
+             * @description HTTP: follow up to 10 redirects.
+             * @default true
+             */
+            followRedirects: boolean;
+            /** @default [] */
+            headers: components["schemas"]["SyntheticHeader"][];
+            /**
+             * @description SSL, TCP: host name or IP address; DNS: the domain to look up.
+             * @default
+             */
+            host: string;
+            /**
+             * @description HTTP: GET, POST, PUT, PATCH, DELETE, HEAD or OPTIONS.
+             * @default GET
+             */
+            method: string;
+            /**
+             * Format: int32
+             * @description SSL (default 443) and TCP.
+             * @default null
+             */
+            port: number | null;
+            /**
+             * Format: int32
+             * @description 1–60 seconds.
+             * @default 30
+             */
+            timeoutSeconds: number;
+            /**
+             * @description HTTP: an http or https URL.
+             * @default
+             */
+            url: string;
+        };
+        SyntheticResult: {
+            /** Format: int32 */
+            attempts: number;
+            detail: components["schemas"]["SyntheticRunDetail"];
+            /** Format: int64 */
+            id: number;
+            location: string;
+            /** Format: int64 */
+            startedAt: number;
+            testId: string;
+            trigger: string;
+        };
+        SyntheticResultSummary: {
+            /** Format: int32 */
+            attempts: number;
+            /** Format: double */
+            durationMs: number;
+            error?: string | null;
+            /** Format: int64 */
+            failedAssertions: number;
+            /** Format: int64 */
+            id: number;
+            location: string;
+            passed: boolean;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            startedAt: number;
+            /** Format: int32 */
+            statusCode?: number | null;
+            /** @description scheduled | manual */
+            trigger: string;
+        };
+        SyntheticResults: {
+            /** @description Newest first, at most 5000. */
+            results: components["schemas"]["SyntheticResultSummary"][];
+            /** @description The test's alert state over the range. */
+            segments: components["schemas"]["SyntheticUptimeSegment"][];
+            /**
+             * Format: int64
+             * @description Runs in the range.
+             */
+            total: number;
+            /** Format: double */
+            uptime?: number | null;
+        };
+        SyntheticResultsRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
+        SyntheticRetry: {
+            /**
+             * Format: int32
+             * @description Retries of a failed run before it counts as failed (0–3).
+             */
+            count?: number;
+            /**
+             * Format: int32
+             * @description Milliseconds between retries.
+             */
+            intervalMs?: number;
+        };
+        /** @description One run of a test, as stored with its result. */
+        SyntheticRunDetail: {
+            /** @default [] */
+            assertions: components["schemas"]["SyntheticAssertionResult"][];
+            /**
+             * @description The start of the body (up to 64 KiB); kept with failed runs and runs started by hand.
+             * @default null
+             */
+            body: string | null;
+            /**
+             * Format: int64
+             * @default null
+             */
+            bodySize: number | null;
+            /**
+             * @description The body was larger than the 1 MiB read.
+             * @default false
+             */
+            bodyTruncated: boolean;
+            /** @default null */
+            certificate: null | components["schemas"]["SyntheticCertificate"];
+            /** @default null */
+            dnsServer: string | null;
+            /**
+             * Format: double
+             * @description Response time in milliseconds: the whole HTTP exchange, the TLS handshake, the DNS lookups or the TCP connect.
+             * @default 0
+             */
+            durationMs: number;
+            /**
+             * @description Why the run failed before its assertions could be checked (timeout, refused address, …).
+             * @default null
+             */
+            error: string | null;
+            /** @default null */
+            method: string | null;
+            /** @default false */
+            passed: boolean;
+            /** @default [] */
+            records: components["schemas"]["SyntheticDnsRecord"][];
+            /** @default [] */
+            redirects: string[];
+            /**
+             * @description The address connected to.
+             * @default null
+             */
+            resolvedIp: string | null;
+            /** @default [] */
+            responseHeaders: components["schemas"]["SyntheticHeader"][];
+            /**
+             * Format: int32
+             * @default null
+             */
+            statusCode: number | null;
+            /**
+             * @description The URL that answered (after redirects).
+             * @default null
+             */
+            url: string | null;
+        };
+        SyntheticTest: {
+            assertions: components["schemas"]["SyntheticAssertion"][];
+            /** Format: int64 */
+            createdAt: number;
+            createdBy?: string | null;
+            /** @description The host the test reaches (from the URL for HTTP tests). */
+            domain: string;
+            env: string;
+            /**
+             * Format: int64
+             * @description First failed scheduled run of the current failure streak.
+             */
+            failingSince?: number | null;
+            /** Format: int32 */
+            frequencySeconds: number;
+            id: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            lastRunAt?: number | null;
+            locations: string[];
+            message: string;
+            /** Format: int32 */
+            minFailureDurationMinutes: number;
+            /** Format: int32 */
+            minLocationFailed: number;
+            /** Format: int64 */
+            monitorId?: number | null;
+            /** @description A downtime silences the test's notifications now. */
+            muted: boolean;
+            name: string;
+            /** Format: int64 */
+            nextRunAt: number;
+            paused: boolean;
+            /** Format: int32 */
+            priority?: number | null;
+            request: components["schemas"]["SyntheticRequest"];
+            retry: components["schemas"]["SyntheticRetry"];
+            /** @description The alert state of the test's monitor. */
+            status: components["schemas"]["MonitorStatus"];
+            tags: string[];
+            team: string;
+            type: components["schemas"]["SyntheticTestType"];
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+            /**
+             * Format: double
+             * @description Percent of the requested time range the test was OK (absent without a state in it).
+             */
+            uptime?: number | null;
+        };
+        SyntheticTestInput: {
+            assertions?: components["schemas"]["SyntheticAssertion"][];
+            env?: string;
+            /**
+             * Format: int32
+             * @description 60, 300, 900, 1800, 3600, 21600, 43200, 86400 or 604800.
+             */
+            frequencySeconds: number;
+            /** @description Location ids; empty for the ObserveCraft server. */
+            locations?: string[];
+            /** @description Notification message of the test's monitor (`{{#is_alert}}…{{/is_alert}}`, `@handles`). */
+            message?: string;
+            /**
+             * Format: int32
+             * @description Alert once the test has failed for this many minutes (0: on the first failed run).
+             */
+            minFailureDurationMinutes?: number;
+            /**
+             * Format: int32
+             * @description … from at least this many locations.
+             */
+            minLocationFailed?: number;
+            name: string;
+            paused?: boolean;
+            /** Format: int32 */
+            priority?: number | null;
+            request: components["schemas"]["SyntheticRequest"];
+            retry?: components["schemas"]["SyntheticRetry"];
+            tags?: string[];
+            team?: string;
+            type: components["schemas"]["SyntheticTestType"];
+        };
+        SyntheticTestSearchRequest: {
+            /** @description Words match name, domain and tags; `type:`, `env:`, `team:` and `status:` (ok, alert, nodata, paused) filter; other `key:value` words match tags. */
+            query?: string;
+            /** @description The uptime is computed over this range. */
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @enum {string} */
+        SyntheticTestType: "http" | "ssl" | "dns" | "tcp";
+        SyntheticTestsPage: {
+            location: components["schemas"]["SyntheticLocation"];
+            tests: components["schemas"]["SyntheticTest"][];
+        };
+        SyntheticTryRequest: {
+            assertions?: components["schemas"]["SyntheticAssertion"][];
+            request: components["schemas"]["SyntheticRequest"];
+            type: components["schemas"]["SyntheticTestType"];
+        };
+        SyntheticTryResult: {
+            location: components["schemas"]["SyntheticLocation"];
+            result: components["schemas"]["SyntheticRunDetail"];
+            /** @description Assertions matching this response, to start the test from. */
+            suggestedAssertions: components["schemas"]["SyntheticAssertion"][];
+        };
+        SyntheticUptimeSegment: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            from: number;
+            status: components["schemas"]["MonitorStatus"];
+            /** Format: int64 */
+            to: number;
         };
         TagShare: {
             key: string;
@@ -14930,6 +15427,307 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_synthetic_locations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticLocation"][];
+                };
+            };
+        };
+    };
+    create_synthetic_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticTestInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_synthetic_tests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticTestSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticTestsPage"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_synthetic_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticTest"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_synthetic_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticTestInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_synthetic_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_synthetic_results: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticResultsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticResults"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_synthetic_result: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                result_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticResult"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_synthetic_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticResult"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    try_synthetic_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticTryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticTryResult"];
+                };
+            };
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

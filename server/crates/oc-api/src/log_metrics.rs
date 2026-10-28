@@ -280,13 +280,13 @@ fn dense(buckets: &BTreeMap<i32, u64>) -> (i32, Vec<u64>) {
     }
 }
 
-fn row(p: &Point) -> Value {
+fn row(p: &Point, scope: &str) -> Value {
     let (service, resource, attrs) = placed(p);
     let time = to_rfc3339(p.time_ms);
     let mut row = json!({
         "ResourceAttributes": resource,
         "ServiceName": service,
-        "ScopeName": "observecraft.log_metrics",
+        "ScopeName": scope,
         "MetricName": p.metric,
         "MetricDescription": &*p.description,
         "MetricUnit": "",
@@ -314,10 +314,15 @@ fn row(p: &Point) -> Value {
 /// The JSON rows for `otel.metrics_ingest_sum` and `otel.metrics_ingest_exponential_histogram`
 /// (`INSERT … FORMAT JSONEachRow`), shaped as the Collector's exporter writes them.
 pub fn rows(points: &[Point]) -> (Vec<u8>, Vec<u8>) {
+    rows_in_scope(points, "observecraft.log_metrics")
+}
+
+/// [`rows`] for metrics the server writes for another feature (`ScopeName` = `scope`).
+pub fn rows_in_scope(points: &[Point], scope: &str) -> (Vec<u8>, Vec<u8>) {
     let (mut sums, mut histograms) = (Vec::new(), Vec::new());
     for p in points {
         let out = if matches!(p.value, PointValue::Count(_)) { &mut sums } else { &mut histograms };
-        if serde_json::to_writer(&mut *out, &row(p)).is_ok() {
+        if serde_json::to_writer(&mut *out, &row(p, scope)).is_ok() {
             out.push(b'\n');
         }
     }

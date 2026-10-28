@@ -68,6 +68,11 @@ smtp:
   url: ""
   from: "ObserveCraft <alerts@observecraft.local>"
 
+synthetics:
+  # -- Let synthetic tests reach loopback, private (RFC 1918), link-local (incl. cloud metadata) and
+  # other internal addresses. Off by default: tests fetch user-chosen targets from the server.
+  allowPrivateTargets: false
+
 # -- Install demo users, dashboards and monitors into the default org. Development only.
 seedDemo: false
 
