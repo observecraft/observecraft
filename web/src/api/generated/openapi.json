@@ -14067,7 +14067,8 @@
           "create_incident",
           "page_on_call",
           "incident_comment",
-          "synthetic_run"
+          "synthetic_run",
+          "run_workflow"
         ]
       },
       "AddResponder": {

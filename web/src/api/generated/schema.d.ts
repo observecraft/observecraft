@@ -5085,7 +5085,7 @@ export interface components {
             requests?: components["schemas"]["ActionHttpRequest"][];
         };
         /** @enum {string} */
-        ActionStepKind: "http" | "create_incident" | "page_on_call" | "incident_comment" | "synthetic_run";
+        ActionStepKind: "http" | "create_incident" | "page_on_call" | "incident_comment" | "synthetic_run" | "run_workflow";
         AddResponder: {
             role: string;
             userId: string;

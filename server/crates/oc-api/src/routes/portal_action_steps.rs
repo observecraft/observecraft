@@ -93,6 +93,9 @@ pub enum ActionStepKind {
     IncidentComment,
     /// Runs a synthetic test now: field `test` (its id).
     SyntheticRun,
+    /// Starts a published workflow with an app trigger: field `workflow` (its id); the action's
+    /// inputs fill the workflow inputs of the same keys.
+    RunWorkflow,
 }
 
 impl ActionStepKind {
@@ -103,6 +106,7 @@ impl ActionStepKind {
             ActionStepKind::PageOnCall => "page_on_call",
             ActionStepKind::IncidentComment => "incident_comment",
             ActionStepKind::SyntheticRun => "synthetic_run",
+            ActionStepKind::RunWorkflow => "run_workflow",
         }
     }
 
@@ -114,6 +118,7 @@ impl ActionStepKind {
             ActionStepKind::PageOnCall => &[("team", true), ("title", true), ("description", false), ("urgency", false)],
             ActionStepKind::IncidentComment => &[("incident", true), ("body", true)],
             ActionStepKind::SyntheticRun => &[("test", true)],
+            ActionStepKind::RunWorkflow => &[("workflow", true)],
         }
     }
 }
@@ -735,6 +740,8 @@ mod tests {
         assert!(check_step(&internal(ActionStepKind::CreateIncident, &[("severity", "SEV-2")]), &inputs, &names).unwrap_err().contains("title"));
         assert!(check_step(&internal(ActionStepKind::PageOnCall, &[("team", "x"), ("title", "y"), ("color", "z")]), &inputs, &names).unwrap_err().contains("color"));
         assert!(check_step(&internal(ActionStepKind::SyntheticRun, &[("test", "{{secrets.token}}")]), &inputs, &names).unwrap_err().contains("HTTP"));
+        assert!(check_step(&internal(ActionStepKind::RunWorkflow, &[]), &inputs, &names).unwrap_err().contains("workflow"));
+        assert!(check_step(&internal(ActionStepKind::RunWorkflow, &[("workflow", "7a3e1c20-5b6d-4e7f-9a1b-2c3d4e5f6a04")]), &inputs, &names).is_ok());
         let none = ActionStep { kind: ActionStepKind::Http, requests: vec![], fields: BTreeMap::new() };
         assert!(check_step(&none, &inputs, &names).unwrap_err().contains("1–5"));
         let two = ActionStep {

@@ -3,7 +3,7 @@
 //! - **Actions** have a name, category, owner team, form inputs (text, select, number, boolean) and
 //!   one step: HTTP requests sent in order (each templated, see [`super::portal_action_steps`]) or an
 //!   ObserveCraft operation (declare an incident, page an on-call team, add a note to an incident,
-//!   run a synthetic test). Standard users and admins create and edit them; blueprints in the UI
+//!   run a synthetic test, start a workflow that has an app trigger). Standard users and admins create and edit them; blueprints in the UI
 //!   pre-fill them.
 //! - **Credentials** for HTTP requests are stored per action, sealed with the server's secret key
 //!   (`OC_SECRET_KEY`), referred to as `{{secrets.<name>}}` and never returned: the API lists their
@@ -493,6 +493,11 @@ pub(crate) async fn run_internal(st: &AppState, ctx: &AuthContext, step: &Action
                     let why = result.detail.error.clone().unwrap_or_else(|| "an assertion failed".into());
                     Err(format!("The synthetic test failed: {why}"))
                 }
+            }
+            ActionStepKind::RunWorkflow => {
+                let id = field("workflow")?;
+                let run = super::workflows::start_from_app(st, ctx, &id, "Self-service action", rc.inputs).await.map_err(step_error)?;
+                Ok((format!("Started workflow run #{run}"), format!("/automation/workflows/{id}?run={run}"), serde_json::json!({"workflow": id, "run": run})))
             }
             ActionStepKind::Http => Err("Not an internal step".into()),
         }
