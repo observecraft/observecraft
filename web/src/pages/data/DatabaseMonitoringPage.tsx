@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { EChartsOption } from 'echarts';
-import { NavLink, useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, Database, Info, PanelLeft, X } from 'lucide-react';
+import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
+import { ChevronRight, Database, ExternalLink, Info, Link2Off, PanelLeft, Plus, ThumbsDown, ThumbsUp, X } from 'lucide-react';
 import { databaseInstance, searchDatabases, type DbEngine, type DbSearchPage } from '../../api/databases/client';
 import { Chart } from '../../components/charts/Chart';
 import { FacetPanel } from '../../components/facets/FacetPanel';
@@ -36,21 +36,31 @@ export function DatabaseMonitoringPage({ view }: { view: 'overview' | 'setup' })
   return (
     <div className="dbm-page">
       <header className="product-header">
-        <div className="product-title">
-          <Database size={20} />
-          <span className="dbm-crumb">Data Observability /</span> Database Monitoring
-        </div>
-        <nav className="product-tabs">
-          <NavLink to="/data" end className={({ isActive }) => `product-tab${isActive && !showSetup ? ' active' : ''}`}>
-            Databases
-          </NavLink>
-          <NavLink to="/data/setup" className={() => `product-tab${showSetup ? ' active' : ''}`}>
-            Setup
-          </NavLink>
-        </nav>
-        <div className="dbm-header-right">
-          <TimePicker />
-        </div>
+        {showSetup ? (
+          <div className="product-title dbm-title">
+            <Database size={20} />
+            <Link to="/data">Database Monitoring</Link>
+            <ChevronRight size={18} className="dbm-crumb-sep" />
+            <span>Setup</span>
+          </div>
+        ) : (
+          <>
+            <div className="product-title dbm-title">
+              <Database size={20} /> Database Monitoring
+            </div>
+            <nav className="product-tabs">
+              <NavLink to="/data" end className={({ isActive }) => `product-tab${isActive ? ' active' : ''}`}>
+                Databases
+              </NavLink>
+              <NavLink to="/data/setup" className="product-tab">
+                Setup
+              </NavLink>
+            </nav>
+            <div className="dbm-header-right">
+              <TimePicker />
+            </div>
+          </>
+        )}
       </header>
       <div className="dbm-body">
         {page.isError ? (
@@ -261,11 +271,26 @@ function InstancePanel({ id, onClose }: { id: string; onClose: () => void }) {
 
 // ---------------------------------------------------------------- setup
 
-const FEATURES: { name: string; available: boolean; text: string }[] = [
-  { name: 'Database metrics', available: true, text: 'Connections, throughput, cache hit ratio, replication lag and size for every instance, from the integration check or receiver.' },
-  { name: 'Enriched dashboards', available: true, text: 'The integration dashboards in Integrations read the same metrics, so they work as soon as an instance reports.' },
-  { name: 'Query samples', available: false, text: 'Samples of running queries need the Agent’s Database Monitoring payloads, which are not collected yet.' },
-  { name: 'Explain plans', available: false, text: 'Execution plans come with query samples and are not available yet either.' },
+const FEATURES: { name: string; available: boolean; text: string; points: string[] }[] = [
+  {
+    name: 'Database metrics',
+    available: true,
+    text: 'Follow every instance from the metrics its integration check or OpenTelemetry receiver already sends, with nothing else to install.',
+    points: ['Connections against the configured maximum', 'Throughput, cache hit ratio and replication lag', 'Size, and the hosts and services each instance belongs to'],
+  },
+  {
+    name: 'Enriched dashboards',
+    available: true,
+    text: 'The integration dashboards read the same metrics, so they fill in as soon as an instance reports.',
+    points: ['PostgreSQL, MySQL, Redis, MongoDB and SQL Server dashboards', 'Template variables for host, database and environment'],
+  },
+  {
+    name: 'Query samples',
+    available: false,
+    text: 'Samples of running queries need the Agent’s Database Monitoring payloads, which ObserveCraft does not collect yet.',
+    points: [],
+  },
+  { name: 'Explain plans', available: false, text: 'Execution plans come with query samples and are not available yet either.', points: [] },
 ];
 
 function DatabaseSetup({ page }: { page: DbSearchPage }) {
@@ -274,102 +299,162 @@ function DatabaseSetup({ page }: { page: DbSearchPage }) {
   const [engine, setEngine] = useState<DbEngine | null>(null);
   const [feature, setFeature] = useState(0);
   const chosen = engine ? engineSetup(engine) : null;
+  const f = FEATURES[feature];
   return (
     <div className="dbm-setup">
-      <div className="btn-group">
-        <button className={`btn${tab === 'add' ? ' btn-active' : ''}`} onClick={() => setParams({}, { replace: true })}>
-          Add Database Instance
+      <nav className="dbm-subtabs">
+        <button className={tab === 'add' ? 'active' : ''} onClick={() => setParams({}, { replace: true })}>
+          <Plus size={16} /> Add Database Instance
         </button>
-        <button className={`btn${tab === 'unconfigured' ? ' btn-active' : ''}`} onClick={() => setParams({ tab: 'unconfigured' }, { replace: true })}>
-          Unconfigured Instances {page.unconfigured.length > 0 && <span className="dbm-count">{page.unconfigured.length}</span>}
+        <button className={tab === 'unconfigured' ? 'active' : ''} onClick={() => setParams({ tab: 'unconfigured' }, { replace: true })}>
+          <Link2Off size={16} /> Unconfigured Instances {page.unconfigured.length > 0 && <span className="dbm-count">{page.unconfigured.length}</span>}
         </button>
-      </div>
-      {tab === 'unconfigured' ? (
-        <section className="dbm-card">
-          <h3>Database servers without their integration</h3>
-          <p className="muted">Hosts that report a database server process but no metrics for that engine. Set up its check or receiver to see the instance here.</p>
-          {page.unconfigured.length === 0 ? (
-            <Empty>Every database server seen in host processes is configured.</Empty>
-          ) : (
-            <table className="dbm-table">
-              <thead>
-                <tr>
-                  <th>HOST</th>
-                  <th>ENGINE</th>
-                  <th>PROCESS</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {page.unconfigured.map((u) => (
-                  <tr key={`${u.host}-${u.engine}`}>
-                    <td className="mono">{u.host}</td>
-                    <td>
-                      <EngineBadge engine={u.engine} />
-                    </td>
-                    <td className="mono">{u.process}</td>
-                    <td className="num">
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => {
-                          setEngine(u.engine);
-                          setParams({}, { replace: true });
-                        }}
-                      >
-                        Set up
-                      </button>
-                    </td>
+      </nav>
+      <div className="dbm-setup-body">
+        {tab === 'unconfigured' ? (
+          <section className="dbm-card">
+            <h3>Database servers without their integration</h3>
+            <p className="muted">Hosts that report a database server process but no metrics for that engine. Set up its check or receiver to see the instance here.</p>
+            {page.unconfigured.length === 0 ? (
+              <Empty>Every database server seen in host processes is configured.</Empty>
+            ) : (
+              <table className="dbm-table">
+                <thead>
+                  <tr>
+                    <th>HOST</th>
+                    <th>ENGINE</th>
+                    <th>PROCESS</th>
+                    <th />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-      ) : (
-        <>
-          <p className="muted">Monitor your databases from the metrics their Datadog Agent check or OpenTelemetry receiver sends: no extra agent, no query collection.</p>
-          <section className="dbm-card dbm-tour">
-            <ul>
-              {FEATURES.map((f, i) => (
-                <li key={f.name}>
-                  <button className={i === feature ? 'active' : ''} onClick={() => setFeature(i)}>
-                    {f.available ? <Check size={14} /> : <X size={14} />} {f.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <div>
-              <h4>
-                {FEATURES[feature].name} {!FEATURES[feature].available && <span className="dbm-na">Not available</span>}
-              </h4>
-              <p>{FEATURES[feature].text}</p>
-            </div>
+                </thead>
+                <tbody>
+                  {page.unconfigured.map((u) => (
+                    <tr key={`${u.host}-${u.engine}`}>
+                      <td className="mono">{u.host}</td>
+                      <td>
+                        <EngineBadge engine={u.engine} />
+                      </td>
+                      <td className="mono">{u.process}</td>
+                      <td className="num">
+                        <button
+                          className="btn btn-sm"
+                          onClick={() => {
+                            setEngine(u.engine);
+                            setParams({}, { replace: true });
+                          }}
+                        >
+                          Set up
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </section>
-          <section className="dbm-card dbm-guided">
-            <ol className="dbm-rail">
-              <li className={chosen ? 'done' : 'current'}>Database</li>
-              <li className={chosen ? 'current' : ''}>Collector</li>
-              <li className={chosen ? 'current' : ''}>Configure and verify</li>
-            </ol>
-            <div className="dbm-guided-body">
-              <h3>Select database</h3>
-              <div className="dbm-engines">
-                {ENGINES.map((e) => (
-                  <button key={e.engine} className={`setup-tile${engine === e.engine ? ' selected' : ''}`} onClick={() => setEngine(e.engine)}>
-                    <strong>{e.name}</strong>
-                  </button>
-                ))}
+        ) : (
+          <>
+            <div className="dbm-setup-head">
+              <h2>
+                <span className="dbm-setup-icon">
+                  <Plus size={20} />
+                </span>
+                Add Database Instance
+              </h2>
+              <span className="dbm-feedback muted">
+                Setup feedback <ThumbsUp size={15} /> <ThumbsDown size={15} />
+              </span>
+            </div>
+            <p className="dbm-setup-intro">Pick your database and how it runs, then follow the steps to send its metrics to ObserveCraft.</p>
+            <section className="dbm-card dbm-tour">
+              <h2>Feature Tour</h2>
+              <div className="dbm-tour-body">
+                <ul>
+                  {FEATURES.map((x, i) => (
+                    <li key={x.name}>
+                      <button className={i === feature ? 'active' : ''} onClick={() => setFeature(i)}>
+                        {x.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="dbm-tour-text">
+                  {!f.available && <span className="dbm-na">Not available yet</span>}
+                  <p>{f.text}</p>
+                  {f.points.length > 0 && (
+                    <ul>
+                      {f.points.map((p) => (
+                        <li key={p}>{p}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <Link className="btn" to="/integrations">
+                    Browse integrations <ExternalLink size={14} />
+                  </Link>
+                </div>
               </div>
-              {chosen && (
-                <>
-                  <h3>Set up {chosen.name}</h3>
-                  <SetupOptions key={chosen.engine} options={engineOptions(chosen)} />
-                </>
-              )}
+            </section>
+            <div className="dbm-guided">
+              <aside className="dbm-card dbm-rail">
+                <h4>SETUP STEPS</h4>
+                <ol>
+                  <li className={chosen ? 'done' : 'current'}>
+                    <span className="dbm-rail-dot">1</span> Database
+                  </li>
+                  {chosen ? (
+                    <>
+                      <li className="current">
+                        <span className="dbm-rail-dot">2</span> Collector
+                      </li>
+                      <li>
+                        <span className="dbm-rail-dot">3</span> Configure and verify
+                      </li>
+                    </>
+                  ) : (
+                    <li className="dbm-rail-more">
+                      <span className="dbm-rail-dot">?</span>
+                      <span>
+                        <em>More setup steps</em>
+                        <small>They depend on the database you pick.</small>
+                      </span>
+                    </li>
+                  )}
+                </ol>
+              </aside>
+              <section className="dbm-card dbm-step">
+                <header>
+                  <h3>
+                    <span className="dbm-rail-dot current">{chosen ? 2 : 1}</span> {chosen ? `Set up ${chosen.name}` : 'Select database'}
+                  </h3>
+                  {chosen && (
+                    <button className="link-btn" onClick={() => setEngine(null)}>
+                      Change database
+                    </button>
+                  )}
+                </header>
+                <div className="dbm-step-body">
+                  {chosen ? (
+                    <SetupOptions key={chosen.engine} options={engineOptions(chosen)} />
+                  ) : (
+                    <>
+                      <p>Choose the database you want to monitor.</p>
+                      <h5>DATABASE</h5>
+                      <div className="dbm-engines">
+                        {ENGINES.map((e) => (
+                          <button key={e.engine} className="dbm-engine-tile" onClick={() => setEngine(e.engine)}>
+                            <Database size={30} strokeWidth={1.5} className={`dbm-engine-icon dbm-engine-${e.engine}`} />
+                            {e.name}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </section>
             </div>
-          </section>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
