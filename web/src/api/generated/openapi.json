@@ -2107,6 +2107,71 @@
         }
       }
     },
+    "/api/v1/gpu/search": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "GPUs that reported in the last minutes of the range, with their current values.",
+        "operationId": "search_gpus",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GpuSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuSearchPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gpu/timeseries": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "Utilization, memory, temperature and power over the range, for the GPUs matching the query, per group.",
+        "operationId": "gpu_timeseries",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GpuTimeseriesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GpuSeries"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/hosts/search": {
       "post": {
         "tags": [
@@ -13576,6 +13641,317 @@
           "template": {
             "type": "string",
             "description": "standard | brief"
+          }
+        }
+      },
+      "GpuDevice": {
+        "type": "object",
+        "required": [
+          "id",
+          "host",
+          "workloads",
+          "state",
+          "sources"
+        ],
+        "properties": {
+          "cluster": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "driver": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "host": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "description": "`host/uuid` (or `host/gpu<index>`)."
+          },
+          "index": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "memTotalBytes": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "memUsedBytes": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "powerW": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GpuSource"
+            }
+          },
+          "state": {
+            "$ref": "#/components/schemas/GpuState"
+          },
+          "tempC": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "utilPct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "uuid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "vendor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workloads": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`namespace/pod` (or container) of the workloads its metrics are tagged with."
+          }
+        }
+      },
+      "GpuFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "values"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GpuFacetValue"
+            }
+          }
+        }
+      },
+      "GpuFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "GpuSearchPage": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "summary",
+          "devices",
+          "facets"
+        ],
+        "properties": {
+          "devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GpuDevice"
+            }
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "False when no GPU metrics arrived at all in the range (show the setup guide)."
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GpuFacet"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/GpuSummary"
+          }
+        }
+      },
+      "GpuSearchRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "`cluster:x host:y model:z state:idle kube_namespace:n` + free text on the device, model and workloads."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "GpuSeries": {
+        "type": "object",
+        "required": [
+          "metric",
+          "unit",
+          "points"
+        ],
+        "properties": {
+          "group": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The group's value; null for the whole fleet."
+          },
+          "metric": {
+            "type": "string",
+            "description": "utilization (average, %), memory_used (sum, bytes), temperature (average, °C) or power (sum, W)."
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            },
+            "description": "`[timestamp ms, value]` pairs."
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      },
+      "GpuSource": {
+        "type": "string",
+        "description": "What reports a GPU.",
+        "enum": [
+          "datadog_gpu",
+          "datadog_dcgm",
+          "dcgm_exporter"
+        ]
+      },
+      "GpuState": {
+        "type": "string",
+        "enum": [
+          "idle",
+          "underutilized",
+          "active",
+          "no_data"
+        ]
+      },
+      "GpuSummary": {
+        "type": "object",
+        "required": [
+          "gpus",
+          "hosts",
+          "memUsedBytes",
+          "memTotalBytes",
+          "idle",
+          "underutilized"
+        ],
+        "properties": {
+          "avgUtilPct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Average over the GPUs that report utilization."
+          },
+          "gpus": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hosts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "idle": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "memTotalBytes": {
+            "type": "number",
+            "format": "double"
+          },
+          "memUsedBytes": {
+            "type": "number",
+            "format": "double"
+          },
+          "underutilized": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "GpuTimeseriesRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "groupBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`host`, `cluster`, `model`, `vendor`, `state` or `kube_namespace`: one series per value; none for the whole fleet."
+          },
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
           }
         }
       },

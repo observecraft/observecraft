@@ -8,6 +8,7 @@ pub mod dashboards;
 pub mod downtimes;
 pub mod error_tracking;
 pub mod events;
+pub mod gpu;
 pub mod health;
 pub mod hosts;
 pub mod identity;
@@ -25,6 +26,7 @@ pub mod log_metrics;
 pub mod log_pipelines;
 pub mod log_restrictions;
 pub mod logs;
+pub mod metric_inventory;
 pub mod metrics;
 pub mod monitor_engine;
 pub mod monitor_formula;
@@ -126,6 +128,8 @@ use crate::state::AppState;
         hosts::containers,
         catalog::search,
         changes::search,
+        gpu::search,
+        gpu::timeseries,
         kubernetes::search,
         kubernetes::detail,
         identity::me,
@@ -490,6 +494,8 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/hosts/:name/containers", post(hosts::containers))
         .route("/api/v1/infrastructure/catalog", post(catalog::search))
         .route("/api/v1/infrastructure/changes", post(changes::search))
+        .route("/api/v1/gpu/search", post(gpu::search))
+        .route("/api/v1/gpu/timeseries", post(gpu::timeseries))
         .route("/api/v1/orchestration/search", post(kubernetes::search))
         .route(
             "/api/v1/orchestration/resources/*uid",
@@ -819,6 +825,8 @@ mod tests {
             include_str!("notifications.rs"),
             include_str!("health.rs"),
             include_str!("hosts.rs"),
+            include_str!("gpu.rs"),
+            include_str!("metric_inventory.rs"),
             include_str!("events.rs"),
             include_str!("network.rs"),
             include_str!("notebooks.rs"),
@@ -880,6 +888,8 @@ mod tests {
             ("dashboards.rs", include_str!("dashboards.rs")),
             ("error_tracking.rs", include_str!("error_tracking.rs")),
             ("hosts.rs", include_str!("hosts.rs")),
+            ("gpu.rs", include_str!("gpu.rs")),
+            ("metric_inventory.rs", include_str!("metric_inventory.rs")),
             ("events.rs", include_str!("events.rs")),
             ("network.rs", include_str!("network.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
@@ -973,6 +983,8 @@ mod tests {
             ("events.rs", include_str!("events.rs")),
             ("health.rs", include_str!("health.rs")),
             ("hosts.rs", include_str!("hosts.rs")),
+            ("gpu.rs", include_str!("gpu.rs")),
+            ("metric_inventory.rs", include_str!("metric_inventory.rs")),
             ("identity.rs", include_str!("identity.rs")),
             ("incident_views.rs", include_str!("incident_views.rs")),
             ("incidents.rs", include_str!("incidents.rs")),

@@ -1,10 +1,8 @@
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Boxes, Cloud, PackagePlus, Plug, Server, type LucideIcon } from 'lucide-react';
-import { CopyButton } from '../settings/SecuritySettings';
-import { categoriesFor, fill, sourcesFor, type CategoryName, type GuideKind } from './sources';
+import { SetupStepList } from './SetupOptions';
+import { categoriesFor, sourcesFor, type CategoryName, type GuideKind } from './sources';
 import './setup.css';
-
-const intakeUrl = () => `${window.location.protocol}//${window.location.hostname}:4318`;
 
 const ICONS: Record<CategoryName, LucideIcon> = { Server, Container: Boxes, Cloud, Other: Plug };
 
@@ -30,7 +28,6 @@ export function SetupGuidePage({ kind }: { kind: GuideKind }) {
   const categories = categoriesFor(kind);
   const selected = sources.find((s) => s.id === params.get('source'));
   const category = selected?.category ?? categories.find((c) => c.name === params.get('category'))?.name;
-  const values = { intake: intakeUrl(), apiKey: '<API_KEY>' };
   const titles = TITLES[kind];
   return (
     <div className="setup-page">
@@ -62,27 +59,7 @@ export function SetupGuidePage({ kind }: { kind: GuideKind }) {
                 <ArrowLeft size={14} /> {selected.category}
               </button>
               <h2>{selected.name}</h2>
-              <p className="muted">{selected.summary}</p>
-              <p className="setup-key-note">
-                Replace <code>&lt;API_KEY&gt;</code> with a key from <Link to="/organization-settings/api-keys">API Keys</Link>. The intake for this install is <code>{values.intake}</code>.
-              </p>
-              <ol className="setup-steps">
-                {selected.steps.map((step) => (
-                  <li key={step.title}>
-                    <h3>{step.title}</h3>
-                    {step.text && <p>{step.text}</p>}
-                    {step.code && (
-                      <div className="key-snippet">
-                        <div className="key-snippet-head">
-                          <span />
-                          <CopyButton text={fill(step.code, values)} />
-                        </div>
-                        <pre>{fill(step.code, values)}</pre>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ol>
+              <SetupStepList option={selected} />
             </div>
           ) : category ? (
             <div className="setup-tiles">

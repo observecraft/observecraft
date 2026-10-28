@@ -76,6 +76,7 @@ import { ChangesPage } from './pages/infrastructure/ChangesPage';
 import { ResourceCatalogPage } from './pages/infrastructure/ResourceCatalogPage';
 import { ResourcesLayout } from './pages/infrastructure/ResourcesLayout';
 import { HostsPage } from './pages/infrastructure/HostsPage';
+import { GpuMonitoringPage } from './pages/gpu/GpuMonitoringPage';
 import { KubernetesOverview } from './pages/kubernetes/KubernetesOverview';
 import { KubernetesComingSoon } from './pages/kubernetes/KubernetesComingSoon';
 import { OrchestrationExplorer, ProcessMetrics } from './pages/kubernetes/OrchestrationExplorer';
@@ -173,6 +174,8 @@ function Shell() {
               <Route path="/infrastructure/catalog" element={<ResourceCatalogPage />} />
               <Route path="/infrastructure/changes" element={<ChangesPage />} />
             </Route>
+            <Route path="/gpu-monitoring" element={<GpuMonitoringPage view="summary" />} />
+            <Route path="/gpu-monitoring/explorer" element={<GpuMonitoringPage view="explorer" />} />
             <Route path="/logs/onboarding" element={<SetupGuidePage kind="logs" />} />
             <Route path="/release-notes" element={<ReleaseNotesPage />} />
             <Route path="/kubernetes" element={<KubernetesOverview />} />

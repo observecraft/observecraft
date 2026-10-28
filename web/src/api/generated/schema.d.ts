@@ -983,6 +983,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/gpu/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** GPUs that reported in the last minutes of the range, with their current values. */
+        post: operations["search_gpus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gpu/timeseries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Utilization, memory, temperature and power over the range, for the GPUs matching the query, per group. */
+        post: operations["gpu_timeseries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hosts/search": {
         parameters: {
             query?: never;
@@ -4903,6 +4937,91 @@ export interface components {
         GeneratePostmortem: {
             /** @description standard | brief */
             template: string;
+        };
+        GpuDevice: {
+            cluster?: string | null;
+            driver?: string | null;
+            host: string;
+            /** @description `host/uuid` (or `host/gpu<index>`). */
+            id: string;
+            index?: string | null;
+            /** Format: double */
+            memTotalBytes?: number | null;
+            /** Format: double */
+            memUsedBytes?: number | null;
+            model?: string | null;
+            /** Format: double */
+            powerW?: number | null;
+            sources: components["schemas"]["GpuSource"][];
+            state: components["schemas"]["GpuState"];
+            /** Format: double */
+            tempC?: number | null;
+            /** Format: double */
+            utilPct?: number | null;
+            uuid?: string | null;
+            vendor?: string | null;
+            /** @description `namespace/pod` (or container) of the workloads its metrics are tagged with. */
+            workloads: string[];
+        };
+        GpuFacet: {
+            key: string;
+            values: components["schemas"]["GpuFacetValue"][];
+        };
+        GpuFacetValue: {
+            count: number;
+            value: string;
+        };
+        GpuSearchPage: {
+            devices: components["schemas"]["GpuDevice"][];
+            /** @description False when no GPU metrics arrived at all in the range (show the setup guide). */
+            enabled: boolean;
+            facets: components["schemas"]["GpuFacet"][];
+            summary: components["schemas"]["GpuSummary"];
+        };
+        GpuSearchRequest: {
+            /** @description `cluster:x host:y model:z state:idle kube_namespace:n` + free text on the device, model and workloads. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        GpuSeries: {
+            /** @description The group's value; null for the whole fleet. */
+            group?: string | null;
+            /** @description utilization (average, %), memory_used (sum, bytes), temperature (average, °C) or power (sum, W). */
+            metric: string;
+            /** @description `[timestamp ms, value]` pairs. */
+            points: [
+                number,
+                number
+            ][];
+            unit: string;
+        };
+        /**
+         * @description What reports a GPU.
+         * @enum {string}
+         */
+        GpuSource: "datadog_gpu" | "datadog_dcgm" | "dcgm_exporter";
+        /** @enum {string} */
+        GpuState: "idle" | "underutilized" | "active" | "no_data";
+        GpuSummary: {
+            /**
+             * Format: double
+             * @description Average over the GPUs that report utilization.
+             */
+            avgUtilPct?: number | null;
+            gpus: number;
+            hosts: number;
+            idle: number;
+            /** Format: double */
+            memTotalBytes: number;
+            /** Format: double */
+            memUsedBytes: number;
+            underutilized: number;
+        };
+        GpuTimeseriesRequest: {
+            /** @description `host`, `cluster`, `model`, `vendor`, `state` or `kube_namespace`: one series per value; none for the whole fleet. */
+            groupBy?: string | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
         };
         GrokSampleResult: {
             /** @description What it extracted, as nested attributes. */
@@ -9864,6 +9983,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkItemsPage"];
+                };
+            };
+        };
+    };
+    search_gpus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GpuSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuSearchPage"];
+                };
+            };
+        };
+    };
+    gpu_timeseries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GpuTimeseriesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuSeries"][];
                 };
             };
         };

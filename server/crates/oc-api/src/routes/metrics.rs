@@ -790,14 +790,16 @@ pub(crate) fn with_window(c: clickhouse::Client, from: i64, to: i64) -> clickhou
 
 /// Points of the `kind` ("gauge" or "sum") metrics `names` in the window, with the columns of the
 /// exporter's tables that direct readers use (OrgId, MetricName, ServiceName, ResourceAttributes,
-/// Attributes, TimeUnix, Value), from series + samples. `names` are the caller's constants.
+/// Attributes, TimeUnix, Value), plus the series' Temporality (OTLP: 1 delta, 2 cumulative) and
+/// Monotonic flag, from series + samples. `names` are the caller's constants.
 pub(crate) fn points_subquery(kind: &str, names: &[&str]) -> String {
     assert!(matches!(kind, "gauge" | "sum"));
     let names = name_list(names);
     format!(
         "(SELECT x.OrgId AS OrgId, x.MetricName AS MetricName, s.ServiceName AS ServiceName, s.ResourceAttributes AS ResourceAttributes, s.Attributes AS Attributes, \
-                 x.TimeUnix AS TimeUnix, x.Value AS Value FROM otel.metrics_samples AS x \
-          INNER JOIN (SELECT SeriesId, any(ServiceName) AS ServiceName, any(ResourceAttributes) AS ResourceAttributes, any(Attributes) AS Attributes FROM otel.metrics_series \
+                 x.TimeUnix AS TimeUnix, x.Value AS Value, s.Temporality AS Temporality, s.Monotonic AS Monotonic FROM otel.metrics_samples AS x \
+          INNER JOIN (SELECT SeriesId, any(ServiceName) AS ServiceName, any(ResourceAttributes) AS ResourceAttributes, any(Attributes) AS Attributes, \
+                             any(AggregationTemporality) AS Temporality, any(IsMonotonic) AS Monotonic FROM otel.metrics_series \
                       WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) AND MetricType = '{kind}' AND LastSeen >= toDateTime(intDiv({{oc_from:Int64}}, 1000)) \
                       GROUP BY SeriesId) AS s ON x.SeriesId = s.SeriesId \
           WHERE x.OrgId = {{oc_org:String}} AND x.MetricName IN ({names}) \
