@@ -2052,6 +2052,37 @@
         }
       }
     },
+    "/api/v1/events/work-items": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Triage Inbox: the range's warning and error events correlated into work items, one per affected\nobject (the Agent's aggregation key) or, without one, per source and title.",
+        "operationId": "event_work_items",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkItemsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemsPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/hosts/search": {
       "post": {
         "tags": [
@@ -18441,6 +18472,108 @@
           "range"
         ],
         "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "WorkItem": {
+        "type": "object",
+        "description": "Correlated events: one affected object's warnings and errors.",
+        "required": [
+          "id",
+          "title",
+          "source",
+          "status",
+          "reason",
+          "summary",
+          "count",
+          "firstSeen",
+          "lastSeen",
+          "state",
+          "tags"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reason": {
+            "type": "string",
+            "description": "The newest event's reason (`BackOff`, `OOMKilling`), when it names one."
+          },
+          "source": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "description": "open (events in the last 30 minutes of the range) | closed"
+          },
+          "status": {
+            "type": "string",
+            "description": "error | warning"
+          },
+          "summary": {
+            "type": "string",
+            "description": "The newest event's text."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Where it happened (cluster, namespace, service, env)."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkItemsPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "open",
+          "closed"
+        ],
+        "properties": {
+          "closed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkItem"
+            }
+          },
+          "open": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "WorkItemsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
           }

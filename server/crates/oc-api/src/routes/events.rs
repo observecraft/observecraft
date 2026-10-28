@@ -270,6 +270,141 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
     Ok(Json(EventPage { items, total, facets, histogram }))
 }
 
+// ================================================================ triage inbox
+
+/// Warning and error events of one object (the Agent's aggregation key), or of one source and title.
+#[derive(Row, Deserialize, Clone)]
+pub(crate) struct WorkItemRow {
+    pub key: String,
+    pub title: String,
+    pub source: String,
+    pub statuses: Vec<String>,
+    pub count: u64,
+    pub first: i64,
+    pub last: i64,
+    /// The newest event's text.
+    pub text: String,
+    pub tags: String,
+}
+
+/// Correlated events: one affected object's warnings and errors.
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkItem {
+    pub id: String,
+    pub title: String,
+    pub source: String,
+    /// error | warning
+    pub status: String,
+    /// The newest event's reason (`BackOff`, `OOMKilling`), when it names one.
+    pub reason: String,
+    /// The newest event's text.
+    pub summary: String,
+    pub count: u64,
+    pub first_seen: i64,
+    pub last_seen: i64,
+    /// open (events in the last 30 minutes of the range) | closed
+    pub state: String,
+    /// Where it happened (cluster, namespace, service, env).
+    pub tags: Vec<String>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct WorkItemsPage {
+    pub items: Vec<WorkItem>,
+    pub open: usize,
+    pub closed: usize,
+}
+
+/// A work item stays open while its object keeps reporting.
+const OPEN_FOR_MS: i64 = 30 * 60_000;
+const WORK_ITEM_TAGS: [&str; 4] = ["kube_cluster_name", "kube_namespace", "service", "env"];
+
+/// An event's first line of text without its Markdown (`%%%` wrappers, `**bold**`).
+fn event_plain(text: &str) -> String {
+    text.lines().map(|l| l.trim().trim_matches('%').trim()).find(|l| !l.is_empty()).unwrap_or("").replace("**", "")
+}
+
+/// The reason a Kubernetes event gives (`3100 BackOff: Back-off …` → `BackOff`), else empty.
+fn event_reason(text: &str) -> String {
+    let plain = event_plain(text);
+    let first = plain.as_str();
+    let rest = first.split_once(' ').filter(|(n, _)| n.chars().all(|c| c.is_ascii_digit())).map_or(first, |(_, r)| r);
+    match rest.split_once(':') {
+        Some((word, _)) if !word.is_empty() && word.chars().all(|c| c.is_ascii_alphanumeric()) => word.to_string(),
+        _ => String::new(),
+    }
+}
+
+fn worst_status(statuses: &[String]) -> String {
+    if statuses.iter().any(|s| s == "error") { "error" } else { "warning" }.to_string()
+}
+
+fn work_item(r: WorkItemRow, range_end: i64) -> WorkItem {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in r.key.bytes() {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    let tags = r.tags.split(',').filter(|t| t.split_once(':').is_some_and(|(k, _)| WORK_ITEM_TAGS.contains(&k))).map(str::to_string).collect();
+    WorkItem {
+        id: format!("{h:016x}"),
+        status: worst_status(&r.statuses),
+        reason: event_reason(&r.text),
+        summary: event_plain(&r.text).chars().take(300).collect(),
+        state: if range_end - r.last <= OPEN_FOR_MS { "open" } else { "closed" }.into(),
+        tags,
+        title: r.title,
+        source: r.source,
+        count: r.count,
+        first_seen: r.first,
+        last_seen: r.last,
+    }
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct WorkItemsRequest {
+    pub range: TimeRange,
+    #[serde(default)]
+    pub query: String,
+}
+
+/// Work items most recently active first.
+const WORK_ITEMS: u64 = 500;
+
+/// Triage Inbox: the range's warning and error events correlated into work items, one per affected
+/// object (the Agent's aggregation key) or, without one, per source and title.
+#[utoipa::path(post, path = "/api/v1/events/work-items", operation_id = "event_work_items", request_body = WorkItemsRequest, responses((status = 200, body = WorkItemsPage)), tag = "events")]
+pub async fn work_items(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<WorkItemsRequest>) -> ApiResult<WorkItemsPage> {
+    req.range.validate()?;
+    let conds = conditions(&req.query);
+    let mut where_sql = RANGE.to_string();
+    for c in &conds {
+        where_sql.push_str(" AND ");
+        where_sql.push_str(&c.sql);
+    }
+    let mut q = st
+        .ch(&org)
+        .query(&format!(
+            "SELECT if(LogAttributes['aggregation_key'] != '', LogAttributes['aggregation_key'], concat(LogAttributes['source_type_name'], ':', LogAttributes['title'])) AS key, \
+             argMax(LogAttributes['title'], Timestamp) AS title, any(LogAttributes['source_type_name']) AS source, groupUniqArray(toString(SeverityText)) AS statuses, \
+             count() AS count, toInt64(toUnixTimestamp64Milli(min(Timestamp))) AS first, toInt64(toUnixTimestamp64Milli(max(Timestamp))) AS last, \
+             argMax(Body, Timestamp) AS text, argMax(LogAttributes['tags'], Timestamp) AS tags \
+             FROM otel.otel_events WHERE OrgId = {{oc_org:String}} AND {where_sql} AND SeverityText IN ('error', 'warning') \
+             GROUP BY key ORDER BY last DESC LIMIT {WORK_ITEMS}"
+        ))
+        .bind(req.range.from)
+        .bind(req.range.to);
+    for c in &conds {
+        for b in &c.binds {
+            q = q.bind(b.as_str());
+        }
+    }
+    let items: Vec<WorkItem> = q.fetch_all::<WorkItemRow>().await?.into_iter().map(|r| work_item(r, req.range.to)).collect();
+    let open = items.iter().filter(|i| i.state == "open").count();
+    Ok(Json(WorkItemsPage { closed: items.len() - open, open, items }))
+}
+
 #[derive(Deserialize, ToSchema)]
 pub struct EventFieldsRequest {
     pub range: TimeRange,
@@ -315,6 +450,25 @@ pub async fn fields(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_work_item_names_its_reason_worst_status_and_state() {
+        assert_eq!(event_reason("3100 BackOff: Back-off restarting failed container alloy in pod alloy-xxf8p"), "BackOff");
+        assert_eq!(event_reason("283 OOMKilling: Memory cgroup out of memory"), "OOMKilling");
+        assert_eq!(event_reason("Container 0345 ran out of memory"), "");
+        // The Agent's events are Markdown: %%% wrappers and **bold** reasons.
+        assert_eq!(event_reason("%%% \n546439 **BackOff**: Back-off restarting failed container\n \n _Events emitted by the kubelet_"), "BackOff");
+        assert_eq!(event_plain("%%% \n546439 **BackOff**: Back-off restarting\n \n _Events emitted_"), "546439 BackOff: Back-off restarting");
+        assert_eq!(worst_status(&["warning".into(), "error".into(), "info".into()]), "error");
+        assert_eq!(worst_status(&["warning".into()]), "warning");
+        let row = WorkItemRow { key: "kubernetes_apiserver:abc".into(), title: "Events from the Pod shop/checkout-7d9".into(), source: "kubernetes".into(), statuses: vec!["warning".into()], count: 12, first: 1_000, last: 9_000_000, text: "12 BackOff: Back-off restarting".into(), tags: "kube_namespace:shop,kube_cluster_name:prod,pod_name:checkout-7d9".into() };
+        let open = work_item(row.clone(), 10_000_000);
+        assert_eq!((open.state.as_str(), open.reason.as_str(), open.count), ("open", "BackOff", 12));
+        assert_eq!(open.tags, vec!["kube_namespace:shop".to_string(), "kube_cluster_name:prod".to_string()]);
+        assert_eq!(open.id, work_item(row.clone(), 10_000_000).id);
+        // Quiet for more than 30 minutes before the range's end: closed.
+        assert_eq!(work_item(row, 9_000_000 + 31 * 60_000).state, "closed");
+    }
 
     #[test]
     fn facets_are_the_core_ones_then_env_service_and_added_tags() {

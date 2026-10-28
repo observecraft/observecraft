@@ -965,6 +965,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/work-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Triage Inbox: the range's warning and error events correlated into work items, one per affected
+         *     object (the Agent's aggregation key) or, without one, per source and title. */
+        post: operations["event_work_items"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hosts/search": {
         parameters: {
             query?: never;
@@ -6343,6 +6361,37 @@ export interface components {
         VolumeRequest: {
             range: components["schemas"]["TimeRange"];
         };
+        /** @description Correlated events: one affected object's warnings and errors. */
+        WorkItem: {
+            /** Format: int64 */
+            count: number;
+            /** Format: int64 */
+            firstSeen: number;
+            id: string;
+            /** Format: int64 */
+            lastSeen: number;
+            /** @description The newest event's reason (`BackOff`, `OOMKilling`), when it names one. */
+            reason: string;
+            source: string;
+            /** @description open (events in the last 30 minutes of the range) | closed */
+            state: string;
+            /** @description error | warning */
+            status: string;
+            /** @description The newest event's text. */
+            summary: string;
+            /** @description Where it happened (cluster, namespace, service, env). */
+            tags: string[];
+            title: string;
+        };
+        WorkItemsPage: {
+            closed: number;
+            items: components["schemas"]["WorkItem"][];
+            open: number;
+        };
+        WorkItemsRequest: {
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
     };
     responses: never;
     parameters: never;
@@ -7818,6 +7867,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventPage"];
+                };
+            };
+        };
+    };
+    event_work_items: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkItemsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemsPage"];
                 };
             };
         };

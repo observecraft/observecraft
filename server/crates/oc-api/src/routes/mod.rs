@@ -88,6 +88,7 @@ use crate::state::AppState;
         dashboards::monitor_summary,
         events::search,
         events::fields,
+        events::work_items,
         network::flows,
         network::dns,
         profiles::search,
@@ -359,6 +360,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/ci/repositories", get(ci::repositories))
         .route("/api/v1/events/search", post(events::search))
         .route("/api/v1/events/fields", post(events::fields))
+        .route("/api/v1/events/work-items", post(events::work_items))
         .route("/api/v1/network/flows", post(network::flows))
         .route("/api/v1/network/dns", post(network::dns))
         .route("/api/v1/profiles/search", post(profiles::search))

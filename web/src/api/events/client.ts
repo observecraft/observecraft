@@ -2,6 +2,7 @@
 // Agent and the events API send through the intake, in ClickHouse); otherwise the in-browser mock answers.
 //   POST /api/v1/events/search   searchEvents
 //   POST /api/v1/events/fields   eventFields
+//   POST /api/v1/events/work-items   workItems
 import type { components } from '../generated/schema';
 import { API_MODE, post } from '../http';
 import * as mock from '../mock/events';
@@ -22,4 +23,13 @@ export async function searchEvents(req: EventSearchRequest): Promise<EventPage> 
 export async function eventFields(req: { range: EventSearchRequest['range']; query?: string }): Promise<{ key: string; count: number }[]> {
   if (!live) return mock.eventFields(req);
   return post('/api/v1/events/fields', { range: req.range, query: req.query ?? '' });
+}
+
+export type WorkItem = components['schemas']['WorkItem'];
+export type WorkItemsPage = components['schemas']['WorkItemsPage'];
+
+/** Triage Inbox: warning and error events correlated into work items. */
+export async function workItems(req: { range: EventSearchRequest['range']; query?: string }): Promise<WorkItemsPage> {
+  if (!live) return mock.workItems(req);
+  return post('/api/v1/events/work-items', { range: req.range, query: req.query ?? '' });
 }

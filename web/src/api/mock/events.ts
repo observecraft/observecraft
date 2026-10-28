@@ -131,3 +131,29 @@ export async function eventFields(req: { range: EventSearchRequest['range']; que
   for (const e of items) for (const key of new Set(e.tags.filter((t) => t.includes(':')).map((t) => t.slice(0, t.indexOf(':'))))) counts.set(key, (counts.get(key) ?? 0) + 1);
   return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([key, count]) => ({ key, count }));
 }
+
+/** Warning and error events grouped by title (the demo events have no aggregation keys). */
+export async function workItems(req: { range: EventSearchRequest['range']; query?: string }) {
+  const { items } = await searchEvents({ range: req.range, query: req.query ?? '', limit: 10_000, offset: 0 });
+  const groups = new Map<string, EventItem[]>();
+  for (const e of items.filter((e) => e.alertType === 'error' || e.alertType === 'warning')) groups.set(`${e.source}:${e.title}`, [...(groups.get(`${e.source}:${e.title}`) ?? []), e]);
+  const list = [...groups].map(([key, es]) => {
+    const last = Math.max(...es.map((e) => e.timestamp));
+    return {
+      id: key,
+      title: es[0].title,
+      source: es[0].source,
+      status: es.some((e) => e.alertType === 'error') ? 'error' : 'warning',
+      reason: '',
+      summary: es[0].text.split('\n')[0],
+      count: es.length,
+      firstSeen: Math.min(...es.map((e) => e.timestamp)),
+      lastSeen: last,
+      state: req.range.to - last <= 30 * 60_000 ? 'open' : 'closed',
+      tags: es[0].tags.filter((t) => /^(kube_cluster_name|kube_namespace|service|env):/.test(t)),
+    };
+  });
+  list.sort((a, b) => b.lastSeen - a.lastSeen);
+  const open = list.filter((i) => i.state === 'open').length;
+  return { items: list, open, closed: list.length - open };
+}

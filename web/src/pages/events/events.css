@@ -407,9 +407,6 @@
   padding-left: 50px;
 }
 
-.ev-proj-add {
-  color: var(--accent);
-}
 
 .ev-inbox-main {
   flex: 1;
@@ -468,39 +465,101 @@
   color: var(--text-muted);
 }
 
-.ev-inbox-empty .link {
-  color: var(--accent);
-}
 
-.ev-inbox-tip {
+
+
+
+
+
+/* ---------- Triage Inbox work items ---------- */
+.ev-wi-list {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 32px;
-  margin: 40px 64px 24px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
 }
 
-.ev-inbox-tip h4 {
-  font-size: var(--fs-xl);
-  margin: 0 0 10px;
-}
-
-.ev-inbox-tip p {
-  color: var(--text-muted);
-}
-
-.ev-inbox-card {
-  width: 340px;
-  padding: 16px;
+.ev-wi {
   border: 1px solid var(--border);
+  border-left: 4px solid var(--status-warn);
   border-radius: var(--radius-sm);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+  background: var(--bg);
 }
 
-.ev-inbox-card h5 {
+.ev-wi.ev-wi-error {
+  border-left-color: var(--status-error);
+}
+
+.ev-wi-head {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 0 0 6px;
-  font-size: var(--fs-lg);
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.ev-wi-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ev-wi-title {
+  overflow: hidden;
+  font-weight: var(--fw-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ev-wi-reason {
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--status-warn);
+  color: var(--text-inverse);
+  font-size: var(--fs-sm);
+}
+
+.ev-wi-reason.ev-wi-error {
+  background: var(--status-error);
+}
+
+.ev-wi-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ev-wi-state {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: var(--fs-sm);
+}
+
+.ev-wi-state-open {
+  background: var(--bg-subtle);
+  color: var(--status-error);
+}
+
+.ev-wi-state-closed {
+  background: var(--bg-subtle);
+  color: var(--text-faint);
+}
+
+.ev-wi-count,
+.ev-wi-time {
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+}
+
+.ev-wi-body {
+  padding: 0 12px 10px 42px;
+}
+
+.ev-wi-body p {
+  margin: 4px 0;
+  word-break: break-word;
 }
