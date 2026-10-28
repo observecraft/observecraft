@@ -77,6 +77,23 @@ import { OnCallTeamsPage } from './pages/onCall/TeamsPage';
 import { SyntheticTestEditor } from './pages/synthetics/SyntheticTestEditor';
 import { SyntheticTestPage } from './pages/synthetics/SyntheticTestPage';
 import { SyntheticTestsPage } from './pages/synthetics/SyntheticTestsPage';
+import { SyntheticsLayout, SyntheticsNotAvailable } from './pages/synthetics/SyntheticsLayout';
+import { SyntheticsOverviewPage } from './pages/synthetics/SyntheticsOverviewPage';
+import { TestSuitesPage } from './pages/synthetics/TestSuitesPage';
+import { SuiteEditorPage } from './pages/synthetics/SuiteEditorPage';
+import { ResultsExplorerPage } from './pages/synthetics/ResultsExplorerPage';
+import { TestCoveragePage } from './pages/synthetics/TestCoveragePage';
+import {
+  ContinuousTestingSettings,
+  DefaultSettingsPage,
+  GlobalVariablesPage,
+  MobileApplicationsSettings,
+  SyntheticsDowntimesSettings,
+  SyntheticsIntegrationSettings,
+  SyntheticsPrivateLocations,
+  SyntheticsProfilesSettings,
+  SyntheticsSettingsLayout,
+} from './pages/synthetics/SyntheticsSettings';
 import { CreateFlagPage } from './pages/featureFlags/CreateFlagPage';
 import { EnvironmentsPage } from './pages/featureFlags/EnvironmentsPage';
 import { FeatureFlagsLayout, FlagsOverview } from './pages/featureFlags/FeatureFlagsPage';
@@ -334,8 +351,42 @@ function Shell() {
               <Route path="evaluations" element={<EvaluationsPage />} />
               <Route path="setup" element={null} />
             </Route>
-            <Route path="/synthetics" element={<Navigate to="/synthetics/tests" replace />} />
-            <Route path="/synthetics/tests" element={<SyntheticTestsPage />} />
+            <Route path="/synthetics" element={<SyntheticsLayout />}>
+              <Route index element={<SyntheticsOverviewPage />} />
+              <Route path="tests" element={<SyntheticTestsPage />} />
+              <Route path="suites" element={<TestSuitesPage />} />
+              <Route path="suites/new" element={<SuiteEditorPage />} />
+              <Route path="suites/:id" element={<SuiteEditorPage />} />
+              <Route path="explorer" element={<ResultsExplorerPage />} />
+              <Route path="test-coverage" element={<TestCoveragePage />} />
+              <Route
+                path="ai-testing"
+                element={
+                  <SyntheticsNotAvailable title="AI Testing isn't available yet">
+                    Generating and maintaining tests with an AI assistant isn't available yet. Create API tests with New Test.
+                  </SyntheticsNotAvailable>
+                }
+              />
+              <Route
+                path="continuous-testing"
+                element={
+                  <SyntheticsNotAvailable title="Continuous Testing isn't available yet">
+                    Running tests from CI pipelines isn't available yet. Tests run on their schedule and with Run Test Now; their runs are in the Results Explorer.
+                  </SyntheticsNotAvailable>
+                }
+              />
+            </Route>
+            <Route path="/synthetics/settings" element={<SyntheticsSettingsLayout />}>
+              <Route index element={<Navigate to="default" replace />} />
+              <Route path="default" element={<DefaultSettingsPage />} />
+              <Route path="profiles" element={<SyntheticsProfilesSettings />} />
+              <Route path="downtimes" element={<SyntheticsDowntimesSettings />} />
+              <Route path="variables" element={<GlobalVariablesPage />} />
+              <Route path="integrations" element={<SyntheticsIntegrationSettings />} />
+              <Route path="private-locations" element={<SyntheticsPrivateLocations />} />
+              <Route path="continuous-testing" element={<ContinuousTestingSettings />} />
+              <Route path="mobile-applications" element={<MobileApplicationsSettings />} />
+            </Route>
             <Route path="/synthetics/create" element={<SyntheticTestEditor />} />
             <Route path="/synthetics/tests/:id" element={<SyntheticTestPage />} />
             <Route path="/synthetics/tests/:id/edit" element={<SyntheticTestEditor />} />

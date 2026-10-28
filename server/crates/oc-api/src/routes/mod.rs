@@ -81,6 +81,9 @@ pub mod synthetics;
 pub mod watchdog;
 pub mod synthetics_exec;
 pub mod synthetics_net;
+pub mod synthetics_settings;
+pub mod synthetics_suites;
+pub mod synthetics_explorer;
 
 use axum::routing::{delete, get, patch, post};
 use axum::Router;
@@ -404,6 +407,19 @@ use crate::state::AppState;
         synthetics::try_request,
         synthetics::results,
         synthetics::result,
+        synthetics_suites::search_suites,
+        synthetics_suites::get_suite,
+        synthetics_suites::create_suite,
+        synthetics_suites::update_suite,
+        synthetics_suites::delete_suite,
+        synthetics_explorer::search_results,
+        synthetics_explorer::coverage,
+        synthetics_settings::get_settings,
+        synthetics_settings::update_settings,
+        synthetics_settings::list_variables,
+        synthetics_settings::create_variable,
+        synthetics_settings::update_variable,
+        synthetics_settings::delete_variable,
         scorecards::get_overview,
         scorecards::setup,
         scorecards::evaluate_now,
@@ -947,6 +963,20 @@ pub fn router() -> Router<AppState> {
             post(status_pages::update_notice),
         )
         .route("/api/v1/synthetics/locations", get(synthetics::locations))
+        .route("/api/v1/synthetics/suites", post(synthetics_suites::create_suite))
+        .route("/api/v1/synthetics/suites/search", post(synthetics_suites::search_suites))
+        .route(
+            "/api/v1/synthetics/suites/:id",
+            get(synthetics_suites::get_suite).put(synthetics_suites::update_suite).delete(synthetics_suites::delete_suite),
+        )
+        .route("/api/v1/synthetics/results/search", post(synthetics_explorer::search_results))
+        .route("/api/v1/synthetics/coverage", post(synthetics_explorer::coverage))
+        .route("/api/v1/synthetics/settings", get(synthetics_settings::get_settings).put(synthetics_settings::update_settings))
+        .route("/api/v1/synthetics/variables", get(synthetics_settings::list_variables).post(synthetics_settings::create_variable))
+        .route(
+            "/api/v1/synthetics/variables/:id",
+            axum::routing::put(synthetics_settings::update_variable).delete(synthetics_settings::delete_variable),
+        )
         .route("/api/v1/synthetics/tests", post(synthetics::create))
         .route("/api/v1/synthetics/tests/search", post(synthetics::search))
         .route(
@@ -1261,6 +1291,9 @@ mod tests {
             include_str!("synthetics.rs"),
             include_str!("synthetics_exec.rs"),
             include_str!("synthetics_net.rs"),
+            include_str!("synthetics_suites.rs"),
+            include_str!("synthetics_explorer.rs"),
+            include_str!("synthetics_settings.rs"),
             include_str!("scorecards.rs"),
             include_str!("portal_home.rs"),
             include_str!("portal_sources.rs"),
@@ -1346,6 +1379,9 @@ mod tests {
             ("synthetics.rs", include_str!("synthetics.rs")),
             ("synthetics_exec.rs", include_str!("synthetics_exec.rs")),
             ("synthetics_net.rs", include_str!("synthetics_net.rs")),
+            ("synthetics_suites.rs", include_str!("synthetics_suites.rs")),
+            ("synthetics_explorer.rs", include_str!("synthetics_explorer.rs")),
+            ("synthetics_settings.rs", include_str!("synthetics_settings.rs")),
             ("scorecards.rs", include_str!("scorecards.rs")),
             ("portal_home.rs", include_str!("portal_home.rs")),
             ("portal_sources.rs", include_str!("portal_sources.rs")),
@@ -1509,6 +1545,9 @@ mod tests {
             ("synthetics.rs", include_str!("synthetics.rs")),
             ("synthetics_exec.rs", include_str!("synthetics_exec.rs")),
             ("synthetics_net.rs", include_str!("synthetics_net.rs")),
+            ("synthetics_suites.rs", include_str!("synthetics_suites.rs")),
+            ("synthetics_explorer.rs", include_str!("synthetics_explorer.rs")),
+            ("synthetics_settings.rs", include_str!("synthetics_settings.rs")),
             ("spans.rs", include_str!("spans.rs")),
             ("sso.rs", include_str!("sso.rs")),
             ("standard_attributes.rs", include_str!("standard_attributes.rs")),

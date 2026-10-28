@@ -293,7 +293,7 @@ function Properties({ test: t }: { test: SyntheticTest }) {
   );
 }
 
-function ResultDrawer({ test, resultId, onClose }: { test: SyntheticTest; resultId: number; onClose: () => void }) {
+export function ResultDrawer({ test, resultId, onClose }: { test: Pick<SyntheticTest, 'id' | 'name' | 'type'>; resultId: number; onClose: () => void }) {
   const q = useSyntheticResult(test.id, resultId);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();

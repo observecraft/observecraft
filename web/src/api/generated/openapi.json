@@ -14339,6 +14339,47 @@
         }
       }
     },
+    "/api/v1/synthetics/coverage": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "HTTP endpoints APM saw serving traffic, and the HTTP tests covering each.",
+        "operationId": "get_synthetic_coverage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticCoverageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticCoverage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/synthetics/locations": {
       "get": {
         "tags": [
@@ -14355,6 +14396,318 @@
                   "items": {
                     "$ref": "#/components/schemas/SyntheticLocation"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/results/search": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Searches the runs of every test of the org.",
+        "operationId": "search_synthetic_results",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticResultSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticResultSearchPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/settings": {
+      "get": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "get_synthetic_settings",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Saves the enforced tag rules and the test editor's defaults.",
+        "operationId": "update_synthetic_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/suites": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "create_synthetic_suite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticSuiteInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticSuite"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/suites/search": {
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "The org's suites with their state and uptime over the range.",
+        "operationId": "search_synthetic_suites",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticSuiteSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticSuitesPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/suites/{id}": {
+      "get": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "A suite with its tests; the uptime is over the last day.",
+        "operationId": "get_synthetic_suite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticSuite"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "update_synthetic_suite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticSuiteInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticSuite"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Deletes a suite; its tests stay.",
+        "operationId": "delete_synthetic_suite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -14745,6 +15098,159 @@
             }
           },
           "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/variables": {
+      "get": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "list_synthetic_variables",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SyntheticVariable"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "create_synthetic_variable",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticVariableInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticVariable"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/synthetics/variables/{id}": {
+      "put": {
+        "tags": [
+          "synthetics"
+        ],
+        "summary": "Updates a variable; without a value the stored one is kept.",
+        "operationId": "update_synthetic_variable",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticVariableInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticVariable"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "synthetics"
+        ],
+        "operationId": "delete_synthetic_variable",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
             "description": "",
             "content": {
               "application/json": {
@@ -40047,6 +40553,108 @@
           }
         }
       },
+      "SyntheticCoverage": {
+        "type": "object",
+        "required": [
+          "endpoints",
+          "httpTests"
+        ],
+        "properties": {
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticEndpoint"
+            },
+            "description": "Most requests first."
+          },
+          "httpTests": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SyntheticCoverageRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "SyntheticCoveringTest": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "SyntheticDefaults": {
+        "type": "object",
+        "description": "What the test editor starts a new test with.",
+        "properties": {
+          "frequencySeconds": {
+            "type": "integer",
+            "format": "int32",
+            "default": 300
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "observecraft-server"
+            ]
+          },
+          "minFailureDurationMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "retry": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SyntheticRetry"
+              }
+            ],
+            "default": {
+              "count": 0,
+              "intervalMs": 300
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "timeoutSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "1–60 seconds.",
+            "default": 30,
+            "minimum": 0
+          }
+        }
+      },
       "SyntheticDnsRecord": {
         "type": "object",
         "required": [
@@ -40062,6 +40670,62 @@
           },
           "type": {
             "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "SyntheticEndpoint": {
+        "type": "object",
+        "required": [
+          "service",
+          "method",
+          "route",
+          "requests",
+          "errors",
+          "tests"
+        ],
+        "properties": {
+          "errors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "method": {
+            "type": "string",
+            "description": "Empty when the spans don't say."
+          },
+          "requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "route": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "tests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticCoveringTest"
+            },
+            "description": "HTTP tests calling this method and path."
+          }
+        }
+      },
+      "SyntheticFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
           },
           "value": {
             "type": "string"
@@ -40242,6 +40906,257 @@
           },
           "trigger": {
             "type": "string"
+          }
+        }
+      },
+      "SyntheticResultBucket": {
+        "type": "object",
+        "required": [
+          "t",
+          "passed",
+          "failed"
+        ],
+        "properties": {
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "passed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bucket start, epoch milliseconds."
+          }
+        }
+      },
+      "SyntheticResultFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "values"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "The query key a value filters on."
+          },
+          "label": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticFacetValue"
+            }
+          }
+        }
+      },
+      "SyntheticResultGroup": {
+        "type": "object",
+        "required": [
+          "testId",
+          "testName",
+          "testType",
+          "runs",
+          "failed",
+          "avgDurationMs",
+          "p95DurationMs",
+          "lastRunAt"
+        ],
+        "properties": {
+          "avgDurationMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lastRunAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "p95DurationMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "runs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "testId": {
+            "type": "string"
+          },
+          "testName": {
+            "type": "string"
+          },
+          "testType": {
+            "type": "string"
+          }
+        }
+      },
+      "SyntheticResultRow": {
+        "type": "object",
+        "required": [
+          "id",
+          "testId",
+          "testName",
+          "testType",
+          "location",
+          "startedAt",
+          "durationMs",
+          "passed",
+          "attempts",
+          "trigger",
+          "env",
+          "team",
+          "tags",
+          "failedAssertions"
+        ],
+        "properties": {
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "env": {
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failedAssertions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "location": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "startedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "statusCode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "team": {
+            "type": "string"
+          },
+          "testId": {
+            "type": "string"
+          },
+          "testName": {
+            "type": "string"
+          },
+          "testType": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "string",
+            "description": "scheduled | manual"
+          }
+        }
+      },
+      "SyntheticResultSearchPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "results",
+          "series",
+          "bucketMs",
+          "groups",
+          "facets"
+        ],
+        "properties": {
+          "bucketMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticResultFacet"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticResultGroup"
+            },
+            "description": "Per test, most runs first (at most 100)."
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticResultRow"
+            },
+            "description": "Newest first."
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticResultBucket"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Runs matching the query."
+          }
+        }
+      },
+      "SyntheticResultSearchRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "1–500 (default 50)."
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "query": {
+            "type": "string",
+            "description": "Explorer syntax (see the module docs), e.g. `status:failed @http.status_code:>=500`."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
           }
         }
       },
@@ -40487,6 +41402,190 @@
             ],
             "description": "The URL that answered (after redirects).",
             "default": null
+          }
+        }
+      },
+      "SyntheticSettings": {
+        "type": "object",
+        "properties": {
+          "defaults": {
+            "$ref": "#/components/schemas/SyntheticDefaults"
+          },
+          "enforceEnv": {
+            "type": "boolean",
+            "description": "Every test needs an environment."
+          },
+          "enforceTagKeys": {
+            "type": "boolean",
+            "description": "Every test needs a tag for each key of the default tags."
+          }
+        }
+      },
+      "SyntheticSuite": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "env",
+          "team",
+          "tags",
+          "tests",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "env": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MonitorStatus",
+            "description": "The worst state of its running tests."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "team": {
+            "type": "string"
+          },
+          "tests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticSuiteTest"
+            }
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uptime": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Percent of passing scheduled runs of its tests in the range (absent without runs)."
+          }
+        }
+      },
+      "SyntheticSuiteInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "env": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "team": {
+            "type": "string"
+          },
+          "testIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The suite's tests, in order."
+          }
+        }
+      },
+      "SyntheticSuiteSearchRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Words match name, description and tags; `env:`, `team:` and `status:` (ok, alert, nodata) filter; other `key:value` words match tags."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange",
+            "description": "The uptime is computed over this range."
+          }
+        }
+      },
+      "SyntheticSuiteTest": {
+        "type": "object",
+        "description": "A test of a suite with its current state.",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "status",
+          "paused"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MonitorStatus"
+          },
+          "type": {
+            "$ref": "#/components/schemas/SyntheticTestType"
+          }
+        }
+      },
+      "SyntheticSuitesPage": {
+        "type": "object",
+        "required": [
+          "suites"
+        ],
+        "properties": {
+          "suites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticSuite"
+            }
           }
         }
       },
@@ -40832,6 +41931,119 @@
           "to": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "SyntheticVariable": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "secure",
+          "description",
+          "tags",
+          "usedBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "secure": {
+            "type": "boolean"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "usedBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyntheticVariableUse"
+            },
+            "description": "Tests that use the variable."
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Absent for secure variables."
+          }
+        }
+      },
+      "SyntheticVariableInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": "Upper-case letters, digits and underscores, starting with a letter."
+          },
+          "secure": {
+            "type": "boolean"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required on create; on update, absent keeps the stored value (secure variables are never sent back)."
+          }
+        }
+      },
+      "SyntheticVariableUse": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
           }
         }
       },

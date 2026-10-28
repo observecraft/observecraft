@@ -5210,6 +5210,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/synthetics/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** HTTP endpoints APM saw serving traffic, and the HTTP tests covering each. */
+        post: operations["get_synthetic_coverage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/synthetics/locations": {
         parameters: {
             query?: never;
@@ -5221,6 +5238,91 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/results/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Searches the runs of every test of the org. */
+        post: operations["search_synthetic_results"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_synthetic_settings"];
+        /** Saves the enforced tag rules and the test editor's defaults. */
+        put: operations["update_synthetic_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/suites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_synthetic_suite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/suites/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The org's suites with their state and uptime over the range. */
+        post: operations["search_synthetic_suites"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/suites/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A suite with its tests; the uptime is over the last day. */
+        get: operations["get_synthetic_suite"];
+        put: operations["update_synthetic_suite"];
+        post?: never;
+        /** Deletes a suite; its tests stay. */
+        delete: operations["delete_synthetic_suite"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5340,6 +5442,39 @@ export interface paths {
         /** Sends a request once from the editor (nothing is stored) and suggests assertions for its response. */
         post: operations["try_synthetic_request"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/variables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_synthetic_variables"];
+        put?: never;
+        post: operations["create_synthetic_variable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/variables/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Updates a variable; without a value the stored one is kept. */
+        put: operations["update_synthetic_variable"];
+        post?: never;
+        delete: operations["delete_synthetic_variable"];
         options?: never;
         head?: never;
         patch?: never;
@@ -13039,10 +13174,71 @@ export interface components {
             /** @description The chain verified against the public web roots for the host name. */
             trusted: boolean;
         };
+        SyntheticCoverage: {
+            /** @description Most requests first. */
+            endpoints: components["schemas"]["SyntheticEndpoint"][];
+            /** Format: int64 */
+            httpTests: number;
+        };
+        SyntheticCoverageRequest: {
+            env?: string | null;
+            range: components["schemas"]["TimeRange"];
+        };
+        SyntheticCoveringTest: {
+            id: string;
+            name: string;
+        };
+        /** @description What the test editor starts a new test with. */
+        SyntheticDefaults: {
+            /**
+             * Format: int32
+             * @default 300
+             */
+            frequencySeconds: number;
+            /** @default [
+             *       "observecraft-server"
+             *     ] */
+            locations: string[];
+            /**
+             * Format: int32
+             * @default 0
+             */
+            minFailureDurationMinutes: number;
+            /** @default {
+             *       "count": 0,
+             *       "intervalMs": 300
+             *     } */
+            retry: components["schemas"]["SyntheticRetry"];
+            /** @default [] */
+            tags: string[];
+            /**
+             * Format: int32
+             * @description 1–60 seconds.
+             * @default 30
+             */
+            timeoutSeconds: number;
+        };
         SyntheticDnsRecord: {
             /** Format: int32 */
             ttl: number;
             type: string;
+            value: string;
+        };
+        SyntheticEndpoint: {
+            /** Format: int64 */
+            errors: number;
+            /** @description Empty when the spans don't say. */
+            method: string;
+            /** Format: int64 */
+            requests: number;
+            route: string;
+            service: string;
+            /** @description HTTP tests calling this method and path. */
+            tests: components["schemas"]["SyntheticCoveringTest"][];
+        };
+        SyntheticFacetValue: {
+            /** Format: int64 */
+            count: number;
             value: string;
         };
         SyntheticHeader: {
@@ -13131,6 +13327,93 @@ export interface components {
             startedAt: number;
             testId: string;
             trigger: string;
+        };
+        SyntheticResultBucket: {
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            passed: number;
+            /**
+             * Format: int64
+             * @description Bucket start, epoch milliseconds.
+             */
+            t: number;
+        };
+        SyntheticResultFacet: {
+            /** @description The query key a value filters on. */
+            key: string;
+            label: string;
+            values: components["schemas"]["SyntheticFacetValue"][];
+        };
+        SyntheticResultGroup: {
+            /** Format: double */
+            avgDurationMs: number;
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            lastRunAt: number;
+            /** Format: double */
+            p95DurationMs: number;
+            /** Format: int64 */
+            runs: number;
+            testId: string;
+            testName: string;
+            testType: string;
+        };
+        SyntheticResultRow: {
+            /** Format: int32 */
+            attempts: number;
+            /** Format: double */
+            durationMs: number;
+            env: string;
+            error?: string | null;
+            /** Format: int64 */
+            failedAssertions: number;
+            /** Format: int64 */
+            id: number;
+            location: string;
+            passed: boolean;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            startedAt: number;
+            /** Format: int32 */
+            statusCode?: number | null;
+            tags: string[];
+            team: string;
+            testId: string;
+            testName: string;
+            testType: string;
+            /** @description scheduled | manual */
+            trigger: string;
+        };
+        SyntheticResultSearchPage: {
+            /** Format: int64 */
+            bucketMs: number;
+            facets: components["schemas"]["SyntheticResultFacet"][];
+            /** @description Per test, most runs first (at most 100). */
+            groups: components["schemas"]["SyntheticResultGroup"][];
+            /** @description Newest first. */
+            results: components["schemas"]["SyntheticResultRow"][];
+            series: components["schemas"]["SyntheticResultBucket"][];
+            /**
+             * Format: int64
+             * @description Runs matching the query.
+             */
+            total: number;
+        };
+        SyntheticResultSearchRequest: {
+            /**
+             * Format: int64
+             * @description 1–500 (default 50).
+             */
+            limit?: number | null;
+            /** Format: int64 */
+            offset?: number;
+            /** @description Explorer syntax (see the module docs), e.g. `status:failed @http.status_code:>=500`. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
         };
         SyntheticResultSummary: {
             /** Format: int32 */
@@ -13241,6 +13524,64 @@ export interface components {
              * @default null
              */
             url: string | null;
+        };
+        SyntheticSettings: {
+            defaults?: components["schemas"]["SyntheticDefaults"];
+            /** @description Every test needs an environment. */
+            enforceEnv?: boolean;
+            /** @description Every test needs a tag for each key of the default tags. */
+            enforceTagKeys?: boolean;
+        };
+        SyntheticSuite: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy?: string | null;
+            description: string;
+            env: string;
+            id: string;
+            name: string;
+            /** @description The worst state of its running tests. */
+            status: components["schemas"]["MonitorStatus"];
+            tags: string[];
+            team: string;
+            tests: components["schemas"]["SyntheticSuiteTest"][];
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+            /**
+             * Format: double
+             * @description Percent of passing scheduled runs of its tests in the range (absent without runs).
+             */
+            uptime?: number | null;
+        };
+        SyntheticSuiteInput: {
+            description?: string;
+            env?: string;
+            name: string;
+            tags?: string[];
+            team?: string;
+            /** @description The suite's tests, in order. */
+            testIds?: string[];
+        };
+        SyntheticSuiteSearchRequest: {
+            /** @description Words match name, description and tags; `env:`, `team:` and `status:` (ok, alert, nodata) filter; other `key:value` words match tags. */
+            query?: string;
+            /** @description The uptime is computed over this range. */
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @description A test of a suite with its current state. */
+        SyntheticSuiteTest: {
+            id: string;
+            name: string;
+            paused: boolean;
+            status: components["schemas"]["MonitorStatus"];
+            type: components["schemas"]["SyntheticTestType"];
+        };
+        SyntheticSuitesPage: {
+            suites: components["schemas"]["SyntheticSuite"][];
         };
         SyntheticTest: {
             assertions: components["schemas"]["SyntheticAssertion"][];
@@ -13359,6 +13700,36 @@ export interface components {
             status: components["schemas"]["MonitorStatus"];
             /** Format: int64 */
             to: number;
+        };
+        SyntheticVariable: {
+            /** Format: int64 */
+            createdAt: number;
+            createdBy?: string | null;
+            description: string;
+            id: string;
+            name: string;
+            secure: boolean;
+            tags: string[];
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+            /** @description Tests that use the variable. */
+            usedBy: components["schemas"]["SyntheticVariableUse"][];
+            /** @description Absent for secure variables. */
+            value?: string | null;
+        };
+        SyntheticVariableInput: {
+            description?: string;
+            /** @description Upper-case letters, digits and underscores, starting with a letter. */
+            name: string;
+            secure?: boolean;
+            tags?: string[];
+            /** @description Required on create; on update, absent keeps the stored value (secure variables are never sent back). */
+            value?: string | null;
+        };
+        SyntheticVariableUse: {
+            id: string;
+            name: string;
         };
         TagShare: {
             key: string;
@@ -24497,6 +24868,37 @@ export interface operations {
             };
         };
     };
+    get_synthetic_coverage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticCoverageRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticCoverage"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_synthetic_locations: {
         parameters: {
             query?: never;
@@ -24512,6 +24914,246 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyntheticLocation"][];
+                };
+            };
+        };
+    };
+    search_synthetic_results: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticResultSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticResultSearchPage"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_synthetic_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSettings"];
+                };
+            };
+        };
+    };
+    update_synthetic_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticSettings"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSettings"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_synthetic_suite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticSuiteInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSuite"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_synthetic_suites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticSuiteSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSuitesPage"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_synthetic_suite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSuite"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_synthetic_suite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticSuiteInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSuite"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_synthetic_suite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -24789,6 +25431,124 @@ export interface operations {
                 };
             };
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_synthetic_variables: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticVariable"][];
+                };
+            };
+        };
+    };
+    create_synthetic_variable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticVariableInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticVariable"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_synthetic_variable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticVariableInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticVariable"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_synthetic_variable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

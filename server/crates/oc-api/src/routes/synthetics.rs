@@ -36,6 +36,7 @@ use super::logs::TimeRange;
 use super::metrics::TimeAggregator;
 use super::monitor_engine::{recipients, render_message, scope_covers, Comparator, Detection, MessageContext, MonitorOptions, MonitorStatus, Thresholds};
 use super::synthetics_exec::{self as exec, SyntheticAssertion, SyntheticAssertionType, SyntheticOperator, SyntheticRequest, SyntheticRunDetail, SyntheticTestType};
+use super::synthetics_settings as vars;
 use crate::auth::{AuthContext, Writer};
 use crate::error::{ApiError, ApiResult};
 use crate::log_metrics::{Histogram, Point, PointValue, Retention};
@@ -275,6 +276,10 @@ fn check_host(raw: &str, what: &str) -> Result<String, String> {
     if h.is_empty() {
         return Err(format!("{what} is required"));
     }
+    // `{{ NAME }}` is checked once filled in (see `prepare_run`).
+    if !vars::placeholders(h).is_empty() {
+        return check_host(&vars::neutralized(h), what).map(|_| h.to_string());
+    }
     let bare = h.trim_start_matches('[').trim_end_matches(']');
     if bare.parse::<std::net::IpAddr>().is_ok() {
         return Ok(bare.to_string());
@@ -301,7 +306,7 @@ fn check_request(t: SyntheticTestType, r: &mut SyntheticRequest) -> Result<(), S
             if r.url.chars().count() > MAX_URL_CHARS {
                 return Err(format!("The URL is at most {MAX_URL_CHARS} characters"));
             }
-            let url = url::Url::parse(&r.url).map_err(|_| "Enter a full URL, such as https://shop.example.com/health".to_string())?;
+            let url = url::Url::parse(&vars::neutralized(&r.url)).map_err(|_| "Enter a full URL, such as https://shop.example.com/health".to_string())?;
             if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none_or(str::is_empty) {
                 return Err("HTTP tests use an http or https URL with a host".into());
             }
@@ -340,7 +345,7 @@ fn check_request(t: SyntheticTestType, r: &mut SyntheticRequest) -> Result<(), S
                 return Err("DNS tests look up a domain name, not an IP address".into());
             }
             r.dns_server = r.dns_server.trim().to_string();
-            if !r.dns_server.is_empty() && r.dns_server.parse::<std::net::IpAddr>().is_err() {
+            if !r.dns_server.is_empty() && vars::placeholders(&r.dns_server).is_empty() && r.dns_server.parse::<std::net::IpAddr>().is_err() {
                 return Err("The DNS server must be an IP address".into());
             }
         }
@@ -423,12 +428,26 @@ fn check_input(input: &mut SyntheticTestInput) -> Result<(), String> {
     Ok(())
 }
 
+/// The request and assertions a run sends: global variables filled in, then checked as a test
+/// definition is.
+pub fn prepare_run(t: SyntheticTestType, request: &SyntheticRequest, assertions: &[SyntheticAssertion], vars: &HashMap<String, String>) -> Result<(SyntheticRequest, Vec<SyntheticAssertion>), String> {
+    let (mut request, mut assertions) = vars::substitute(request, assertions, vars)?;
+    check_request(t, &mut request)?;
+    check_assertions(t, &mut assertions)?;
+    Ok((request, assertions))
+}
+
 /// The host a test reaches.
 fn domain(t: SyntheticTestType, r: &SyntheticRequest) -> String {
     match t {
-        SyntheticTestType::Http => url::Url::parse(&r.url).ok().and_then(|u| u.host_str().map(str::to_string)).unwrap_or_default(),
+        SyntheticTestType::Http => url::Url::parse(&r.url).ok().and_then(|u| u.host_str().map(str::to_string)).unwrap_or_else(|| raw_host(&r.url)),
         _ => r.host.clone(),
     }
+}
+
+/// The host part of a URL that doesn't parse (`https://{{ SHOP_HOST }}/health` → `{{ SHOP_HOST }}`).
+fn raw_host(url: &str) -> String {
+    url.split_once("://").and_then(|(_, rest)| rest.split(['/', '?', '#']).next()).unwrap_or_default().to_string()
 }
 
 // ================================================================ scheduling and state
@@ -878,7 +897,15 @@ async fn record(st: &AppState, t: &TestRow, started_at: i64, run: &SyntheticRunD
 
 /// Runs a test, retrying a failed run as configured.
 async fn run_with_retries(st: &AppState, t: &TestRow, retries: i32) -> (SyntheticRunDetail, i32) {
-    let (kind, request, assertions) = (SyntheticTestType::parse(&t.kind), t.request(), t.assertions());
+    let kind = SyntheticTestType::parse(&t.kind);
+    let (values, secrets) = match vars::load_variables(st, &t.org_id).await {
+        Ok(v) => v,
+        Err(e) => return (failed_run(format!("The global variables could not be loaded: {e}")), 1),
+    };
+    let (request, assertions) = match prepare_run(kind, &t.request(), &t.assertions(), &values) {
+        Ok(p) => p,
+        Err(e) => return (failed_run(e), 1),
+    };
     let allow = st.config.synthetics_allow_private;
     let mut attempts = 1;
     let mut run = exec::run(kind, &request, &assertions, allow).await;
@@ -887,7 +914,13 @@ async fn run_with_retries(st: &AppState, t: &TestRow, retries: i32) -> (Syntheti
         run = exec::run(kind, &request, &assertions, allow).await;
         attempts += 1;
     }
+    vars::mask(&mut run, &secrets);
     (run, attempts)
+}
+
+/// A run that failed before sending anything.
+fn failed_run(error: String) -> SyntheticRunDetail {
+    SyntheticRunDetail { passed: false, error: Some(error), ..Default::default() }
 }
 
 /// Moves the test's monitor to the state after a scheduled run, notifying on a change.
@@ -1163,6 +1196,9 @@ async fn load(st: &AppState, org: &str, id: &str) -> Result<SyntheticTest, ApiEr
     responses((status = 200, body = SyntheticTest), (status = 400, body = crate::error::ErrorBody)), tag = "synthetics")]
 pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut input): Json<SyntheticTestInput>) -> ApiResult<SyntheticTest> {
     check_input(&mut input).map_err(ApiError::BadRequest)?;
+    if let Some(problem) = vars::enforcement_problem(&vars::load_settings(&st, &ctx.org_id).await?, &input.tags, &input.env) {
+        return Err(ApiError::BadRequest(problem));
+    }
     let mut tx = st.postgres.begin().await?;
     let (count,): (i64,) = sqlx::query_as("SELECT count(*) FROM synthetic_tests WHERE org_id = $1").bind(&ctx.org_id).fetch_one(&mut *tx).await?;
     if count >= MAX_TESTS {
@@ -1199,6 +1235,9 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut in
     Ok(Json(load(&st, &ctx.org_id, &id).await?))
 }
 
+/// What an update compares with: monitor, type, request, assertions, paused, frequency, tags, env.
+type StoredTest = (Option<i64>, String, Value, Value, bool, i32, Vec<String>, String);
+
 /// Replaces a test's definition (and updates its monitor). A changed request or assertions run soon.
 #[utoipa::path(put, path = "/api/v1/synthetics/tests/{id}", operation_id = "update_synthetic_test", params(("id" = String, Path)), request_body = SyntheticTestInput,
     responses((status = 200, body = SyntheticTest), (status = 400, body = crate::error::ErrorBody), (status = 404, body = crate::error::ErrorBody)), tag = "synthetics")]
@@ -1208,13 +1247,19 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
         return Err(not_found());
     }
     let mut tx = st.postgres.begin().await?;
-    let before: Option<(Option<i64>, String, Value, Value, bool, i32)> =
-        sqlx::query_as("SELECT monitor_id, type, request, assertions, paused, frequency_s FROM synthetic_tests WHERE org_id = $1 AND id = $2::uuid FOR UPDATE")
+    let before: Option<StoredTest> =
+        sqlx::query_as("SELECT monitor_id, type, request, assertions, paused, frequency_s, tags, env FROM synthetic_tests WHERE org_id = $1 AND id = $2::uuid FOR UPDATE")
             .bind(&ctx.org_id)
             .bind(&id)
             .fetch_optional(&mut *tx)
             .await?;
-    let Some((monitor, kind, request, assertions, paused, frequency)) = before else { return Err(not_found()) };
+    let Some((monitor, kind, request, assertions, paused, frequency, old_tags, old_env)) = before else { return Err(not_found()) };
+    // Enforced tag rules apply when tags or env change (pausing an older test still works).
+    if old_tags != input.tags || old_env != input.env {
+        if let Some(problem) = vars::enforcement_problem(&vars::load_settings(&st, &ctx.org_id).await?, &input.tags, &input.env) {
+            return Err(ApiError::BadRequest(problem));
+        }
+    }
     let changed = kind != input.r#type.as_str() || request != json(&input.request) || assertions != json(&input.assertions);
     let run_soon = changed || (paused && !input.paused) || frequency != input.frequency_seconds;
     sqlx::query(
@@ -1295,7 +1340,10 @@ pub async fn try_request(State(st): State<AppState>, Writer(ctx): Writer, Json(m
     check_request(req.r#type, &mut req.request).map_err(ApiError::BadRequest)?;
     check_assertions(req.r#type, &mut req.assertions).map_err(ApiError::BadRequest)?;
     let target = domain(req.r#type, &req.request);
-    let result = exec::run(req.r#type, &req.request, &req.assertions, st.config.synthetics_allow_private).await;
+    let (values, secrets) = vars::load_variables(&st, &ctx.org_id).await?;
+    let (request, assertions) = prepare_run(req.r#type, &req.request, &req.assertions, &values).map_err(ApiError::BadRequest)?;
+    let mut result = exec::run(req.r#type, &request, &assertions, st.config.synthetics_allow_private).await;
+    vars::mask(&mut result, &secrets);
     ctx.audit(&st, "synthetics.request_sent", &target, &format!("{} {}", req.r#type.as_str(), if result.passed { "passed" } else { "failed" })).await;
     let suggested_assertions = if result.error.is_none() { exec::suggest(req.r#type, &result) } else { Vec::new() };
     Ok(Json(SyntheticTryResult { location: location(&st), result, suggested_assertions }))
@@ -1447,6 +1495,23 @@ mod tests {
         let mut wrong = input(SyntheticTestType::Tcp, host("db.example.com", Some(5432)));
         wrong.assertions = vec![assertion(SyntheticAssertionType::StatusCode, SyntheticOperator::Is, "", "200")];
         assert!(check(wrong).contains("don't apply to TCP tests"));
+    }
+
+    #[test]
+    fn tests_may_use_global_variables() {
+        let mut i = input(SyntheticTestType::Http, http("https://{{ SHOP_HOST }}/health"));
+        i.request.headers = vec![SyntheticHeader { name: "Authorization".into(), value: "Bearer {{ TOKEN }}".into() }];
+        assert_eq!(check_input(&mut i), Result::Ok(()));
+        assert_eq!(domain(SyntheticTestType::Http, &i.request), "{{ SHOP_HOST }}");
+        let mut ssl = input(SyntheticTestType::Ssl, host("{{ SHOP_HOST }}", None));
+        assert_eq!(check_input(&mut ssl), Result::Ok(()));
+        assert!(check_input(&mut input(SyntheticTestType::Http, http("{{ BASE }}/health"))).unwrap_err().contains("full URL"), "the scheme stays in the test");
+        let vars: HashMap<String, String> = [("SHOP_HOST".to_string(), "shop.example.com".to_string()), ("TOKEN".to_string(), "t0k".to_string())].into();
+        let (r, _) = prepare_run(SyntheticTestType::Http, &i.request, &[], &vars).unwrap();
+        assert_eq!((r.url.as_str(), r.headers[0].value.as_str()), ("https://shop.example.com/health", "Bearer t0k"));
+        assert_eq!(prepare_run(SyntheticTestType::Http, &i.request, &[], &HashMap::new()).unwrap_err(), "Unknown global variables: SHOP_HOST, TOKEN");
+        let bad: HashMap<String, String> = [("SHOP_HOST".to_string(), "shop example".to_string()), ("TOKEN".to_string(), "x".to_string())].into();
+        assert!(prepare_run(SyntheticTestType::Ssl, &ssl.request, &[], &bad).unwrap_err().contains("host name"), "values are checked once filled in");
     }
 
     #[test]

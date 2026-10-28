@@ -22,6 +22,7 @@ import {
   propertyKind,
   requestProblem,
   withType,
+  type DraftDefaults,
   type TestDraft,
 } from '../../api/synthetics/logic';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
@@ -29,7 +30,8 @@ import { Step } from '../monitors/MonitorEditor';
 import { PRIORITY_LABEL, RecipientIcon, recipientLabel } from '../monitors/common';
 import { messageRecipients } from '../monitors/message';
 import { RunView } from './common';
-import { useSaveSyntheticTest, useSyntheticLocations, useSyntheticTest, useTrySyntheticRequest } from './queries';
+import { useSaveSyntheticTest, useSyntheticLocations, useSyntheticSettings, useSyntheticTest, useTrySyntheticRequest } from './queries';
+import { fullSettings } from './SyntheticsSettings';
 import '../monitors/monitors.css';
 import './synthetics.css';
 
@@ -44,14 +46,17 @@ const list = (s: string) =>
 export function SyntheticTestEditor() {
   const { id } = useParams();
   const q = useSyntheticTest(id);
+  // New tests start from Settings → Default Settings (the built-in defaults if they can't be read).
+  const settings = useSyntheticSettings();
   if (id && q.isPending) return <Loading label="Loading test…" />;
   if (id && q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
-  return <EditorForm key={id ?? 'new'} test={q.data} />;
+  if (!id && settings.isPending) return <Loading label="Loading default settings…" />;
+  return <EditorForm key={id ?? 'new'} test={q.data} defaults={fullSettings(settings.data).defaults} />;
 }
 
-function EditorForm({ test }: { test?: SyntheticTest }) {
+function EditorForm({ test, defaults }: { test?: SyntheticTest; defaults: DraftDefaults }) {
   const navigate = useNavigate();
-  const [d, setD] = useState<TestDraft>(() => (test ? draftOf(test) : newDraft('http')));
+  const [d, setD] = useState<TestDraft>(() => (test ? draftOf(test) : newDraft('http', defaults)));
   const [tags, setTags] = useState(() => d.tags.join(', '));
   const [advanced, setAdvanced] = useState(() => !!test && (test.request.headers.length > 0 || !!test.request.body || !!test.request.basicAuth));
   const send = useTrySyntheticRequest();
@@ -117,6 +122,9 @@ function EditorForm({ test }: { test?: SyntheticTest }) {
             <Step n={2} title="Define Request" done={requestOk}>
               <RequestFields type={d.type} r={d.request} setReq={setReq} onSend={doSend} sending={send.isPending} canSend={!problem} />
               {problem && d.request.url !== 'https://' && <p className="syn-hint warn">{problem}</p>}
+              <p className="syn-hint muted">
+                Write <code>{'{{ NAME }}'}</code> to use a <Link to="/synthetics/settings/variables">global variable</Link> in the URL, host, headers, body or credentials.
+              </p>
               <button className="link-btn syn-advanced-toggle" onClick={() => setAdvanced((a) => !a)}>
                 {advanced ? '▾' : '▸'} Advanced Options
               </button>

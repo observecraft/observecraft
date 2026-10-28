@@ -15,6 +15,8 @@ import type {
   SyntheticUptimeSegment,
 } from './types';
 
+import { neutralized } from './model';
+
 type MonitorStatus = components['schemas']['MonitorStatus'];
 
 export const LOCATION_ID = 'observecraft-server';
@@ -140,6 +142,8 @@ export function defaultRequest(type: SyntheticTestType): SyntheticRequest {
 
 export function testDomain(type: SyntheticTestType, r: SyntheticRequest): string {
   if (type !== 'http') return r.host;
+  // A URL with variables (`https://{{ SHOP_HOST }}/health`): its host part as written.
+  if (/\{\{/.test(r.url)) return /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(r.url)?.[1] ?? '';
   try {
     return new URL(r.url).hostname;
   } catch {
@@ -385,20 +389,30 @@ export interface TestDraft {
 
 export const DEFAULT_MESSAGE = '{{#is_alert}}The test is failing.{{/is_alert}}\n{{#is_recovery}}The test passes again.{{/is_recovery}}';
 
-export function newDraft(type: SyntheticTestType = 'http'): TestDraft {
+/** The editor's defaults (Settings → Default Settings). */
+export interface DraftDefaults {
+  locations: string[];
+  tags: string[];
+  timeoutSeconds: number;
+  frequencySeconds: number;
+  retry: { count?: number; intervalMs?: number };
+  minFailureDurationMinutes: number;
+}
+
+export function newDraft(type: SyntheticTestType = 'http', defaults?: DraftDefaults): TestDraft {
   return {
     name: '',
     type,
-    request: defaultRequest(type),
+    request: { ...defaultRequest(type), timeoutSeconds: defaults?.timeoutSeconds ?? 30 },
     assertions: [],
-    locations: [LOCATION_ID],
-    frequencySeconds: 300,
-    retry: { count: 0, intervalMs: 300 },
-    minFailureDurationMinutes: 0,
+    locations: defaults?.locations.length ? [...defaults.locations] : [LOCATION_ID],
+    frequencySeconds: defaults?.frequencySeconds ?? 300,
+    retry: { count: defaults?.retry.count ?? 0, intervalMs: defaults?.retry.intervalMs ?? 300 },
+    minFailureDurationMinutes: defaults?.minFailureDurationMinutes ?? 0,
     minLocationFailed: 1,
     env: '',
     team: '',
-    tags: [],
+    tags: defaults ? [...defaults.tags] : [],
     message: DEFAULT_MESSAGE,
     priority: null,
     paused: false,
@@ -524,17 +538,19 @@ export const SNIPPETS: Snippet[] = [
 
 /** The request part the editor can send: what's missing before Send / Save. */
 export function requestProblem(type: SyntheticTestType, r: SyntheticRequest): string | null {
+  // Global variables (`{{ NAME }}`) are checked once filled in, when the request is sent.
   if (type === 'http') {
     try {
-      const u = new URL(r.url);
+      const u = new URL(neutralized(r.url));
       if (!/^https?:$/.test(u.protocol) || !u.hostname) return 'Enter an http or https URL';
     } catch {
       return 'Enter a full URL, such as https://shop.example.com/health';
     }
     return null;
   }
-  if (!r.host.trim()) return type === 'dns' ? 'Enter a domain' : 'Enter a host';
-  if (/[/\s@]/.test(r.host.trim()) || /^[a-z]+:\/\//i.test(r.host.trim())) return 'Enter a host name or IP address, without scheme or path';
+  const host = neutralized(r.host.trim());
+  if (!host) return type === 'dns' ? 'Enter a domain' : 'Enter a host';
+  if (/[/\s@]/.test(host) || /^[a-z]+:\/\//i.test(host)) return 'Enter a host name or IP address, without scheme or path';
   if (type === 'tcp' && !r.port) return 'Enter a port';
   return null;
 }

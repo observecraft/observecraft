@@ -1,0 +1,844 @@
+/* Synthetic Monitoring & Testing: product frame, overview, suites, results explorer, coverage and settings.
+   Builds on monitors.css and synthetics.css. */
+
+/* ---------- frame ---------- */
+.syn-product-switch {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.syn-product-header .product-tab,
+.syn-product-header .mon-header-actions {
+  white-space: nowrap;
+}
+
+.syn-page {
+  padding: 16px 24px 30px;
+}
+
+.syn-list-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.syn-list-top .mon-filter {
+  margin: 0;
+}
+
+.syn-card {
+  margin-bottom: 16px;
+  padding: 4px 18px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.syn-h3-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.syn-sub {
+  display: block;
+  overflow: hidden;
+  max-width: 560px;
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.syn-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  cursor: pointer;
+}
+
+.syn-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 620px;
+  margin: 50px auto;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.syn-unavailable h2 {
+  margin: 0;
+  font-size: var(--fs-lg);
+  color: var(--text);
+}
+
+.syn-danger {
+  color: var(--status-error);
+}
+
+.syn-bad {
+  color: var(--status-error);
+  font-weight: var(--fw-semibold);
+}
+
+.syn-ok {
+  color: var(--mon-ok);
+}
+
+.syn-form-actions,
+.syn-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.syn-dialog-actions {
+  justify-content: flex-end;
+}
+
+.syn-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px;
+}
+
+.syn-dialog h3 {
+  margin: 0;
+}
+
+.syn-col-check {
+  width: 34px;
+}
+
+.syn-col-num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.syn-col-date,
+.syn-col-modified {
+  white-space: nowrap;
+}
+
+.syn-col-actions {
+  width: 70px;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.syn-static tbody tr {
+  cursor: default;
+}
+
+.syn-table tr.selected td {
+  background: var(--bg-selected);
+}
+
+/* ---------- explorer layout (suites, results) ---------- */
+.syn-explorer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.syn-searchbar,
+.syn-explorer-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.syn-searchbar {
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.syn-searchbar > svg {
+  color: var(--text-faint);
+}
+
+.syn-searchbar input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-md);
+}
+
+.syn-explorer-body {
+  display: flex;
+  gap: 18px;
+  min-height: 0;
+}
+
+.syn-explorer-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.syn-teams-card {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.syn-teams-card h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.syn-teams-card p {
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.syn-team-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.syn-summary-tiles,
+.syn-overview-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.syn-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 170px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+div.syn-tile {
+  cursor: default;
+}
+
+.syn-tile span {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em;
+}
+
+.syn-tile b {
+  font-size: 22px;
+  font-weight: var(--fw-medium);
+}
+
+.syn-tile.alert {
+  border-left-color: var(--mon-alert);
+}
+
+.syn-tile.ok {
+  border-left-color: var(--mon-ok);
+}
+
+.syn-tile.nodata {
+  border-left-color: var(--mon-nodata);
+}
+
+a.syn-tile:hover,
+button.syn-tile:hover {
+  background: var(--bg-hover);
+}
+
+.syn-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 34px;
+  margin-bottom: 8px;
+  font-size: var(--fs-md);
+}
+
+.syn-toolbar .link-btn,
+.syn-toolbar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.syn-toolbar > * {
+  white-space: nowrap;
+}
+
+.syn-table .syn-col-date,
+.syn-table .syn-col-modified {
+  width: 180px;
+}
+
+.syn-table .syn-col-short {
+  width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.syn-table .syn-col-wide {
+  width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.syn-explorer .syn-table .syn-col-icon,
+.syn-overview-grid .syn-table .syn-col-icon {
+  width: 40px;
+}
+
+.syn-table .syn-col-tests {
+  width: 130px;
+}
+
+.syn-toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+}
+
+.syn-bulk-row th {
+  background: var(--primary-subtle) !important;
+  text-transform: none;
+}
+
+.syn-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-weight: var(--fw-regular);
+}
+
+.syn-bulk .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.syn-col-tests {
+  white-space: nowrap;
+}
+
+.syn-dots {
+  display: inline-flex;
+  gap: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.syn-dot {
+  width: 7px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--mon-nodata);
+}
+
+.syn-dot.ok {
+  background: var(--mon-ok);
+}
+
+.syn-dot.alert {
+  background: var(--mon-alert);
+}
+
+.syn-dot.warn {
+  background: var(--mon-warn);
+}
+
+.syn-dot.paused {
+  border: 1px solid var(--border-strong);
+  background: var(--bg-muted);
+}
+
+.syn-empty-search svg {
+  color: var(--text-faint);
+}
+
+/* ---------- suite editor ---------- */
+.syn-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-size: var(--fs-lg);
+}
+
+.syn-crumbs-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  font-size: var(--fs-md);
+}
+
+.syn-crumbs-right .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.syn-pick {
+  max-height: 420px;
+  overflow: auto;
+  margin-top: 10px;
+}
+
+/* ---------- results explorer ---------- */
+.syn-recommended {
+  position: relative;
+  display: flex;
+  gap: 24px;
+  padding: 16px 44px 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(110deg, var(--primary-subtle), var(--bg) 55%);
+}
+
+.syn-recommended-intro {
+  flex: 0 0 260px;
+}
+
+.syn-recommended-intro h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+
+.syn-recommended-intro p {
+  margin: 0 0 8px;
+}
+
+.syn-syntax summary {
+  color: var(--link);
+  cursor: pointer;
+}
+
+.syn-syntax ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+}
+
+.syn-recommended-cards {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.syn-query-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.syn-query-card p {
+  flex: 1;
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.syn-query-icon {
+  color: var(--primary);
+}
+
+.syn-recommended-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.syn-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  white-space: nowrap;
+}
+
+.syn-segmented > span {
+  padding: 0 6px;
+}
+
+.syn-segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.syn-segmented button.active {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+
+.syn-viz-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.syn-viz-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.syn-chart-card {
+  padding-top: 14px;
+}
+
+.syn-chart-note {
+  margin: 6px 0 0;
+  font-size: var(--fs-sm);
+}
+
+/* ---------- test coverage ---------- */
+.syn-hero {
+  display: flex;
+  gap: 28px;
+  margin-bottom: 16px;
+  padding: 24px 26px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(120deg, var(--primary-subtle) 0%, var(--bg) 55%, var(--brand-subtle) 100%);
+}
+
+.syn-hero-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.syn-hero-text h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: var(--fw-medium);
+}
+
+.syn-hero-text p {
+  max-width: 640px;
+  margin: 0 0 12px;
+  color: var(--text-muted);
+}
+
+.syn-hero-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.syn-hero-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.syn-hero-list svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.syn-hero-preview {
+  display: flex;
+  flex: 0 0 300px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  box-shadow: var(--shadow-pop);
+}
+
+.syn-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--fw-semibold);
+}
+
+.syn-preview-disabled {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+}
+
+.syn-preview-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-sm);
+}
+
+.syn-preview-rows > div {
+  display: flex;
+}
+
+.syn-meter {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-muted);
+}
+
+.syn-meter i {
+  display: block;
+  height: 100%;
+  background: var(--mon-ok);
+}
+
+.syn-meter.small {
+  display: inline-block;
+  width: 60px;
+  height: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.syn-coverage-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.syn-coverage-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  margin: 6px 0 14px;
+}
+
+.syn-coverage-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.syn-coverage-stats b {
+  font-size: 20px;
+  font-weight: var(--fw-medium);
+}
+
+.syn-service-bars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: var(--fs-sm);
+}
+
+.syn-covered {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.syn-covered a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.syn-untested {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+}
+
+.syn-untested .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ---------- overview ---------- */
+.syn-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 16px;
+}
+
+/* ---------- settings ---------- */
+.syn-settings .settings-card {
+  margin-bottom: 18px;
+}
+
+.syn-settings .settings-card h2 {
+  font-size: 18px;
+}
+
+.syn-settings .syn-check {
+  display: flex;
+}
+
+.syn-vars th:nth-child(1) {
+  width: 260px;
+}
+
+.syn-vars th:nth-child(4) {
+  width: 160px;
+}
+
+.syn-vars th:nth-child(5) {
+  width: 200px;
+}
+
+.syn-vars td {
+  overflow-wrap: anywhere;
+}
+
+.syn-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.syn-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.syn-accordion {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.syn-accordion-item + .syn-accordion-item {
+  border-top: 1px solid var(--border);
+}
+
+.syn-accordion-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.syn-accordion-head .muted {
+  margin-left: auto;
+  font-size: var(--fs-sm);
+}
+
+.syn-accordion-body {
+  padding: 4px 14px 14px 35px;
+}
+
+.syn-accordion-body p {
+  margin: 4px 0;
+}
+
+.syn-narrow {
+  max-width: 240px;
+}
+
+.syn-freqs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.syn-row-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 220px));
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .syn-recommended {
+    flex-direction: column;
+  }
+
+  .syn-recommended-intro {
+    flex: none;
+  }
+
+  .syn-recommended-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .syn-hero {
+    flex-direction: column;
+  }
+
+  .syn-hero-preview {
+    flex: none;
+  }
+}
