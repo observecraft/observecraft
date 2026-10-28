@@ -35,7 +35,7 @@ const delay = <T>(value: T, ms = 120 + Math.random() * 180) => new Promise<T>((r
 
 // ---------------------------------------------------------------- users
 
-const USERS: User[] = [
+export const USERS: User[] = [
   { id: 'u-1', name: 'Alex Morgan', email: 'alex.morgan@example.com' },
   { id: 'u-2', name: 'Priya Shah', email: 'priya.shah@example.com' },
   { id: 'u-3', name: 'Daniel Kim', email: 'daniel.kim@example.com' },

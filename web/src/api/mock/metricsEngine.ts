@@ -24,6 +24,16 @@ const NAMESPACES = ['ns-mongo-prod', 'ns-platform', 'ns-checkout-qa', 'ns-billin
 const APPS = ['api', 'worker', 'backend', 'frontend', 'scheduler', 'gateway', 'consumer', 'mongo', 'redis', 'notifier', 'auth', 'billing'];
 export const SERVICES = ['storefront-api', 'inventory-service', 'order-service', 'billing', 'billing-watcher', 'workflow-engine', 'pricing-service', 'notificationsrv', 'gateway', 'support-portal'];
 const TEAMS = ['storefront', 'billing', 'platform', 'payments', 'checkout'];
+/** Services behind the `trace.*` APM metrics (the same services as the APM mock's traces). */
+const APM_SERVICES: [service: string, team: string][] = [
+  ['api-gateway', 'platform'],
+  ['storefront-api', 'storefront'],
+  ['order-service', 'checkout'],
+  ['billing', 'billing'],
+  ['inventory-service', 'checkout'],
+  ['catalog-service', 'catalog'],
+  ['notification-worker', 'notifications'],
+];
 
 function build<T extends Tags>(n: number, seed: number, make: (r: () => number, i: number) => T): T[] {
   const r = rng(seed);
@@ -41,6 +51,11 @@ const SETS: Record<string, Tags[]> = {
     return { host: `i-0${(hash(`h${i}`) >>> 0).toString(16).padStart(8, '0')}${i.toString(16)}`, kube_cluster_name: cluster, env: cluster.includes('prod') ? 'prod' : 'qa', team: pick(r, TEAMS) };
   }),
   services: SERVICES.flatMap((service, i) => ['prod', 'qa'].map((env) => ({ service, env, team: TEAMS[i % TEAMS.length] }))),
+  apm: APM_SERVICES.flatMap(([service, team]) => ['prod', 'staging'].map((env) => ({ service, env, team }))),
+  nodes: build(36, 14, (r, i) => {
+    const cluster = CLUSTERS[i % CLUSTERS.length];
+    return { kube_cluster_name: cluster, kube_node: `ip-10-0-${(i * 7) % 250}-${10 + i}.ec2.internal`, status: r() < 0.06 ? 'unschedulable' : 'schedulable' };
+  }),
   monitors: build(320, 13, (r, i) => {
     const service = r() < 0.3 ? 'undefined' : pick(r, SERVICES);
     const name = pick(r, [
@@ -82,7 +97,8 @@ interface MetricDef {
   max?: number;
 }
 
-const REPLICAS = (e: Tags, r: () => number) => (e.kube_deployment.startsWith('mongo') ? 1300 : 6 + Math.floor(r() * 40));
+// Per deployment (not per metric), so desired, available and running replicas describe the same deployment.
+const REPLICAS = (e: Tags, _r?: () => number) => (e.kube_deployment.startsWith('mongo') ? 1300 : 6 + (hash(e.kube_deployment) % 40));
 
 const METRICS: Record<string, MetricDef> = {
   'kubernetes_state.deployment.count': { set: 'deployments', description: 'Deployments', base: () => 1, noise: 0, integer: true },
@@ -115,11 +131,22 @@ const METRICS: Record<string, MetricDef> = {
   'system.cpu.idle': { set: 'hosts', description: 'CPU idle', unit: '%', base: (_e, r) => 20 + r() * 70, noise: 0.1, max: 100 },
   'system.mem.used': { set: 'hosts', description: 'Memory used', unit: 'GiB', base: (_e, r) => 2 + r() * 12, noise: 0.05 },
   'system.load.1': { set: 'hosts', description: 'Load average (1m)', base: (_e, r) => 0.5 + r() * 12, noise: 0.3 },
+  'system.load.5': { set: 'hosts', description: 'Load average (5m)', base: (_e, r) => 0.5 + r() * 9, noise: 0.2 },
+  'system.mem.pct_usable': { set: 'hosts', description: 'Share of memory usable', unit: 'fraction', base: (_e, r) => 0.06 + r() * 0.8, noise: 0.05, max: 1 },
+  'system.net.bytes_rcvd': { set: 'hosts', description: 'Bytes received', unit: 'B/s', base: (_e, r) => 2e5 + Math.pow(r(), 3) * 8e7, noise: 0.35 },
   'system.disk.in_use': { set: 'hosts', description: 'Disk usage fraction', unit: '%', base: (_e, r) => 20 + r() * 70, noise: 0.01, max: 100 },
   'trace.http.request.hits': { set: 'services', description: 'HTTP requests', unit: 'req/s', base: (e, r) => (e.env === 'prod' ? 40 + r() * 400 : 5 + r() * 40), noise: 0.2 },
   'trace.http.request.errors': { set: 'services', description: 'HTTP request errors', unit: 'err/s', base: (_e, r) => r() * 6, noise: 0.5 },
   'trace.http.request.error_rate': { set: 'services', description: 'HTTP error rate', unit: '%', base: (_e, r) => 0.2 + r() * 4, noise: 0.4, max: 100 },
   'trace.http.request.duration.p95': { set: 'services', description: 'p95 latency', unit: 'ms', base: (_e, r) => 40 + r() * 400, noise: 0.15 },
+  'trace.requests': { set: 'apm', description: 'Requests', unit: 'req/s', base: (e, r) => (e.env === 'prod' ? 30 + r() * 300 : 2 + r() * 20), noise: 0.1 },
+  'trace.errors': { set: 'apm', description: 'Errored requests', unit: 'err/s', base: (e, r) => (e.service === 'order-service' ? 14 : r() * 3), noise: 0.4 },
+  // order-service fails a growing share of checkouts; the others stay below the recommended thresholds.
+  'trace.error_rate': { set: 'apm', description: 'Share of requests in error', unit: '%', base: (e, r) => (e.service === 'order-service' ? 6.6 : 0.2 + r() * 1.6), noise: 0.15, max: 100 },
+  'trace.latency.p50': { set: 'apm', description: 'Median latency', unit: 'ms', base: (e, r) => (e.service === 'catalog-service' ? 210 : 12 + r() * 60), noise: 0.12 },
+  // catalog-service's slower product query (see the APM mock) keeps its p95 above 300 ms.
+  'trace.latency.p95': { set: 'apm', description: 'p95 latency', unit: 'ms', base: (e, r) => (e.service === 'catalog-service' ? 410 : 60 + r() * 200), noise: 0.1 },
+  'kubernetes_state.node.status': { set: 'nodes', description: 'Nodes by status', base: () => 1, noise: 0, integer: true },
   'observecraft.monitor.notifications': {
     set: 'monitors',
     description: 'Monitor notifications sent',
@@ -203,7 +230,7 @@ function combine(values: number[], agg: ParsedMetricQuery['aggregator']): number
   }
 }
 
-interface GroupSeries {
+export interface GroupSeries {
   tags: Tags;
   points: [number, number][];
 }
@@ -237,6 +264,16 @@ function evaluate(query: string, range: TimeRange, points: number): GroupSeries[
     out.push({ tags: g.tags, points: pts });
   }
   return out;
+}
+
+/**
+ * A metric query's groups over `range` (`points` ≈ resolution), for monitors: an unknown metric has no
+ * series (no data), like a metric that has not been reported yet; an unparsable query throws.
+ */
+export function evaluateGroups(query: string, range: TimeRange, points: number): GroupSeries[] {
+  const q = parseMetricQuery(query);
+  if (!q) throw new Error(`Invalid query: ${query}`);
+  return METRICS[q.metric] ? evaluate(query, range, points) : [];
 }
 
 function reduce(points: [number, number][], agg: TimeAggregator): number {
