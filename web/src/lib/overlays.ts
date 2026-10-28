@@ -45,7 +45,8 @@ export function overlayStatusToken(status: string): string {
 /** An ECharts series that only draws the marks (dashed vertical lines, the titles on hover). */
 export function overlaySeries(marks: OverlayMark[], color: (status: string) => string): LineSeriesOption & { markLine: { data: { xAxis: number; name: string; lineStyle: { color: string } }[] } } {
   return {
-    name: 'Events',
+    // No name: overlays stay out of the chart's legend.
+    name: '',
     type: 'line' as const,
     data: [] as [number, number][],
     silent: false,
