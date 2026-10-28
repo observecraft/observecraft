@@ -689,3 +689,23 @@
   gap: 12px;
   flex-wrap: wrap;
 }
+
+.rt-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  margin: 18vh auto 0;
+  text-align: center;
+}
+
+.rt-empty h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: var(--fw-medium);
+}
+
+.rt-empty p {
+  margin: 0 0 6px;
+}

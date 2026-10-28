@@ -4,6 +4,21 @@
 
 export type GuideKind = 'logs' | 'infrastructure';
 
+export type CategoryName = 'Server' | 'Container' | 'Cloud' | 'Other';
+
+export interface SetupCategory {
+  name: CategoryName;
+  /** What the category covers, under its name. */
+  examples: string;
+}
+
+const CATEGORIES: SetupCategory[] = [
+  { name: 'Server', examples: 'Hosts and VMs, with an agent' },
+  { name: 'Container', examples: 'Docker, Kubernetes' },
+  { name: 'Cloud', examples: 'Amazon ECS' },
+  { name: 'Other', examples: 'HTTP API, log shippers' },
+];
+
 export interface SetupStep {
   title: string;
   text?: string;
@@ -14,7 +29,7 @@ export interface SetupStep {
 export interface SetupSource {
   id: string;
   name: string;
-  category: 'Kubernetes' | 'Host' | 'Container' | 'Cloud' | 'API';
+  category: CategoryName;
   /** What it collects, shown under the name. */
   summary: string;
   kinds: GuideKind[];
@@ -47,7 +62,7 @@ export const SOURCES: SetupSource[] = [
   {
     id: 'kubernetes-datadog',
     name: 'Kubernetes with the Datadog Agent',
-    category: 'Kubernetes',
+    category: 'Container',
     summary: 'Container logs, node and pod metrics, Kubernetes state, events and traces, from the official Datadog Helm chart.',
     kinds: ['logs', 'infrastructure'],
     steps: [
@@ -59,7 +74,7 @@ export const SOURCES: SetupSource[] = [
   {
     id: 'kubernetes-otel',
     name: 'Kubernetes with OpenTelemetry',
-    category: 'Kubernetes',
+    category: 'Container',
     summary: 'The observecraft-agent chart: the OpenTelemetry Collector as a node and cluster agent (logs, metrics, traces, Kubernetes state).',
     kinds: ['logs', 'infrastructure'],
     steps: [
@@ -73,7 +88,7 @@ export const SOURCES: SetupSource[] = [
   {
     id: 'host-datadog',
     name: 'Host with the Datadog Agent',
-    category: 'Host',
+    category: 'Server',
     summary: 'A VM or bare-metal host: system metrics, log files, processes and the services running on it.',
     kinds: ['logs', 'infrastructure'],
     steps: [
@@ -92,7 +107,7 @@ export const SOURCES: SetupSource[] = [
   {
     id: 'host-otel',
     name: 'Host with OpenTelemetry',
-    category: 'Host',
+    category: 'Server',
     summary: 'The OpenTelemetry Collector on a host or Docker host: host metrics, log files and a local endpoint for applications.',
     kinds: ['logs', 'infrastructure'],
     steps: [
@@ -128,7 +143,7 @@ export const SOURCES: SetupSource[] = [
   {
     id: 'http-api',
     name: 'HTTP API',
-    category: 'API',
+    category: 'Other',
     summary: "Send JSON logs from anything that speaks HTTP: Datadog's logs API format, one event or a batch.",
     kinds: ['logs'],
     steps: [
@@ -144,6 +159,12 @@ export const SOURCES: SetupSource[] = [
 /** The sources a guide lists. */
 export function sourcesFor(kind: GuideKind): SetupSource[] {
   return SOURCES.filter((s) => s.kinds.includes(kind));
+}
+
+/** The categories a guide shows, in order, each with at least one source. */
+export function categoriesFor(kind: GuideKind): SetupCategory[] {
+  const sources = sourcesFor(kind);
+  return CATEGORIES.filter((c) => sources.some((s) => s.category === c.name));
 }
 
 /** The intake as host:port (agents that take one), from its URL. */

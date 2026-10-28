@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search, Table2, X } from 'lucide-react';
 import { checkFile, checkName, MAX_DESCRIPTION_CHARS, MAX_NAME_CHARS } from '../../api/referenceTables/file';
 import type { ReferenceTable } from '../../api/referenceTables/types';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
@@ -36,6 +36,22 @@ export function ReferenceTablesPage() {
 
   if (q.isPending) return <Loading />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
+  if (q.data.length === 0)
+    return (
+      <div className="int-page">
+        <div className="rt-empty">
+          <Table2 size={56} strokeWidth={1.25} className="brand-icon" />
+          <h2>Get started with Reference Tables</h2>
+          <p className="muted">Upload a CSV of your own data, such as the team owning each service or the name of each SKU, and look its rows up by a primary key.</p>
+          {canEdit && (
+            <button className="btn btn-primary" onClick={() => setCreating(true)}>
+              <Plus size={14} /> Create Your First Table
+            </button>
+          )}
+        </div>
+        {creating && <CreateModal onClose={() => setCreating(false)} />}
+      </div>
+    );
   return (
     <div className="int-page">
       <div className="settings-title-row">
@@ -56,7 +72,7 @@ export function ReferenceTablesPage() {
       </label>
       {shown.length === 0 ? (
         <section className="settings-card settings-empty">
-          <p className="muted">{q.data.length ? 'No reference table matches the search.' : 'No reference tables yet.'}</p>
+          <p className="muted">No reference table matches the search.</p>
         </section>
       ) : (
         <table className="settings-table ix-table">
