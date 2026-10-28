@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search, Sigma, X } from 'lucide-react';
 import type { MetricCatalogEntry } from '../../api/dashboards/types';
 import { TimePicker } from '../../components/shell/PageHeader';
 import { useTime } from '../../components/shell/TimeContext';
+import { expandFormula } from '../../lib/metricFormula';
 import { usePopover } from '../../components/ui/Dropdown';
 import { useMetricCatalog } from '../dashboards/queries';
 import { DashboardContext, type DashboardContextValue } from '../dashboards/widgets/context';
@@ -102,6 +103,11 @@ export function MetricsExplorer() {
   }, [rows, setParams]);
   const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const queries = rows.filter((r) => r.metric).map(toQuery);
+  // A formula over the query letters ("a / b * 100") is graphed in place of the queries.
+  const [formula, setFormula] = useState<string | null>(null);
+  const byLetter = Object.fromEntries(rows.flatMap((r, i) => (r.metric ? [[LETTERS[i], toQuery(r)]] : [])));
+  const expanded = formula?.trim() ? expandFormula(formula, byLetter) : null;
+  const graphed = expanded ? [expanded] : queries;
   const ctx = useMemo<DashboardContextValue>(
     () => ({ range, resolve: (q) => q, resolveSearch: (q) => q, canEdit: false, onEdit: () => {}, onClone: () => {}, onDelete: () => {}, onFullscreen: () => {}, onGroupLayout: () => {} }),
     [range],
@@ -150,13 +156,28 @@ export function MetricsExplorer() {
             </div>
           );
         })}
+        {formula !== null && (
+          <div className="mx-row">
+            <span className="mx-letter mx-formula-letter">Σ</span>
+            <input className="mx-formula" value={formula} onChange={(e) => setFormula(e.target.value)} placeholder="a / b * 100" aria-label="Formula" spellCheck={false} />
+            {formula.trim() && !expanded && <span className="form-error">Use the query letters, numbers, + - * / and parentheses</span>}
+            <button className="icon-plain" title="Remove formula" onClick={() => setFormula(null)}>
+              <X size={16} />
+            </button>
+          </div>
+        )}
         <div className="mx-row-actions">
           {rows.length < LETTERS.length && (
             <button className="btn btn-sm" onClick={() => setRows((rs) => [...rs, { agg: 'avg', metric: '', from: '', by: '' }])}>
               <Plus size={14} /> Add Query
             </button>
           )}
-          {queries.map((q) => (
+          {formula === null && (
+            <button className="btn btn-sm" onClick={() => setFormula(rows.length > 1 ? 'a / b' : 'a * 1')}>
+              <Sigma size={14} /> Add Formula
+            </button>
+          )}
+          {graphed.map((q) => (
             <code key={q} className="mx-query">
               {q}
             </code>
@@ -164,11 +185,11 @@ export function MetricsExplorer() {
         </div>
       </div>
       <div className="mx-chart">
-        {queries.length === 0 ? (
+        {graphed.length === 0 ? (
           <div className="wd-state">Pick a metric to graph it.</div>
         ) : (
           <DashboardContext.Provider value={ctx}>
-            <TimeseriesWidget def={{ type: 'timeseries', display: 'line', requests: queries.map((query) => ({ query })) }} />
+            <TimeseriesWidget def={{ type: 'timeseries', display: 'line', requests: graphed.map((query) => ({ query })) }} />
           </DashboardContext.Provider>
         )}
       </div>

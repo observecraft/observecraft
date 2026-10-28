@@ -599,3 +599,16 @@ test('monitor templates: valid queries, and host templates use the metrics the D
   for (const t of templates.filter((t) => t.type !== 'log')) assert.ok(formulaQueries(t.query), `${t.id}: ${t.query}`);
   assert.equal(templates.find((t) => t.id === 'mem-high').query, '100 - avg:system.mem.pct_usable{*} by {host} * 100');
 });
+
+test('explorer formulas: letters become their queries, and the mock evaluates them', async () => {
+  const { expandFormula, evalFormula } = await import('../web/src/lib/metricFormula.ts');
+  const queries = { a: 'sum:http.errors{*} by {service}', b: 'sum:http.requests{*} by {service}' };
+  assert.equal(expandFormula('a / b * 100', queries), '(sum:http.errors{*} by {service}) / (sum:http.requests{*} by {service}) * 100');
+  assert.ok(formulaQueries(expandFormula('a / b * 100', queries)));
+  // Unknown letters and anything but arithmetic make no formula.
+  assert.equal(expandFormula('a / c', queries), null);
+  assert.equal(expandFormula('a; b', queries), null);
+  assert.equal(evalFormula('(Q0) / (Q1) * 100', [3, 4]), 75);
+  assert.equal(evalFormula('Q0 - Q1', [5, null]), null);
+  assert.equal(evalFormula('Q0 / Q1', [5, 0]), null);
+});

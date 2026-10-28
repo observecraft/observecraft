@@ -1,7 +1,8 @@
 // Mock metric store + query evaluator. Each metric is backed by an "entity set" (deployments,
 // hosts, services, monitors) whose members carry tags; every entity gets a smooth deterministic
 // series (value noise), so the same query returns the same shape at any zoom level.
-import { groupLabel, parseMetricQuery, type ParsedMetricQuery } from '../../lib/metricQuery';
+import { evalFormula } from '../../lib/metricFormula';
+import { formulaQueries, groupLabel, parseMetricQuery, QUERY_IN_FORMULA, type ParsedMetricQuery } from '../../lib/metricQuery';
 import type { DistributionResponse, GroupedScalar, MetricCatalogEntry, ScalarRequest, TimeAggregator, TimeseriesRequest } from '../dashboards/types';
 import type { MetricSeries, TimeRange } from '../types';
 import { rng } from './generator';
@@ -264,10 +265,41 @@ const attempt = <T>(fn: () => T): Promise<T> => {
   }
 };
 
+/** A formula between metric queries: each query's groups joined by tags (a tag-less query applies to all). */
+function evaluateFormula(formula: string, range: TimeRange, points: number): GroupSeries[] {
+  const queries = formulaQueries(formula);
+  if (!queries) throw new Error(`Invalid query: ${formula}`);
+  const texts = formula.match(QUERY_IN_FORMULA) ?? [];
+  let n = 0;
+  const shape = formula.replace(QUERY_IN_FORMULA, () => `Q${n++}`).replace(/default_zero\(/g, '(');
+  const results = texts.map((t) => evaluate(t, range, points));
+  const keyed = results.map((gs) => new Map(gs.map((g) => [JSON.stringify(g.tags), new Map(g.points)])));
+  const keys = [
+    ...new Set(
+      results
+        .flat()
+        .filter((g) => Object.keys(g.tags).length)
+        .map((g) => JSON.stringify(g.tags)),
+    ),
+  ];
+  const times = [...new Set(results.flat().flatMap((g) => g.points.map((p) => p[0])))].sort((a, b) => a - b);
+  return (keys.length ? keys : ['{}']).map((key) => ({
+    tags: JSON.parse(key) as Tags,
+    points: times.flatMap((t) => {
+      const v = evalFormula(
+        shape,
+        keyed.map((m) => (m.get(key) ?? m.get('{}'))?.get(t) ?? null),
+      );
+      return v === null ? [] : [[t, Math.round(v * 100) / 100] as [number, number]];
+    }),
+  }));
+}
+
 export function queryTimeseries(req: TimeseriesRequest): Promise<MetricSeries[]> {
   return attempt(() =>
     req.queries.flatMap((query) => {
-      const q = parseMetricQuery(query)!;
+      const q = parseMetricQuery(query);
+      if (!q) return evaluateFormula(query, req.range, req.points ?? 120).map((g) => ({ name: Object.keys(g.tags).length ? groupLabel(g.tags) : query, points: g.points }));
       return evaluate(query, req.range, req.points ?? 120).map((g) => ({
         // Ungrouped series are named by their full query so several queries stay distinct.
         name: q?.by.length ? groupLabel(g.tags) : query,

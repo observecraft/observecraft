@@ -939,6 +939,19 @@ async fn org_tiers(st: &AppState, org: &str) -> Result<Tiers, ApiError> {
     Ok(t)
 }
 
+/// A metric query, or a formula between metric queries (`sum:a{*} by {x} / sum:b{*} by {x} * 100`):
+/// the plain query (none for a formula) and the series.
+async fn evaluate_formula(st: &AppState, org: &str, text: &str, range: TimeRange, points: u32) -> Result<(Option<MetricQuery>, Vec<Group>), ApiError> {
+    let f = super::monitor_formula::parse_formula(text).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+    if f.expr == super::monitor_formula::Expr::Query(0) {
+        let (q, groups) = evaluate(st, org, text, range, points).await?;
+        return Ok((Some(q), groups));
+    }
+    let results = futures::future::try_join_all(f.queries.iter().map(|q| evaluate(st, org, q, range, points))).await?;
+    let groups: Vec<Vec<Group>> = results.into_iter().map(|(_, g)| g).collect();
+    Ok((None, super::monitor_formula::combine(&f.expr, &groups)))
+}
+
 async fn evaluate(
     st: &AppState,
     org: &str,
@@ -1084,23 +1097,24 @@ pub async fn timeseries(
     let results = futures::future::try_join_all(
         req.queries
             .iter()
-            .map(|q| evaluate(&st, &org, q, req.range, points)),
+            .map(|q| evaluate_formula(&st, &org, q, req.range, points)),
     )
     .await?;
-    let metrics: Vec<String> = results.iter().map(|(q, _)| q.metric.clone()).collect::<std::collections::HashSet<_>>().into_iter().collect();
+    let metrics: Vec<String> = results.iter().filter_map(|(q, _)| q.as_ref().map(|q| q.metric.clone())).collect::<std::collections::HashSet<_>>().into_iter().collect();
     let units = series_units(&st, &org, &metrics).await?;
     let mut out = Vec::new();
     for ((q, groups), text) in results.into_iter().zip(&req.queries) {
         for g in groups {
             // Ungrouped series are named by their query so several queries stay distinct.
             out.push(MetricSeries {
-                name: if q.by.is_empty() {
+                name: if g.tags.is_empty() {
                     text.clone()
                 } else {
                     group_label(&g.tags)
                 },
                 points: g.points,
-                unit: units.get(&q.metric).cloned(),
+                // A formula's unit isn't its queries' (a ratio, a difference of rates…): none.
+                unit: q.as_ref().and_then(|q| units.get(&q.metric).cloned()),
             });
         }
     }

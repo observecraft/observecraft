@@ -215,3 +215,18 @@
   height: 100%;
   background: var(--brand);
 }
+
+/* ---------- Formula ---------- */
+.mx-formula-letter {
+  background: var(--chart-5);
+}
+
+.mx-formula {
+  flex: 1;
+  max-width: 420px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+}
