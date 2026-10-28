@@ -4220,6 +4220,14 @@ export interface components {
             /** @description Per status for the same filters, ignoring the status filter (facet counts). */
             counts: components["schemas"]["IncidentCounts"];
             incidents: components["schemas"]["IncidentSummary"][];
+            /** @description Per severity, ignoring the severity filter. */
+            severityCounts: {
+                [key: string]: number;
+            };
+            /** @description Per team, ignoring the team filter. */
+            teamCounts: {
+                [key: string]: number;
+            };
             /** Format: int64 */
             total: number;
         };

@@ -50,7 +50,11 @@ function Accordion({ title, children, defaultOpen = false }: { title: string; ch
 function csv(rows: IncidentSummary[]) {
   const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
   const lines = [['id', 'title', 'status', 'severity', 'type', 'commander', 'declared', 'resolved'].join(',')].concat(
-    rows.map((r) => [`IR-${r.id}`, r.title, r.status, r.severity, r.incidentType, r.commander?.name ?? '', new Date(r.declaredAt).toISOString(), r.resolvedAt ? new Date(r.resolvedAt).toISOString() : ''].map(esc).join(',')),
+    rows.map((r) =>
+      [`IR-${r.id}`, r.title, r.status, r.severity, r.incidentType, r.commander?.name ?? '', new Date(r.declaredAt).toISOString(), r.resolvedAt ? new Date(r.resolvedAt).toISOString() : '']
+        .map(esc)
+        .join(','),
+    ),
   );
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
@@ -129,6 +133,7 @@ export function IncidentsPage() {
                   <label key={t.handle} className="inc-check">
                     <input type="checkbox" className="checkbox" checked={teams.includes(t.handle)} onChange={() => setTeams(toggle(teams, t.handle))} />
                     {t.handle}
+                    <span className="inc-count">{q.data?.teamCounts[t.handle] ?? 0}</span>
                   </label>
                 ))}
               </Accordion>
@@ -149,6 +154,7 @@ export function IncidentsPage() {
                 <label key={s} className="inc-check">
                   <input type="checkbox" className="checkbox" checked={severities.includes(s)} onChange={() => setSeverities(toggle(severities, s))} />
                   {s} <span className="muted">{SEVERITY_LABEL[s]}</span>
+                  <span className="inc-count">{q.data?.severityCounts[s] ?? 0}</span>
                 </label>
               ))}
             </Accordion>
@@ -187,7 +193,11 @@ export function IncidentsPage() {
             <>
               <Group title={live.length === 1 ? 'There is 1 live incident.' : `There are ${live.length} live incidents.`} items={live} />
               <Group title={`Resolved incidents (${resolved.length})`} items={resolved} />
-              {q.data.total > q.data.incidents.length && <p className="muted inc-more">Showing the {q.data.incidents.length} most relevant of {q.data.total}. Narrow the filters to see more.</p>}
+              {q.data.total > q.data.incidents.length && (
+                <p className="muted inc-more">
+                  Showing the {q.data.incidents.length} most relevant of {q.data.total}. Narrow the filters to see more.
+                </p>
+              )}
             </>
           )}
         </main>

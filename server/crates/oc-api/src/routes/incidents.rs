@@ -2,6 +2,8 @@
 //! impacts and follow-ups. Incidents are addressed by their per-org number (`IR-<n>`).
 //! Status, severity and commander changes are recorded on the timeline automatically.
 
+use std::collections::BTreeMap;
+
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
@@ -156,14 +158,26 @@ pub struct IncidentCounts {
 }
 
 #[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct IncidentSearchPage {
     pub incidents: Vec<IncidentSummary>,
     pub total: i64,
     /// Per status for the same filters, ignoring the status filter (facet counts).
     pub counts: IncidentCounts,
+    /// Per severity, ignoring the severity filter.
+    pub severity_counts: BTreeMap<String, i64>,
+    /// Per team, ignoring the team filter.
+    pub team_counts: BTreeMap<String, i64>,
 }
 
-fn push_filters(qb: &mut QueryBuilder<Postgres>, org: &str, me: &str, req: &IncidentSearchRequest) {
+/// A filter left out of a facet's own counts.
+#[derive(Clone, Copy, PartialEq)]
+enum Facet {
+    Severity,
+    Team,
+}
+
+fn push_filters(qb: &mut QueryBuilder<Postgres>, org: &str, me: &str, req: &IncidentSearchRequest, skip: Option<Facet>) {
     qb.push(" WHERE i.org_id = ").push_bind(org.to_string());
     qb.push(" AND i.declared_at >= to_timestamp(").push_bind(req.range.from as f64 / 1000.0).push(") AND i.declared_at <= to_timestamp(").push_bind(req.range.to as f64 / 1000.0).push(")");
     let text = req.query.trim();
@@ -176,14 +190,20 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, org: &str, me: &str, req: &Inci
         }
         qb.push(")");
     }
-    if !req.severities.is_empty() {
+    if !req.severities.is_empty() && skip != Some(Facet::Severity) {
         qb.push(" AND i.severity = ANY(").push_bind(req.severities.clone()).push(")");
     }
-    if !req.teams.is_empty() {
+    if !req.teams.is_empty() && skip != Some(Facet::Team) {
         qb.push(" AND i.teams && ").push_bind(req.teams.clone());
     }
     if req.mine {
         qb.push(" AND (i.commander_id::text = ").push_bind(me.to_string()).push(" OR i.id IN (SELECT incident_id FROM incident_responders WHERE user_id::text = ").push_bind(me.to_string()).push("))");
+    }
+}
+
+fn push_statuses(qb: &mut QueryBuilder<Postgres>, req: &IncidentSearchRequest) {
+    if !req.statuses.is_empty() {
+        qb.push(" AND i.status = ANY(").push_bind(req.statuses.iter().map(|s| s.as_str().to_string()).collect::<Vec<_>>()).push(")");
     }
 }
 
@@ -192,16 +212,14 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(m
     req.range.validate_loose()?;
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(SELECT);
     qb.push(", count(*) OVER () AS total").push(FROM);
-    push_filters(&mut qb, &org, &me, &req);
-    if !req.statuses.is_empty() {
-        qb.push(" AND i.status = ANY(").push_bind(req.statuses.iter().map(|s| s.as_str().to_string()).collect::<Vec<_>>()).push(")");
-    }
+    push_filters(&mut qb, &org, &me, &req, None);
+    push_statuses(&mut qb, &req);
     // Open incidents first, then newest.
     qb.push(" ORDER BY (i.status = 'resolved'), i.declared_at DESC LIMIT ").push_bind(req.limit.clamp(1, 200)).push(" OFFSET ").push_bind(req.offset.max(0));
     let rows: Vec<Row> = qb.build_query_as().fetch_all(&st.postgres).await?;
 
     let mut cq: QueryBuilder<Postgres> = QueryBuilder::new("SELECT i.status, count(*) FROM incidents i");
-    push_filters(&mut cq, &org, &me, &req);
+    push_filters(&mut cq, &org, &me, &req, None);
     cq.push(" GROUP BY i.status");
     let per_status: Vec<(String, i64)> = cq.build_query_as().fetch_all(&st.postgres).await?;
     let mut counts = IncidentCounts::default();
@@ -212,8 +230,18 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(m
             _ => counts.resolved = n,
         }
     }
+    let mut sq: QueryBuilder<Postgres> = QueryBuilder::new("SELECT i.severity, count(*) FROM incidents i");
+    push_filters(&mut sq, &org, &me, &req, Some(Facet::Severity));
+    push_statuses(&mut sq, &req);
+    sq.push(" GROUP BY i.severity");
+    let severity_counts: BTreeMap<String, i64> = sq.build_query_as::<(String, i64)>().fetch_all(&st.postgres).await?.into_iter().collect();
+    let mut tq: QueryBuilder<Postgres> = QueryBuilder::new("SELECT t.team, count(*) FROM incidents i CROSS JOIN LATERAL unnest(i.teams) AS t(team)");
+    push_filters(&mut tq, &org, &me, &req, Some(Facet::Team));
+    push_statuses(&mut tq, &req);
+    tq.push(" GROUP BY t.team");
+    let team_counts: BTreeMap<String, i64> = tq.build_query_as::<(String, i64)>().fetch_all(&st.postgres).await?.into_iter().collect();
     let total = rows.first().and_then(|r| r.total).unwrap_or(0);
-    Ok(Json(IncidentSearchPage { incidents: rows.iter().map(Row::summary).collect(), total, counts }))
+    Ok(Json(IncidentSearchPage { incidents: rows.iter().map(Row::summary).collect(), total, counts, severity_counts, team_counts }))
 }
 
 // ================================================================ detail
@@ -570,4 +598,28 @@ pub async fn update_followup(State(st): State<AppState>, _: Writer, OrgId(org): 
         return Err(ApiError::NotFound(format!("Follow-up {followup_id} not found")));
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn req() -> IncidentSearchRequest {
+        serde_json::from_value(serde_json::json!({"severities": ["SEV-1"], "teams": ["payments"], "range": {"from": 0, "to": 1}, "offset": 0, "limit": 10})).unwrap()
+    }
+
+    fn sql(skip: Option<Facet>) -> String {
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM incidents i");
+        push_filters(&mut qb, "org", "me", &req(), skip);
+        qb.sql().to_string()
+    }
+
+    #[test]
+    fn a_facets_counts_ignore_only_its_own_filter() {
+        assert!(sql(None).contains("i.severity = ANY") && sql(None).contains("i.teams &&"));
+        assert!(!sql(Some(Facet::Severity)).contains("i.severity") && sql(Some(Facet::Severity)).contains("i.teams &&"));
+        assert!(!sql(Some(Facet::Team)).contains("i.teams &&") && sql(Some(Facet::Team)).contains("i.severity = ANY"));
+        // The organization is always filtered.
+        assert!(sql(Some(Facet::Team)).contains("i.org_id = $1"));
+    }
 }

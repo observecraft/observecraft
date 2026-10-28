@@ -11378,7 +11378,9 @@
         "required": [
           "incidents",
           "total",
-          "counts"
+          "counts",
+          "severityCounts",
+          "teamCounts"
         ],
         "properties": {
           "counts": {
@@ -11389,6 +11391,28 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/IncidentSummary"
+            }
+          },
+          "severityCounts": {
+            "type": "object",
+            "description": "Per severity, ignoring the severity filter.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "teamCounts": {
+            "type": "object",
+            "description": "Per team, ignoring the team filter.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "propertyNames": {
+              "type": "string"
             }
           },
           "total": {
