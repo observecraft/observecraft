@@ -280,6 +280,38 @@ div.syn-tile {
   border-left-color: var(--mon-nodata);
 }
 
+/* Suites: two tiles sharing the width, status pill then "N suites" on one line. */
+.syn-summary-tiles .syn-tile {
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  font-size: 18px;
+  color: var(--text-muted);
+}
+
+.syn-summary-tiles .syn-tile span {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg-muted);
+}
+
+.syn-summary-tiles .syn-tile.alert span {
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
+}
+
+.syn-summary-tiles .syn-tile.ok span {
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
+}
+
+.syn-summary-tiles .syn-tile b {
+  margin-right: -6px;
+  color: var(--text);
+}
+
 a.syn-tile:hover,
 button.syn-tile:hover {
   background: var(--bg-hover);
