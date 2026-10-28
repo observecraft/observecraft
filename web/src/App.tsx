@@ -1,4 +1,5 @@
 import { IndexesPage } from './pages/logs/IndexesPage';
+import { PipelinesPage } from './pages/logs/PipelinesPage';
 import { DataRetentionPage } from './pages/settings/DataRetentionPage';
 import { MonitorSettingsPage } from './pages/monitors/MonitorSettingsPage';
 import { ArchiveSearchPage } from './pages/logs/ArchiveSearchPage';
@@ -106,8 +107,9 @@ function Shell() {
             <Route element={<LogsConfigLayout />}>
               <Route path="/logs/archives" element={<ArchivesPage />} />
               <Route path="/logs/indexes" element={<IndexesPage />} />
+              <Route path="/logs/pipelines" element={<PipelinesPage />} />
               <Route path="/logs/rehydrations" element={<RehydrationsPage />} />
-              {LOGS_CONFIG_SLUGS.filter((slug) => !['archives', 'rehydrations', 'indexes'].includes(slug)).map((slug) => (
+              {LOGS_CONFIG_SLUGS.filter((slug) => !['archives', 'rehydrations', 'indexes', 'pipelines'].includes(slug)).map((slug) => (
                 <Route key={slug} path={`/logs/${slug}`} element={<LogsConfigComingSoon />} />
               ))}
             </Route>

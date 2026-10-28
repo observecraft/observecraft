@@ -18,7 +18,7 @@ export const LOGS_CONFIG_NAV: { section: string; isNew?: boolean; items: Item[] 
   {
     section: 'PROCESSING',
     items: [
-      { slug: 'pipelines', label: 'Pipelines', soon: true },
+      { slug: 'pipelines', label: 'Pipelines' },
       { slug: 'attributes', label: 'Standard Attributes', soon: true },
       { slug: 'sensitive-data-scanner', label: 'Sensitive Data Scanner', href: '/organization-settings/sensitive-data-scanner', soon: true },
     ],
