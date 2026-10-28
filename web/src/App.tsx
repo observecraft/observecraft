@@ -67,6 +67,8 @@ import { NotebookListPage, NotebookReportsPage, NotebookTemplatesPage } from './
 import { NotebookPage } from './pages/notebooks/NotebookPage';
 import { ErrorTrackingLayout } from './pages/errors/ErrorTrackingLayout';
 import { IssuesPage } from './pages/errors/IssuesPage';
+import { ResourceCatalogPage } from './pages/infrastructure/ResourceCatalogPage';
+import { ResourcesLayout } from './pages/infrastructure/ResourcesLayout';
 import { HostsPage } from './pages/infrastructure/HostsPage';
 import { KubernetesOverview } from './pages/kubernetes/KubernetesOverview';
 import { KubernetesComingSoon } from './pages/kubernetes/KubernetesComingSoon';
@@ -161,6 +163,9 @@ function Shell() {
             <Route path="/infrastructure" element={<HostsPage />} />
             <Route path="/infrastructure/map" element={<Navigate to="/infrastructure?view=map" replace />} />
             <Route path="/infrastructure/add" element={<SetupGuidePage kind="infrastructure" />} />
+            <Route element={<ResourcesLayout />}>
+              <Route path="/infrastructure/catalog" element={<ResourceCatalogPage />} />
+            </Route>
             <Route path="/logs/onboarding" element={<SetupGuidePage kind="logs" />} />
             <Route path="/release-notes" element={<ReleaseNotesPage />} />
             <Route path="/kubernetes" element={<KubernetesOverview />} />

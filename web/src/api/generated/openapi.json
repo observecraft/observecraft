@@ -3300,6 +3300,36 @@
         }
       }
     },
+    "/api/v1/infrastructure/catalog": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "operationId": "search_catalog",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ingest-keys": {
       "get": {
         "tags": [
@@ -9276,6 +9306,330 @@
           "elevated",
           "normal",
           "unknown"
+        ]
+      },
+      "CatalogCategory": {
+        "type": "string",
+        "description": "Broad groups of resource types (the catalog's default grouping).",
+        "enum": [
+          "compute",
+          "containers",
+          "kubernetes",
+          "ecs"
+        ]
+      },
+      "CatalogFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "values"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogFacetValue"
+            }
+          }
+        }
+      },
+      "CatalogFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "CatalogGroup": {
+        "type": "object",
+        "description": "One group of a grouped search, with the distinct regions, envs, teams and services of its members.",
+        "required": [
+          "key",
+          "count",
+          "regions",
+          "envs",
+          "teams",
+          "services"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "envs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "key": {
+            "type": "string"
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CatalogPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "facets"
+        ],
+        "properties": {
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogFacet"
+            }
+          },
+          "groups": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CatalogGroup"
+            },
+            "description": "When grouped: every group of the matching resources, largest first."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogResource"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "CatalogResource": {
+        "type": "object",
+        "description": "One row of the catalog.",
+        "required": [
+          "id",
+          "resourceType",
+          "resourceCategory",
+          "name",
+          "lastSeen",
+          "tags",
+          "attributes"
+        ],
+        "properties": {
+          "account": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attributes": {
+            "type": "object",
+            "description": "Type-specific properties for the side panel (OS, node, images, owner, …).",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "cloud": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cluster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Kubernetes or ECS cluster."
+          },
+          "createdAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "health": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KubeHealth"
+              }
+            ]
+          },
+          "id": {
+            "type": "string",
+            "description": "`host:<name>` for hosts, the Kubernetes Explorer uid otherwise."
+          },
+          "kubeKind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KubeKind",
+                "description": "Kubernetes Explorer kind, to open the resource there (null for hosts)."
+              }
+            ]
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "region": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resourceCategory": {
+            "$ref": "#/components/schemas/CatalogCategory"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/CatalogType"
+          },
+          "service": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`key:value` tags, as on the resource's own page."
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "CatalogSearchRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "limit"
+        ],
+        "properties": {
+          "desc": {
+            "type": "boolean"
+          },
+          "groupBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Group the results by a key (`resource_category`, `resource_type`, `region`, `env`, a tag key, …)."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "description": "`resource_type:kube_pod env:prod cluster:shop-* team:payments` + free text on the name."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange",
+            "description": "Hosts are those that reported in this range; Kubernetes and ECS resources are current."
+          },
+          "sort": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "name (default), type, cluster, region or last_seen."
+          }
+        }
+      },
+      "CatalogType": {
+        "type": "string",
+        "description": "The resource types of the catalog.",
+        "enum": [
+          "host",
+          "kube_cluster",
+          "kube_node",
+          "kube_namespace",
+          "kube_deployment",
+          "kube_statefulset",
+          "kube_daemonset",
+          "kube_cronjob",
+          "kube_job",
+          "kube_pod",
+          "kube_service",
+          "kube_ingress",
+          "kube_persistent_volume_claim",
+          "kube_persistent_volume",
+          "container",
+          "ecs_cluster",
+          "ecs_service",
+          "ecs_task"
         ]
       },
       "ChangeMode": {

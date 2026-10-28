@@ -1339,6 +1339,22 @@ export interface paths {
         patch: operations["set_important"];
         trace?: never;
     };
+    "/api/v1/infrastructure/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_catalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ingest-keys": {
         parameters: {
             query?: never;
@@ -3585,6 +3601,86 @@ export interface components {
          * @enum {string}
          */
         BurnLevel: "high" | "elevated" | "normal" | "unknown";
+        /**
+         * @description Broad groups of resource types (the catalog's default grouping).
+         * @enum {string}
+         */
+        CatalogCategory: "compute" | "containers" | "kubernetes" | "ecs";
+        CatalogFacet: {
+            key: string;
+            values: components["schemas"]["CatalogFacetValue"][];
+        };
+        CatalogFacetValue: {
+            count: number;
+            value: string;
+        };
+        /** @description One group of a grouped search, with the distinct regions, envs, teams and services of its members. */
+        CatalogGroup: {
+            count: number;
+            envs: string[];
+            key: string;
+            regions: string[];
+            services: string[];
+            teams: string[];
+        };
+        CatalogPage: {
+            facets: components["schemas"]["CatalogFacet"][];
+            /** @description When grouped: every group of the matching resources, largest first. */
+            groups?: components["schemas"]["CatalogGroup"][] | null;
+            items: components["schemas"]["CatalogResource"][];
+            total: number;
+        };
+        /** @description One row of the catalog. */
+        CatalogResource: {
+            account?: string | null;
+            /** @description Type-specific properties for the side panel (OS, node, images, owner, …). */
+            attributes: {
+                [key: string]: string;
+            };
+            cloud?: string | null;
+            /** @description Kubernetes or ECS cluster. */
+            cluster?: string | null;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            createdAt?: number | null;
+            env?: string | null;
+            health?: null | components["schemas"]["KubeHealth"];
+            /** @description `host:<name>` for hosts, the Kubernetes Explorer uid otherwise. */
+            id: string;
+            kubeKind?: null | components["schemas"]["KubeKind"];
+            /** Format: int64 */
+            lastSeen: number;
+            name: string;
+            namespace?: string | null;
+            region?: string | null;
+            resourceCategory: components["schemas"]["CatalogCategory"];
+            resourceType: components["schemas"]["CatalogType"];
+            service?: string | null;
+            status?: string | null;
+            /** @description `key:value` tags, as on the resource's own page. */
+            tags: string[];
+            team?: string | null;
+        };
+        CatalogSearchRequest: {
+            desc?: boolean;
+            /** @description Group the results by a key (`resource_category`, `resource_type`, `region`, `env`, a tag key, …). */
+            groupBy?: string | null;
+            limit: number;
+            offset?: number;
+            /** @description `resource_type:kube_pod env:prod cluster:shop-* team:payments` + free text on the name. */
+            query?: string;
+            /** @description Hosts are those that reported in this range; Kubernetes and ECS resources are current. */
+            range: components["schemas"]["TimeRange"];
+            /** @description name (default), type, cluster, region or last_seen. */
+            sort?: string | null;
+        };
+        /**
+         * @description The resource types of the catalog.
+         * @enum {string}
+         */
+        CatalogType: "host" | "kube_cluster" | "kube_node" | "kube_namespace" | "kube_deployment" | "kube_statefulset" | "kube_daemonset" | "kube_cronjob" | "kube_job" | "kube_pod" | "kube_service" | "kube_ingress" | "kube_persistent_volume_claim" | "kube_persistent_volume" | "container" | "ecs_cluster" | "ecs_service" | "ecs_task";
         /** @enum {string} */
         ChangeMode: "change" | "pct_change";
         CiAggregate: {
@@ -10143,6 +10239,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_catalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogPage"];
                 };
             };
         };

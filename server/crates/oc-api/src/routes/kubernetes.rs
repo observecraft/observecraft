@@ -1985,6 +1985,12 @@ fn related(rows: &[KubeResource], r: &KubeResource) -> Vec<KubeResource> {
     out
 }
 
+/// Every current object of the org with ownership, rollups and tags resolved (the resource catalog
+/// and change tracking read them).
+pub(crate) async fn resources(st: &AppState, org: &str) -> Result<Vec<KubeResource>, ApiError> {
+    Ok(build(&load(st, org).await?))
+}
+
 /// The node named like a host and the pods running on it, for the host panel.
 pub async fn host_inventory(st: &AppState, org: &str, host: &str) -> Result<(Option<KubeResource>, Vec<KubeResource>), ApiError> {
     let rows = build(&load(st, org).await?);

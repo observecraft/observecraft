@@ -87,7 +87,7 @@ function sum(rows: KubeResource[], pick: (r: KubeResource) => KubeUtilization | 
 
 let cache: KubeResource[] | null = null;
 
-function inventory(): KubeResource[] {
+export function inventory(): KubeResource[] {
   if (cache) return cache;
   const r = rng(42);
   const out: KubeResource[] = [];

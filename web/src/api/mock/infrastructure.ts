@@ -31,7 +31,7 @@ function hashSeed(s: string): number {
   return h >>> 0;
 }
 
-interface StoredHost extends HostSummary {
+export interface StoredHost extends HostSummary {
   seed: number;
   cluster: string | null;
   region: string | null;
@@ -197,6 +197,11 @@ function hosts(): StoredHost[] {
 
   store = out;
   return out;
+}
+
+/** Every mock host with its cluster and region (the resource catalog lists them). */
+export function hostInventory(): StoredHost[] {
+  return hosts();
 }
 
 function find(name: string): StoredHost {

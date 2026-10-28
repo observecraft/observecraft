@@ -1135,3 +1135,271 @@
   transform: scale(1.12);
   filter: brightness(1.15);
 }
+
+/* ---------- Resource Catalog and Change Tracking ---------- */
+.rc-table tbody tr {
+  cursor: pointer;
+}
+
+.rc-table tbody tr:hover,
+.rc-table tbody tr.selected {
+  background: var(--bg-hover);
+}
+
+.rc-table td {
+  white-space: nowrap;
+}
+
+.rc-type-icon {
+  vertical-align: -2px;
+  color: var(--text-muted);
+}
+
+.rc-name {
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rc-cloud {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rc-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(560px, 92%);
+  z-index: 40;
+  overflow-y: auto;
+  padding: 16px 20px 24px;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  box-shadow: -6px 0 24px rgba(20, 24, 36, 0.14);
+}
+
+.rc-panel header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.rc-panel-close {
+  margin-left: auto;
+  display: inline-flex;
+}
+
+.rc-panel h2 {
+  margin: 12px 0 10px;
+  font-size: var(--fs-xl);
+  word-break: break-all;
+}
+
+.rc-panel h3 {
+  margin: 18px 0 8px;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.rc-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rc-panel dl {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.rc-panel dt {
+  color: var(--text-muted);
+}
+
+.rc-panel dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.rc-panel dd button {
+  color: var(--accent);
+}
+
+.rc-wrap {
+  word-break: break-all;
+}
+
+.rc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rc-tags .tag-chip {
+  cursor: pointer;
+}
+
+.rc-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+}
+
+.rc-section {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.rc-preview {
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+}
+
+.rc-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.rc-heading {
+  margin: 0 0 12px;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-medium);
+}
+
+.rc-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+
+.rc-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: var(--fs-md);
+  white-space: nowrap;
+}
+
+.rc-filter.active {
+  border-color: var(--primary);
+  background: var(--bg-subtle);
+}
+
+.rc-filter-add {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.rc-filter-menu {
+  min-width: 260px;
+  padding: 8px;
+}
+
+.rc-filter-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+}
+
+.rc-filter-search input {
+  flex: 1;
+  border: none;
+  outline: none;
+}
+
+.rc-filter-values {
+  max-height: 280px;
+  overflow-y: auto;
+  margin-top: 6px;
+}
+
+.rc-filter-value {
+  flex: 1;
+}
+
+.rc-filter-actions {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.rc-filter-actions button {
+  width: auto;
+  padding: 4px 6px;
+}
+
+.rc-groupby {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rc-count {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+
+.rc-resource {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+  height: auto !important;
+}
+
+.rc-resource > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rc-subtype {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.rc-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rc-table .num {
+  text-align: right;
+}

@@ -123,12 +123,14 @@ pub(crate) fn host_software(res: &HashMap<String, String>, apps: &[String]) -> V
 }
 
 /// Everything known about a host, gathered once per request.
-struct HostRow {
-    summary: HostSummary,
-    res: HashMap<String, String>,
+pub(crate) struct HostRow {
+    pub(crate) summary: HostSummary,
+    pub(crate) res: HashMap<String, String>,
     cpu_user: f64,
     load1: f64,
     uptime: Option<f64>,
+    /// Epoch ms of the host's latest CPU point in range.
+    pub(crate) last_seen: i64,
 }
 
 impl HostRow {
@@ -161,7 +163,7 @@ impl HostRow {
     }
 }
 
-fn enum_str<T: Serialize>(v: &T) -> String {
+pub(crate) fn enum_str<T: Serialize>(v: &T) -> String {
     serde_json::to_value(v).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default()
 }
 
@@ -183,6 +185,7 @@ struct Inventory {
     res: String,
     idle: f64,
     user: f64,
+    seen: i64,
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -193,7 +196,7 @@ struct SpanHost {
 }
 
 /// All hosts that reported host metrics in `range`, with current (last 5 minutes of range) values.
-async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<HostRow>, ApiError> {
+pub(crate) async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<HostRow>, ApiError> {
     range.validate()?;
     let recent_from = range.from.max(range.to - 5 * 60_000);
     #[derive(clickhouse::Row, Deserialize)]
@@ -211,7 +214,8 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
             // system.cpu.idle / system.cpu.user in percent.
             "SELECT ResourceAttributes['host.name'] AS name, toJSONString(argMax(ResourceAttributes, TimeUnix)) AS res, \
              avgIf(if(MetricName = 'system.cpu.idle', Value / 100, Value), (MetricName = 'system.cpu.idle' OR Attributes['state'] = 'idle') AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS idle, \
-             avgIf(if(MetricName = 'system.cpu.user', Value / 100, Value), (MetricName = 'system.cpu.user' OR Attributes['state'] = 'user') AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS user \
+             avgIf(if(MetricName = 'system.cpu.user', Value / 100, Value), (MetricName = 'system.cpu.user' OR Attributes['state'] = 'user') AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS user, \
+             toInt64(toUnixTimestamp64Milli(max(TimeUnix))) AS seen \
              FROM {cpu_src} \
              WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) \
              AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) AND name != '' \
@@ -372,6 +376,7 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
                 cpu_user: round1(finite(i.user * 100.0)),
                 load1: v.map_or(0.0, |v| finite(v.load1)),
                 uptime: v.map(|v| v.uptime).filter(|u| u.is_finite() && *u > 0.0),
+                last_seen: i.seen,
                 res,
             }
         })
@@ -589,7 +594,7 @@ pub struct HostRequest {
 }
 
 /// Resource attributes not worth showing as tags.
-const HIDDEN_TAGS: &[&str] = &[
+pub(crate) const HIDDEN_TAGS: &[&str] = &[
     "oc.org_id",
     "oc.retention_days",
     "host.id",
