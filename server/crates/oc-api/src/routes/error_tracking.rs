@@ -656,6 +656,22 @@ fn issue_out(i: StatedIssue) -> IssueOut {
     }
 }
 
+/// Open issues (for review or reviewed) per service in the range, as `access` may read them
+/// (Developer Portal home).
+pub(crate) async fn open_issues_by_service(st: &AppState, org: &str, access: &LogAccess, range: TimeRange) -> Result<HashMap<String, u64>, ApiError> {
+    let mut issues = Vec::new();
+    for source in sources_of("all") {
+        issues.extend(load_source(st, org, access, source, range, "", 1, None).await?);
+    }
+    let saved = saved_states(st, org).await?;
+    let (stated, _) = apply_states(issues, &saved, "all");
+    let mut out: HashMap<String, u64> = HashMap::new();
+    for i in stated.into_iter().filter(|i| i.status == "for_review" || i.status == "reviewed") {
+        *out.entry(i.group.service).or_default() += 1;
+    }
+    Ok(out)
+}
+
 /// Issues from the organization's error logs and APM error spans in the range (first and last seen within it).
 #[utoipa::path(post, path = "/api/v1/error-tracking/issues/search", request_body = IssueSearchRequest,
     responses((status = 200, body = IssueSearchPage)), tag = "error-tracking")]

@@ -3420,6 +3420,195 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/portal/apps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's app shortcuts. */
+        get: operations["list_portal_apps"];
+        put?: never;
+        post: operations["create_portal_app"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/apps/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_portal_app"];
+        post?: never;
+        delete: operations["delete_portal_app"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/connectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every provider's connector status; credentials are never returned. */
+        get: operations["list_portal_connectors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/connectors/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Configures a provider (admins). The token is sealed at rest; leave it out to keep the stored one. */
+        put: operations["put_portal_connector"];
+        post?: never;
+        /** Removes a provider's connector and its stored credential (admins). */
+        delete: operations["delete_portal_connector"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/connectors/{provider}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks the stored credential against the provider and records the outcome (admins). */
+        post: operations["test_portal_connector"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/favorites/{entity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Stars an entity for the current member. */
+        put: operations["add_portal_favorite"];
+        post?: never;
+        /** Removes a star. */
+        delete: operations["remove_portal_favorite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/home/entities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Services with their monitors, open issues, dashboards, scorecard level and on-call schedule. */
+        get: operations["portal_entities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/home/prs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The member's pull requests on GitHub or GitLab, grouped (cached for a minute). */
+        get: operations["portal_pull_requests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/home/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The member's open Jira or Linear tickets, or the incidents they work on (`work_items`). */
+        get: operations["portal_tickets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/identities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The current member's identity on each provider. */
+        get: operations["list_portal_identities"];
+        /** Sets the current member's identities; an empty handle goes back to the default. */
+        put: operations["put_portal_identities"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Which telemetry signals feed the catalog (last 24 hours) and the external source connectors. */
+        get: operations["portal_sources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles/flamegraph": {
         parameters: {
             query?: never;
@@ -8354,6 +8543,180 @@ export interface components {
             repository: string;
             revision: string;
         };
+        PortalApp: {
+            id: string;
+            /** @description Logo registry key (`github`, `tile:servicenow`); empty for a generic icon. */
+            logo: string;
+            name: string;
+            url: string;
+        };
+        PortalAppInput: {
+            logo?: string;
+            name: string;
+            url: string;
+        };
+        PortalConnectionTest: {
+            /** Format: int64 */
+            checkedAt: number;
+            /** @description "Connected as …" or what went wrong. */
+            message: string;
+            ok: boolean;
+        };
+        /** @description A connector as clients see it: never the credential itself. */
+        PortalConnector: {
+            /** @description Jira: the email of the API token's account. */
+            account: string;
+            /** @description API base URL (the default when not configured). */
+            baseUrl: string;
+            configured: boolean;
+            lastCheckError: string;
+            lastCheckOk?: boolean | null;
+            /** Format: int64 */
+            lastCheckedAt?: number | null;
+            provider: components["schemas"]["PortalProvider"];
+            /** Format: int64 */
+            updatedAt?: number | null;
+        };
+        PortalConnectorInput: {
+            /** @description Jira: the email the API token belongs to. */
+            account?: string;
+            /** @description Empty for the provider's default (api.github.com, gitlab.com, api.linear.app). */
+            baseUrl?: string;
+            /** @description Token or API key; left out to keep the stored one. */
+            token?: string | null;
+        };
+        /** @description A service on the home page, with what exists around it. */
+        PortalEntity: {
+            /** Format: int64 */
+            dashboards: number;
+            favorite: boolean;
+            /**
+             * Format: int64
+             * @description Open Error Tracking issues of the past 7 days.
+             */
+            issues: number;
+            /** @description service */
+            kind: string;
+            /**
+             * Format: int64
+             * @description Last CI deployment or first span of the newest version.
+             */
+            lastDeploy?: number | null;
+            /**
+             * Format: int64
+             * @description Last span (epoch ms); null for services only declared in metadata.
+             */
+            lastSeen?: number | null;
+            /** Format: int64 */
+            monitors: number;
+            name: string;
+            /** @description Name of the owning team's on-call schedule. */
+            onCall?: string | null;
+            /**
+             * Format: int32
+             * @description Scorecard level (0–3); null before scorecards are set up.
+             */
+            scorecardLevel?: number | null;
+            /** @description Owning team handle; empty when none. */
+            team: string;
+        };
+        PortalIdentitiesInput: {
+            identities: components["schemas"]["PortalIdentityInput"][];
+        };
+        PortalIdentity: {
+            /** @description Username (GitHub, GitLab) or email (Jira, Linear); empty when unknown. */
+            handle: string;
+            /** @description The handle is the default (the member's email), not one they set. */
+            isDefault: boolean;
+            provider: components["schemas"]["PortalProvider"];
+        };
+        PortalIdentityInput: {
+            /** @description Empty to remove the mapping (back to the default). */
+            handle: string;
+            provider: components["schemas"]["PortalProvider"];
+        };
+        /**
+         * @description Whether a home page list could be read.
+         * @enum {string}
+         */
+        PortalListStatus: "ok" | "not_connected" | "identity_required" | "error";
+        PortalPerson: {
+            avatarUrl: string;
+            login: string;
+        };
+        /** @enum {string} */
+        PortalProvider: "github" | "gitlab" | "jira" | "linear";
+        PortalPullRequest: {
+            /**
+             * Format: int64
+             * @description Lines added and removed; GitLab's list API doesn't report them.
+             */
+            additions?: number | null;
+            author: components["schemas"]["PortalPerson"];
+            /** Format: int64 */
+            comments: number;
+            /** Format: int64 */
+            deletions?: number | null;
+            group: components["schemas"]["PrGroup"];
+            /** Format: int64 */
+            number: number;
+            /** @description `owner/repo` (GitHub) or the project path (GitLab). */
+            repo: string;
+            reviewers: components["schemas"]["PortalPerson"][];
+            title: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+            url: string;
+        };
+        PortalPullRequests: {
+            /** Format: int64 */
+            fetchedAt: number;
+            message: string;
+            provider: components["schemas"]["PortalProvider"];
+            pullRequests: components["schemas"]["PortalPullRequest"][];
+            status: components["schemas"]["PortalListStatus"];
+            /** @description The member's username on the provider. */
+            user: string;
+        };
+        PortalSignal: {
+            /** @description The org sent this signal in the last 24 hours. */
+            active: boolean;
+            /** @description apm | logs | network | containers */
+            key: string;
+        };
+        PortalSources: {
+            connectors: components["schemas"]["PortalConnector"][];
+            signals: components["schemas"]["PortalSignal"][];
+        };
+        PortalTicket: {
+            /** Format: int64 */
+            createdAt: number;
+            key: string;
+            /** @description The provider's priority name (`High`, `Urgent`, `SEV-2`); empty when none. */
+            priority: string;
+            /** @description urgent | high | medium | low | none: the colour of the priority dot. */
+            priorityLevel: string;
+            status: string;
+            /** @description todo | in_progress | done */
+            statusCategory: string;
+            title: string;
+            /** Format: int64 */
+            updatedAt: number;
+            url: string;
+        };
+        PortalTickets: {
+            /** Format: int64 */
+            fetchedAt: number;
+            message: string;
+            /** @description jira | linear | work_items */
+            provider: string;
+            status: components["schemas"]["PortalListStatus"];
+            tickets: components["schemas"]["PortalTicket"][];
+            user: string;
+        };
         Postmortem: {
             /** @description Markdown. */
             content: string;
@@ -8365,6 +8728,11 @@ export interface components {
         PostmortemUpdate: {
             content: string;
         };
+        /**
+         * @description Which group of the home page a pull request belongs to.
+         * @enum {string}
+         */
+        PrGroup: "needs_review" | "returned" | "approved" | "waiting" | "drafts" | "merged";
         /** @enum {string} */
         PresetList: "all" | "custom" | "integrations" | "mine" | "starred" | "deleted";
         PreviewSeries: {
@@ -16742,6 +17110,376 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_portal_apps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalApp"][];
+                };
+            };
+        };
+    };
+    create_portal_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalAppInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalApp"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_portal_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalAppInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalApp"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_portal_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_portal_connectors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalConnector"][];
+                };
+            };
+        };
+    };
+    put_portal_connector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description github | gitlab | jira | linear */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalConnectorInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalConnector"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_portal_connector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description github | gitlab | jira | linear */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    test_portal_connector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description github | gitlab | jira | linear */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalConnectionTest"];
+                };
+            };
+        };
+    };
+    add_portal_favorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    remove_portal_favorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    portal_entities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalEntity"][];
+                };
+            };
+        };
+    };
+    portal_pull_requests: {
+        parameters: {
+            query: {
+                /** @description github | gitlab */
+                provider: string;
+                /** @description Skip the cache. */
+                refresh?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalPullRequests"];
+                };
+            };
+        };
+    };
+    portal_tickets: {
+        parameters: {
+            query: {
+                /** @description jira | linear | work_items */
+                provider: string;
+                refresh?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalTickets"];
+                };
+            };
+        };
+    };
+    list_portal_identities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalIdentity"][];
+                };
+            };
+        };
+    };
+    put_portal_identities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalIdentitiesInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalIdentity"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    portal_sources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalSources"];
                 };
             };
         };

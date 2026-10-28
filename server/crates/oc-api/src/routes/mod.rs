@@ -40,6 +40,8 @@ pub mod notifications;
 pub mod on_call;
 pub mod on_call_escalation;
 pub mod on_call_schedule;
+pub mod portal_home;
+pub mod portal_sources;
 pub mod profiles;
 pub mod reference_tables;
 pub mod scorecard_rules;
@@ -331,6 +333,22 @@ use crate::state::AppState;
         feature_flags::create_environment,
         feature_flags::update_environment_settings,
         feature_flags::delete_environment,
+        portal_home::get_connectors,
+        portal_home::put_connector,
+        portal_home::delete_connector,
+        portal_home::test_connector,
+        portal_home::get_identities,
+        portal_home::put_identities,
+        portal_home::pull_requests,
+        portal_home::tickets,
+        portal_home::entities,
+        portal_home::add_favorite,
+        portal_home::remove_favorite,
+        portal_home::get_apps,
+        portal_home::create_app,
+        portal_home::update_app,
+        portal_home::delete_app,
+        portal_home::get_sources,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -411,6 +429,7 @@ use crate::state::AppState;
         (name = "synthetics", description = "Synthetic API tests (HTTP, SSL, DNS, TCP) run by the server, their results and uptime"),
         (name = "scorecards", description = "Developer Portal scorecards: rules evaluated per service, their levels and service metadata"),
         (name = "feature_flags", description = "Feature flags, their targeting per environment and history; SDKs evaluate them over OFREP at the intake"),
+        (name = "portal", description = "Developer Portal home and settings: source connectors, identities, pull requests, tickets, entities and apps"),
         (name = "auth", description = "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"),
         (name = "health")
     )
@@ -768,6 +787,17 @@ pub fn router() -> Router<AppState> {
         )
         .route("/api/v1/feature-flags/:id/history", get(feature_flags::flag_history))
         .route("/api/v1/feature-flags/:id/environments/:environment_id", axum::routing::put(feature_flags::update_environment))
+        .route("/api/v1/portal/connectors", get(portal_home::get_connectors))
+        .route("/api/v1/portal/connectors/:provider", axum::routing::put(portal_home::put_connector).delete(portal_home::delete_connector))
+        .route("/api/v1/portal/connectors/:provider/test", post(portal_home::test_connector))
+        .route("/api/v1/portal/identities", get(portal_home::get_identities).put(portal_home::put_identities))
+        .route("/api/v1/portal/home/prs", get(portal_home::pull_requests))
+        .route("/api/v1/portal/home/tickets", get(portal_home::tickets))
+        .route("/api/v1/portal/home/entities", get(portal_home::entities))
+        .route("/api/v1/portal/favorites/:entity", axum::routing::put(portal_home::add_favorite).delete(portal_home::remove_favorite))
+        .route("/api/v1/portal/apps", get(portal_home::get_apps).post(portal_home::create_app))
+        .route("/api/v1/portal/apps/:id", axum::routing::put(portal_home::update_app).delete(portal_home::delete_app))
+        .route("/api/v1/portal/sources", get(portal_home::get_sources))
         // Needs no sign-in (auth::is_public); answers only for public pages or members of the page's org.
         .route("/api/v1/public/status-pages/:slug", get(status_pages::get_public))
         .route(
@@ -979,6 +1009,8 @@ mod tests {
             include_str!("synthetics_exec.rs"),
             include_str!("synthetics_net.rs"),
             include_str!("scorecards.rs"),
+            include_str!("portal_home.rs"),
+            include_str!("portal_sources.rs"),
             include_str!("scorecard_rules.rs"),
             include_str!("identity.rs"),
             include_str!("incidents.rs"),
@@ -1049,6 +1081,8 @@ mod tests {
             ("synthetics_exec.rs", include_str!("synthetics_exec.rs")),
             ("synthetics_net.rs", include_str!("synthetics_net.rs")),
             ("scorecards.rs", include_str!("scorecards.rs")),
+            ("portal_home.rs", include_str!("portal_home.rs")),
+            ("portal_sources.rs", include_str!("portal_sources.rs")),
             ("kubernetes.rs", include_str!("kubernetes.rs")),
             ("live.rs", include_str!("live.rs")),
             ("llm.rs", include_str!("llm.rs")),
@@ -1173,6 +1207,8 @@ mod tests {
             ("reference_tables.rs", include_str!("reference_tables.rs")),
             ("scorecard_rules.rs", include_str!("scorecard_rules.rs")),
             ("scorecards.rs", include_str!("scorecards.rs")),
+            ("portal_home.rs", include_str!("portal_home.rs")),
+            ("portal_sources.rs", include_str!("portal_sources.rs")),
             ("slo_math.rs", include_str!("slo_math.rs")),
             ("slos.rs", include_str!("slos.rs")),
             ("status_pages.rs", include_str!("status_pages.rs")),

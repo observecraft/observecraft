@@ -8677,6 +8677,514 @@
         }
       }
     },
+    "/api/v1/portal/apps": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "The org's app shortcuts.",
+        "operationId": "list_portal_apps",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalApp"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "create_portal_app",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalAppInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalApp"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/apps/{id}": {
+      "put": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "update_portal_app",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalAppInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalApp"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "delete_portal_app",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/portal/connectors": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Every provider's connector status; credentials are never returned.",
+        "operationId": "list_portal_connectors",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalConnector"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/connectors/{provider}": {
+      "put": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Configures a provider (admins). The token is sealed at rest; leave it out to keep the stored one.",
+        "operationId": "put_portal_connector",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "description": "github | gitlab | jira | linear",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalConnectorInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalConnector"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Removes a provider's connector and its stored credential (admins).",
+        "operationId": "delete_portal_connector",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "description": "github | gitlab | jira | linear",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/portal/connectors/{provider}/test": {
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Checks the stored credential against the provider and records the outcome (admins).",
+        "operationId": "test_portal_connector",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "description": "github | gitlab | jira | linear",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalConnectionTest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/favorites/{entity}": {
+      "put": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Stars an entity for the current member.",
+        "operationId": "add_portal_favorite",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Removes a star.",
+        "operationId": "remove_portal_favorite",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/portal/home/entities": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Services with their monitors, open issues, dashboards, scorecard level and on-call schedule.",
+        "operationId": "portal_entities",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalEntity"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/home/prs": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "The member's pull requests on GitHub or GitLab, grouped (cached for a minute).",
+        "operationId": "portal_pull_requests",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "description": "github | gitlab",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "description": "Skip the cache.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalPullRequests"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/home/tickets": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "The member's open Jira or Linear tickets, or the incidents they work on (`work_items`).",
+        "operationId": "portal_tickets",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "description": "jira | linear | work_items",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalTickets"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/identities": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "The current member's identity on each provider.",
+        "operationId": "list_portal_identities",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalIdentity"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Sets the current member's identities; an empty handle goes back to the default.",
+        "operationId": "put_portal_identities",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalIdentitiesInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalIdentity"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/sources": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Which telemetry signals feed the catalog (last 24 hours) and the external source connectors.",
+        "operationId": "portal_sources",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalSources"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/profiles/flamegraph": {
       "post": {
         "tags": [
@@ -24948,6 +25456,529 @@
           }
         }
       },
+      "PortalApp": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "logo"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "logo": {
+            "type": "string",
+            "description": "Logo registry key (`github`, `tile:servicenow`); empty for a generic icon."
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "PortalAppInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "url"
+        ],
+        "properties": {
+          "logo": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "PortalConnectionTest": {
+        "type": "object",
+        "required": [
+          "ok",
+          "message",
+          "checkedAt"
+        ],
+        "properties": {
+          "checkedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string",
+            "description": "\"Connected as …\" or what went wrong."
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PortalConnector": {
+        "type": "object",
+        "description": "A connector as clients see it: never the credential itself.",
+        "required": [
+          "provider",
+          "configured",
+          "baseUrl",
+          "account",
+          "lastCheckError"
+        ],
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "Jira: the email of the API token's account."
+          },
+          "baseUrl": {
+            "type": "string",
+            "description": "API base URL (the default when not configured)."
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "lastCheckError": {
+            "type": "string"
+          },
+          "lastCheckOk": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "lastCheckedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/PortalProvider"
+          },
+          "updatedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "PortalConnectorInput": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "Jira: the email the API token belongs to."
+          },
+          "baseUrl": {
+            "type": "string",
+            "description": "Empty for the provider's default (api.github.com, gitlab.com, api.linear.app)."
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token or API key; left out to keep the stored one."
+          }
+        }
+      },
+      "PortalEntity": {
+        "type": "object",
+        "description": "A service on the home page, with what exists around it.",
+        "required": [
+          "name",
+          "kind",
+          "team",
+          "monitors",
+          "issues",
+          "dashboards",
+          "favorite"
+        ],
+        "properties": {
+          "dashboards": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "favorite": {
+            "type": "boolean"
+          },
+          "issues": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Open Error Tracking issues of the past 7 days.",
+            "minimum": 0
+          },
+          "kind": {
+            "type": "string",
+            "description": "service"
+          },
+          "lastDeploy": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Last CI deployment or first span of the newest version."
+          },
+          "lastSeen": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Last span (epoch ms); null for services only declared in metadata."
+          },
+          "monitors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "onCall": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of the owning team's on-call schedule."
+          },
+          "scorecardLevel": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Scorecard level (0–3); null before scorecards are set up.",
+            "minimum": 0
+          },
+          "team": {
+            "type": "string",
+            "description": "Owning team handle; empty when none."
+          }
+        }
+      },
+      "PortalIdentitiesInput": {
+        "type": "object",
+        "required": [
+          "identities"
+        ],
+        "properties": {
+          "identities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalIdentityInput"
+            }
+          }
+        }
+      },
+      "PortalIdentity": {
+        "type": "object",
+        "required": [
+          "provider",
+          "handle",
+          "isDefault"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string",
+            "description": "Username (GitHub, GitLab) or email (Jira, Linear); empty when unknown."
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "The handle is the default (the member's email), not one they set."
+          },
+          "provider": {
+            "$ref": "#/components/schemas/PortalProvider"
+          }
+        }
+      },
+      "PortalIdentityInput": {
+        "type": "object",
+        "required": [
+          "provider",
+          "handle"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string",
+            "description": "Empty to remove the mapping (back to the default)."
+          },
+          "provider": {
+            "$ref": "#/components/schemas/PortalProvider"
+          }
+        }
+      },
+      "PortalListStatus": {
+        "type": "string",
+        "description": "Whether a home page list could be read.",
+        "enum": [
+          "ok",
+          "not_connected",
+          "identity_required",
+          "error"
+        ]
+      },
+      "PortalPerson": {
+        "type": "object",
+        "required": [
+          "login",
+          "avatarUrl"
+        ],
+        "properties": {
+          "avatarUrl": {
+            "type": "string"
+          },
+          "login": {
+            "type": "string"
+          }
+        }
+      },
+      "PortalProvider": {
+        "type": "string",
+        "enum": [
+          "github",
+          "gitlab",
+          "jira",
+          "linear"
+        ]
+      },
+      "PortalPullRequest": {
+        "type": "object",
+        "required": [
+          "group",
+          "title",
+          "repo",
+          "number",
+          "url",
+          "author",
+          "comments",
+          "reviewers",
+          "updatedAt"
+        ],
+        "properties": {
+          "additions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Lines added and removed; GitLab's list API doesn't report them.",
+            "minimum": 0
+          },
+          "author": {
+            "$ref": "#/components/schemas/PortalPerson"
+          },
+          "comments": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "deletions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "group": {
+            "$ref": "#/components/schemas/PrGroup"
+          },
+          "number": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "repo": {
+            "type": "string",
+            "description": "`owner/repo` (GitHub) or the project path (GitLab)."
+          },
+          "reviewers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalPerson"
+            }
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "PortalPullRequests": {
+        "type": "object",
+        "required": [
+          "provider",
+          "status",
+          "message",
+          "user",
+          "pullRequests",
+          "fetchedAt"
+        ],
+        "properties": {
+          "fetchedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/PortalProvider"
+          },
+          "pullRequests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalPullRequest"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/PortalListStatus"
+          },
+          "user": {
+            "type": "string",
+            "description": "The member's username on the provider."
+          }
+        }
+      },
+      "PortalSignal": {
+        "type": "object",
+        "required": [
+          "key",
+          "active"
+        ],
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "The org sent this signal in the last 24 hours."
+          },
+          "key": {
+            "type": "string",
+            "description": "apm | logs | network | containers"
+          }
+        }
+      },
+      "PortalSources": {
+        "type": "object",
+        "required": [
+          "signals",
+          "connectors"
+        ],
+        "properties": {
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalConnector"
+            }
+          },
+          "signals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalSignal"
+            }
+          }
+        }
+      },
+      "PortalTicket": {
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "url",
+          "status",
+          "statusCategory",
+          "createdAt",
+          "updatedAt",
+          "priority",
+          "priorityLevel"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "key": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "description": "The provider's priority name (`High`, `Urgent`, `SEV-2`); empty when none."
+          },
+          "priorityLevel": {
+            "type": "string",
+            "description": "urgent | high | medium | low | none: the colour of the priority dot."
+          },
+          "status": {
+            "type": "string"
+          },
+          "statusCategory": {
+            "type": "string",
+            "description": "todo | in_progress | done"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "PortalTickets": {
+        "type": "object",
+        "required": [
+          "provider",
+          "status",
+          "message",
+          "user",
+          "tickets",
+          "fetchedAt"
+        ],
+        "properties": {
+          "fetchedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "description": "jira | linear | work_items"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PortalListStatus"
+          },
+          "tickets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalTicket"
+            }
+          },
+          "user": {
+            "type": "string"
+          }
+        }
+      },
       "Postmortem": {
         "type": "object",
         "required": [
@@ -24983,6 +26014,18 @@
             "type": "string"
           }
         }
+      },
+      "PrGroup": {
+        "type": "string",
+        "description": "Which group of the home page a pull request belongs to.",
+        "enum": [
+          "needs_review",
+          "returned",
+          "approved",
+          "waiting",
+          "drafts",
+          "merged"
+        ]
       },
       "PresetList": {
         "type": "string",
@@ -31477,6 +32520,10 @@
     {
       "name": "feature_flags",
       "description": "Feature flags, their targeting per environment and history; SDKs evaluate them over OFREP at the intake"
+    },
+    {
+      "name": "portal",
+      "description": "Developer Portal home and settings: source connectors, identities, pull requests, tickets, entities and apps"
     },
     {
       "name": "auth",

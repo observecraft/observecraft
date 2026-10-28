@@ -654,7 +654,7 @@ async fn evaluate_org(st: &AppState, org: &str, refresh: bool) -> Result<(), Api
     Ok(())
 }
 
-async fn overview(st: &AppState, org: &str) -> Result<ScorecardsOverview, ApiError> {
+pub(crate) async fn overview(st: &AppState, org: &str) -> Result<ScorecardsOverview, ApiError> {
     let recommended = recommendations();
     let Some(s) = settings(st, org).await? else {
         return Ok(ScorecardsOverview {
