@@ -109,11 +109,14 @@ export function aggregate(values: number[], method = 'avg'): number | undefined 
 const POINTWISE: Record<string, (v: number) => number> = { abs: Math.abs, log2: Math.log2, log10: Math.log10 };
 const PER_UNIT: Record<string, number> = { per_second: 1, per_minute: 60, per_hour: 3600 };
 
+/** Seconds per calendar_shift unit (a month as 30 days). */
+const CALENDAR_UNIT: Record<string, number> = { h: 3600, d: 86_400, w: 604_800, mo: 2_592_000 };
+
 /** Seconds each time-comparison function looks back (month_before is 28 days, as in Datadog). */
 const LOOK_BACK: Record<string, number> = { hour_before: 3600, day_before: 86_400, week_before: 604_800, month_before: 2_419_200 };
 
 /**
- * Rewrites time comparisons (`week_before(query1)`, `timeshift(query1, -3600)`, …) into inputs read
+ * Rewrites time comparisons (`week_before(query1)`, `timeshift(query1, -3600)`, `calendar_shift(query1, '-1w', 'UTC')`, …) into inputs read
  * over an earlier range: `query1__shift604800` is query1 queried `seconds` earlier, its points moved
  * back onto the current range.
  */
@@ -126,7 +129,9 @@ export function timeShifts(text: string): { text: string; shifts: { name: string
   };
   const rewritten = text
     .replace(/\b(hour_before|day_before|week_before|month_before)\(\s*(\w+)\s*\)/g, (_, fn: string, query: string) => shift(query, LOOK_BACK[fn]))
-    .replace(/\btimeshift\(\s*(\w+)\s*,\s*-(\d+)\s*\)/g, (_, query: string, seconds: string) => shift(query, Number(seconds)));
+    .replace(/\btimeshift\(\s*(\w+)\s*,\s*-(\d+)\s*\)/g, (_, query: string, seconds: string) => shift(query, Number(seconds)))
+    // calendar_shift(query1, '-1w', 'UTC'): the time zone only matters for month boundaries, taken as 30 days.
+    .replace(/\bcalendar_shift\(\s*(\w+)\s*,\s*'-(\d+)(mo|h|d|w)'\s*(?:,\s*'[^']*'\s*)?\)/g, (_, query: string, n: string, unit: string) => shift(query, Number(n) * CALENDAR_UNIT[unit]));
   // Report shifts in the order they appear in the formula.
   shifts.sort((a, b) => rewritten.indexOf(a.name) - rewritten.indexOf(b.name));
   return { text: rewritten, shifts };

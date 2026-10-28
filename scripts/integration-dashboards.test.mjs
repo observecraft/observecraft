@@ -232,6 +232,10 @@ test('time shifts become queries over earlier ranges', () => {
     { name: 'query1__shift2419200', query: 'query1', seconds: 2419200 },
   ]);
   assert.deepEqual(timeShifts('query1 / query2'), { text: 'query1 / query2', shifts: [] });
+  // calendar_shift(query, '-<n><unit>', 'tz'): the same, with h, d, w or mo (a month as 30 days).
+  assert.deepEqual(timeShifts("calendar_shift(query1, '-1w', 'UTC')"), { text: 'query1__shift604800', shifts: [{ name: 'query1__shift604800', query: 'query1', seconds: 604800 }] });
+  assert.deepEqual(timeShifts("query1 - calendar_shift(query1, '-2d', 'Europe/Bucharest')").shifts, [{ name: 'query1__shift172800', query: 'query1', seconds: 172800 }]);
+  assert.equal(timeShifts("calendar_shift(query1, '-1mo', 'UTC')").shifts[0].seconds, 2592000);
 });
 
 test('formula functions are only the known ones', () => {
