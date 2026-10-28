@@ -65,10 +65,6 @@ export function ReportsPage() {
         </button>
       </DashboardsHeader>
       <div className="dl-scroll">
-        <label className="int-search dl-search">
-          <Search size={16} />
-          <input placeholder="Search reports by name" value={query} onChange={(e) => set('q', e.target.value || null)} />
-        </label>
         <div className="dl-body">
           <aside className="dl-side">
             {VIEWS.map((v) => (
@@ -79,6 +75,10 @@ export function ReportsPage() {
           </aside>
           <main className="dl-main">
             <h2 className="dl-h2">{current.title}</h2>
+            <label className="int-search dl-search rp-search">
+              <Search size={16} />
+              <input placeholder="Search reports by name" value={query} onChange={(e) => set('q', e.target.value || null)} />
+            </label>
             {options.data && !options.data.emailEnabled && (
               <p className="rp-note rp-banner">
                 <Info size={14} /> Email isn't configured on this server (OC_SMTP_URL). Reports reach their notification channels; email recipients and subscribers are skipped until it is.
