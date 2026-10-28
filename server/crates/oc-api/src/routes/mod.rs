@@ -13,6 +13,7 @@ pub mod downtimes;
 pub mod error_tracking;
 pub mod events;
 pub mod feature_flags;
+pub mod fleet;
 pub mod gpu;
 pub mod health;
 pub mod hosts;
@@ -147,6 +148,9 @@ use crate::state::AppState;
         profiles::flamegraph,
         profiles::insights,
         profiles::set_insight_state,
+        fleet::agents,
+        fleet::agent,
+        fleet::configurations,
         hosts::search,
         hosts::detail,
         hosts::metrics,
@@ -483,6 +487,7 @@ use crate::state::AppState;
         (name = "dashboards", description = "Dashboards, dashboard lists and the monitor summary widget"),
         (name = "notebooks", description = "Notebooks: documents of Markdown and live query cells"),
         (name = "infrastructure", description = "Hosts, built from host metrics, spans and logs"),
+        (name = "fleet", description = "Fleet Automation: the Datadog Agents and OpenTelemetry Collectors sending data, their versions, checks and reported configuration (read-only)"),
         (name = "databases", description = "Database Monitoring and Data Jobs, built from database, Spark and Airflow integration metrics"),
         (name = "events", description = "Events from the Datadog Agent and the events API"),
         (name = "network", description = "Network flows from the Datadog Agent's system-probe"),
@@ -651,6 +656,9 @@ pub fn router() -> Router<AppState> {
             "/api/v1/profiles/insights/state",
             post(profiles::set_insight_state),
         )
+        .route("/api/v1/fleet/agents", post(fleet::agents))
+        .route("/api/v1/fleet/agent", post(fleet::agent))
+        .route("/api/v1/fleet/configurations", post(fleet::configurations))
         .route("/api/v1/hosts/search", post(hosts::search))
         .route("/api/v1/hosts/:name", post(hosts::detail))
         .route("/api/v1/hosts/:name/metrics", post(hosts::metrics))
@@ -1127,6 +1135,7 @@ mod tests {
             include_str!("metric_inventory.rs"),
             include_str!("events.rs"),
             include_str!("feature_flags.rs"),
+            include_str!("fleet.rs"),
             include_str!("network.rs"),
             include_str!("notebooks.rs"),
             include_str!("profiles.rs"),
@@ -1207,6 +1216,7 @@ mod tests {
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
             ("events.rs", include_str!("events.rs")),
             ("feature_flags.rs", include_str!("feature_flags.rs")),
+            ("fleet.rs", include_str!("fleet.rs")),
             ("network.rs", include_str!("network.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),
@@ -1307,6 +1317,7 @@ mod tests {
             ("error_tracking.rs", include_str!("error_tracking.rs")),
             ("events.rs", include_str!("events.rs")),
             ("feature_flags.rs", include_str!("feature_flags.rs")),
+            ("fleet.rs", include_str!("fleet.rs")),
             ("health.rs", include_str!("health.rs")),
             ("hosts.rs", include_str!("hosts.rs")),
             ("gpu.rs", include_str!("gpu.rs")),

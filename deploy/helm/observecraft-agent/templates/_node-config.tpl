@@ -151,6 +151,8 @@ processors:
       - { key: k8s.node.name, value: "${env:K8S_NODE_NAME}", action: insert }
       - { key: host.name, value: "${env:K8S_NODE_NAME}", action: upsert }
       - { key: observecraft.collector, value: observecraft-agent, action: upsert }
+      # Fleet Automation lists the node agents with this version.
+      - { key: observecraft.collector.version, value: {{ printf "otelcol-contrib %s" .Values.image.tag | quote }}, action: upsert }
   batch: { send_batch_size: 2000, timeout: 2s }
 
 exporters:

@@ -1203,6 +1203,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fleet/agent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One agent: its checks, sanitised configuration and recent errors from its own logs. */
+        post: operations["fleet_agent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fleet/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The fleet's agents and collectors, with summary cards, versions and facets. */
+        post: operations["fleet_agents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fleet/configurations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Agents grouped by identical integrations and settings (sanitised). */
+        post: operations["fleet_configurations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/gpu/search": {
         parameters: {
             query?: never;
@@ -6919,6 +6970,165 @@ export interface components {
             name: string;
             /** Format: int64 */
             value: number;
+        };
+        FleetAgent: {
+            cluster?: string | null;
+            env?: string | null;
+            hostname: string;
+            /** @description `datadog_agent:<hostname>` or `otel_collector:<hostname>`. */
+            id: string;
+            /** @description How it was installed, when it says: helm, datadog-operator, install_script_agent7, observecraft-agent, … */
+            installMethod?: string | null;
+            /** @description The integrations its checks belong to (`system` for the host checks). */
+            integrations: string[];
+            issues: string[];
+            kind: components["schemas"]["FleetAgentKind"];
+            /**
+             * Format: int64
+             * @description Epoch ms of its latest metadata or metric.
+             */
+            lastReported?: number | null;
+            /** @description linux, windows or darwin. */
+            os?: string | null;
+            /** @description Older than the newest version of its kind in the fleet. */
+            outdated: boolean;
+            /** @description Distribution and version, e.g. "ubuntu 24.04". */
+            platform?: string | null;
+            status: components["schemas"]["FleetStatus"];
+            version?: string | null;
+        };
+        FleetAgentDetail: {
+            agent: components["schemas"]["FleetAgent"];
+            /** @description The checks the Datadog Agent runs, with their status. */
+            checks: components["schemas"]["FleetCheck"][];
+            /** @description What the agent reports about its configuration, as YAML with secrets redacted; null when it
+             *     reports nothing (OpenTelemetry Collectors). */
+            configYaml?: string | null;
+            /** @description Recent errors in the agent's own logs, newest first (only logs the viewer may read). */
+            errors: components["schemas"]["FleetLogLine"][];
+            /** @description Whether the Agent sent its full configuration (`inventories_configuration_enabled`). */
+            fullConfigReported: boolean;
+            /** @description The Log Explorer query for the agent's own logs. */
+            logsQuery: string;
+            /** @description Service checks on the agent's host (`datadog.agent.up`, integrations' `*.can_connect`, …). */
+            serviceChecks: components["schemas"]["FleetServiceCheck"][];
+        };
+        /** @enum {string} */
+        FleetAgentKind: "datadog_agent" | "otel_collector";
+        FleetAgentRequest: {
+            /** @description The agent's `id` from the fleet list. */
+            id: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @description A check the Agent runs, over its instances. */
+        FleetCheck: {
+            /** Format: int32 */
+            instances: number;
+            /** @description The check's configuration failed to load. */
+            loadError: boolean;
+            /** @description The message of the worst instance, when it has one. */
+            message?: string | null;
+            name: string;
+            /** @description The worst status of its instances. */
+            status: components["schemas"]["FleetCheckStatus"];
+        };
+        /**
+         * @description Ordered by severity.
+         * @enum {string}
+         */
+        FleetCheckStatus: "OK" | "WARNING" | "ERROR";
+        FleetConfigurationsRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
+        FleetCoverage: {
+            /** @description Of those, hosts running an agent. */
+            covered: number;
+            /** @description Hosts seen in host or cloud metrics, plus hosts with an agent. */
+            hosts: number;
+            /**
+             * Format: double
+             * @description null without hosts.
+             */
+            pct?: number | null;
+        };
+        FleetFacet: {
+            key: string;
+            values: components["schemas"]["FleetFacetValue"][];
+        };
+        FleetFacetValue: {
+            count: number;
+            value: string;
+        };
+        FleetLatest: {
+            datadogAgent?: string | null;
+            otelCollector?: string | null;
+        };
+        FleetLogLine: {
+            message: string;
+            status: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            timestamp: number;
+        };
+        FleetPage: {
+            /** @description The agents matching the query. */
+            agents: components["schemas"]["FleetAgent"][];
+            /** @description False when no agent reported at all (show the empty state). */
+            enabled: boolean;
+            facets: components["schemas"]["FleetFacet"][];
+            latest: components["schemas"]["FleetLatest"];
+            /** @description Over the whole fleet, whatever the query. */
+            summary: components["schemas"]["FleetSummary"];
+            /** @description Agents per kind and version, newest first; over the whole fleet. */
+            versions: components["schemas"]["FleetVersion"][];
+        };
+        /** @description Agents of one kind with the same integrations and settings. */
+        FleetProfile: {
+            agents: components["schemas"]["FleetProfileAgent"][];
+            /** @description Stable for the same kind, integrations and settings. */
+            id: string;
+            integrations: string[];
+            kind: components["schemas"]["FleetAgentKind"];
+            settings: {
+                [key: string]: string;
+            };
+            /** @description The versions its agents run, newest first. */
+            versions: string[];
+        };
+        FleetProfileAgent: {
+            hostname: string;
+            id: string;
+            version?: string | null;
+        };
+        FleetSearchRequest: {
+            /** @description `type:datadog_agent status:issues version:7.62.2 os:linux integration:redisdb cluster:x env:prod outdated:true` + free text on the hostname. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @description The last status of a service check on the agent's host. */
+        FleetServiceCheck: {
+            name: string;
+            /** @description OK, WARNING, CRITICAL or UNKNOWN. */
+            status: string;
+        };
+        /** @enum {string} */
+        FleetStatus: "ok" | "issues" | "offline";
+        FleetSummary: {
+            agents: number;
+            coverage: components["schemas"]["FleetCoverage"];
+            offline: number;
+            outdated: number;
+            /** @description Reporting, with issues. */
+            withIssues: number;
+        };
+        FleetVersion: {
+            count: number;
+            kind: components["schemas"]["FleetAgentKind"];
+            outdated: boolean;
+            /** @description null for agents that don't report their version. */
+            version?: string | null;
         };
         Flow: {
             /** Format: int64 */
@@ -14508,6 +14718,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    fleet_agent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetAgentRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetAgentDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    fleet_agents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetPage"];
+                };
+            };
+        };
+    };
+    fleet_configurations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetConfigurationsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetProfile"][];
                 };
             };
         };

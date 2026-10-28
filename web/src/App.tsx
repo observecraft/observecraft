@@ -100,6 +100,10 @@ import { PolicyEditorPage } from './pages/infrastructure/PolicyEditorPage';
 import { CloudcraftPage } from './pages/infrastructure/CloudcraftPage';
 import { HostsPage } from './pages/infrastructure/HostsPage';
 import { GpuMonitoringPage } from './pages/gpu/GpuMonitoringPage';
+import { ConfigurationPage as FleetConfigurationPage } from './pages/fleet/ConfigurationPage';
+import { FleetLayout } from './pages/fleet/FleetLayout';
+import { FleetViewPage } from './pages/fleet/FleetViewPage';
+import { UpgradesPage as FleetUpgradesPage } from './pages/fleet/UpgradesPage';
 import { DatabaseMonitoringPage } from './pages/data/DatabaseMonitoringPage';
 import { DataJobsPage } from './pages/data/DataJobsPage';
 import { KubernetesOverview } from './pages/kubernetes/KubernetesOverview';
@@ -210,6 +214,11 @@ function Shell() {
               <Route path="reference-tables" element={<ReferenceTablesPage />} />
               <Route path="reference-tables/:name" element={<ReferenceTablePage />} />
               <Route path="source-code" element={<IntegrationsComingSoon title="Link Source Code" />} />
+            </Route>
+            <Route path="/fleet" element={<FleetLayout />}>
+              <Route index element={<FleetViewPage />} />
+              <Route path="configuration" element={<FleetConfigurationPage />} />
+              <Route path="upgrades" element={<FleetUpgradesPage />} />
             </Route>
             <Route path="/apm" element={<ApmLayout />}>
               <Route index element={<ApmHome />} />

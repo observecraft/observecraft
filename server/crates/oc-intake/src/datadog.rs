@@ -651,23 +651,56 @@ pub fn host_meta(v: &Value) -> Option<HostMeta> {
     })
 }
 
+/// One check instance the Agent reports in its `agent_checks` metadata: `OK`, `WARNING` or `ERROR`.
+#[derive(Debug, PartialEq, serde::Serialize)]
+pub struct CheckInstance {
+    pub name: String,
+    /// The instance id, or `initialization` for a check that failed to load.
+    pub instance: String,
+    pub status: String,
+    pub message: String,
+}
+
+/// What the `agent_checks` metadata payload says about a host's checks.
+#[derive(Debug, PartialEq)]
+pub struct AgentChecks {
+    pub host: String,
+    /// The running checks, once each, sorted.
+    pub names: Vec<String>,
+    /// Every instance with its status (Fleet Automation shows the failing ones).
+    pub runs: Vec<CheckInstance>,
+}
+
 /// The host and the checks its Agent runs, from the `agent_checks` metadata payload (each entry
 /// `[name, name, id, status, message, …]`); checks that failed to load (`initialization`) aren't running.
-pub fn agent_checks(v: &Value) -> Option<(String, Vec<String>)> {
+pub fn agent_checks(v: &Value) -> Option<AgentChecks> {
     let entries = v.get("agent_checks")?.as_array()?;
     let s = |v: Option<&Value>| v.and_then(Value::as_str).unwrap_or("").to_string();
     let host = [s(v.get("internalHostname")), s(v.pointer("/meta/hostname"))].into_iter().find(|h| !h.is_empty())?;
-    let mut checks: Vec<String> = entries
+    let runs: Vec<CheckInstance> = entries
         .iter()
         .filter_map(Value::as_array)
-        .filter(|e| e.get(2).and_then(Value::as_str) != Some("initialization"))
-        .filter_map(|e| e.first().and_then(Value::as_str))
-        .filter(|name| !name.is_empty())
-        .map(str::to_string)
+        .map(|e| {
+            let field = |i: usize| e.get(i).and_then(Value::as_str).unwrap_or("").to_string();
+            // A check that failed to load sends its errors as a JSON list ("[]" when it has none).
+            let message = field(4);
+            CheckInstance { name: field(0), instance: field(2), status: field(3), message: if message == "[]" { String::new() } else { message } }
+        })
+        .filter(|r| !r.name.is_empty())
         .collect();
-    checks.sort();
-    checks.dedup();
-    Some((host, checks))
+    let mut names: Vec<String> = runs.iter().filter(|r| r.instance != "initialization").map(|r| r.name.clone()).collect();
+    names.sort();
+    names.dedup();
+    Some(AgentChecks { host, names, runs })
+}
+
+/// The host and the Agent's inventory (`agent_metadata`: features, configuration sources, install
+/// method, and its scrubbed configuration when `inventories_configuration_enabled`), from a
+/// `/api/v1/metadata` payload. Host and check inventories sent to the same endpoint are not it.
+pub fn agent_inventory(v: &Value) -> Option<(String, Value)> {
+    let inventory = v.get("agent_metadata").filter(|m| m.is_object())?;
+    let host = v.get("hostname").and_then(Value::as_str).filter(|h| !h.is_empty())?;
+    Some((host.to_string(), inventory.clone()))
 }
 
 /// `POST /intake/` (and `/api/v2/host_metadata`): the Agent's host metadata and running checks are stored
@@ -712,9 +745,15 @@ pub async fn intake(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -
         }
         st.host_tags.set(&org, &m.host, m.tags);
     }
-    if let Some((host, checks)) = agent_checks(&payload) {
+    if let Some(checks) = agent_checks(&payload) {
         // The host's row comes with its host metadata (at startup, then every 30 minutes).
-        let stored = sqlx::query("UPDATE datadog_hosts SET agent_checks = $3 WHERE org_id = $1 AND host = $2").bind(&org).bind(&host).bind(&checks).execute(&st.pg).await;
+        let stored = sqlx::query("UPDATE datadog_hosts SET agent_checks = $3, agent_check_runs = $4, checks_at = now() WHERE org_id = $1 AND host = $2")
+            .bind(&org)
+            .bind(&checks.host)
+            .bind(&checks.names)
+            .bind(sqlx::types::Json(&checks.runs))
+            .execute(&st.pg)
+            .await;
         if let Err(e) = stored {
             tracing::warn!(error = %e, "storing Datadog agent checks failed");
             return Rejection { status: StatusCode::SERVICE_UNAVAILABLE, message: "temporarily unavailable" }.into_response();
@@ -726,9 +765,32 @@ pub async fn intake(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -
     (StatusCode::ACCEPTED, Json(json!({}))).into_response()
 }
 
-/// The Datadog Agent's host metadata (`/intake/`, `/api/v1/metadata`) and orchestrator summaries
-/// (`/api/v2/orch`): authenticated and acknowledged so the Agent doesn't retry them forever, but
-/// not stored (host inventory comes from metrics, Kubernetes objects from `/api/v2/orchmanif`).
+/// `POST /api/v1/metadata`: the Agent's inventory (`agent_metadata`) is stored on the host's row
+/// for Fleet Automation (the API redacts secrets when it shows the configuration); host and check
+/// inventories are acknowledged.
+pub async fn metadata(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
+    let key_org = match admit(&st, &headers, body.len()).await {
+        Ok(org) => org,
+        Err(r) => return r.into_response(),
+    };
+    let payload: Value = match inflate(&headers, &body).and_then(|raw| serde_json::from_slice(&raw).map_err(|e| format!("invalid JSON payload: {e}"))) {
+        Ok(v) => v,
+        Err(e) => return bad_request(e),
+    };
+    if let Some((host, inventory)) = agent_inventory(&payload) {
+        // Like the checks, the host's row comes with its host metadata.
+        let stored =
+            sqlx::query("UPDATE datadog_hosts SET agent_inventory = $3 WHERE org_id = $1 AND host = $2").bind(&key_org.org_id).bind(&host).bind(sqlx::types::Json(&inventory)).execute(&st.pg).await;
+        if let Err(e) = stored {
+            tracing::warn!(error = %e, "storing the Datadog agent inventory failed");
+            return Rejection { status: StatusCode::SERVICE_UNAVAILABLE, message: "temporarily unavailable" }.into_response();
+        }
+    }
+    (StatusCode::ACCEPTED, Json(json!({ "status": "ok" }))).into_response()
+}
+
+/// The Datadog Agent's orchestrator summaries (`/api/v2/orch`): authenticated and acknowledged so
+/// the Agent doesn't retry them forever, but not stored (Kubernetes objects come from `/api/v2/orchmanif`).
 pub async fn acknowledge(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
     match admit(&st, &headers, body.len()).await {
         Ok(_) => (StatusCode::ACCEPTED, Json(json!({ "status": "ok" }))).into_response(),
@@ -912,11 +974,32 @@ mod tests {
                 ["postgres", "postgres", "initialization", "ERROR", "[]", []]
             ]
         });
-        let (host, checks) = agent_checks(&v).unwrap();
-        assert_eq!(host, "web-1");
+        let checks = agent_checks(&v).unwrap();
+        assert_eq!(checks.host, "web-1");
         // Running checks, once each; one that never loaded isn't running.
-        assert_eq!(checks, vec!["cpu", "kubelet", "redisdb"]);
+        assert_eq!(checks.names, vec!["cpu", "kubelet", "redisdb"]);
+        // Every instance keeps its status (Fleet Automation shows failing ones), the one that
+        // failed to load included.
+        assert_eq!(checks.runs.len(), 5);
+        let redis = checks.runs.iter().find(|r| r.name == "redisdb").unwrap();
+        assert_eq!((redis.instance.as_str(), redis.status.as_str(), redis.message.as_str()), ("redisdb:1", "ERROR", "connection refused"));
+        let postgres = checks.runs.iter().find(|r| r.name == "postgres").unwrap();
+        assert_eq!((postgres.instance.as_str(), postgres.status.as_str(), postgres.message.as_str()), ("initialization", "ERROR", ""));
         assert!(agent_checks(&serde_json::json!({"systemStats": {}})).is_none());
+    }
+
+    #[test]
+    fn the_agent_inventory_is_read_from_the_metadata_payload() {
+        let v = serde_json::json!({
+            "hostname": "web-1", "timestamp": 1_700_000_000_000_i64, "uuid": "x",
+            "agent_metadata": {"agent_version": "7.62.2", "feature_logs_enabled": true, "install_method_tool": "helm"}
+        });
+        let (host, inventory) = agent_inventory(&v).unwrap();
+        assert_eq!(host, "web-1");
+        assert_eq!(inventory["install_method_tool"], "helm");
+        // Host and check inventories (other payloads on the same endpoint) aren't the agent's.
+        assert!(agent_inventory(&serde_json::json!({"hostname": "web-1", "check_metadata": {}})).is_none());
+        assert!(agent_inventory(&serde_json::json!({"agent_metadata": {}})).is_none());
     }
 
     #[test]

@@ -23,8 +23,9 @@
 //! - `POST /api/v1/events`, `/api/v2/events`     Datadog events (API, Agent) → otel.otel_events
 //! - `POST /api/v2/service_checks`               the Agent's service checks (as `/api/v1/check_run`)
 //! - `POST /ofrep/v1/evaluate/flags[/{key}]`     feature flag evaluation for OpenFeature SDKs (OFREP, see `ofrep`)
-//! - `POST /api/v1/metadata`, `/api/v2/orch`: the Agent's inventories and orchestrator summaries,
-//!   acknowledged but not stored
+//! - `POST /api/v1/metadata`                     the Agent's inventory (features, configuration) → `datadog_hosts.agent_inventory`;
+//!   other inventories are acknowledged
+//! - `POST /api/v2/orch`                         the Agent's orchestrator summaries, acknowledged but not stored
 //!
 //! Each org is rate limited (requests and bytes per second); over the limit answers 429.
 //!
@@ -558,7 +559,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/connections", post(datadog_network::connections))
         .route("/api/v2/profile", post(profile))
         .route("/api/v1/check_run", post(datadog::check_run))
-        .route("/api/v1/metadata", post(datadog::acknowledge))
+        .route("/api/v1/metadata", post(datadog::metadata))
         .route("/intake/", post(datadog::intake))
         .route("/api/v2/host_metadata", post(datadog::intake))
         .route("/api/v1/events", post(datadog_events::post_v1))

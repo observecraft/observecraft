@@ -2978,6 +2978,112 @@
         }
       }
     },
+    "/api/v1/fleet/agent": {
+      "post": {
+        "tags": [
+          "fleet"
+        ],
+        "summary": "One agent: its checks, sanitised configuration and recent errors from its own logs.",
+        "operationId": "fleet_agent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FleetAgentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FleetAgentDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fleet/agents": {
+      "post": {
+        "tags": [
+          "fleet"
+        ],
+        "summary": "The fleet's agents and collectors, with summary cards, versions and facets.",
+        "operationId": "fleet_agents",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FleetSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FleetPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fleet/configurations": {
+      "post": {
+        "tags": [
+          "fleet"
+        ],
+        "summary": "Agents grouped by identical integrations and settings (sanitised).",
+        "operationId": "fleet_configurations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FleetConfigurationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FleetProfile"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/gpu/search": {
       "post": {
         "tags": [
@@ -20267,6 +20373,539 @@
           "value": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "FleetAgent": {
+        "type": "object",
+        "required": [
+          "id",
+          "hostname",
+          "kind",
+          "outdated",
+          "status",
+          "issues",
+          "integrations"
+        ],
+        "properties": {
+          "cluster": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "description": "`datadog_agent:<hostname>` or `otel_collector:<hostname>`."
+          },
+          "installMethod": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "How it was installed, when it says: helm, datadog-operator, install_script_agent7, observecraft-agent, …"
+          },
+          "integrations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The integrations its checks belong to (`system` for the host checks)."
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "$ref": "#/components/schemas/FleetAgentKind"
+          },
+          "lastReported": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of its latest metadata or metric."
+          },
+          "os": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "linux, windows or darwin."
+          },
+          "outdated": {
+            "type": "boolean",
+            "description": "Older than the newest version of its kind in the fleet."
+          },
+          "platform": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Distribution and version, e.g. \"ubuntu 24.04\"."
+          },
+          "status": {
+            "$ref": "#/components/schemas/FleetStatus"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FleetAgentDetail": {
+        "type": "object",
+        "required": [
+          "agent",
+          "checks",
+          "serviceChecks",
+          "fullConfigReported",
+          "errors",
+          "logsQuery"
+        ],
+        "properties": {
+          "agent": {
+            "$ref": "#/components/schemas/FleetAgent"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetCheck"
+            },
+            "description": "The checks the Datadog Agent runs, with their status."
+          },
+          "configYaml": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the agent reports about its configuration, as YAML with secrets redacted; null when it\nreports nothing (OpenTelemetry Collectors)."
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetLogLine"
+            },
+            "description": "Recent errors in the agent's own logs, newest first (only logs the viewer may read)."
+          },
+          "fullConfigReported": {
+            "type": "boolean",
+            "description": "Whether the Agent sent its full configuration (`inventories_configuration_enabled`)."
+          },
+          "logsQuery": {
+            "type": "string",
+            "description": "The Log Explorer query for the agent's own logs."
+          },
+          "serviceChecks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetServiceCheck"
+            },
+            "description": "Service checks on the agent's host (`datadog.agent.up`, integrations' `*.can_connect`, …)."
+          }
+        }
+      },
+      "FleetAgentKind": {
+        "type": "string",
+        "enum": [
+          "datadog_agent",
+          "otel_collector"
+        ]
+      },
+      "FleetAgentRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The agent's `id` from the fleet list."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "FleetCheck": {
+        "type": "object",
+        "description": "A check the Agent runs, over its instances.",
+        "required": [
+          "name",
+          "status",
+          "instances",
+          "loadError"
+        ],
+        "properties": {
+          "instances": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "loadError": {
+            "type": "boolean",
+            "description": "The check's configuration failed to load."
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The message of the worst instance, when it has one."
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FleetCheckStatus",
+            "description": "The worst status of its instances."
+          }
+        }
+      },
+      "FleetCheckStatus": {
+        "type": "string",
+        "description": "Ordered by severity.",
+        "enum": [
+          "OK",
+          "WARNING",
+          "ERROR"
+        ]
+      },
+      "FleetConfigurationsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "FleetCoverage": {
+        "type": "object",
+        "required": [
+          "hosts",
+          "covered"
+        ],
+        "properties": {
+          "covered": {
+            "type": "integer",
+            "description": "Of those, hosts running an agent.",
+            "minimum": 0
+          },
+          "hosts": {
+            "type": "integer",
+            "description": "Hosts seen in host or cloud metrics, plus hosts with an agent.",
+            "minimum": 0
+          },
+          "pct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "null without hosts."
+          }
+        }
+      },
+      "FleetFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "values"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetFacetValue"
+            }
+          }
+        }
+      },
+      "FleetFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "FleetLatest": {
+        "type": "object",
+        "properties": {
+          "datadogAgent": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "otelCollector": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FleetLogLine": {
+        "type": "object",
+        "required": [
+          "timestamp",
+          "status",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          }
+        }
+      },
+      "FleetPage": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "summary",
+          "latest",
+          "versions",
+          "facets",
+          "agents"
+        ],
+        "properties": {
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetAgent"
+            },
+            "description": "The agents matching the query."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "False when no agent reported at all (show the empty state)."
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetFacet"
+            }
+          },
+          "latest": {
+            "$ref": "#/components/schemas/FleetLatest"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/FleetSummary",
+            "description": "Over the whole fleet, whatever the query."
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetVersion"
+            },
+            "description": "Agents per kind and version, newest first; over the whole fleet."
+          }
+        }
+      },
+      "FleetProfile": {
+        "type": "object",
+        "description": "Agents of one kind with the same integrations and settings.",
+        "required": [
+          "id",
+          "kind",
+          "integrations",
+          "settings",
+          "agents",
+          "versions"
+        ],
+        "properties": {
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetProfileAgent"
+            }
+          },
+          "id": {
+            "type": "string",
+            "description": "Stable for the same kind, integrations and settings."
+          },
+          "integrations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "$ref": "#/components/schemas/FleetAgentKind"
+          },
+          "settings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The versions its agents run, newest first."
+          }
+        }
+      },
+      "FleetProfileAgent": {
+        "type": "object",
+        "required": [
+          "id",
+          "hostname"
+        ],
+        "properties": {
+          "hostname": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FleetSearchRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "`type:datadog_agent status:issues version:7.62.2 os:linux integration:redisdb cluster:x env:prod outdated:true` + free text on the hostname."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "FleetServiceCheck": {
+        "type": "object",
+        "description": "The last status of a service check on the agent's host.",
+        "required": [
+          "name",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "OK, WARNING, CRITICAL or UNKNOWN."
+          }
+        }
+      },
+      "FleetStatus": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "issues",
+          "offline"
+        ]
+      },
+      "FleetSummary": {
+        "type": "object",
+        "required": [
+          "agents",
+          "outdated",
+          "withIssues",
+          "offline",
+          "coverage"
+        ],
+        "properties": {
+          "agents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/FleetCoverage"
+          },
+          "offline": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "outdated": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "withIssues": {
+            "type": "integer",
+            "description": "Reporting, with issues.",
+            "minimum": 0
+          }
+        }
+      },
+      "FleetVersion": {
+        "type": "object",
+        "required": [
+          "kind",
+          "count",
+          "outdated"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "kind": {
+            "$ref": "#/components/schemas/FleetAgentKind"
+          },
+          "outdated": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "null for agents that don't report their version."
           }
         }
       },
@@ -37972,6 +38611,10 @@
     {
       "name": "infrastructure",
       "description": "Hosts, built from host metrics, spans and logs"
+    },
+    {
+      "name": "fleet",
+      "description": "Fleet Automation: the Datadog Agents and OpenTelemetry Collectors sending data, their versions, checks and reported configuration (read-only)"
     },
     {
       "name": "databases",

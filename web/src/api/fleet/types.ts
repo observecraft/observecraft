@@ -1,0 +1,22 @@
+import type { components } from '../generated/schema';
+
+type S = components['schemas'];
+export type FleetAgent = S['FleetAgent'];
+export type FleetAgentKind = S['FleetAgentKind'];
+export type FleetStatus = S['FleetStatus'];
+export type FleetCheck = S['FleetCheck'];
+export type FleetCheckStatus = S['FleetCheckStatus'];
+export type FleetServiceCheck = S['FleetServiceCheck'];
+export type FleetFacet = S['FleetFacet'];
+export type FleetSummary = S['FleetSummary'];
+export type FleetCoverage = S['FleetCoverage'];
+export type FleetLatest = S['FleetLatest'];
+export type FleetVersion = S['FleetVersion'];
+export type FleetPage = S['FleetPage'];
+export type FleetSearchRequest = S['FleetSearchRequest'];
+export type FleetAgentRequest = S['FleetAgentRequest'];
+export type FleetAgentDetail = S['FleetAgentDetail'];
+export type FleetLogLine = S['FleetLogLine'];
+export type FleetProfile = S['FleetProfile'];
+export type FleetProfileAgent = S['FleetProfileAgent'];
+export type FleetConfigurationsRequest = S['FleetConfigurationsRequest'];
