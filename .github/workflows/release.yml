@@ -11,66 +11,94 @@
 name: release
 
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event.workflow_run.head_sha }}
   cancel-in-progress: false
 
 env:
+  SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
   IMAGE: ghcr.io/observecraft/observecraft
   CHARTS: ghcr.io/observecraft/charts
 
 jobs:
-  release-please:
+  prepare:
+    # workflow_run is privileged: accept only successful CI pushes from this repository's main.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-      pull-requests: write
+    timeout-minutes: 5
     outputs:
-      released: ${{ steps.rp.outputs.release_created }}
-      version: ${{ steps.rp.outputs.version }}
+      released: ${{ steps.version.outputs.released }}
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - id: rp
-        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+      - id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(jq -r '."."' .release-please-manifest.json)
+          # Only a release tag on this exact tested commit enables stable publication.
+          if [ "$(git rev-parse "v$version^{commit}" 2>/dev/null || true)" = "$SOURCE_SHA" ]; then
+            gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null
+            echo 'released=true' >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          fi
 
-  # Edge images only when what goes into the image changed; a release always builds.
+  # Chart or pipeline changes also exercise the image in kind; a release always builds.
   changes:
+    needs: prepare
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
       image: ${{ steps.f.outputs.image }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ env.SOURCE_SHA }}", fetch-depth: 2 }
       - id: f
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
+          base: ${{ env.SOURCE_SHA }}~1
+          ref: ${{ env.SOURCE_SHA }}
           filters: |
             image:
               - server/**
               - web/**
               - .github/workflows/release.yml
+              - .dockerignore
+              - deploy/helm/**
+              - deploy/otel/**
+              - deploy/vector/**
 
   images:
-    needs: [release-please, changes]
-    if: needs.release-please.outputs.released == 'true' || needs.changes.outputs.image == 'true'
+    needs: [prepare, changes]
+    if: needs.prepare.outputs.released == 'true' || needs.changes.outputs.image == 'true'
     strategy:
       matrix:
         include:
           - { platform: linux/amd64, arch: amd64, runner: ubuntu-24.04 }
           - { platform: linux/arm64, arch: arm64, runner: ubuntu-24.04-arm }
+    timeout-minutes: 60
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ env.SOURCE_SHA }}" }
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
@@ -84,7 +112,7 @@ jobs:
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.SOURCE_SHA }}
             org.opencontainers.image.licenses=MIT
           # Provenance and SBOM are attested on the final image instead (see the manifest job).
           provenance: false
@@ -97,8 +125,9 @@ jobs:
         with: { name: "digests-${{ matrix.arch }}", path: digests/*, retention-days: 1, if-no-files-found: error }
 
   manifest:
-    needs: [release-please, images]
+    needs: [prepare, images]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
@@ -112,28 +141,28 @@ jobs:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
-      # Image tags match the charts' appVersion: the version without its "v".
-      - id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ env.IMAGE }}
-          tags: |
-            type=raw,value=main
-            type=sha,prefix=sha-,format=short
-            type=semver,pattern={{version}},value=${{ needs.release-please.outputs.version }},enable=${{ needs.release-please.outputs.released == 'true' }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release-please.outputs.version }},enable=${{ needs.release-please.outputs.released == 'true' }}
-            type=raw,value=latest,enable=${{ needs.release-please.outputs.released == 'true' }}
       - id: push
         working-directory: digests
         run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf "$IMAGE@sha256:%s " *)
-          echo "digest=$(docker buildx imagetools inspect "$IMAGE:sha-${GITHUB_SHA::7}" --format '{{json .Manifest}}' | jq -r .digest)" >> "$GITHUB_OUTPUT"
+          sources=()
+          for digest in *; do sources+=("$IMAGE@sha256:$digest"); done
+          docker buildx imagetools create -t "$IMAGE:candidate-$SOURCE_SHA" "${sources[@]}"
+          echo "digest=$(docker buildx imagetools inspect "$IMAGE:candidate-$SOURCE_SHA" --format '{{json .Manifest}}' | jq -r .digest)" >> "$GITHUB_OUTPUT"
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - run: cosign sign --yes "$IMAGE@$DIGEST"
         env: { DIGEST: "${{ steps.push.outputs.digest }}" }
+      - name: Record the tested source in SLSA provenance
+        run: |
+          jq -n --arg repo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" \
+            --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{buildDefinition: {buildType: "https://actions.github.io/buildtypes/workflow/v1", externalParameters: {source: {uri: ($repo + ".git"), digest: {gitCommit: $sha}}}, resolvedDependencies: [{uri: ($repo + ".git"), digest: {gitCommit: $sha}}]}, runDetails: {builder: {id: "https://github.com/actions/runner"}, metadata: {invocationId: $run}}}' > provenance.json
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with: { subject-name: "${{ env.IMAGE }}", subject-digest: "${{ steps.push.outputs.digest }}", push-to-registry: true }
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: provenance.json
+          push-to-registry: true
       - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           image: ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
@@ -150,6 +179,7 @@ jobs:
   scan:
     needs: manifest
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: read
@@ -164,24 +194,28 @@ jobs:
           output: trivy.sarif
           severity: CRITICAL,HIGH
           ignore-unfixed: true
-      - uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+          exit-code: "1"
+      - if: always()
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with: { sarif_file: trivy.sarif, category: container-image }
 
   charts:
-    needs: [release-please, manifest]
-    if: needs.release-please.outputs.released == 'true'
+    needs: [prepare, promote]
+    if: needs.prepare.outputs.released == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ env.SOURCE_SHA }}" }
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with: { version: v3.16.4 }
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Package, push and sign
-        env: { VERSION: "${{ needs.release-please.outputs.version }}", TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        env: { VERSION: "${{ needs.prepare.outputs.version }}", TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         run: |
           echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
           echo "$TOKEN" | cosign login ghcr.io -u "${{ github.actor }}" --password-stdin
@@ -192,26 +226,60 @@ jobs:
             cosign sign --yes "$CHARTS/$chart@$digest"
           done
 
-  # Installs the release the way users will: chart and image from the registry.
+  # Exercise the candidate before publishing main/latest/version or either chart.
   verify:
-    needs: [release-please, charts]
+    needs: [manifest, scan]
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ env.SOURCE_SHA }}" }
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with: { version: v3.16.4 }
       - uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
         with: { cluster_name: verify }
-      - name: Install from the registry
-        env: { VERSION: "${{ needs.release-please.outputs.version }}", TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
-        # Logged in and the image preloaded, so this also works while the packages are still private.
+      - name: Test the exact candidate digest
+        env:
+          DIGEST: ${{ needs.manifest.outputs.digest }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
-          echo "$TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          docker pull "$IMAGE:$VERSION" && kind load docker-image "$IMAGE:$VERSION" --name verify
-          helm install observecraft "oci://$CHARTS/observecraft" --version "$VERSION" -n observecraft --create-namespace \
-            -f deploy/helm/observecraft/ci/default-values.yaml --wait --timeout 10m
+          echo "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker pull "$IMAGE@$DIGEST"
+          docker tag "$IMAGE@$DIGEST" "$IMAGE:ci"
+          kind load docker-image "$IMAGE:ci" --name verify
+          helm install observecraft deploy/helm/observecraft -n observecraft --create-namespace \
+            -f deploy/helm/observecraft/ci/default-values.yaml --set image.tag=ci --wait --timeout 10m
           helm test observecraft -n observecraft --logs
+          helm install observecraft-agent deploy/helm/observecraft-agent -n observecraft \
+            -f deploy/helm/observecraft-agent/ci/default-values.yaml --wait --timeout 5m
+
+  promote:
+    needs: [prepare, manifest, verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Promote verified digest without rebuilding
+        env:
+          DIGEST: ${{ needs.manifest.outputs.digest }}
+          RELEASED: ${{ needs.prepare.outputs.released }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tags=(-t "$IMAGE:sha-${SOURCE_SHA:0:7}")
+          # An older, slower run may finish after a newer push. Never roll main back.
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$SOURCE_SHA" ]; then
+            tags+=(-t "$IMAGE:main")
+          fi
+          if [ "$RELEASED" = true ]; then
+            tags+=(-t "$IMAGE:$VERSION" -t "$IMAGE:${VERSION%.*}" -t "$IMAGE:latest")
+          fi
+          docker buildx imagetools create "${tags[@]}" "$IMAGE@$DIGEST"
