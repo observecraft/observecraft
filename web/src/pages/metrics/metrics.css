@@ -286,9 +286,17 @@
   padding: 16px 0 12px;
 }
 
-.dm-header .tv-filter {
-  margin-left: auto;
-  max-width: 340px;
+.dm-header .mx-title {
+  flex: 1;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+}
+
+.dm-search {
+  display: flex;
+  width: 100%;
+  max-width: none;
+  margin-bottom: 8px;
 }
 
 .dm-table td {

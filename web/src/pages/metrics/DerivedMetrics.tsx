@@ -33,16 +33,16 @@ export function DerivedMetrics() {
     <div className="mx-page">
       <div className="dm-header">
         <h2 className="mx-title">Generate metrics from existing metrics</h2>
-        <label className="tv-filter">
-          <Search size={15} />
-          <input placeholder="Search derived metrics…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search derived metrics" />
-        </label>
         {canWrite && (
           <button className="btn btn-primary" onClick={() => setEditing('new')}>
             <Plus size={14} /> New Metric
           </button>
         )}
       </div>
+      <label className="tv-filter dm-search">
+        <Search size={15} />
+        <input placeholder="Search derived metrics…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search derived metrics" />
+      </label>
       {remove.error && <p className="form-error">{(remove.error as Error).message}</p>}
       {q.isPending ? (
         <Loading />
