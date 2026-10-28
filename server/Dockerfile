@@ -8,6 +8,7 @@ COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY web/ ./
 COPY server/seeds/integrations/ /server/seeds/integrations/
+COPY server/seeds/standard_attributes.json /server/seeds/standard_attributes.json
 RUN VITE_API_MODE=live npm run build
 
 FROM rust:1.89-bookworm AS build

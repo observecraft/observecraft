@@ -43,6 +43,7 @@ jobs:
               - web/**
               - scripts/*.mjs
               - server/seeds/integrations/**
+              - server/seeds/standard_attributes.json
             licenses:
               - *ci
               - server/Cargo.toml
