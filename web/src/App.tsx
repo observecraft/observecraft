@@ -35,6 +35,8 @@ import { SpanExplorer } from './pages/apm/explorer/SpanExplorer';
 import { IncidentPage } from './pages/incidents/IncidentPage';
 import { CiLayout, DeliveryLayout } from './pages/delivery/DeliveryLayout';
 import { DoraPage } from './pages/delivery/DoraPage';
+import { DeploymentGatesLayout, EvaluationsTab, GatesTab } from './pages/delivery/DeploymentGatesPage';
+import { PrGatesPage } from './pages/delivery/PrGatesPage';
 import { ExplorerPage as CiExplorerPage } from './pages/delivery/ExplorerPage';
 import { FlakyPage } from './pages/delivery/FlakyPage';
 import { OverviewPage as CiOverviewPage } from './pages/delivery/OverviewPage';
@@ -290,6 +292,11 @@ function Shell() {
               <Route path="flaky" element={<FlakyPage />} />
               <Route path="settings" element={<CiSettingsPage />} />
             </Route>
+            <Route path="/delivery/deployment-gates" element={<DeploymentGatesLayout />}>
+              <Route index element={<GatesTab />} />
+              <Route path="evaluations" element={<EvaluationsTab />} />
+            </Route>
+            <Route path="/delivery/pr-gates" element={<PrGatesPage />} />
             <Route path="/delivery" element={<DeliveryLayout />}>
               <Route index element={<Navigate to="/delivery/dora" replace />} />
               <Route path="dora" element={<DoraPage />} />

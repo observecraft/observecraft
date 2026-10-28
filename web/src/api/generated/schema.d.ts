@@ -898,6 +898,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deployment-gates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_deployment_gates"];
+        put?: never;
+        post: operations["create_deployment_gate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deployment-gates/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evaluates the gate of a service, environment and identifier now, records the evaluation and
+         *     answers with its verdict. Called by CI/CD pipelines with an application key
+         *     (`Authorization: Bearer ocak_…`); `pass` says whether the deployment may go on. */
+        post: operations["evaluate_deployment_gate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deployment-gates/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's latest evaluations, newest first. */
+        get: operations["list_deployment_gate_evaluations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deployment-gates/evaluations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One evaluation, with the current status of the monitors that failed it. */
+        get: operations["get_deployment_gate_evaluation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deployment-gates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_deployment_gate"];
+        put: operations["update_deployment_gate"];
+        post?: never;
+        delete: operations["delete_deployment_gate"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/downtimes": {
         parameters: {
             query?: never;
@@ -4266,6 +4351,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/pr-gates/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks a pull request's commit against the enabled rules that apply to its repository. Called
+         *     from CI with an application key (`Authorization: Bearer ocak_…`); `pass` is the check's result. */
+        post: operations["evaluate_pr_gates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pr-gates/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_pr_gate_rules"];
+        put?: never;
+        post: operations["create_pr_gate_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pr-gates/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_pr_gate_rule"];
+        post?: never;
+        delete: operations["delete_pr_gate_rule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles/flamegraph": {
         parameters: {
             query?: never;
@@ -6531,6 +6666,33 @@ export interface components {
             requests: number;
             version: string;
         };
+        DeploymentGate: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy: string;
+            dryRun: boolean;
+            env: string;
+            id: string;
+            identifier: string;
+            /** Format: int64 */
+            lastEvaluatedAt?: number | null;
+            lastStatus?: null | components["schemas"]["GateEvaluationStatus"];
+            rules: components["schemas"]["GateRule"][];
+            service: string;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy: string;
+        };
+        DeploymentGateInput: {
+            dryRun?: boolean;
+            env: string;
+            identifier?: string;
+            rules: components["schemas"]["GateRule"][];
+            service: string;
+        };
         DerivedMetric: {
             /**
              * Format: int64
@@ -7591,6 +7753,98 @@ export interface components {
         FollowupRequest: {
             title: string;
         };
+        GateEvaluation: {
+            /** Format: int64 */
+            durationMs: number;
+            env: string;
+            gateId?: string | null;
+            id: string;
+            identifier: string;
+            /** @description Whether the deployment may go on (passed or dry run): what a pipeline acts on. */
+            pass: boolean;
+            requestedBy: string;
+            rules: components["schemas"]["GateRuleResult"][];
+            service: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            startedAt: number;
+            status: components["schemas"]["GateEvaluationStatus"];
+            version: string;
+        };
+        GateEvaluationRequest: {
+            env: string;
+            /** @description The gate's identifier; `default` when omitted. */
+            identifier?: string | null;
+            service: string;
+            /** @description The version being deployed; the newest version seen in the window when omitted. */
+            version?: string | null;
+        };
+        /** @enum {string} */
+        GateEvaluationStatus: "passed" | "failed" | "dry_run";
+        /** @description A monitor a monitor rule matched that was failing at evaluation time. */
+        GateMonitorState: {
+            /** @description Its status now (filled when one evaluation is read; None when the monitor was deleted). */
+            currentStatus?: string | null;
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /** @description ok | warn | alert | nodata, at evaluation time. */
+            status: string;
+        };
+        /** @description One rule of a gate. `query` is used by monitor rules; the window and thresholds by faulty
+         *     deployment detection. */
+        GateRule: {
+            /** @description A dry-run rule is evaluated and recorded but never fails the gate. */
+            dryRun?: boolean;
+            /**
+             * Format: double
+             * @description Faulty deployment detection: percentage points the new version's error rate may exceed the previous one's.
+             */
+            maxErrorRateIncrease?: number;
+            /**
+             * Format: int32
+             * @description Faulty deployment detection: requests the new version needs before it is judged.
+             */
+            minRequests?: number;
+            name?: string;
+            /** @description Monitor rules: tags (`service:billing env:prod`, `team:*`) and name words every matching monitor has. */
+            query?: string;
+            type: components["schemas"]["GateRuleKind"];
+            /**
+             * Format: int32
+             * @description Faulty deployment detection: the minutes of spans compared.
+             */
+            windowMinutes?: number;
+        };
+        /** @enum {string} */
+        GateRuleKind: "monitor" | "faulty_deployment";
+        GateRuleResult: {
+            dryRun: boolean;
+            /** Format: double */
+            errorRate?: number | null;
+            /**
+             * Format: int32
+             * @description Monitor rules: how many monitors matched, and those in ALERT or NO DATA.
+             */
+            matchedMonitors?: number;
+            monitors?: components["schemas"]["GateMonitorState"][];
+            name: string;
+            /** Format: double */
+            previousErrorRate?: number | null;
+            previousVersion?: string | null;
+            /** @description Why the rule passed or failed, in a sentence. */
+            reason: string;
+            /** Format: int64 */
+            requests?: number | null;
+            status: components["schemas"]["GateRuleStatus"];
+            type: components["schemas"]["GateRuleKind"];
+            /** @description Faulty deployment detection: the versions compared and their error rates (0–1). */
+            version?: string | null;
+        };
+        /** @enum {string} */
+        GateRuleStatus: "passed" | "failed";
         GeneratePostmortem: {
             /** @description standard | brief */
             template: string;
@@ -10591,6 +10845,95 @@ export interface components {
         PostmortemUpdate: {
             content: string;
         };
+        /** @enum {string} */
+        PrGateCheckStatus: "passed" | "failed" | "no_data" | "not_evaluated";
+        /** @description What CI Visibility knows about the commit. */
+        PrGateCiSummary: {
+            /** Format: int64 */
+            failedPipelines: number;
+            /** Format: int64 */
+            failedTests: number;
+            /** Format: int64 */
+            flakyTests: number;
+            /** Format: int64 */
+            pipelines: number;
+            /** Format: int64 */
+            tests: number;
+        };
+        PrGateEvaluation: {
+            ci: components["schemas"]["PrGateCiSummary"];
+            pass: boolean;
+            repository: string;
+            /** @description The enabled rules that apply to the repository. */
+            rules: components["schemas"]["PrGateRuleResult"][];
+            sha: string;
+            /** @description Failed when a blocking rule failed: what the PR check reports. */
+            status: components["schemas"]["PrGateVerdict"];
+        };
+        PrGateEvaluationRequest: {
+            /** @description `example-org/billing` (a repository URL works too). */
+            repository: string;
+            /** @description The pull request's head commit. */
+            sha: string;
+        };
+        PrGateRule: {
+            blocking: boolean;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy: string;
+            enabled: boolean;
+            /** @description False for sources that need Code Security: such rules are stored but not evaluated. */
+            evaluable: boolean;
+            id: string;
+            /** @description Code Security sources: the lowest severity counted. */
+            minSeverity: components["schemas"]["PrGateSeverity"];
+            name: string;
+            /** @description Empty = every repository. */
+            repositories: string[];
+            source: components["schemas"]["PrGateSource"];
+            /**
+             * Format: int32
+             * @description The rule fails when the count of findings is above this.
+             */
+            threshold: number;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy: string;
+        };
+        PrGateRuleInput: {
+            blocking?: boolean;
+            enabled?: boolean;
+            minSeverity?: components["schemas"]["PrGateSeverity"];
+            name: string;
+            repositories?: string[];
+            source: components["schemas"]["PrGateSource"];
+            /** Format: int32 */
+            threshold?: number;
+        };
+        PrGateRuleResult: {
+            blocking: boolean;
+            /**
+             * Format: int64
+             * @description Findings counted (None when not evaluated or without data).
+             */
+            count?: number | null;
+            name: string;
+            reason: string;
+            ruleId: string;
+            source: components["schemas"]["PrGateSource"];
+            status: components["schemas"]["PrGateCheckStatus"];
+            /** Format: int32 */
+            threshold: number;
+        };
+        /** @enum {string} */
+        PrGateSeverity: "critical" | "high" | "medium" | "low";
+        /** @enum {string} */
+        PrGateSource: "pipeline_failures" | "test_failures" | "flaky_tests" | "code_vulnerabilities" | "code_quality" | "library_vulnerabilities" | "license_violations";
+        /** @enum {string} */
+        PrGateVerdict: "passed" | "failed";
         /**
          * @description Which group of the home page a pull request belongs to.
          * @enum {string}
@@ -14868,6 +15211,183 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DbSearchPage"];
                 };
+            };
+        };
+    };
+    list_deployment_gates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentGate"][];
+                };
+            };
+        };
+    };
+    create_deployment_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeploymentGateInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentGate"];
+                };
+            };
+        };
+    };
+    evaluate_deployment_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateEvaluationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GateEvaluation"];
+                };
+            };
+            /** @description No gate for this service, environment and identifier */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_deployment_gate_evaluations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GateEvaluation"][];
+                };
+            };
+        };
+    };
+    get_deployment_gate_evaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GateEvaluation"];
+                };
+            };
+        };
+    };
+    get_deployment_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentGate"];
+                };
+            };
+        };
+    };
+    update_deployment_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeploymentGateInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentGate"];
+                };
+            };
+        };
+    };
+    delete_deployment_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -21797,6 +22317,115 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
+            };
+        };
+    };
+    evaluate_pr_gates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrGateEvaluationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrGateEvaluation"];
+                };
+            };
+        };
+    };
+    list_pr_gate_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrGateRule"][];
+                };
+            };
+        };
+    };
+    create_pr_gate_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrGateRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrGateRule"];
+                };
+            };
+        };
+    };
+    update_pr_gate_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrGateRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrGateRule"];
+                };
+            };
+        };
+    };
+    delete_pr_gate_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

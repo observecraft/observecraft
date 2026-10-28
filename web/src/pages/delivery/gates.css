@@ -1,0 +1,811 @@
+/* Software Delivery → Deployment Gates and PR Gates. Tables, pills, drawers and search come from delivery.css. */
+
+:root {
+  --dg-hero-from: #062f2d;
+  --dg-hero-mid: #0b6e69;
+  --dg-hero-to: #2d6fb8;
+  --dg-pass: #2ea86b;
+  --dg-fail: #e5383b;
+  --dg-dry: #7c5cc4;
+  --prg-bg-a: #e7f4f1;
+  --prg-bg-b: #eef0fb;
+  --prg-bg-c: #fbf1e8;
+}
+
+.dg-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px 32px;
+}
+
+.dg-page .ci-search {
+  flex: none;
+}
+
+.dg-table tbody tr {
+  cursor: pointer;
+}
+
+.dg-table tbody tr.selected {
+  background: var(--bg-selected);
+}
+
+.dg-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.dg-actions .icon-plain + .icon-plain {
+  margin-left: 6px;
+}
+
+.dg-good {
+  color: var(--dg-pass);
+}
+
+.dg-bad {
+  color: var(--dg-fail);
+}
+
+/* ---------- pills ---------- */
+.dg-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: #fff;
+}
+
+.dg-status-passed {
+  background: var(--dg-pass);
+}
+
+.dg-status-failed {
+  background: var(--dg-fail);
+}
+
+.dg-status-dry_run {
+  background: var(--dg-dry);
+}
+
+.dg-mode {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid var(--primary);
+  border-radius: 10px;
+  font-size: var(--fs-sm);
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.dg-mode.dry {
+  border-color: var(--dg-dry);
+  color: var(--dg-dry);
+}
+
+.dg-mon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--fw-medium);
+}
+
+.dg-mon::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-nodata);
+}
+
+.dg-mon-ok::before {
+  background: var(--status-ok);
+}
+
+.dg-mon-warn::before {
+  background: var(--status-warn);
+}
+
+.dg-mon-alert::before {
+  background: var(--status-error);
+}
+
+.dg-last {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dg-rule-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dg-rule-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-muted);
+}
+
+/* ---------- intro ---------- */
+.dg-intro {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 20px 24px 48px;
+}
+
+.dg-hero {
+  padding: 40px 48px 0;
+  border-radius: 18px;
+  background: radial-gradient(90% 120% at 100% 0%, var(--dg-hero-to) 0%, transparent 60%), linear-gradient(140deg, var(--dg-hero-from) 0%, var(--dg-hero-mid) 75%);
+  color: #fff;
+  overflow: hidden;
+}
+
+.dg-hero-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: var(--fw-medium);
+}
+
+.dg-hero-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--brand-accent);
+}
+
+.dg-hero h1 {
+  max-width: 720px;
+  margin: 20px 0 12px;
+  font-size: 38px;
+  line-height: 1.2;
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+}
+
+.dg-hero > p {
+  max-width: 640px;
+  margin: 0 0 26px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.dg-hero-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.dg-hero-actions .btn {
+  height: 38px;
+  padding: 0 18px;
+  gap: 6px;
+  font-size: 15px;
+  border-radius: 6px;
+}
+
+.dg-btn-white {
+  border-color: #fff;
+  background: #fff;
+  color: var(--brand-strong);
+}
+
+.dg-btn-white:hover {
+  background: var(--brand-subtle);
+}
+
+.dg-btn-outline {
+  border-color: rgba(255, 255, 255, 0.75);
+  background: transparent;
+  color: #fff;
+}
+
+.dg-btn-outline:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dg-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 36px;
+  padding: 14px 14px 0;
+  border-radius: 12px 12px 0 0;
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text);
+  pointer-events: none;
+}
+
+.dg-preview-list,
+.dg-preview-panel {
+  border-radius: 10px 10px 0 0;
+  background: var(--bg);
+  box-shadow: 0 6px 24px rgba(4, 30, 28, 0.25);
+  overflow: hidden;
+}
+
+.dg-preview-list .ci-table th {
+  position: static;
+}
+
+.dg-preview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  border-top: 5px solid var(--dg-fail);
+}
+
+.dg-preview-panel p {
+  margin: 0;
+}
+
+.dg-preview-monitor {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-md);
+}
+
+.dg-section-title {
+  margin: 34px 0 12px;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.dg-features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dg-feature {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.dg-feature svg {
+  color: var(--primary);
+}
+
+.dg-feature b {
+  font-size: 15px;
+  font-weight: var(--fw-medium);
+}
+
+.dg-feature p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.dg-tools {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dg-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  font-size: var(--fs-lg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.dg-tool:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+
+.dg-tool.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.dg-tool-logo {
+  display: grid;
+  place-items: center;
+  height: 36px;
+  color: var(--text);
+}
+
+.dg-tool-snippet {
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-subtle);
+}
+
+.dg-tool-snippet p {
+  margin: 0 0 10px;
+}
+
+.dg-tool-snippet p:last-child {
+  margin: 10px 0 0;
+}
+
+/* ---------- editor ---------- */
+.dg-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dg-editor h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dg-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+  font-size: 15px;
+  font-weight: var(--fw-medium);
+}
+
+.dg-step span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary-subtle);
+  color: var(--primary);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.dg-scope {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dg-mode-pick {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dg-mode-pick button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.dg-mode-pick button span {
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+}
+
+.dg-mode-pick button.active {
+  border-color: var(--primary);
+  background: var(--primary-subtle);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.dg-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dg-rule {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.dg-rule-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dg-rule-head > svg {
+  color: var(--primary);
+}
+
+.dg-rule-name {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.dg-faulty {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dg-faulty-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.dg-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.dg-unit input {
+  width: 90px;
+}
+
+.dg-add-rule {
+  display: flex;
+  gap: 10px;
+}
+
+/* ---------- evaluation drawer ---------- */
+.dg-drawer {
+  width: min(760px, 90vw);
+}
+
+.dg-drawer-head {
+  border-top-color: var(--dg-pass);
+}
+
+.dg-head-failed {
+  border-top-color: var(--dg-fail);
+}
+
+.dg-head-dry_run {
+  border-top-color: var(--dg-dry);
+}
+
+.dg-drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 18px 24px;
+  overflow: auto;
+}
+
+.dg-drawer-body h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: var(--fw-medium);
+}
+
+.dg-why {
+  padding: 14px 16px;
+  border: 1px solid #f4c7c8;
+  border-radius: var(--radius-md);
+  background: #fdf3f3;
+}
+
+.dg-why-card + .dg-why-card {
+  margin-top: 14px;
+}
+
+.dg-why-card p {
+  margin: 4px 0 10px;
+}
+
+.dg-why-card .ci-table {
+  background: var(--bg);
+}
+
+.dg-why-rule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dg-compare {
+  display: flex;
+  gap: 12px;
+}
+
+.dg-compare > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.dg-compare b {
+  font-size: 22px;
+  font-weight: var(--fw-semibold);
+}
+
+.dg-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dg-results li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.dg-results li > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* ---------- PR gates ---------- */
+.prg-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100%;
+  padding: 72px 24px 56px;
+  text-align: center;
+  background:
+    radial-gradient(60% 70% at 15% 10%, var(--prg-bg-a) 0%, transparent 70%), radial-gradient(55% 65% at 90% 20%, var(--prg-bg-b) 0%, transparent 70%),
+    radial-gradient(70% 60% at 50% 100%, var(--prg-bg-c) 0%, transparent 70%), var(--bg-subtle);
+}
+
+.prg-empty h1 {
+  margin: 0 0 14px;
+  font-size: 34px;
+  line-height: 1.25;
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+}
+
+.prg-empty > p {
+  max-width: 560px;
+  margin: 0 0 24px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.prg-cta {
+  height: 38px;
+  padding: 0 18px;
+  gap: 6px;
+  font-size: 15px;
+}
+
+.prg-suggested {
+  width: min(980px, 100%);
+  margin-top: 44px;
+  padding: 18px 20px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 30px rgba(20, 36, 35, 0.08);
+  text-align: left;
+}
+
+.prg-suggested-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.prg-suggestions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.prg-suggestion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.prg-suggestion:hover:not(:disabled) {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.prg-suggestion svg {
+  color: var(--primary);
+}
+
+.prg-suggestion b {
+  font-weight: var(--fw-medium);
+}
+
+.prg-suggestion span {
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.prg-needs {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: #fff4dc;
+  color: #8a5a00;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.prg-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #f2d494;
+  border-radius: var(--radius-md);
+  background: #fff8e8;
+  line-height: 1.5;
+}
+
+.prg-condition {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-lg);
+}
+
+.prg-condition input,
+.prg-condition select {
+  width: 90px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.prg-condition select {
+  width: auto;
+}
+
+.prg-check {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.prg-check h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--fw-medium);
+}
+
+.prg-check > p {
+  margin: 0;
+}
+
+.prg-check-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.prg-check-form .btn {
+  height: 34px;
+}
+
+.prg-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--dg-pass);
+  background: var(--bg-subtle);
+}
+
+.prg-result-failed {
+  border-left-color: var(--dg-fail);
+}
+
+.prg-result b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prg-check-passed {
+  color: var(--dg-pass);
+}
+
+.prg-check-failed {
+  color: var(--dg-fail);
+}
+
+.prg-check-no_data,
+.prg-check-not_evaluated {
+  color: var(--text-faint);
+}
+
+.prg-check-form input {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.prg-result-failed > b {
+  color: var(--dg-fail);
+}
+
+@media (max-width: 900px) {
+  .dg-features,
+  .dg-scope,
+  .dg-faulty,
+  .dg-preview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dg-tools,
+  .prg-suggestions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

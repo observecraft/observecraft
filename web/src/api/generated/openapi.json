@@ -2093,6 +2093,235 @@
         }
       }
     },
+    "/api/v1/deployment-gates": {
+      "get": {
+        "tags": [
+          "delivery"
+        ],
+        "operationId": "list_deployment_gates",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeploymentGate"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "delivery"
+        ],
+        "operationId": "create_deployment_gate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeploymentGateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentGate"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deployment-gates/evaluate": {
+      "post": {
+        "tags": [
+          "delivery"
+        ],
+        "summary": "Evaluates the gate of a service, environment and identifier now, records the evaluation and\nanswers with its verdict. Called by CI/CD pipelines with an application key\n(`Authorization: Bearer ocak_…`); `pass` says whether the deployment may go on.",
+        "operationId": "evaluate_deployment_gate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GateEvaluationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GateEvaluation"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No gate for this service, environment and identifier"
+          }
+        }
+      }
+    },
+    "/api/v1/deployment-gates/evaluations": {
+      "get": {
+        "tags": [
+          "delivery"
+        ],
+        "summary": "The org's latest evaluations, newest first.",
+        "operationId": "list_deployment_gate_evaluations",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GateEvaluation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deployment-gates/evaluations/{id}": {
+      "get": {
+        "tags": [
+          "delivery"
+        ],
+        "summary": "One evaluation, with the current status of the monitors that failed it.",
+        "operationId": "get_deployment_gate_evaluation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GateEvaluation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deployment-gates/{id}": {
+      "get": {
+        "tags": [
+          "delivery"
+        ],
+        "operationId": "get_deployment_gate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentGate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "delivery"
+        ],
+        "operationId": "update_deployment_gate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeploymentGateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentGate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "delivery"
+        ],
+        "operationId": "delete_deployment_gate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/downtimes": {
       "post": {
         "tags": [
@@ -11532,6 +11761,149 @@
         }
       }
     },
+    "/api/v1/pr-gates/evaluate": {
+      "post": {
+        "tags": [
+          "delivery"
+        ],
+        "summary": "Checks a pull request's commit against the enabled rules that apply to its repository. Called\nfrom CI with an application key (`Authorization: Bearer ocak_…`); `pass` is the check's result.",
+        "operationId": "evaluate_pr_gates",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrGateEvaluationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrGateEvaluation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pr-gates/rules": {
+      "get": {
+        "tags": [
+          "delivery"
+        ],
+        "operationId": "list_pr_gate_rules",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PrGateRule"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "delivery"
+        ],
+        "operationId": "create_pr_gate_rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrGateRuleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrGateRule"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pr-gates/rules/{id}": {
+      "put": {
+        "tags": [
+          "delivery"
+        ],
+        "operationId": "update_pr_gate_rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrGateRuleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrGateRule"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "delivery"
+        ],
+        "operationId": "delete_pr_gate_rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/profiles/flamegraph": {
       "post": {
         "tags": [
@@ -18832,6 +19204,105 @@
           }
         }
       },
+      "DeploymentGate": {
+        "type": "object",
+        "required": [
+          "id",
+          "service",
+          "env",
+          "identifier",
+          "dryRun",
+          "rules",
+          "createdBy",
+          "updatedBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "env": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "identifier": {
+            "type": "string"
+          },
+          "lastEvaluatedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "lastStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GateEvaluationStatus",
+                "description": "The latest evaluation's status and time, if any."
+              }
+            ]
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GateRule"
+            }
+          },
+          "service": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "DeploymentGateInput": {
+        "type": "object",
+        "required": [
+          "service",
+          "env",
+          "rules"
+        ],
+        "properties": {
+          "dryRun": {
+            "type": "boolean"
+          },
+          "env": {
+            "type": "string"
+          },
+          "identifier": {
+            "type": "string"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GateRule"
+            }
+          },
+          "service": {
+            "type": "string"
+          }
+        }
+      },
       "DerivedMetric": {
         "type": "object",
         "required": [
@@ -22115,6 +22586,265 @@
             "type": "string"
           }
         }
+      },
+      "GateEvaluation": {
+        "type": "object",
+        "required": [
+          "id",
+          "service",
+          "env",
+          "identifier",
+          "version",
+          "status",
+          "pass",
+          "rules",
+          "requestedBy",
+          "startedAt",
+          "durationMs"
+        ],
+        "properties": {
+          "durationMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "env": {
+            "type": "string"
+          },
+          "gateId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "identifier": {
+            "type": "string"
+          },
+          "pass": {
+            "type": "boolean",
+            "description": "Whether the deployment may go on (passed or dry run): what a pipeline acts on."
+          },
+          "requestedBy": {
+            "type": "string"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GateRuleResult"
+            }
+          },
+          "service": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "status": {
+            "$ref": "#/components/schemas/GateEvaluationStatus"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "GateEvaluationRequest": {
+        "type": "object",
+        "required": [
+          "service",
+          "env"
+        ],
+        "properties": {
+          "env": {
+            "type": "string"
+          },
+          "identifier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The gate's identifier; `default` when omitted."
+          },
+          "service": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The version being deployed; the newest version seen in the window when omitted."
+          }
+        }
+      },
+      "GateEvaluationStatus": {
+        "type": "string",
+        "enum": [
+          "passed",
+          "failed",
+          "dry_run"
+        ]
+      },
+      "GateMonitorState": {
+        "type": "object",
+        "description": "A monitor a monitor rule matched that was failing at evaluation time.",
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "properties": {
+          "currentStatus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its status now (filled when one evaluation is read; None when the monitor was deleted)."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "ok | warn | alert | nodata, at evaluation time."
+          }
+        }
+      },
+      "GateRule": {
+        "type": "object",
+        "description": "One rule of a gate. `query` is used by monitor rules; the window and thresholds by faulty\ndeployment detection.",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "dryRun": {
+            "type": "boolean",
+            "description": "A dry-run rule is evaluated and recorded but never fails the gate."
+          },
+          "maxErrorRateIncrease": {
+            "type": "number",
+            "format": "double",
+            "description": "Faulty deployment detection: percentage points the new version's error rate may exceed the previous one's."
+          },
+          "minRequests": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Faulty deployment detection: requests the new version needs before it is judged.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "description": "Monitor rules: tags (`service:billing env:prod`, `team:*`) and name words every matching monitor has."
+          },
+          "type": {
+            "$ref": "#/components/schemas/GateRuleKind"
+          },
+          "windowMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Faulty deployment detection: the minutes of spans compared.",
+            "minimum": 0
+          }
+        }
+      },
+      "GateRuleKind": {
+        "type": "string",
+        "enum": [
+          "monitor",
+          "faulty_deployment"
+        ]
+      },
+      "GateRuleResult": {
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "status",
+          "dryRun",
+          "reason"
+        ],
+        "properties": {
+          "dryRun": {
+            "type": "boolean"
+          },
+          "errorRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "matchedMonitors": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Monitor rules: how many monitors matched, and those in ALERT or NO DATA.",
+            "minimum": 0
+          },
+          "monitors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GateMonitorState"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "previousErrorRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "previousVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the rule passed or failed, in a sentence."
+          },
+          "requests": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/GateRuleStatus"
+          },
+          "type": {
+            "$ref": "#/components/schemas/GateRuleKind"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Faulty deployment detection: the versions compared and their error rates (0–1)."
+          }
+        }
+      },
+      "GateRuleStatus": {
+        "type": "string",
+        "enum": [
+          "passed",
+          "failed"
+        ]
       },
       "GeneratePostmortem": {
         "type": "object",
@@ -32260,6 +32990,283 @@
             "type": "string"
           }
         }
+      },
+      "PrGateCheckStatus": {
+        "type": "string",
+        "enum": [
+          "passed",
+          "failed",
+          "no_data",
+          "not_evaluated"
+        ]
+      },
+      "PrGateCiSummary": {
+        "type": "object",
+        "description": "What CI Visibility knows about the commit.",
+        "required": [
+          "pipelines",
+          "failedPipelines",
+          "tests",
+          "failedTests",
+          "flakyTests"
+        ],
+        "properties": {
+          "failedPipelines": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "failedTests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "flakyTests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "pipelines": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "tests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "PrGateEvaluation": {
+        "type": "object",
+        "required": [
+          "repository",
+          "sha",
+          "status",
+          "pass",
+          "rules",
+          "ci"
+        ],
+        "properties": {
+          "ci": {
+            "$ref": "#/components/schemas/PrGateCiSummary"
+          },
+          "pass": {
+            "type": "boolean"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrGateRuleResult"
+            },
+            "description": "The enabled rules that apply to the repository."
+          },
+          "sha": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PrGateVerdict",
+            "description": "Failed when a blocking rule failed: what the PR check reports."
+          }
+        }
+      },
+      "PrGateEvaluationRequest": {
+        "type": "object",
+        "required": [
+          "repository",
+          "sha"
+        ],
+        "properties": {
+          "repository": {
+            "type": "string",
+            "description": "`example-org/billing` (a repository URL works too)."
+          },
+          "sha": {
+            "type": "string",
+            "description": "The pull request's head commit."
+          }
+        }
+      },
+      "PrGateRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "source",
+          "repositories",
+          "threshold",
+          "minSeverity",
+          "blocking",
+          "enabled",
+          "evaluable",
+          "createdBy",
+          "updatedBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "blocking": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "evaluable": {
+            "type": "boolean",
+            "description": "False for sources that need Code Security: such rules are stored but not evaluated."
+          },
+          "id": {
+            "type": "string"
+          },
+          "minSeverity": {
+            "$ref": "#/components/schemas/PrGateSeverity",
+            "description": "Code Security sources: the lowest severity counted."
+          },
+          "name": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Empty = every repository."
+          },
+          "source": {
+            "$ref": "#/components/schemas/PrGateSource"
+          },
+          "threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The rule fails when the count of findings is above this."
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "PrGateRuleInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "source"
+        ],
+        "properties": {
+          "blocking": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "minSeverity": {
+            "$ref": "#/components/schemas/PrGateSeverity"
+          },
+          "name": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source": {
+            "$ref": "#/components/schemas/PrGateSource"
+          },
+          "threshold": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "PrGateRuleResult": {
+        "type": "object",
+        "required": [
+          "ruleId",
+          "name",
+          "source",
+          "blocking",
+          "status",
+          "threshold",
+          "reason"
+        ],
+        "properties": {
+          "blocking": {
+            "type": "boolean"
+          },
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Findings counted (None when not evaluated or without data).",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PrGateSource"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PrGateCheckStatus"
+          },
+          "threshold": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "PrGateSeverity": {
+        "type": "string",
+        "enum": [
+          "critical",
+          "high",
+          "medium",
+          "low"
+        ]
+      },
+      "PrGateSource": {
+        "type": "string",
+        "enum": [
+          "pipeline_failures",
+          "test_failures",
+          "flaky_tests",
+          "code_vulnerabilities",
+          "code_quality",
+          "library_vulnerabilities",
+          "license_violations"
+        ]
+      },
+      "PrGateVerdict": {
+        "type": "string",
+        "enum": [
+          "passed",
+          "failed"
+        ]
       },
       "PrGroup": {
         "type": "string",

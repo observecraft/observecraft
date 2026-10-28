@@ -8,6 +8,7 @@ pub mod ci;
 pub mod cloud_map;
 pub mod dashboards;
 pub mod derived_metrics;
+pub mod deployment_gates;
 pub mod data_jobs;
 pub mod databases;
 pub mod downtimes;
@@ -49,6 +50,7 @@ pub mod on_call;
 pub mod on_call_escalation;
 pub mod on_call_schedule;
 pub mod portal_home;
+pub mod pr_gates;
 pub mod portal_sources;
 pub mod portal_action_steps;
 pub mod portal_actions;
@@ -129,6 +131,19 @@ use crate::state::AppState;
         derived_metrics::create,
         derived_metrics::update,
         derived_metrics::delete,
+        deployment_gates::list,
+        deployment_gates::get,
+        deployment_gates::create,
+        deployment_gates::update,
+        deployment_gates::delete,
+        deployment_gates::evaluate,
+        deployment_gates::evaluations,
+        deployment_gates::evaluation,
+        pr_gates::list,
+        pr_gates::create,
+        pr_gates::update,
+        pr_gates::delete,
+        pr_gates::evaluate,
         metric_rules::list,
         metric_rules::create,
         metric_rules::update,
@@ -595,6 +610,14 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/metrics/volume", post(metrics::volume))
         .route("/api/v1/metrics/derived", get(derived_metrics::list).post(derived_metrics::create))
         .route("/api/v1/metrics/derived/:id", axum::routing::put(derived_metrics::update).delete(derived_metrics::delete))
+        .route("/api/v1/deployment-gates", get(deployment_gates::list).post(deployment_gates::create))
+        .route("/api/v1/deployment-gates/evaluate", post(deployment_gates::evaluate))
+        .route("/api/v1/deployment-gates/evaluations", get(deployment_gates::evaluations))
+        .route("/api/v1/deployment-gates/evaluations/:id", get(deployment_gates::evaluation))
+        .route("/api/v1/deployment-gates/:id", get(deployment_gates::get).put(deployment_gates::update).delete(deployment_gates::delete))
+        .route("/api/v1/pr-gates/rules", get(pr_gates::list).post(pr_gates::create))
+        .route("/api/v1/pr-gates/rules/:id", axum::routing::put(pr_gates::update).delete(pr_gates::delete))
+        .route("/api/v1/pr-gates/evaluate", post(pr_gates::evaluate))
         .route("/api/v1/metrics/rules", get(metric_rules::list).post(metric_rules::create))
         .route("/api/v1/metrics/rules/overview", post(metric_rules::overview))
         .route("/api/v1/metrics/rules/:id", axum::routing::put(metric_rules::update).delete(metric_rules::delete))
@@ -1188,6 +1211,8 @@ mod tests {
             include_str!("metric_inventory.rs"),
             include_str!("metric_rules.rs"),
             include_str!("derived_metrics.rs"),
+            include_str!("deployment_gates.rs"),
+            include_str!("pr_gates.rs"),
             include_str!("event_correlation.rs"),
             include_str!("event_settings.rs"),
             include_str!("service_checks.rs"),
@@ -1266,6 +1291,8 @@ mod tests {
             ("changes.rs", include_str!("changes.rs")),
             ("cloud_map.rs", include_str!("cloud_map.rs")),
             ("ci.rs", include_str!("ci.rs")),
+            ("deployment_gates.rs", include_str!("deployment_gates.rs")),
+            ("pr_gates.rs", include_str!("pr_gates.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),
             ("error_tracking.rs", include_str!("error_tracking.rs")),
             ("hosts.rs", include_str!("hosts.rs")),
@@ -1375,6 +1402,8 @@ mod tests {
             ("changes.rs", include_str!("changes.rs")),
             ("cloud_map.rs", include_str!("cloud_map.rs")),
             ("ci.rs", include_str!("ci.rs")),
+            ("deployment_gates.rs", include_str!("deployment_gates.rs")),
+            ("pr_gates.rs", include_str!("pr_gates.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),
             ("downtimes.rs", include_str!("downtimes.rs")),
             ("error_tracking.rs", include_str!("error_tracking.rs")),
