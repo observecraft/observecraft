@@ -1749,6 +1749,99 @@
         }
       }
     },
+    "/api/v1/data-jobs/search": {
+      "post": {
+        "tags": [
+          "databases"
+        ],
+        "summary": "Airflow DAGs and Spark applications that reported in the range, with their runs.",
+        "operationId": "search_data_jobs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSearchPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/databases/instance": {
+      "post": {
+        "tags": [
+          "databases"
+        ],
+        "summary": "An instance's current values and its connections, throughput, cache hit ratio, replication lag and size over the range.",
+        "operationId": "database_instance",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DbInstanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DbInstanceDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/databases/search": {
+      "post": {
+        "tags": [
+          "databases"
+        ],
+        "summary": "Database instances that reported in the last minutes of the range, with their current values.",
+        "operationId": "search_databases",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DbSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DbSearchPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/downtimes": {
       "post": {
         "tags": [
@@ -11627,6 +11720,101 @@
           }
         }
       },
+      "DataJob": {
+        "type": "object",
+        "required": [
+          "id",
+          "framework",
+          "name",
+          "succeeded",
+          "failed",
+          "running",
+          "failedTasks",
+          "succeededTasks",
+          "status",
+          "lastSeen"
+        ],
+        "properties": {
+          "avgDurationMs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Average duration of the runs in the range (Airflow)."
+          },
+          "cluster": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "failedTasks": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "framework": {
+            "$ref": "#/components/schemas/JobFramework"
+          },
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "description": "`framework:name`."
+          },
+          "lastDurationMs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "description": "The DAG id or Spark application name."
+          },
+          "running": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Spark jobs running at the last check.",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "succeeded": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Successful runs (Airflow DAG runs, Spark jobs) in the range.",
+            "minimum": 0
+          },
+          "succeededTasks": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
       "DatabaseStats": {
         "type": "object",
         "required": [
@@ -11665,6 +11853,248 @@
           "timeShare": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "DbEngine": {
+        "type": "string",
+        "enum": [
+          "postgres",
+          "mysql",
+          "redis",
+          "mongodb",
+          "sqlserver"
+        ]
+      },
+      "DbFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "values"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DbFacetValue"
+            }
+          }
+        }
+      },
+      "DbFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "DbInstance": {
+        "type": "object",
+        "required": [
+          "id",
+          "engine",
+          "host",
+          "databases",
+          "lastSeen"
+        ],
+        "properties": {
+          "cacheHitPct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "cluster": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connections": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "databases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Databases its series are tagged with."
+          },
+          "engine": {
+            "$ref": "#/components/schemas/DbEngine"
+          },
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "host": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "description": "`engine:host[:port]`."
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxConnections": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "port": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "replicationLagSec": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "service": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sizeBytes": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "On disk (in memory for Redis)."
+          },
+          "throughput": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Transactions (PostgreSQL), queries (MySQL), commands (Redis), operations (MongoDB) or batches (SQL Server) per second."
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "DbInstanceDetail": {
+        "type": "object",
+        "required": [
+          "series"
+        ],
+        "properties": {
+          "instance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DbInstance",
+                "description": "Null when the instance didn't report in the range."
+              }
+            ]
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricSeries"
+            },
+            "description": "connections, throughput, cache_hit, replication_lag, size."
+          }
+        }
+      },
+      "DbInstanceRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The instance's `id` from the search."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "DbSearchPage": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "instances",
+          "facets",
+          "unconfigured"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "False when no database integration metrics arrived in the range (show the setup guide)."
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DbFacet"
+            }
+          },
+          "instances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DbInstance"
+            }
+          },
+          "unconfigured": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnconfiguredDb"
+            },
+            "description": "Database servers seen running on hosts (process metrics) whose engine sends no integration metrics."
+          }
+        }
+      },
+      "DbSearchRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "`engine:postgres env:prod cluster:x host:y service:z` + free text on the instance and its databases."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
           }
         }
       },
@@ -15724,6 +16154,97 @@
             "description": "for_review, reviewed, ignored or resolved; absent leaves it as is."
           }
         }
+      },
+      "JobFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "values"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobFacetValue"
+            }
+          }
+        }
+      },
+      "JobFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "JobFramework": {
+        "type": "string",
+        "enum": [
+          "airflow",
+          "spark"
+        ]
+      },
+      "JobSearchPage": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "jobs",
+          "facets"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "False when no Airflow or Spark metrics arrived in the range (show the setup guide)."
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobFacet"
+            }
+          },
+          "jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataJob"
+            }
+          }
+        }
+      },
+      "JobSearchRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "`framework:airflow status:failed env:prod cluster:x host:y` + free text on the job name."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": [
+          "failed",
+          "running",
+          "succeeded",
+          "unknown"
+        ]
       },
       "KubeContainer": {
         "type": "object",
@@ -25138,6 +25659,26 @@
           }
         }
       },
+      "UnconfiguredDb": {
+        "type": "object",
+        "required": [
+          "host",
+          "engine",
+          "process"
+        ],
+        "properties": {
+          "engine": {
+            "$ref": "#/components/schemas/DbEngine"
+          },
+          "host": {
+            "type": "string"
+          },
+          "process": {
+            "type": "string",
+            "description": "The process seen (`postgres`, `mysqld`, …)."
+          }
+        }
+      },
       "UserPatch": {
         "type": "object",
         "properties": {
@@ -25450,6 +25991,10 @@
     {
       "name": "infrastructure",
       "description": "Hosts, built from host metrics, spans and logs"
+    },
+    {
+      "name": "databases",
+      "description": "Database Monitoring and Data Jobs, built from database, Spark and Airflow integration metrics"
     },
     {
       "name": "events",

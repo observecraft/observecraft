@@ -301,7 +301,7 @@ export const NAV_SECTIONS: NavItem[][] = [
         },
         { title: 'Data Streams Monitoring', columns: [[{ label: 'Kafka Console', to: '/data-streams/kafka' }]] },
         { title: 'Dynamic Instrumentation', to: '/apm/dynamic-instrumentation', columns: [] },
-        { title: 'Database Monitoring', to: '/databases', columns: [] },
+        { title: 'Database Monitoring', to: '/data', columns: [] },
         { title: 'Data Jobs Monitoring', to: '/data/jobs', columns: [] },
         { title: 'Sensitive Data Scanner', to: '/organization-settings/sensitive-data-scanner', columns: [] },
       ],

@@ -798,6 +798,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/data-jobs/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Airflow DAGs and Spark applications that reported in the range, with their runs. */
+        post: operations["search_data_jobs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/databases/instance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** An instance's current values and its connections, throughput, cache hit ratio, replication lag and size over the range. */
+        post: operations["database_instance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/databases/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Database instances that reported in the last minutes of the range, with their current values. */
+        post: operations["search_databases"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/downtimes": {
         parameters: {
             query?: never;
@@ -4284,6 +4335,42 @@ export interface components {
             /** Format: int64 */
             viewedAt?: number | null;
         };
+        DataJob: {
+            /**
+             * Format: double
+             * @description Average duration of the runs in the range (Airflow).
+             */
+            avgDurationMs?: number | null;
+            cluster?: string | null;
+            env?: string | null;
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            failedTasks: number;
+            framework: components["schemas"]["JobFramework"];
+            host?: string | null;
+            /** @description `framework:name`. */
+            id: string;
+            /** Format: double */
+            lastDurationMs?: number | null;
+            /** Format: int64 */
+            lastSeen: number;
+            /** @description The DAG id or Spark application name. */
+            name: string;
+            /**
+             * Format: int64
+             * @description Spark jobs running at the last check.
+             */
+            running: number;
+            status: components["schemas"]["JobStatus"];
+            /**
+             * Format: int64
+             * @description Successful runs (Airflow DAG runs, Spark jobs) in the range.
+             */
+            succeeded: number;
+            /** Format: int64 */
+            succeededTasks: number;
+        };
         DatabaseStats: {
             dbName: string;
             dbSystem: string;
@@ -4296,6 +4383,72 @@ export interface components {
             statement: string;
             /** Format: double */
             timeShare: number;
+        };
+        /** @enum {string} */
+        DbEngine: "postgres" | "mysql" | "redis" | "mongodb" | "sqlserver";
+        DbFacet: {
+            key: string;
+            values: components["schemas"]["DbFacetValue"][];
+        };
+        DbFacetValue: {
+            count: number;
+            value: string;
+        };
+        DbInstance: {
+            /** Format: double */
+            cacheHitPct?: number | null;
+            cluster?: string | null;
+            /** Format: double */
+            connections?: number | null;
+            /** @description Databases its series are tagged with. */
+            databases: string[];
+            engine: components["schemas"]["DbEngine"];
+            env?: string | null;
+            host: string;
+            /** @description `engine:host[:port]`. */
+            id: string;
+            /** Format: int64 */
+            lastSeen: number;
+            /** Format: double */
+            maxConnections?: number | null;
+            port?: string | null;
+            /** Format: double */
+            replicationLagSec?: number | null;
+            service?: string | null;
+            /**
+             * Format: double
+             * @description On disk (in memory for Redis).
+             */
+            sizeBytes?: number | null;
+            /**
+             * Format: double
+             * @description Transactions (PostgreSQL), queries (MySQL), commands (Redis), operations (MongoDB) or batches (SQL Server) per second.
+             */
+            throughput?: number | null;
+            version?: string | null;
+        };
+        DbInstanceDetail: {
+            instance?: null | components["schemas"]["DbInstance"];
+            /** @description connections, throughput, cache_hit, replication_lag, size. */
+            series: components["schemas"]["MetricSeries"][];
+        };
+        DbInstanceRequest: {
+            /** @description The instance's `id` from the search. */
+            id: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        DbSearchPage: {
+            /** @description False when no database integration metrics arrived in the range (show the setup guide). */
+            enabled: boolean;
+            facets: components["schemas"]["DbFacet"][];
+            instances: components["schemas"]["DbInstance"][];
+            /** @description Database servers seen running on hosts (process metrics) whose engine sends no integration metrics. */
+            unconfigured: components["schemas"]["UnconfiguredDb"][];
+        };
+        DbSearchRequest: {
+            /** @description `engine:postgres env:prod cluster:x host:y service:z` + free text on the instance and its databases. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
         };
         DeclareRequest: {
             /** @description Defaults to the declaring user. */
@@ -5514,6 +5667,29 @@ export interface components {
             /** @description for_review, reviewed, ignored or resolved; absent leaves it as is. */
             status?: string | null;
         };
+        JobFacet: {
+            key: string;
+            values: components["schemas"]["JobFacetValue"][];
+        };
+        JobFacetValue: {
+            count: number;
+            value: string;
+        };
+        /** @enum {string} */
+        JobFramework: "airflow" | "spark";
+        JobSearchPage: {
+            /** @description False when no Airflow or Spark metrics arrived in the range (show the setup guide). */
+            enabled: boolean;
+            facets: components["schemas"]["JobFacet"][];
+            jobs: components["schemas"]["DataJob"][];
+        };
+        JobSearchRequest: {
+            /** @description `framework:airflow status:failed env:prod cluster:x host:y` + free text on the job name. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @enum {string} */
+        JobStatus: "failed" | "running" | "succeeded" | "unknown";
         KubeContainer: {
             cpu: components["schemas"]["KubeUtilization"];
             image: string;
@@ -8403,6 +8579,12 @@ export interface components {
              */
             triggeredWithin: number | null;
         };
+        UnconfiguredDb: {
+            engine: components["schemas"]["DbEngine"];
+            host: string;
+            /** @description The process seen (`postgres`, `mysqld`, …). */
+            process: string;
+        };
         UserPatch: {
             /** @description Replaces the user's roles. */
             roleIds?: string[] | null;
@@ -9730,6 +9912,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_data_jobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSearchPage"];
+                };
+            };
+        };
+    };
+    database_instance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DbInstanceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbInstanceDetail"];
+                };
+            };
+        };
+    };
+    search_databases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DbSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbSearchPage"];
                 };
             };
         };

@@ -5,6 +5,8 @@ pub mod catalog;
 pub mod changes;
 pub mod ci;
 pub mod dashboards;
+pub mod data_jobs;
+pub mod databases;
 pub mod downtimes;
 pub mod error_tracking;
 pub mod events;
@@ -130,6 +132,9 @@ use crate::state::AppState;
         changes::search,
         gpu::search,
         gpu::timeseries,
+        databases::search,
+        databases::instance,
+        data_jobs::search,
         kubernetes::search,
         kubernetes::detail,
         identity::me,
@@ -325,6 +330,7 @@ use crate::state::AppState;
         (name = "dashboards", description = "Dashboards, dashboard lists and the monitor summary widget"),
         (name = "notebooks", description = "Notebooks: documents of Markdown and live query cells"),
         (name = "infrastructure", description = "Hosts, built from host metrics, spans and logs"),
+        (name = "databases", description = "Database Monitoring and Data Jobs, built from database, Spark and Airflow integration metrics"),
         (name = "events", description = "Events from the Datadog Agent and the events API"),
         (name = "network", description = "Network flows from the Datadog Agent's system-probe"),
         (name = "profiles", description = "Continuous profiles from Datadog's profilers: explorer, flame graphs and insights"),
@@ -496,6 +502,9 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/infrastructure/changes", post(changes::search))
         .route("/api/v1/gpu/search", post(gpu::search))
         .route("/api/v1/gpu/timeseries", post(gpu::timeseries))
+        .route("/api/v1/databases/search", post(databases::search))
+        .route("/api/v1/databases/instance", post(databases::instance))
+        .route("/api/v1/data-jobs/search", post(data_jobs::search))
         .route("/api/v1/orchestration/search", post(kubernetes::search))
         .route(
             "/api/v1/orchestration/resources/*uid",
@@ -826,6 +835,8 @@ mod tests {
             include_str!("health.rs"),
             include_str!("hosts.rs"),
             include_str!("gpu.rs"),
+            include_str!("databases.rs"),
+            include_str!("data_jobs.rs"),
             include_str!("metric_inventory.rs"),
             include_str!("events.rs"),
             include_str!("network.rs"),
@@ -889,6 +900,8 @@ mod tests {
             ("error_tracking.rs", include_str!("error_tracking.rs")),
             ("hosts.rs", include_str!("hosts.rs")),
             ("gpu.rs", include_str!("gpu.rs")),
+            ("databases.rs", include_str!("databases.rs")),
+            ("data_jobs.rs", include_str!("data_jobs.rs")),
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
             ("events.rs", include_str!("events.rs")),
             ("network.rs", include_str!("network.rs")),
@@ -984,6 +997,8 @@ mod tests {
             ("health.rs", include_str!("health.rs")),
             ("hosts.rs", include_str!("hosts.rs")),
             ("gpu.rs", include_str!("gpu.rs")),
+            ("databases.rs", include_str!("databases.rs")),
+            ("data_jobs.rs", include_str!("data_jobs.rs")),
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
             ("identity.rs", include_str!("identity.rs")),
             ("incident_views.rs", include_str!("incident_views.rs")),

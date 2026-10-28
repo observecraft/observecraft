@@ -1,30 +1,18 @@
 // How GPU metrics reach ObserveCraft: the Datadog Agent (its GPU check or its DCGM check) or NVIDIA's
 // DCGM exporter scraped by an OpenTelemetry Collector. {{intake}} and {{apiKey}} are filled in per install.
+import { collectorConfig } from '../setup/collector';
 import type { SetupOption } from '../setup/SetupOptions';
 
-const COLLECTOR = `receivers:
-  prometheus/dcgm:
+const COLLECTOR = collectorConfig(
+  'gpu',
+  `  prometheus/dcgm:
     config:
       scrape_configs:
         - job_name: dcgm-exporter
           scrape_interval: 30s
           static_configs:
-            - targets: ['localhost:9400']   # or kubernetes_sd_configs for the exporter's pods
-processors:
-  resourcedetection:
-    detectors: [env, system]
-  batch: {}
-exporters:
-  otlphttp/observecraft:
-    endpoint: {{intake}}
-    headers:
-      authorization: "Bearer {{apiKey}}"
-service:
-  pipelines:
-    metrics/gpu:
-      receivers: [prometheus/dcgm]
-      processors: [resourcedetection, batch]
-      exporters: [otlphttp/observecraft]`;
+            - targets: ['localhost:9400']   # or kubernetes_sd_configs for the exporter's pods`,
+);
 
 export const GPU_SETUP: SetupOption[] = [
   {
