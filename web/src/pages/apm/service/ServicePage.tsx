@@ -87,9 +87,24 @@ export function ServicePage() {
           <span>{service}</span>
         </div>
         <div className="svc-filters">
-          <Select label="Operation" value={resource ?? ALL} onChange={(v) => setParam('resource', v)} options={[{ value: ALL, label: 'All resources' }, ...(opt?.resources ?? []).map((r) => ({ value: r, label: r }))]} />
-          <Select label="Env" value={env ?? ALL} onChange={(v) => setParam('env', v)} options={[{ value: ALL, label: 'All environments' }, ...(opt?.envs ?? []).map((e) => ({ value: e, label: e }))]} />
-          <Select label="Version" value={version ?? ALL} onChange={(v) => setParam('version', v)} options={[{ value: ALL, label: 'All versions' }, ...(opt?.versions ?? []).map((v) => ({ value: v, label: v }))]} />
+          <Select
+            label="Operation"
+            value={resource ?? ALL}
+            onChange={(v) => setParam('resource', v)}
+            options={[{ value: ALL, label: 'All resources' }, ...(opt?.resources ?? []).map((r) => ({ value: r, label: r }))]}
+          />
+          <Select
+            label="Env"
+            value={env ?? ALL}
+            onChange={(v) => setParam('env', v)}
+            options={[{ value: ALL, label: 'All environments' }, ...(opt?.envs ?? []).map((e) => ({ value: e, label: e }))]}
+          />
+          <Select
+            label="Version"
+            value={version ?? ALL}
+            onChange={(v) => setParam('version', v)}
+            options={[{ value: ALL, label: 'All versions' }, ...(opt?.versions ?? []).map((v) => ({ value: v, label: v }))]}
+          />
           <TimePicker />
         </div>
       </div>

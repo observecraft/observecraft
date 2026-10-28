@@ -32,9 +32,7 @@ export function ProfilesLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="pf-subbar-right">
-          {timed && <TimePicker />}
-        </div>
+        <div className="pf-subbar-right">{timed && <TimePicker />}</div>
       </div>
       <div className="pf-section">
         <Outlet />
