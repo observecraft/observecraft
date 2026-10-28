@@ -2909,6 +2909,332 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/on-call/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["on_call_analytics"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/escalation-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_on_call_policies"];
+        put?: never;
+        post: operations["create_on_call_policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/escalation-policies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_on_call_policy"];
+        put: operations["update_on_call_policy"];
+        post?: never;
+        delete: operations["delete_on_call_policy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/my-shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The signed-in member's shifts across every schedule (Summary → My Shifts, calendar export). */
+        post: operations["my_on_call_shifts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_on_call_page"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_on_call_pages"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_on_call_page"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages/{id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["acknowledge_on_call_page"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages/{id}/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pages another team or policy: back to triggered, from the first step. */
+        post: operations["reassign_on_call_page"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resolve_on_call_page"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_on_call_profile"];
+        put: operations["update_on_call_profile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/profile/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends a test page notification to the member's high-urgency channels. */
+        post: operations["test_on_call_profile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_on_call_schedules"];
+        put?: never;
+        post: operations["create_on_call_schedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Shifts of an unsaved schedule (the editor's timeline). */
+        post: operations["preview_on_call_schedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_on_call_schedule"];
+        put: operations["update_on_call_schedule"];
+        post?: never;
+        delete: operations["delete_on_call_schedule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules/{id}/overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_on_call_override"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules/{id}/overrides/{override_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_on_call_override"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules/{id}/shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The layers' shifts and the final schedule of a saved schedule over a range (≤ 93 days). */
+        post: operations["on_call_schedule_shifts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_on_call_teams"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/teams/{handle}/routing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Which escalation policy the team's pages follow. */
+        put: operations["set_on_call_routing"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orchestration/resources/{uid}": {
         parameters: {
             query?: never;
@@ -4434,6 +4760,21 @@ export interface components {
             /** @description Email addresses, #channels or @handles. */
             recipients: string[];
             subject: string;
+        };
+        CreateOnCallOverride: {
+            /** Format: int64 */
+            end: number;
+            /** Format: int64 */
+            start: number;
+            userId: string;
+        };
+        CreateOnCallPage: {
+            description?: string;
+            policyId?: string | null;
+            team?: string | null;
+            title: string;
+            /** @description high | low (default high) */
+            urgency?: string | null;
         };
         CreateOrgRequest: {
             /** @description Becomes the org's first Admin (invited; an existing account joins with its current password). */
@@ -7237,6 +7578,367 @@ export interface components {
             hasClientSecret: boolean;
             issuer?: string | null;
         };
+        OnCallAnalytics: {
+            /** Format: int64 */
+            acknowledged: number;
+            /** @description 7 × 24 counts: index weekday (0 = Monday) × 24 + hour. */
+            byHour: number[];
+            /** Format: double */
+            mttaSeconds?: number | null;
+            /** Format: double */
+            mttrSeconds?: number | null;
+            perDay: components["schemas"]["OnCallDayCount"][];
+            /** Format: int64 */
+            resolved: number;
+            teams: components["schemas"]["OnCallTeamStats"][];
+            /** @description Pages most often raised with the same title. */
+            topSources: components["schemas"]["OnCallSourceCount"][];
+            /** Format: int64 */
+            total: number;
+        };
+        OnCallAnalyticsRequest: {
+            range: components["schemas"]["OnCallRange"];
+            teams?: string[];
+            /** @description IANA time zone for days and hours (default UTC). */
+            timeZone?: string | null;
+        };
+        OnCallChannelOption: {
+            handle: string;
+            /** @description email | slack | webhook */
+            kind: string;
+        };
+        OnCallDayCount: {
+            /** Format: int64 */
+            count: number;
+            /**
+             * Format: int64
+             * @description Start of the day (Unix ms).
+             */
+            day: number;
+            team: string;
+        };
+        /** @description One stretch of the final schedule. */
+        OnCallFinalShift: {
+            /** Format: int64 */
+            end: number;
+            /** @description An override replaces the layers here. */
+            isOverride: boolean;
+            /** Format: int64 */
+            start: number;
+            userIds: string[];
+        };
+        OnCallLayer: {
+            /** @description First handoff in the schedule's time zone, "YYYY-MM-DDTHH:MM". */
+            effectiveFrom: string;
+            /** @description The layer ends here ("YYYY-MM-DDTHH:MM", schedule time zone). */
+            effectiveUntil?: string | null;
+            id: string;
+            /** @description User ids in rotation order. */
+            members: string[];
+            name: string;
+            /** @description Only on call inside these windows (none: always). */
+            restrictions?: components["schemas"]["OnCallRestriction"][];
+            /**
+             * Format: int32
+             * @description Length of a shift: 24 (daily), 168 (weekly) or any number of hours.
+             */
+            rotationHours: number;
+        };
+        OnCallLayerShifts: {
+            layerId: string;
+            shifts: components["schemas"]["OnCallShift"][];
+        };
+        OnCallMyShift: {
+            /** Format: int64 */
+            end: number;
+            scheduleId: string;
+            scheduleName: string;
+            /** Format: int64 */
+            start: number;
+        };
+        OnCallOverride: {
+            /** Format: int64 */
+            end: number;
+            id: string;
+            /** Format: int64 */
+            start: number;
+            userId: string;
+            userName: string;
+        };
+        OnCallPage: {
+            /** Format: int64 */
+            acknowledgedAt?: number | null;
+            acknowledgedBy?: string | null;
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            /** Format: int64 */
+            id: number;
+            /**
+             * Format: int32
+             * @description IR-<n> of the incident that paged.
+             */
+            incidentId?: number | null;
+            /** Format: int64 */
+            monitorId?: number | null;
+            /**
+             * Format: int64
+             * @description When the next escalation step runs (triggered pages).
+             */
+            nextEscalationAt?: number | null;
+            policy?: null | components["schemas"]["OnCallRef"];
+            /** Format: int64 */
+            resolvedAt?: number | null;
+            resolvedBy?: string | null;
+            /** @description Everyone notified so far, in order. */
+            responders: components["schemas"]["OnCallUser"][];
+            /** @description manual | incident | monitor */
+            source: string;
+            status: components["schemas"]["OnCallPageStatus"];
+            team?: string | null;
+            title: string;
+            /** @description high | low */
+            urgency: string;
+        };
+        OnCallPageCounts: {
+            /** Format: int64 */
+            acknowledged: number;
+            /** Format: int64 */
+            active: number;
+            /** Format: int64 */
+            all: number;
+            /** Format: int64 */
+            resolved: number;
+            /** Format: int64 */
+            triggered: number;
+        };
+        OnCallPageDetail: {
+            /** @description The signed-in member may acknowledge and resolve it. */
+            canRespond: boolean;
+            page: components["schemas"]["OnCallPage"];
+            timeline: components["schemas"]["OnCallPageEvent"][];
+        };
+        OnCallPageEvent: {
+            actor: string;
+            body: string;
+            /** Format: int64 */
+            createdAt: number;
+            /** Format: int64 */
+            id: number;
+            /** @description triggered | notified | escalated | acknowledged | resolved | reassigned | failed */
+            kind: string;
+        };
+        OnCallPageSearch: {
+            /**
+             * Format: int64
+             * @description Created within (Unix ms); none: any time.
+             */
+            from?: number | null;
+            /**
+             * Format: int64
+             * @description At most this many pages (1–500, default 200).
+             */
+            limit?: number | null;
+            /** @description Only pages that notified the signed-in member. */
+            mine?: boolean;
+            /** @description Words of the title. */
+            query?: string;
+            /** @description active (triggered or acknowledged) | triggered | acknowledged | resolved | all */
+            status: string;
+            teams?: string[];
+            /** Format: int64 */
+            to?: number | null;
+        };
+        /** @enum {string} */
+        OnCallPageStatus: "triggered" | "acknowledged" | "resolved";
+        OnCallPagesResult: {
+            /** @description Per status, with the other filters applied. */
+            counts: components["schemas"]["OnCallPageCounts"];
+            pages: components["schemas"]["OnCallPage"][];
+        };
+        OnCallPolicy: {
+            /** Format: int64 */
+            createdAt: number;
+            id: string;
+            name: string;
+            /**
+             * Format: int32
+             * @description Times the policy starts over after its last step.
+             */
+            repeat: number;
+            /** Format: int32 */
+            resolveAfterMinutes?: number | null;
+            steps: components["schemas"]["OnCallStep"][];
+            tags: string[];
+            team?: string | null;
+            /** Format: int64 */
+            updatedAt: number;
+            /** @description Teams whose pages follow this policy. */
+            usedBy: string[];
+        };
+        OnCallPolicyInput: {
+            name: string;
+            /** Format: int32 */
+            repeat?: number;
+            /** Format: int32 */
+            resolveAfterMinutes?: number | null;
+            steps: components["schemas"]["OnCallStep"][];
+            tags?: string[];
+            team?: string | null;
+        };
+        OnCallPreviewRequest: {
+            range: components["schemas"]["OnCallRange"];
+            schedule: components["schemas"]["OnCallScheduleInput"];
+            /** @description Include this saved schedule's overrides. */
+            scheduleId?: string | null;
+        };
+        OnCallProfile: {
+            /** @description What can be chosen: email and the org's Slack and webhook channels. */
+            channels: components["schemas"]["OnCallChannelOption"][];
+            /** @description Saved at least once. */
+            configured: boolean;
+            email: string;
+            /** @description Email delivery is configured on this install (OC_SMTP_URL). */
+            emailEnabled: boolean;
+            /** @description 'email' or channel handles, for high-urgency pages. */
+            highUrgency: string[];
+            lowUrgency: string[];
+        };
+        OnCallProfileInput: {
+            highUrgency: string[];
+            lowUrgency: string[];
+        };
+        OnCallRange: {
+            /**
+             * Format: int64
+             * @description Unix ms.
+             */
+            from: number;
+            /** Format: int64 */
+            to: number;
+        };
+        OnCallRef: {
+            id: string;
+            name: string;
+        };
+        /** @description A weekly window in the schedule's time zone: `startDay startTime` → `endDay endTime` (wrapping past Sunday when the end comes first). */
+        OnCallRestriction: {
+            endDay: components["schemas"]["OnCallWeekday"];
+            /** @description "HH:MM" */
+            endTime: string;
+            startDay: components["schemas"]["OnCallWeekday"];
+            /** @description "HH:MM" */
+            startTime: string;
+        };
+        OnCallRouting: {
+            /** @description None: page every member of the team. */
+            policyId?: string | null;
+        };
+        OnCallSchedule: {
+            /** Format: int64 */
+            createdAt: number;
+            id: string;
+            layers: components["schemas"]["OnCallLayer"][];
+            /** Format: int32 */
+            maxConcurrent?: number | null;
+            /** @description The people of the layers (names for the editor). */
+            members: components["schemas"]["OnCallUser"][];
+            name: string;
+            onCallNow: components["schemas"]["OnCallUser"][];
+            /** @description Overrides that haven't ended more than 31 days ago. */
+            overrides: components["schemas"]["OnCallOverride"][];
+            tags: string[];
+            team?: string | null;
+            /** @description IANA time zone the layers' times are in. */
+            timeZone: string;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        OnCallScheduleInput: {
+            layers: components["schemas"]["OnCallLayer"][];
+            /** Format: int32 */
+            maxConcurrent?: number | null;
+            name: string;
+            tags?: string[];
+            team?: string | null;
+            timeZone: string;
+        };
+        OnCallScheduleShifts: {
+            finalShifts: components["schemas"]["OnCallFinalShift"][];
+            layers: components["schemas"]["OnCallLayerShifts"][];
+            overrides: components["schemas"]["OnCallOverride"][];
+            /** @description Everyone named in the shifts. */
+            users: components["schemas"]["OnCallUser"][];
+        };
+        OnCallShift: {
+            /** Format: int64 */
+            end: number;
+            /**
+             * Format: int64
+             * @description Unix ms.
+             */
+            start: number;
+            userId: string;
+        };
+        OnCallSourceCount: {
+            /** Format: int64 */
+            count: number;
+            source: string;
+            title: string;
+        };
+        OnCallStep: {
+            /**
+             * Format: int32
+             * @description Minutes to wait for an acknowledgement before the next step (1–1440).
+             */
+            escalateAfterMinutes: number;
+            targets: components["schemas"]["OnCallTarget"][];
+        };
+        OnCallTarget: {
+            /** @description User id, schedule id or team handle. */
+            id: string;
+            kind: components["schemas"]["OnCallTargetKind"];
+        };
+        /** @enum {string} */
+        OnCallTargetKind: "user" | "schedule" | "team";
+        OnCallTeam: {
+            handle: string;
+            /** Format: int64 */
+            memberCount: number;
+            /** @description The signed-in member belongs to the team. */
+            mine: boolean;
+            name: string;
+            /** @description On call now on the team's schedules. */
+            onCallNow: components["schemas"]["OnCallUser"][];
+            /** Format: int64 */
+            openPages: number;
+            policy?: null | components["schemas"]["OnCallRef"];
+            /** @description Schedules owned by the team. */
+            schedules: components["schemas"]["OnCallRef"][];
+        };
+        OnCallTeamStats: {
+            /** Format: int64 */
+            count: number;
+            /** Format: double */
+            mttaSeconds?: number | null;
+            /** Format: double */
+            mttrSeconds?: number | null;
+            team: string;
+        };
+        OnCallTestResult: {
+            channel: string;
+            error?: string | null;
+            /** @description sent | failed */
+            status: string;
+        };
+        OnCallUser: {
+            email: string;
+            id: string;
+            name: string;
+        };
+        /** @enum {string} */
+        OnCallWeekday: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
         OrgDataSettings: {
             /**
              * Format: int32
@@ -7588,6 +8290,10 @@ export interface components {
             clickhouse: boolean;
             nats: boolean;
             postgres: boolean;
+        };
+        ReassignOnCallPage: {
+            policyId?: string | null;
+            team?: string | null;
         };
         Recommendation: {
             id: string;
@@ -14543,6 +15249,660 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Delivery"][];
                 };
+            };
+        };
+    };
+    on_call_analytics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallAnalyticsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallAnalytics"];
+                };
+            };
+        };
+    };
+    list_on_call_policies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPolicy"][];
+                };
+            };
+        };
+    };
+    create_on_call_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallPolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPolicy"];
+                };
+            };
+        };
+    };
+    get_on_call_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPolicy"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_on_call_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallPolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPolicy"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_on_call_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    my_on_call_shifts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallRange"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallMyShift"][];
+                };
+            };
+        };
+    };
+    create_on_call_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOnCallPage"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPage"];
+                };
+            };
+        };
+    };
+    search_on_call_pages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallPageSearch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPagesResult"];
+                };
+            };
+        };
+    };
+    get_on_call_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPageDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    acknowledge_on_call_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPage"];
+                };
+            };
+        };
+    };
+    reassign_on_call_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReassignOnCallPage"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPage"];
+                };
+            };
+        };
+    };
+    resolve_on_call_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPage"];
+                };
+            };
+        };
+    };
+    get_on_call_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallProfile"];
+                };
+            };
+        };
+    };
+    update_on_call_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallProfileInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallProfile"];
+                };
+            };
+        };
+    };
+    test_on_call_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallTestResult"][];
+                };
+            };
+        };
+    };
+    list_on_call_schedules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallSchedule"][];
+                };
+            };
+        };
+    };
+    create_on_call_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallScheduleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallSchedule"];
+                };
+            };
+        };
+    };
+    preview_on_call_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallPreviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallScheduleShifts"];
+                };
+            };
+        };
+    };
+    get_on_call_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallSchedule"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_on_call_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallScheduleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallSchedule"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_on_call_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_on_call_override: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOnCallOverride"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallOverride"];
+                };
+            };
+        };
+    };
+    delete_on_call_override: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                override_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    on_call_schedule_shifts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallRange"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallScheduleShifts"];
+                };
+            };
+        };
+    };
+    list_on_call_teams: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallTeam"][];
+                };
+            };
+        };
+    };
+    set_on_call_routing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handle: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallRouting"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

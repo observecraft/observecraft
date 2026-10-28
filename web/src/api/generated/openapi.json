@@ -7082,6 +7082,897 @@
         }
       }
     },
+    "/api/v1/on-call/analytics": {
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "on_call_analytics",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallAnalyticsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallAnalytics"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/escalation-policies": {
+      "get": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "list_on_call_policies",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OnCallPolicy"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "create_on_call_policy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallPolicyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallPolicy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/escalation-policies/{id}": {
+      "get": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "get_on_call_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallPolicy"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "update_on_call_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallPolicyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallPolicy"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "delete_on_call_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/my-shifts": {
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "summary": "The signed-in member's shifts across every schedule (Summary → My Shifts, calendar export).",
+        "operationId": "my_on_call_shifts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallRange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OnCallMyShift"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/pages": {
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "create_on_call_page",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOnCallPage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/pages/search": {
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "search_on_call_pages",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallPageSearch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallPagesResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/pages/{id}": {
+      "get": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "get_on_call_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallPageDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/pages/{id}/acknowledge": {
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "acknowledge_on_call_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/pages/{id}/reassign": {
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "summary": "Pages another team or policy: back to triggered, from the first step.",
+        "operationId": "reassign_on_call_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReassignOnCallPage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/pages/{id}/resolve": {
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "resolve_on_call_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/profile": {
+      "get": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "get_on_call_profile",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallProfile"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "update_on_call_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallProfileInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallProfile"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/profile/test": {
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "summary": "Sends a test page notification to the member's high-urgency channels.",
+        "operationId": "test_on_call_profile",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OnCallTestResult"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/schedules": {
+      "get": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "list_on_call_schedules",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OnCallSchedule"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "create_on_call_schedule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallScheduleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallSchedule"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/schedules/preview": {
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "summary": "Shifts of an unsaved schedule (the editor's timeline).",
+        "operationId": "preview_on_call_schedule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallScheduleShifts"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/schedules/{id}": {
+      "get": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "get_on_call_schedule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallSchedule"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "update_on_call_schedule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallScheduleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallSchedule"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "delete_on_call_schedule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/schedules/{id}/overrides": {
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "create_on_call_override",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOnCallOverride"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallOverride"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/schedules/{id}/overrides/{override_id}": {
+      "delete": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "delete_on_call_override",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "override_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/schedules/{id}/shifts": {
+      "post": {
+        "tags": [
+          "on-call"
+        ],
+        "summary": "The layers' shifts and the final schedule of a saved schedule over a range (≤ 93 days).",
+        "operationId": "on_call_schedule_shifts",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallRange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnCallScheduleShifts"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/teams": {
+      "get": {
+        "tags": [
+          "on-call"
+        ],
+        "operationId": "list_on_call_teams",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OnCallTeam"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/on-call/teams/{handle}/routing": {
+      "put": {
+        "tags": [
+          "on-call"
+        ],
+        "summary": "Which escalation policy the team's pages follow.",
+        "operationId": "set_on_call_routing",
+        "parameters": [
+          {
+            "name": "handle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallRouting"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/orchestration/resources/{uid}": {
       "get": {
         "tags": [
@@ -11867,6 +12758,60 @@
           },
           "subject": {
             "type": "string"
+          }
+        }
+      },
+      "CreateOnCallOverride": {
+        "type": "object",
+        "required": [
+          "userId",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "end": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "userId": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateOnCallPage": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "policyId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "urgency": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "high | low (default high)"
           }
         }
       },
@@ -21351,6 +22296,1210 @@
           }
         }
       },
+      "OnCallAnalytics": {
+        "type": "object",
+        "required": [
+          "total",
+          "acknowledged",
+          "resolved",
+          "perDay",
+          "byHour",
+          "teams",
+          "topSources"
+        ],
+        "properties": {
+          "acknowledged": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "byHour": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "7 × 24 counts: index weekday (0 = Monday) × 24 + hour."
+          },
+          "mttaSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "mttrSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "perDay": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallDayCount"
+            }
+          },
+          "resolved": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallTeamStats"
+            }
+          },
+          "topSources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallSourceCount"
+            },
+            "description": "Pages most often raised with the same title."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "OnCallAnalyticsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/OnCallRange"
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "timeZone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "IANA time zone for days and hours (default UTC)."
+          }
+        }
+      },
+      "OnCallChannelOption": {
+        "type": "object",
+        "required": [
+          "handle",
+          "kind"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "email | slack | webhook"
+          }
+        }
+      },
+      "OnCallDayCount": {
+        "type": "object",
+        "required": [
+          "day",
+          "team",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "day": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Start of the day (Unix ms)."
+          },
+          "team": {
+            "type": "string"
+          }
+        }
+      },
+      "OnCallFinalShift": {
+        "type": "object",
+        "description": "One stretch of the final schedule.",
+        "required": [
+          "userIds",
+          "start",
+          "end",
+          "isOverride"
+        ],
+        "properties": {
+          "end": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "isOverride": {
+            "type": "boolean",
+            "description": "An override replaces the layers here."
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "userIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "OnCallLayer": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "members",
+          "rotationHours",
+          "effectiveFrom"
+        ],
+        "properties": {
+          "effectiveFrom": {
+            "type": "string",
+            "description": "First handoff in the schedule's time zone, \"YYYY-MM-DDTHH:MM\"."
+          },
+          "effectiveUntil": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The layer ends here (\"YYYY-MM-DDTHH:MM\", schedule time zone)."
+          },
+          "id": {
+            "type": "string"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "User ids in rotation order."
+          },
+          "name": {
+            "type": "string"
+          },
+          "restrictions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallRestriction"
+            },
+            "description": "Only on call inside these windows (none: always)."
+          },
+          "rotationHours": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Length of a shift: 24 (daily), 168 (weekly) or any number of hours."
+          }
+        }
+      },
+      "OnCallLayerShifts": {
+        "type": "object",
+        "required": [
+          "layerId",
+          "shifts"
+        ],
+        "properties": {
+          "layerId": {
+            "type": "string"
+          },
+          "shifts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallShift"
+            }
+          }
+        }
+      },
+      "OnCallMyShift": {
+        "type": "object",
+        "required": [
+          "scheduleId",
+          "scheduleName",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "end": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "scheduleId": {
+            "type": "string"
+          },
+          "scheduleName": {
+            "type": "string"
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "OnCallOverride": {
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "userName",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "end": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "userName": {
+            "type": "string"
+          }
+        }
+      },
+      "OnCallPage": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "urgency",
+          "status",
+          "source",
+          "responders",
+          "createdBy",
+          "createdAt"
+        ],
+        "properties": {
+          "acknowledgedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "acknowledgedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "incidentId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "IR-<n> of the incident that paged."
+          },
+          "monitorId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "nextEscalationAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "When the next escalation step runs (triggered pages)."
+          },
+          "policy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OnCallRef"
+              }
+            ]
+          },
+          "resolvedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "resolvedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "responders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallUser"
+            },
+            "description": "Everyone notified so far, in order."
+          },
+          "source": {
+            "type": "string",
+            "description": "manual | incident | monitor"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OnCallPageStatus"
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "urgency": {
+            "type": "string",
+            "description": "high | low"
+          }
+        }
+      },
+      "OnCallPageCounts": {
+        "type": "object",
+        "required": [
+          "active",
+          "triggered",
+          "acknowledged",
+          "resolved",
+          "all"
+        ],
+        "properties": {
+          "acknowledged": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "active": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "all": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "resolved": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "triggered": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "OnCallPageDetail": {
+        "type": "object",
+        "required": [
+          "page",
+          "timeline",
+          "canRespond"
+        ],
+        "properties": {
+          "canRespond": {
+            "type": "boolean",
+            "description": "The signed-in member may acknowledge and resolve it."
+          },
+          "page": {
+            "$ref": "#/components/schemas/OnCallPage"
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallPageEvent"
+            }
+          }
+        }
+      },
+      "OnCallPageEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "actor",
+          "body",
+          "createdAt"
+        ],
+        "properties": {
+          "actor": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "kind": {
+            "type": "string",
+            "description": "triggered | notified | escalated | acknowledged | resolved | reassigned | failed"
+          }
+        }
+      },
+      "OnCallPageSearch": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "from": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Created within (Unix ms); none: any time."
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "At most this many pages (1–500, default 200)."
+          },
+          "mine": {
+            "type": "boolean",
+            "description": "Only pages that notified the signed-in member."
+          },
+          "query": {
+            "type": "string",
+            "description": "Words of the title."
+          },
+          "status": {
+            "type": "string",
+            "description": "active (triggered or acknowledged) | triggered | acknowledged | resolved | all"
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "to": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "OnCallPageStatus": {
+        "type": "string",
+        "enum": [
+          "triggered",
+          "acknowledged",
+          "resolved"
+        ]
+      },
+      "OnCallPagesResult": {
+        "type": "object",
+        "required": [
+          "pages",
+          "counts"
+        ],
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/OnCallPageCounts",
+            "description": "Per status, with the other filters applied."
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallPage"
+            }
+          }
+        }
+      },
+      "OnCallPolicy": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "tags",
+          "steps",
+          "repeat",
+          "usedBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "repeat": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Times the policy starts over after its last step."
+          },
+          "resolveAfterMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallStep"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "usedBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Teams whose pages follow this policy."
+          }
+        }
+      },
+      "OnCallPolicyInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "steps"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "repeat": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resolveAfterMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallStep"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "OnCallPreviewRequest": {
+        "type": "object",
+        "required": [
+          "schedule",
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/OnCallRange"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/OnCallScheduleInput"
+          },
+          "scheduleId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Include this saved schedule's overrides."
+          }
+        }
+      },
+      "OnCallProfile": {
+        "type": "object",
+        "required": [
+          "email",
+          "highUrgency",
+          "lowUrgency",
+          "configured",
+          "channels",
+          "emailEnabled"
+        ],
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallChannelOption"
+            },
+            "description": "What can be chosen: email and the org's Slack and webhook channels."
+          },
+          "configured": {
+            "type": "boolean",
+            "description": "Saved at least once."
+          },
+          "email": {
+            "type": "string"
+          },
+          "emailEnabled": {
+            "type": "boolean",
+            "description": "Email delivery is configured on this install (OC_SMTP_URL)."
+          },
+          "highUrgency": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "'email' or channel handles, for high-urgency pages."
+          },
+          "lowUrgency": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "OnCallProfileInput": {
+        "type": "object",
+        "required": [
+          "highUrgency",
+          "lowUrgency"
+        ],
+        "properties": {
+          "highUrgency": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lowUrgency": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "OnCallRange": {
+        "type": "object",
+        "required": [
+          "from",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix ms."
+          },
+          "to": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "OnCallRef": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "OnCallRestriction": {
+        "type": "object",
+        "description": "A weekly window in the schedule's time zone: `startDay startTime` → `endDay endTime` (wrapping past Sunday when the end comes first).",
+        "required": [
+          "startDay",
+          "startTime",
+          "endDay",
+          "endTime"
+        ],
+        "properties": {
+          "endDay": {
+            "$ref": "#/components/schemas/OnCallWeekday"
+          },
+          "endTime": {
+            "type": "string",
+            "description": "\"HH:MM\""
+          },
+          "startDay": {
+            "$ref": "#/components/schemas/OnCallWeekday"
+          },
+          "startTime": {
+            "type": "string",
+            "description": "\"HH:MM\""
+          }
+        }
+      },
+      "OnCallRouting": {
+        "type": "object",
+        "properties": {
+          "policyId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "None: page every member of the team."
+          }
+        }
+      },
+      "OnCallSchedule": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "timeZone",
+          "tags",
+          "layers",
+          "overrides",
+          "onCallNow",
+          "members",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "layers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallLayer"
+            }
+          },
+          "maxConcurrent": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallUser"
+            },
+            "description": "The people of the layers (names for the editor)."
+          },
+          "name": {
+            "type": "string"
+          },
+          "onCallNow": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallUser"
+            }
+          },
+          "overrides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallOverride"
+            },
+            "description": "Overrides that haven't ended more than 31 days ago."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "IANA time zone the layers' times are in."
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "OnCallScheduleInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "timeZone",
+          "layers"
+        ],
+        "properties": {
+          "layers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallLayer"
+            }
+          },
+          "maxConcurrent": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeZone": {
+            "type": "string"
+          }
+        }
+      },
+      "OnCallScheduleShifts": {
+        "type": "object",
+        "required": [
+          "layers",
+          "finalShifts",
+          "overrides",
+          "users"
+        ],
+        "properties": {
+          "finalShifts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallFinalShift"
+            }
+          },
+          "layers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallLayerShifts"
+            }
+          },
+          "overrides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallOverride"
+            }
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallUser"
+            },
+            "description": "Everyone named in the shifts."
+          }
+        }
+      },
+      "OnCallShift": {
+        "type": "object",
+        "required": [
+          "userId",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "end": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix ms."
+          },
+          "userId": {
+            "type": "string"
+          }
+        }
+      },
+      "OnCallSourceCount": {
+        "type": "object",
+        "required": [
+          "title",
+          "source",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "source": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "OnCallStep": {
+        "type": "object",
+        "required": [
+          "targets",
+          "escalateAfterMinutes"
+        ],
+        "properties": {
+          "escalateAfterMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Minutes to wait for an acknowledgement before the next step (1–1440)."
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallTarget"
+            }
+          }
+        }
+      },
+      "OnCallTarget": {
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "User id, schedule id or team handle."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/OnCallTargetKind"
+          }
+        }
+      },
+      "OnCallTargetKind": {
+        "type": "string",
+        "enum": [
+          "user",
+          "schedule",
+          "team"
+        ]
+      },
+      "OnCallTeam": {
+        "type": "object",
+        "required": [
+          "handle",
+          "name",
+          "memberCount",
+          "schedules",
+          "onCallNow",
+          "openPages",
+          "mine"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "memberCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "mine": {
+            "type": "boolean",
+            "description": "The signed-in member belongs to the team."
+          },
+          "name": {
+            "type": "string"
+          },
+          "onCallNow": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallUser"
+            },
+            "description": "On call now on the team's schedules."
+          },
+          "openPages": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "policy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OnCallRef",
+                "description": "The escalation policy the team's pages follow (none: every member is paged)."
+              }
+            ]
+          },
+          "schedules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnCallRef"
+            },
+            "description": "Schedules owned by the team."
+          }
+        }
+      },
+      "OnCallTeamStats": {
+        "type": "object",
+        "required": [
+          "team",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "mttaSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "mttrSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "team": {
+            "type": "string"
+          }
+        }
+      },
+      "OnCallTestResult": {
+        "type": "object",
+        "required": [
+          "channel",
+          "status"
+        ],
+        "properties": {
+          "channel": {
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "sent | failed"
+          }
+        }
+      },
+      "OnCallUser": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "OnCallWeekday": {
+        "type": "string",
+        "enum": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ]
+      },
       "OrgDataSettings": {
         "type": "object",
         "required": [
@@ -22516,6 +24665,23 @@
           },
           "postgres": {
             "type": "boolean"
+          }
+        }
+      },
+      "ReassignOnCallPage": {
+        "type": "object",
+        "properties": {
+          "policyId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -28164,6 +30330,10 @@
     {
       "name": "slos",
       "description": "Service level objectives, their status and error budget, and corrections"
+    },
+    {
+      "name": "on-call",
+      "description": "On-Call: schedules, escalation policies, team routing, pages and notification preferences"
     },
     {
       "name": "synthetics",

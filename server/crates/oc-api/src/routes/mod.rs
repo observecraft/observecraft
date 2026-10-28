@@ -36,6 +36,9 @@ pub mod monitors;
 pub mod network;
 pub mod notebooks;
 pub mod notifications;
+pub mod on_call;
+pub mod on_call_escalation;
+pub mod on_call_schedule;
 pub mod profiles;
 pub mod reference_tables;
 pub mod scorecard_rules;
@@ -199,6 +202,33 @@ use crate::state::AppState;
         notifications::delete,
         notifications::test,
         notifications::deliveries,
+        on_call::list_schedules,
+        on_call::get_schedule,
+        on_call::create_schedule,
+        on_call::update_schedule,
+        on_call::delete_schedule,
+        on_call::schedule_shifts,
+        on_call::preview_schedule,
+        on_call::create_override,
+        on_call::delete_override,
+        on_call::my_shifts,
+        on_call::list_policies,
+        on_call::get_policy,
+        on_call::create_policy,
+        on_call::update_policy,
+        on_call::delete_policy,
+        on_call::list_teams,
+        on_call::set_routing,
+        on_call::search_pages,
+        on_call::get_page,
+        on_call::create_page,
+        on_call::acknowledge_page,
+        on_call::resolve_page,
+        on_call::reassign_page,
+        on_call::get_profile,
+        on_call::update_profile,
+        on_call::test_profile,
+        on_call::analytics,
         ingest_keys::list,
         archives::list,
         archives::test,
@@ -364,6 +394,7 @@ use crate::state::AppState;
         (name = "ci", description = "Software Delivery: CI pipeline executions, flaky tests and DORA metrics from CI/CD traces"),
         (name = "monitors", description = "Monitors, their evaluation history and downtimes"),
         (name = "slos", description = "Service level objectives, their status and error budget, and corrections"),
+        (name = "on-call", description = "On-Call: schedules, escalation policies, team routing, pages and notification preferences"),
         (name = "synthetics", description = "Synthetic API tests (HTTP, SSL, DNS, TCP) run by the server, their results and uptime"),
         (name = "scorecards", description = "Developer Portal scorecards: rules evaluated per service, their levels and service metadata"),
         (name = "auth", description = "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"),
@@ -737,6 +768,32 @@ pub fn router() -> Router<AppState> {
             "/api/v1/monitors/test-notification",
             post(notifications::test),
         )
+        .route("/api/v1/on-call/schedules", get(on_call::list_schedules).post(on_call::create_schedule))
+        .route("/api/v1/on-call/schedules/preview", post(on_call::preview_schedule))
+        .route(
+            "/api/v1/on-call/schedules/:id",
+            get(on_call::get_schedule).put(on_call::update_schedule).delete(on_call::delete_schedule),
+        )
+        .route("/api/v1/on-call/schedules/:id/shifts", post(on_call::schedule_shifts))
+        .route("/api/v1/on-call/schedules/:id/overrides", post(on_call::create_override))
+        .route("/api/v1/on-call/schedules/:id/overrides/:override_id", delete(on_call::delete_override))
+        .route("/api/v1/on-call/my-shifts", post(on_call::my_shifts))
+        .route("/api/v1/on-call/escalation-policies", get(on_call::list_policies).post(on_call::create_policy))
+        .route(
+            "/api/v1/on-call/escalation-policies/:id",
+            get(on_call::get_policy).put(on_call::update_policy).delete(on_call::delete_policy),
+        )
+        .route("/api/v1/on-call/teams", get(on_call::list_teams))
+        .route("/api/v1/on-call/teams/:handle/routing", axum::routing::put(on_call::set_routing))
+        .route("/api/v1/on-call/pages", post(on_call::create_page))
+        .route("/api/v1/on-call/pages/search", post(on_call::search_pages))
+        .route("/api/v1/on-call/pages/:id", get(on_call::get_page))
+        .route("/api/v1/on-call/pages/:id/acknowledge", post(on_call::acknowledge_page))
+        .route("/api/v1/on-call/pages/:id/resolve", post(on_call::resolve_page))
+        .route("/api/v1/on-call/pages/:id/reassign", post(on_call::reassign_page))
+        .route("/api/v1/on-call/profile", get(on_call::get_profile).put(on_call::update_profile))
+        .route("/api/v1/on-call/profile/test", post(on_call::test_profile))
+        .route("/api/v1/on-call/analytics", post(on_call::analytics))
         .route(
             "/api/v1/logs/archives",
             get(archives::list).post(archives::create),
@@ -875,6 +932,9 @@ mod tests {
             include_str!("monitor_engine.rs"),
             include_str!("monitors.rs"),
             include_str!("notifications.rs"),
+            include_str!("on_call.rs"),
+            include_str!("on_call_escalation.rs"),
+            include_str!("on_call_schedule.rs"),
             include_str!("health.rs"),
             include_str!("hosts.rs"),
             include_str!("gpu.rs"),
@@ -1076,6 +1136,9 @@ mod tests {
             ("network.rs", include_str!("network.rs")),
             ("notebooks.rs", include_str!("notebooks.rs")),
             ("notifications.rs", include_str!("notifications.rs")),
+            ("on_call.rs", include_str!("on_call.rs")),
+            ("on_call_escalation.rs", include_str!("on_call_escalation.rs")),
+            ("on_call_schedule.rs", include_str!("on_call_schedule.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),
             ("scorecard_rules.rs", include_str!("scorecard_rules.rs")),

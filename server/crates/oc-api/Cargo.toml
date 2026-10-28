@@ -18,6 +18,8 @@ axum = { workspace = true, features = ["multipart"] }
 base64 = "0.22"
 # Log pipelines: dates parsed by grok `date()` and the date remapper.
 chrono = { version = "0.4", default-features = false, features = ["std"] }
+# On-Call schedules: rotations and restrictions in the schedule's IANA time zone (DST-aware).
+chrono-tz = { version = "0.10", default-features = false, features = ["std"] }
 clickhouse.workspace = true
 data-encoding = "2"
 # Log pipelines: grok patterns use atomic groups and lookarounds, which `regex` lacks.
