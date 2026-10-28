@@ -8014,6 +8014,355 @@
         }
       }
     },
+    "/api/v1/scorecards": {
+      "get": {
+        "tags": [
+          "scorecards"
+        ],
+        "summary": "Scorecards, rules, the last outcomes and every service's levels; `setUp` is false before setup.",
+        "operationId": "get_scorecards",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScorecardsOverview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scorecards/evaluate": {
+      "post": {
+        "tags": [
+          "scorecards"
+        ],
+        "summary": "Reads telemetry again and evaluates every rule now.",
+        "operationId": "evaluate_scorecards",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScorecardsOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scorecards/rules": {
+      "post": {
+        "tags": [
+          "scorecards"
+        ],
+        "summary": "Creates a custom rule (its outcomes come from `POST /api/v1/scorecards/rules/{id}/outcomes`).",
+        "operationId": "create_scorecard_rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScorecardRuleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScorecardsOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scorecards/rules/{id}": {
+      "put": {
+        "tags": [
+          "scorecards"
+        ],
+        "summary": "Changes a rule: level, scope and enabled for built-in rules, also name and description for custom ones.",
+        "operationId": "update_scorecard_rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScorecardRuleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScorecardsOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scorecards"
+        ],
+        "summary": "Deletes a custom rule and its outcomes (built-in rules are disabled instead).",
+        "operationId": "delete_scorecard_rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scorecards/rules/{id}/outcomes": {
+      "post": {
+        "tags": [
+          "scorecards"
+        ],
+        "summary": "Reports outcomes of a custom rule per service (pass, fail or skip, with remarks); replaces\nearlier outcomes of the same services.",
+        "operationId": "set_scorecard_outcomes",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScorecardOutcomesInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScorecardsOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scorecards/services/{service}/metadata": {
+      "put": {
+        "tags": [
+          "scorecards"
+        ],
+        "summary": "Sets a service's team, contacts, code repository and docs (rules read them on the next evaluation, which runs at once).",
+        "operationId": "update_service_metadata",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceMetadataInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScorecardsOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scorecards/setup": {
+      "post": {
+        "tags": [
+          "scorecards"
+        ],
+        "summary": "Creates the recommended scorecards with the chosen built-in rules enabled, and evaluates them.",
+        "operationId": "setup_scorecards",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScorecardSetupInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScorecardsOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/slo-corrections": {
       "get": {
         "tags": [
@@ -23035,6 +23384,394 @@
           }
         }
       },
+      "Scorecard": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "ScorecardOutcome": {
+        "type": "object",
+        "required": [
+          "ruleId",
+          "service",
+          "state",
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ScorecardOutcomeState"
+          }
+        }
+      },
+      "ScorecardOutcomeInput": {
+        "type": "object",
+        "required": [
+          "service",
+          "state"
+        ],
+        "properties": {
+          "remarks": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ScorecardOutcomeState"
+          }
+        }
+      },
+      "ScorecardOutcomeState": {
+        "type": "string",
+        "enum": [
+          "pass",
+          "fail",
+          "skip"
+        ]
+      },
+      "ScorecardOutcomesInput": {
+        "type": "object",
+        "required": [
+          "outcomes"
+        ],
+        "properties": {
+          "outcomes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScorecardOutcomeInput"
+            }
+          }
+        }
+      },
+      "ScorecardRecommendation": {
+        "type": "object",
+        "description": "A built-in rule offered when setting scorecards up.",
+        "required": [
+          "key",
+          "name",
+          "description",
+          "level",
+          "scorecard"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "level": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "scorecard": {
+            "type": "string"
+          }
+        }
+      },
+      "ScorecardRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "scorecardId",
+          "name",
+          "description",
+          "level",
+          "scope",
+          "enabled"
+        ],
+        "properties": {
+          "builtin": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Key of a built-in rule (`monitors_defined`, …); null for a custom rule."
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "level": {
+            "type": "integer",
+            "format": "int32",
+            "description": "1 (basic) – 3 (advanced).",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "description": "Service search the rule applies to (`service:order-* team:checkout`); empty for every service."
+          },
+          "scorecardId": {
+            "type": "string"
+          }
+        }
+      },
+      "ScorecardRuleInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "scorecard",
+          "level"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "level": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "scorecard": {
+            "type": "string",
+            "description": "Scorecard name; created when it doesn't exist."
+          }
+        }
+      },
+      "ScorecardRuleUpdate": {
+        "type": "object",
+        "description": "Changes to a rule; fields left out stay. Built-in rules take only level, scope and enabled.",
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "level": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ScorecardService": {
+        "type": "object",
+        "description": "A service with its metadata and levels.",
+        "required": [
+          "service",
+          "team",
+          "contacts",
+          "repoUrl",
+          "docsUrl",
+          "instrumented",
+          "level",
+          "levels",
+          "pass",
+          "fail",
+          "skip"
+        ],
+        "properties": {
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServiceContact"
+            }
+          },
+          "docsUrl": {
+            "type": "string"
+          },
+          "fail": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "instrumented": {
+            "type": "boolean",
+            "description": "Seen on spans of the past 7 days (otherwise only declared in metadata)."
+          },
+          "level": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Level across every enabled rule (0–3).",
+            "minimum": 0
+          },
+          "levels": {
+            "type": "object",
+            "description": "Level per scorecard id.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "pass": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "repoUrl": {
+            "type": "string"
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Passing share of passed and failed rules, in percent."
+          },
+          "service": {
+            "type": "string"
+          },
+          "skip": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "team": {
+            "type": "string"
+          }
+        }
+      },
+      "ScorecardSetupInput": {
+        "type": "object",
+        "required": [
+          "rules"
+        ],
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Keys of the built-in rules to enable; the others are created disabled."
+          }
+        }
+      },
+      "ScorecardsOverview": {
+        "type": "object",
+        "required": [
+          "setUp",
+          "scorecards",
+          "rules",
+          "outcomes",
+          "services",
+          "recommended"
+        ],
+        "properties": {
+          "evaluatedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Last evaluation (epoch ms)."
+          },
+          "nextEvaluationAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "outcomes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScorecardOutcome"
+            }
+          },
+          "recommended": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScorecardRecommendation"
+            }
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScorecardRule"
+            }
+          },
+          "scorecards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scorecard"
+            }
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScorecardService"
+            }
+          },
+          "setUp": {
+            "type": "boolean",
+            "description": "False until scorecards are set up (the first-run page)."
+          },
+          "telemetryAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "When telemetry was last read (epoch ms)."
+          }
+        }
+      },
       "SecurityStatus": {
         "type": "object",
         "required": [
@@ -23093,6 +23830,27 @@
           }
         }
       },
+      "ServiceContact": {
+        "type": "object",
+        "description": "How to reach a service's owners.",
+        "required": [
+          "type",
+          "value"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "description": "email | slack | link"
+          },
+          "value": {
+            "type": "string",
+            "description": "Address, channel or URL."
+          }
+        }
+      },
       "ServiceKind": {
         "type": "string",
         "enum": [
@@ -23103,6 +23861,29 @@
           "queue",
           "http"
         ]
+      },
+      "ServiceMetadataInput": {
+        "type": "object",
+        "properties": {
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServiceContact"
+            }
+          },
+          "docsUrl": {
+            "type": "string",
+            "description": "http(s) URL of the documentation or runbook."
+          },
+          "repoUrl": {
+            "type": "string",
+            "description": "http(s) URL of the code repository."
+          },
+          "team": {
+            "type": "string",
+            "description": "Team handle; empty when no team owns the service."
+          }
+        }
       },
       "ServiceProviderInfo": {
         "type": "object",
@@ -27387,6 +28168,10 @@
     {
       "name": "synthetics",
       "description": "Synthetic API tests (HTTP, SSL, DNS, TCP) run by the server, their results and uptime"
+    },
+    {
+      "name": "scorecards",
+      "description": "Developer Portal scorecards: rules evaluated per service, their levels and service metadata"
     },
     {
       "name": "auth",

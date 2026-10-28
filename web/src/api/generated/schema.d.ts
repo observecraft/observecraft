@@ -3263,6 +3263,127 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scorecards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scorecards, rules, the last outcomes and every service's levels; `setUp` is false before setup. */
+        get: operations["get_scorecards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reads telemetry again and evaluates every rule now. */
+        post: operations["evaluate_scorecards"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates a custom rule (its outcomes come from `POST /api/v1/scorecards/rules/{id}/outcomes`). */
+        post: operations["create_scorecard_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes a rule: level, scope and enabled for built-in rules, also name and description for custom ones. */
+        put: operations["update_scorecard_rule"];
+        post?: never;
+        /** Deletes a custom rule and its outcomes (built-in rules are disabled instead). */
+        delete: operations["delete_scorecard_rule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/rules/{id}/outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reports outcomes of a custom rule per service (pass, fail or skip, with remarks); replaces
+         *     earlier outcomes of the same services. */
+        post: operations["set_scorecard_outcomes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/services/{service}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Sets a service's team, contacts, code repository and docs (rules read them on the next evaluation, which runs at once). */
+        put: operations["update_service_metadata"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates the recommended scorecards with the chosen built-in rules enabled, and evaluates them. */
+        post: operations["setup_scorecards"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/slo-corrections": {
         parameters: {
             query?: never;
@@ -7741,6 +7862,122 @@ export interface components {
             query: string;
             range: components["schemas"]["TimeRange"];
         };
+        Scorecard: {
+            description: string;
+            id: string;
+            name: string;
+        };
+        ScorecardOutcome: {
+            reason: string;
+            ruleId: string;
+            service: string;
+            state: components["schemas"]["ScorecardOutcomeState"];
+        };
+        ScorecardOutcomeInput: {
+            remarks?: string;
+            service: string;
+            state: components["schemas"]["ScorecardOutcomeState"];
+        };
+        /** @enum {string} */
+        ScorecardOutcomeState: "pass" | "fail" | "skip";
+        ScorecardOutcomesInput: {
+            outcomes: components["schemas"]["ScorecardOutcomeInput"][];
+        };
+        /** @description A built-in rule offered when setting scorecards up. */
+        ScorecardRecommendation: {
+            description: string;
+            key: string;
+            /** Format: int32 */
+            level: number;
+            name: string;
+            scorecard: string;
+        };
+        ScorecardRule: {
+            /** @description Key of a built-in rule (`monitors_defined`, …); null for a custom rule. */
+            builtin?: string | null;
+            description: string;
+            enabled: boolean;
+            id: string;
+            /**
+             * Format: int32
+             * @description 1 (basic) – 3 (advanced).
+             */
+            level: number;
+            name: string;
+            /** @description Service search the rule applies to (`service:order-* team:checkout`); empty for every service. */
+            scope: string;
+            scorecardId: string;
+        };
+        ScorecardRuleInput: {
+            description?: string;
+            /** Format: int32 */
+            level: number;
+            name: string;
+            scope?: string;
+            /** @description Scorecard name; created when it doesn't exist. */
+            scorecard: string;
+        };
+        /** @description Changes to a rule; fields left out stay. Built-in rules take only level, scope and enabled. */
+        ScorecardRuleUpdate: {
+            description?: string | null;
+            enabled?: boolean | null;
+            /** Format: int32 */
+            level?: number | null;
+            name?: string | null;
+            scope?: string | null;
+        };
+        /** @description A service with its metadata and levels. */
+        ScorecardService: {
+            contacts: components["schemas"]["ServiceContact"][];
+            docsUrl: string;
+            fail: number;
+            /** @description Seen on spans of the past 7 days (otherwise only declared in metadata). */
+            instrumented: boolean;
+            /**
+             * Format: int32
+             * @description Level across every enabled rule (0–3).
+             */
+            level: number;
+            /** @description Level per scorecard id. */
+            levels: {
+                [key: string]: number;
+            };
+            pass: number;
+            repoUrl: string;
+            /**
+             * Format: double
+             * @description Passing share of passed and failed rules, in percent.
+             */
+            score?: number | null;
+            service: string;
+            skip: number;
+            team: string;
+        };
+        ScorecardSetupInput: {
+            /** @description Keys of the built-in rules to enable; the others are created disabled. */
+            rules: string[];
+        };
+        ScorecardsOverview: {
+            /**
+             * Format: int64
+             * @description Last evaluation (epoch ms).
+             */
+            evaluatedAt?: number | null;
+            /** Format: int64 */
+            nextEvaluationAt?: number | null;
+            outcomes: components["schemas"]["ScorecardOutcome"][];
+            recommended: components["schemas"]["ScorecardRecommendation"][];
+            rules: components["schemas"]["ScorecardRule"][];
+            scorecards: components["schemas"]["Scorecard"][];
+            services: components["schemas"]["ScorecardService"][];
+            /** @description False until scorecards are set up (the first-run page). */
+            setUp: boolean;
+            /**
+             * Format: int64
+             * @description When telemetry was last read (epoch ms).
+             */
+            telemetryAt?: number | null;
+        };
         SecurityStatus: {
             access: components["schemas"]["Access"];
             hasPassword: boolean;
@@ -7760,8 +7997,25 @@ export interface components {
             /** Format: int64 */
             t: number;
         };
+        /** @description How to reach a service's owners. */
+        ServiceContact: {
+            name?: string;
+            /** @description email | slack | link */
+            type: string;
+            /** @description Address, channel or URL. */
+            value: string;
+        };
         /** @enum {string} */
         ServiceKind: "web" | "worker" | "db" | "cache" | "queue" | "http";
+        ServiceMetadataInput: {
+            contacts?: components["schemas"]["ServiceContact"][];
+            /** @description http(s) URL of the documentation or runbook. */
+            docsUrl?: string;
+            /** @description http(s) URL of the code repository. */
+            repoUrl?: string;
+            /** @description Team handle; empty when no team owns the service. */
+            team?: string;
+        };
         ServiceProviderInfo: {
             /** @description SAML: Reply URL (Assertion Consumer Service URL). */
             acsUrl: string;
@@ -14966,6 +15220,264 @@ export interface operations {
                 content?: never;
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_scorecards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+        };
+    };
+    evaluate_scorecards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_scorecard_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScorecardRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_scorecard_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScorecardRuleUpdate"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_scorecard_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_scorecard_outcomes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScorecardOutcomesInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_service_metadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceMetadataInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    setup_scorecards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScorecardSetupInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

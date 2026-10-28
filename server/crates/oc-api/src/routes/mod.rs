@@ -38,6 +38,8 @@ pub mod notebooks;
 pub mod notifications;
 pub mod profiles;
 pub mod reference_tables;
+pub mod scorecard_rules;
+pub mod scorecards;
 pub mod spans;
 pub mod standard_attributes;
 pub mod slo_math;
@@ -278,6 +280,14 @@ use crate::state::AppState;
         synthetics::try_request,
         synthetics::results,
         synthetics::result,
+        scorecards::get_overview,
+        scorecards::setup,
+        scorecards::evaluate_now,
+        scorecards::create_rule,
+        scorecards::update_rule,
+        scorecards::delete_rule,
+        scorecards::set_outcomes,
+        scorecards::update_metadata,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -355,6 +365,7 @@ use crate::state::AppState;
         (name = "monitors", description = "Monitors, their evaluation history and downtimes"),
         (name = "slos", description = "Service level objectives, their status and error budget, and corrections"),
         (name = "synthetics", description = "Synthetic API tests (HTTP, SSL, DNS, TCP) run by the server, their results and uptime"),
+        (name = "scorecards", description = "Developer Portal scorecards: rules evaluated per service, their levels and service metadata"),
         (name = "auth", description = "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"),
         (name = "health")
     )
@@ -692,6 +703,13 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/synthetics/tests/:id/results", post(synthetics::results))
         .route("/api/v1/synthetics/tests/:id/results/:result_id", get(synthetics::result))
         .route("/api/v1/synthetics/try", post(synthetics::try_request))
+        .route("/api/v1/scorecards", get(scorecards::get_overview))
+        .route("/api/v1/scorecards/setup", post(scorecards::setup))
+        .route("/api/v1/scorecards/evaluate", post(scorecards::evaluate_now))
+        .route("/api/v1/scorecards/rules", post(scorecards::create_rule))
+        .route("/api/v1/scorecards/rules/:id", axum::routing::put(scorecards::update_rule).delete(scorecards::delete_rule))
+        .route("/api/v1/scorecards/rules/:id/outcomes", post(scorecards::set_outcomes))
+        .route("/api/v1/scorecards/services/:service/metadata", axum::routing::put(scorecards::update_metadata))
         // Needs no sign-in (auth::is_public); answers only for public pages or members of the page's org.
         .route("/api/v1/public/status-pages/:slug", get(status_pages::get_public))
         .route(
@@ -872,6 +890,8 @@ mod tests {
             include_str!("synthetics.rs"),
             include_str!("synthetics_exec.rs"),
             include_str!("synthetics_net.rs"),
+            include_str!("scorecards.rs"),
+            include_str!("scorecard_rules.rs"),
             include_str!("identity.rs"),
             include_str!("incidents.rs"),
             include_str!("incident_views.rs"),
@@ -939,6 +959,7 @@ mod tests {
             ("synthetics.rs", include_str!("synthetics.rs")),
             ("synthetics_exec.rs", include_str!("synthetics_exec.rs")),
             ("synthetics_net.rs", include_str!("synthetics_net.rs")),
+            ("scorecards.rs", include_str!("scorecards.rs")),
             ("kubernetes.rs", include_str!("kubernetes.rs")),
             ("live.rs", include_str!("live.rs")),
             ("llm.rs", include_str!("llm.rs")),
@@ -1057,6 +1078,8 @@ mod tests {
             ("notifications.rs", include_str!("notifications.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),
+            ("scorecard_rules.rs", include_str!("scorecard_rules.rs")),
+            ("scorecards.rs", include_str!("scorecards.rs")),
             ("slo_math.rs", include_str!("slo_math.rs")),
             ("slos.rs", include_str!("slos.rs")),
             ("status_pages.rs", include_str!("status_pages.rs")),
@@ -1211,10 +1234,11 @@ mod tests {
     }
 
     /// `LogAccess::org_background()` reads every log of the org: only the monitor engine's own
-    /// evaluation (and backfill) may use it, never a request handler.
+    /// evaluation (and backfill) and the scorecards' per-service log counts may use it, never to
+    /// serve log events.
     #[test]
     fn unrestricted_log_access_is_only_for_background_jobs() {
-        const ALLOWED: &[(&str, usize)] = &[("monitors.rs", 2)];
+        const ALLOWED: &[(&str, usize)] = &[("monitors.rs", 2), ("scorecards.rs", 1)];
         for (file, src) in server_sources() {
             if file == "../log_access.rs" {
                 continue;

@@ -16,7 +16,7 @@
 //! extractor), and `routes::logs::scope`, which every log read builds its WHERE clause with, requires
 //! one and ANDs its filter in. Live tail and stored archive search hits use [`LogAccess::allows`];
 //! archive searches run in DuckDB use [`LogAccess::duckdb_filter`]. Only the org's own background
-//! jobs (monitor evaluation) use [`LogAccess::org_background`].
+//! jobs (monitor evaluation, the scorecards' per-service log counts) use [`LogAccess::org_background`].
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
