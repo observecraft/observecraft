@@ -55,6 +55,7 @@ jobs:
           # Release-please is independent and may still be finishing a version-only release.
           if [ "$version" != "$previous" ]; then
             for attempt in {1..24}; do
+              echo "Waiting for release metadata ($attempt/24)"
               if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then break; fi
               sleep 5
             done
