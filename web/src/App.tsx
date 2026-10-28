@@ -14,6 +14,7 @@ import { MetricsSummary } from './pages/metrics/MetricsSummary';
 import { MetricsVolume } from './pages/metrics/MetricsVolume';
 import { ReleaseNotesPage } from './pages/releaseNotes/ReleaseNotesPage';
 import { SetupGuidePage } from './pages/setup/SetupGuidePage';
+import { ReferenceTableCreatePage } from './pages/integrations/ReferenceTableCreatePage';
 import { ApiKeysPage } from './pages/settings/ApiKeysPage';
 import { InstanceOrgsPage } from './pages/instance/InstanceOrgsPage';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
@@ -147,6 +148,7 @@ function Shell() {
             <Route path="/errors" element={<ErrorTrackingLayout />}>
               <Route index element={<IssuesPage />} />
             </Route>
+            <Route path="/integrations/reference-tables/new" element={<ReferenceTableCreatePage />} />
             <Route path="/integrations" element={<IntegrationsLayout />}>
               <Route index element={<CatalogPage />} />
               <Route path="marketplace" element={<MarketplacePage />} />

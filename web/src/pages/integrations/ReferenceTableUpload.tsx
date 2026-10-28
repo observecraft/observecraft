@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileUp } from 'lucide-react';
+import { CloudUpload, FileUp } from 'lucide-react';
 import { formatBytes } from '../../components/ui/Pager';
 import { MAX_FILE_BYTES, parseCsv, type ParsedCsv } from '../../api/referenceTables/file';
 
@@ -49,6 +49,37 @@ export function CsvFileField({ file, onPick }: { file: CsvFile | null; onPick: (
         <span className="muted">Comma-separated, with a header row naming the columns; at most {formatBytes(MAX_FILE_BYTES)} and 100,000 rows.</span>
       )}
     </div>
+  );
+}
+
+/** A drop zone for the CSV (or click to browse), with the picked file's name and size. */
+export function CsvDropzone({ file, onPick }: { file: CsvFile | null; onPick: (f: File | undefined) => void }) {
+  const [over, setOver] = useState(false);
+  return (
+    <label
+      className={`rt-drop${over ? ' over' : ''}`}
+      onDragOver={(e) => (e.preventDefault(), setOver(true))}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        onPick(e.dataTransfer.files?.[0]);
+      }}
+    >
+      <CloudUpload size={28} strokeWidth={1.5} />
+      {file ? (
+        <span>
+          <b>{file.fileName}</b> · {formatBytes(file.size)}
+          {file.parsed && ` · ${file.parsed.rows.length.toLocaleString()} rows · ${file.parsed.columns.length} columns`}
+        </span>
+      ) : (
+        <span>
+          Drop a file or <u>browse files</u>
+        </span>
+      )}
+      <small>Accepted file type: .csv (at most {formatBytes(MAX_FILE_BYTES)} and 100,000 rows), with a header row naming the columns</small>
+      <input type="file" accept=".csv,text/csv" hidden onChange={(e) => onPick(e.target.files?.[0])} />
+    </label>
   );
 }
 
