@@ -736,3 +736,45 @@ test('split graph: one small chart per group, the busiest first, at most the lim
     ['host:b', 'host:c', 'host:a', 'host:d'],
   );
 });
+
+test('release notes: the changelog as releases with their sections', async () => {
+  const { parseChangelog } = await import('../web/src/lib/changelog.ts');
+  const md = [
+    '# Changelog',
+    '',
+    '## [0.2.2](https://github.com/observecraft/observecraft/compare/v0.2.1...v0.2.2) (2026-10-27)',
+    '',
+    '### ⚠ BREAKING CHANGES',
+    '',
+    '* **metrics:** collectors write to the new storage.',
+    '',
+    '### Features',
+    '',
+    '* **integrations:** add live Kubernetes dashboards ([#29](https://x/29)) ([52fb11e](https://x/52fb11e))',
+    '* **metrics:** series storage',
+    '',
+    '## [0.2.1](https://github.com/observecraft/observecraft/compare/v0.2.0...v0.2.1) (2026-10-26)',
+    '',
+    '### Bug fixes',
+    '',
+    '* fix one',
+  ].join('\n');
+  const releases = parseChangelog(md);
+  assert.deepEqual(
+    releases.map((r) => [r.version, r.date, r.sections.map((s) => [s.title, s.items.length])]),
+    [
+      [
+        '0.2.2',
+        '2026-10-27',
+        [
+          ['⚠ BREAKING CHANGES', 1],
+          ['Features', 2],
+        ],
+      ],
+      ['0.2.1', '2026-10-26', [['Bug fixes', 1]]],
+    ],
+  );
+  assert.equal(releases[0].url, 'https://github.com/observecraft/observecraft/compare/v0.2.1...v0.2.2');
+  assert.deepEqual(releases[0].sections[1].items[0], { scope: 'integrations', text: 'add live Kubernetes dashboards ([#29](https://x/29)) ([52fb11e](https://x/52fb11e))' });
+  assert.deepEqual(releases[1].sections[0].items[0], { scope: null, text: 'fix one' });
+});

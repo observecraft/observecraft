@@ -44,6 +44,7 @@ jobs:
               - scripts/*.mjs
               - server/seeds/integrations/**
               - server/seeds/standard_attributes.json
+              - CHANGELOG.md
             licenses:
               - *ci
               - server/Cargo.toml

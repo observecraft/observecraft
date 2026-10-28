@@ -12,6 +12,7 @@ import { MetricsLayout } from './pages/metrics/MetricsLayout';
 import { MetricsExplorer } from './pages/metrics/MetricsExplorer';
 import { MetricsSummary } from './pages/metrics/MetricsSummary';
 import { MetricsVolume } from './pages/metrics/MetricsVolume';
+import { ReleaseNotesPage } from './pages/releaseNotes/ReleaseNotesPage';
 import { ApiKeysPage } from './pages/settings/ApiKeysPage';
 import { InstanceOrgsPage } from './pages/instance/InstanceOrgsPage';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
@@ -144,6 +145,8 @@ function Shell() {
               <Route path="settings" element={<ApmComingSoon title="APM Settings" />} />
             </Route>
             <Route path="/infrastructure" element={<HostsPage />} />
+            <Route path="/infrastructure/map" element={<Navigate to="/infrastructure?view=map" replace />} />
+            <Route path="/release-notes" element={<ReleaseNotesPage />} />
             <Route path="/kubernetes" element={<KubernetesOverview />} />
             <Route path="/orchestration/explorer" element={<OrchestrationExplorer />} />
             <Route path="/network" element={<NetworkLayout />}>
