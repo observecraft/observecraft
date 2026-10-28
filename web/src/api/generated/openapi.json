@@ -13976,6 +13976,195 @@
         }
       }
     },
+    "/api/v1/sql/queries": {
+      "get": {
+        "tags": [
+          "sql"
+        ],
+        "operationId": "list_sql_queries",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SavedSqlQuery"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sql"
+        ],
+        "operationId": "create_sql_query",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedSqlQueryInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedSqlQuery"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sql/queries/{id}": {
+      "put": {
+        "tags": [
+          "sql"
+        ],
+        "operationId": "update_sql_query",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedSqlQueryInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedSqlQuery"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sql"
+        ],
+        "operationId": "delete_sql_query",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/sql/run": {
+      "post": {
+        "tags": [
+          "sql"
+        ],
+        "summary": "Runs one read-only SELECT over the virtual tables (see the module docs).",
+        "operationId": "sql_run",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SqlRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SqlResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Query refused or failed"
+          }
+        }
+      }
+    },
+    "/api/v1/sql/schema": {
+      "get": {
+        "tags": [
+          "sql"
+        ],
+        "operationId": "sql_schema",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SqlSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sql/templates": {
+      "get": {
+        "tags": [
+          "sql"
+        ],
+        "operationId": "sql_templates",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SqlTemplate"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/status-pages": {
       "get": {
         "tags": [
@@ -36715,6 +36904,66 @@
           }
         }
       },
+      "SavedSqlQuery": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "sql",
+          "team",
+          "author",
+          "updatedBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sql": {
+            "type": "string"
+          },
+          "team": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "SavedSqlQueryInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "sql"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sql": {
+            "type": "string"
+          },
+          "team": {
+            "type": "string"
+          }
+        }
+      },
       "ScalarRequest": {
         "type": "object",
         "required": [
@@ -39364,6 +39613,195 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "SqlResult": {
+        "type": "object",
+        "required": [
+          "columns",
+          "rows",
+          "truncated",
+          "elapsedMs",
+          "tables",
+          "notices"
+        ],
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SqlResultColumn"
+            }
+          },
+          "elapsedMs": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "notices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Limits that applied (inventory tables cut, …)."
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {}
+            },
+            "description": "Rows as arrays, in column order."
+          },
+          "tables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Virtual tables the query read."
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "More rows matched than were returned."
+          }
+        }
+      },
+      "SqlResultColumn": {
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "SqlRunRequest": {
+        "type": "object",
+        "required": [
+          "sql"
+        ],
+        "properties": {
+          "range": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TimeRange",
+                "description": "Time range of the telemetry tables (spans, logs, metrics, services, ci_pipelines) and of\nhosts; the last hour when omitted. At most 7 days."
+              }
+            ]
+          },
+          "sql": {
+            "type": "string"
+          }
+        }
+      },
+      "SqlSchema": {
+        "type": "object",
+        "required": [
+          "tables",
+          "functions",
+          "maxRows"
+        ],
+        "properties": {
+          "functions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Functions queries may call."
+          },
+          "maxRows": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "tables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SqlTableInfo"
+            }
+          }
+        }
+      },
+      "SqlTableColumn": {
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "SqlTableInfo": {
+        "type": "object",
+        "required": [
+          "name",
+          "category",
+          "description",
+          "columns"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "infrastructure, containers, kubernetes, apm, logs, metrics, ci, monitors, dashboards, incidents, synthetics."
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SqlTableColumn"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "SqlTemplate": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "source",
+          "sql"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "Category of the data it reads (for the icon)."
+          },
+          "sql": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
           }
         }
       },

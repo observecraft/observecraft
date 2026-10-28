@@ -21,6 +21,7 @@ pub mod feature_flags;
 pub mod fleet;
 pub mod gpu;
 pub mod serverless;
+pub mod sql_editor;
 pub mod health;
 pub mod hosts;
 pub mod identity;
@@ -237,6 +238,13 @@ use crate::state::AppState;
         serverless::search,
         serverless::timeseries,
         serverless::invocations,
+        sql_editor::schema,
+        sql_editor::templates,
+        sql_editor::run,
+        sql_editor::list_queries,
+        sql_editor::create_query,
+        sql_editor::update_query,
+        sql_editor::delete_query,
         databases::search,
         databases::instance,
         data_jobs::search,
@@ -797,6 +805,11 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/serverless/functions", post(serverless::search))
         .route("/api/v1/serverless/timeseries", post(serverless::timeseries))
         .route("/api/v1/serverless/invocations", post(serverless::invocations))
+        .route("/api/v1/sql/schema", get(sql_editor::schema))
+        .route("/api/v1/sql/templates", get(sql_editor::templates))
+        .route("/api/v1/sql/run", post(sql_editor::run))
+        .route("/api/v1/sql/queries", get(sql_editor::list_queries).post(sql_editor::create_query))
+        .route("/api/v1/sql/queries/:id", axum::routing::put(sql_editor::update_query).delete(sql_editor::delete_query))
         .route("/api/v1/databases/search", post(databases::search))
         .route("/api/v1/databases/instance", post(databases::instance))
         .route("/api/v1/data-jobs/search", post(data_jobs::search))
@@ -1266,6 +1279,7 @@ mod tests {
             include_str!("hosts.rs"),
             include_str!("gpu.rs"),
             include_str!("serverless.rs"),
+            include_str!("sql_editor.rs"),
             include_str!("databases.rs"),
             include_str!("data_jobs.rs"),
             include_str!("metric_inventory.rs"),
@@ -1363,6 +1377,7 @@ mod tests {
             ("hosts.rs", include_str!("hosts.rs")),
             ("gpu.rs", include_str!("gpu.rs")),
             ("serverless.rs", include_str!("serverless.rs")),
+            ("sql_editor.rs", include_str!("sql_editor.rs")),
             ("databases.rs", include_str!("databases.rs")),
             ("data_jobs.rs", include_str!("data_jobs.rs")),
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
@@ -1487,6 +1502,7 @@ mod tests {
             ("hosts.rs", include_str!("hosts.rs")),
             ("gpu.rs", include_str!("gpu.rs")),
             ("serverless.rs", include_str!("serverless.rs")),
+            ("sql_editor.rs", include_str!("sql_editor.rs")),
             ("databases.rs", include_str!("databases.rs")),
             ("data_jobs.rs", include_str!("data_jobs.rs")),
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),

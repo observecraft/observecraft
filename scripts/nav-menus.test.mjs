@@ -29,7 +29,7 @@ const REFERENCE = {
     'AI Credits Management',
     'Usage!NEW',
   ],
-  Dashboards: ['Dashboards = Dashboard List, +New Dashboard, Reports', 'Notebooks = Notebooks List, +New Notebook', 'Sheets = Spreadsheets List, +New Spreadsheet', 'Quick Graph', 'DDSQL Editor'],
+  Dashboards: ['Dashboards = Dashboard List, +New Dashboard, Reports', 'Notebooks = Notebooks List, +New Notebook', 'Sheets = Spreadsheets List, +New Spreadsheet', 'Quick Graph', 'SQL Editor'],
   Monitoring: [
     'Monitors = Monitor List, +New Monitor, Triggered, Downtimes, Quality | Settings',
     'SLOs',

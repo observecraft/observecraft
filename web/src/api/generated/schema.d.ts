@@ -5125,6 +5125,87 @@ export interface paths {
         patch: operations["update_spreadsheet"];
         trace?: never;
     };
+    "/api/v1/sql/queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_sql_queries"];
+        put?: never;
+        post: operations["create_sql_query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sql/queries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_sql_query"];
+        post?: never;
+        delete: operations["delete_sql_query"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sql/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Runs one read-only SELECT over the virtual tables (see the module docs). */
+        post: operations["sql_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sql/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sql_schema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sql/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sql_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/status-pages": {
         parameters: {
             query?: never;
@@ -11951,6 +12032,26 @@ export interface components {
             /** @description e.g. nanoseconds, bytes, count */
             unit: string;
         };
+        SavedSqlQuery: {
+            author: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            createdAt: number;
+            id: string;
+            name: string;
+            sql: string;
+            team: string;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy: string;
+        };
+        SavedSqlQueryInput: {
+            name: string;
+            sql: string;
+            team?: string;
+        };
         ScalarRequest: {
             aggregator: components["schemas"]["TimeAggregator"];
             query: string;
@@ -12770,6 +12871,54 @@ export interface components {
             /** Format: int32 */
             sheetCount: number;
             team?: string | null;
+        };
+        SqlResult: {
+            columns: components["schemas"]["SqlResultColumn"][];
+            /** Format: int64 */
+            elapsedMs: number;
+            /** @description Limits that applied (inventory tables cut, …). */
+            notices: string[];
+            /** @description Rows as arrays, in column order. */
+            rows: unknown[][];
+            /** @description Virtual tables the query read. */
+            tables: string[];
+            /** @description More rows matched than were returned. */
+            truncated: boolean;
+        };
+        SqlResultColumn: {
+            name: string;
+            type: string;
+        };
+        SqlRunRequest: {
+            range?: null | components["schemas"]["TimeRange"];
+            sql: string;
+        };
+        SqlSchema: {
+            /** @description Functions queries may call. */
+            functions: string[];
+            /** Format: int64 */
+            maxRows: number;
+            tables: components["schemas"]["SqlTableInfo"][];
+        };
+        SqlTableColumn: {
+            description: string;
+            name: string;
+            type: string;
+        };
+        SqlTableInfo: {
+            /** @description infrastructure, containers, kubernetes, apm, logs, metrics, ci, monitors, dashboards, incidents, synthetics. */
+            category: string;
+            columns: components["schemas"]["SqlTableColumn"][];
+            description: string;
+            name: string;
+        };
+        SqlTemplate: {
+            description: string;
+            id: string;
+            /** @description Category of the data it reads (for the icon). */
+            source: string;
+            sql: string;
+            title: string;
         };
         SsoOption: {
             label: string;
@@ -24606,6 +24755,160 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_sql_queries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSqlQuery"][];
+                };
+            };
+        };
+    };
+    create_sql_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedSqlQueryInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSqlQuery"];
+                };
+            };
+        };
+    };
+    update_sql_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedSqlQueryInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSqlQuery"];
+                };
+            };
+        };
+    };
+    delete_sql_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sql_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SqlRunRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SqlResult"];
+                };
+            };
+            /** @description Query refused or failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sql_schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SqlSchema"];
+                };
+            };
+        };
+    };
+    sql_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SqlTemplate"][];
                 };
             };
         };

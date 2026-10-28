@@ -128,6 +128,7 @@ import { CloudcraftPage } from './pages/infrastructure/CloudcraftPage';
 import { HostsPage } from './pages/infrastructure/HostsPage';
 import { GpuMonitoringPage } from './pages/gpu/GpuMonitoringPage';
 import { ServerlessPage } from './pages/serverless/ServerlessPage';
+import { SqlEditorPage } from './pages/sqlEditor/SqlEditorPage';
 import { ConfigurationPage as FleetConfigurationPage } from './pages/fleet/ConfigurationPage';
 import { FleetLayout } from './pages/fleet/FleetLayout';
 import { FleetViewPage } from './pages/fleet/FleetViewPage';
@@ -282,6 +283,7 @@ function Shell() {
             <Route path="/gpu-monitoring" element={<GpuMonitoringPage view="summary" />} />
             <Route path="/gpu-monitoring/explorer" element={<GpuMonitoringPage view="explorer" />} />
             <Route path="/serverless" element={<ServerlessPage />} />
+            <Route path="/ddsql" element={<SqlEditorPage />} />
             <Route path="/data" element={<DatabaseMonitoringPage view="overview" />} />
             <Route path="/data/setup" element={<DatabaseMonitoringPage view="setup" />} />
             <Route path="/data/jobs" element={<DataJobsPage />} />

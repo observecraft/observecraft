@@ -134,7 +134,7 @@ export const NAV_SECTIONS: NavItem[][] = [
           ['+New Spreadsheet', '/sheets?new=1'],
         ]),
         group('Quick Graph', '/dashboards/quick-graph'),
-        group('DDSQL Editor', '/ddsql'),
+        group('SQL Editor', '/ddsql'),
       ],
     },
     {

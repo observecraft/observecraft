@@ -15,6 +15,7 @@ mod matcher;
 mod metrics;
 mod parse;
 mod sql;
+pub mod sql_editor;
 
 pub use duck::{build_any_duckdb, build_where_duckdb, ArchiveLogsSchema};
 pub use matcher::{glob, matches, matches_any, Fields};
