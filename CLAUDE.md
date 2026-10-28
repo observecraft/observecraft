@@ -81,7 +81,8 @@ or SDK features.
     - `assets/dashboards/*.json`, converted to our dashboard format by `scripts/import-integration-dashboards.mjs`
       (which also writes the units from `metadata.csv` that the Agent doesn't send);
     - `assets/monitors/*.json` as recommended monitors;
-    - the log pipelines in `assets/logs/`, once log pipelines exist.
+    - the log pipelines in `assets/logs/`, converted to our pipeline format by `scripts/import-integration-pipelines.mjs`
+      (Logs → Configuration → Pipelines installs them from its library);
   - Keep their copyright and LICENSE text with anything copied, and note the source path and version.
 - **Still missing:**
   - Cloud Network Monitoring's network paths;
