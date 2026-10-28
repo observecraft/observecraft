@@ -42,6 +42,10 @@ import { NewMonitorPage } from './pages/monitors/NewMonitorPage';
 import { QualityPage } from './pages/monitors/QualityPage';
 import { TemplatesPage } from './pages/monitors/TemplatesPage';
 import { TriggeredPage } from './pages/monitors/TriggeredPage';
+import { CorrectionsPage } from './pages/slo/CorrectionsPage';
+import { SloEditor } from './pages/slo/SloEditor';
+import { SloLayout } from './pages/slo/SloLayout';
+import { SloListPage } from './pages/slo/SloListPage';
 import { IncidentsPage } from './pages/incidents/IncidentsPage';
 import { AuditTrailPage } from './pages/settings/AuditTrailPage';
 import { LoginMethodsPage } from './pages/settings/LoginMethodsPage';
@@ -196,6 +200,12 @@ function Shell() {
             <Route path="/monitors/settings" element={<MonitorSettingsPage />} />
             <Route path="/monitors/:id" element={<MonitorStatusPage />} />
             <Route path="/monitors/:id/edit" element={<MonitorEditor />} />
+            <Route path="/slo" element={<SloLayout />}>
+              <Route index element={<SloListPage />} />
+              <Route path="corrections" element={<CorrectionsPage />} />
+            </Route>
+            <Route path="/slo/create" element={<SloEditor />} />
+            <Route path="/slo/:id/edit" element={<SloEditor />} />
             <Route path="/event" element={<EventsLayout />}>
               <Route index element={<Navigate to="explorer" replace />} />
               <Route path="explorer" element={<EventExplorer />} />

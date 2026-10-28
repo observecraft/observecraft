@@ -3048,6 +3048,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/slo-corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's corrections, newest first (at most 1,000). */
+        get: operations["list_slo_corrections"];
+        put?: never;
+        post: operations["create_slo_correction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slo-corrections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_slo_correction"];
+        post?: never;
+        delete: operations["delete_slo_correction"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_slo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slos/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_slos"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_slo"];
+        put: operations["update_slo"];
+        post?: never;
+        delete: operations["delete_slo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags/{key}/values": {
         parameters: {
             query?: never;
@@ -3389,8 +3470,18 @@ export interface components {
             serviceProvider: components["schemas"]["ServiceProviderInfo"];
             ssoRequired: boolean;
         };
+        /**
+         * @description What the error budget is counted in.
+         * @enum {string}
+         */
+        BudgetUnit: "events" | "minutes";
         /** @enum {string} */
         BulkAction: "mute" | "unmute" | "resolve" | "delete";
+        /**
+         * @description How fast the error budget burns over the last hour.
+         * @enum {string}
+         */
+        BurnLevel: "high" | "elevated" | "normal" | "unknown";
         /** @enum {string} */
         ChangeMode: "change" | "pct_change";
         CiAggregate: {
@@ -3578,6 +3669,8 @@ export interface components {
         CollectorKind: "observecraft" | "otel" | "datadog";
         /** @enum {string} */
         Comparator: "above" | "above_or_equal" | "below" | "below_or_equal";
+        /** @enum {string} */
+        CorrectionCategory: "scheduled_maintenance" | "outside_business_hours" | "deployment" | "other";
         CreateAppKey: {
             name: string;
         };
@@ -6644,6 +6737,274 @@ export interface components {
             orgId: string;
             userAgent?: string | null;
         };
+        /** @enum {string} */
+        SloComparator: "<" | "<=" | ">" | ">=";
+        SloCorrection: {
+            category: components["schemas"]["CorrectionCategory"];
+            /** Format: int64 */
+            createdAt: number;
+            creator?: null | components["schemas"]["MemberRef"];
+            description: string;
+            /** Format: int64 */
+            end: number;
+            id: string;
+            /** @description Absent = applies to every SLO of the organization. */
+            sloId?: string | null;
+            sloName?: string | null;
+            /** Format: int64 */
+            start: number;
+        };
+        SloCorrectionInput: {
+            category: components["schemas"]["CorrectionCategory"];
+            description?: string;
+            /** Format: int64 */
+            end: number;
+            /** @description Absent = every SLO of the organization. */
+            sloId?: string | null;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            start: number;
+        };
+        SloDetail: {
+            /** @description Corrections overlapping the requested window (the SLO's own and the org-wide ones). */
+            corrections: components["schemas"]["SloCorrection"][];
+            /** @description SLI and error budget over the requested window. */
+            history: components["schemas"]["SloHistoryPoint"][];
+            /** @description The SLO's monitors and the monitors tagged `slo:<id>` (burn rate alerts). */
+            monitors: components["schemas"]["SloMonitor"][];
+            /** @description With its status over the requested window. */
+            slo: components["schemas"]["SloItem"];
+            /** @description Status over each target's window. */
+            statuses: components["schemas"]["SloStatus"][];
+        };
+        SloFacetCount: {
+            /** Format: int64 */
+            count: number;
+            value: string;
+        };
+        SloFacets: {
+            burnRate: components["schemas"]["SloFacetCount"][];
+            /** @description `id|name`. */
+            creators: components["schemas"]["SloFacetCount"][];
+            envs: components["schemas"]["SloFacetCount"][];
+            services: components["schemas"]["SloFacetCount"][];
+            state: components["schemas"]["SloFacetCount"][];
+            tags: components["schemas"]["SloFacetCount"][];
+            teams: components["schemas"]["SloFacetCount"][];
+            type: components["schemas"]["SloFacetCount"][];
+        };
+        SloHistoryPoint: {
+            /**
+             * Format: double
+             * @description SLI of this bucket alone.
+             */
+            bucketSli?: number | null;
+            /**
+             * Format: double
+             * @description Error budget left at the end of this bucket, in percent of the window's budget.
+             */
+            budgetRemaining?: number | null;
+            /**
+             * Format: double
+             * @description SLI from the window's start to the end of this bucket.
+             */
+            sli?: number | null;
+            /**
+             * Format: int64
+             * @description Bucket start, epoch ms.
+             */
+            t: number;
+        };
+        SloInput: {
+            comparator?: null | components["schemas"]["SloComparator"];
+            description?: string;
+            goodQuery?: string | null;
+            monitorIds?: number[];
+            name: string;
+            primaryWindow?: null | components["schemas"]["SloWindow"];
+            /**
+             * Format: int32
+             * @description 1 or 5.
+             */
+            sliceMinutes?: number | null;
+            sliceQuery?: string | null;
+            tags?: string[];
+            /** @description One per window. */
+            targets: components["schemas"]["SloTarget"][];
+            teams?: string[];
+            /** Format: double */
+            threshold?: number | null;
+            totalQuery?: string | null;
+            type: components["schemas"]["SloType"];
+        };
+        SloItem: {
+            comparator?: null | components["schemas"]["SloComparator"];
+            /** Format: int64 */
+            createdAt: number;
+            creator?: null | components["schemas"]["MemberRef"];
+            description: string;
+            /** @description Metric SLOs: metric queries (or formulas) of the good and the total events. */
+            goodQuery?: string | null;
+            id: string;
+            /** @description Monitor SLOs. */
+            monitorIds: number[];
+            name: string;
+            primaryWindow: components["schemas"]["SloWindow"];
+            /** Format: int32 */
+            sliceMinutes?: number | null;
+            /** @description Time-slice SLOs: a slice is good when `sliceQuery comparator threshold`. */
+            sliceQuery?: string | null;
+            /** @description Over the requested window (the primary one by default). */
+            status: components["schemas"]["SloStatus"];
+            tags: string[];
+            targets: components["schemas"]["SloTarget"][];
+            teams: string[];
+            /** Format: double */
+            threshold?: number | null;
+            totalQuery?: string | null;
+            type: components["schemas"]["SloType"];
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        SloMonitor: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            status: string;
+        };
+        SloSearchPage: {
+            facets: components["schemas"]["SloFacets"];
+            slos: components["schemas"]["SloItem"][];
+            summary: components["schemas"]["SloSummary"];
+            /** Format: int64 */
+            total: number;
+        };
+        SloSearchRequest: {
+            /** @default [] */
+            burnRates: components["schemas"]["BurnLevel"][];
+            /**
+             * @description Creator user ids.
+             * @default []
+             */
+            creators: string[];
+            /** @default [] */
+            envs: string[];
+            /**
+             * Format: int64
+             * @default 0
+             */
+            limit: number;
+            /**
+             * Format: int64
+             * @default 0
+             */
+            offset: number;
+            /**
+             * @description Words match name, description and tags; `key:value` words match tags (`service:billing`).
+             * @default
+             */
+            query: string;
+            /**
+             * @description Values of the `service:` and `env:` tags.
+             * @default []
+             */
+            services: string[];
+            /**
+             * @description state (default) | name | sli | budget | modified
+             * @default null
+             */
+            sort: string | null;
+            /** @default [] */
+            states: components["schemas"]["SloState"][];
+            /**
+             * @description Other tags (`key:value`).
+             * @default []
+             */
+            tags: string[];
+            /** @default [] */
+            teams: string[];
+            /** @default [] */
+            types: components["schemas"]["SloType"][];
+            /** @default null */
+            window: null | components["schemas"]["SloWindow"];
+        };
+        /** @enum {string} */
+        SloState: "ok" | "warning" | "breached" | "no_data";
+        SloStatus: {
+            /**
+             * Format: double
+             * @description Bad events (or minutes) the target allows over the window, and how many were spent.
+             */
+            budgetAllowed?: number | null;
+            /**
+             * Format: double
+             * @description Error budget left, in percent of the window's budget (negative once overspent).
+             */
+            budgetRemaining?: number | null;
+            /** Format: double */
+            budgetUsed?: number | null;
+            /** Format: double */
+            burnRate?: number | null;
+            /**
+             * Format: double
+             * @description Bad share over the share the target allows: over the last hour, and over the window.
+             */
+            burnRate1h?: number | null;
+            /**
+             * Format: double
+             * @description Good and total events, or minutes, over the window (corrections excluded).
+             */
+            good: number;
+            /**
+             * Format: double
+             * @description Percent of good events (metric) or good time (monitor, time slice); absent without data.
+             */
+            sli?: number | null;
+            state: components["schemas"]["SloState"];
+            /** Format: double */
+            target: number;
+            /** Format: double */
+            total: number;
+            unit: components["schemas"]["BudgetUnit"];
+            /** Format: double */
+            warning?: number | null;
+            window: components["schemas"]["SloWindow"];
+        };
+        /** @description SLOs per state, every filter but the state applied. */
+        SloSummary: {
+            /** Format: int64 */
+            breached: number;
+            /** Format: int64 */
+            noData: number;
+            /** Format: int64 */
+            ok: number;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            warning: number;
+        };
+        SloTarget: {
+            /**
+             * Format: double
+             * @description Percent, e.g. 99.9.
+             */
+            target: number;
+            /**
+             * Format: double
+             * @description Percent above the target: below it the SLO is in warning.
+             */
+            warning?: number | null;
+            window: components["schemas"]["SloWindow"];
+        };
+        /** @enum {string} */
+        SloType: "metric" | "monitor" | "time_slice";
+        /**
+         * @description Rolling time window an SLO is measured over.
+         * @enum {string}
+         */
+        SloWindow: "1d" | "7d" | "30d" | "90d";
         /** @enum {string} */
         Software: "kubernetes" | "docker";
         /** @enum {string} */
@@ -12719,6 +13080,209 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
+            };
+        };
+    };
+    list_slo_corrections: {
+        parameters: {
+            query?: {
+                /** @description Only this SLO's corrections and the org-wide ones. */
+                sloId?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloCorrection"][];
+                };
+            };
+        };
+    };
+    create_slo_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloCorrectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloCorrection"];
+                };
+            };
+        };
+    };
+    update_slo_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloCorrectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloCorrection"];
+                };
+            };
+        };
+    };
+    delete_slo_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_slo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloItem"];
+                };
+            };
+        };
+    };
+    search_slos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloSearchPage"];
+                };
+            };
+        };
+    };
+    get_slo: {
+        parameters: {
+            query?: {
+                /** @description 1d | 7d | 30d | 90d; absent = the primary window. */
+                window?: string | null;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloDetail"];
+                };
+            };
+        };
+    };
+    update_slo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloItem"];
+                };
+            };
+        };
+    };
+    delete_slo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -7604,6 +7604,294 @@
         }
       }
     },
+    "/api/v1/slo-corrections": {
+      "get": {
+        "tags": [
+          "slos"
+        ],
+        "summary": "The org's corrections, newest first (at most 1,000).",
+        "operationId": "list_slo_corrections",
+        "parameters": [
+          {
+            "name": "sloId",
+            "in": "query",
+            "description": "Only this SLO's corrections and the org-wide ones.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SloCorrection"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "slos"
+        ],
+        "operationId": "create_slo_correction",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SloCorrectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SloCorrection"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/slo-corrections/{id}": {
+      "put": {
+        "tags": [
+          "slos"
+        ],
+        "operationId": "update_slo_correction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SloCorrectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SloCorrection"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "slos"
+        ],
+        "operationId": "delete_slo_correction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/slos": {
+      "post": {
+        "tags": [
+          "slos"
+        ],
+        "operationId": "create_slo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SloInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SloItem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/slos/search": {
+      "post": {
+        "tags": [
+          "slos"
+        ],
+        "operationId": "search_slos",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SloSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SloSearchPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/slos/{id}": {
+      "get": {
+        "tags": [
+          "slos"
+        ],
+        "operationId": "get_slo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "description": "1d | 7d | 30d | 90d; absent = the primary window.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SloDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "slos"
+        ],
+        "operationId": "update_slo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SloInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SloItem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "slos"
+        ],
+        "operationId": "delete_slo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/tags/{key}/values": {
       "get": {
         "tags": [
@@ -8559,6 +8847,14 @@
           }
         }
       },
+      "BudgetUnit": {
+        "type": "string",
+        "description": "What the error budget is counted in.",
+        "enum": [
+          "events",
+          "minutes"
+        ]
+      },
       "BulkAction": {
         "type": "string",
         "enum": [
@@ -8566,6 +8862,16 @@
           "unmute",
           "resolve",
           "delete"
+        ]
+      },
+      "BurnLevel": {
+        "type": "string",
+        "description": "How fast the error budget burns over the last hour.",
+        "enum": [
+          "high",
+          "elevated",
+          "normal",
+          "unknown"
         ]
       },
       "ChangeMode": {
@@ -9230,6 +9536,15 @@
           "above_or_equal",
           "below",
           "below_or_equal"
+        ]
+      },
+      "CorrectionCategory": {
+        "type": "string",
+        "enum": [
+          "scheduled_maintenance",
+          "outside_business_hours",
+          "deployment",
+          "other"
         ]
       },
       "CreateAppKey": {
@@ -19548,6 +19863,809 @@
           }
         }
       },
+      "SloComparator": {
+        "type": "string",
+        "enum": [
+          "<",
+          "<=",
+          ">",
+          ">="
+        ]
+      },
+      "SloCorrection": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "description",
+          "start",
+          "end",
+          "createdAt"
+        ],
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/CorrectionCategory"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "creator": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              }
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "end": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "sloId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Absent = applies to every SLO of the organization."
+          },
+          "sloName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SloCorrectionInput": {
+        "type": "object",
+        "required": [
+          "category",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/CorrectionCategory"
+          },
+          "description": {
+            "type": "string"
+          },
+          "end": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sloId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Absent = every SLO of the organization."
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          }
+        }
+      },
+      "SloDetail": {
+        "type": "object",
+        "required": [
+          "slo",
+          "statuses",
+          "history",
+          "corrections",
+          "monitors"
+        ],
+        "properties": {
+          "corrections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloCorrection"
+            },
+            "description": "Corrections overlapping the requested window (the SLO's own and the org-wide ones)."
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloHistoryPoint"
+            },
+            "description": "SLI and error budget over the requested window."
+          },
+          "monitors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloMonitor"
+            },
+            "description": "The SLO's monitors and the monitors tagged `slo:<id>` (burn rate alerts)."
+          },
+          "slo": {
+            "$ref": "#/components/schemas/SloItem",
+            "description": "With its status over the requested window."
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloStatus"
+            },
+            "description": "Status over each target's window."
+          }
+        }
+      },
+      "SloFacetCount": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "SloFacets": {
+        "type": "object",
+        "required": [
+          "type",
+          "state",
+          "burnRate",
+          "creators",
+          "teams",
+          "services",
+          "envs",
+          "tags"
+        ],
+        "properties": {
+          "burnRate": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloFacetCount"
+            }
+          },
+          "creators": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloFacetCount"
+            },
+            "description": "`id|name`."
+          },
+          "envs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloFacetCount"
+            }
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloFacetCount"
+            }
+          },
+          "state": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloFacetCount"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloFacetCount"
+            }
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloFacetCount"
+            }
+          },
+          "type": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloFacetCount"
+            }
+          }
+        }
+      },
+      "SloHistoryPoint": {
+        "type": "object",
+        "required": [
+          "t"
+        ],
+        "properties": {
+          "bucketSli": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "SLI of this bucket alone."
+          },
+          "budgetRemaining": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Error budget left at the end of this bucket, in percent of the window's budget."
+          },
+          "sli": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "SLI from the window's start to the end of this bucket."
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bucket start, epoch ms."
+          }
+        }
+      },
+      "SloInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "targets"
+        ],
+        "properties": {
+          "comparator": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SloComparator"
+              }
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "goodQuery": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "monitorIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "primaryWindow": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SloWindow",
+                "description": "One of the targets' windows; absent = the first target's."
+              }
+            ]
+          },
+          "sliceMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "1 or 5."
+          },
+          "sliceQuery": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloTarget"
+            },
+            "description": "One per window."
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "threshold": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "totalQuery": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "$ref": "#/components/schemas/SloType"
+          }
+        }
+      },
+      "SloItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "type",
+          "monitorIds",
+          "targets",
+          "primaryWindow",
+          "tags",
+          "teams",
+          "createdAt",
+          "updatedAt",
+          "status"
+        ],
+        "properties": {
+          "comparator": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SloComparator"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "creator": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              }
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "goodQuery": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Metric SLOs: metric queries (or formulas) of the good and the total events."
+          },
+          "id": {
+            "type": "string"
+          },
+          "monitorIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Monitor SLOs."
+          },
+          "name": {
+            "type": "string"
+          },
+          "primaryWindow": {
+            "$ref": "#/components/schemas/SloWindow"
+          },
+          "sliceMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "sliceQuery": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Time-slice SLOs: a slice is good when `sliceQuery comparator threshold`."
+          },
+          "status": {
+            "$ref": "#/components/schemas/SloStatus",
+            "description": "Over the requested window (the primary one by default)."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloTarget"
+            }
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "threshold": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "totalQuery": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "$ref": "#/components/schemas/SloType"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SloMonitor": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "SloSearchPage": {
+        "type": "object",
+        "required": [
+          "slos",
+          "total",
+          "summary",
+          "facets"
+        ],
+        "properties": {
+          "facets": {
+            "$ref": "#/components/schemas/SloFacets"
+          },
+          "slos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloItem"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/SloSummary"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SloSearchRequest": {
+        "type": "object",
+        "properties": {
+          "burnRates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BurnLevel"
+            },
+            "default": []
+          },
+          "creators": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Creator user ids.",
+            "default": []
+          },
+          "envs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "default": 0
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64",
+            "default": 0
+          },
+          "query": {
+            "type": "string",
+            "description": "Words match name, description and tags; `key:value` words match tags (`service:billing`).",
+            "default": ""
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Values of the `service:` and `env:` tags.",
+            "default": []
+          },
+          "sort": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "state (default) | name | sli | budget | modified",
+            "default": null
+          },
+          "states": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloState"
+            },
+            "default": []
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Other tags (`key:value`).",
+            "default": []
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SloType"
+            },
+            "default": []
+          },
+          "window": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SloWindow",
+                "description": "Window the statuses are computed over; absent = each SLO's primary window."
+              }
+            ],
+            "default": null
+          }
+        }
+      },
+      "SloState": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "warning",
+          "breached",
+          "no_data"
+        ]
+      },
+      "SloStatus": {
+        "type": "object",
+        "required": [
+          "window",
+          "target",
+          "state",
+          "good",
+          "total",
+          "unit"
+        ],
+        "properties": {
+          "budgetAllowed": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Bad events (or minutes) the target allows over the window, and how many were spent."
+          },
+          "budgetRemaining": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Error budget left, in percent of the window's budget (negative once overspent)."
+          },
+          "budgetUsed": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "burnRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "burnRate1h": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Bad share over the share the target allows: over the last hour, and over the window."
+          },
+          "good": {
+            "type": "number",
+            "format": "double",
+            "description": "Good and total events, or minutes, over the window (corrections excluded)."
+          },
+          "sli": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Percent of good events (metric) or good time (monitor, time slice); absent without data."
+          },
+          "state": {
+            "$ref": "#/components/schemas/SloState"
+          },
+          "target": {
+            "type": "number",
+            "format": "double"
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/BudgetUnit"
+          },
+          "warning": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "window": {
+            "$ref": "#/components/schemas/SloWindow"
+          }
+        }
+      },
+      "SloSummary": {
+        "type": "object",
+        "description": "SLOs per state, every filter but the state applied.",
+        "required": [
+          "breached",
+          "warning",
+          "ok",
+          "noData",
+          "total"
+        ],
+        "properties": {
+          "breached": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "noData": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ok": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "warning": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SloTarget": {
+        "type": "object",
+        "required": [
+          "window",
+          "target"
+        ],
+        "properties": {
+          "target": {
+            "type": "number",
+            "format": "double",
+            "description": "Percent, e.g. 99.9."
+          },
+          "warning": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Percent above the target: below it the SLO is in warning."
+          },
+          "window": {
+            "$ref": "#/components/schemas/SloWindow"
+          }
+        }
+      },
+      "SloType": {
+        "type": "string",
+        "enum": [
+          "metric",
+          "monitor",
+          "time_slice"
+        ]
+      },
+      "SloWindow": {
+        "type": "string",
+        "description": "Rolling time window an SLO is measured over.",
+        "enum": [
+          "1d",
+          "7d",
+          "30d",
+          "90d"
+        ]
+      },
       "Software": {
         "type": "string",
         "enum": [
@@ -21463,6 +22581,10 @@
     {
       "name": "monitors",
       "description": "Monitors, their evaluation history and downtimes"
+    },
+    {
+      "name": "slos",
+      "description": "Service level objectives, their status and error budget, and corrections"
     },
     {
       "name": "auth",

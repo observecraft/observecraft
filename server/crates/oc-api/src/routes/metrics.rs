@@ -987,7 +987,19 @@ pub(crate) async fn evaluate_query(
     range: TimeRange,
     points: u32,
 ) -> Result<Vec<Group>, ApiError> {
-    let (inner, params, _) = inner_query(st, org, q, range, points).await?;
+    Ok(evaluate_query_stepped(st, org, q, range, points).await?.0)
+}
+
+/// [`evaluate_query`], plus the interval (ms) each point covers: values are per-second rates for
+/// counts, so `value × interval` is what the interval counted (SLOs add up events this way).
+pub(crate) async fn evaluate_query_stepped(
+    st: &AppState,
+    org: &str,
+    q: &MetricQuery,
+    range: TimeRange,
+    points: u32,
+) -> Result<(Vec<Group>, i64), ApiError> {
+    let (inner, params, step) = inner_query(st, org, q, range, points).await?;
     let sql = format!(
         "SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64({agg}(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t",
         agg = q.agg.sql()
@@ -1013,7 +1025,7 @@ pub(crate) async fn evaluate_query(
             }),
         }
     }
-    Ok(groups)
+    Ok((groups, step))
 }
 
 fn round(v: f64) -> f64 {

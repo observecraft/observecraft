@@ -31,6 +31,8 @@ pub mod profiles;
 pub mod reference_tables;
 pub mod spans;
 pub mod standard_attributes;
+pub mod slo_math;
+pub mod slos;
 pub mod sso;
 
 use axum::routing::{delete, get, patch, post};
@@ -263,6 +265,15 @@ use crate::state::AppState;
         downtimes::search,
         downtimes::create,
         downtimes::cancel,
+        slos::search,
+        slos::get_one,
+        slos::create,
+        slos::update,
+        slos::delete,
+        slos::list_corrections,
+        slos::create_correction,
+        slos::update_correction,
+        slos::delete_correction,
         ci::executions,
         ci::facets,
         ci::charts,
@@ -296,6 +307,7 @@ use crate::state::AppState;
         (name = "incidents", description = "Incident management"),
         (name = "ci", description = "Software Delivery: CI pipeline executions, flaky tests and DORA metrics from CI/CD traces"),
         (name = "monitors", description = "Monitors, their evaluation history and downtimes"),
+        (name = "slos", description = "Service level objectives, their status and error budget, and corrections"),
         (name = "auth", description = "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"),
         (name = "health")
     )
@@ -397,6 +409,20 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/downtimes", post(downtimes::create))
         .route("/api/v1/downtimes/search", post(downtimes::search))
         .route("/api/v1/downtimes/:id", delete(downtimes::cancel))
+        .route("/api/v1/slos", post(slos::create))
+        .route("/api/v1/slos/search", post(slos::search))
+        .route(
+            "/api/v1/slos/:id",
+            get(slos::get_one).put(slos::update).delete(slos::delete),
+        )
+        .route(
+            "/api/v1/slo-corrections",
+            get(slos::list_corrections).post(slos::create_correction),
+        )
+        .route(
+            "/api/v1/slo-corrections/:id",
+            axum::routing::put(slos::update_correction).delete(slos::delete_correction),
+        )
         .route("/api/v1/apm/spans/search", post(spans::search))
         .route("/api/v1/apm/spans/facets", post(spans::facets))
         .route("/api/v1/apm/spans/analytics", post(spans::analytics))
@@ -738,6 +764,8 @@ mod tests {
             include_str!("spans.rs"),
             include_str!("dashboards.rs"),
             include_str!("downtimes.rs"),
+            include_str!("slos.rs"),
+            include_str!("slo_math.rs"),
             include_str!("monitor_engine.rs"),
             include_str!("monitors.rs"),
             include_str!("notifications.rs"),
@@ -812,6 +840,7 @@ mod tests {
             ("metrics/dashboard.rs", include_str!("metrics/dashboard.rs")),
             ("monitor_engine.rs", include_str!("monitor_engine.rs")),
             ("monitors.rs", include_str!("monitors.rs")),
+            ("slos.rs", include_str!("slos.rs")),
             ("spans.rs", include_str!("spans.rs")),
             ("../logproc.rs", include_str!("../logproc.rs")),
         ];
@@ -908,6 +937,8 @@ mod tests {
             ("notifications.rs", include_str!("notifications.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),
+            ("slo_math.rs", include_str!("slo_math.rs")),
+            ("slos.rs", include_str!("slos.rs")),
             ("spans.rs", include_str!("spans.rs")),
             ("sso.rs", include_str!("sso.rs")),
             ("standard_attributes.rs", include_str!("standard_attributes.rs")),
