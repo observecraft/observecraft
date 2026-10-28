@@ -307,8 +307,10 @@
   background: var(--topbar-bg);
 }
 
+/* Centred on the window, not on the area right of the sidebar, so it lines up with the search panel. */
 .topbar-search {
   display: flex;
+  transform: translateX(calc(var(--nav-width) / -2));
   align-items: center;
   gap: 8px;
   width: 620px;
