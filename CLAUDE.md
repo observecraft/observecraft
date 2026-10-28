@@ -85,7 +85,7 @@ or SDK features.
   - Keep their copyright and LICENSE text with anything copied, and note the source path and version.
 - **Still missing:**
   - Cloud Network Monitoring's network paths;
-  - the profiler's Thread Timeline and Call Graph views, and Event Management's Triage Inbox correlators;
+  - the profiler's Thread Timeline and Call Graph views, and Event Management's custom correlators and saved work item states (the Triage Inbox groups events per affected object);
   - Cloud Security, the live debugger, data streams and remote configuration;
   - RUM (`browser-sdk`, Apache-2.0), which needs a RUM product first.
 
