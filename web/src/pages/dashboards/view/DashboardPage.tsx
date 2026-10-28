@@ -3,7 +3,7 @@ import { useDashboardExecution } from '../execution';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { Layout } from 'react-grid-layout';
-import { Check, ChevronDown, Copy, Download, LayoutDashboard, Plus, Settings, Share, Siren, Star, Trash2, Upload, Variable, X } from 'lucide-react';
+import { CalendarClock, Check, ChevronDown, Copy, Download, LayoutDashboard, Plus, Settings, Share, Siren, Star, Trash2, Upload, Variable, X } from 'lucide-react';
 import type { Dashboard, TemplateVarValues, Widget, WidgetDefinition, WidgetType } from '../../../api/dashboards/types';
 import { TimePicker } from '../../../components/shell/PageHeader';
 import { TimeProvider, useTime } from '../../../components/shell/TimeContext';
@@ -21,6 +21,7 @@ import { DashboardContext, type DashboardContextValue } from '../widgets/context
 import { GroupFrame, WidgetFrame } from '../widgets/WidgetFrame';
 import { DashboardCanvas } from './DashboardCanvas';
 import { TemplateVarBar, TemplateVarEditor } from './TemplateVarBar';
+import { ReportEditorModal } from '../reports/ReportEditorModal';
 import { searchEvents } from '../../../api/events/client';
 import { overlayMarks } from '../../../lib/overlays';
 import '../dashboards.css';
@@ -31,8 +32,11 @@ const VAR_PREFIX = 'tpl_var_';
 
 export function DashboardPage() {
   const { id } = useParams();
+  // `?time=1d` (links in dashboard reports) opens the dashboard over that frame; the picker's longest is a week.
+  const [params] = useSearchParams();
+  const time = params.get('time');
   return (
-    <TimeProvider initial="1h">
+    <TimeProvider initial={time === '1mo' ? '1w' : (time ?? '1h')}>
       <DashboardView id={id!} />
     </TimeProvider>
   );
@@ -71,6 +75,7 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
   const [importing, setImporting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
   const [title, setTitle] = useState(d.title);
   const [toast, setToast] = useState<{ text: string; undo?: Widget[] } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -253,6 +258,7 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
                 }
                 items={[
                   { label: 'Template variables', icon: <Variable size={14} />, onClick: () => setTvEditor(true), disabled: !canEdit },
+                  { label: 'Schedule report', icon: <CalendarClock size={14} />, onClick: () => setScheduling(true), disabled: d.deletedAt !== null },
                   {
                     label: 'Export dashboard JSON',
                     icon: <Download size={14} />,
@@ -333,6 +339,10 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
               setTvEditor(false);
             }}
           />
+        )}
+
+        {scheduling && (
+          <ReportEditorModal dashboardId={d.id} initialValues={values} onClose={() => setScheduling(false)} onSaved={() => showToast('Report scheduled. Manage it under Dashboards → Reports.')} />
         )}
 
         {importing && <ImportModal onClose={() => setImporting(false)} onImport={(patch) => (update.mutate(patch), setImporting(false))} />}

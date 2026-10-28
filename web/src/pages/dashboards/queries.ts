@@ -71,6 +71,12 @@ export function useUpdateDashboardStar() {
   return useMutation({ mutationFn: ({ id, starred }: { id: string; starred: boolean }) => updateDashboard(id, { starred }), onSuccess: invalidate });
 }
 
+/** Replaces a dashboard's widgets from outside its page (Quick Graph → Save to dashboard). */
+export function useUpdateDashboardWidgets() {
+  const invalidate = useInvalidateAll();
+  return useMutation({ mutationFn: ({ id, widgets }: { id: string; widgets: Dashboard['widgets'] }) => updateDashboard(id, { widgets }), onSuccess: invalidate });
+}
+
 export function useCloneDashboard() {
   const invalidate = useInvalidateAll();
   return useMutation({ mutationFn: (id: string) => cloneDashboard(id), onSuccess: invalidate });

@@ -1,0 +1,174 @@
+/* Dashboards → Reports: list, editor and preview. */
+.rp-banner {
+  margin: 0 0 12px;
+}
+
+.rp-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
+  font-size: var(--fs-md);
+}
+
+.rp-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.rp-empty p {
+  margin: 0 0 8px;
+}
+
+.rp-table-card {
+  overflow-x: auto;
+}
+
+.rp-table td {
+  vertical-align: top;
+}
+
+.rp-recips .tag-chip {
+  margin: 0 4px 4px 0;
+}
+
+.rp-status {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+}
+
+.rp-sent {
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
+}
+
+.rp-partial {
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+}
+
+.rp-failed {
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
+}
+
+.rp-editor .rp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-md);
+}
+
+.rp-editor .rp-field > span:first-child {
+  font-weight: var(--fw-medium);
+}
+
+.rp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.rp-vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rp-var {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rp-var input {
+  width: 140px;
+}
+
+.rp-when {
+  margin: -4px 0 0 !important;
+  font-size: var(--fs-md);
+}
+
+.rp-recipients {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.rp-recipients input {
+  flex: 1;
+  min-width: 200px;
+  border: none !important;
+  padding: 2px 4px !important;
+}
+
+.rp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rp-hint {
+  font-size: var(--fs-sm);
+}
+
+.rp-body {
+  max-height: 420px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-size: var(--fs-md);
+  white-space: pre-wrap;
+}
+
+.rp-deliveries {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  font-size: var(--fs-md);
+}
+
+.rp-deliveries li {
+  padding: 2px 0;
+}
+
+/* Quick Graph */
+.qg-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.qg-head h3 {
+  flex: 1;
+}
+
+.qg-chart {
+  height: 320px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.qg-modal .small-modal-actions {
+  align-items: center;
+}
+
+.qg-title {
+  flex: 1;
+}

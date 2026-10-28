@@ -1714,6 +1714,342 @@
         }
       }
     },
+    "/api/v1/dashboard-reports": {
+      "get": {
+        "tags": [
+          "dashboards"
+        ],
+        "summary": "The org's reports (the web app filters \"Created by you\" and \"Subscribed\").",
+        "operationId": "list_dashboard_reports",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DashboardReport"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "dashboards"
+        ],
+        "operationId": "create_dashboard_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardReportInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard-reports/options": {
+      "get": {
+        "tags": [
+          "dashboards"
+        ],
+        "operationId": "dashboard_report_options",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardReportOptions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard-reports/{id}": {
+      "get": {
+        "tags": [
+          "dashboards"
+        ],
+        "operationId": "get_dashboard_report",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardReport"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "dashboards"
+        ],
+        "operationId": "update_dashboard_report",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardReportInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardReport"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "dashboards"
+        ],
+        "operationId": "delete_dashboard_report",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard-reports/{id}/preview": {
+      "get": {
+        "tags": [
+          "dashboards"
+        ],
+        "operationId": "preview_dashboard_report",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardReportPreview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard-reports/{id}/send": {
+      "post": {
+        "tags": [
+          "dashboards"
+        ],
+        "summary": "Sends the report now to its recipients (emails only when email is configured).",
+        "operationId": "send_dashboard_report",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DashboardReportDelivery"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard-reports/{id}/subscription": {
+      "put": {
+        "tags": [
+          "dashboards"
+        ],
+        "summary": "Subscribes the current user to the report (by email), or unsubscribes them.",
+        "operationId": "set_dashboard_report_subscription",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardReportSubscription"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardReport"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dashboards": {
       "post": {
         "tags": [
@@ -13450,6 +13786,196 @@
         }
       }
     },
+    "/api/v1/spreadsheets": {
+      "post": {
+        "tags": [
+          "dashboards"
+        ],
+        "operationId": "create_spreadsheet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSpreadsheetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Spreadsheet"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/spreadsheets/search": {
+      "post": {
+        "tags": [
+          "dashboards"
+        ],
+        "summary": "Spreadsheets by name (or author), all or the current user's, optionally of one team; newest first.",
+        "operationId": "search_spreadsheets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpreadsheetSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpreadsheetSearchPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/spreadsheets/{id}": {
+      "get": {
+        "tags": [
+          "dashboards"
+        ],
+        "operationId": "get_spreadsheet",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Spreadsheet"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "dashboards"
+        ],
+        "operationId": "delete_spreadsheet",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "dashboards"
+        ],
+        "operationId": "update_spreadsheet",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpreadsheetPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Spreadsheet"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/status-pages": {
       "get": {
         "tags": [
@@ -17975,6 +18501,30 @@
           }
         }
       },
+      "CreateSpreadsheetRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "definition": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Defaults to one empty sheet."
+          },
+          "name": {
+            "type": "string"
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "CreateTeamRequest": {
         "type": "object",
         "required": [
@@ -18396,6 +18946,263 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "DashboardReport": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "dashboardId",
+          "dashboardTitle",
+          "templateValues",
+          "timeFrame",
+          "schedule",
+          "scheduleLabel",
+          "recipients",
+          "message",
+          "subscribed",
+          "subscriberCount",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "author": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UserRef"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "dashboardId": {
+            "type": "string"
+          },
+          "dashboardTitle": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastSentAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "lastStatus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "sent | partial | failed"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nextRunAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/ReportSchedule"
+          },
+          "scheduleLabel": {
+            "type": "string",
+            "description": "\"Weekly on Monday at 09:00 (Europe/Paris)\"."
+          },
+          "subscribed": {
+            "type": "boolean",
+            "description": "The current user receives it by email."
+          },
+          "subscriberCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "templateValues": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "timeFrame": {
+            "type": "string",
+            "description": "1h | 4h | 1d | 2d | 1w | 1mo"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "DashboardReportDelivery": {
+        "type": "object",
+        "required": [
+          "recipient",
+          "status"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "sent | failed | not_sent (email not configured, not a member, unknown channel)"
+          }
+        }
+      },
+      "DashboardReportInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "dashboardId",
+          "timeFrame",
+          "schedule"
+        ],
+        "properties": {
+          "dashboardId": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/ReportSchedule"
+          },
+          "templateValues": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "timeFrame": {
+            "type": "string"
+          }
+        }
+      },
+      "DashboardReportOptions": {
+        "type": "object",
+        "required": [
+          "emailEnabled",
+          "channels",
+          "timeFrames"
+        ],
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The org's channel handles (`slack-checkout`)."
+          },
+          "emailEnabled": {
+            "type": "boolean",
+            "description": "Email is configured on this install (`OC_SMTP_URL`); without it only channels receive reports."
+          },
+          "timeFrames": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardReportTimeFrame"
+            }
+          }
+        }
+      },
+      "DashboardReportPreview": {
+        "type": "object",
+        "required": [
+          "subject",
+          "body",
+          "widgets",
+          "range"
+        ],
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "widgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportWidgetSummary"
+            }
+          }
+        }
+      },
+      "DashboardReportSubscription": {
+        "type": "object",
+        "required": [
+          "subscribed"
+        ],
+        "properties": {
+          "subscribed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DashboardReportTimeFrame": {
+        "type": "object",
+        "required": [
+          "key",
+          "label"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
           }
         }
       },
@@ -34494,6 +35301,110 @@
           }
         }
       },
+      "ReportSchedule": {
+        "type": "object",
+        "required": [
+          "frequency",
+          "time",
+          "timezone"
+        ],
+        "properties": {
+          "frequency": {
+            "type": "string",
+            "description": "daily | weekly | monthly"
+          },
+          "monthDay": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Monthly: 1–28.",
+            "minimum": 0
+          },
+          "time": {
+            "type": "string",
+            "description": "Local time `HH:MM` (24 h)."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone (`UTC`, `Europe/Paris`)."
+          },
+          "weekday": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Weekly: 0 = Sunday … 6 = Saturday.",
+            "minimum": 0
+          }
+        }
+      },
+      "ReportSeriesSummary": {
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "properties": {
+          "current": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "The last value in the frame."
+          },
+          "label": {
+            "type": "string",
+            "description": "The group (`service:billing`) or, ungrouped, the query."
+          },
+          "max": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "min": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "ReportWidgetSummary": {
+        "type": "object",
+        "required": [
+          "title",
+          "kind",
+          "series"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the widget's queries couldn't be summarized."
+          },
+          "kind": {
+            "type": "string"
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportSeriesSummary"
+            },
+            "description": "Empty for widgets that are only listed."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
       "ResourcePolicy": {
         "type": "object",
         "description": "A policy as stored, with its compliance on the current catalog.",
@@ -37781,6 +38692,172 @@
               "type": "integer",
               "format": "int64"
             }
+          }
+        }
+      },
+      "Spreadsheet": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "sheetCount",
+          "createdAt",
+          "modifiedAt",
+          "definition"
+        ],
+        "properties": {
+          "author": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UserRef"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "definition": {
+            "type": "object",
+            "description": "`{ sheets: [...] }` (schema owned by the web app)."
+          },
+          "id": {
+            "type": "string"
+          },
+          "modifiedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sheetCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SpreadsheetPatch": {
+        "type": "object",
+        "properties": {
+          "definition": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "An empty string clears the team."
+          }
+        }
+      },
+      "SpreadsheetSearchPage": {
+        "type": "object",
+        "required": [
+          "spreadsheets",
+          "total",
+          "teams"
+        ],
+        "properties": {
+          "spreadsheets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpreadsheetSummary"
+            }
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Teams with at least one spreadsheet, for the Teams filter."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SpreadsheetSearchRequest": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "view": {
+            "type": "string",
+            "description": "all | mine"
+          }
+        }
+      },
+      "SpreadsheetSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "sheetCount",
+          "createdAt",
+          "modifiedAt"
+        ],
+        "properties": {
+          "author": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UserRef"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "modifiedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sheetCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },

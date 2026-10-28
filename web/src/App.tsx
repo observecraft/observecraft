@@ -94,6 +94,9 @@ import { LinkPage } from './pages/auth/LinkPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { DashboardListPage, SharedDashboardsPage } from './pages/dashboards/list/DashboardListPage';
 import { DashboardPage } from './pages/dashboards/view/DashboardPage';
+import { ReportsPage } from './pages/dashboards/reports/ReportsPage';
+import { SheetsListPage } from './pages/sheets/SheetsListPage';
+import { SpreadsheetPage } from './pages/sheets/SpreadsheetPage';
 import { NotebookListPage, NotebookReportsPage, NotebookTemplatesPage } from './pages/notebooks/NotebookListPage';
 import { NotebookPage } from './pages/notebooks/NotebookPage';
 import { ErrorTrackingLayout } from './pages/errors/ErrorTrackingLayout';
@@ -281,6 +284,10 @@ function Shell() {
             <Route path="/kubernetes/rollouts" element={<KubernetesComingSoon tab="Live Rollouts" />} />
             <Route path="/dashboards" element={<DashboardListPage />} />
             <Route path="/dashboards/shared" element={<SharedDashboardsPage />} />
+            <Route path="/dashboards/reports" element={<ReportsPage />} />
+            <Route path="/dashboards/quick-graph" element={<DashboardListPage quickGraph />} />
+            <Route path="/sheets" element={<SheetsListPage />} />
+            <Route path="/sheets/:id" element={<SpreadsheetPage />} />
             <Route path="/dashboards/:id" element={<DashboardPage />} />
             <Route path="/notebooks" element={<NotebookListPage />} />
             <Route path="/notebooks/templates" element={<NotebookTemplatesPage />} />

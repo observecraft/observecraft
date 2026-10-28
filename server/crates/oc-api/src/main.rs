@@ -132,6 +132,7 @@ async fn main() -> anyhow::Result<()> {
     drop(setup_lock);
     tokio::spawn(routes::archives::run_archiver(state.clone()));
     tokio::spawn(routes::notifications::run_notifier(state.clone()));
+    tokio::spawn(routes::dashboard_reports::run_scheduler(state.clone()));
     tokio::spawn(routes::on_call::run_escalations(state.clone()));
     tokio::spawn(routes::synthetics::run_scheduler(state.clone()));
     tokio::spawn(routes::scorecards::run_scheduler(state.clone()));

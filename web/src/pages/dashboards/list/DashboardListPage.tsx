@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useState } from 'react';
-import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronDown, ChevronRight, EllipsisVertical, LayoutDashboard, PanelLeft, PanelLeftClose, Pin, Plus, Search, Siren, Star } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ChevronDown, ChevronRight, EllipsisVertical, PanelLeft, PanelLeftClose, Pin, Plus, Search, Siren, Star } from 'lucide-react';
 import type { DashboardSummary, PresetList } from '../../../api/dashboards/types';
 import { Empty, ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { Menu, Select } from '../../../components/ui/Dropdown';
@@ -10,6 +10,7 @@ import { timeAgo } from '../../../lib/format';
 import { IntegrationLogo } from '../../integrations/IntegrationLogo';
 import { useAddToList, useCloneDashboard, useCreateList, useDashboardSearch, useDeleteDashboards, useLists, useRecentlyViewed, useRestoreDashboard, useUpdateDashboardStar } from '../queries';
 import { CreateDashboardModal } from './CreateDashboardModal';
+import { DashboardsHeader } from './DashboardsHeader';
 import '../dashboards.css';
 
 const PAGE = 50;
@@ -61,7 +62,8 @@ function StarButton({ d }: { d: DashboardSummary }) {
   );
 }
 
-export function DashboardListPage() {
+/** `quickGraph`: opened at /dashboards/quick-graph, which shows the Quick Graph dialog over the list. */
+export function DashboardListPage({ quickGraph = false }: { quickGraph?: boolean } = {}) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
@@ -127,27 +129,14 @@ export function DashboardListPage() {
 
   return (
     <div className="dl-page">
-      <header className="product-header">
-        <div className="product-title">
-          <LayoutDashboard size={20} /> Dashboards
-        </div>
-        <nav className="product-tabs">
-          <NavLink to="/dashboards" end className={({ isActive }) => `product-tab${isActive ? ' active' : ''}`}>
-            List
-          </NavLink>
-          <NavLink to="/dashboards/shared" className={({ isActive }) => `product-tab${isActive ? ' active' : ''}`}>
-            Shared Dashboards
-          </NavLink>
-        </nav>
-        <div className="dl-header-actions">
-          <button className="btn" onClick={() => setNewList(true)}>
-            <Plus size={14} /> New List
-          </button>
-          <button className="btn btn-primary" onClick={() => setCreating(true)}>
-            <Plus size={14} /> New Dashboard
-          </button>
-        </div>
-      </header>
+      <DashboardsHeader quickGraph={quickGraph} onQuickGraphClose={() => quickGraph && navigate('/dashboards', { replace: true })}>
+        <button className="btn" onClick={() => setNewList(true)}>
+          <Plus size={14} /> New List
+        </button>
+        <button className="btn btn-primary" onClick={() => setCreating(true)}>
+          <Plus size={14} /> New Dashboard
+        </button>
+      </DashboardsHeader>
 
       <div className="dl-scroll">
         <label className="int-search dl-search">
@@ -162,9 +151,7 @@ export function DashboardListPage() {
                 <PanelLeftClose size={15} /> Hide Controls
               </button>
               <div className="et-side-card" onClick={() => setTeamsOpen((o) => !o)}>
-                <span className="et-side-toggle">
-                  {teamsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Teams
-                </span>
+                <span className="et-side-toggle">{teamsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Teams</span>
                 <Pin size={14} className="muted" />
               </div>
               {teamsOpen && (
@@ -251,7 +238,7 @@ export function DashboardListPage() {
               </section>
             )}
 
-            <h2 className="dl-h2">{listId ? lists.data?.find((l) => l.id === listId)?.name : PRESETS.find((p) => p.key === preset)?.label ?? 'All Dashboards'}</h2>
+            <h2 className="dl-h2">{listId ? lists.data?.find((l) => l.id === listId)?.name : (PRESETS.find((p) => p.key === preset)?.label ?? 'All Dashboards')}</h2>
             <div className="dl-table-card">
               <div className="dl-table-bar">
                 <strong>{total ? `${offset + 1}–${Math.min(offset + PAGE, total)}` : '0'}</strong> of <strong>{total.toLocaleString()}</strong> dashboards
@@ -439,19 +426,7 @@ export function DashboardListPage() {
 export function SharedDashboardsPage() {
   return (
     <div className="dl-page">
-      <header className="product-header">
-        <div className="product-title">
-          <LayoutDashboard size={20} /> Dashboards
-        </div>
-        <nav className="product-tabs">
-          <NavLink to="/dashboards" end className={({ isActive }) => `product-tab${isActive ? ' active' : ''}`}>
-            List
-          </NavLink>
-          <NavLink to="/dashboards/shared" className={({ isActive }) => `product-tab${isActive ? ' active' : ''}`}>
-            Shared Dashboards
-          </NavLink>
-        </nav>
-      </header>
+      <DashboardsHeader />
       <Empty>No dashboards are shared publicly. Public sharing links will be listed here once sharing is enabled.</Empty>
     </div>
   );

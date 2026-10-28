@@ -6,6 +6,7 @@ pub mod catalog;
 pub mod changes;
 pub mod ci;
 pub mod cloud_map;
+pub mod dashboard_reports;
 pub mod dashboards;
 pub mod derived_metrics;
 pub mod deployment_gates;
@@ -68,6 +69,7 @@ pub mod resource_policies;
 pub mod resource_policy_rules;
 pub mod scorecard_rules;
 pub mod scorecards;
+pub mod sheets;
 pub mod service_checks;
 pub mod spans;
 pub mod standard_attributes;
@@ -169,6 +171,20 @@ use crate::state::AppState;
         notebooks::delete,
         notebooks::restore,
         notebooks::set_favorite,
+        dashboard_reports::list,
+        dashboard_reports::options,
+        dashboard_reports::get_one,
+        dashboard_reports::create,
+        dashboard_reports::update,
+        dashboard_reports::delete,
+        dashboard_reports::subscribe,
+        dashboard_reports::preview,
+        dashboard_reports::send_now,
+        sheets::search,
+        sheets::get_one,
+        sheets::create,
+        sheets::update,
+        sheets::delete,
         events::search,
         events::fields,
         events::work_items,
@@ -633,6 +649,18 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/notebooks/:id/clone", post(notebooks::clone))
         .route("/api/v1/notebooks/:id/restore", post(notebooks::restore))
         .route("/api/v1/notebooks/:id/favorite", axum::routing::put(notebooks::set_favorite))
+        .route("/api/v1/dashboard-reports", get(dashboard_reports::list).post(dashboard_reports::create))
+        .route("/api/v1/dashboard-reports/options", get(dashboard_reports::options))
+        .route(
+            "/api/v1/dashboard-reports/:id",
+            get(dashboard_reports::get_one).put(dashboard_reports::update).delete(dashboard_reports::delete),
+        )
+        .route("/api/v1/dashboard-reports/:id/subscription", axum::routing::put(dashboard_reports::subscribe))
+        .route("/api/v1/dashboard-reports/:id/preview", get(dashboard_reports::preview))
+        .route("/api/v1/dashboard-reports/:id/send", post(dashboard_reports::send_now))
+        .route("/api/v1/spreadsheets", post(sheets::create))
+        .route("/api/v1/spreadsheets/search", post(sheets::search))
+        .route("/api/v1/spreadsheets/:id", get(sheets::get_one).patch(sheets::update).delete(sheets::delete))
         .route("/api/v1/dashboards/recent", get(dashboards::recent))
         .route("/api/v1/dashboards/delete", post(dashboards::delete))
         .route(
@@ -1187,6 +1215,8 @@ mod tests {
             include_str!("sso.rs"),
             include_str!("spans.rs"),
             include_str!("dashboards.rs"),
+            include_str!("dashboard_reports.rs"),
+            include_str!("sheets.rs"),
             include_str!("downtimes.rs"),
             include_str!("slos.rs"),
             include_str!("slo_math.rs"),
@@ -1294,6 +1324,8 @@ mod tests {
             ("deployment_gates.rs", include_str!("deployment_gates.rs")),
             ("pr_gates.rs", include_str!("pr_gates.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),
+            ("dashboard_reports.rs", include_str!("dashboard_reports.rs")),
+            ("sheets.rs", include_str!("sheets.rs")),
             ("error_tracking.rs", include_str!("error_tracking.rs")),
             ("hosts.rs", include_str!("hosts.rs")),
             ("gpu.rs", include_str!("gpu.rs")),
@@ -1405,6 +1437,8 @@ mod tests {
             ("deployment_gates.rs", include_str!("deployment_gates.rs")),
             ("pr_gates.rs", include_str!("pr_gates.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),
+            ("dashboard_reports.rs", include_str!("dashboard_reports.rs")),
+            ("sheets.rs", include_str!("sheets.rs")),
             ("downtimes.rs", include_str!("downtimes.rs")),
             ("error_tracking.rs", include_str!("error_tracking.rs")),
             ("events.rs", include_str!("events.rs")),

@@ -1,0 +1,245 @@
+/* Dashboards → Sheets: list and spreadsheet editor. */
+.ss-count {
+  margin-left: 6px;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+}
+
+.ss-header {
+  gap: 10px;
+}
+
+.ss-name {
+  min-width: 260px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 17px;
+  font-weight: var(--fw-medium);
+}
+
+.ss-name:hover,
+.ss-name:focus {
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+.ss-team {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+}
+
+.ss-team input {
+  width: 120px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.ss-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 8px 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ss-tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--bg-subtle);
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+
+.ss-tab.active {
+  background: var(--bg, #fff);
+  color: var(--primary);
+  margin-bottom: -1px;
+  height: 31px;
+}
+
+.ss-tab input {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.ss-add-tab {
+  height: 30px;
+  padding: 0 8px;
+}
+
+.ss-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 12px 16px 16px;
+  gap: 10px;
+}
+
+.ss-source,
+.ss-tools,
+.ss-panel-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ss-source select,
+.ss-source input:not([type='checkbox']),
+.ss-panel select,
+.ss-panel input:not([type='checkbox']) {
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-md);
+}
+
+.ss-query {
+  flex: 1;
+  min-width: 320px;
+  font-family: var(--font-mono, monospace);
+}
+
+.ss-aggs {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-md);
+}
+
+.ss-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+}
+
+.ss-inline input[type='number'] {
+  width: 70px;
+}
+
+.ss-tools .btn.active {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.ss-meta {
+  margin-left: auto;
+  font-size: var(--fs-md);
+}
+
+.ss-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+
+.ss-panel .btn {
+  align-self: flex-start;
+}
+
+.ss-help {
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.ss-col-name {
+  width: 160px;
+}
+
+.ss-formula {
+  flex: 1;
+  min-width: 280px;
+  font-family: var(--font-mono, monospace);
+}
+
+.ss-row-error {
+  flex-basis: 100%;
+  margin: 0 0 0 4px;
+  font-size: var(--fs-sm);
+}
+
+.ss-grid-wrap {
+  flex: 1;
+  min-height: 200px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ss-grid {
+  border-collapse: collapse;
+  font-size: var(--fs-md);
+  min-width: 100%;
+}
+
+.ss-grid th,
+.ss-grid td {
+  height: 28px;
+  padding: 0 10px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ss-grid th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-subtle);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.ss-grid th svg {
+  margin-left: 4px;
+  vertical-align: -2px;
+}
+
+.ss-grid .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ss-rownum {
+  width: 1%;
+  color: var(--text-faint);
+  text-align: right !important;
+  background: var(--bg-subtle);
+}
+
+.ss-err-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: var(--status-error);
+}
+
+.ss-none {
+  padding: 16px !important;
+}

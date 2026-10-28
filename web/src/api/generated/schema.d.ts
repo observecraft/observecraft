@@ -731,6 +731,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's reports (the web app filters "Created by you" and "Subscribed"). */
+        get: operations["list_dashboard_reports"];
+        put?: never;
+        post: operations["create_dashboard_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard-reports/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dashboard_report_options"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard-reports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_dashboard_report"];
+        put: operations["update_dashboard_report"];
+        post?: never;
+        delete: operations["delete_dashboard_report"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard-reports/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preview_dashboard_report"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard-reports/{id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends the report now to its recipients (emails only when email is configured). */
+        post: operations["send_dashboard_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard-reports/{id}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Subscribes the current user to the report (by email), or unsubscribes them. */
+        put: operations["set_dashboard_report_subscription"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboards": {
         parameters: {
             query?: never;
@@ -4977,6 +5076,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/spreadsheets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_spreadsheet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spreadsheets/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Spreadsheets by name (or author), all or the current user's, optionally of one team; newest first. */
+        post: operations["search_spreadsheets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spreadsheets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_spreadsheet"];
+        put?: never;
+        post?: never;
+        delete: operations["delete_spreadsheet"];
+        options?: never;
+        head?: never;
+        patch: operations["update_spreadsheet"];
+        trace?: never;
+    };
     "/api/v1/status-pages": {
         parameters: {
             query?: never;
@@ -6328,6 +6476,12 @@ export interface components {
             team: string;
             title: string;
         };
+        CreateSpreadsheetRequest: {
+            /** @description Defaults to one empty sheet. */
+            definition?: Record<string, never> | null;
+            name: string;
+            team?: string | null;
+        };
         CreateTeamRequest: {
             description?: string;
             handle: string;
@@ -6429,6 +6583,75 @@ export interface components {
             /** Format: int64 */
             step_ms: number;
             unit?: string | null;
+        };
+        DashboardReport: {
+            author?: null | components["schemas"]["UserRef"];
+            /** Format: int64 */
+            createdAt: number;
+            dashboardId: string;
+            dashboardTitle: string;
+            id: string;
+            lastError?: string | null;
+            /** Format: int64 */
+            lastSentAt?: number | null;
+            /** @description sent | partial | failed */
+            lastStatus?: string | null;
+            message: string;
+            name: string;
+            /** Format: int64 */
+            nextRunAt?: number | null;
+            recipients: string[];
+            schedule: components["schemas"]["ReportSchedule"];
+            /** @description "Weekly on Monday at 09:00 (Europe/Paris)". */
+            scheduleLabel: string;
+            /** @description The current user receives it by email. */
+            subscribed: boolean;
+            /** Format: int64 */
+            subscriberCount: number;
+            templateValues: {
+                [key: string]: string;
+            };
+            /** @description 1h | 4h | 1d | 2d | 1w | 1mo */
+            timeFrame: string;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        DashboardReportDelivery: {
+            error?: string | null;
+            recipient: string;
+            /** @description sent | failed | not_sent (email not configured, not a member, unknown channel) */
+            status: string;
+        };
+        DashboardReportInput: {
+            dashboardId: string;
+            message?: string;
+            name: string;
+            recipients?: string[];
+            schedule: components["schemas"]["ReportSchedule"];
+            templateValues?: {
+                [key: string]: string;
+            };
+            timeFrame: string;
+        };
+        DashboardReportOptions: {
+            /** @description The org's channel handles (`slack-checkout`). */
+            channels: string[];
+            /** @description Email is configured on this install (`OC_SMTP_URL`); without it only channels receive reports. */
+            emailEnabled: boolean;
+            timeFrames: components["schemas"]["DashboardReportTimeFrame"][];
+        };
+        DashboardReportPreview: {
+            body: string;
+            range: components["schemas"]["TimeRange"];
+            subject: string;
+            widgets: components["schemas"]["ReportWidgetSummary"][];
+        };
+        DashboardReportSubscription: {
+            subscribed: boolean;
+        };
+        DashboardReportTimeFrame: {
+            key: string;
+            label: string;
         };
         DashboardSearchPage: {
             dashboards: components["schemas"]["DashboardSummary"][];
@@ -11312,6 +11535,45 @@ export interface components {
             /** @description Every pipeline id, in processing order. */
             ids: string[];
         };
+        ReportSchedule: {
+            /** @description daily | weekly | monthly */
+            frequency: string;
+            /**
+             * Format: int32
+             * @description Monthly: 1–28.
+             */
+            monthDay?: number | null;
+            /** @description Local time `HH:MM` (24 h). */
+            time: string;
+            /** @description IANA zone (`UTC`, `Europe/Paris`). */
+            timezone: string;
+            /**
+             * Format: int32
+             * @description Weekly: 0 = Sunday … 6 = Saturday.
+             */
+            weekday?: number | null;
+        };
+        ReportSeriesSummary: {
+            /**
+             * Format: double
+             * @description The last value in the frame.
+             */
+            current?: number | null;
+            /** @description The group (`service:billing`) or, ungrouped, the query. */
+            label: string;
+            /** Format: double */
+            max?: number | null;
+            /** Format: double */
+            min?: number | null;
+        };
+        ReportWidgetSummary: {
+            /** @description Why the widget's queries couldn't be summarized. */
+            error?: string | null;
+            kind: string;
+            /** @description Empty for widgets that are only listed. */
+            series: components["schemas"]["ReportSeriesSummary"][];
+            title: string;
+        };
         /** @description A policy as stored, with its compliance on the current catalog. */
         ResourcePolicy: {
             category: components["schemas"]["PolicyCategory"];
@@ -12328,6 +12590,51 @@ export interface components {
             /** Format: int64 */
             stepMs: number;
             times: number[];
+        };
+        Spreadsheet: {
+            author?: null | components["schemas"]["UserRef"];
+            /** Format: int64 */
+            createdAt: number;
+            /** @description `{ sheets: [...] }` (schema owned by the web app). */
+            definition: Record<string, never>;
+            id: string;
+            /** Format: int64 */
+            modifiedAt: number;
+            name: string;
+            /** Format: int32 */
+            sheetCount: number;
+            team?: string | null;
+        };
+        SpreadsheetPatch: {
+            definition?: Record<string, never> | null;
+            name?: string | null;
+            /** @description An empty string clears the team. */
+            team?: string | null;
+        };
+        SpreadsheetSearchPage: {
+            spreadsheets: components["schemas"]["SpreadsheetSummary"][];
+            /** @description Teams with at least one spreadsheet, for the Teams filter. */
+            teams: string[];
+            /** Format: int64 */
+            total: number;
+        };
+        SpreadsheetSearchRequest: {
+            query?: string;
+            team?: string | null;
+            /** @description all | mine */
+            view?: string;
+        };
+        SpreadsheetSummary: {
+            author?: null | components["schemas"]["UserRef"];
+            /** Format: int64 */
+            createdAt: number;
+            id: string;
+            /** Format: int64 */
+            modifiedAt: number;
+            name: string;
+            /** Format: int32 */
+            sheetCount: number;
+            team?: string | null;
         };
         SsoOption: {
             label: string;
@@ -14926,6 +15233,255 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardList"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_dashboard_reports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReport"][];
+                };
+            };
+        };
+    };
+    create_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardReportInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReport"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    dashboard_report_options: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReportOptions"];
+                };
+            };
+        };
+    };
+    get_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReport"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardReportInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReport"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    preview_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReportPreview"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    send_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReportDelivery"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_dashboard_report_subscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardReportSubscription"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReport"];
                 };
             };
             404: {
@@ -23537,6 +24093,149 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    create_spreadsheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSpreadsheetRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Spreadsheet"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_spreadsheets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpreadsheetSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpreadsheetSearchPage"];
+                };
+            };
+        };
+    };
+    get_spreadsheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Spreadsheet"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_spreadsheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_spreadsheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpreadsheetPatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Spreadsheet"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
