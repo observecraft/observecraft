@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Bot, Wrench } from 'lucide-react';
+import { Sparkles, Wrench } from 'lucide-react';
 import { CopyButton } from '../settings/SecuritySettings';
 import { fill } from '../setup/sources';
 
@@ -77,7 +77,7 @@ const AGENT_PROMPT = [
 export function LlmOnboarding() {
   const navigate = useNavigate();
   const client = useQueryClient();
-  const [method, setMethod] = useState<Method>('manual');
+  const [method, setMethod] = useState<Method>('agent');
   const [sdk, setSdk] = useState<Sdk>('otel');
   const [app, setApp] = useState('support-assistant');
   const values = { intake: intakeUrl(), apiKey: '<API_KEY>' };
@@ -86,75 +86,80 @@ export function LlmOnboarding() {
   return (
     <div className="llm-onboarding">
       <h1>Submit your first trace</h1>
-      <p className="muted">
-        LLM Observability reads the LLM spans in your traces: model calls, agents, tools and retrieval steps sent with the OpenTelemetry GenAI conventions, OpenLLMetry or dd-trace. Nothing else to
-        deploy: they arrive through the same intake as the rest of your telemetry.
-      </p>
       <div className="llm-divider">
         <span>Choose setup method</span>
       </div>
       <div className="llm-methods">
         <button className={`llm-method${method === 'agent' ? ' selected' : ''}`} onClick={() => setMethod('agent')}>
-          <Bot size={22} />
-          <b>Set up with your coding agent</b>
-          <span className="muted">Copy a prompt that asks your AI coding assistant to add the instrumentation.</span>
+          <span className="llm-method-icon">
+            <Sparkles size={20} />
+          </span>
+          <span>
+            <b>Set up with your coding agent</b>
+            <span>Copy one prompt into your AI coding assistant and let it add the instrumentation.</span>
+          </span>
         </button>
         <button className={`llm-method${method === 'manual' ? ' selected' : ''}`} onClick={() => setMethod('manual')}>
-          <Wrench size={22} />
-          <b>Set up manually</b>
-          <span className="muted">Install an SDK and set a few environment variables.</span>
+          <span className="llm-method-icon">
+            <Wrench size={20} />
+          </span>
+          <span>
+            <b>Set up manually</b>
+            <span>Install an SDK and set a few environment variables.</span>
+          </span>
         </button>
       </div>
-      <ol className="llm-steps">
-        <li className="llm-step-plain">
-          <label className="llm-field">
-            <span>Application name</span>
-            <input className="input" value={app} onChange={(e) => setApp(e.target.value)} placeholder="my-llm-app" />
-          </label>
-          <span className="muted">Shown as the ML application; the service name of the spans.</span>
-        </li>
-        <li>
-          <h3>Instrument your application</h3>
-          {method === 'agent' ? (
-            <>
-              <p className="muted">Paste this into your coding agent, in the repository of the application.</p>
-              <Snippet text={withApp(AGENT_PROMPT)} />
-            </>
-          ) : (
-            <>
-              <div className="llm-seg">
-                {SDKS.map((s) => (
-                  <button key={s.id} className={sdk === s.id ? 'active' : ''} onClick={() => setSdk(s.id)}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-              <p className="muted">{chosen.note}</p>
-              <Snippet text={withApp(chosen.code)} />
-            </>
-          )}
-        </li>
-        <li>
-          <h3>Select an API key</h3>
-          <p className="muted">
-            Replace <code>&lt;API_KEY&gt;</code> with a key from <Link to="/organization-settings/api-keys">Organization Settings → API Keys</Link>. The intake for this install is{' '}
-            <code>{values.intake}</code>.
-          </p>
-        </li>
-        <li>
-          <h3>Continue</h3>
-          <p className="muted">Run the application and send it a request. Traces show up within a few seconds.</p>
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              void client.invalidateQueries({ queryKey: ['llm'] });
-              navigate(`/llm/traces?app=${encodeURIComponent(app.trim())}`);
-            }}
-          >
-            Continue to Traces
-          </button>
-        </li>
-      </ol>
+      <div className="llm-onb-card">
+        <label className="llm-field">
+          <span>
+            Application Name <span className="llm-required">*</span>
+          </span>
+          <input className="input" value={app} onChange={(e) => setApp(e.target.value)} placeholder="application-name" />
+        </label>
+        <ol className="llm-steps">
+          <li>
+            <h3>Instrument your application</h3>
+            {method === 'agent' ? (
+              <>
+                <p className="muted">Paste this into your coding agent, in the repository of the application.</p>
+                <Snippet text={withApp(AGENT_PROMPT)} />
+              </>
+            ) : (
+              <>
+                <div className="llm-seg">
+                  {SDKS.map((s) => (
+                    <button key={s.id} className={sdk === s.id ? 'active' : ''} onClick={() => setSdk(s.id)}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="muted">{chosen.note}</p>
+                <Snippet text={withApp(chosen.code)} />
+              </>
+            )}
+          </li>
+          <li>
+            <h3>Select an API key</h3>
+            <p className="muted">
+              Replace <code>&lt;API_KEY&gt;</code> with a key from <Link to="/organization-settings/api-keys">Organization Settings → API Keys</Link>. The intake for this install is{' '}
+              <code>{values.intake}</code>.
+            </p>
+          </li>
+          <li>
+            <h3>Continue</h3>
+            <p className="muted">Run the application and send it a request. Traces show up within a few seconds.</p>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                void client.invalidateQueries({ queryKey: ['llm'] });
+                navigate(`/llm/traces?app=${encodeURIComponent(app.trim())}`);
+              }}
+            >
+              Continue to Traces
+            </button>
+          </li>
+        </ol>
+      </div>
     </div>
   );
 }

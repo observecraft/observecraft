@@ -1,5 +1,24 @@
 import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Bot, ChevronDown, LayoutGrid, Plus } from 'lucide-react';
+import {
+  Bot,
+  ChevronDown,
+  CircleDollarSign,
+  ClipboardCheck,
+  Code2,
+  Database,
+  FlaskConical,
+  Globe,
+  LayoutDashboard,
+  LayoutGrid,
+  Lightbulb,
+  ListTree,
+  MessageSquare,
+  MessageSquareText,
+  Play,
+  Settings,
+  Shapes,
+  type LucideIcon,
+} from 'lucide-react';
 import type { LlmQuery } from '../../api/llm/client';
 import { TimePicker } from '../../components/shell/PageHeader';
 import { TimeProvider, useTime } from '../../components/shell/TimeContext';
@@ -12,6 +31,7 @@ import './llm.css';
 interface NavItem {
   to: string;
   label: string;
+  icon: LucideIcon;
   /** Not built yet: listed greyed out. */
   soon?: boolean;
 }
@@ -20,44 +40,44 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: 'OVERVIEW',
     items: [
-      { to: '/llm', label: 'Applications' },
-      { to: '/llm/cost', label: 'Cost' },
-      { to: 'patterns', label: 'Patterns', soon: true },
+      { to: '/llm', label: 'Applications', icon: Code2 },
+      { to: '/llm/cost', label: 'Cost', icon: CircleDollarSign },
+      { to: 'patterns', label: 'Patterns', icon: Shapes, soon: true },
     ],
   },
   {
     section: 'INVESTIGATE',
     items: [
-      { to: '/llm/traces', label: 'Traces' },
-      { to: '/llm/evaluations', label: 'Evaluations' },
-      { to: 'annotations', label: 'Annotations', soon: true },
-      { to: 'insights', label: 'Insights', soon: true },
+      { to: '/llm/traces', label: 'Traces', icon: ListTree },
+      { to: '/llm/evaluations', label: 'Evaluations', icon: ClipboardCheck },
+      { to: 'annotations', label: 'Annotations', icon: MessageSquare, soon: true },
+      { to: 'insights', label: 'Insights', icon: Lightbulb, soon: true },
     ],
   },
   {
     section: 'IMPROVE',
     items: [
-      { to: 'playground', label: 'Playground', soon: true },
-      { to: 'experiments', label: 'Experiments', soon: true },
-      { to: 'datasets', label: 'Datasets', soon: true },
+      { to: 'playground', label: 'Playground', icon: Play, soon: true },
+      { to: 'experiments', label: 'Experiments', icon: FlaskConical, soon: true },
+      { to: 'datasets', label: 'Datasets', icon: Database, soon: true },
     ],
   },
   {
     section: 'CONFIGURE',
     items: [
-      { to: 'prompts', label: 'Prompts', soon: true },
-      { to: 'gateway', label: 'AI Gateway', soon: true },
+      { to: 'prompts', label: 'Prompts', icon: MessageSquareText, soon: true },
+      { to: 'gateway', label: 'AI Gateway', icon: Globe, soon: true },
     ],
   },
 ];
 
 /** Default time range per section: a week for the overviews, an hour when investigating. */
-function section(pathname: string): { id: string; initial: string } {
-  if (pathname.startsWith('/llm/traces')) return { id: 'traces', initial: '1h' };
-  if (pathname.startsWith('/llm/evaluations')) return { id: 'evaluations', initial: '1d' };
-  if (pathname.startsWith('/llm/cost')) return { id: 'cost', initial: '1w' };
-  if (pathname.startsWith('/llm/setup')) return { id: 'setup', initial: '1w' };
-  return { id: 'applications', initial: '1w' };
+function section(pathname: string): { id: string; title: string; initial: string } {
+  if (pathname.startsWith('/llm/traces')) return { id: 'traces', title: 'Traces', initial: '1h' };
+  if (pathname.startsWith('/llm/evaluations')) return { id: 'evaluations', title: 'Evaluations', initial: '1d' };
+  if (pathname.startsWith('/llm/cost')) return { id: 'cost', title: 'Cost', initial: '1w' };
+  if (pathname.startsWith('/llm/setup')) return { id: 'setup', title: 'Applications', initial: '1w' };
+  return { id: 'applications', title: 'Applications', initial: '1w' };
 }
 
 /** The selected ML application (`?app=`), shared by every LLM Observability page. */
@@ -86,12 +106,12 @@ export function LlmLayout() {
   const s = section(pathname);
   return (
     <TimeProvider key={s.id} initial={s.initial}>
-      <LlmFrame setup={s.id === 'setup'} />
+      <LlmFrame setup={s.id === 'setup'} title={s.title} />
     </TimeProvider>
   );
 }
 
-function LlmFrame({ setup }: { setup: boolean }) {
+function LlmFrame({ setup, title }: { setup: boolean; title: string }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const has = useHasLlmData();
@@ -105,30 +125,28 @@ function LlmFrame({ setup }: { setup: boolean }) {
   };
   return (
     <div className="llm-layout">
-      <header className="product-header">
-        <div className="product-title">
+      <header className="product-header llm-header">
+        <div className="product-title llm-title">
           <Bot size={20} />
           LLM Observability
         </div>
+        <h1 className="llm-page-title">{title}</h1>
         <AppSelector />
-        <Menu
-          trigger={
-            <>
-              <LayoutGrid size={14} /> Views <ChevronDown size={14} />
-            </>
-          }
-          align="left"
-          items={[
-            { label: 'Traces with errors', onClick: () => navigate(keep('/llm/traces', { status: 'error' })) },
-            { label: 'Agent runs', onClick: () => navigate(keep('/llm/traces', { kind: 'agent' })) },
-            { label: 'Failed evaluations: PII in output', onClick: () => navigate(keep('/llm/evaluations', { check: 'pii_in_output' })) },
-            { label: 'Cost by application', onClick: () => navigate(keep('/llm/cost', { by: 'ml_app' })) },
-          ]}
-        />
         <div className="llm-header-right">
-          <button className="btn" onClick={() => navigate('/llm/setup')}>
-            <Plus size={14} /> Add an application
-          </button>
+          <Menu
+            trigger={
+              <>
+                <LayoutGrid size={14} /> Views <ChevronDown size={14} />
+              </>
+            }
+            align="right"
+            items={[
+              { label: 'Traces with errors', onClick: () => navigate(keep('/llm/traces', { status: 'error' })) },
+              { label: 'Agent runs', onClick: () => navigate(keep('/llm/traces', { kind: 'agent' })) },
+              { label: 'Failed evaluations: PII in output', onClick: () => navigate(keep('/llm/evaluations', { check: 'pii_in_output' })) },
+              { label: 'Cost by application', onClick: () => navigate(keep('/llm/cost', { by: 'ml_app' })) },
+            ]}
+          />
           <TimePicker />
         </div>
       </header>
@@ -140,11 +158,13 @@ function LlmFrame({ setup }: { setup: boolean }) {
               {g.items.map((i) =>
                 i.soon ? (
                   <span key={i.to} className="llm-nav-link soon" title={`${i.label} isn't built yet`}>
+                    <i.icon size={15} />
                     {i.label}
                     <span className="llm-soon">SOON</span>
                   </span>
                 ) : (
                   <NavLink key={i.to} to={keep(i.to)} end className={({ isActive }) => `llm-nav-link${isActive ? ' active' : ''}`}>
+                    <i.icon size={15} />
                     {i.label}
                   </NavLink>
                 ),
@@ -153,9 +173,11 @@ function LlmFrame({ setup }: { setup: boolean }) {
           ))}
           <div className="llm-nav-bottom">
             <NavLink to="/dashboards" className="llm-nav-link">
+              <LayoutDashboard size={15} />
               Dashboards
             </NavLink>
             <span className="llm-nav-link soon" title="Settings aren't built yet">
+              <Settings size={15} />
               Settings
               <span className="llm-soon">SOON</span>
             </span>
