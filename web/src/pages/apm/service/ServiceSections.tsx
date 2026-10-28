@@ -21,13 +21,33 @@ function Pending({ q }: { q: { isPending: boolean; isError: boolean; error: unkn
 
 /* ---------- Service Summary ---------- */
 
+const LABEL_STEPS_MIN = [1, 2, 5, 10, 15, 30, 60, 120, 180, 360, 720, 1440];
+
+/** An axis label formatter that prints only times on the step (local minutes), blank otherwise. */
+function roundLabels(stepMs: number): (v: number) => string {
+  const step = stepMs / 60e3;
+  return (v) => {
+    const d = new Date(v);
+    return (d.getHours() * 60 + d.getMinutes()) % step === 0 && d.getSeconds() === 0 ? hhmm(v) : '';
+  };
+}
+
+/** A round label step (ms) giving about five labels over the series' span. */
+function labelStep(series: ServiceSummary['series']): number {
+  const span = series.length > 1 ? series[series.length - 1].t - series[0].t : 3600e3;
+  const minutes = LABEL_STEPS_MIN.find((m) => span / (m * 60e3) <= 6) ?? 1440;
+  return minutes * 60e3;
+}
+
 function timeChart(summary: ServiceSummary, kind: 'requests' | 'errors' | 'latency'): EChartsOption {
   const s = summary.series;
   const base: EChartsOption = {
     grid: { left: 58, right: 10, top: 12, bottom: 44 },
     tooltip: { trigger: 'axis' },
     legend: { bottom: 0, left: 0, textStyle: { fontSize: 11 } },
-    xAxis: { type: 'time', axisLabel: { formatter: (v: number) => hhmm(v) } },
+    // About five labels whatever the range: ECharts packs line charts' ticks tighter than bars', so
+    // only round times are labelled.
+    xAxis: { type: 'time', axisLabel: { formatter: roundLabels(labelStep(s)), hideOverlap: true } },
   };
   if (kind === 'latency') {
     return {
@@ -323,7 +343,9 @@ export function DependenciesSection({ scope }: { scope: ServiceScope }) {
 export function TracesSection({ scope, onOpen }: { scope: ServiceScope; onOpen: (traceId: string) => void }) {
   const navigate = useNavigate();
   const [errorsOnly, setErrorsOnly] = useState(false);
-  const query = [`service:${scope.service}`, scope.resource && `resource:"${scope.resource.replace(/"/g, '')}"`, scope.version && `version:${scope.version}`, errorsOnly && 'status:error'].filter(Boolean).join(' ');
+  const query = [`service:${scope.service}`, scope.resource && `resource:"${scope.resource.replace(/"/g, '')}"`, scope.version && `version:${scope.version}`, errorsOnly && 'status:error']
+    .filter(Boolean)
+    .join(' ');
   const q = useSpanSearch({ range: scope.range, env: scope.env, query, limit: 25 });
   return (
     <CollapsibleSection
@@ -347,7 +369,15 @@ export function TracesSection({ scope, onOpen }: { scope: ServiceScope; onOpen: 
   );
 }
 
-export function SpanTable({ spans, onOpen, showService = true }: { spans: { traceId: string; spanId: string; timestamp: number; service: string; resource: string; durationMs: number; status: string; httpStatus: string; env: string }[]; onOpen: (traceId: string) => void; showService?: boolean }) {
+export function SpanTable({
+  spans,
+  onOpen,
+  showService = true,
+}: {
+  spans: { traceId: string; spanId: string; timestamp: number; service: string; resource: string; durationMs: number; status: string; httpStatus: string; env: string }[];
+  onOpen: (traceId: string) => void;
+  showService?: boolean;
+}) {
   if (spans.length === 0) return <div className="hp-empty">No traces match</div>;
   return (
     <table className="apm-table">
