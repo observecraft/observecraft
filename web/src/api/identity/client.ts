@@ -17,11 +17,6 @@ export type MappingKind = S['MappingKind'];
 
 const live = API_MODE === 'live';
 
-/** For clients without an in-browser mock yet: fails outside live mode with an explanation. */
-export function requireLive(): void {
-  if (!live) throw new Error('This page reads organization data from the API. Start it and run the UI with VITE_API_MODE=live.');
-}
-
 export async function getProfile() {
   if (!live) return mock.getProfile();
   return get('/api/v1/me', {});

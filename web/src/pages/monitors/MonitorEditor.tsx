@@ -721,6 +721,8 @@ function Backtest({ type, query, options, hasThreshold }: { type: MonitorType; q
       yAxis: {
         type: 'value',
         scale: true,
+        // The axis can start at a threshold or a data minimum (61.3333…): label it rounded.
+        axisLabel: { formatter: (v: number) => fmtValue(v) },
         ...(lines.length
           ? {
               min: (v: { min: number }) => Math.min(v.min, ...lines.map((l) => l.yAxis)),
