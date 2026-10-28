@@ -5,7 +5,10 @@ import { evalFormula } from '../../lib/metricFormula';
 import { formulaQueries, groupLabel, parseMetricQuery, QUERY_IN_FORMULA, type ParsedMetricQuery } from '../../lib/metricQuery';
 import type { DistributionResponse, GroupedScalar, MetricCatalogEntry, ScalarRequest, TimeAggregator, TimeseriesRequest } from '../dashboards/types';
 import type { MetricSeries, TimeRange } from '../types';
+import { parseQuery } from '../../lib/searchQuery';
 import { rng } from './generator';
+import { generatedMetrics } from './logMetrics';
+import { matchesTerms } from './match';
 
 type Tags = Record<string, string>;
 
@@ -95,6 +98,12 @@ interface MetricDef {
   integer?: boolean;
   /** Clamp to [0, max]. */
   max?: number;
+  /** The entities when not the whole set (generated metrics: the log streams their query matches). */
+  entities?: Tags[];
+  /** The catalog's tags when not the set's. */
+  tags?: string[];
+  /** Seeds the series instead of the metric's name (a distribution's statistics share one shape). */
+  seed?: string;
 }
 
 // Per deployment (not per metric), so desired, available and running replicas describe the same deployment.
@@ -156,13 +165,85 @@ const METRICS: Record<string, MetricDef> = {
   },
 };
 
+// ---------------------------------------------------------------- generated metrics (mock/logMetrics.ts)
+
+const LOG_SERVICES: [service: string, namespace: string][] = [
+  ['api-gateway', 'ns-platform'],
+  ['storefront-api', 'ns-storefront'],
+  ['order-service', 'ns-checkout'],
+  ['billing', 'ns-billing'],
+  ['catalog-service', 'ns-catalog'],
+  ['inventory-service', 'ns-checkout'],
+];
+const LOG_STATUSES: [status: string, code: string][] = [
+  ['info', '200'],
+  ['warn', '404'],
+  ['error', '502'],
+];
+
+/** One entity per (service, status, env): the log streams generated metrics count. */
+const LOG_STREAMS: Tags[] = LOG_SERVICES.flatMap(([service, namespace], i) =>
+  LOG_STATUSES.flatMap(([status, code]) =>
+    ['prod', 'staging'].map((env) => ({
+      service,
+      status,
+      env,
+      host: `i-0a1b2c3d4e5f6000${i}`,
+      source: service === 'api-gateway' ? 'nginx' : 'app',
+      kube_namespace: namespace,
+      'http.status_code': code,
+    })),
+  ),
+);
+
+/** Each definition as a metric over the log streams its query matches, tagged by its group-by tag names. */
+function generatedMetricDefs(): Record<string, MetricDef> {
+  return Object.fromEntries(
+    generatedMetrics().flatMap((m) => {
+      const terms = parseQuery(m.query);
+      const groupBy = m.groupBy.map((g) => ({ field: g.path.replace(/^@/, ''), tag: g.tagName || g.path.replace(/^@/, '') }));
+      const entities = LOG_STREAMS.filter((e) => matchesTerms((k) => e[k.replace(/^@/, '')], '', terms)).map((e) => ({
+        ...e,
+        ...Object.fromEntries(groupBy.map((g) => [g.tag, e[g.field] ?? 'N/A'])),
+      }));
+      const matched = `logs matching: ${m.query || '*'}`;
+      const rate = (e: Tags, r: () => number) => (e.status === 'info' ? 20 + r() * 80 : e.status === 'warn' ? 1 + r() * 6 : 0.2 + r() * 3);
+      const common = { set: 'services', entities, tags: groupBy.map((g) => g.tag), noise: 0.3, seed: m.name };
+      if (m.aggregation === 'count') return [[m.name, { ...common, description: `Count of ${matched}`, unit: 'logs/s', base: rate }]];
+      // A distribution is queried by statistic (`<name>.p95`); the statistics share one series shape.
+      return DIST_STAT_SCALES.map(([stat, scale]) => [
+        `${m.name}.${stat}`,
+        { ...common, description: `${stat} of ${m.path} in ${matched}`, base: stat === 'count' ? rate : (_e: Tags, r: () => number) => (20 + r() * 300) * scale },
+      ]);
+    }),
+  );
+}
+
+/** Distribution statistics and their size relative to the average. */
+const DIST_STAT_SCALES: [stat: string, scale: number][] = [
+  ['count', 1],
+  ['avg', 1],
+  ['p50', 0.8],
+  ['p95', 2.2],
+  ['p99', 3.5],
+  ['max', 5],
+];
+
+/** A metric's definition: a built-in one or a generated metric. */
+function lookup(name: string): MetricDef | undefined {
+  return METRICS[name] ?? generatedMetricDefs()[name];
+}
+
+const entitiesOf = (d: MetricDef) => d.entities ?? SETS[d.set];
+
 export function metricCatalog(): MetricCatalogEntry[] {
-  return Object.entries(METRICS).map(([name, d]) => ({ name, tags: Object.keys(SETS[d.set][0]), unit: d.unit, description: d.description }));
+  const defs = { ...METRICS, ...generatedMetricDefs() };
+  return Object.entries(defs).map(([name, d]) => ({ name, tags: d.tags ?? Object.keys(SETS[d.set][0]), unit: d.unit, description: d.description }));
 }
 
 /** Metrics by series: one series per entity of the metric's set. */
 export function metricVolume(): { totalSeries: number; metrics: { name: string; kind: string; series: number; share: number }[] } {
-  const rows = Object.entries(METRICS).map(([name, d]) => ({ name, kind: 'gauge', series: SETS[d.set].length }));
+  const rows = Object.entries({ ...METRICS, ...generatedMetricDefs() }).map(([name, d]) => ({ name, kind: 'gauge', series: entitiesOf(d).length }));
   const totalSeries = rows.reduce((n, r) => n + r.series, 0);
   const metrics = rows.map((r) => ({ ...r, share: totalSeries ? r.series / totalSeries : 0 })).sort((a, b) => b.series - a.series || a.name.localeCompare(b.name));
   return { totalSeries, metrics };
@@ -196,7 +277,7 @@ function smooth(seed: number, t: number): number {
 }
 
 function entityValue(metric: string, def: MetricDef, e: Tags, t: number): number {
-  const key = `${metric}|${Object.values(e).join('|')}`;
+  const key = `${def.seed ?? metric}|${Object.values(e).join('|')}`;
   const seed = hash(key);
   const base = def.base(e, rng(seed));
   if (base === 0 && def.noise < 0.5) return 0;
@@ -238,10 +319,10 @@ export interface GroupSeries {
 function evaluate(query: string, range: TimeRange, points: number): GroupSeries[] {
   const q = parseMetricQuery(query);
   if (!q) throw new Error(`Invalid query: ${query}`);
-  const def = METRICS[q.metric];
+  const def = lookup(q.metric);
   if (!def) throw new Error(`Unknown metric: ${q.metric}`);
   const step = stepFor(range, points);
-  const entities = SETS[def.set].filter((e) => matches(e, q));
+  const entities = entitiesOf(def).filter((e) => matches(e, q));
   const groups = new Map<string, { tags: Tags; members: Tags[] }>();
   for (const e of entities) {
     const tags = Object.fromEntries(q.by.map((k) => [k, e[k] ?? 'N/A']));
@@ -273,7 +354,7 @@ function evaluate(query: string, range: TimeRange, points: number): GroupSeries[
 export function evaluateGroups(query: string, range: TimeRange, points: number): GroupSeries[] {
   const q = parseMetricQuery(query);
   if (!q) throw new Error(`Invalid query: ${query}`);
-  return METRICS[q.metric] ? evaluate(query, range, points) : [];
+  return lookup(q.metric) ? evaluate(query, range, points) : [];
 }
 
 function reduce(points: [number, number][], agg: TimeAggregator): number {
@@ -380,9 +461,11 @@ export function queryDistribution(req: { query: string; range: TimeRange }): Pro
   return attempt(() => {
     const q = parseMetricQuery(req.query);
     if (!q) throw new Error(`Invalid query: ${req.query}`);
+    const def = lookup(q.metric);
+    if (!def) throw new Error(`Unknown metric: ${q.metric}`);
     // Distribution across entities: re-run without grouping but keep each entity separate.
     const perEntity = evaluate(
-      `${q.aggregator}:${q.metric}{${q.filters.map((f) => `${f.negate ? '!' : ''}${f.key}:${f.value}`).join(',') || '*'}} by {${Object.keys(SETS[METRICS[q.metric].set][0]).join(',')}}`,
+      `${q.aggregator}:${q.metric}{${q.filters.map((f) => `${f.negate ? '!' : ''}${f.key}:${f.value}`).join(',') || '*'}} by {${Object.keys(entitiesOf(def)[0] ?? {}).join(',')}}`,
       req.range,
       40,
     );

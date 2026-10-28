@@ -12,8 +12,11 @@
 //! Before routing, the org's log pipelines (see `pipelines`) process each log, so index filters,
 //! exclusion filters and the indexed row see the parsed and remapped log.
 //!
-//! Index rules and pipelines are reloaded from Postgres every 10 s; quota counters are local and re-synced from
-//! ClickHouse every 30 s, so several servers sharing the work stay close to the quota.
+//! After the pipelines and before routing, every log is counted in the org's generated metrics (see
+//! `log_metrics`), so logs an index excludes still count; their buckets are flushed every 10 s.
+//!
+//! Index rules, pipelines and generated metrics are reloaded from Postgres every 10 s; quota counters are local and
+//! re-synced from ClickHouse every 30 s, so several servers sharing the work stay close to the quota.
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -29,6 +32,7 @@ use oc_query::{matches, parse_query, Fields, Term};
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::log_metrics::{self, Aggregator, Definition, OrgMetrics, Retention};
 use crate::pipelines::{self, Pipeline};
 use crate::state::AppState;
 
@@ -69,6 +73,22 @@ pub struct Indexer {
     counters: Mutex<HashMap<(String, String), Counter>>,
     /// Each org's enabled log pipelines, in order.
     pipelines: RwLock<HashMap<String, Arc<Vec<Pipeline>>>>,
+    /// Each org's generated metrics, and their buckets not flushed yet.
+    log_metrics: RwLock<HashMap<String, Arc<OrgMetrics>>>,
+    metric_buckets: Mutex<Aggregator>,
+}
+
+#[derive(sqlx::FromRow)]
+struct LogMetricRow {
+    org_id: String,
+    name: String,
+    query: String,
+    aggregation: String,
+    path: Option<String>,
+    group_by: Value,
+    raw: i32,
+    rollup_5m: i32,
+    rollup_1h: i32,
 }
 
 #[derive(sqlx::FromRow)]
@@ -155,7 +175,43 @@ impl Indexer {
             by_org.entry(r.org_id).or_default().push(p);
         }
         *self.pipelines.write().unwrap() = by_org.into_iter().map(|(k, v)| (k, Arc::new(v))).collect();
+        self.reload_log_metrics(st).await
+    }
+
+    async fn reload_log_metrics(&self, st: &AppState) -> Result<(), sqlx::Error> {
+        let rows: Vec<LogMetricRow> = sqlx::query_as(
+            "SELECT m.org_id, m.name, m.query, m.aggregation, m.path, m.group_by, COALESCE(s.metrics_retention_days, 0) AS raw, \
+             COALESCE(s.metrics_5m_days, 0) AS rollup_5m, COALESCE(s.metrics_1h_days, 0) AS rollup_1h \
+             FROM log_metrics m JOIN orgs o ON o.id = m.org_id LEFT JOIN org_data_settings s ON s.org_id = m.org_id \
+             WHERE o.status = 'active' ORDER BY m.org_id, m.name",
+        )
+        .fetch_all(&st.postgres)
+        .await?;
+        let mut by_org: HashMap<String, OrgMetrics> = HashMap::new();
+        for r in rows {
+            let retention = Retention { raw: r.raw, rollup_5m: r.rollup_5m, rollup_1h: r.rollup_1h };
+            let definition = Definition::stored(&r.name, &r.query, &r.aggregation, r.path.as_deref(), &r.group_by);
+            by_org.entry(r.org_id).or_insert_with(|| OrgMetrics { definitions: Vec::new(), retention }).definitions.push(definition);
+        }
+        *self.log_metrics.write().unwrap() = by_org.into_iter().map(|(k, v)| (k, Arc::new(v))).collect();
         Ok(())
+    }
+
+    /// Writes the generated metrics' buckets; a failed insert is logged and its points dropped.
+    async fn flush_metrics(&self, st: &AppState) {
+        let (points, dropped) = self.metric_buckets.lock().unwrap().drain();
+        for ((org, metric), logs) in dropped {
+            tracing::warn!(%org, %metric, logs, max_series = log_metrics::MAX_SERIES_PER_METRIC, "generated metric has too many series: logs of new series not counted");
+        }
+        let (sums, histograms) = log_metrics::rows(&points);
+        for (table, rows) in [("otel.metrics_ingest_sum", sums), ("otel.metrics_ingest_exponential_histogram", histograms)] {
+            if rows.is_empty() {
+                continue;
+            }
+            if let Err(e) = insert_rows(st, table, rows).await {
+                tracing::warn!(%table, error = %e, "writing generated metrics failed");
+            }
+        }
     }
 
     /// Brings quota counters up to what ClickHouse holds (other servers index too).
@@ -244,6 +300,11 @@ fn route_batch(ix: &Indexer, body: &[u8]) -> (Vec<u8>, usize, usize) {
         let (service, status, host, source, message) = (s("service"), s("status"), s("host"), s("source"), s("message"));
         let (tags, attr) = (string_map(ev.get("tags")), string_map(ev.get("attr")));
         let f = Fields { service: &service, status: &status, host: &host, source: &source, message: &message, tags: &tags, attr: &attr, index: None };
+        let org_metrics = ix.log_metrics.read().unwrap().get(&org).cloned();
+        if let Some(m) = org_metrics {
+            let ts = ev.get("ts_ms").and_then(Value::as_i64).unwrap_or(now);
+            ix.metric_buckets.lock().unwrap().record(&org, &m, &f, ts, now);
+        }
         let Some((index, retention)) = ix.route(&org, &id, &f, now) else { continue };
         if let Some(o) = ev.as_object_mut() {
             o.insert("index_name".into(), Value::String(index));
@@ -268,30 +329,33 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
     if kept == 0 {
         return StatusCode::OK;
     }
-    let res = reqwest::Client::new()
-        .post(&st.config.clickhouse_url)
-        .basic_auth(&st.config.clickhouse_user, Some(&st.config.clickhouse_password))
-        .query(&[(
-            "query",
-            "INSERT INTO oc.logs SETTINGS input_format_skip_unknown_fields = 1, date_time_input_format = 'best_effort' FORMAT JSONEachRow",
-        )])
-        .body(rows)
-        .send()
-        .await;
-    match res {
-        Ok(r) if r.status().is_success() => StatusCode::OK,
-        Ok(r) => {
-            let status = r.status();
-            let body: String = r.text().await.unwrap_or_default().chars().take(300).collect();
-            tracing::warn!(%status, %body, "indexing logs failed");
+    match insert_rows(&st, "oc.logs", rows).await {
+        Ok(()) => StatusCode::OK,
+        Err(e) => {
+            tracing::warn!(error = %e, "indexing logs failed");
             // Vector retries (and buffers on disk meanwhile).
             StatusCode::SERVICE_UNAVAILABLE
         }
-        Err(e) => {
-            tracing::warn!(error = %e, "indexing logs failed");
-            StatusCode::SERVICE_UNAVAILABLE
-        }
     }
+}
+
+/// `INSERT INTO <table> … FORMAT JSONEachRow` of NDJSON rows.
+async fn insert_rows(st: &AppState, table: &str, rows: Vec<u8>) -> Result<(), String> {
+    let query = format!("INSERT INTO {table} SETTINGS input_format_skip_unknown_fields = 1, date_time_input_format = 'best_effort' FORMAT JSONEachRow");
+    let res = reqwest::Client::new()
+        .post(&st.config.clickhouse_url)
+        .basic_auth(&st.config.clickhouse_user, Some(&st.config.clickhouse_password))
+        .query(&[("query", query)])
+        .body(rows)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        return Ok(());
+    }
+    let status = res.status();
+    let body: String = res.text().await.unwrap_or_default().chars().take(300).collect();
+    Err(format!("{status}: {body}"))
 }
 
 /// Starts the internal indexer listener and its refresh loops.
@@ -313,6 +377,14 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
                 }
             }
             n += 1;
+        }
+    });
+    let (st3, ix3) = (st.clone(), ix.clone());
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(Duration::from_millis(log_metrics::BUCKET_MS as u64));
+        loop {
+            tick.tick().await;
+            ix3.flush_metrics(&st3).await;
         }
     });
     let addr = st.config.logproc_addr.clone();
@@ -337,6 +409,7 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::log_metrics::{Aggregation, PointValue};
 
     fn indexer(rules: Vec<IndexRule>) -> Indexer {
         let ix = Indexer::default();
@@ -402,6 +475,25 @@ mod tests {
         assert_eq!(rows[0]["attr"]["http.url"], "/cart");
         assert_eq!(serde_json::from_str::<Value>(rows[0]["attributes"].as_str().unwrap()).unwrap()["http"]["status_code"], 503);
         assert_eq!((rows[1]["index_name"].as_str(), rows[1]["status"].as_str()), (Some("main"), Some("info")));
+    }
+
+    #[test]
+    fn generated_metrics_see_processed_logs_including_excluded_ones() {
+        let ix = indexer(vec![rule("main", "", None, vec![Exclusion { terms: parse_query("status:info"), rate: 100.0 }])]);
+        let (p, errors) = Pipeline::compile("teams", "service:api", serde_json::json!([{"type": "string-builder-processor", "template": "checkout", "target": "team"}]).as_array().unwrap());
+        assert!(errors.is_empty());
+        ix.pipelines.write().unwrap().insert("acme".into(), Arc::new(vec![p]));
+        let group_by = [("status".to_string(), "status".to_string()), ("@team".to_string(), "team".to_string())];
+        let definitions = vec![Definition::new("logs.api", "service:api", Aggregation::Count, &group_by)];
+        ix.log_metrics.write().unwrap().insert("acme".into(), Arc::new(OrgMetrics { definitions, retention: Retention::default() }));
+        let body = [line("acme", "1", "api", "info"), line("acme", "2", "api", "error"), line("acme", "3", "web", "error"), line("other", "4", "api", "error")].concat();
+        let (_, seen, kept) = route_batch(&ix, body.as_bytes());
+        assert_eq!((seen, kept), (4, 2), "the info log is excluded from the index");
+        let (points, _) = ix.metric_buckets.lock().unwrap().drain();
+        let mut got: Vec<_> = points.iter().map(|p| (p.org.as_str(), p.tags.clone(), p.value.clone())).collect();
+        got.sort_by(|a, b| a.1.cmp(&b.1));
+        let tags = |status: &str| vec![("status".to_string(), status.to_string()), ("team".to_string(), "checkout".to_string())];
+        assert_eq!(got, vec![("acme", tags("error"), PointValue::Count(1)), ("acme", tags("info"), PointValue::Count(1))]);
     }
 
     #[test]

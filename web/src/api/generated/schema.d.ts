@@ -1692,6 +1692,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_log_metrics"];
+        put?: never;
+        post: operations["create_log_metric"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/metrics/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes the query, aggregation or group-bys; the name stays. */
+        put: operations["update_log_metric"];
+        post?: never;
+        /** Stops computing it; points already written stay until they expire. */
+        delete: operations["delete_log_metric"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/patterns": {
         parameters: {
             query?: never;
@@ -4991,6 +5025,36 @@ export interface components {
             /** Format: double */
             shareOfLogs: number;
             value: string;
+        };
+        LogMetric: {
+            aggregation: components["schemas"]["LogMetricAggregation"];
+            groupBy: components["schemas"]["LogMetricGroupBy"][];
+            id: string;
+            /**
+             * Format: int32
+             * @description Distinct group-by value sets counted per 10 s; logs of further series are dropped.
+             */
+            maxSeries: number;
+            name: string;
+            /** @description The measured attribute of a distribution (`@duration`). */
+            path?: string | null;
+            /** @description Logs matching this search are counted; '' = every log. */
+            query: string;
+        };
+        /** @enum {string} */
+        LogMetricAggregation: "count" | "distribution";
+        LogMetricGroupBy: {
+            /** @description A reserved field (`service`, `status`, `host`, `source`), a tag (`env`) or an attribute (`@http.status_code`). */
+            path: string;
+            /** @description The metric's tag; defaults to the path without `@`. */
+            tagName?: string;
+        };
+        LogMetricInput: {
+            aggregation: components["schemas"]["LogMetricAggregation"];
+            groupBy?: components["schemas"]["LogMetricGroupBy"][];
+            name: string;
+            path?: string | null;
+            query?: string;
         };
         LogPattern: {
             /**
@@ -9625,6 +9689,92 @@ export interface operations {
                 content: {
                     "text/event-stream": unknown;
                 };
+            };
+        };
+    };
+    list_log_metrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogMetric"][];
+                };
+            };
+        };
+    };
+    create_log_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogMetricInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogMetric"];
+                };
+            };
+        };
+    };
+    update_log_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogMetricInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogMetric"];
+                };
+            };
+        };
+    };
+    delete_log_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

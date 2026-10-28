@@ -16,6 +16,7 @@ pub mod instance;
 pub mod kubernetes;
 pub mod live;
 pub mod log_indexes;
+pub mod log_metrics;
 pub mod log_pipelines;
 pub mod logs;
 pub mod metrics;
@@ -201,6 +202,10 @@ use crate::state::AppState;
         log_pipelines::grok,
         log_pipelines::library_list,
         log_pipelines::install,
+        log_metrics::list,
+        log_metrics::create,
+        log_metrics::update,
+        log_metrics::delete,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -478,6 +483,14 @@ pub fn router() -> Router<AppState> {
             post(log_pipelines::install),
         )
         .route(
+            "/api/v1/logs/metrics",
+            get(log_metrics::list).post(log_metrics::create),
+        )
+        .route(
+            "/api/v1/logs/metrics/:id",
+            axum::routing::put(log_metrics::update).delete(log_metrics::delete),
+        )
+        .route(
             "/api/v1/org/data-settings",
             get(log_indexes::get_settings).patch(log_indexes::update_settings),
         )
@@ -650,6 +663,7 @@ mod tests {
             include_str!("live.rs"),
             include_str!("log_indexes.rs"),
             include_str!("log_pipelines.rs"),
+            include_str!("log_metrics.rs"),
             include_str!("logs.rs"),
             include_str!("metrics.rs"),
             include_str!("metrics/dashboard.rs"),
@@ -694,6 +708,7 @@ mod tests {
             ("live.rs", include_str!("live.rs")),
             ("log_indexes.rs", include_str!("log_indexes.rs")),
             ("log_pipelines.rs", include_str!("log_pipelines.rs")),
+            ("log_metrics.rs", include_str!("log_metrics.rs")),
             ("logs.rs", include_str!("logs.rs")),
             ("metrics.rs", include_str!("metrics.rs")),
             ("metrics/dashboard.rs", include_str!("metrics/dashboard.rs")),

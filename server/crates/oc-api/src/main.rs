@@ -9,6 +9,7 @@ mod auth;
 mod config;
 mod demo;
 mod error;
+mod log_metrics;
 mod logproc;
 mod pipelines;
 mod routes;

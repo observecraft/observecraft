@@ -4230,6 +4230,120 @@
         }
       }
     },
+    "/api/v1/logs/metrics": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "list_log_metrics",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogMetric"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "create_log_metric",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogMetricInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogMetric"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/metrics/{id}": {
+      "put": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Changes the query, aggregation or group-bys; the name stays.",
+        "operationId": "update_log_metric",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogMetricInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogMetric"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Stops computing it; points already written stay until they expire.",
+        "operationId": "delete_log_metric",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/logs/patterns": {
       "post": {
         "tags": [
@@ -13938,6 +14052,104 @@
             "format": "double"
           },
           "value": {
+            "type": "string"
+          }
+        }
+      },
+      "LogMetric": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "query",
+          "aggregation",
+          "groupBy",
+          "maxSeries"
+        ],
+        "properties": {
+          "aggregation": {
+            "$ref": "#/components/schemas/LogMetricAggregation"
+          },
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogMetricGroupBy"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "maxSeries": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Distinct group-by value sets counted per 10 s; logs of further series are dropped.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The measured attribute of a distribution (`@duration`)."
+          },
+          "query": {
+            "type": "string",
+            "description": "Logs matching this search are counted; '' = every log."
+          }
+        }
+      },
+      "LogMetricAggregation": {
+        "type": "string",
+        "enum": [
+          "count",
+          "distribution"
+        ]
+      },
+      "LogMetricGroupBy": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "A reserved field (`service`, `status`, `host`, `source`), a tag (`env`) or an attribute (`@http.status_code`)."
+          },
+          "tagName": {
+            "type": "string",
+            "description": "The metric's tag; defaults to the path without `@`."
+          }
+        }
+      },
+      "LogMetricInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "aggregation"
+        ],
+        "properties": {
+          "aggregation": {
+            "$ref": "#/components/schemas/LogMetricAggregation"
+          },
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogMetricGroupBy"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "query": {
             "type": "string"
           }
         }

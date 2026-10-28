@@ -1039,6 +1039,25 @@
   align-self: flex-start;
 }
 
+/* ---------- generated metrics ---------- */
+.lm-tag {
+  display: inline-block;
+  margin: 0 4px 2px 0;
+}
+
+.lm-estimate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.lm-preview {
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
 /* ---------- log pipelines ---------- */
 .pl-title-actions {
   display: flex;
