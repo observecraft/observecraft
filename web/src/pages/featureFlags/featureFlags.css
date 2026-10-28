@@ -221,64 +221,49 @@
 
 /* ---------- list ---------- */
 .ff-list {
-  display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  min-height: 100%;
-}
-
-.ff-facets {
-  padding: 14px 0;
-  border-right: 1px solid var(--border);
-  background: var(--bg-subtle);
-}
-
-.ff-facet {
-  padding: 6px 16px 10px;
-}
-
-.ff-facet h4 {
-  margin: 6px 0 6px;
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.ff-facet label {
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100%;
+  padding: 14px 16px 30px;
+}
+
+.ff-search {
+  width: 100%;
+  margin: 0;
+}
+
+.ff-showing {
+  font-size: var(--fs-lg);
+}
+
+.ff-variants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ff-variant {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 3px 0;
+  gap: 5px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   font-size: var(--fs-md);
-  cursor: pointer;
 }
 
-.ff-facet label .ff-count {
-  margin-left: auto;
-  color: var(--text-faint);
-  font-size: var(--fs-sm);
-}
-
-.ff-main {
-  min-width: 0;
-  padding: 14px 20px 30px;
+.ff-variant i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
 }
 
 .ff-toolbar {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.ff-toolbar .mon-filter {
-  flex: 1;
-  margin: 0;
-}
-
-.ff-toolbar .muted {
-  white-space: nowrap;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
 }
 
 .ff-table td {
@@ -1320,4 +1305,17 @@ textarea.ff-input {
 
 .mon-table.ff-table {
   table-layout: auto;
+}
+
+.ff-toolbar .dd-trigger {
+  min-width: 150px;
+}
+
+.ff-toolbar .dd-floating-label {
+  white-space: nowrap;
+}
+
+.ff-radios.ff-radios-row {
+  flex-direction: row;
+  gap: 18px;
 }

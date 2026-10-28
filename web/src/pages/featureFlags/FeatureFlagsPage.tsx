@@ -2,12 +2,14 @@ import { useDeferredValue, useMemo, useState } from 'react';
 import { Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { BookOpen, Flag, Plus, Search, X } from 'lucide-react';
 import type { FeatureFlag } from '../../api/featureFlags/client';
-import { fmtCount, filterFlags, flagFacets, type FacetKey, type FacetSelection } from '../../api/featureFlags/logic';
+import { fmtCount, filterFlags, toolbarFilter, variantColor, type ToolbarFilter } from '../../api/featureFlags/logic';
+import { Select } from '../../components/ui/Dropdown';
+import { useProfile } from '../settings/queries';
 import { useTime } from '../../components/shell/TimeContext';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
 import { TagChips } from '../monitors/common';
-import { EnvPill, FlagsHeader, HeroArt, SetupSnippets, TypeBadge } from './common';
+import { EnvPill, FlagsHeader, HeroArt, SetupSnippets, Switch, TypeBadge } from './common';
 import { useFeatureFlags, useFlagEvaluations } from './queries';
 import '../monitors/monitors.css';
 import './featureFlags.css';
@@ -24,7 +26,6 @@ export function FeatureFlagsLayout() {
   );
 }
 
-const STATUS_LABEL: Record<string, string> = { on: 'On in an environment', off: 'Off everywhere' };
 const ago = (ms: number) => {
   const s = Math.max(0, (Date.now() - ms) / 1000);
   if (s < 3600) return `${Math.max(1, Math.round(s / 60))}m ago`;
@@ -121,105 +122,106 @@ function FlagList({ flags }: { flags: FeatureFlag[] }) {
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
   const deferred = useDeferredValue(query);
-  const [selected, setSelected] = useState<FacetSelection>({});
+  const [filter, setFilter] = useState<ToolbarFilter>({});
+  const me = useProfile();
   const { range } = useTime();
-  const day = useMemo(() => ({ from: range.to - 86_400_000, to: range.to }), [range.to]);
-  const evals = useFlagEvaluations(day);
+  const hour = useMemo(() => ({ from: range.to - 3_600_000, to: range.to }), [range.to]);
+  const evals = useFlagEvaluations(hour);
   const counts = new Map((evals.data ?? []).map((e) => [e.flag, e.total]));
-  const facets = flagFacets(flags);
-  const shown = filterFlags(flags, deferred, selected);
+  const teams = [...new Set(flags.flatMap((f) => f.teams))].sort();
+  const shown = toolbarFilter(filterFlags(flags, deferred, {}), filter, me.data?.name, Date.now());
+  const set = (patch: ToolbarFilter) => setFilter((f) => ({ ...f, ...patch }));
   const setQuery = (v: string) => {
     const next = new URLSearchParams(params);
     if (v) next.set('q', v);
     else next.delete('q');
     setParams(next, { replace: true });
   };
-  const toggle = (key: FacetKey, value: string) =>
-    setSelected((s) => {
-      const have = s[key] ?? [];
-      return { ...s, [key]: have.includes(value) ? have.filter((v) => v !== value) : [...have, value] };
-    });
 
   return (
     <div className="ff-list">
-      <aside className="ff-facets" aria-label="Filters">
-        {facets
-          .filter((f) => f.values.length)
-          .map((f) => (
-            <div key={f.key} className="ff-facet">
-              <h4>{f.label}</h4>
-              {f.values.map((v) => (
-                <label key={v.value}>
-                  <input type="checkbox" checked={!!selected[f.key]?.includes(v.value)} onChange={() => toggle(f.key, v.value)} />
-                  {f.key === 'status' ? STATUS_LABEL[v.value] : f.key === 'type' ? <TypeBadge type={v.value as FeatureFlag['flagType']} /> : v.value}
-                  <span className="ff-count">{v.count}</span>
-                </label>
-              ))}
-            </div>
-          ))}
-      </aside>
-      <div className="ff-main">
-        <div className="ff-toolbar">
-          <div className="mon-filter">
-            <Search size={16} />
-            <input placeholder="Search flags by name, key, tag or team" value={query} onChange={(e) => setQuery(e.target.value)} />
-          </div>
-          <span className="muted">
-            {shown.length} of {flags.length} flag{flags.length === 1 ? '' : 's'}
-          </span>
-        </div>
-        {shown.length === 0 ? (
-          <div className="ff-no-results">
-            <Search size={56} strokeWidth={1.2} />
-            No matching results found
-          </div>
-        ) : (
-          <div className="mon-table-wrap">
-            <table className="mon-table ff-table">
-              <thead>
-                <tr>
-                  <th>NAME</th>
-                  <th>TYPE</th>
-                  <th>STATUS</th>
-                  <th>TEAM</th>
-                  <th className="col-tags">TAGS</th>
-                  <th>LAST UPDATED</th>
-                  <th className="ff-num" title="Past day">
-                    EVALUATIONS
-                  </th>
+      <div className="mon-filter ff-search">
+        <Search size={16} />
+        <input placeholder="Search by name, key, or tags" value={query} onChange={(e) => setQuery(e.target.value)} />
+      </div>
+      <div className="ff-toolbar">
+        <Switch label="My Feature Flags" checked={!!filter.mine} onChange={(v) => set({ mine: v })} />
+        <Select label="Teams" value={filter.team ?? ''} options={[{ value: '', label: 'All teams' }, ...teams.map((t) => ({ value: t, label: t }))]} onChange={(v) => set({ team: v || undefined })} />
+        <Switch label="Stale Flags" checked={!!filter.stale} onChange={(v) => set({ stale: v })} />
+        <Select
+          label="Production Status"
+          value={filter.prod ?? ''}
+          options={[
+            { value: '', label: 'All' },
+            { value: 'on', label: 'On' },
+            { value: 'off', label: 'Off' },
+          ]}
+          onChange={(v) => set({ prod: (v || undefined) as ToolbarFilter['prod'] })}
+        />
+      </div>
+      <div className="ff-showing">
+        Showing <b>{shown.length ? `1–${shown.length}` : '0–0'}</b> of <b>{shown.length}</b> feature flags
+      </div>
+      <div className="mon-table-wrap">
+        <table className="mon-table ff-table">
+          <thead>
+            <tr>
+              <th>DETAILS</th>
+              <th className="ff-num">EVALUATIONS (LAST HOUR)</th>
+              <th>VARIANTS</th>
+              <th>PROD STATUS</th>
+              <th>TEAM</th>
+              <th className="col-tags">TAGS</th>
+              <th>MODIFIED</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((f) => {
+              const prod = f.environments.filter((e) => e.isProduction);
+              const on = prod.some((e) => e.config.enabled);
+              return (
+                <tr key={f.id} onClick={() => navigate(`/feature-flags/${f.id}`)}>
+                  <td>
+                    <div className="ff-name">
+                      <b>{f.name}</b>
+                      <span className="ff-key">
+                        {f.key} <TypeBadge type={f.flagType} />
+                      </span>
+                    </div>
+                  </td>
+                  <td className="ff-num">{evals.data ? fmtCount(counts.get(f.key) ?? 0) : evals.isError ? '—' : '…'}</td>
+                  <td>
+                    <div className="ff-variants">
+                      {f.variants.slice(0, 3).map((v, i) => (
+                        <span key={v.key} className="ff-variant">
+                          <i style={{ background: variantColor(i) }} />
+                          {v.key}
+                        </span>
+                      ))}
+                      {f.variants.length > 3 && <span className="muted">+{f.variants.length - 3}</span>}
+                    </div>
+                  </td>
+                  <td>{prod.length ? <EnvPill name={on ? 'On' : 'Off'} enabled={on} /> : <span className="muted">—</span>}</td>
+                  <td>{f.teams.length ? f.teams.join(', ') : <span className="muted">—</span>}</td>
+                  <td className="col-tags">
+                    <TagChips tags={f.tags} max={2} />
+                  </td>
+                  <td className="muted ff-when" title={`${new Date(f.updatedAt).toLocaleString()}${f.updatedBy ? ` by ${f.updatedBy}` : ''}`}>
+                    {ago(f.updatedAt)}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {shown.map((f) => (
-                  <tr key={f.id} onClick={() => navigate(`/feature-flags/${f.id}`)}>
-                    <td>
-                      <div className="ff-name">
-                        <b>{f.name}</b>
-                        <span className="ff-key">{f.key}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <TypeBadge type={f.flagType} />
-                    </td>
-                    <td>
-                      <div className="ff-envs">
-                        {f.environments.map((e) => (
-                          <EnvPill key={e.environmentId} name={e.environmentName} enabled={!!e.config.enabled} />
-                        ))}
-                      </div>
-                    </td>
-                    <td>{f.teams.length ? f.teams.join(', ') : <span className="muted">—</span>}</td>
-                    <td className="col-tags">
-                      <TagChips tags={f.tags} max={2} />
-                    </td>
-                    <td className="muted ff-when" title={`${new Date(f.updatedAt).toLocaleString()}${f.updatedBy ? ` by ${f.updatedBy}` : ''}`}>
-                      {ago(f.updatedAt)}
-                    </td>
-                    <td className="ff-num">{evals.data ? fmtCount(counts.get(f.key) ?? 0) : evals.isError ? '—' : '…'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              );
+            })}
+          </tbody>
+        </table>
+        {shown.length === 0 && (
+          <div className="ff-no-results">
+            <Flag size={56} strokeWidth={1.4} />
+            <span>No feature flags found</span>
+            <small className="muted">Create a flag to control rollouts and follow their impact.</small>
+            <button className="btn btn-primary" onClick={() => navigate('/feature-flags/create')}>
+              <Plus size={14} /> New Flag
+            </button>
           </div>
         )}
       </div>

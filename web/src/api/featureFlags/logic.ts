@@ -322,15 +322,6 @@ export function filterFlags<T extends ListedFlag>(flags: T[], query: string, sel
   });
 }
 
-export function flagFacets(flags: ListedFlag[]): { key: FacetKey; label: string; values: { value: string; count: number }[] }[] {
-  return FACETS.map(({ key, label }) => {
-    const counts = new Map<string, number>();
-    for (const f of flags) for (const v of facetValues(f, key)) counts.set(v, (counts.get(v) ?? 0) + 1);
-    const order = key === 'status' ? ['on', 'off'] : [...counts.keys()].sort();
-    return { key, label, values: order.filter((v) => counts.has(v)).map((value) => ({ value, count: counts.get(value)! })) };
-  });
-}
-
 // ---------------------------------------------------------------- OpenFeature setup
 
 export interface Snippet {
@@ -482,4 +473,32 @@ export function configProblem(cfg: FlagEnvConfig, variants: FlagVariant[]): stri
     if (r.steps.some((s, i) => i > 0 && s.percent < r.steps[i - 1].percent)) return 'Rollout steps must not decrease';
   }
   return null;
+}
+
+/** The list toolbar's filters (the facets of the reference's flag list). */
+export interface ToolbarFilter {
+  /** Only flags I created. */
+  mine?: boolean;
+  team?: string;
+  /** Temporary flags nobody changed for 30 days: candidates for removal. */
+  stale?: boolean;
+  /** Enabled or not in the production environment(s). */
+  prod?: 'on' | 'off';
+}
+
+const STALE_MS = 30 * 86_400_000;
+
+type ToolbarFlag = { createdBy?: string | null; teams: string[]; lifecycle: string; updatedAt: number; environments: { isProduction: boolean; config: { enabled?: boolean } }[] };
+
+export function toolbarFilter<T extends ToolbarFlag>(flags: T[], f: ToolbarFilter, me: string | undefined, now: number): T[] {
+  return flags.filter((x) => {
+    if (f.mine && (!me || x.createdBy !== me)) return false;
+    if (f.team && !x.teams.includes(f.team)) return false;
+    if (f.stale && !(x.lifecycle === 'temporary' && now - x.updatedAt > STALE_MS)) return false;
+    if (f.prod) {
+      const on = x.environments.some((e) => e.isProduction && e.config.enabled);
+      if ((f.prod === 'on') !== on) return false;
+    }
+    return true;
+  });
 }

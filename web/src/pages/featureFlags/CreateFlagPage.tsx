@@ -129,6 +129,32 @@ function FlagForm({ flag }: { flag?: FeatureFlag }) {
                   <span className="ff-label">Tags</span>
                   <ChipsInput label="Tags" values={d.tags} onChange={(tags) => set({ tags })} placeholder="service:storefront-api" />
                 </div>
+                <div className="ff-question">
+                  <span className="ff-label">Which SDKs can request this flag?</span>
+                  <div className="ff-radios ff-radios-row" role="radiogroup" aria-label="SDK access">
+                    {SDK_OPTIONS.map((o) => (
+                      <label key={o.value}>
+                        <input type="radio" name="sdk" checked={d.sdkAccess === o.value} onChange={() => set({ sdkAccess: o.value })} /> {o.label}
+                      </label>
+                    ))}
+                  </div>
+                  {d.sdkAccess !== 'server' && (
+                    <div className="ff-note">
+                      <Info size={15} /> Client SDKs run in the browser or on devices: anyone using the app can read every variant’s value. Keep secrets in server-only flags.
+                    </div>
+                  )}
+                </div>
+                <div className="ff-question">
+                  <span className="ff-label">Is this a temporary or permanent flag?</span>
+                  <div className="ff-radios" role="radiogroup" aria-label="Lifecycle">
+                    {LIFECYCLES.map((o) => (
+                      <label key={o.value} title={o.hint}>
+                        <input type="radio" name="lifecycle" checked={d.lifecycle === o.value} onChange={() => set({ lifecycle: o.value })} /> {o.label}
+                      </label>
+                    ))}
+                  </div>
+                  <p className="ff-hint">{LIFECYCLES.find((o) => o.value === d.lifecycle)?.hint}</p>
+                </div>
               </div>
               <div>
                 <div className="ff-field">
@@ -157,32 +183,6 @@ function FlagForm({ flag }: { flag?: FeatureFlag }) {
                   </div>
                   {!flag && key && !validKey(key) && <span className="ff-error-text">Lowercase letters, digits, '-', '_' and '.', starting with a letter or digit (at most 100).</span>}
                   {flag && <small>A flag’s key can’t be changed once created.</small>}
-                </div>
-                <div className="ff-question">
-                  <span className="ff-label">Which SDKs can request this flag?</span>
-                  <div className="ff-radios" role="radiogroup" aria-label="SDK access">
-                    {SDK_OPTIONS.map((o) => (
-                      <label key={o.value}>
-                        <input type="radio" name="sdk" checked={d.sdkAccess === o.value} onChange={() => set({ sdkAccess: o.value })} /> {o.label}
-                      </label>
-                    ))}
-                  </div>
-                  {d.sdkAccess !== 'server' && (
-                    <div className="ff-note">
-                      <Info size={15} /> Client SDKs run in the browser or on devices: anyone using the app can read every variant’s value. Keep secrets in server-only flags.
-                    </div>
-                  )}
-                </div>
-                <div className="ff-question">
-                  <span className="ff-label">Is this a temporary or permanent flag?</span>
-                  <div className="ff-radios" role="radiogroup" aria-label="Lifecycle">
-                    {LIFECYCLES.map((o) => (
-                      <label key={o.value} title={o.hint}>
-                        <input type="radio" name="lifecycle" checked={d.lifecycle === o.value} onChange={() => set({ lifecycle: o.value })} /> {o.label}
-                      </label>
-                    ))}
-                  </div>
-                  <p className="ff-hint">{LIFECYCLES.find((o) => o.value === d.lifecycle)?.hint}</p>
                 </div>
               </div>
             </div>

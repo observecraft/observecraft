@@ -184,15 +184,6 @@ test('flag search and facets', () => {
     logic.filterFlags(flags, '', { status: ['off'] }).map((f) => f.key),
     ['catalog-search-v2'],
   );
-  const facets = logic.flagFacets(flags);
-  assert.deepEqual(facets.find((f) => f.key === 'team').values, [
-    { value: 'payments', count: 1 },
-    { value: 'search', count: 1 },
-  ]);
-  assert.deepEqual(facets.find((f) => f.key === 'status').values, [
-    { value: 'on', count: 1 },
-    { value: 'off', count: 1 },
-  ]);
 });
 
 test('OpenFeature snippets point at this install', () => {
@@ -261,4 +252,24 @@ test('the mock keeps versions, history and validation like the server', async ()
   assert.ok(!(await mock.listFeatureFlags()).flags.some((f) => f.id === created.id));
   const evals = await mock.featureFlagEvaluations({ from: Date.now() - 86_400_000, to: Date.now() });
   assert.ok(evals.find((e) => e.flag === 'checkout-new-payment-flow').total > 0);
+});
+
+test('list toolbar filters: mine, team, stale and production status', async () => {
+  const { toolbarFilter } = await import('../web/src/api/featureFlags/logic.ts');
+  const NOW = Date.UTC(2026, 9, 28);
+  const DAY = 86_400_000;
+  const env = (isProduction, enabled) => ({ environmentId: isProduction ? 'p' : 's', environmentName: isProduction ? 'Production' : 'Staging', isProduction, config: { enabled } });
+  const flags = [
+    { key: 'a', createdBy: 'Alex Morgan', teams: ['payments'], lifecycle: 'temporary', updatedAt: NOW - 40 * DAY, environments: [env(true, true), env(false, true)] },
+    { key: 'b', createdBy: 'Sam Lee', teams: ['search'], lifecycle: 'temporary', updatedAt: NOW - 2 * DAY, environments: [env(true, false)] },
+    { key: 'c', createdBy: 'Alex Morgan', teams: [], lifecycle: 'permanent', updatedAt: NOW - 90 * DAY, environments: [env(true, false)] },
+  ];
+  const keys = (f) => toolbarFilter(flags, f, 'Alex Morgan', NOW).map((x) => x.key);
+  assert.deepEqual(keys({}), ['a', 'b', 'c']);
+  assert.deepEqual(keys({ mine: true }), ['a', 'c']);
+  assert.deepEqual(keys({ team: 'search' }), ['b']);
+  // Stale: temporary flags untouched for 30 days; permanent flags never are.
+  assert.deepEqual(keys({ stale: true }), ['a']);
+  assert.deepEqual(keys({ prod: 'on' }), ['a']);
+  assert.deepEqual(keys({ prod: 'off' }), ['b', 'c']);
 });
