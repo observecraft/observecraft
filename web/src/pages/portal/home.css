@@ -206,22 +206,21 @@ td .ph-team-chip {
 
 /* Provider tabs with logos */
 .ph-provider-tabs {
-  display: inline-flex;
-  gap: 2px;
-  margin-bottom: 12px;
-  padding: 2px;
-  border-radius: var(--radius-lg);
-  background: var(--bg-muted);
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
 }
 
 .ph-provider-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 12px;
-  border-radius: var(--radius-md);
-  font-size: var(--fs-md);
+  height: 34px;
+  margin-bottom: -1px;
+  padding: 0 10px;
+  border-bottom: 2px solid transparent;
+  font-size: var(--fs-lg);
   color: var(--text-muted);
 }
 
@@ -230,10 +229,9 @@ td .ph-team-chip {
 }
 
 .ph-provider-tab.active {
-  background: var(--bg);
+  border-bottom-color: var(--primary);
   color: var(--text);
   font-weight: var(--fw-medium);
-  box-shadow: 0 1px 2px rgba(20, 24, 36, 0.12);
 }
 
 .ph-provider-logo {
@@ -644,16 +642,16 @@ a.ph-row:hover {
 .ph-mosaic {
   position: absolute;
   inset: -60px;
-  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.75) 10%, rgba(0, 0, 0, 0.35) 45%, transparent 75%);
-  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.75) 10%, rgba(0, 0, 0, 0.35) 45%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 35%, rgba(0, 0, 0, 0.85) 60%, transparent 90%);
+  mask-image: radial-gradient(ellipse at center, #000 35%, rgba(0, 0, 0, 0.85) 60%, transparent 90%);
 }
 
 .ph-mosaic-grid {
   display: grid;
-  grid-template-columns: repeat(12, 58px);
-  gap: 16px;
+  grid-template-columns: repeat(12, 100px);
+  gap: 20px;
   justify-content: center;
-  transform: rotate(-12deg) translateY(-30px);
+  transform: rotate(-10deg) translateY(-60px);
   transform-origin: center;
 }
 
@@ -661,18 +659,18 @@ a.ph-row:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 58px;
-  height: 58px;
+  width: 100px;
+  height: 100px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 16px;
   background: var(--bg);
-  box-shadow: 0 1px 3px rgba(20, 24, 36, 0.08);
+  box-shadow: 0 2px 6px rgba(20, 24, 36, 0.1);
 }
 
 .ph-mosaic-tile .logo-tile {
-  width: 26px !important;
-  height: 26px !important;
-  font-size: 9px !important;
+  width: 52px !important;
+  height: 52px !important;
+  font-size: 16px !important;
 }
 
 .ph-apps-card {

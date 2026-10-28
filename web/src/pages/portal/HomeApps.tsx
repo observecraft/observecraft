@@ -47,7 +47,7 @@ function Mosaic() {
       <div className="ph-mosaic-grid">
         {tiles.map((t, i) => (
           <span key={i} className="ph-mosaic-tile">
-            <IntegrationLogo logo={t.key} name={t.name} size={22} />
+            <IntegrationLogo logo={t.key} name={t.name} size={52} />
           </span>
         ))}
       </div>
