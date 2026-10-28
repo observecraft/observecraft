@@ -18,7 +18,6 @@ body {
   font-size: var(--fs-md);
   color: var(--text);
   background: var(--bg);
-  -webkit-font-smoothing: antialiased;
 }
 
 button {

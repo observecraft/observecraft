@@ -1,0 +1,72 @@
+[
+  {
+    "id": "hosts-by-os",
+    "title": "Hosts by operating system",
+    "description": "How many hosts run each OS and distribution, with their average CPU.",
+    "source": "infrastructure",
+    "sql": "SELECT os, distro, count() AS hosts, round(avg(cpu_pct), 1) AS avg_cpu_pct\nFROM hosts\nGROUP BY os, distro\nORDER BY hosts DESC"
+  },
+  {
+    "id": "containers-restarting",
+    "title": "Containers restarting the most",
+    "description": "Containers with restarts, worst first, with their pod and namespace.",
+    "source": "containers",
+    "sql": "SELECT name, pod, namespace, cluster, restarts, status\nFROM containers\nWHERE restarts > 0\nORDER BY restarts DESC\nLIMIT 20"
+  },
+  {
+    "id": "slowest-endpoints",
+    "title": "Slowest endpoints per service",
+    "description": "p95 latency of each service's server spans, slowest first.",
+    "source": "apm",
+    "sql": "SELECT service, name AS endpoint, count() AS requests, round(quantile(0.95)(duration_ms), 1) AS p95_ms\nFROM spans\nWHERE kind = 'Server'\nGROUP BY service, endpoint\nHAVING requests >= 10\nORDER BY p95_ms DESC\nLIMIT 25"
+  },
+  {
+    "id": "error-logs-per-service",
+    "title": "Error logs per service",
+    "description": "Error and critical logs by service, with one example message.",
+    "source": "logs",
+    "sql": "SELECT service, count() AS errors, any(message) AS example\nFROM logs\nWHERE status IN ('error', 'critical', 'alert', 'emergency')\nGROUP BY service\nORDER BY errors DESC"
+  },
+  {
+    "id": "monitors-alerting-by-team",
+    "title": "Monitors in alert by team",
+    "description": "Alerting monitors grouped by the teams that own them.",
+    "source": "monitors",
+    "sql": "SELECT arrayJoin(if(empty(teams), ['(no team)'], teams)) AS team, count() AS alerting, groupArray(name) AS monitors\nFROM monitors\nWHERE status = 'alert'\nGROUP BY team\nORDER BY alerting DESC"
+  },
+  {
+    "id": "failed-pipelines-by-repo",
+    "title": "Failed CI pipelines by repository",
+    "description": "Pipeline failures and failure rate per repository.",
+    "source": "ci",
+    "sql": "SELECT repository, countIf(status = 'error') AS failed, count() AS runs, round(100 * failed / runs, 1) AS failure_rate_pct\nFROM ci_pipelines\nGROUP BY repository\nORDER BY failed DESC"
+  },
+  {
+    "id": "service-error-rates",
+    "title": "Services by error rate",
+    "description": "Requests, errors and p95 latency of each service, highest error rate first.",
+    "source": "apm",
+    "sql": "SELECT service, env, requests, errors, round(error_rate * 100, 2) AS error_pct, p95_ms\nFROM services\nORDER BY error_rate DESC\nLIMIT 20"
+  },
+  {
+    "id": "pods-not-running",
+    "title": "Pods not running by namespace",
+    "description": "Pods in any state but Running, per cluster and namespace.",
+    "source": "kubernetes",
+    "sql": "SELECT cluster, namespace, status, count() AS pods\nFROM k8s_pods\nWHERE status != 'Running'\nGROUP BY cluster, namespace, status\nORDER BY pods DESC"
+  },
+  {
+    "id": "hosts-with-error-spans",
+    "title": "Hosts serving the most errors",
+    "description": "Joins spans with hosts: error spans per host, with the host's CPU.",
+    "source": "infrastructure",
+    "sql": "SELECT h.name AS host, h.os AS os, h.cpu_pct AS cpu_pct, count() AS error_spans\nFROM spans AS s\nINNER JOIN hosts AS h ON h.name = s.host\nWHERE s.status = 'error'\nGROUP BY host, os, cpu_pct\nORDER BY error_spans DESC\nLIMIT 10"
+  },
+  {
+    "id": "open-incidents",
+    "title": "Open incidents by severity",
+    "description": "Incidents not yet resolved, per severity, with the oldest declaration.",
+    "source": "incidents",
+    "sql": "SELECT severity, count() AS open, min(declared_at) AS oldest\nFROM incidents\nWHERE status != 'resolved'\nGROUP BY severity\nORDER BY severity"
+  }
+]

@@ -120,6 +120,26 @@ pub fn build_where(schema: &dyn Schema, terms: &[Term], skip_key: Option<&str>) 
     SqlFilter { clause: if parts.is_empty() { "1".into() } else { parts.join(" AND ") }, params }
 }
 
+/// Rows matching at least one of `searches` (`(a) OR (b)`, each search's terms ANDed as in
+/// [`build_where`]); no searches match nothing (`0`). Log restriction queries use it.
+pub fn build_any(schema: &dyn Schema, searches: &[Vec<Term>]) -> SqlFilter {
+    any_of(searches.iter().map(|s| build_where(schema, s, None)).collect(), "0")
+}
+
+/// ORs the filters; `none` is the clause when there are none.
+pub(crate) fn any_of(filters: Vec<SqlFilter>, none: &str) -> SqlFilter {
+    if filters.is_empty() {
+        return SqlFilter { clause: none.into(), params: Vec::new() };
+    }
+    let mut params = Vec::new();
+    let mut parts = Vec::new();
+    for f in filters {
+        parts.push(format!("({})", f.clause));
+        params.extend(f.params);
+    }
+    SqlFilter { clause: parts.join(" OR "), params }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -155,6 +175,27 @@ mod tests {
         // A key cannot contain quotes (the parser rejects it), and accepted keys go through a bound param.
         let f = build_where(&LogsSchema, &parse_query("x']:y"), None);
         assert!(!f.clause.contains("x'"));
+    }
+
+    #[test]
+    fn any_of_several_searches_is_an_or_of_bound_clauses() {
+        let searches = vec![parse_query("service:billing"), parse_query("env:prod kube_namespace:payments")];
+        let f = build_any(&LogsSchema, &searches);
+        assert_eq!(f.clause, "((service = ?)) OR ((tags[?] = ?) AND (tags[?] = ?))");
+        assert_eq!(
+            f.params,
+            vec![Param::Str("billing".into()), Param::Str("env".into()), Param::Str("prod".into()), Param::Str("kube_namespace".into()), Param::Str("payments".into())]
+        );
+        // Hostile values stay parameters.
+        let f = build_any(&LogsSchema, &[parse_query("service:\"x') OR 1=1 --\"")]);
+        assert!(!f.clause.contains("1=1"), "{}", f.clause);
+    }
+
+    #[test]
+    fn any_of_no_searches_matches_nothing() {
+        let f = build_any(&LogsSchema, &[]);
+        assert_eq!(f.clause, "0");
+        assert!(f.params.is_empty());
     }
 
     #[test]

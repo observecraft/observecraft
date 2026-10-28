@@ -1,0 +1,381 @@
+/* ---------- Infrastructure → Resources → Cloudcraft ---------- */
+.cc-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* header: Views / My View, title, provider tabs */
+.cc-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 22px;
+  padding: 12px 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cc-views {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-md);
+}
+
+.cc-views-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--link);
+}
+
+.cc-views-sep {
+  color: var(--text-faint);
+}
+
+.cc-views-current {
+  font-weight: var(--fw-semibold);
+}
+
+.cc-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: var(--fw-semibold);
+}
+
+.cc-providers {
+  display: flex;
+  gap: 4px;
+  align-self: flex-end;
+}
+
+.cc-provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 14px;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+}
+
+.cc-provider:hover {
+  color: var(--text);
+}
+
+.cc-provider.active {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+
+.cc-provider-count {
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+/* toolbar */
+.cc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cc-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 320px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+}
+
+.cc-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+}
+
+.cc-search button {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.cc-groupby {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cc-control-label {
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+}
+
+.cc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: var(--fs-md);
+}
+
+.cc-chip button {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.cc-chip-sep {
+  color: var(--text-faint);
+}
+
+.cc-chip-add {
+  color: var(--link);
+  border-style: dashed;
+}
+
+.cc-mode .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cc-toolbar-right {
+  margin-left: auto;
+}
+
+/* the drawing */
+.cc-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1.2px) 0 0 / 22px 22px,
+    var(--bg-subtle);
+}
+
+.cc-canvas {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.cc-canvas:active {
+  cursor: grabbing;
+}
+
+.cc-block {
+  cursor: pointer;
+}
+
+.cc-block .rc-type-icon {
+  color: #ffffff;
+}
+
+.cc-block:hover polygon {
+  filter: brightness(1.08);
+}
+
+.cc-block.folded {
+  cursor: default;
+}
+
+.cc-group-label text {
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.cc-label {
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
+}
+
+.cc-zoom {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  box-shadow: var(--shadow-pop);
+}
+
+.cc-zoom .icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 0;
+}
+
+.cc-zoom .icon-btn + .icon-btn {
+  border-top: 1px solid var(--border);
+}
+
+.cc-legend {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  max-width: calc(100% - 28px);
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: var(--fs-sm);
+}
+
+.cc-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cc-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.cc-stats {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.cc-none {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  color: var(--text-muted);
+}
+
+/* onboarding: the gradient card and what to send */
+.cc-onboarding {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 28px;
+  max-width: 1280px;
+  margin: 8px auto 0;
+}
+
+.cc-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 28px 30px 18px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(140deg, var(--hero-from) 0%, var(--hero-mid) 55%, var(--hero-to) 100%);
+  color: #ffffff;
+}
+
+.cc-kicker {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.12em;
+  color: var(--hero-tint);
+}
+
+.cc-hero h2 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.25;
+}
+
+.cc-hero p {
+  max-width: 520px;
+  margin: 0;
+  line-height: 1.5;
+  opacity: 0.88;
+}
+
+.cc-illustration {
+  width: 100%;
+  max-height: 300px;
+  margin-top: 6px;
+}
+
+.cc-setup {
+  padding: 26px 4px;
+}
+
+.cc-setup h3 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.cc-setup ol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+}
+
+.cc-setup li {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.cc-setup li > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.cc-setup li p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.cc-setup code {
+  font-size: var(--fs-sm);
+}
+
+@media (max-width: 1000px) {
+  .cc-onboarding {
+    grid-template-columns: 1fr;
+  }
+}

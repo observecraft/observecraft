@@ -193,7 +193,7 @@ async fn load(st: &AppState, org: &str, user: &str, id: &str) -> Result<Dashboar
 }
 
 /// Short, URL-friendly ids like `k3x-9vq-2mf`.
-fn new_id() -> String {
+pub(super) fn new_id() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = SystemTime::now()
@@ -214,7 +214,7 @@ fn new_id() -> String {
     out
 }
 
-fn ilike(s: &str) -> String {
+pub(super) fn ilike(s: &str) -> String {
     format!(
         "%{}%",
         s.replace('\\', "\\\\")

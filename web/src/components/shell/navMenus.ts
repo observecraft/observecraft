@@ -24,6 +24,8 @@ import {
 export interface MenuLink {
   label: string;
   to: string;
+  /** A create action, shown with a "+" before its label. */
+  plus?: boolean;
   isNew?: boolean;
   isPreview?: boolean;
   external?: boolean;
@@ -32,7 +34,7 @@ export interface MenuLink {
 /** A titled block of the hover menu; each column is a vertical list of links. */
 export interface MenuGroup {
   title: string;
-  /** Makes the title itself a link (groups without sub-items). */
+  /** Makes the title itself a link. */
   to?: string;
   badge?: 'NEW' | 'PREVIEW';
   columns: MenuLink[][];
@@ -45,7 +47,24 @@ export interface NavItem {
   menu?: MenuGroup[];
 }
 
-/** Primary navigation. Links without a built page land on the "not designed yet" placeholder. */
+type Badge = MenuGroup['badge'];
+
+/** A menu link; `+` before the label marks a create action, `!NEW` / `!PREVIEW` after it a badge. */
+function link(spec: string, to: string): MenuLink {
+  const badge = /!(NEW|PREVIEW)$/.exec(spec)?.[1];
+  const label = spec.replace(/!(NEW|PREVIEW)$/, '').replace(/^\+/, '');
+  return { label, to, ...(spec.startsWith('+') && { plus: true }), ...(badge === 'NEW' && { isNew: true }), ...(badge === 'PREVIEW' && { isPreview: true }) };
+}
+
+/** A group: its title (linking to `to`), left column and optional right column. */
+function group(title: string, to: string, left: [string, string][] = [], right: [string, string][] = [], badge?: Badge): MenuGroup {
+  // A right column keeps its place even when the left one is empty.
+  const cols = right.length ? [left, right] : left.length ? [left] : [];
+  const columns = cols.map((c) => c.map(([spec, href]) => link(spec, href)));
+  return { title, to, ...(badge && { badge }), columns };
+}
+
+/** Primary navigation; its hover menus follow the reference product's (see scripts/nav-menus.test.mjs). */
 export const NAV_SECTIONS: NavItem[][] = [
   [
     {
@@ -53,15 +72,47 @@ export const NAV_SECTIONS: NavItem[][] = [
       to: '/assist',
       icon: Sparkles,
       menu: [
-        {
-          title: 'Assist AI',
-          columns: [
-            [
-              { label: 'Chat', to: '/assist' },
-              { label: 'Investigations', to: '/assist/investigations' },
-            ],
+        group(
+          'Assist Chat',
+          '/assist',
+          [],
+          [
+            ['Reports', '/assist/reports'],
+            ['Settings', '/assist/settings'],
           ],
-        },
+          'NEW',
+        ),
+        group(
+          'Assist Investigation',
+          '/assist/investigations',
+          [
+            ['+New Investigation', '/assist/investigations/new'],
+            ['Investigations List', '/assist/investigations'],
+            ['Monitors', '/assist/investigations/monitors'],
+          ],
+          [
+            ['Reports', '/assist/investigations/reports'],
+            ['Settings', '/assist/investigations/settings'],
+          ],
+          'NEW',
+        ),
+        group(
+          'Assist Code',
+          '/assist/code',
+          [
+            ['Sessions', '/assist/code'],
+            ['Automations', '/assist/code/automations'],
+          ],
+          [
+            ['Usage', '/assist/code/usage'],
+            ['Settings', '/assist/code/settings'],
+          ],
+          'NEW',
+        ),
+        group('Assist Security Analyst', '/assist/security-analyst', [], [], 'NEW'),
+        group('Assist Agent Builder', '/automation/agents', [], [], 'NEW'),
+        group('AI Credits Management', '/assist/credits'),
+        group('Usage', '/assist/usage', [], [], 'NEW'),
       ],
     },
     {
@@ -69,16 +120,21 @@ export const NAV_SECTIONS: NavItem[][] = [
       to: '/dashboards',
       icon: LayoutDashboard,
       menu: [
-        {
-          title: 'Dashboards',
-          columns: [
-            [
-              { label: 'Dashboard List', to: '/dashboards' },
-              { label: 'Shared Dashboards', to: '/dashboards/shared' },
-            ],
-            [{ label: 'New Dashboard', to: '/dashboards?new=1' }],
-          ],
-        },
+        group('Dashboards', '/dashboards', [
+          ['Dashboard List', '/dashboards'],
+          ['+New Dashboard', '/dashboards?new=1'],
+          ['Reports', '/dashboards/reports'],
+        ]),
+        group('Notebooks', '/notebooks', [
+          ['Notebooks List', '/notebooks'],
+          ['+New Notebook', '/notebooks?new=1'],
+        ]),
+        group('Sheets', '/sheets', [
+          ['Spreadsheets List', '/sheets'],
+          ['+New Spreadsheet', '/sheets?new=1'],
+        ]),
+        group('Quick Graph', '/dashboards/quick-graph'),
+        group('SQL Editor', '/ddsql'),
       ],
     },
     {
@@ -86,32 +142,31 @@ export const NAV_SECTIONS: NavItem[][] = [
       to: '/monitors',
       icon: Activity,
       menu: [
-        {
-          title: 'Monitors',
-          columns: [
-            [
-              { label: 'Monitor List', to: '/monitors' },
-              { label: 'Triggered', to: '/monitors/triggered' },
-              { label: 'Downtimes', to: '/monitors/downtimes' },
-              { label: 'Quality', to: '/monitors/quality' },
-            ],
-            [
-              { label: 'New Monitor', to: '/monitors/create' },
-              { label: 'Monitor Templates', to: '/monitors/templates' },
-              { label: 'Service Level Objectives', to: '/slo' },
-              { label: 'Synthetic Tests', to: '/synthetics' },
-            ],
+        group(
+          'Monitors',
+          '/monitors',
+          [
+            ['Monitor List', '/monitors'],
+            ['+New Monitor', '/monitors/create'],
+            ['Triggered', '/monitors/triggered'],
+            ['Downtimes', '/monitors/downtimes'],
+            ['Quality', '/monitors/quality'],
           ],
-        },
-        {
-          title: 'Event Management',
-          columns: [
-            [
-              { label: 'All Events', to: '/event/explorer' },
-              { label: 'Triage Inbox', to: '/event/inbox' },
-            ],
+          [['Settings', '/monitors/settings']],
+        ),
+        group('SLOs', '/slo'),
+        group('Check Summary', '/check/summary'),
+        group(
+          'Event Management',
+          '/event/inbox',
+          [
+            ['Triage Inbox', '/event/inbox'],
+            ['All Events', '/event/explorer'],
           ],
-        },
+          [['Settings', '/event/settings']],
+        ),
+        group('Watchdog', '/watchdog'),
+        group('External Provider Status', '/watchdog/external-provider-status', [], [], 'NEW'),
       ],
     },
     {
@@ -119,16 +174,18 @@ export const NAV_SECTIONS: NavItem[][] = [
       to: '/portal',
       icon: Code2,
       menu: [
-        {
-          title: 'Developer Portal',
-          columns: [
-            [
-              { label: 'Software Catalog', to: '/apm' },
-              { label: 'Scorecards', to: '/portal/scorecards' },
-            ],
-            [{ label: 'Self-Service Actions', to: '/portal/actions' }],
+        group(
+          'Internal Developer Portal',
+          '/portal/home',
+          [
+            ['Catalog', '/portal/catalog'],
+            ['Scorecards', '/portal/scorecards'],
+            ['Reports', '/portal/reports'],
+            ['Surveys', '/portal/surveys'],
+            ['Actions', '/portal/actions'],
           ],
-        },
+          [['Settings', '/portal/settings']],
+        ),
       ],
     },
     {
@@ -136,19 +193,30 @@ export const NAV_SECTIONS: NavItem[][] = [
       to: '/incidents',
       icon: Siren,
       menu: [
-        {
-          title: 'Incidents',
-          columns: [
-            [
-              { label: 'Incident List', to: '/incidents' },
-              { label: 'Declare Incident', to: '/incidents?declare=1' },
-            ],
-            [
-              { label: 'On-Call', to: '/on-call' },
-              { label: 'Status Pages', to: '/status-pages', isNew: true },
-            ],
+        group(
+          'On-Call',
+          '/on-call',
+          [
+            ['Teams', '/on-call/teams'],
+            ['Pages', '/on-call/pages'],
+            ['+Send a Page', '/on-call/pages?new=1'],
           ],
-        },
+          [
+            ['Profile', '/on-call/profile'],
+            ['Settings', '/on-call/settings'],
+          ],
+        ),
+        group(
+          'Incident Management',
+          '/incidents',
+          [
+            ['Incident List', '/incidents'],
+            ['+Declare Incident', '/incidents?declare=1'],
+          ],
+          [['Settings', '/incidents/settings']],
+        ),
+        group('Status Pages', '/status-pages', [], [], 'NEW'),
+        group('Work Management', '/work'),
       ],
     },
     {
@@ -156,15 +224,12 @@ export const NAV_SECTIONS: NavItem[][] = [
       to: '/automation',
       icon: Zap,
       menu: [
-        {
-          title: 'Automation',
-          columns: [
-            [
-              { label: 'Workflows', to: '/automation' },
-              { label: 'App Builder', to: '/automation/apps' },
-            ],
-          ],
-        },
+        group('Agent Builder', '/automation/agents'),
+        group('Workflow Automation', '/automation', [['+New Workflow', '/automation/workflows/new']]),
+        group('Apps', '/automation/apps', [['+New App', '/automation/apps/new']]),
+        group('Forms', '/automation/forms'),
+        group('Action Catalog', '/automation/actions'),
+        group('Work Management', '/work'),
       ],
     },
   ],
@@ -173,143 +238,110 @@ export const NAV_SECTIONS: NavItem[][] = [
       label: 'Infrastructure',
       to: '/infrastructure',
       icon: Boxes,
-      // Datadog's Infrastructure menu.
       menu: [
-        {
-          title: 'Resources',
-          columns: [
-            [
-              { label: 'Catalog', to: '/infrastructure/catalog' },
-              { label: 'Cloudcraft', to: '/cloudcraft' },
-              { label: 'Changes', to: '/infrastructure/changes', isPreview: true },
-            ],
-            [
-              { label: 'Policies', to: '/infrastructure/policies', isPreview: true },
-              { label: 'Add Resources', to: '/infrastructure/add' },
-            ],
+        group(
+          'Resources',
+          '/infrastructure/catalog',
+          [
+            ['Catalog', '/infrastructure/catalog'],
+            ['Cloudcraft', '/cloudcraft'],
+            ['Changes!PREVIEW', '/infrastructure/changes'],
           ],
-        },
-        { title: 'Universal Service Monitoring', to: '/usm', badge: 'NEW', columns: [] },
-        {
-          title: 'Hosts',
-          to: '/infrastructure',
-          columns: [
-            [
-              { label: 'Host Map', to: '/infrastructure/map' },
-              { label: 'GPU Monitoring', to: '/gpu-monitoring' },
-            ],
+          [
+            ['Policies!PREVIEW', '/infrastructure/policies'],
+            ['Add Resources', '/infrastructure/add'],
           ],
-        },
-        {
-          title: 'Containers',
-          columns: [
-            [
-              { label: 'Kubernetes Overview', to: '/kubernetes' },
-              { label: 'Kubernetes Explorer', to: '/orchestration/explorer' },
-              { label: 'Kubernetes Autoscaling', to: '/kubernetes/autoscaling', isNew: true },
-              { label: 'Container Images', to: '/orchestration/explorer?resource=container_images' },
-              { label: 'ECS Explorer', to: '/orchestration/explorer?resource=ecs_tasks' },
-            ],
+        ),
+        group('Universal Service Monitoring', '/usm', [], [], 'NEW'),
+        group('Hosts', '/infrastructure', [
+          ['Host Map', '/infrastructure/map'],
+          ['GPU Monitoring', '/gpu-monitoring'],
+        ]),
+        group('Containers', '/kubernetes', [
+          ['Kubernetes Overview', '/kubernetes'],
+          ['Kubernetes Explorer', '/orchestration/explorer'],
+          ['Kubernetes Autoscaling!NEW', '/kubernetes/autoscaling'],
+          ['Container Images', '/orchestration/explorer?resource=container_images'],
+          ['ECS Explorer', '/orchestration/explorer?resource=ecs_tasks'],
+        ]),
+        group('Processes', '/process'),
+        group('Serverless', '/serverless'),
+        group('Cloud Network', '/network', [
+          ['Analytics', '/network'],
+          ['Network Map', '/network/map'],
+        ]),
+        group(
+          'Network Devices',
+          '/devices',
+          [
+            ['Device Geomap!NEW', '/devices/geomap'],
+            ['Device Topology Map', '/devices/topology'],
+            ['NetFlow', '/devices/netflow'],
           ],
-        },
-        { title: 'Processes', to: '/process', columns: [] },
-        { title: 'Serverless', to: '/functions', columns: [] },
-        {
-          title: 'Cloud Network',
-          columns: [
-            [
-              { label: 'Analytics', to: '/network' },
-              { label: 'Network Map', to: '/network/map' },
-            ],
-          ],
-        },
-        {
-          title: 'Network Devices',
-          columns: [
-            [
-              { label: 'Device Geomap', to: '/devices/geomap', isNew: true },
-              { label: 'Device Topology Map', to: '/devices/topology' },
-              { label: 'NetFlow', to: '/devices/netflow' },
-            ],
-            [{ label: 'Settings', to: '/devices/settings' }],
-          ],
-        },
-        { title: 'Network Path', to: '/network-path', columns: [] },
-        { title: 'Storage Management', to: '/storage-management', badge: 'NEW', columns: [] },
+          [['Settings', '/devices/settings']],
+        ),
+        group('Network Path', '/network-path'),
+        group('Storage Management', '/storage-management', [], [], 'NEW'),
+        group('End User Devices', '/end-user-devices', [], [], 'PREVIEW'),
       ],
     },
-    {
-      label: 'Cloud Cost',
-      to: '/cloud-cost',
-      icon: Cloud,
-      menu: [
-        {
-          title: 'Cloud Cost',
-          columns: [
-            [
-              { label: 'Analytics', to: '/cloud-cost' },
-              { label: 'Recommendations', to: '/cloud-cost/recommendations' },
-            ],
-          ],
-        },
-      ],
-    },
+    { label: 'Cloud Cost', to: '/cloud-cost', icon: Cloud },
     {
       label: 'APM',
       to: '/apm',
       icon: Network,
       menu: [
-        {
-          title: 'Application Performance Monitoring',
-          columns: [
-            [
-              { label: 'Services', to: '/apm' },
-              { label: 'Endpoints', to: '/apm/endpoints' },
-              { label: 'Traces', to: '/apm/traces' },
-              { label: 'Recommendations', to: '/apm/recommendations' },
-            ],
-            [
-              { label: 'Instrument a Service', to: '/apm?instrument=1' },
-              { label: 'Settings', to: '/apm/settings' },
-            ],
+        group(
+          'Application Performance Monitoring',
+          '/apm',
+          [
+            ['Services', '/apm'],
+            ['Endpoints', '/apm/endpoints'],
+            ['Traces', '/apm/traces'],
+            ['Recommendations', '/apm/recommendations'],
           ],
-        },
-        {
-          title: 'Profiles',
-          columns: [
-            [
-              { label: 'Explorer', to: '/apm/profiles' },
-              { label: 'Comparison', to: '/apm/profiles/comparison' },
-              { label: 'Insights', to: '/apm/profiles/insights' },
-            ],
+          [
+            ['+Instrument a Service', '/apm?instrument=1'],
+            ['Settings', '/apm/settings'],
           ],
-        },
-        {
-          title: 'Live Debugger',
-          badge: 'PREVIEW',
-          columns: [[{ label: 'Sessions List', to: '/apm/debugger' }], [{ label: 'Configuration', to: '/apm/debugger/configuration' }]],
-        },
-        { title: 'Data Streams Monitoring', columns: [[{ label: 'Kafka Console', to: '/data-streams/kafka' }]] },
-        { title: 'Dynamic Instrumentation', to: '/apm/dynamic-instrumentation', columns: [] },
-        { title: 'Database Monitoring', to: '/databases', columns: [] },
-        { title: 'Data Jobs Monitoring', to: '/data/jobs', columns: [] },
-        { title: 'Sensitive Data Scanner', to: '/organization-settings/sensitive-data-scanner', columns: [] },
+        ),
+        group('Profiles', '/apm/profiles', [
+          ['Explorer', '/apm/profiles'],
+          ['Comparison', '/apm/profiles/comparison'],
+          ['Insights', '/apm/profiles/insights'],
+        ]),
+        group('Live Debugger', '/apm/debugger', [['Sessions List', '/apm/debugger']], [['Configuration', '/apm/debugger/configuration']], 'PREVIEW'),
+        group('Data Streams Monitoring', '/data-streams', [['Kafka Console', '/data-streams/kafka']]),
+        group('Dynamic Instrumentation', '/apm/dynamic-instrumentation'),
+        group('Database Monitoring', '/data'),
+        group('Data Jobs Monitoring', '/data/jobs'),
+        group('Sensitive Data Scanner', '/organization-settings/sensitive-data-scanner'),
       ],
     },
     {
       label: 'Digital Experience',
-      to: '/rum',
+      to: '/synthetics',
       icon: Monitor,
       menu: [
-        {
-          title: 'Digital Experience',
-          columns: [
-            [
-              { label: 'Real User Monitoring', to: '/rum' },
-              { label: 'Session Replay', to: '/rum/replay' },
-            ],
+        group('Journey Monitoring', '/journeys', [], [], 'NEW'),
+        group(
+          'Synthetic Monitoring & Testing',
+          '/synthetics',
+          [
+            ['Tests', '/synthetics/tests'],
+            ['+New Test', '/synthetics/create'],
+            ['Test Suites!NEW', '/synthetics/suites'],
+            ['+New Test Suite!NEW', '/synthetics/suites/new'],
+            ['AI Testing!NEW', '/synthetics/ai-testing'],
+            ['Results Explorer', '/synthetics/explorer'],
+            ['Continuous Testing', '/synthetics/continuous-testing'],
+            ['Test Coverage', '/synthetics/test-coverage'],
           ],
-        },
+          [['Settings', '/synthetics/settings']],
+        ),
+        group('Real User Monitoring', '/rum'),
+        group('Product Analytics', '/product-analytics', [], [], 'NEW'),
+        group('Experiments', '/product-analytics/experiments'),
       ],
     },
     {
@@ -317,51 +349,45 @@ export const NAV_SECTIONS: NavItem[][] = [
       to: '/ci',
       icon: GitBranch,
       menu: [
-        {
-          title: 'CI/CD Optimization',
-          badge: 'NEW',
-          columns: [
-            [
-              { label: 'Overview', to: '/ci' },
-              { label: 'Explorer', to: '/ci/explorer' },
-              { label: 'Flaky Management', to: '/ci/flaky' },
-            ],
-            [
-              { label: 'Add Repository', to: '/ci/settings#add-repository' },
-              { label: 'Settings', to: '/ci/settings' },
-            ],
+        group(
+          'CI/CD Optimization',
+          '/ci',
+          [
+            ['Overview', '/ci'],
+            ['Explorer', '/ci/explorer'],
+            ['Flaky Management', '/ci/flaky'],
           ],
-        },
-        {
-          title: 'Feature Flags',
-          columns: [[{ label: 'Feature Flags', to: '/feature-flags' }], [{ label: 'Environments', to: '/feature-flags/environments' }]],
-        },
-        { title: 'Deployment Gates', to: '/deployment-gates', badge: 'NEW', columns: [] },
-        { title: 'Intro to Code Coverage', to: '/code-coverage', columns: [] },
-        {
-          title: 'Code Security',
-          columns: [
-            [
-              { label: 'Vulnerabilities', to: '/code-security/vulnerabilities' },
-              { label: 'Repositories', to: '/code-security/repositories' },
-            ],
-            [
-              { label: 'Repository Settings', to: '/code-security/settings' },
-              { label: 'Setup', to: '/code-security/setup' },
-            ],
+          [
+            ['Add Repository', '/ci/settings#add-repository'],
+            ['Settings', '/ci/settings'],
           ],
-        },
-        { title: 'PR Gates', to: '/pr-gates', badge: 'NEW', columns: [] },
-        {
-          title: 'Delivery Performance',
-          columns: [
-            [
-              { label: 'DORA Metrics', to: '/delivery/dora' },
-              { label: 'AI Impact', to: '/delivery/ai-impact', isPreview: true },
-            ],
-            [{ label: 'Settings', to: '/delivery/settings' }],
+          'NEW',
+        ),
+        group('Feature Flags', '/feature-flags', [['Feature Flags', '/feature-flags']], [['Environments', '/feature-flags/environments']]),
+        group('Deployment Gates', '/delivery/deployment-gates', [], [], 'NEW'),
+        group('Intro to Code Coverage', '/ci/code-coverage'),
+        group(
+          'Code Security',
+          '/code-security',
+          [
+            ['Vulnerabilities', '/code-security/vulnerabilities'],
+            ['Repositories', '/code-security/repositories'],
           ],
-        },
+          [
+            ['Detection Coverage', '/code-security/detection-coverage'],
+            ['Settings', '/code-security/settings'],
+          ],
+        ),
+        group('PR Gates', '/delivery/pr-gates', [], [], 'NEW'),
+        group(
+          'Delivery Performance',
+          '/delivery/dora',
+          [
+            ['DORA Metrics', '/delivery/dora'],
+            ['AI Impact!PREVIEW', '/delivery/ai-impact'],
+          ],
+          [['Settings', '/delivery/settings']],
+        ),
       ],
     },
     {
@@ -369,31 +395,78 @@ export const NAV_SECTIONS: NavItem[][] = [
       to: '/security',
       icon: ShieldCheck,
       menu: [
-        {
-          title: 'Security',
-          columns: [
-            [
-              { label: 'Signals', to: '/security' },
-              { label: 'Vulnerabilities', to: '/security/vulnerabilities' },
-            ],
+        group(
+          'Security',
+          '/security',
+          [
+            ['Inbox', '/security/inbox'],
+            ['Signals', '/security/signals'],
           ],
-        },
+          [
+            ['Research Feed', '/security/feed'],
+            ['Settings', '/security/settings'],
+          ],
+        ),
+        group(
+          'Cloud SIEM',
+          '/security/siem',
+          [
+            ['Content Packs', '/security/siem/content-packs'],
+            ['Signals', '/security/siem/signals'],
+          ],
+          [
+            ['Detection Rules', '/security/siem/rules'],
+            ['Settings', '/security/siem/settings'],
+          ],
+        ),
+        group(
+          'Code Security',
+          '/code-security',
+          [
+            ['Vulnerabilities', '/code-security/vulnerabilities'],
+            ['Repositories', '/code-security/repositories'],
+          ],
+          [
+            ['Detection Coverage', '/code-security/detection-coverage'],
+            ['Settings', '/code-security/settings'],
+          ],
+        ),
+        group('Cloud Security', '/security/cloud'),
+        group(
+          'App & API Protection',
+          '/security/appsec',
+          [
+            ['API Inventory', '/security/appsec/apis'],
+            ['Signals', '/security/appsec/signals'],
+          ],
+          [
+            ['Policies', '/security/appsec/policies'],
+            ['Settings', '/security/appsec/settings'],
+          ],
+        ),
+        group('Workload Protection', '/security/workload-protection'),
+        group(
+          'Sensitive Data Scanner',
+          '/organization-settings/sensitive-data-scanner',
+          [['Findings', '/sensitive-data-scanner/findings']],
+          [['Settings', '/organization-settings/sensitive-data-scanner']],
+        ),
+        group('AI Guard', '/security/ai-guard', [], [], 'NEW'),
       ],
     },
     {
       label: 'Data Observability',
-      to: '/data',
+      to: '/data-obs',
       icon: Database,
       menu: [
-        {
-          title: 'Data Observability',
-          columns: [
-            [
-              { label: 'Database Monitoring', to: '/data' },
-              { label: 'Data Jobs', to: '/data/jobs' },
-            ],
-          ],
-        },
+        group('Data Observability', '/data-obs', [['Catalog!NEW', '/data-obs/catalog']], [['Settings', '/data-obs/settings']], 'NEW'),
+        group('Quality Monitoring', '/data-obs/monitors', [['Monitors', '/data-obs/monitors']], [], 'NEW'),
+        group('Jobs Monitoring', '/data/jobs', [
+          ['Jobs', '/data/jobs'],
+          ['Queries!PREVIEW', '/data-obs/queries'],
+        ]),
+        group('Lineage', '/data-obs/lineage', [], [], 'NEW'),
+        group('CI/CD', '/data-obs/ci-cd', [], [], 'PREVIEW'),
       ],
     },
     {
@@ -401,39 +474,47 @@ export const NAV_SECTIONS: NavItem[][] = [
       to: '/llm',
       icon: Bot,
       menu: [
-        {
-          title: 'AI Observability',
-          columns: [
-            [
-              { label: 'LLM Traces', to: '/llm' },
-              { label: 'Evaluations', to: '/llm/evaluations' },
-            ],
+        group(
+          'Agent Observability',
+          '/llm',
+          [
+            ['Overview', '/llm'],
+            ['Cost!NEW', '/llm/cost'],
+            ['Traces', '/llm/traces'],
+            ['Evaluators', '/llm/evaluations'],
+            ['Experiments', '/llm/experiments'],
           ],
-        },
+          [['AI Gateway!PREVIEW', '/llm/gateway']],
+        ),
+        group('GPU Monitoring', '/gpu-monitoring', [
+          ['Summary', '/gpu-monitoring'],
+          ['Explorer', '/gpu-monitoring/explorer'],
+          ['Capacity Planning!PREVIEW', '/gpu-monitoring/capacity'],
+          ['Training!PREVIEW', '/gpu-monitoring/training'],
+          ['Inference!PREVIEW', '/gpu-monitoring/inference'],
+        ]),
+        group('Agent Console', '/llm/agent-console', [], [], 'PREVIEW'),
       ],
     },
   ],
   [
-    {
-      label: 'Errors',
-      to: '/errors',
-      icon: Bug,
-      menu: [{ title: 'Error Tracking', columns: [[{ label: 'Issues', to: '/errors' }]] }],
-    },
+    { label: 'Errors', to: '/errors', icon: Bug },
     {
       label: 'Metrics',
       to: '/metrics',
       icon: Gauge,
       menu: [
-        {
-          title: 'Metrics',
-          columns: [
-            [
-              { label: 'Explorer', to: '/metrics' },
-              { label: 'Summary', to: '/metrics/summary' },
-            ],
+        group(
+          'Metrics',
+          '/metrics',
+          [
+            ['Explorer', '/metrics'],
+            ['Summary', '/metrics/summary'],
+            ['Volume', '/metrics/volume'],
+            ['Derived Metrics', '/metrics/derived'],
           ],
-        },
+          [['Settings!PREVIEW', '/metrics/settings']],
+        ),
       ],
     },
     {
@@ -441,46 +522,37 @@ export const NAV_SECTIONS: NavItem[][] = [
       to: '/logs',
       icon: ScrollText,
       menu: [
-        {
-          title: 'Search & Analytics',
-          columns: [
-            [
-              { label: 'Explorer', to: '/logs' },
-              { label: 'Live Tail', to: '/logs/livetail' },
-              { label: 'Notebooks', to: '/logs/notebooks' },
-            ],
-            [{ label: 'Archive Search', to: '/logs/archive-search', isNew: true }],
+        group(
+          'Search & Analytics',
+          '/logs',
+          [
+            ['Explorer', '/logs'],
+            ['Live Tail', '/logs/livetail'],
+            ['Notebooks', '/notebooks'],
           ],
-        },
-        {
-          title: 'Log Configuration',
-          columns: [
-            [
-              { label: 'Pipelines', to: '/logs/pipelines' },
-              { label: 'Flex Logs Controls', to: '/logs/flex-controls' },
-              { label: 'Archiving & Forwarding', to: '/logs/archives' },
-            ],
-            [
-              { label: 'Add a Log Source', to: '/logs/onboarding' },
-              { label: 'Generate Metrics', to: '/logs/generate-metrics' },
-              { label: 'Data Access', to: '/logs/data-access' },
-              { label: 'Migration', to: '/logs/migration/import', isNew: true },
-            ],
+          [['Archive Search!NEW', '/logs/archive-search']],
+        ),
+        group(
+          'Log Configuration',
+          '/logs/pipelines',
+          [
+            ['Pipelines', '/logs/pipelines'],
+            ['Indexes', '/logs/indexes'],
+            ['Flex Logs Controls', '/logs/flex-controls'],
+            ['Archiving & Forwarding', '/logs/archives'],
           ],
-        },
-        {
-          title: 'Observability Pipelines',
-          columns: [
-            [
-              { label: 'Volume Control Packs', to: '/observability-pipelines/packs' },
-              { label: 'New Pipeline', to: '/observability-pipelines/new' },
-            ],
+          [
+            ['Add a Log Source', '/logs/onboarding'],
+            ['Generate Metrics', '/logs/generate-metrics'],
+            ['Data Access', '/logs/data-access'],
+            ['Migration!NEW', '/logs/migration/import'],
           ],
-        },
-        {
-          title: 'Sensitive Data Scanner',
-          columns: [[{ label: 'Scanning Groups', to: '/organization-settings/sensitive-data-scanner' }]],
-        },
+        ),
+        group('Observability Pipelines', '/observability-pipelines', [
+          ['Volume Control Packs', '/observability-pipelines/packs'],
+          ['+New Pipeline', '/observability-pipelines/new'],
+        ]),
+        group('Sensitive Data Scanner', '/organization-settings/sensitive-data-scanner'),
       ],
     },
   ],
@@ -492,19 +564,17 @@ export const NAV_FOOTER: NavItem[] = [
     to: '/integrations',
     icon: Puzzle,
     menu: [
-      {
-        title: 'Integrations',
-        columns: [
-          [
-            { label: 'Integrations', to: '/integrations' },
-            { label: 'Marketplace', to: '/integrations/marketplace' },
-          ],
-          [
-            { label: 'Reference Tables', to: '/integrations/reference-tables' },
-            { label: 'Link Source Code', to: '/integrations/source-code' },
-          ],
-        ],
-      },
+      group('Integrations', '/integrations'),
+      group('Marketplace', '/integrations/marketplace'),
+      group('Reference Tables', '/integrations/reference-tables'),
+      group('Source Code Integration', '/integrations/source-code'),
+      group('Fleet Automation', '/fleet', [
+        ['Fleet View', '/fleet'],
+        ['+Install Agents', '/infrastructure/add'],
+        ['Configuration!NEW', '/fleet/configuration'],
+        ['Upgrades', '/fleet/upgrades'],
+      ]),
+      group('IDE Plugins', '/integrations/ide'),
     ],
   },
   { label: 'Release Notes', to: '/release-notes', icon: Megaphone },
@@ -513,6 +583,7 @@ export const NAV_FOOTER: NavItem[] = [
 /** "+" quick-create entries. */
 export const QUICK_CREATE: MenuLink[] = [
   { label: 'New Dashboard', to: '/dashboards?new=1' },
+  { label: 'New Notebook', to: '/notebooks?new=1' },
   { label: 'Declare Incident', to: '/incidents?declare=1' },
   { label: 'New Monitor', to: '/monitors/create' },
   { label: 'New Log Pipeline', to: '/logs/pipelines' },

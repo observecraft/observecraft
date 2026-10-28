@@ -14,14 +14,15 @@ import './settings.css';
 type Section = 'profile' | 'security' | 'home' | 'time' | 'accessibility' | 'email' | 'orgs' | 'mobile';
 type Tab = 'overview' | 'oncall' | 'agent' | 'keys';
 
-const SECTIONS: { id: Exclude<Section, 'profile'>; label: string; badge?: string }[] = [
+/** `soon`: nothing to configure yet; listed (greyed) but not selectable. */
+const SECTIONS: { id: Exclude<Section, 'profile'>; label: string; badge?: string; soon?: boolean }[] = [
   { id: 'security', label: 'Security' },
-  { id: 'home', label: 'Home Page', badge: 'NEW' },
+  { id: 'home', label: 'Home Page', soon: true },
   { id: 'time', label: 'Time Preferences' },
-  { id: 'accessibility', label: 'Accessibility' },
-  { id: 'email', label: 'Email Subscriptions' },
+  { id: 'accessibility', label: 'Accessibility', soon: true },
+  { id: 'email', label: 'Email Subscriptions', soon: true },
   { id: 'orgs', label: 'Organizations' },
-  { id: 'mobile', label: 'Mobile and Third-Party Access' },
+  { id: 'mobile', label: 'Mobile and Third-Party Access', soon: true },
 ];
 
 const TIMEZONES = ['Europe/Berlin', 'Europe/London', 'Europe/Warsaw', 'Asia/Jerusalem', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo', 'UTC'];
@@ -56,11 +57,18 @@ export function PersonalSettings() {
                 <small>Profile Settings</small>
               </span>
             </button>
-            {SECTIONS.map((s) => (
-              <button key={s.id} className={`settings-link${section === s.id ? ' active' : ''}`} onClick={() => setSection(s.id)}>
-                {s.label} {s.badge && <span className="badge-new">{s.badge}</span>}
-              </button>
-            ))}
+            {SECTIONS.map((s) =>
+              s.soon ? (
+                <span key={s.id} className="settings-link settings-link-soon" title={`${s.label} isn't built yet`}>
+                  {s.label}
+                  <span className="badge-soon">SOON</span>
+                </span>
+              ) : (
+                <button key={s.id} className={`settings-link${section === s.id ? ' active' : ''}`} onClick={() => setSection(s.id)}>
+                  {s.label} {s.badge && <span className="badge-new">{s.badge}</span>}
+                </button>
+              ),
+            )}
           </aside>
           <main className="settings-main">{section === 'profile' ? <ProfileView p={q.data} /> : section === 'security' ? <SecuritySection /> : <OtherSection section={section} p={q.data} />}</main>
         </div>
@@ -181,8 +189,14 @@ function ProfileView({ p }: { p: Profile }) {
         <AppKeysTab />
       ) : (
         <section className="settings-card settings-empty">
-          <h2>{tab === 'oncall' ? 'Not on call' : 'Agent Console'}</h2>
-          <p className="muted">{tab === 'oncall' ? 'You are not part of an on-call schedule.' : 'Manage the collectors you have access to from Fleet Automation.'}</p>
+          <h2>{tab === 'oncall' ? 'On-Call' : 'Agent Console'}</h2>
+          {tab === 'oncall' ? (
+            <p className="muted">
+              Your shifts and how pages reach you are in <Link to="/on-call/profile">On-Call → My On-Call Profile</Link>.
+            </p>
+          ) : (
+            <p className="muted">Manage the collectors you have access to from Fleet Automation.</p>
+          )}
         </section>
       )}
     </>
@@ -232,12 +246,7 @@ function OtherSection({ section, p }: { section: Exclude<Section, 'profile' | 's
         <section className="settings-card">
           <h2>Time zone</h2>
           <p className="muted">Used for "local time" on your profile. Charts follow your browser's time zone.</p>
-          <Select
-            label="Time zone"
-            value={p.timezone ?? 'UTC'}
-            options={TIMEZONES.map((t) => ({ value: t, label: t }))}
-            onChange={(timezone) => save.mutate({ timezone })}
-          />
+          <Select label="Time zone" value={p.timezone ?? 'UTC'} options={TIMEZONES.map((t) => ({ value: t, label: t }))} onChange={(timezone) => save.mutate({ timezone })} />
         </section>
       ) : section === 'orgs' ? (
         <section className="settings-card">

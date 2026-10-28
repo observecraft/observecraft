@@ -1,0 +1,12 @@
+/* ConfigLayout: an item listed under the one before it. */
+.settings-link.config-link-nested {
+  padding-left: 40px;
+  min-height: 36px;
+  font-size: 15px;
+}
+
+.settings-link.config-link-heading,
+.settings-link.config-link-heading:hover {
+  background: none;
+  cursor: default;
+}

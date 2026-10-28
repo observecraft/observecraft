@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { Bug, ChevronRight, Database, GitCommitHorizontal, Hexagon, LayoutGrid, ListTree, ScrollText, Server, Settings2, Share2 } from 'lucide-react';
+import { Bug, ChevronRight, Database, GitCommitHorizontal, Hexagon, LayoutGrid, ListTree, ScrollText, Server, Share2 } from 'lucide-react';
 import type { ServiceScope } from '../../../api/apm/client';
 import { TimePicker } from '../../../components/shell/PageHeader';
 import { useTime } from '../../../components/shell/TimeContext';
@@ -87,9 +87,24 @@ export function ServicePage() {
           <span>{service}</span>
         </div>
         <div className="svc-filters">
-          <Select label="Operation" value={resource ?? ALL} onChange={(v) => setParam('resource', v)} options={[{ value: ALL, label: 'All resources' }, ...(opt?.resources ?? []).map((r) => ({ value: r, label: r }))]} />
-          <Select label="Env" value={env ?? ALL} onChange={(v) => setParam('env', v)} options={[{ value: ALL, label: 'All environments' }, ...(opt?.envs ?? []).map((e) => ({ value: e, label: e }))]} />
-          <Select label="Version" value={version ?? ALL} onChange={(v) => setParam('version', v)} options={[{ value: ALL, label: 'All versions' }, ...(opt?.versions ?? []).map((v) => ({ value: v, label: v }))]} />
+          <Select
+            label="Operation"
+            value={resource ?? ALL}
+            onChange={(v) => setParam('resource', v)}
+            options={[{ value: ALL, label: 'All resources' }, ...(opt?.resources ?? []).map((r) => ({ value: r, label: r }))]}
+          />
+          <Select
+            label="Env"
+            value={env ?? ALL}
+            onChange={(v) => setParam('env', v)}
+            options={[{ value: ALL, label: 'All environments' }, ...(opt?.envs ?? []).map((e) => ({ value: e, label: e }))]}
+          />
+          <Select
+            label="Version"
+            value={version ?? ALL}
+            onChange={(v) => setParam('version', v)}
+            options={[{ value: ALL, label: 'All versions' }, ...(opt?.versions ?? []).map((v) => ({ value: v, label: v }))]}
+          />
           <TimePicker />
         </div>
       </div>
@@ -111,9 +126,6 @@ export function ServicePage() {
                 {!s!.instrumented && ' · inferred from client spans'}
               </span>
             </div>
-            <button className="btn">
-              <Settings2 size={14} /> Service Config
-            </button>
           </header>
           <div className="svc-monbar">No Monitors</div>
 

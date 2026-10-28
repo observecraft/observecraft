@@ -29,6 +29,7 @@ use axum::extract::{Path, State};
 use axum::Json;
 use oc_query::{
     metric_field, metric_filter, parse_metric_query, short_tag, span_field, MetricQuery, Param,
+    Rollup,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -231,6 +232,15 @@ fn resolve_alias(q: &MetricQuery) -> (MetricQuery, f64) {
         }
         None => (q.clone(), 1.0),
     }
+}
+
+/// [`resolve_alias`] only for a metric that isn't there itself: the Datadog Agent sends
+/// `system.mem.used`, `system.cpu.user`, … under those names, with no OpenTelemetry base metric.
+pub(super) async fn resolve_alias_if_missing(st: &AppState, org: &str, q: &MetricQuery) -> Result<(MetricQuery, f64), ApiError> {
+    if ALIASES.iter().any(|a| a.0 == q.metric) && metric_kind(st, org, &q.metric).await?.is_some() {
+        return Ok((q.clone(), 1.0));
+    }
+    Ok(resolve_alias(q))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -702,6 +712,8 @@ async fn inner_query_at_step(
     points: u32,
     forced: Option<(Source, i64)>,
 ) -> Result<(String, Vec<Param>, i64), ApiError> {
+    // Indexing controls (Metrics → Settings → Rules) limit the tags a query may use.
+    super::metric_rules::check_query(st, org, q).await?;
     let mut params = Vec::new();
     if let Some((_, expr, _, _)) = SPAN_METRICS.iter().find(|m| m.0 == q.metric) {
         let step = forced
@@ -727,7 +739,7 @@ async fn inner_query_at_step(
         );
         return Ok((sql, params, step));
     }
-    let (q, scale) = resolve_alias(q);
+    let (q, scale) = resolve_alias_if_missing(st, org, q).await?;
     let q = &q;
     let Some(kind) = metric_kind(st, org, &q.metric).await? else {
         // `<distribution>.<stat>`: histogram, exponential histogram or summary.
@@ -780,14 +792,16 @@ pub(crate) fn with_window(c: clickhouse::Client, from: i64, to: i64) -> clickhou
 
 /// Points of the `kind` ("gauge" or "sum") metrics `names` in the window, with the columns of the
 /// exporter's tables that direct readers use (OrgId, MetricName, ServiceName, ResourceAttributes,
-/// Attributes, TimeUnix, Value), from series + samples. `names` are the caller's constants.
+/// Attributes, TimeUnix, Value), plus the series' Temporality (OTLP: 1 delta, 2 cumulative) and
+/// Monotonic flag, from series + samples. `names` are the caller's constants.
 pub(crate) fn points_subquery(kind: &str, names: &[&str]) -> String {
     assert!(matches!(kind, "gauge" | "sum"));
     let names = name_list(names);
     format!(
         "(SELECT x.OrgId AS OrgId, x.MetricName AS MetricName, s.ServiceName AS ServiceName, s.ResourceAttributes AS ResourceAttributes, s.Attributes AS Attributes, \
-                 x.TimeUnix AS TimeUnix, x.Value AS Value FROM otel.metrics_samples AS x \
-          INNER JOIN (SELECT SeriesId, any(ServiceName) AS ServiceName, any(ResourceAttributes) AS ResourceAttributes, any(Attributes) AS Attributes FROM otel.metrics_series \
+                 x.TimeUnix AS TimeUnix, x.Value AS Value, s.Temporality AS Temporality, s.Monotonic AS Monotonic FROM otel.metrics_samples AS x \
+          INNER JOIN (SELECT SeriesId, any(ServiceName) AS ServiceName, any(ResourceAttributes) AS ResourceAttributes, any(Attributes) AS Attributes, \
+                             any(AggregationTemporality) AS Temporality, any(IsMonotonic) AS Monotonic FROM otel.metrics_series \
                       WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) AND MetricType = '{kind}' AND LastSeen >= toDateTime(intDiv({{oc_from:Int64}}, 1000)) \
                       GROUP BY SeriesId) AS s ON x.SeriesId = s.SeriesId \
           WHERE x.OrgId = {{oc_org:String}} AND x.MetricName IN ({names}) \
@@ -822,9 +836,22 @@ fn points_query(
     scale: f64,
 ) -> (String, Vec<Param>) {
     // Raw points (Value, TimeUnix) or rollup buckets (Sum, Count, Min, Max, Start, End).
-    let v = match (kind, source != Source::Samples) {
-        (Kind::Gauge | Kind::UpDown, false) => "avg(Value)".to_string(),
-        (Kind::Gauge | Kind::UpDown, true) => "sum(Sum) / sum(Count)".to_string(),
+    let rolled = source != Source::Samples;
+    // A gauge's `.rollup(method)`: the method over raw points, or over the rollup buckets' columns.
+    let gauge = match (q.rollup.unwrap_or(Rollup::Avg), rolled) {
+        (Rollup::Avg, false) => "avg(Value)",
+        (Rollup::Avg, true) => "sum(Sum) / sum(Count)",
+        (Rollup::Max, false) => "max(Value)",
+        (Rollup::Max, true) => "max(Max)",
+        (Rollup::Min, false) => "min(Value)",
+        (Rollup::Min, true) => "min(Min)",
+        (Rollup::Sum, false) => "sum(Value)",
+        (Rollup::Sum, true) => "sum(Sum)",
+        (Rollup::Count, false) => "count()",
+        (Rollup::Count, true) => "sum(Count)",
+    };
+    let v = match (kind, rolled) {
+        (Kind::Gauge | Kind::UpDown, _) => gauge.to_string(),
         (Kind::Counter, false) => "greatest(max(Value) - min(Value), 0) * 1000 / greatest(dateDiff('millisecond', min(TimeUnix), max(TimeUnix)), 1)".to_string(),
         (Kind::Counter, true) => "greatest(max(Max) - min(Min), 0) * 1000 / greatest(dateDiff('millisecond', min(Start), max(End)), 1)".to_string(),
         (Kind::Delta, false) => format!("sum(Value) / {step_s}"),
@@ -930,7 +957,34 @@ async fn org_tiers(st: &AppState, org: &str) -> Result<Tiers, ApiError> {
     Ok(t)
 }
 
-async fn evaluate(
+/// A metric query, or a formula between metric queries (`sum:a{*} by {x} / sum:b{*} by {x} * 100`):
+/// the plain query (none for a formula) and the series.
+/// Derived metric names (see `derived_metrics`) are resolved to their formulas first.
+pub(crate) async fn evaluate_formula(st: &AppState, org: &str, text: &str, range: TimeRange, points: u32) -> Result<(Option<MetricQuery>, Vec<Group>), ApiError> {
+    let text = super::derived_metrics::resolve_text(st, org, text).await?;
+    let f = super::monitor_formula::parse_formula(&text).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+    if f.expr == super::monitor_formula::Expr::Query(0) {
+        let (q, groups) = evaluate_plain(st, org, &f.queries[0], range, points).await?;
+        return Ok((Some(q), groups));
+    }
+    let results = futures::future::try_join_all(f.queries.iter().map(|q| evaluate_plain(st, org, q, range, points))).await?;
+    let groups: Vec<Vec<Group>> = results.into_iter().map(|(_, g)| g).collect();
+    Ok((None, super::monitor_formula::combine(&f.expr, &groups)))
+}
+
+/// One metric query; a derived metric's is evaluated as its formula (the query's space aggregator
+/// still combines the groups of a scalar).
+async fn evaluate(st: &AppState, org: &str, query: &str, range: TimeRange, points: u32) -> Result<(MetricQuery, Vec<Group>), ApiError> {
+    let q = parse(query)?;
+    if super::derived_metrics::is_derived(st, org, &q.metric).await? {
+        validate_metric_range(st, org, range).await?;
+        let (_, groups) = evaluate_formula(st, org, query, range, points).await?;
+        return Ok((q, groups));
+    }
+    evaluate_plain(st, org, query, range, points).await
+}
+
+async fn evaluate_plain(
     st: &AppState,
     org: &str,
     query: &str,
@@ -951,7 +1005,19 @@ pub(crate) async fn evaluate_query(
     range: TimeRange,
     points: u32,
 ) -> Result<Vec<Group>, ApiError> {
-    let (inner, params, _) = inner_query(st, org, q, range, points).await?;
+    Ok(evaluate_query_stepped(st, org, q, range, points).await?.0)
+}
+
+/// [`evaluate_query`], plus the interval (ms) each point covers: values are per-second rates for
+/// counts, so `value × interval` is what the interval counted (SLOs add up events this way).
+pub(crate) async fn evaluate_query_stepped(
+    st: &AppState,
+    org: &str,
+    q: &MetricQuery,
+    range: TimeRange,
+    points: u32,
+) -> Result<(Vec<Group>, i64), ApiError> {
+    let (inner, params, step) = inner_query(st, org, q, range, points).await?;
     let sql = format!(
         "SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64({agg}(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t",
         agg = q.agg.sql()
@@ -977,7 +1043,7 @@ pub(crate) async fn evaluate_query(
             }),
         }
     }
-    Ok(groups)
+    Ok((groups, step))
 }
 
 fn round(v: f64) -> f64 {
@@ -1033,6 +1099,30 @@ pub struct MetricSeries {
     pub name: String,
     /// `[timestamp ms, value]` pairs.
     pub points: Vec<(i64, f64)>,
+    /// The metric's unit (`byte`, `nanocore`, `byte/second`…): its sender's, else its integration's.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(nullable = false)]
+    pub unit: Option<String>,
+}
+
+#[derive(clickhouse::Row, Deserialize)]
+struct UnitRow {
+    name: String,
+    unit: String,
+}
+
+/// Units of the queried metrics (a distribution statistic takes its base metric's).
+async fn series_units(st: &AppState, org: &str, metrics: &[String]) -> Result<HashMap<String, String>, ApiError> {
+    let bases: Vec<String> = metrics.iter().map(|n| split_stat(n).map(|(b, _)| b.to_string()).unwrap_or(n.clone())).collect();
+    let marks = vec!["?"; bases.len()].join(",");
+    let sql = format!("SELECT MetricName AS name, any(MetricUnit) AS unit FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND MetricName IN ({marks}) GROUP BY MetricName");
+    let params: Vec<Param> = bases.iter().cloned().map(Param::Str).collect();
+    let reported: HashMap<String, String> = bind(st.ch(org).query(&sql), &params).fetch_all::<UnitRow>().await?.into_iter().map(|r| (r.name, r.unit)).collect();
+    Ok(metrics
+        .iter()
+        .zip(&bases)
+        .filter_map(|(m, b)| dashboard::metric_unit(b, reported.get(b).map(String::as_str).unwrap_or("")).map(|u| (m.clone(), u)))
+        .collect())
 }
 
 /// Timeseries for one or more queries; one series per `by` group.
@@ -1051,20 +1141,24 @@ pub async fn timeseries(
     let results = futures::future::try_join_all(
         req.queries
             .iter()
-            .map(|q| evaluate(&st, &org, q, req.range, points)),
+            .map(|q| evaluate_formula(&st, &org, q, req.range, points)),
     )
     .await?;
+    let metrics: Vec<String> = results.iter().filter_map(|(q, _)| q.as_ref().map(|q| q.metric.clone())).collect::<std::collections::HashSet<_>>().into_iter().collect();
+    let units = series_units(&st, &org, &metrics).await?;
     let mut out = Vec::new();
     for ((q, groups), text) in results.into_iter().zip(&req.queries) {
         for g in groups {
             // Ungrouped series are named by their query so several queries stay distinct.
             out.push(MetricSeries {
-                name: if q.by.is_empty() {
+                name: if g.tags.is_empty() {
                     text.clone()
                 } else {
                     group_label(&g.tags)
                 },
                 points: g.points,
+                // A formula's unit isn't its queries' (a ratio, a difference of rates…): none.
+                unit: q.as_ref().and_then(|q| units.get(&q.metric).cloned()),
             });
         }
     }
@@ -1122,17 +1216,30 @@ pub async fn grouped(
     OrgId(org): OrgId,
     Json(req): Json<ScalarRequest>,
 ) -> ApiResult<Vec<GroupedScalar>> {
-    let (_, groups) = evaluate(&st, &org, &req.query, req.range, 60).await?;
+    Ok(Json(
+        grouped_values(&st, &org, &req.query, req.range, req.aggregator).await?,
+    ))
+}
+
+/// One value per group of a metric query, largest first (also the workflows' metric query step).
+pub(crate) async fn grouped_values(
+    st: &AppState,
+    org: &str,
+    query: &str,
+    range: TimeRange,
+    aggregator: TimeAggregator,
+) -> Result<Vec<GroupedScalar>, ApiError> {
+    let (_, groups) = evaluate(st, org, query, range, 60).await?;
     let mut out: Vec<GroupedScalar> = groups
         .into_iter()
         .map(|g| GroupedScalar {
             group: group_label(&g.tags),
-            value: round(reduce(&g.points, req.aggregator)),
+            value: round(reduce(&g.points, aggregator)),
             tags: g.tags,
         })
         .collect();
     out.sort_by(|a, b| b.value.total_cmp(&a.value));
-    Ok(Json(out))
+    Ok(out)
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -1159,6 +1266,9 @@ pub async fn distribution(
 ) -> ApiResult<DistributionResponse> {
     validate_metric_range(&st, &org, req.range).await?;
     let q = parse(&req.query)?;
+    if super::derived_metrics::is_derived(&st, &org, &q.metric).await? {
+        return Err(ApiError::BadRequest(format!("'{}' is a derived metric: graph it as a timeseries instead", q.metric)));
+    }
     let (inner, params, _) = inner_query(&st, &org, &q, req.range, 40).await?;
     let sql = format!("SELECT sid, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64(v) AS value FROM ({inner}) WHERE isFinite(v) ORDER BY ts");
     let rows = bind(st.ch(&org).query(&sql), &params)
@@ -1199,7 +1309,7 @@ pub struct MetricCatalogEntry {
     pub tags: Vec<String>,
     pub unit: Option<String>,
     pub description: String,
-    /// gauge | sum | histogram | exponential_histogram | summary | span (computed from traces)
+    /// gauge | sum | histogram | exponential_histogram | summary | span (computed from traces) | derived (a formula, see Derived Metrics)
     pub kind: String,
 }
 
@@ -1246,13 +1356,14 @@ pub async fn catalog(
             tags.insert(short_tag(&k).map(str::to_string).unwrap_or(k));
         }
         let tags: Vec<String> = tags.into_iter().collect();
-        let unit = Some(e.unit).filter(|u| !u.is_empty() && u != "1");
+        let unit = dashboard::metric_unit(&e.name, &e.unit).filter(|u| u != "1");
+        let description = dashboard::metric_description(&e.name, &e.description);
         if e.kind == "gauge" || e.kind == "sum" {
             out.push(MetricCatalogEntry {
                 name: e.name,
                 tags,
                 unit,
-                description: e.description,
+                description,
                 kind: e.kind,
             });
             continue;
@@ -1264,10 +1375,10 @@ pub async fn catalog(
                 "sum" => unit.as_ref().map(|u| format!("{u}/s")),
                 _ => unit.clone(),
             };
-            let description = if e.description.is_empty() {
+            let description = if description.is_empty() {
                 what.to_string()
             } else {
-                format!("{} — {}", e.description, what.to_lowercase())
+                format!("{description} — {}", what.to_lowercase())
             };
             out.push(MetricCatalogEntry {
                 name: format!("{}.{stat}", e.name),
@@ -1309,6 +1420,13 @@ pub async fn catalog(
                 kind: "span".into(),
             }),
     );
+    // Derived metrics, with the tags of the metrics their formula reads.
+    let derived: Vec<(String, String, String)> = sqlx::query_as("SELECT name, description, formula FROM derived_metrics WHERE org_id = $1").bind(&org).fetch_all(&st.postgres).await?;
+    for (name, description, formula) in derived {
+        let reads: BTreeSet<String> = super::monitor_formula::parse_formula(&formula).map(|f| f.queries.iter().filter_map(|q| parse_metric_query(q).ok()).map(|q| q.metric).collect()).unwrap_or_default();
+        let tags: BTreeSet<String> = out.iter().filter(|e| reads.contains(&e.name)).flat_map(|e| e.tags.iter().cloned()).collect();
+        out.push(MetricCatalogEntry { name, tags: tags.into_iter().collect(), unit: None, description: if description.is_empty() { format!("Derived: {formula}") } else { description }, kind: "derived".into() });
+    }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(Json(out))
 }
@@ -1343,8 +1461,92 @@ pub async fn tag_values(
     Ok(Json(values))
 }
 
+#[derive(clickhouse::Row, Deserialize)]
+pub(crate) struct VolumeRow {
+    pub name: String,
+    pub kind: String,
+    /// Distinct series (tag combinations) seen in the range.
+    pub series: u64,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricVolumeEntry {
+    pub name: String,
+    pub kind: String,
+    pub series: u64,
+    /// 0..1 of all the metrics' series.
+    pub share: f64,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricVolume {
+    pub total_series: u64,
+    pub metrics: Vec<MetricVolumeEntry>,
+}
+
+/// Metrics by active series, most first (then by name), with their share of the total.
+pub(crate) fn volume_page(rows: Vec<VolumeRow>) -> MetricVolume {
+    let total_series: u64 = rows.iter().map(|r| r.series).sum();
+    let mut metrics: Vec<MetricVolumeEntry> = rows
+        .into_iter()
+        .map(|r| MetricVolumeEntry { share: if total_series == 0 { 0.0 } else { r.series as f64 / total_series as f64 }, name: r.name, kind: r.kind, series: r.series })
+        .collect();
+    metrics.sort_by(|a, b| b.series.cmp(&a.series).then_with(|| a.name.cmp(&b.name)));
+    MetricVolume { total_series, metrics }
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct VolumeRequest {
+    pub range: TimeRange,
+}
+
+/// Metrics by cardinality: the distinct series each reported in the range.
+#[utoipa::path(post, path = "/api/v1/metrics/volume", request_body = VolumeRequest, responses((status = 200, body = MetricVolume)), tag = "metrics")]
+pub async fn volume(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<VolumeRequest>) -> ApiResult<MetricVolume> {
+    req.range.validate()?;
+    let rows = st
+        .ch(&org)
+        .query(
+            "SELECT MetricName AS name, toString(any(MetricType)) AS kind, uniqExact(SeriesId) AS series FROM otel.metrics_series \
+             WHERE OrgId = {oc_org:String} AND LastSeen >= toDateTime(intDiv(?, 1000)) GROUP BY MetricName",
+        )
+        .bind(req.range.from)
+        .fetch_all::<VolumeRow>()
+        .await?;
+    Ok(Json(volume_page(rows)))
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_rollup_method_combines_a_gauges_points_within_the_interval() {
+        let range = TimeRange { from: 0, to: 3_600_000 };
+        let sql = |q: &str, source| points_query(Kind::Gauge, source, &parse_metric_query(q).unwrap(), range, 60, 1.0).0;
+        assert!(sql("sum:k.terminated{*}", Source::Samples).contains("avg(Value) AS v"));
+        assert!(sql("sum:k.terminated{*}.rollup(max)", Source::Samples).contains("max(Value) AS v"));
+        assert!(sql("sum:k.terminated{*}.rollup(max)", Source::Rollup5m).contains("max(Max) AS v"));
+        assert!(sql("sum:k.terminated{*}.rollup(sum)", Source::Rollup5m).contains("sum(Sum) AS v"));
+        assert!(sql("sum:k.terminated{*}.rollup(count)", Source::Samples).contains("count() AS v"));
+    }
+
+
+    #[test]
+    fn volume_ranks_metrics_by_active_series_with_their_share() {
+        let rows = vec![
+            VolumeRow { name: "system.cpu.user".into(), kind: "gauge".into(), series: 10 },
+            VolumeRow { name: "kubernetes.cpu.usage.total".into(), kind: "gauge".into(), series: 30 },
+            VolumeRow { name: "http.requests".into(), kind: "sum".into(), series: 10 },
+        ];
+        let v = volume_page(rows);
+        assert_eq!(v.total_series, 50);
+        assert_eq!(v.metrics.iter().map(|m| (m.name.as_str(), m.series)).collect::<Vec<_>>(), vec![("kubernetes.cpu.usage.total", 30), ("http.requests", 10), ("system.cpu.user", 10)]);
+        assert_eq!(v.metrics[0].share, 0.6);
+        assert_eq!(volume_page(vec![]).total_series, 0);
+    }
+
     use super::*;
 
     fn exporter_table(d: Dist) -> &'static str {

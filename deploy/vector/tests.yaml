@@ -113,3 +113,155 @@ tests:
           - type: vrl
             source: |
               if .service == "kube-controller-manager" { assert_eq!(.status, "error") } else { assert_eq!(.status, "warn") }
+
+  - name: Datadog Agent stderr line with a leading INFO level is info
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "INFO:catalog.api.middleware: GET /api/v1/items 200"
+          .status = "error"
+          .ddsource = "python"
+          .service = "catalog-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "info")
+
+  - name: Datadog Agent stderr JSON line with level info is info
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "{\"level\":\"info\",\"msg\":\"order placed\"}"
+          .status = "error"
+          .ddsource = "go"
+          .service = "order-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "info")
+
+  - name: Datadog Agent stderr line without a level keeps the stream status
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "Traceback (most recent call last):"
+          .status = "error"
+          .ddsource = "python"
+          .service = "billing"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "error")
+
+  - name: Datadog Agent stderr klog info line is info
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "I1027 19:54:21.008123       1 client.go:12] \"remote connection EOF\""
+          .status = "error"
+          .ddsource = "python"
+          .service = "catalog-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "info")
+
+  - name: Datadog Agent stderr logfmt line with level=info is info
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "level=info ts=2026-10-27T19:54:21Z caller=index_set.go:12 msg=\"uploading table\""
+          .status = "error"
+          .ddsource = "python"
+          .service = "catalog-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "info")
+
+  - name: Datadog Agent stderr Python line with a dashed level is info
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "2026-10-27 19:54:21,008 - azure.identity._credentials.default - INFO - token acquired"
+          .status = "error"
+          .ddsource = "python"
+          .service = "catalog-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "info")
+
+  - name: Datadog Agent stderr Python line with a dashed WARNING level is warn
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "2026-10-27 19:54:21,008 - catalog.cache - WARNING - cache miss storm"
+          .status = "error"
+          .ddsource = "python"
+          .service = "catalog-service"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "warn")
+
+  - name: Datadog Agent's own log line with a piped ERROR level is error
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "2026-10-27 20:10:53 UTC | CORE | ERROR | (pkg/collector/worker/check_logger.go:71 in Error) | check:redisdb | Error running check"
+          .status = "info"
+          .ddsource = "agent"
+          .service = "agent"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "error")

@@ -529,7 +529,7 @@
 }
 
 .tv-trigger {
-  min-width: 140px;
+  min-width: 108px;
   height: 30px;
   padding-top: 2px;
 }
@@ -768,6 +768,22 @@
   font-weight: var(--fw-semibold);
 }
 
+/* A group without a header: a thin strip on top to drag it by and reach its menu. */
+.wg-untitled {
+  position: relative;
+}
+
+.wg-handle {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 28px;
+  z-index: 2;
+}
+
+.wg-handle:hover .wf-actions {
+  opacity: 1;
+}
+
 .wg-compact .wg-head {
   height: 36px;
   justify-content: flex-start;
@@ -1001,12 +1017,43 @@
 .note-body {
   flex: 1;
   padding: 14px 22px;
-  overflow: auto;
+  /* No scrollbar unless expanded: a scrollbar would change the width the "More" check measures. */
+  overflow: hidden;
   line-height: 1.55;
 }
 
 .note-body > :first-child {
   margin-top: 0;
+}
+
+/* Too long for the widget: clipped with a fade and a "More" button. */
+.note-body.note-clipped {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
+}
+
+.note-body.note-expanded {
+  overflow: auto;
+  padding-bottom: 36px;
+}
+
+.note-more {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.note-more:hover {
+  color: var(--text);
 }
 
 .note-body h1,
@@ -1669,8 +1716,55 @@
   font-size: 12px;
 }
 
-/* Authored diagrams must remain legible in narrow imported image tiles. */
-.img-widget[src^='/images/dashboard-'] {
-  object-fit: contain;
-  background: #eef7f6;
+/* Numbers and their unit stay on one line (715.61 mCPU). */
+.wt tr.wt-link {
+  cursor: pointer;
+}
+
+.wt tr.wt-link:hover td {
+  background: var(--bg-hover);
+}
+
+.wt td.num {
+  white-space: nowrap;
+}
+
+/* Change panels: the direction of a change, colored by whether it is the good way. */
+.wt td.change-good {
+  color: var(--status-ok);
+}
+.wt td.change-bad {
+  color: var(--status-error);
+}
+
+/* Event text (Markdown) inside event lists */
+.event-text p {
+  margin: 2px 0;
+}
+
+/* "+N": template variables folded away */
+.tv-more {
+  align-self: flex-end;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 8px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+
+.tv-more:hover {
+  color: var(--text);
+}
+
+.dash-overlays {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
 }

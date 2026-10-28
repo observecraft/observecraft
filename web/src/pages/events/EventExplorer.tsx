@@ -1,24 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
-import {
-  ChevronDown,
-  Code2,
-  Copy,
-  EllipsisVertical,
-  LayoutDashboard,
-  LayoutGrid,
-  LineChart,
-  List,
-  ListOrdered,
-  PanelLeft,
-  PanelLeftClose,
-  Pin,
-  Settings,
-  Table2,
-  X,
-} from 'lucide-react';
-import { searchEvents, type EventItem, type EventPage } from '../../api/events/client';
+import { ChevronDown, Copy, LayoutGrid, LineChart, List, ListOrdered, PanelLeft, PanelLeftClose, Pin, Table2, X } from 'lucide-react';
+import { eventFields, searchEvents, type EventItem, type EventPage } from '../../api/events/client';
 import { Chart } from '../../components/charts/Chart';
+import { Markdown } from '../dashboards/widgets/markdown';
+import { eventMarkdown, eventSnippet } from '../../lib/format';
 import { FacetPanel } from '../../components/facets/FacetPanel';
 import { QueryBar } from '../../components/query/QueryBar';
 import { TimePicker } from '../../components/shell/PageHeader';
@@ -118,13 +104,15 @@ function Aggregate({ viz, page }: { viz: Viz; page: EventPage }) {
         </tr>
       </thead>
       <tbody>
-        {[...groups].sort((a, b) => b[1].count - a[1].count).map(([k, g]) => (
-          <tr key={k}>
-            <td>{k}</td>
-            <td>{g.sample.source}</td>
-            <td className="num">{g.count}</td>
-          </tr>
-        ))}
+        {[...groups]
+          .sort((a, b) => b[1].count - a[1].count)
+          .map(([k, g]) => (
+            <tr key={k}>
+              <td>{k}</td>
+              <td>{g.sample.source}</td>
+              <td className="num">{g.count}</td>
+            </tr>
+          ))}
       </tbody>
     </table>
   );
@@ -142,7 +130,11 @@ function EventDetail({ event, onClose, onFilter }: { event: EventItem; onClose: 
         </button>
       </header>
       <h2>{event.title}</h2>
-      {event.text && <pre className="ev-detail-text">{event.text}</pre>}
+      {event.text && (
+        <div className="ev-detail-text">
+          <Markdown source={eventMarkdown(event.text)} />
+        </div>
+      )}
       <dl>
         <dt>Source</dt>
         <dd>
@@ -175,6 +167,8 @@ function EventDetail({ event, onClose, onFilter }: { event: EventItem; onClose: 
   );
 }
 
+const ADDED_FACETS_KEY = 'oc.events.addedFacets';
+
 /** Event Management → All Events: every event in the range, with facets and a status histogram. */
 export function EventExplorer() {
   const { range } = useTime();
@@ -183,16 +177,35 @@ export function EventExplorer() {
   const [showFacets, setShowFacets] = useState(true);
   const [page, setPage] = useState<EventPage | null>(null);
   const [selected, setSelected] = useState<EventItem | null>(null);
+  // Tag facets this viewer added with "+ Add" (kept in this browser).
+  const [addedFacets, setAddedFacets] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(ADDED_FACETS_KEY) ?? '[]') as string[];
+    } catch {
+      return [];
+    }
+  });
+  const addFacet = useCallback((key: string) => {
+    setAddedFacets((list) => {
+      const next = list.includes(key) ? list : [...list, key];
+      try {
+        localStorage.setItem(ADDED_FACETS_KEY, JSON.stringify(next));
+      } catch {
+        // Private windows: the facet still shows until the page is left.
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    searchEvents({ range, query, limit: 200, offset: 0 }).then((p) => {
+    searchEvents({ range, query, limit: 200, offset: 0, extra: addedFacets }).then((p) => {
       if (!cancelled) setPage(p);
     });
     return () => {
       cancelled = true;
     };
-  }, [range, query]);
+  }, [range, query, addedFacets]);
 
   const terms = useMemo(() => parseQuery(query), [query]);
   const setTerms = useCallback((next: Term[]) => setQuery(formatQuery(next)), []);
@@ -203,13 +216,7 @@ export function EventExplorer() {
     <div className="ev-explorer">
       <div className="section-header">
         <div className="section-header-left">
-          <div className="page-tab">
-            <PanelLeft size={16} /> Views
-          </div>
-          <div className="page-tab active">
-            My View
-            <EllipsisVertical size={16} className="muted" />
-          </div>
+          <div className="page-tab active">My View</div>
         </div>
         <TimePicker />
       </div>
@@ -217,9 +224,6 @@ export function EventExplorer() {
       <div className="ev-scroll">
         <div className="ev-query">
           <QueryBar value={query} onChange={setQuery} placeholder="Filter your events" />
-          <button className="btn ev-code" title="Query syntax">
-            <Code2 size={15} />
-          </button>
         </div>
 
         <div className="viz-row">
@@ -245,6 +249,7 @@ export function EventExplorer() {
               onChange={setTerms}
               mode="exclude"
               valueSearch
+              addable={{ load: () => eventFields({ range, query }), onAdd: addFacet }}
               defaultOpen={['source', 'status']}
               verified={['source', 'status', 'host']}
               renderValueIcon={(key, value) => (key === 'source' ? <SourceIcon source={value} size={14} /> : null)}
@@ -264,24 +269,8 @@ export function EventExplorer() {
                 </button>
                 <span className="ev-count">{compact(page?.total ?? 0).replace('K', 'k')} Events</span>
                 <div className="toolbar-right">
-                  <div className="btn-group">
-                    <button className="btn">
-                      <LayoutDashboard size={14} /> Save to Dashboard
-                    </button>
-                    <button className="btn">
-                      <ChevronDown size={14} />
-                    </button>
-                  </div>
-                  <div className="btn-group">
-                    <button className="btn" onClick={() => navigator.clipboard?.writeText(query)}>
-                      <Copy size={14} /> Copy
-                    </button>
-                    <button className="btn">
-                      <ChevronDown size={14} />
-                    </button>
-                  </div>
-                  <button className="toolbar-link">
-                    <Settings size={15} /> Options
+                  <button className="btn" onClick={() => navigator.clipboard?.writeText(query)}>
+                    <Copy size={14} /> Copy
                   </button>
                 </div>
               </div>
@@ -307,7 +296,7 @@ export function EventExplorer() {
                             <span className="ev-title">{e.title}</span>
                             {e.source && <span className="ev-via">via {e.source}</span>}
                           </div>
-                          {e.text && <div className="ev-text">{e.text}</div>}
+                          {e.text && <div className="ev-text">{eventSnippet(e.text)}</div>}
                           {e.tags.length > 0 && (
                             <div className="ev-tags">
                               {e.tags.slice(0, TAGS_SHOWN).map((t) => (

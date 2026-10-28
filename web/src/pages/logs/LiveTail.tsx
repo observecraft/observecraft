@@ -7,7 +7,7 @@ import { addTerm } from '../../lib/searchQuery';
 import { AggregateView, type VizMode } from './AggregateView';
 import { LogDetail } from './LogDetail';
 import { LogHistogram } from './LogHistogram';
-import { DEFAULT_TABLE_OPTIONS, LogTable, type LogTableOptions } from './LogTable';
+import { DEFAULT_TABLE_OPTIONS, LogTable, OptionsMenu, type LogTableOptions } from './LogTable';
 import { QueryBar } from '../../components/query/QueryBar';
 import { VizPicker } from './VizPicker';
 
@@ -19,22 +19,6 @@ const LIVE_MODES: VizMode[] = ['list', 'timeseries', 'toplist', 'bar', 'table', 
 function lastWindow(): TimeRange {
   const to = Date.now();
   return { from: to - WINDOW_MS, to };
-}
-
-function OptionsMenu({ value, onChange }: { value: LogTableOptions; onChange: (o: LogTableOptions) => void }) {
-  const row = (key: keyof LogTableOptions, label: string) => (
-    <label>
-      <input type="checkbox" className="checkbox" checked={value[key]} onChange={() => onChange({ ...value, [key]: !value[key] })} />
-      {label}
-    </label>
-  );
-  return (
-    <div className="options-menu">
-      {row('wrap', 'Wrap lines')}
-      {row('showHost', 'Show host column')}
-      {row('showService', 'Show service column')}
-    </div>
-  );
 }
 
 export function LiveTail() {
@@ -138,11 +122,7 @@ export function LiveTail() {
       </div>
 
       <div className="live-stats">
-        <strong>
-          {paused
-            ? `Paused, ${buffer.length.toLocaleString()} events displayed`
-            : `${Math.round(stats.rate)} events/s, ${(stats.ratio * 100).toFixed(2)}% displayed`}
-        </strong>
+        <strong>{paused ? `Paused, ${buffer.length.toLocaleString()} events displayed` : `${Math.round(stats.rate)} events/s, ${(stats.ratio * 100).toFixed(2)}% displayed`}</strong>
         <div className="live-actions">
           <button className="btn" onClick={() => (setBuffer([]), setPending([]))}>
             <Trash2 size={14} /> Clear

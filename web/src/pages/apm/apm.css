@@ -763,3 +763,16 @@ button.apm-card:hover {
 .svc-page .hp-nav:not(.collapsed) {
   width: 184px;
 }
+
+/* No services yet: how to send traces */
+.apm-onboard p,
+.apm-onboard ol {
+  max-width: 720px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.apm-onboard ol {
+  padding-left: 20px;
+  margin: 8px 0 16px;
+}

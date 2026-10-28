@@ -8,14 +8,8 @@ export type IssueStatus = 'for_review' | 'reviewed' | 'ignored' | 'resolved';
 export type IssueStateTab = IssueStatus | 'all';
 export type Persona = 'all' | 'backend' | 'browser' | 'mobile';
 export type DataSource = 'logs' | 'rum' | 'apm';
-export type Platform = 'android' | 'ios' | 'java' | 'dotnet' | 'browser' | 'react-native' | 'node' | 'python' | 'go';
-export type SuspectedCause =
-  | 'code_exception'
-  | 'failed_request'
-  | 'lost_connection'
-  | 'invalid_argument'
-  | 'illegal_object_access'
-  | 'unknown';
+export type Platform = 'android' | 'ios' | 'java' | 'dotnet' | 'browser' | 'react-native' | 'node' | 'python' | 'go' | 'unknown';
+export type SuspectedCause = 'code_exception' | 'failed_request' | 'lost_connection' | 'invalid_argument' | 'illegal_object_access' | 'unknown';
 export type IssueSort = 'relevance' | 'count' | 'last_seen' | 'first_seen';
 
 export interface User {
@@ -135,6 +129,9 @@ export interface ErrorSample {
   timeline: TimelineEvent[];
   attributeGroups: AttributeGroup[];
   json: Record<string, JsonValue>;
+  /** The trace and span of an APM sample (absent for logs and RUM). */
+  traceId?: string | null;
+  spanId?: string | null;
 }
 
 export interface ErrorSampleRequest {
@@ -148,7 +145,10 @@ export interface ErrorSampleRequest {
 export interface ErrorSamplePage {
   sample: ErrorSample | null;
   index: number;
+  /** The issue's errors in range. */
   total: number;
+  /** Errors that can be paged through (live: the newest or oldest 2,000). */
+  available: number;
 }
 
 export interface IssuePatch {

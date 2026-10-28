@@ -9,9 +9,13 @@ mod auth;
 mod config;
 mod demo;
 mod error;
+mod log_access;
+mod log_metrics;
 mod logproc;
+mod pipelines;
 mod routes;
 mod s3;
+mod standard_attributes;
 mod state;
 
 use std::sync::Arc;
@@ -90,6 +94,7 @@ async fn main() -> anyhow::Result<()> {
         postgres,
         nats,
         secrets,
+        log_restrictions: Default::default(),
         config: cfg.clone(),
     }));
     routes::auth::ensure_instance_admin(&state)
@@ -127,6 +132,12 @@ async fn main() -> anyhow::Result<()> {
     drop(setup_lock);
     tokio::spawn(routes::archives::run_archiver(state.clone()));
     tokio::spawn(routes::notifications::run_notifier(state.clone()));
+    tokio::spawn(routes::dashboard_reports::run_scheduler(state.clone()));
+    tokio::spawn(routes::on_call::run_escalations(state.clone()));
+    tokio::spawn(routes::synthetics::run_scheduler(state.clone()));
+    tokio::spawn(routes::scorecards::run_scheduler(state.clone()));
+    tokio::spawn(routes::resource_policies::run_snapshots(state.clone()));
+    tokio::spawn(routes::workflows::run_executor(state.clone()));
     logproc::serve(state.clone()).await.context("log indexer")?;
 
     let cors = CorsLayer::new()

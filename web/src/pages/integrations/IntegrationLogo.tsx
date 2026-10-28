@@ -20,6 +20,7 @@ import {
   siApachetomcat,
   siArgo,
   siAwslambda,
+  siBackstage,
   siBamboo,
   siBox,
   siCelery,
@@ -99,6 +100,7 @@ const ICONS: Record<string, SimpleIcon> = {
   apachetomcat: siApachetomcat,
   argo: siArgo,
   awslambda: siAwslambda,
+  backstage: siBackstage,
   bamboo: siBamboo,
   box: siBox,
   celery: siCelery,
@@ -172,6 +174,8 @@ const FALLBACK: Record<string, { text: string; color: string; style: 'word' | 't
   'tile:teams': { text: 'T', color: '#5059c9', style: 'tile' },
   'tile:memcached': { text: 'Mc', color: '#2a7d4f', style: 'tile' },
   'tile:haproxy': { text: 'HA', color: '#106da9', style: 'tile' },
+  'tile:azure-devops': { text: 'AzD', color: '#0078d4', style: 'tile' },
+  'tile:servicenow': { text: 'SN', color: '#293e40', style: 'tile' },
 };
 
 function initials(text: string): string {

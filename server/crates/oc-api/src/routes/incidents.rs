@@ -2,6 +2,8 @@
 //! impacts and follow-ups. Incidents are addressed by their per-org number (`IR-<n>`).
 //! Status, severity and commander changes are recorded on the timeline automatically.
 
+use std::collections::BTreeMap;
+
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
@@ -142,6 +144,18 @@ pub struct IncidentSearchRequest {
     pub mine: bool,
     #[serde(default)]
     pub teams: Vec<String>,
+    #[serde(default)]
+    pub services: Vec<String>,
+    #[serde(default)]
+    pub detection_methods: Vec<String>,
+    #[serde(default)]
+    pub incident_types: Vec<String>,
+    /// Only incidents with (true) or without (false) customer impact.
+    #[serde(default)]
+    pub customer_impact: Option<bool>,
+    /// Time from declared to resolved: lt1h, 1h_4h, 4h_1d, gt1d, unresolved.
+    #[serde(default)]
+    pub resolve_times: Vec<String>,
     /// Declared within this range.
     pub range: TimeRange,
     pub offset: i64,
@@ -156,14 +170,62 @@ pub struct IncidentCounts {
 }
 
 #[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct IncidentSearchPage {
     pub incidents: Vec<IncidentSummary>,
     pub total: i64,
     /// Per status for the same filters, ignoring the status filter (facet counts).
     pub counts: IncidentCounts,
+    /// Per severity, ignoring the severity filter.
+    pub severity_counts: BTreeMap<String, i64>,
+    /// Per team, ignoring the team filter.
+    pub team_counts: BTreeMap<String, i64>,
+    /// Per service, ignoring the service filter.
+    pub service_counts: BTreeMap<String, i64>,
+    /// Per detection method, ignoring the detection method filter.
+    pub detection_counts: BTreeMap<String, i64>,
+    /// Per incident type, ignoring the incident type filter.
+    pub type_counts: BTreeMap<String, i64>,
+    /// `yes` / `no`, ignoring the customer impact filter.
+    pub impact_counts: BTreeMap<String, i64>,
+    /// Per time-to-resolve bucket (lt1h, 1h_4h, 4h_1d, gt1d, unresolved), ignoring that filter.
+    pub resolve_time_counts: BTreeMap<String, i64>,
 }
 
-fn push_filters(qb: &mut QueryBuilder<Postgres>, org: &str, me: &str, req: &IncidentSearchRequest) {
+/// A filter left out of a facet's own counts.
+#[derive(Clone, Copy, PartialEq)]
+enum Facet {
+    Severity,
+    Team,
+    Service,
+    Detection,
+    IncidentType,
+    Impact,
+    ResolveTime,
+}
+
+/// An incident's time-to-resolve bucket.
+const RESOLVE_BUCKET: &str = "CASE WHEN i.resolved_at IS NULL THEN 'unresolved' \
+    WHEN i.resolved_at - i.declared_at < interval '1 hour' THEN 'lt1h' WHEN i.resolved_at - i.declared_at < interval '4 hours' THEN '1h_4h' \
+    WHEN i.resolved_at - i.declared_at < interval '1 day' THEN '4h_1d' ELSE 'gt1d' END";
+
+impl Facet {
+    /// The value counted and the rows it's counted over.
+    fn select(self) -> String {
+        match self {
+            Facet::Severity => "SELECT i.severity, count(*) FROM incidents i",
+            Facet::Team => "SELECT t.v, count(*) FROM incidents i CROSS JOIN LATERAL unnest(i.teams) AS t(v)",
+            Facet::Service => "SELECT t.v, count(*) FROM incidents i CROSS JOIN LATERAL unnest(i.services) AS t(v)",
+            Facet::Detection => "SELECT i.detection_method, count(*) FROM incidents i",
+            Facet::IncidentType => "SELECT i.incident_type, count(*) FROM incidents i",
+            Facet::Impact => "SELECT CASE WHEN i.customer_impact THEN 'yes' ELSE 'no' END, count(*) FROM incidents i",
+            Facet::ResolveTime => return format!("SELECT {RESOLVE_BUCKET}, count(*) FROM incidents i"),
+        }
+        .to_string()
+    }
+}
+
+fn push_filters(qb: &mut QueryBuilder<Postgres>, org: &str, me: &str, req: &IncidentSearchRequest, skip: Option<Facet>) {
     qb.push(" WHERE i.org_id = ").push_bind(org.to_string());
     qb.push(" AND i.declared_at >= to_timestamp(").push_bind(req.range.from as f64 / 1000.0).push(") AND i.declared_at <= to_timestamp(").push_bind(req.range.to as f64 / 1000.0).push(")");
     let text = req.query.trim();
@@ -176,14 +238,44 @@ fn push_filters(qb: &mut QueryBuilder<Postgres>, org: &str, me: &str, req: &Inci
         }
         qb.push(")");
     }
-    if !req.severities.is_empty() {
+    if !req.severities.is_empty() && skip != Some(Facet::Severity) {
         qb.push(" AND i.severity = ANY(").push_bind(req.severities.clone()).push(")");
     }
-    if !req.teams.is_empty() {
+    if !req.teams.is_empty() && skip != Some(Facet::Team) {
         qb.push(" AND i.teams && ").push_bind(req.teams.clone());
+    }
+    if !req.services.is_empty() && skip != Some(Facet::Service) {
+        qb.push(" AND i.services && ").push_bind(req.services.clone());
+    }
+    if !req.detection_methods.is_empty() && skip != Some(Facet::Detection) {
+        qb.push(" AND i.detection_method = ANY(").push_bind(req.detection_methods.clone()).push(")");
+    }
+    if !req.incident_types.is_empty() && skip != Some(Facet::IncidentType) {
+        qb.push(" AND i.incident_type = ANY(").push_bind(req.incident_types.clone()).push(")");
+    }
+    if let Some(impact) = req.customer_impact.filter(|_| skip != Some(Facet::Impact)) {
+        qb.push(" AND i.customer_impact = ").push_bind(impact);
+    }
+    if !req.resolve_times.is_empty() && skip != Some(Facet::ResolveTime) {
+        qb.push(format!(" AND {RESOLVE_BUCKET} = ANY(")).push_bind(req.resolve_times.clone()).push(")");
     }
     if req.mine {
         qb.push(" AND (i.commander_id::text = ").push_bind(me.to_string()).push(" OR i.id IN (SELECT incident_id FROM incident_responders WHERE user_id::text = ").push_bind(me.to_string()).push("))");
+    }
+}
+
+/// Incidents per value of `facet` under every filter but the facet's own.
+async fn facet_counts(st: &AppState, org: &str, me: &str, req: &IncidentSearchRequest, facet: Facet) -> Result<BTreeMap<String, i64>, ApiError> {
+    let mut q: QueryBuilder<Postgres> = QueryBuilder::new(facet.select());
+    push_filters(&mut q, org, me, req, Some(facet));
+    push_statuses(&mut q, req);
+    q.push(" GROUP BY 1");
+    Ok(q.build_query_as::<(String, i64)>().fetch_all(&st.postgres).await?.into_iter().collect())
+}
+
+fn push_statuses(qb: &mut QueryBuilder<Postgres>, req: &IncidentSearchRequest) {
+    if !req.statuses.is_empty() {
+        qb.push(" AND i.status = ANY(").push_bind(req.statuses.iter().map(|s| s.as_str().to_string()).collect::<Vec<_>>()).push(")");
     }
 }
 
@@ -192,16 +284,14 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(m
     req.range.validate_loose()?;
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(SELECT);
     qb.push(", count(*) OVER () AS total").push(FROM);
-    push_filters(&mut qb, &org, &me, &req);
-    if !req.statuses.is_empty() {
-        qb.push(" AND i.status = ANY(").push_bind(req.statuses.iter().map(|s| s.as_str().to_string()).collect::<Vec<_>>()).push(")");
-    }
+    push_filters(&mut qb, &org, &me, &req, None);
+    push_statuses(&mut qb, &req);
     // Open incidents first, then newest.
     qb.push(" ORDER BY (i.status = 'resolved'), i.declared_at DESC LIMIT ").push_bind(req.limit.clamp(1, 200)).push(" OFFSET ").push_bind(req.offset.max(0));
     let rows: Vec<Row> = qb.build_query_as().fetch_all(&st.postgres).await?;
 
     let mut cq: QueryBuilder<Postgres> = QueryBuilder::new("SELECT i.status, count(*) FROM incidents i");
-    push_filters(&mut cq, &org, &me, &req);
+    push_filters(&mut cq, &org, &me, &req, None);
     cq.push(" GROUP BY i.status");
     let per_status: Vec<(String, i64)> = cq.build_query_as().fetch_all(&st.postgres).await?;
     let mut counts = IncidentCounts::default();
@@ -212,8 +302,17 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(m
             _ => counts.resolved = n,
         }
     }
+    let (severity_counts, team_counts, service_counts, detection_counts, type_counts, impact_counts, resolve_time_counts) = tokio::try_join!(
+        facet_counts(&st, &org, &me, &req, Facet::Severity),
+        facet_counts(&st, &org, &me, &req, Facet::Team),
+        facet_counts(&st, &org, &me, &req, Facet::Service),
+        facet_counts(&st, &org, &me, &req, Facet::Detection),
+        facet_counts(&st, &org, &me, &req, Facet::IncidentType),
+        facet_counts(&st, &org, &me, &req, Facet::Impact),
+        facet_counts(&st, &org, &me, &req, Facet::ResolveTime),
+    )?;
     let total = rows.first().and_then(|r| r.total).unwrap_or(0);
-    Ok(Json(IncidentSearchPage { incidents: rows.iter().map(Row::summary).collect(), total, counts }))
+    Ok(Json(IncidentSearchPage { incidents: rows.iter().map(Row::summary).collect(), total, counts, severity_counts, team_counts, service_counts, detection_counts, type_counts, impact_counts, resolve_time_counts }))
 }
 
 // ================================================================ detail
@@ -415,7 +514,9 @@ pub async fn declare(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, C
             .await?;
     }
     tx.commit().await?;
-    Ok(Json(detail_of(&st, &org, id).await?))
+    let detail = detail_of(&st, &org, id).await?;
+    super::workflows::on_incident(&st, &org, "declared", &detail.incident).await;
+    Ok(Json(detail))
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -479,11 +580,14 @@ pub async fn update(State(st): State<AppState>, _: Writer, OrgId(org): OrgId, Cu
     .bind(p.customer_impact)
     .execute(&mut *tx)
     .await?;
+    let resolved = p.status == Some(IncidentStatus::Resolved) && row.status != "resolved";
     for (kind, body) in events {
         sqlx::query("INSERT INTO incident_events (incident_id, kind, author, author_id, body) VALUES ($1, $2, $3, $4::uuid, $5)").bind(row.pk).bind(kind).bind(&author).bind(&me).bind(body).execute(&mut *tx).await?;
     }
     tx.commit().await?;
-    Ok(Json(detail_of(&st, &org, id).await?))
+    let detail = detail_of(&st, &org, id).await?;
+    super::workflows::on_incident(&st, &org, if resolved { "resolved" } else { "updated" }, &detail.incident).await;
+    Ok(Json(detail))
 }
 
 // ================================================================ timeline, impacts, follow-ups
@@ -570,4 +674,42 @@ pub async fn update_followup(State(st): State<AppState>, _: Writer, OrgId(org): 
         return Err(ApiError::NotFound(format!("Follow-up {followup_id} not found")));
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn req() -> IncidentSearchRequest {
+        serde_json::from_value(serde_json::json!({
+            "severities": ["SEV-1"], "teams": ["payments"], "services": ["billing"], "detectionMethods": ["monitor"], "incidentTypes": ["Security Incident"], "customerImpact": true, "resolveTimes": ["lt1h", "gt1d"],
+            "range": {"from": 0, "to": 1}, "offset": 0, "limit": 10
+        }))
+        .unwrap()
+    }
+
+    fn sql(skip: Option<Facet>) -> String {
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM incidents i");
+        push_filters(&mut qb, "org", "me", &req(), skip);
+        qb.sql().to_string()
+    }
+
+    #[test]
+    fn a_facets_counts_ignore_only_its_own_filter() {
+        assert!(sql(None).contains("i.severity = ANY") && sql(None).contains("i.teams &&"));
+        assert!(!sql(Some(Facet::Severity)).contains("i.severity") && sql(Some(Facet::Severity)).contains("i.teams &&"));
+        assert!(!sql(Some(Facet::Team)).contains("i.teams &&") && sql(Some(Facet::Team)).contains("i.severity = ANY"));
+        // The organization is always filtered.
+        assert!(sql(Some(Facet::Team)).contains("i.org_id = $1"));
+        for (facet, clause) in [
+            (Facet::Service, "i.services &&"),
+            (Facet::Detection, "i.detection_method = ANY"),
+            (Facet::IncidentType, "i.incident_type = ANY"),
+            (Facet::Impact, "i.customer_impact ="),
+            (Facet::ResolveTime, "END = ANY"),
+        ] {
+            assert!(sql(None).contains(clause), "{clause}");
+            assert!(!sql(Some(facet)).contains(clause), "{clause}");
+        }
+    }
 }

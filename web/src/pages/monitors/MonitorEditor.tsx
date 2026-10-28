@@ -27,7 +27,7 @@ import { previewMonitor, sendTestNotification, type MonitorInput, type MonitorOp
 import { Chart } from '../../components/charts/Chart';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
-import { formatMetricQuery, parseMetricQuery } from '../../lib/metricQuery';
+import { formatMetricQuery, formulaQueries, parseMetricQuery } from '../../lib/metricQuery';
 import { palette } from '../../theme/chartTheme';
 import { useTeams } from '../settings/queries';
 import { fmtValue, RecipientIcon, recipientLabel } from './common';
@@ -40,6 +40,8 @@ const DEFAULT_QUERY: Record<MonitorType, string> = {
   metric: 'avg:system.load.1{*}',
   apm: 'avg:trace.error_rate{env:prod} by {service}',
   log: 'logs("status:error") by {service}',
+  // Created with their synthetic test, never in this editor.
+  synthetics: '',
 };
 
 /** `logs("<search>") by {a,b}` ⇄ parts (mirrors the server's parser). */
@@ -168,9 +170,28 @@ function EditorForm({ editing, detail, routeType }: { editing?: number; detail?:
       teams: '',
     };
     const tpl = TEMPLATES.find((t) => t.id === params.get('template'));
-    return tpl ? { ...base, ...fromTemplate(tpl) } : base;
+    if (tpl) return { ...base, ...fromTemplate(tpl) };
+    // Prefilled from a link, e.g. an SLO's burn rate alert: ?query=…&name=…&critical=…&window=60&aggregation=avg.
+    const prefill = params.get('query');
+    if (!prefill) return base;
+    const aggregation = params.get('aggregation');
+    const window = Number(params.get('window'));
+    return {
+      ...base,
+      query: prefill,
+      name: params.get('name') ?? '',
+      critical: params.get('critical') ?? '',
+      warning: params.get('warning') ?? '',
+      message: params.get('message') ?? '',
+      tags: params.get('tags') ?? '',
+      options: {
+        ...base.options,
+        windowMinutes: WINDOWS.includes(window) ? window : base.options.windowMinutes,
+        timeAggregation: aggregation === 'avg' || aggregation === 'sum' || aggregation === 'max' || aggregation === 'min' ? aggregation : base.options.timeAggregation,
+      },
+    };
   });
-  const [showTemplates, setShowTemplates] = useState(!detail);
+  const [showTemplates, setShowTemplates] = useState(!detail && !params.get('query'));
   const [testing, setTesting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const set = (p: Partial<Form>) => setForm((f) => ({ ...f, ...p }));
@@ -178,7 +199,7 @@ function EditorForm({ editing, detail, routeType }: { editing?: number; detail?:
 
   const isLog = form.type === 'log';
   const parsedLog = isLog ? parseLogQuery(form.query) : null;
-  const parsed = isLog ? (parsedLog ? { by: parsedLog.by } : null) : parseMetricQuery(form.query);
+  const parsed = isLog ? (parsedLog ? { by: parsedLog.by } : null) : (formulaQueries(form.query)?.[0] ?? null);
   const critical = num(form.critical);
   const thresholds = {
     critical: critical ?? 0,
@@ -448,7 +469,7 @@ function thresholdOrderError(o: MonitorOptions): string | null {
   return null;
 }
 
-function Step({ n, title, done, last, children }: { n: number; title: string; done: boolean; last?: boolean; children: ReactNode }) {
+export function Step({ n, title, done, last, children }: { n: number; title: string; done: boolean; last?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
     <section className={`mon-step${last ? ' last' : ''}`}>
@@ -463,7 +484,7 @@ function Step({ n, title, done, last, children }: { n: number; title: string; do
   );
 }
 
-function Method({ icon: Icon, title, desc, active, disabled, onClick }: { icon: LucideIcon; title: string; desc: string; active?: boolean; disabled?: boolean; onClick?: () => void }) {
+export function Method({ icon: Icon, title, desc, active, disabled, onClick }: { icon: LucideIcon; title: string; desc: string; active?: boolean; disabled?: boolean; onClick?: () => void }) {
   return (
     <button className={`mon-method${active ? ' active' : ''}`} disabled={disabled} onClick={onClick} title={disabled ? 'Not available yet' : undefined}>
       <Icon size={22} strokeWidth={1.5} />
@@ -550,7 +571,8 @@ function LogQueryBuilder({ query, onChange }: { query: string; onChange: (q: str
   );
 }
 
-function QueryBuilder({ type, query, onChange }: { type: MonitorType; query: string; onChange: (q: string) => void }) {
+/** Metric query builder; `anyMetric` offers every metric (trace.* included) whatever the type, `letter` labels the row. */
+export function QueryBuilder({ type, query, onChange, anyMetric = false, letter = 'a' }: { type: MonitorType; query: string; onChange: (q: string) => void; anyMetric?: boolean; letter?: string }) {
   const [raw, setRaw] = useState(false);
   const catalog = useQuery({
     queryKey: ['metric-catalog'],
@@ -558,7 +580,7 @@ function QueryBuilder({ type, query, onChange }: { type: MonitorType; query: str
     staleTime: 300_000,
   });
   const parsed = parseMetricQuery(query);
-  const metrics = (catalog.data ?? []).filter((m) => (type === 'apm' ? m.name.startsWith('trace.') : !m.name.startsWith('trace.')));
+  const metrics = (catalog.data ?? []).filter((m) => anyMetric || (type === 'apm' ? m.name.startsWith('trace.') : !m.name.startsWith('trace.')));
   const entry = catalog.data?.find((m) => m.name === parsed?.metric);
   const update = (p: Partial<NonNullable<typeof parsed>>) => parsed && onChange(formatMetricQuery({ ...parsed, ...p }));
   const from = parsed ? parsed.filters.map((f) => `${f.negate ? '!' : ''}${f.key}:${f.value}`).join(', ') : '';
@@ -574,9 +596,9 @@ function QueryBuilder({ type, query, onChange }: { type: MonitorType; query: str
       </div>
       {raw || !parsed ? (
         <div className="mon-qb-row">
-          <span className="mon-qb-letter">a</span>
+          <span className="mon-qb-letter">{letter}</span>
           <input className="mon-qb-raw" value={query} onChange={(e) => onChange(e.target.value)} spellCheck={false} aria-label="Metric query" />
-          {!parsed && (
+          {!formulaQueries(query) && (
             <span className="form-error">
               Expected avg:metric.name{'{tag:value}'} by {'{tag}'}
             </span>
@@ -584,9 +606,16 @@ function QueryBuilder({ type, query, onChange }: { type: MonitorType; query: str
         </div>
       ) : (
         <div className="mon-qb-row">
-          <span className="mon-qb-letter">a</span>
-          <input className="mon-qb-metric" list="mon-metrics" value={parsed.metric} onChange={(e) => update({ metric: e.target.value.trim() })} aria-label="Metric" title={entry?.description} />
-          <datalist id="mon-metrics">
+          <span className="mon-qb-letter">{letter}</span>
+          <input
+            className="mon-qb-metric"
+            list={`mon-metrics-${letter}`}
+            value={parsed.metric}
+            onChange={(e) => update({ metric: e.target.value.trim() })}
+            aria-label="Metric"
+            title={entry?.description}
+          />
+          <datalist id={`mon-metrics-${letter}`}>
             {metrics.map((m) => (
               <option key={m.name} value={m.name}>
                 {m.description}
@@ -664,7 +693,7 @@ function FromInput({ value, tags, onChange }: { value: string; tags: string[]; o
 function Backtest({ type, query, options, hasThreshold }: { type: MonitorType; query: string; options: MonitorOptions; hasThreshold: boolean }) {
   const [mode, setMode] = useState<'evaluated' | 'raw'>('evaluated');
   const [rangeKey, setRangeKey] = useState('1h');
-  const valid = type === 'log' ? !!parseLogQuery(query) : !!parseMetricQuery(query);
+  const valid = type === 'log' ? !!parseLogQuery(query) : !!formulaQueries(query);
   // Without a threshold yet, preview with one that never triggers.
   const effective: MonitorOptions = hasThreshold
     ? options
@@ -721,6 +750,8 @@ function Backtest({ type, query, options, hasThreshold }: { type: MonitorType; q
       yAxis: {
         type: 'value',
         scale: true,
+        // The axis can start at a threshold or a data minimum (61.3333…): label it rounded.
+        axisLabel: { formatter: (v: number) => fmtValue(v) },
         ...(lines.length
           ? {
               min: (v: { min: number }) => Math.min(v.min, ...lines.map((l) => l.yAxis)),
@@ -917,7 +948,9 @@ function NotificationsStep({ form, set, byTags }: { form: Form; set: (p: Partial
           </datalist>
         </label>
       </div>
-      <p className="muted mon-hint">Notifications are recorded on the monitor's event timeline. Delivering them to email, chat or on-call needs the matching integration.</p>
+      <p className="muted mon-hint">
+        Notifications are recorded on the monitor's event timeline. Mention <code>{'@oncall-<team>'}</code> to page a team through On-Call; a recovery resolves the page.
+      </p>
     </div>
   );
 }

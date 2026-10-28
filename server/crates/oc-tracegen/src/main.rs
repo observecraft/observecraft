@@ -11,6 +11,14 @@
 //! Every minute it also uploads continuous profiles like a Datadog profiler (see `profiles`), and
 //! every 30 s network connections like the Agent's system-probe (see `network`).
 //!
+//! Every 10 s it also sends the invocations of the shop's AWS Lambda functions (see `serverless`),
+//! and Kafka broker and consumer metrics like the Datadog Agent's Kafka checks (see `kafka`).
+//! Submitted orders flow on through Kafka topics (`orders.created` → billing and inventory-service
+//! → `payments.authorized` / `inventory.reserved` → …), for Data Streams Monitoring.
+//!
+//! Every other second it also sends an LLM conversation of `support-assistant` with OpenTelemetry
+//! GenAI attributes (see `llm`), for LLM Observability.
+//!
 //! Also writes OTLP logs inside the traces (one per request handled, one per error) for log ↔ trace links.
 //! Env: OTLP_ENDPOINT (default http://localhost:4318, the intake), OC_INGEST_KEY (ingest API key), TRACES_PER_SEC (default 20),
 //! CLICKHOUSE_HTTP (default http://localhost:8123), CLICKHOUSE_USER / CLICKHOUSE_PASSWORD (observecraft).
@@ -18,9 +26,12 @@
 mod appmetrics;
 mod ci;
 mod hosts;
+mod kafka;
 mod kubernetes;
+mod llm;
 mod network;
 mod profiles;
+mod serverless;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -434,7 +445,7 @@ fn build_trace(rng: &mut Rng) -> Vec<Span> {
                                         3.0,
                                     );
                                 }
-                                t.db(
+                                let e = t.db(
                                     &ORDERS,
                                     p,
                                     cur + 100_000,
@@ -443,7 +454,8 @@ fn build_trace(rng: &mut Rng) -> Vec<Span> {
                                     "0",
                                     "GET customer:cache",
                                     0.4,
-                                )
+                                );
+                                order_created(t, p, e)
                             },
                         )
                     },
@@ -656,6 +668,11 @@ fn build_trace(rng: &mut Rng) -> Vec<Span> {
                             vec![
                                 ("messaging.system", json!("kafka")),
                                 ("messaging.destination.name", json!("order-events")),
+                                ("messaging.operation.type", json!("process")),
+                                (
+                                    "messaging.consumer.group.name",
+                                    json!("notification-consumer"),
+                                ),
                             ],
                             err,
                         );
@@ -671,6 +688,103 @@ fn build_trace(rng: &mut Rng) -> Vec<Span> {
         s.attrs.push(("deployment.environment".into(), json!(env)));
     }
     spans
+}
+
+/// A Kafka publish span of `svc` under `parent`: (span id, end).
+fn publish(
+    t: &mut Trace,
+    svc: &'static Svc,
+    parent: &str,
+    start: u64,
+    topic: &str,
+) -> (String, u64) {
+    let id = t.new_id();
+    let end = start + t.rng.latency_ns(1.2);
+    t.push(
+        svc,
+        id.clone(),
+        Some(parent),
+        &format!("{topic} publish"),
+        PRODUCER,
+        start,
+        end,
+        vec![
+            ("peer.service", json!("kafka")),
+            ("messaging.system", json!("kafka")),
+            ("messaging.destination.name", json!(topic)),
+            ("messaging.operation.type", json!("publish")),
+        ],
+        None,
+    );
+    (id, end)
+}
+
+/// A Kafka consume span of `svc` for the message `producer` published, `queued_ms` after
+/// `published`; `body` gets its id and start and returns where its work ends.
+#[allow(clippy::too_many_arguments)]
+fn consume<F>(
+    t: &mut Trace,
+    svc: &'static Svc,
+    producer: &str,
+    published: u64,
+    queued_ms: f64,
+    topic: &str,
+    group: &str,
+    body: F,
+) -> u64
+where
+    F: FnOnce(&mut Trace, &str, u64) -> u64,
+{
+    let id = t.new_id();
+    let start = published + t.rng.latency_ns(queued_ms);
+    let work_end = body(t, &id, start);
+    let end = work_end + t.rng.latency_ns(0.3);
+    t.push(
+        svc,
+        id,
+        Some(producer),
+        &format!("{topic} process"),
+        CONSUMER,
+        start,
+        end,
+        vec![
+            ("messaging.system", json!("kafka")),
+            ("messaging.destination.name", json!(topic)),
+            ("messaging.operation.type", json!("process")),
+            ("messaging.consumer.group.name", json!(group)),
+        ],
+        None,
+    );
+    end
+}
+
+/// A submitted order announced on `orders.created`: billing authorizes the payment
+/// (`payments.authorized` → notification-worker) and inventory-service reserves stock
+/// (`inventory.reserved` → catalog-service). Returns the publish's end.
+fn order_created(t: &mut Trace, parent: &str, start: u64) -> u64 {
+    let (created, published) = publish(t, &ORDERS, parent, start, "orders.created");
+    let topic = "orders.created";
+    consume(t, &BILLING, &created, published, 8.0, topic, "billing-consumer", |t, p, s| {
+        let e = t.db(&BILLING, p, s, "postgres", "postgresql", "billing", "INSERT payments", 4.0);
+        let (auth, end) = publish(t, &BILLING, p, e, "payments.authorized");
+        let group = "notification-consumer";
+        consume(t, &NOTIFY, &auth, end, 5.0, "payments.authorized", group, |t, _, s| {
+            s + t.rng.latency_ns(3.0)
+        });
+        end
+    });
+    let lagging = kafka::inventory_lagging(now_ns() / 1_000_000_000);
+    let queued = if lagging { 2_500.0 } else { 25.0 };
+    consume(t, &ACTIONS, &created, published, queued, topic, "inventory-consumer", |t, p, s| {
+        let e = t.db(&ACTIONS, p, s, "redis", "redis", "0", "DECRBY stock", 0.6);
+        let (reserved, end) = publish(t, &ACTIONS, p, e, "inventory.reserved");
+        let group = "catalog-consumer";
+        consume(t, &CATALOG, &reserved, end, 10.0, "inventory.reserved", group, |t, _, s| {
+            s + t.rng.latency_ns(2.0)
+        });
+        end
+    });
+    published
 }
 
 /// Application logs written inside the traces (OTLP logs with trace and span ids), so logs and APM
@@ -792,6 +906,7 @@ async fn main() -> anyhow::Result<()> {
     let logs_url = format!("{endpoint}/v1/logs");
     let profile_url = format!("{endpoint}/api/v2/profile");
     let events_url = format!("{endpoint}/api/v1/events");
+    let series_url = format!("{endpoint}/api/v2/series");
     let mut headers = reqwest::header::HeaderMap::new();
     if let Ok(key) = std::env::var("OC_INGEST_KEY") {
         headers.insert(
@@ -819,6 +934,11 @@ async fn main() -> anyhow::Result<()> {
     }
 
     kubernetes::backfill(&http, &metrics_url, now_ns()).await;
+    // Half an hour of Kafka metrics, a point a minute, so the console's charts have history.
+    let now_s = now_ns() / 1_000_000_000;
+    for minutes in (1..=30u64).rev() {
+        send_kafka(&http, &series_url, now_s - minutes * 60).await;
+    }
 
     let mut host_state = hosts::initial_state(&mut rng, now_ns());
     let mut app_metrics = appmetrics::AppMetrics::new(now_ns());
@@ -847,6 +967,21 @@ async fn main() -> anyhow::Result<()> {
             {
                 tracing::warn!(error = %e, "Kubernetes metrics export failed");
             }
+            let (lambda_traces, lambda_metrics) = serverless::payloads(&mut rng, now_ns(), 10.0);
+            for (target, payload, what) in [
+                (&url, lambda_traces, "Lambda spans"),
+                (&metrics_url, lambda_metrics, "Lambda metrics"),
+            ] {
+                if let Err(e) = http
+                    .post(target)
+                    .json(&payload)
+                    .send()
+                    .await
+                    .and_then(|r| r.error_for_status())
+                {
+                    tracing::warn!(error = %e, "{what} export failed");
+                }
+            }
             let payload = app_metrics.payload(&mut rng, now_ns());
             if let Err(e) = http
                 .post(&metrics_url)
@@ -857,6 +992,9 @@ async fn main() -> anyhow::Result<()> {
             {
                 tracing::warn!(error = %e, "application metrics export failed");
             }
+        }
+        if seconds % 10 == 5 {
+            send_kafka(&http, &series_url, now_ns() / 1_000_000_000).await;
         }
         if seconds.is_multiple_of(60) {
             kubernetes::send_events(&http, &events_url, now_ns()).await;
@@ -872,7 +1010,11 @@ async fn main() -> anyhow::Result<()> {
         }
         seconds += 1;
         let n = rng.range(per_sec * 7 / 10, per_sec * 13 / 10 + 1);
-        let spans: Vec<Span> = (0..n).flat_map(|_| build_trace(&mut rng)).collect();
+        let mut spans: Vec<Span> = (0..n).flat_map(|_| build_trace(&mut rng)).collect();
+        // About one support-assistant conversation every two seconds (LLM Observability).
+        if seconds.is_multiple_of(2) {
+            spans.extend(llm::support_trace(&mut rng, now_ns() - 4_000_000_000));
+        }
         let count = spans.len();
         let logs = otlp_logs(&spans);
         for s in &spans {
@@ -923,6 +1065,19 @@ async fn send_ci(http: &reqwest::Client, url: &str, resource_spans: Vec<Value>) 
 }
 
 /// Fills the last 7 days with pipeline runs when ClickHouse has (almost) none yet.
+/// The Agent's Kafka checks' series at `now_s` (Datadog `/api/v2/series` JSON).
+async fn send_kafka(http: &reqwest::Client, url: &str, now_s: u64) {
+    if let Err(e) = http
+        .post(url)
+        .json(&kafka::series_payload(now_s))
+        .send()
+        .await
+        .and_then(|r| r.error_for_status())
+    {
+        tracing::warn!(error = %e, "Kafka metrics export failed");
+    }
+}
+
 async fn send_network(
     http: &reqwest::Client,
     url: &str,

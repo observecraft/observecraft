@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { History, Plus, X } from 'lucide-react';
 import { expireRehydration, listRehydrations, rehydrate, type Rehydration } from '../../api/archives/client';
-import { searchLogs } from '../../api/client';
+import { searchLogPage } from '../../api/client';
 import type { LogEvent } from '../../api/types';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
@@ -96,7 +96,7 @@ export function RehydrationsPage() {
 function RehydratedLogs({ r, onClose }: { r: Rehydration; onClose: () => void }) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<LogEvent | null>(null);
-  const q = useQuery({ queryKey: ['rehydrated-logs', r.id, query], queryFn: () => searchLogs({ range: { from: r.from, to: r.to }, query: `index:rehydrated ${query}`.trim() }) });
+  const q = useQuery({ queryKey: ['rehydrated-logs', r.id, query], queryFn: () => searchLogPage({ range: { from: r.from, to: r.to }, query: `index:rehydrated ${query}`.trim() }) });
   return (
     <section className="ar-result">
       <div className="ar-result-head">

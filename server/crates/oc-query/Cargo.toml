@@ -6,3 +6,5 @@ version.workspace = true
 license.workspace = true
 
 [dependencies]
+# SQL Editor: parses the users' SELECTs so they can be checked and rewritten onto org-scoped tables.
+sqlparser = "0.63"

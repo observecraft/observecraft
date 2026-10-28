@@ -22,6 +22,9 @@ pub enum ApiError {
     Forbidden(String),
     #[error("{0}")]
     TooManyRequests(String),
+    /// The resource changed since the client read it (optimistic concurrency).
+    #[error("{0}")]
+    Conflict(String),
     #[error(transparent)]
     ClickHouse(#[from] clickhouse::error::Error),
     #[error(transparent)]
@@ -38,6 +41,7 @@ impl IntoResponse for ApiError {
             ApiError::Unauthorized(m) => (StatusCode::UNAUTHORIZED, m.clone()),
             ApiError::Forbidden(m) => (StatusCode::FORBIDDEN, m.clone()),
             ApiError::TooManyRequests(m) => (StatusCode::TOO_MANY_REQUESTS, m.clone()),
+            ApiError::Conflict(m) => (StatusCode::CONFLICT, m.clone()),
             // Storage errors are logged in full but not echoed to clients.
             ApiError::ClickHouse(e) => {
                 tracing::error!(error = %e, "clickhouse query failed");

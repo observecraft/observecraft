@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpToLine, ChevronDown, ExternalLink, ThumbsDown, ThumbsUp, X } from 'lucide-react';
+import { ArrowUpToLine, ChevronDown, ExternalLink, X } from 'lucide-react';
 import type { IssueDetail } from '../../../api/errorTracking/types';
 import { useTime, TimeProvider } from '../../../components/shell/TimeContext';
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
@@ -88,13 +88,6 @@ function PanelBody({ id, onClose }: { id: string; onClose: () => void }) {
       <header className="ip-header">
         <StatusSelect issueId={issue.id} status={issue.status} />
         <div className="ip-actions">
-          <span className="muted-text">Give feedback</span>
-          <button className="icon-plain" title="Helpful">
-            <ThumbsUp size={16} />
-          </button>
-          <button className="icon-plain" title="Not helpful">
-            <ThumbsDown size={16} />
-          </button>
           <Menu
             trigger={
               <>

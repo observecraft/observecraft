@@ -15,7 +15,7 @@ use utoipa::ToSchema;
 
 use super::super::logs::TimeRange;
 use super::{
-    bind, group_array, group_label, inner_query_at_step, parse, resolve_alias, round, step_ms,
+    bind, group_array, group_label, inner_query_at_step, parse, round, step_ms,
     Kind, Row, Source, SPAN_METRICS,
 };
 use crate::error::{ApiError, ApiResult};
@@ -77,6 +77,8 @@ struct Prepared {
     step: i64,
     source: Source,
     error: Option<String>,
+    /// A derived metric's query: evaluated on its own as its formula, over the whole range.
+    formula: Option<String>,
 }
 
 struct Plan {
@@ -126,6 +128,8 @@ impl Plan {
         )?;
         let mut items: Vec<Prepared> = Vec::new();
         let mut seen = HashMap::new();
+        let derived = super::super::derived_metrics::org_derived(st, org).await?;
+        let index = super::super::metric_rules::index_rules(st, org).await?;
         for item in &req.queries {
             let key = (
                 item.query.clone(),
@@ -142,11 +146,22 @@ impl Plan {
                     .strip_suffix(".weighted()")
                     .unwrap_or(&item.query),
             );
-            let (query, error) = match parsed {
+            let (query, mut error) = match parsed {
                 Ok(q) => (q, None),
                 Err(e) => (parse("avg:invalid{*}")?, Some(e.to_string())),
             };
-            let (query, scale) = resolve_alias(&query);
+            if let (None, Err(e)) = (&error, super::super::metric_rules::check_indexed(&query, &index)) {
+                error = Some(e);
+            }
+            let mut formula = None;
+            if error.is_none() && derived.contains_key(&query.metric) {
+                match super::super::derived_metrics::expand(&item.query, &derived) {
+                    Ok(_) if weighted => error = Some("weighted() isn't supported on derived metrics".into()),
+                    Ok(_) => formula = Some(item.query.clone()),
+                    Err(e) => error = Some(e),
+                }
+            }
+            let (query, scale) = super::resolve_alias_if_missing(st, org, &query).await?;
             seen.insert(key.clone(), items.len());
             items.push(Prepared {
                 query,
@@ -160,11 +175,12 @@ impl Plan {
                 step: step_ms(req.range, key.1, 10_000),
                 source: Source::Samples,
                 error,
+                formula,
             });
         }
         let names: Vec<_> = items
             .iter()
-            .filter(|i| i.error.is_none())
+            .filter(|i| i.error.is_none() && i.formula.is_none())
             .map(|i| i.query.metric.clone())
             .collect::<HashSet<_>>()
             .into_iter()
@@ -188,7 +204,9 @@ impl Plan {
                 .fetch_all::<Meta>()
                 .await?
             {
-                units.insert(meta.name.clone(), meta.unit);
+                if let Some(unit) = metric_unit(&meta.name, &meta.unit) {
+                    units.insert(meta.name.clone(), unit);
+                }
                 metadata.entry(meta.name).or_insert(meta.kind);
             }
         }
@@ -196,6 +214,11 @@ impl Plan {
         let mut fallback = Vec::new();
         for (index, p) in items.iter_mut().enumerate() {
             if p.error.is_some() {
+                continue;
+            }
+            if p.formula.is_some() {
+                p.kind = "derived".into();
+                fallback.push(index);
                 continue;
             }
             let points = req
@@ -224,7 +247,8 @@ impl Plan {
                 .map(|(name, _)| name);
             p.unit = super::ALIASES
                 .iter()
-                .find(|a| Some(a.0) == original)
+                // The alias's unit only when the alias stood in (its values are scaled to it).
+                .find(|a| Some(a.0) == original && p.query.metric != a.0)
                 .map(|a| a.4.to_string())
                 .or_else(|| units.get(&p.query.metric).cloned())
                 .filter(|u| !u.is_empty());
@@ -307,7 +331,8 @@ impl Plan {
                 kind: p.kind.clone(),
                 unit: p.unit.clone(),
                 step_ms: p.step,
-                replace_from: query_range(range, previous_to, p.step).from,
+                // A derived metric is evaluated over the whole range every time.
+                replace_from: if p.formula.is_some() { range.from } else { query_range(range, previous_to, p.step).from },
                 error: p.error.clone(),
             })
             .collect();
@@ -321,6 +346,12 @@ impl Plan {
         let mut work = stream::iter(jobs.into_iter().map(|indices| async move {
             let step = self.items[indices[0]].step;
             let subrange = query_range(range, previous_to, step);
+            if let Some(text) = &self.items[indices[0]].formula {
+                let derived = super::evaluate_formula(st, org, text, range, 120).await.map(|(_, groups)| {
+                    groups.into_iter().map(|g| DashboardMetricSeries { name: if g.tags.is_empty() { text.clone() } else { group_label(&g.tags) }, tags: g.tags, points: g.points }).collect::<Vec<_>>()
+                });
+                return (indices, derived.map(Fetched::Series));
+            }
             let data = if self.items[indices[0]].scalar_kind.is_some() {
                 let (sql, params) = shared_sql(&self.items, &indices, subrange);
                 bind(st.ch(org).query(&sql), &params).fetch_all::<BatchRow>().await.map_err(ApiError::from)
@@ -334,11 +365,12 @@ impl Plan {
                     Err(e) => Err(e),
                 }
             };
-            (indices, data)
+            (indices, data.map(Fetched::Rows))
         })).buffer_unordered(4);
         while let Some((indices, data)) = work.next().await {
             match data {
-                Ok(rows) => {
+                Ok(Fetched::Series(series)) => results[indices[0]].series = series,
+                Ok(Fetched::Rows(rows)) => {
                     for r in rows {
                         let p = &self.items[r.qi as usize];
                         let tags = p
@@ -410,6 +442,12 @@ fn query_range(range: TimeRange, previous_to: Option<i64>, step: i64) -> TimeRan
             .unwrap_or_else(|| range.from.div_euclid(step) * step),
         to: range.to,
     }
+}
+
+/// What one scan returned: rows of shared or single queries, or a derived metric's series.
+enum Fetched {
+    Rows(Vec<BatchRow>),
+    Series(Vec<DashboardMetricSeries>),
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -724,9 +762,55 @@ fn merge_frame(snapshot: &mut DashboardQueryFrame, delta: &DashboardQueryFrame) 
     }
 }
 
+/// Units of integration metrics from integrations-core's metadata.csv (BSD-3-Clause, see
+/// server/seeds/integrations/kubernetes/LICENSE): the Datadog Agent sends none.
+const INTEGRATION_UNITS: &str = include_str!("../../../../../seeds/integrations/kubernetes/units.csv");
+const INTEGRATION_DESCRIPTIONS: &str = include_str!("../../../../../seeds/integrations/kubernetes/descriptions.tsv");
+
+/// A metric's unit: what its sender reported, else the integration's, else none.
+pub(super) fn metric_unit(metric: &str, reported: &str) -> Option<String> {
+    static UNITS: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    if !reported.is_empty() {
+        return Some(reported.to_string());
+    }
+    let units = UNITS.get_or_init(|| INTEGRATION_UNITS.lines().filter(|l| !l.starts_with('#')).filter_map(|l| l.split_once(',')).collect());
+    units.get(metric).map(|u| u.to_string())
+}
+
+/// What a metric measures: as its sender described it, else integrations-core's description.
+pub(super) fn metric_description(metric: &str, reported: &str) -> String {
+    static DESCRIPTIONS: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    if !reported.is_empty() {
+        return reported.to_string();
+    }
+    let descriptions = DESCRIPTIONS.get_or_init(|| INTEGRATION_DESCRIPTIONS.lines().filter(|l| !l.starts_with('#')).filter_map(|l| l.split_once('\t')).collect());
+    descriptions.get(metric).map(|d| d.to_string()).unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
+    use super::super::resolve_alias;
     use super::*;
+
+    #[test]
+    fn integration_metrics_get_their_descriptions_when_senders_send_none() {
+        assert_eq!(metric_description("kubernetes.cpu.usage.total", ""), "The number of cores used");
+        assert_eq!(metric_description("kubernetes.cpu.usage.total", "Sent by the app"), "Sent by the app");
+        assert_eq!(metric_description("my.custom.metric", ""), "");
+    }
+
+    #[test]
+    fn integration_metrics_get_their_units_when_senders_send_none() {
+        // The Datadog Agent sends no units; integrations-core's metadata.csv has them.
+        assert_eq!(metric_unit("kubernetes.cpu.usage.total", ""), Some("nanocore".to_string()));
+        assert_eq!(metric_unit("kubernetes.memory.usage", ""), Some("byte".to_string()));
+        assert_eq!(metric_unit("kubernetes.network.rx_bytes", ""), Some("byte/second".to_string()));
+        // The Agent reports host memory in MiB (Datadog's metadata: mebibyte).
+        assert_eq!(metric_unit("system.mem.used", ""), Some("mebibyte".to_string()));
+        // What a sender reported wins; counts have no unit.
+        assert_eq!(metric_unit("kubernetes.cpu.usage.total", "{core}"), Some("{core}".to_string()));
+        assert_eq!(metric_unit("kubernetes_state.deployment.replicas", ""), None);
+    }
 
     /// Exercise the actual shared SQL against the storage introduced in ADR-0001.
     /// The existing per-query evaluator is the oracle for all three resolutions.
@@ -870,6 +954,7 @@ mod tests {
             step: 30_000,
             source: Source::Samples,
             error: None,
+            formula: None,
         }
     }
 

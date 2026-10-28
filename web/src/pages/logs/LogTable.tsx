@@ -38,17 +38,21 @@ export function LogTable({ logs, selectedId, onSelect, options = DEFAULT_TABLE_O
       </thead>
       <tbody>
         {logs.map((l) => (
-          <tr
-            key={l.id}
-            className={`${l.id === selectedId ? 'selected' : ''}${flashNew ? ' row-new' : ''}`}
-            onClick={() => onSelect(l)}
-          >
+          <tr key={l.id} className={`${l.id === selectedId ? 'selected' : ''}${flashNew ? ' row-new' : ''}`} onClick={() => onSelect(l)}>
             <td className="col-status">
               <span className="status-bar" style={{ background: `var(${STATUS_COLORS[l.status]})` }} />
             </td>
             <td className="mono">{formatLogDate(l.timestamp)}</td>
-            {options.showHost && <td className="mono">{l.host}</td>}
-            {options.showService && <td className="mono">{l.service}</td>}
+            {options.showHost && (
+              <td className="mono col-host" title={l.host}>
+                {l.host}
+              </td>
+            )}
+            {options.showService && (
+              <td className="mono col-service" title={l.service}>
+                {l.service}
+              </td>
+            )}
             <td className="mono col-content">
               <LogMessage message={l.message} />
             </td>
@@ -63,5 +67,22 @@ export function LogTable({ logs, selectedId, onSelect, options = DEFAULT_TABLE_O
         )}
       </tbody>
     </table>
+  );
+}
+
+/** Table options: wrap lines, host and service columns. */
+export function OptionsMenu({ value, onChange }: { value: LogTableOptions; onChange: (o: LogTableOptions) => void }) {
+  const row = (key: keyof LogTableOptions, label: string) => (
+    <label>
+      <input type="checkbox" className="checkbox" checked={value[key]} onChange={() => onChange({ ...value, [key]: !value[key] })} />
+      {label}
+    </label>
+  );
+  return (
+    <div className="options-menu">
+      {row('wrap', 'Wrap lines')}
+      {row('showHost', 'Show host column')}
+      {row('showService', 'Show service column')}
+    </div>
   );
 }

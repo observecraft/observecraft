@@ -21,11 +21,13 @@ use super::downtimes::{load_downtimes, Downtime};
 use super::identity::MemberRef;
 use super::logs::{log_counts, parse_log_monitor, TimeRange};
 use super::metrics::{evaluate_query, Group};
+use super::monitor_formula::{combine, parse_formula, Expr};
 use super::monitor_engine::{
     backtest, group_key, parse_group_key, recipients, render_message, worst, MessageContext, MonitorOptions, MonitorStatus, DAY_MS,
 };
 use crate::auth::Writer;
 use crate::error::{ApiError, ApiResult};
+use crate::log_access::LogAccess;
 use crate::state::{AppState, OrgId};
 
 fn now_ms() -> i64 {
@@ -41,6 +43,9 @@ pub enum MonitorType {
     Apm,
     /// Count of logs matching a search: `logs("service:checkout status:error") by {service}`.
     Log,
+    /// The alert state of a synthetic test, kept by the test runner (`routes::synthetics`); edited
+    /// with its test, never evaluated here.
+    Synthetics,
 }
 
 impl MonitorType {
@@ -49,27 +54,43 @@ impl MonitorType {
             MonitorType::Metric => "metric",
             MonitorType::Apm => "apm",
             MonitorType::Log => "log",
+            MonitorType::Synthetics => "synthetics",
         }
     }
     fn parse(s: &str) -> Self {
         match s {
             "apm" => MonitorType::Apm,
             "log" => MonitorType::Log,
+            "synthetics" => MonitorType::Synthetics,
             _ => MonitorType::Metric,
         }
     }
 }
 
 /// The series a monitor evaluates over `range`: its metric query's groups, or for log monitors the
-/// matching logs per interval (per group).
-async fn monitor_series(st: &AppState, org: &str, kind: MonitorType, query: &str, range: TimeRange, points: u32) -> Result<Vec<Group>, ApiError> {
+/// matching logs per interval (per group), counted within `access` (the previewing user's, or
+/// every log of the org when the engine evaluates).
+async fn monitor_series(st: &AppState, org: &str, access: &LogAccess, kind: MonitorType, query: &str, range: TimeRange, points: u32) -> Result<Vec<Group>, ApiError> {
+    if kind == MonitorType::Synthetics {
+        return Err(ApiError::BadRequest("synthetic test monitors have no query to evaluate".into()));
+    }
     if kind == MonitorType::Log {
         let (search, by) = parse_log_monitor(query).map_err(ApiError::BadRequest)?;
         let step = ((range.to - range.from) / points.max(1) as i64).max(60_000);
-        return log_counts(st, org, &search, &by, range, step).await;
+        return log_counts(st, org, access, &search, &by, range, step).await;
     }
-    let q = parse_metric_query(query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
-    evaluate_query(st, org, &q, range, points).await
+    let query = super::derived_metrics::resolve_text(st, org, query).await?;
+    let f = parse_formula(&query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+    let mut results = Vec::with_capacity(f.queries.len());
+    for q in &f.queries {
+        let q = parse_metric_query(q).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+        results.push(evaluate_query(st, org, &q, range, points).await?);
+    }
+    // One plain query: its groups as they are.
+    if f.expr == Expr::Query(0) {
+        return Ok(results.remove(0));
+    }
+    Ok(combine(&f.expr, &results))
 }
 
 // ================================================================ loading
@@ -531,6 +552,8 @@ pub struct MonitorDetail {
     pub message: String,
     pub groups: Vec<MonitorGroupState>,
     pub evaluated_at: Option<i64>,
+    /// Synthetics monitors: the test whose alert state this is.
+    pub synthetic_test_id: Option<String>,
 }
 
 fn detail(m: &Loaded, downtimes: &[Downtime]) -> MonitorDetail {
@@ -553,6 +576,7 @@ fn detail(m: &Loaded, downtimes: &[Downtime]) -> MonitorDetail {
             })
             .collect(),
         evaluated_at: m.row.evaluated_at,
+        synthetic_test_id: m.row.definition.get("syntheticTestId").and_then(Value::as_str).map(str::to_string),
     }
 }
 
@@ -585,16 +609,22 @@ pub struct MonitorInput {
     pub draft: bool,
 }
 
+const SYNTHETICS_MANAGED: &str = "synthetic test monitors are created and edited with their test (Digital Experience → Synthetic Tests)";
+
 fn validate(input: &mut MonitorInput) -> Result<(), ApiError> {
     input.name = input.name.trim().to_string();
     if input.name.is_empty() || input.name.len() > 500 {
         return Err(ApiError::BadRequest("the monitor name must be 1–500 characters".into()));
     }
+    if input.r#type == MonitorType::Synthetics {
+        return Err(ApiError::BadRequest(SYNTHETICS_MANAGED.into()));
+    }
     if input.r#type == MonitorType::Log {
         parse_log_monitor(&input.query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
     } else {
-        let q = parse_metric_query(&input.query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
-        if input.r#type == MonitorType::Apm && !q.metric.starts_with("trace.") {
+        let f = parse_formula(&input.query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+        let apm_only = f.queries.iter().all(|q| parse_metric_query(q).is_ok_and(|q| q.metric.starts_with("trace.")));
+        if input.r#type == MonitorType::Apm && !apm_only {
             return Err(ApiError::BadRequest("APM monitors use trace.* metrics".into()));
         }
     }
@@ -643,6 +673,9 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut in
 pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<i64>, Json(mut input): Json<MonitorInput>) -> ApiResult<MonitorDetail> {
     validate(&mut input)?;
     let (before, _) = load_one(&st, &ctx.org_id, id).await?;
+    if MonitorType::parse(&before.row.kind) == MonitorType::Synthetics {
+        return Err(ApiError::BadRequest(SYNTHETICS_MANAGED.into()));
+    }
     let definition = serde_json::to_value(&input.options).map_err(anyhow::Error::from)?;
     let reset = before.row.query != input.query.trim() || before.row.definition != definition;
     let mut tx = st.postgres.begin().await?;
@@ -681,7 +714,7 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
 pub async fn clone(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<i64>) -> ApiResult<MonitorDetail> {
     let new: Option<(i64,)> = sqlx::query_as(
         "INSERT INTO monitors (org_id, name, type, query, definition, status, message, priority, tags, teams, draft, created_by) \
-         SELECT org_id, '[Clone] ' || name, type, query, definition, 'nodata', message, priority, tags, teams, draft, $3::uuid FROM monitors WHERE org_id = $1 AND id = $2 RETURNING id",
+         SELECT org_id, '[Clone] ' || name, type, query, definition, 'nodata', message, priority, tags, teams, draft, $3::uuid FROM monitors WHERE org_id = $1 AND id = $2 AND type <> 'synthetics' RETURNING id",
     )
     .bind(&ctx.org_id)
     .bind(id)
@@ -725,7 +758,13 @@ pub async fn bulk(State(st): State<AppState>, Writer(ctx): Writer, Json(req): Js
     if req.ids.is_empty() || req.ids.len() > 1000 {
         return Err(ApiError::BadRequest("select 1–1000 monitors".into()));
     }
-    let ids: Vec<i64> = sqlx::query_scalar("SELECT id FROM monitors WHERE org_id = $1 AND id = ANY($2)").bind(&ctx.org_id).bind(&req.ids).fetch_all(&st.postgres).await?;
+    // A synthetic test's monitor goes with its test: deleting it here is skipped.
+    let ids: Vec<i64> = sqlx::query_scalar("SELECT id FROM monitors WHERE org_id = $1 AND id = ANY($2) AND ($3 OR type <> 'synthetics')")
+        .bind(&ctx.org_id)
+        .bind(&req.ids)
+        .bind(req.action != BulkAction::Delete)
+        .fetch_all(&st.postgres)
+        .await?;
     let mut tx = st.postgres.begin().await?;
     match req.action {
         BulkAction::Mute => {
@@ -765,7 +804,7 @@ pub async fn bulk(State(st): State<AppState>, Writer(ctx): Writer, Json(req): Js
             sqlx::query("UPDATE monitors SET status = 'ok', state_changed_at = now() WHERE id = ANY($1) AND status <> 'ok'").bind(&ids).execute(&mut *tx).await?;
         }
         BulkAction::Delete => {
-            sqlx::query("DELETE FROM monitors WHERE org_id = $1 AND id = ANY($2)").bind(&ctx.org_id).bind(&ids).execute(&mut *tx).await?;
+            sqlx::query("DELETE FROM monitors WHERE org_id = $1 AND id = ANY($2) AND type <> 'synthetics'").bind(&ctx.org_id).bind(&ids).execute(&mut *tx).await?;
         }
     }
     tx.commit().await?;
@@ -903,7 +942,7 @@ pub struct MonitorPreview {
 
 /// Backtests a monitor definition: how its value and status would have evolved over `range`.
 #[utoipa::path(post, path = "/api/v1/monitors/preview", request_body = MonitorPreviewRequest, responses((status = 200, body = MonitorPreview)), tag = "monitors")]
-pub async fn preview(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<MonitorPreviewRequest>) -> ApiResult<MonitorPreview> {
+pub async fn preview(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<MonitorPreviewRequest>) -> ApiResult<MonitorPreview> {
     req.range.validate()?;
     if req.range.to - req.range.from > 7 * DAY_MS {
         return Err(ApiError::BadRequest("previews cover at most a week".into()));
@@ -912,7 +951,7 @@ pub async fn preview(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
     let span = req.range.to - req.range.from;
     let fetch = TimeRange { from: req.range.from - req.options.lookback_ms(), to: req.range.to };
     let points = ((fetch.to - fetch.from) / (span / 300).max(10_000)).clamp(10, 1000) as u32;
-    let groups = monitor_series(&st, &org, req.r#type.unwrap_or(MonitorType::Metric), &req.query, fetch, points).await?;
+    let groups = monitor_series(&st, &org, &access, req.r#type.unwrap_or(MonitorType::Metric), &req.query, fetch, points).await?;
     let step = (span / 240).max(60_000);
     let b = backtest(&req.options, &groups, req.range.from, req.range.to, step);
     let mut transitions = TransitionCounts::default();
@@ -1132,7 +1171,7 @@ pub async fn run_evaluator(st: AppState) {
         {
             continue;
         }
-        match sqlx::query_scalar::<_, i64>("SELECT id FROM monitors ORDER BY id")
+        match sqlx::query_scalar::<_, i64>("SELECT id FROM monitors WHERE type <> 'synthetics' ORDER BY id")
             .fetch_all(&st.postgres)
             .await
         {
@@ -1166,7 +1205,7 @@ pub async fn evaluate_one(st: &AppState, id: i64) {
 }
 
 async fn evaluate_inner(st: &AppState, id: i64, now: i64) -> Result<(), ApiError> {
-    let Some(row): Option<Row> = sqlx::query_as(&format!("{SELECT} WHERE m.id = $1")).bind(id).fetch_optional(&st.postgres).await? else {
+    let Some(row): Option<Row> = sqlx::query_as(&format!("{SELECT} WHERE m.id = $1 AND m.type <> 'synthetics'")).bind(id).fetch_optional(&st.postgres).await? else {
         return Ok(());
     };
     let groups: Vec<GroupRow> = sqlx::query_as(&format!("{GROUP_SELECT} WHERE g.monitor_id = $1")).bind(id).fetch_all(&st.postgres).await?;
@@ -1177,7 +1216,7 @@ async fn evaluate_inner(st: &AppState, id: i64, now: i64) -> Result<(), ApiError
     let range = TimeRange { from: now - opts.lookback_ms() - 60_000, to: now };
     let points = ((range.to - range.from) / 10_000).clamp(10, 1000) as u32;
     // A metric that doesn't exist (yet), or an unparsable query, is no data, not an error.
-    let series = match monitor_series(st, &m.row.org_id, MonitorType::parse(&m.row.kind), &m.row.query, range, points).await {
+    let series = match monitor_series(st, &m.row.org_id, &LogAccess::org_background(), MonitorType::parse(&m.row.kind), &m.row.query, range, points).await {
         Ok(s) => s,
         Err(ApiError::BadRequest(_)) => Vec::new(),
         Err(e) => return Err(e),
@@ -1278,7 +1317,7 @@ pub(crate) async fn backfill(st: &AppState, id: i64) -> Result<(), ApiError> {
     let now = now_ms();
     let from = now - DAY_MS;
     let range = TimeRange { from: from - opts.lookback_ms(), to: now };
-    let series = match monitor_series(st, &row.org_id, MonitorType::parse(&row.kind), &row.query, range, 1000).await {
+    let series = match monitor_series(st, &row.org_id, &LogAccess::org_background(), MonitorType::parse(&row.kind), &row.query, range, 1000).await {
         Ok(s) => s,
         Err(ApiError::BadRequest(_)) => return Ok(()),
         Err(e) => return Err(e),
@@ -1327,4 +1366,28 @@ pub(crate) async fn summary(st: &AppState, org: &str, text: &str) -> Result<Vec<
     out.sort_by(|a, b| b.2.severity().cmp(&a.2.severity()).then_with(|| a.1.cmp(&b.1)));
     out.truncate(500);
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn input(kind: &str, query: &str) -> MonitorInput {
+        serde_json::from_value(serde_json::json!({
+            "name": "m", "type": kind, "query": query, "priority": null,
+            "options": {"detection": "threshold", "timeAggregation": "max", "windowMinutes": 15, "comparator": "above_or_equal",
+                        "thresholds": {"critical": 2.0, "warning": null, "criticalRecovery": null, "warningRecovery": null}}
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn metric_monitors_accept_arithmetic_between_queries() {
+        assert!(validate(&mut input("metric", "sum:a.desired{*} by {d} - sum:a.ready{*} by {d}")).is_ok());
+        assert!(validate(&mut input("metric", "default_zero(sum:n{s:ok} by {c} * 100 / sum:n{*} by {c})")).is_ok());
+        assert!(validate(&mut input("metric", "sum:a{*} -")).is_err());
+        // APM monitors: every query is a trace metric.
+        assert!(validate(&mut input("apm", "sum:trace.http.request.errors{*} / sum:trace.http.request.hits{*}")).is_ok());
+        assert!(validate(&mut input("apm", "sum:trace.http.request.errors{*} / sum:system.load.1{*}")).is_err());
+    }
 }

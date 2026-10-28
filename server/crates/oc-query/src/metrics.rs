@@ -35,12 +35,46 @@ pub struct TagFilter {
     pub negate: bool,
 }
 
+/// How a series' points are combined within an interval (`.rollup(max)`); averaged when unset.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Rollup {
+    Avg,
+    Sum,
+    Min,
+    Max,
+    Count,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetricQuery {
     pub agg: SpaceAgg,
     pub metric: String,
     pub filters: Vec<TagFilter>,
     pub by: Vec<String>,
+    pub rollup: Option<Rollup>,
+}
+
+/// The query as text, in the syntax [`parse_metric_query`] reads (`avg:m{a:b,!c:d} by {x}.rollup(max)`).
+impl std::fmt::Display for MetricQuery {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let filters: Vec<String> = self.filters.iter().map(|t| format!("{}{}:{}", if t.negate { "!" } else { "" }, t.key, t.value)).collect();
+        let filters = if filters.is_empty() { "*".to_string() } else { filters.join(",") };
+        write!(f, "{}:{}{{{filters}}}", self.agg.sql(), self.metric)?;
+        if !self.by.is_empty() {
+            write!(f, " by {{{}}}", self.by.join(","))?;
+        }
+        if let Some(r) = self.rollup {
+            let method = match r {
+                Rollup::Avg => "avg",
+                Rollup::Sum => "sum",
+                Rollup::Min => "min",
+                Rollup::Max => "max",
+                Rollup::Count => "count",
+            };
+            write!(f, ".rollup({method})")?;
+        }
+        Ok(())
+    }
 }
 
 fn valid_name(s: &str) -> bool {
@@ -49,6 +83,22 @@ fn valid_name(s: &str) -> bool {
 
 pub fn parse_metric_query(q: &str) -> Result<MetricQuery, String> {
     let q = q.trim();
+    // `.rollup(method[, seconds])` after the query: the method here, the interval is the caller's.
+    let (q, rollup) = match q.rfind(".rollup(") {
+        Some(i) if q.ends_with(')') && q[..i].ends_with('}') => {
+            let method = q[i + ".rollup(".len()..q.len() - 1].split(',').next().unwrap_or("").trim();
+            let rollup = match method {
+                "avg" => Rollup::Avg,
+                "sum" => Rollup::Sum,
+                "min" => Rollup::Min,
+                "max" => Rollup::Max,
+                "count" => Rollup::Count,
+                other => return Err(format!("unknown rollup '{other}'")),
+            };
+            (&q[..i], Some(rollup))
+        }
+        _ => (q, None),
+    };
     let (agg, rest) = q.split_once(':').ok_or("expected <agg>:<metric>{…}")?;
     let agg = match agg {
         "avg" => SpaceAgg::Avg,
@@ -94,7 +144,7 @@ pub fn parse_metric_query(q: &str) -> Result<MetricQuery, String> {
             by.push(k.to_string());
         }
     }
-    Ok(MetricQuery { agg, metric: metric.to_string(), filters, by })
+    Ok(MetricQuery { agg, metric: metric.to_string(), filters, by, rollup })
 }
 
 /// Short tag names → OTel resource attribute keys (both spellings are accepted).
@@ -229,6 +279,25 @@ mod tests {
         assert_eq!(q.filters.len(), 3);
         assert!(q.filters[2].negate);
         assert_eq!(q.by, vec!["host", "region"]);
+    }
+
+    #[test]
+    fn a_rollup_method_after_the_query() {
+        let q = parse_metric_query("sum:kubernetes.containers.last_state.terminated{reason:oomkilled} by {pod_name}.rollup(max)").unwrap();
+        assert_eq!((q.metric.as_str(), q.by.clone(), q.rollup), ("kubernetes.containers.last_state.terminated", vec!["pod_name".to_string()], Some(Rollup::Max)));
+        // The interval argument is the caller's (it sets the points); avg is the default.
+        assert_eq!(parse_metric_query("avg:a{*}.rollup(sum, 60)").unwrap().rollup, Some(Rollup::Sum));
+        assert_eq!(parse_metric_query("avg:a{*}").unwrap().rollup, None);
+        assert!(parse_metric_query("avg:a{*}.rollup(median)").is_err());
+    }
+
+    #[test]
+    fn a_query_formats_back_to_text_that_parses_the_same() {
+        for text in ["avg:system.cpu.utilization{env:prod,!host:i-0a*} by {host,region}", "sum:trace.requests{*}", "max:k.terminated{reason:oomkilled} by {pod_name}.rollup(max)"] {
+            let q = parse_metric_query(text).unwrap();
+            assert_eq!(q.to_string(), text);
+            assert_eq!(parse_metric_query(&q.to_string()).unwrap(), q);
+        }
     }
 
     #[test]

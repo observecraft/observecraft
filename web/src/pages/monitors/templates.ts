@@ -1,5 +1,6 @@
 // Built-in monitor templates: a query, thresholds and a message to start from.
 import type { MonitorOptions, MonitorType } from '../../api/monitors/client';
+import { KUBERNETES_TEMPLATES } from './kubernetesTemplates.generated';
 
 export interface MonitorTemplate {
   id: string;
@@ -55,7 +56,8 @@ export const TEMPLATES: MonitorTemplate[] = [
     description: 'Alert when a host is running out of memory.',
     type: 'metric',
     name: 'Memory usage is high on {{host.name}}',
-    query: 'avg:system.mem.pct_used{*} by {host}',
+    // The Agent's usable share (0–1) as % used; a formula, as Datadog's memory monitor is.
+    query: '100 - avg:system.mem.pct_usable{*} by {host} * 100',
     options: threshold({ windowMinutes: 10 }, 90, 80),
     message: 'Memory is at {{value}}% on {{host.name}}.',
     keywords: ['memory', 'ram', 'oom', 'mem'],
@@ -171,6 +173,8 @@ export const TEMPLATES: MonitorTemplate[] = [
     message: '{{service.name}} stopped receiving requests.',
     keywords: ['availability', 'down', 'outage', 'uptime', 'heartbeat', 'dead'],
   },
+  // integrations-core's recommended monitors (generated, BSD-3-Clause).
+  ...KUBERNETES_TEMPLATES,
 ];
 
 /** Picks templates for a plain-language request ("I want to monitor my checkout latency"). */

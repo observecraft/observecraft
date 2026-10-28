@@ -2,8 +2,9 @@
 // otherwise the in-browser mock answers, so the UI still runs without a backend.
 import { API_MODE, post } from './http';
 import type { components } from './generated/schema';
-import { mockHistogram, mockLiveTail, mockMetric, mockSearchLogs, mockSuggest } from './mock';
-import type { HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, LogStatus, MetricSeries, QuerySuggestion, TimeRange } from './types';
+import { mockHistogram, mockLiveTail, mockLogFields, mockLogPatterns, mockTopLogValues, mockMetric, mockSearchLogs, mockSuggest } from './mock';
+import { mockViewRestricted } from './mock/logRestrictions';
+import type { Facet, FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogStatus, MetricSeries, QuerySuggestion, TimeRange } from './types';
 
 /** The UI loads at most this many rows per search; aggregate views work on this sample. */
 const LIVE_PAGE = 1000;
@@ -14,23 +15,49 @@ function toLogEvent(e: WireEvent): LogEvent {
   return { ...e, status: e.status as LogStatus, attributes: (e.attributes ?? {}) as Record<string, JsonValue> };
 }
 
-export async function searchLogs(q: LogQuery): Promise<LogSearchResult> {
-  if (API_MODE !== 'live') return mockSearchLogs(q);
-  const body = { range: q.range, query: q.query };
-  // Independent endpoints, fetched in parallel; the explorer shows them together.
-  const [page, facets, histogram, insights] = await Promise.all([
-    post('/api/v1/logs/search', { ...body, limit: LIVE_PAGE }),
-    post('/api/v1/logs/facets', body),
-    post('/api/v1/logs/histogram', body),
-    post('/api/v1/logs/insights', body),
-  ]);
-  return {
-    logs: page.logs.map(toLogEvent),
-    total: page.total,
-    facets,
-    histogram,
-    insights: insights.map((i) => ({ ...i, kind: 'error_outlier' }) satisfies LogInsight),
-  };
+/** A page of matching logs, newest first, how many match in all, and whether the viewer's data access restricts them. */
+export async function searchLogPage(q: LogQuery, limit = LIVE_PAGE): Promise<{ logs: LogEvent[]; total: number; restricted: boolean }> {
+  if (API_MODE !== 'live') {
+    const r = mockSearchLogs(q);
+    return { logs: r.logs.slice(0, limit), total: r.total, restricted: await mockViewRestricted() };
+  }
+  const page = await post('/api/v1/logs/search', { range: q.range, query: q.query, limit });
+  return { logs: page.logs.map(toLogEvent), total: page.total, restricted: page.restricted };
+}
+
+/** Top values per facet (the built-in ones and `q.facets`). */
+export async function logFacets(q: LogQuery): Promise<Facet[]> {
+  if (API_MODE !== 'live') return mockSearchLogs(q).facets;
+  return post('/api/v1/logs/facets', { range: q.range, query: q.query, extra: q.facets ?? [] });
+}
+
+/** Services with far more than their share of the errors. */
+export async function logInsights(q: LogQuery): Promise<LogInsight[]> {
+  if (API_MODE !== 'live') return mockSearchLogs(q).insights;
+  const insights = await post('/api/v1/logs/insights', { range: q.range, query: q.query });
+  return insights.map((i) => ({ ...i, kind: 'error_outlier' }) satisfies LogInsight);
+}
+
+/** The most frequent values of a key among the matching logs (dashboard toplists and sunbursts). */
+export async function topLogValues(q: LogQuery & { key: string; limit?: number }): Promise<FacetValue[]> {
+  if (API_MODE !== 'live') return mockTopLogValues(q);
+  return post('/api/v1/logs/top', { range: q.range, query: q.query, key: q.key, limit: q.limit });
+}
+
+export type LogPattern = components['schemas']['LogPattern'];
+
+/** The matching logs grouped by pattern (Log Explorer → Group into Patterns). */
+export async function logPatterns(q: LogQuery): Promise<LogPattern[]> {
+  if (API_MODE !== 'live') return mockLogPatterns(q);
+  return post('/api/v1/logs/patterns', { range: q.range, query: q.query });
+}
+
+export type LogField = components['schemas']['LogField'];
+
+/** The tags and attributes of the matching logs, to add as facets. */
+export async function logFields(q: LogQuery): Promise<LogField[]> {
+  if (API_MODE !== 'live') return mockLogFields(q);
+  return post('/api/v1/logs/fields', { range: q.range, query: q.query });
 }
 
 /** Status-stacked counts only — cheaper than a full search, used by Live Tail. */
@@ -57,11 +84,6 @@ export function subscribeLiveTail(query: string, onBatch: (b: LiveTailBatch) => 
   return () => es.close();
 }
 
-export async function queryMetric(
-  name: string,
-  range: TimeRange,
-  groups: string[],
-  opts: { base: number; noise: number },
-): Promise<MetricSeries[]> {
+export async function queryMetric(name: string, range: TimeRange, groups: string[], opts: { base: number; noise: number }): Promise<MetricSeries[]> {
   return mockMetric(name, range, groups, opts.base, opts.noise);
 }

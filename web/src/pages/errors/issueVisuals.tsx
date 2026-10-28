@@ -19,7 +19,7 @@ export const CAUSE_LABEL: Record<SuspectedCause, string> = {
   unknown: 'Unknown',
 };
 
-const PLATFORM_LOGO: Record<Platform, { logo: string; label: string }> = {
+const PLATFORM_LOGO: Record<Exclude<Platform, 'unknown'>, { logo: string; label: string }> = {
   android: { logo: 'android', label: 'Android' },
   java: { logo: 'openjdk', label: 'Java' },
   dotnet: { logo: 'dotnet', label: '.NET' },
@@ -33,6 +33,7 @@ const PLATFORM_LOGO: Record<Platform, { logo: string; label: string }> = {
 
 /** Runtime logo before the error type (full-colour brand marks). */
 export function PlatformIcon({ platform }: { platform: Platform }) {
+  if (platform === 'unknown') return null;
   const p = PLATFORM_LOGO[platform];
   return (
     <span className="platform-icon">

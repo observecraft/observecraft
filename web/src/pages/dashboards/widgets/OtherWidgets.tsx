@@ -1,5 +1,7 @@
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { searchLogs } from '../../../api/client';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { searchLogPage } from '../../../api/client';
 import type { WidgetDefinition } from '../../../api/dashboards/types';
 import { formatLogDate } from '../../../lib/format';
 import { STATUS_COLORS } from '../../../theme/chartTheme';
@@ -13,11 +15,32 @@ import { WidgetState } from './MetricWidgets';
 type Def<T extends WidgetDefinition['type']> = Extract<WidgetDefinition, { type: T }>;
 
 export function NoteWidget({ def }: { def: Def<'note'> }) {
+  const body = useRef<HTMLDivElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  // A note longer than its widget fades out with "More" instead of showing a scrollbar.
+  useEffect(() => {
+    const el = body.current;
+    if (!el) return;
+    const measure = () => setOverflows(el.scrollHeight > el.clientHeight + 2);
+    // The box and its content: text can grow after the widget is laid out (fonts loading).
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    for (const child of el.children) observer.observe(child);
+    document.fonts?.ready.then(measure);
+    measure();
+    return () => observer.disconnect();
+  }, [def.content]);
   return (
     <div className={`note note-${def.background} note-${def.align} note-${def.fontSize}${def.pointer ? ' note-pointer' : ''}`}>
-      <div className="note-body">
+      <div ref={body} className={`note-body${expanded ? ' note-expanded' : ''}${overflows && !expanded ? ' note-clipped' : ''}`}>
         <Markdown source={def.content} />
       </div>
+      {(overflows || expanded) && (
+        <button className="note-more wf-nodrag" onClick={() => setExpanded((e) => !e)}>
+          {expanded ? 'Less' : 'More'} {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+      )}
     </div>
   );
 }
@@ -76,8 +99,8 @@ export function MonitorSummaryWidget({ def }: { def: Def<'monitor_summary'> }) {
 export function LogStreamWidget({ def }: { def: Def<'log_stream'> }) {
   const { range, resolveSearch } = useDashboardContext();
   const query = resolveSearch(def.query);
-  const q = useQuery({ queryKey: ['logs', 'widget', query, range], queryFn: () => searchLogs({ range, query }) });
-  const logs = q.data?.logs.slice(0, def.limit) ?? [];
+  const q = useQuery({ queryKey: ['logs', 'widget', query, range, def.limit], queryFn: () => searchLogPage({ range, query }, def.limit) });
+  const logs = q.data?.logs ?? [];
   return (
     <WidgetState loading={q.isPending} error={q.error} empty={logs.length === 0}>
       <div className="ls">

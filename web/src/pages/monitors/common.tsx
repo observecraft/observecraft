@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from 'react';
+import { BrandLogo } from '../../components/brand/BrandLogo';
+import { recipientLogo } from '../../lib/channelLogos';
 import { AtSign, ChevronDown, ChevronRight, Hash, Mail, Search, Users, VolumeX, Webhook } from 'lucide-react';
 import type { FacetCount, MonitorStatus } from '../../api/monitors/client';
 import { Menu } from '../../components/ui/Dropdown';
@@ -90,20 +92,22 @@ const KIND_LABEL: Record<RecipientKind, string> = {
 
 export function RecipientIcon({ r, size = 15 }: { r: string; size?: number }) {
   const kind = recipientKind(r);
-  const icon =
-    kind === 'slack' ? (
-      <Hash size={size} />
-    ) : kind === 'webhook' ? (
-      <Webhook size={size} />
-    ) : kind === 'email' ? (
-      <Mail size={size} />
-    ) : kind === 'team' ? (
-      <Users size={size} />
-    ) : kind === 'pagerduty' ? (
-      <b>P</b>
-    ) : (
-      <AtSign size={size} />
-    );
+  const logo = recipientLogo(r);
+  const icon = logo ? (
+    <BrandLogo name={logo} size={size} />
+  ) : kind === 'slack' ? (
+    <Hash size={size} />
+  ) : kind === 'webhook' ? (
+    <Webhook size={size} />
+  ) : kind === 'email' ? (
+    <Mail size={size} />
+  ) : kind === 'team' ? (
+    <Users size={size} />
+  ) : kind === 'pagerduty' ? (
+    <b>P</b>
+  ) : (
+    <AtSign size={size} />
+  );
   return (
     <span className={`mon-rcpt-icon k-${kind}`} title={`${KIND_LABEL[kind]}: @${r}`}>
       {icon}

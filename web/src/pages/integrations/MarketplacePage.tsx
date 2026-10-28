@@ -45,15 +45,6 @@ function AppCard({ app, onOpen }: { app: MarketplaceApp; onOpen: () => void }) {
   );
 }
 
-function PartnerCard() {
-  return (
-    <div className="int-card mp-partner">
-      <strong>Sell your app in the Marketplace</strong>
-      <button className="btn btn-primary">Become a partner today!</button>
-    </div>
-  );
-}
-
 export function MarketplacePage() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
@@ -89,7 +80,6 @@ export function MarketplacePage() {
             {list.slice(0, 2).map((a) => (
               <AppCard key={a.id} app={a} onOpen={() => setOpen(a)} />
             ))}
-            {!query && !category && <PartnerCard />}
             {list.slice(2).map((a) => (
               <AppCard key={a.id} app={a} onOpen={() => setOpen(a)} />
             ))}

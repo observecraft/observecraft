@@ -1,19 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search, Sigma, X } from 'lucide-react';
 import type { MetricCatalogEntry } from '../../api/dashboards/types';
 import { TimePicker } from '../../components/shell/PageHeader';
 import { useTime } from '../../components/shell/TimeContext';
+import { expandFormula } from '../../lib/metricFormula';
 import { usePopover } from '../../components/ui/Dropdown';
-import { useMetricCatalog } from '../dashboards/queries';
-import { DashboardContext, type DashboardContextValue } from '../dashboards/widgets/context';
+import { useMetricCatalog, useTimeseriesData } from '../dashboards/queries';
+import { Chart } from '../../components/charts/Chart';
+import { splitSeries } from './split';
+import { DashboardContext, formatValue, type DashboardContextValue } from '../dashboards/widgets/context';
 import { TimeseriesWidget } from '../dashboards/widgets/MetricWidgets';
 import { KIND_LABEL } from './MetricsLayout';
 
-const AGGS = ['avg', 'sum', 'min', 'max'] as const;
-type Agg = (typeof AGGS)[number];
+export const AGGS = ['avg', 'sum', 'min', 'max'] as const;
+export type Agg = (typeof AGGS)[number];
 
-interface Row {
+export interface Row {
   agg: Agg;
   metric: string;
   /** `env:prod, service:api-gateway` */
@@ -22,7 +25,7 @@ interface Row {
   by: string;
 }
 
-const LETTERS = 'abcdefghij';
+export const LETTERS = 'abcdefghij';
 
 /** Row → query text: `avg:metric{env:prod,service:x} by {host}`. */
 export function toQuery(r: Row): string {
@@ -40,7 +43,7 @@ export function toQuery(r: Row): string {
 }
 
 /** Metric name picker with search over the catalog. */
-function MetricPicker({ value, catalog, onChange }: { value: string; catalog: MetricCatalogEntry[]; onChange: (m: string) => void }) {
+export function MetricPicker({ value, catalog, onChange }: { value: string; catalog: MetricCatalogEntry[]; onChange: (m: string) => void }) {
   const { open, setOpen, ref } = usePopover();
   const [text, setText] = useState('');
   const t = text.trim().toLowerCase();
@@ -81,12 +84,35 @@ function MetricPicker({ value, catalog, onChange }: { value: string; catalog: Me
 
 /** Metrics → Explorer: build queries row by row and graph them over the page's time range. */
 export function MetricsExplorer() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const { range } = useTime();
   const catalog = useMetricCatalog();
-  const [rows, setRows] = useState<Row[]>(() => [{ agg: 'avg', metric: params.get('metric') ?? 'trace.latency.p95', from: '', by: params.get('by') ?? 'service' }]);
+  // Starts empty, as Datadog's does; the first query lives in the URL so a graph can be shared or reloaded.
+  const [rows, setRows] = useState<Row[]>(() => [{ agg: (params.get('agg') as Agg | null) ?? 'avg', metric: params.get('metric') ?? '', from: params.get('from') ?? '', by: params.get('by') ?? '' }]);
+  useEffect(() => {
+    const first = rows[0];
+    setParams(
+      (p) => {
+        const next = new URLSearchParams(p);
+        for (const [k, v] of Object.entries({ metric: first.metric, from: first.from, by: first.by, agg: first.agg === 'avg' ? '' : first.agg })) {
+          if (v) next.set(k, v);
+          else next.delete(k);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }, [rows, setParams]);
   const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const queries = rows.filter((r) => r.metric).map(toQuery);
+  // A formula over the query letters ("a / b * 100") is graphed in place of the queries.
+  const [formula, setFormula] = useState<string | null>(null);
+  const byLetter = Object.fromEntries(rows.flatMap((r, i) => (r.metric ? [[LETTERS[i], toQuery(r)]] : [])));
+  const expanded = formula?.trim() ? expandFormula(formula, byLetter) : null;
+  const graphed = expanded ? [expanded] : queries;
+  // Split graph: one small chart per group, for a single grouped query.
+  const [split, setSplit] = useState(false);
+  const canSplit = graphed.length === 1 && (Boolean(expanded) || Boolean(rows.find((r) => r.metric)?.by.trim()));
   const ctx = useMemo<DashboardContextValue>(
     () => ({ range, resolve: (q) => q, resolveSearch: (q) => q, canEdit: false, onEdit: () => {}, onClone: () => {}, onDelete: () => {}, onFullscreen: () => {}, onGroupLayout: () => {} }),
     [range],
@@ -135,25 +161,45 @@ export function MetricsExplorer() {
             </div>
           );
         })}
+        {formula !== null && (
+          <div className="mx-row">
+            <span className="mx-letter mx-formula-letter">Σ</span>
+            <input className="mx-formula" value={formula} onChange={(e) => setFormula(e.target.value)} placeholder="a / b * 100" aria-label="Formula" spellCheck={false} />
+            {formula.trim() && !expanded && <span className="form-error">Use the query letters, numbers, + - * / and parentheses</span>}
+            <button className="icon-plain" title="Remove formula" onClick={() => setFormula(null)}>
+              <X size={16} />
+            </button>
+          </div>
+        )}
         <div className="mx-row-actions">
           {rows.length < LETTERS.length && (
             <button className="btn btn-sm" onClick={() => setRows((rs) => [...rs, { agg: 'avg', metric: '', from: '', by: '' }])}>
               <Plus size={14} /> Add Query
             </button>
           )}
-          {queries.map((q) => (
+          {formula === null && (
+            <button className="btn btn-sm" onClick={() => setFormula(rows.length > 1 ? 'a / b' : 'a * 1')}>
+              <Sigma size={14} /> Add Formula
+            </button>
+          )}
+          {graphed.map((q) => (
             <code key={q} className="mx-query">
               {q}
             </code>
           ))}
+          {canSplit && (
+            <label className="mx-split-toggle" title="One graph per group">
+              <input type="checkbox" className="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} /> Split graph
+            </label>
+          )}
         </div>
       </div>
-      <div className="mx-chart">
-        {queries.length === 0 ? (
+      <div className={`mx-chart${split && canSplit ? ' mx-chart-split' : ''}`}>
+        {graphed.length === 0 ? (
           <div className="wd-state">Pick a metric to graph it.</div>
         ) : (
           <DashboardContext.Provider value={ctx}>
-            <TimeseriesWidget def={{ type: 'timeseries', display: 'line', requests: queries.map((query) => ({ query })) }} />
+            {split && canSplit ? <SplitGraph query={graphed[0]} /> : <TimeseriesWidget def={{ type: 'timeseries', display: 'line', requests: graphed.map((query) => ({ query })) }} />}
           </DashboardContext.Provider>
         )}
       </div>
@@ -170,5 +216,41 @@ export function MetricsExplorer() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Groups shown as small graphs at most. */
+const SPLIT_LIMIT = 24;
+
+/** One small graph per group of the query, the busiest first. */
+function SplitGraph({ query }: { query: string }) {
+  const { range } = useTime();
+  const q = useTimeseriesData([query], range);
+  if (q.isPending) return <div className="wd-state">Loading…</div>;
+  if (q.isError) return <div className="wd-state wd-error">{q.error.message}</div>;
+  const { shown, hidden } = splitSeries(q.data, SPLIT_LIMIT);
+  return (
+    <>
+      <div className="mx-split">
+        {shown.map((s) => (
+          <div key={s.name} className="mx-split-cell">
+            <div className="mx-split-title" title={s.name}>
+              {s.name}
+            </div>
+            <Chart
+              height={120}
+              option={{
+                grid: { left: 40, right: 8, top: 8, bottom: 20 },
+                tooltip: { trigger: 'axis', confine: true },
+                xAxis: { type: 'time', axisLabel: { fontSize: 10, hideOverlap: true } },
+                yAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: (v: number) => formatValue(v, Math.abs(v) < 1 ? 2 : 0) } },
+                series: [{ name: s.name, type: 'line', showSymbol: false, lineStyle: { width: 1.2 }, data: s.points }],
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      {hidden > 0 && <p className="muted">{hidden} more groups not shown.</p>}
+    </>
   );
 }

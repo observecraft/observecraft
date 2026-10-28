@@ -22,6 +22,8 @@ export interface HostSummary {
   distro?: string;
   collectors: CollectorKind[];
   software: Software[];
+  /** Integrations the host's Datadog Agent runs (`system` for its host checks). */
+  apps: string[];
   env: string | null;
   service: string | null;
   team: string | null;

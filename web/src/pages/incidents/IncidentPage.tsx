@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CalendarCheck, ChevronDown, ChevronRight, Megaphone, MessageSquare, Plus, Sparkles, Video } from 'lucide-react';
 import { SEVERITIES, SEVERITY_LABEL, type IncidentDetail, type IncidentStatus } from '../../api/incidents/client';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
@@ -10,6 +10,8 @@ import { useUsers } from '../settings/queries';
 import { NotificationsTab, PagesTab, PostIncidentTab, ResponseTeamTab, TimelineTab } from './IncidentTabs';
 import { durationLong, durationShort, fmtDateTime, useAddFollowup, useAddImpact, useIncident, useToggleFollowup, useUpdateIncident } from './queries';
 import '../settings/settings.css';
+import { NOTEBOOK_TEMPLATES, fromTemplate } from '../../api/notebooks/templates';
+import { useCreateNotebook } from '../notebooks/queries';
 import './incidents.css';
 
 type Tab = 'overview' | 'timeline' | 'post' | 'team' | 'pages' | 'notifications' | 'automations';
@@ -39,6 +41,14 @@ function Body({ inc }: { inc: IncidentDetail }) {
   const update = useUpdateIncident(inc.id);
   const users = useUsers({ query: '', statuses: ['active'], offset: 0, limit: 200 });
   const end = inc.resolvedAt ?? Date.now();
+  const navigate = useNavigate();
+  const createNotebook = useCreateNotebook();
+  // A postmortem notebook from the template, titled and tagged after the incident.
+  const postmortemNotebook = () => {
+    const postmortem = NOTEBOOK_TEMPLATES.find((t) => t.id === 'postmortem')!;
+    const draft = fromTemplate(postmortem, `IR-${inc.id} ${inc.title}`);
+    createNotebook.mutate({ ...draft, tags: [...draft.tags, `incident:IR-${inc.id}`] }, { onSuccess: (nb) => navigate(`/notebooks/${nb.id}`) });
+  };
   return (
     <div className="inc-detail">
       <div className="inc-crumbs">
@@ -113,11 +123,13 @@ function Body({ inc }: { inc: IncidentDetail }) {
             items={[
               { label: 'Copy link', onClick: () => navigator.clipboard?.writeText(window.location.href) },
               { label: inc.customerImpact ? 'Clear customer impact' : 'Mark customer impact', onClick: () => update.mutate({ customerImpact: !inc.customerImpact }) },
+              { label: 'Create postmortem notebook', onClick: postmortemNotebook, disabled: createNotebook.isPending },
             ]}
           />
         </div>
       </div>
       {update.isError && <p className="form-error inc-pad">{(update.error as Error).message}</p>}
+      {createNotebook.isError && <p className="form-error inc-pad">{createNotebook.error.message}</p>}
       <nav className="settings-tabs inc-tabs">
         {TABS.map(([t, label]) => (
           <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>

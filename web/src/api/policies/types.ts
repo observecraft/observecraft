@@ -1,0 +1,21 @@
+import type { components } from '../generated/schema';
+
+type S = components['schemas'];
+export type ResourcePolicy = S['ResourcePolicy'];
+export type ResourcePolicyInput = S['ResourcePolicyInput'];
+export type ResourcePolicyList = S['ResourcePolicyList'];
+export type ResourcePolicySearchRequest = S['ResourcePolicySearchRequest'];
+export type ResourcePolicyTemplateView = S['ResourcePolicyTemplateView'];
+export type ResourcePolicyDetail = S['ResourcePolicyDetail'];
+export type ResourcePolicySnapshot = S['ResourcePolicySnapshot'];
+export type ResourcePolicyViolation = S['ResourcePolicyViolation'];
+export type ResourcePolicyPreviewRequest = S['ResourcePolicyPreviewRequest'];
+export type ResourcePolicyPreview = S['ResourcePolicyPreview'];
+export type ResourcePolicyTypeAttributes = S['ResourcePolicyTypeAttributes'];
+export type ResourcePolicyAttribute = S['ResourcePolicyAttribute'];
+export type PolicyCategory = S['PolicyCategory'];
+export type PolicyCondition = S['PolicyCondition'];
+export type PolicyOperator = S['PolicyOperator'];
+export type PolicyTarget = S['PolicyTarget'];
+export type PolicyEvaluation = S['PolicyEvaluation'];
+export type PolicyTemplate = S['PolicyTemplate'];

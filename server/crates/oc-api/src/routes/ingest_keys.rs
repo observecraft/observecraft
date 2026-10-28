@@ -24,14 +24,17 @@ pub struct IngestKey {
     pub created_by: Option<String>,
     pub created_at: i64,
     pub last_used_at: Option<i64>,
+    /// Set once revoked: the key no longer authenticates.
+    pub revoked_at: Option<i64>,
 }
 
 const KEY_SELECT: &str = "SELECT k.id::text, k.name, k.prefix, u.name AS created_by, (extract(epoch FROM k.created_at) * 1000)::bigint AS created_at, \
-    (extract(epoch FROM k.last_used_at) * 1000)::bigint AS last_used_at FROM ingest_keys k LEFT JOIN users u ON u.id = k.created_by";
+    (extract(epoch FROM k.last_used_at) * 1000)::bigint AS last_used_at, (extract(epoch FROM k.revoked_at) * 1000)::bigint AS revoked_at FROM ingest_keys k LEFT JOIN users u ON u.id = k.created_by";
 
+/// Every key of the organization, revoked ones included (with `revokedAt`), newest first.
 #[utoipa::path(get, path = "/api/v1/ingest-keys", operation_id = "list_ingest_keys", responses((status = 200, body = Vec<IngestKey>)), tag = "ingest")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<IngestKey>> {
-    let rows = sqlx::query_as(&format!("{KEY_SELECT} WHERE k.org_id = $1 AND k.revoked_at IS NULL ORDER BY k.created_at DESC"))
+    let rows = sqlx::query_as(&format!("{KEY_SELECT} WHERE k.org_id = $1 ORDER BY k.revoked_at IS NOT NULL, k.created_at DESC"))
         .bind(&ctx.org_id)
         .fetch_all(&st.postgres)
         .await?;

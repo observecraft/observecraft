@@ -288,6 +288,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_automation_apps"];
+        put?: never;
+        post: operations["create_automation_app"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_automation_app"];
+        put: operations["update_automation_app"];
+        post?: never;
+        delete: operations["delete_automation_app"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Presses a button: runs its workflow with the app's values. Read the run with `get_workflow_run`. */
+        post: operations["run_automation_app"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit": {
         parameters: {
             query?: never;
@@ -682,6 +731,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's reports (the web app filters "Created by you" and "Subscribed"). */
+        get: operations["list_dashboard_reports"];
+        put?: never;
+        post: operations["create_dashboard_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard-reports/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dashboard_report_options"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard-reports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_dashboard_report"];
+        put: operations["update_dashboard_report"];
+        post?: never;
+        delete: operations["delete_dashboard_report"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard-reports/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preview_dashboard_report"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard-reports/{id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends the report now to its recipients (emails only when email is configured). */
+        post: operations["send_dashboard_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard-reports/{id}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Subscribes the current user to the report (by email), or unsubscribes them. */
+        put: operations["set_dashboard_report_subscription"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboards": {
         parameters: {
             query?: never;
@@ -798,6 +946,210 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/data-jobs/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Airflow DAGs and Spark applications that reported in the range, with their runs. */
+        post: operations["search_data_jobs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data-streams/kafka": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Kafka clusters, topics, brokers, consumer groups and connectors that reported in the range. */
+        post: operations["kafka_console"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data-streams/map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Services and the topics between them, with throughput, latency, lag and end-to-end pathways. */
+        post: operations["data_streams_map"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data-streams/measure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Latency between two services over time, along the hops that carry messages from one to the other. */
+        post: operations["data_streams_measure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data-streams/node": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One node's messages over time and the lag of the consumer groups behind it. */
+        post: operations["data_streams_node"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/databases/instance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** An instance's current values and its connections, throughput, cache hit ratio, replication lag and size over the range. */
+        post: operations["database_instance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/databases/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Database instances that reported in the last minutes of the range, with their current values. */
+        post: operations["search_databases"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deployment-gates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_deployment_gates"];
+        put?: never;
+        post: operations["create_deployment_gate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deployment-gates/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evaluates the gate of a service, environment and identifier now, records the evaluation and
+         *     answers with its verdict. Called by CI/CD pipelines with an application key
+         *     (`Authorization: Bearer ocak_…`); `pass` says whether the deployment may go on. */
+        post: operations["evaluate_deployment_gate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deployment-gates/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's latest evaluations, newest first. */
+        get: operations["list_deployment_gate_evaluations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deployment-gates/evaluations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One evaluation, with the current status of the monitors that failed it. */
+        get: operations["get_deployment_gate_evaluation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deployment-gates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_deployment_gate"];
+        put: operations["update_deployment_gate"];
+        post?: never;
+        delete: operations["delete_deployment_gate"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/downtimes": {
         parameters: {
             query?: never;
@@ -846,6 +1198,172 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/error-tracking/issues/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** How many issues have logs (or spans) with each service, env and version. */
+        post: operations["issue_facets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/error-tracking/issues/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issues from the organization's error logs and APM error spans in the range (first and last seen within it). */
+        post: operations["search_issues"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/error-tracking/issues/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One issue in the range: its histogram, the tags of its logs (or spans) and its saved state. */
+        post: operations["issue_detail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/error-tracking/issues/{id}/samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One log (or span) of the issue (the `index`-th newest or oldest in range), and how many there are. */
+        post: operations["issue_samples"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/error-tracking/issues/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sets an issue's status (reviewed, ignored, resolved, back for review) and/or its assignee. */
+        post: operations["set_issue_state"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/correlators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_event_correlators"];
+        put?: never;
+        post: operations["create_event_correlator"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/correlators/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_event_correlator"];
+        post?: never;
+        delete: operations["delete_event_correlator"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tag keys of the matching events, most common first: the facets "+ Add" offers. */
+        post: operations["event_fields"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/maintenance-windows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_event_maintenance_windows"];
+        put?: never;
+        post: operations["create_event_maintenance_window"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/maintenance-windows/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_event_maintenance_window"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/search": {
         parameters: {
             query?: never;
@@ -857,6 +1375,278 @@ export interface paths {
         put?: never;
         /** Search events, newest first, with facet counts over the same filter. */
         post: operations["search_events"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/work-item-attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_work_item_attributes"];
+        put?: never;
+        post: operations["create_work_item_attribute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/work-item-attributes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_work_item_attribute"];
+        post?: never;
+        delete: operations["delete_work_item_attribute"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/work-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Triage Inbox: the range's warning and error events correlated into work items, one per affected
+         *     object (the Agent's aggregation key) or, without one, per source and title. */
+        post: operations["event_work_items"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/work-items/{id}/attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Sets one attribute of a work item (a select's value must be one of its options). */
+        put: operations["set_work_item_attribute"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every flag of the org with its state per environment, and the environments. */
+        get: operations["list_feature_flags"];
+        put?: never;
+        /** Creates a flag, off in every environment and serving its default variant there. */
+        post: operations["create_feature_flag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/environments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_feature_flag_environments"];
+        put?: never;
+        post: operations["create_feature_flag_environment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/environments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_feature_flag_environment_settings"];
+        post?: never;
+        /** Deletes an environment and every flag's configuration in it. */
+        delete: operations["delete_feature_flag_environment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Global Flag History: changes across every flag, newest first. */
+        get: operations["list_feature_flag_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_feature_flag"];
+        /** Changes a flag's details and variants (its key stays). Environments that serve a removed
+         *     variant must be changed first. */
+        put: operations["update_feature_flag"];
+        post?: never;
+        delete: operations["delete_feature_flag"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/{id}/environments/{environment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Sets a flag's configuration in one environment: on or off, targeting rules, the default and
+         *     a progressive rollout. */
+        put: operations["update_feature_flag_environment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_feature_flag_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fleet/agent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One agent: its checks, sanitised configuration and recent errors from its own logs. */
+        post: operations["fleet_agent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fleet/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The fleet's agents and collectors, with summary cards, versions and facets. */
+        post: operations["fleet_agents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fleet/configurations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Agents grouped by identical integrations and settings (sanitised). */
+        post: operations["fleet_configurations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gpu/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** GPUs that reported in the last minutes of the range, with their current values. */
+        post: operations["search_gpus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gpu/timeseries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Utilization, memory, temperature and power over the range, for the GPUs matching the query, per group. */
+        post: operations["gpu_timeseries"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1219,6 +2009,143 @@ export interface paths {
         patch: operations["set_important"];
         trace?: never;
     };
+    "/api/v1/infrastructure/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_catalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_changes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/cloud-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The diagram of one provider's resources, grouped, with the requested overlay. */
+        post: operations["cloud_map"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates a policy. */
+        post: operations["create_resource_policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/policies/attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The attributes policies can check, per resource type in the catalog. */
+        get: operations["resource_policy_attributes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/policies/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** What a policy being edited would score on the current catalog. */
+        post: operations["preview_resource_policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/policies/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Policies with their compliance (counting only resources matching the page's filters), the
+         *     templates with a preview score, and the filters' values. */
+        post: operations["search_resource_policies"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/policies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A policy with its score over time and its noncompliant resources. */
+        get: operations["get_resource_policy"];
+        /** Replaces a policy's definition. */
+        put: operations["update_resource_policy"];
+        post?: never;
+        /** Deletes a policy and its history. */
+        delete: operations["delete_resource_policy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ingest-keys": {
         parameters: {
             query?: never;
@@ -1226,6 +2153,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Every key of the organization, revoked ones included (with `revokedAt`), newest first. */
         get: operations["list_ingest_keys"];
         put?: never;
         post: operations["create_ingest_key"];
@@ -1317,6 +2245,86 @@ export interface paths {
         head?: never;
         /** Sets what an org may configure. Lowering a ceiling also lowers settings above it. */
         patch: operations["instance_update_org_limits"];
+        trace?: never;
+    };
+    "/api/v1/llm/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["llm_evaluations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/llm/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["llm_facets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/llm/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["llm_overview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/llm/traces/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["llm_search_traces"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/llm/traces/{trace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["llm_trace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/logs/archive-searches": {
@@ -1454,6 +2462,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The tags and attributes of the matching logs (from the newest 10,000), to add as facets. */
+        post: operations["fields"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/histogram": {
         parameters: {
             query?: never;
@@ -1554,6 +2579,174 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_log_metrics"];
+        put?: never;
+        post: operations["create_log_metric"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/metrics/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes the query, aggregation or group-bys; the name stays. */
+        put: operations["update_log_metric"];
+        post?: never;
+        /** Stops computing it; points already written stay until they expire. */
+        delete: operations["delete_log_metric"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/patterns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The matching logs grouped by pattern (Group into Patterns), from the newest 10,000 of them. */
+        post: operations["patterns"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipeline-library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Integration pipelines (from integrations-core) and whether each is installed. */
+        get: operations["list_pipeline_library"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipeline-library/{id}/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Installs an integration's pipeline (read-only, at the end of the list). */
+        post: operations["install_integration_pipeline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipelines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_log_pipelines"];
+        put?: never;
+        post: operations["create_log_pipeline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipelines/grok": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Parses sample values with grok rules (the grok parser editor's live preview). */
+        post: operations["parse_grok_samples"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipelines/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reorder_log_pipelines"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipelines/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Runs processors (and optionally a filter) on a sample log and returns the processed log. */
+        post: operations["test_log_pipeline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipelines/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_log_pipeline"];
+        post?: never;
+        delete: operations["delete_log_pipeline"];
+        options?: never;
+        head?: never;
+        /** Enables or disables a pipeline (integration pipelines too). */
+        patch: operations["set_log_pipeline_enabled"];
+        trace?: never;
+    };
     "/api/v1/logs/rehydrations": {
         parameters: {
             query?: never;
@@ -1588,6 +2781,121 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/restriction-queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_log_restriction_queries"];
+        put?: never;
+        post: operations["create_log_restriction_query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/restriction-queries/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks a query and counts the logs of the last hour it matches. Admins read every log, so the
+         *     count is the query's alone. */
+        post: operations["preview_log_restriction_query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/restriction-queries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replaces the name, description, query and assignments. */
+        put: operations["update_log_restriction_query"];
+        post?: never;
+        delete: operations["delete_log_restriction_query"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/restriction-queries/{id}/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assign_log_restriction_role"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/restriction-queries/{id}/roles/{role_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["unassign_log_restriction_role"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/restriction-queries/{id}/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assign_log_restriction_team"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/restriction-queries/{id}/teams/{handle}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["unassign_log_restriction_team"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/search": {
         parameters: {
             query?: never;
@@ -1605,6 +2913,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/standard-attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_standard_attributes"];
+        put?: never;
+        /** Adds an attribute (or brings back a default the org removed, with this definition). */
+        post: operations["create_standard_attribute"];
+        /** Drops the org's changes: the list is the defaults again. */
+        delete: operations["reset_standard_attributes"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/standard-attributes/{path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes the type, description, aliases or source handling; the path stays. */
+        put: operations["update_standard_attribute"];
+        post?: never;
+        /** Removes an attribute; a default is hidden until the list is reset. Logs already stored keep their attributes. */
+        delete: operations["delete_standard_attribute"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/suggest": {
         parameters: {
             query?: never;
@@ -1616,6 +2960,23 @@ export interface paths {
         put?: never;
         /** Autocomplete for the query bar: keys (`service:`) and `key:value` pairs with counts. */
         post: operations["suggest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/top": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The most frequent values of a key among the matching logs (dashboard toplists and sunbursts). */
+        post: operations["top"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1854,6 +3215,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/metrics/derived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_derived_metrics"];
+        put?: never;
+        post: operations["create_derived_metric"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metrics/derived/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes the description, queries or formula; the name stays (dashboards and monitors use it). */
+        put: operations["update_derived_metric"];
+        post?: never;
+        delete: operations["delete_derived_metric"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metrics/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_metric_rules"];
+        put?: never;
+        post: operations["create_metric_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metrics/rules/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rules Overview: cardinality of the metrics rules filter and of the biggest metrics. */
+        post: operations["metric_rules_overview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metrics/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_metric_rule"];
+        post?: never;
+        delete: operations["delete_metric_rule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metrics/volume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Metrics by cardinality: the distinct series each reported in the range. */
+        post: operations["volume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/monitors": {
         parameters: {
             query?: never;
@@ -2070,6 +3530,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notebooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_notebook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notebooks/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Notebooks of a list (mine, team, recents, favorites, all, recently deleted), filtered by text, author and team. */
+        post: operations["search_notebooks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notebooks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Opens a notebook and records the visit (Recents). A deleted notebook still opens, to be restored. */
+        get: operations["get_notebook"];
+        put?: never;
+        post?: never;
+        /** Moves a notebook to Recently Deleted (restorable). */
+        delete: operations["delete_notebook"];
+        options?: never;
+        head?: never;
+        /** Saves changes (the editor autosaves). A deleted notebook must be restored first. */
+        patch: operations["update_notebook"];
+        trace?: never;
+    };
+    "/api/v1/notebooks/{id}/clone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A copy owned by the current user, titled "Clone of …". */
+        post: operations["clone_notebook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notebooks/{id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Stars or unstars a notebook for the current user (any role: it changes only their own list). */
+        put: operations["set_notebook_favorite"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notebooks/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["restore_notebook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notification-channels": {
         parameters: {
             query?: never;
@@ -2112,6 +3674,332 @@ export interface paths {
         /** The org's most recent notification deliveries. */
         get: operations["list_notification_deliveries"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["on_call_analytics"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/escalation-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_on_call_policies"];
+        put?: never;
+        post: operations["create_on_call_policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/escalation-policies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_on_call_policy"];
+        put: operations["update_on_call_policy"];
+        post?: never;
+        delete: operations["delete_on_call_policy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/my-shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The signed-in member's shifts across every schedule (Summary → My Shifts, calendar export). */
+        post: operations["my_on_call_shifts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_on_call_page"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_on_call_pages"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_on_call_page"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages/{id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["acknowledge_on_call_page"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages/{id}/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pages another team or policy: back to triggered, from the first step. */
+        post: operations["reassign_on_call_page"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/pages/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resolve_on_call_page"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_on_call_profile"];
+        put: operations["update_on_call_profile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/profile/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends a test page notification to the member's high-urgency channels. */
+        post: operations["test_on_call_profile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_on_call_schedules"];
+        put?: never;
+        post: operations["create_on_call_schedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Shifts of an unsaved schedule (the editor's timeline). */
+        post: operations["preview_on_call_schedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_on_call_schedule"];
+        put: operations["update_on_call_schedule"];
+        post?: never;
+        delete: operations["delete_on_call_schedule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules/{id}/overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_on_call_override"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules/{id}/overrides/{override_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_on_call_override"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/schedules/{id}/shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The layers' shifts and the final schedule of a saved schedule over a range (≤ 93 days). */
+        post: operations["on_call_schedule_shifts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_on_call_teams"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/on-call/teams/{handle}/routing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Which escalation policy the team's pages follow. */
+        put: operations["set_on_call_routing"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2179,6 +4067,502 @@ export interface paths {
         put: operations["update_settings"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_portal_actions"];
+        put?: never;
+        post: operations["create_portal_action"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/actions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_portal_action"];
+        put: operations["update_portal_action"];
+        post?: never;
+        delete: operations["delete_portal_action"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/actions/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_portal_action_runs"];
+        put?: never;
+        /** Runs the action now with the given inputs, as the signed-in user. */
+        post: operations["run_portal_action"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/apps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's app shortcuts. */
+        get: operations["list_portal_apps"];
+        put?: never;
+        post: operations["create_portal_app"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/apps/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_portal_app"];
+        post?: never;
+        delete: operations["delete_portal_app"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Every entity of the catalog: services, datastores, queues, endpoints and external providers seen
+         *     in telemetry over the range, merged with the org's definitions, service metadata and repositories. */
+        post: operations["portal_catalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/connectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every provider's connector status; credentials are never returned. */
+        get: operations["list_portal_connectors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/connectors/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Configures a provider (admins). The token is sealed at rest; leave it out to keep the stored one. */
+        put: operations["put_portal_connector"];
+        post?: never;
+        /** Removes a provider's connector and its stored credential (admins). */
+        delete: operations["delete_portal_connector"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/connectors/{provider}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks the stored credential against the provider and records the outcome (admins). */
+        post: operations["test_portal_connector"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/entities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's entity definitions. */
+        get: operations["list_portal_entities"];
+        put?: never;
+        /** Creates or replaces the definition of an entity (by kind and name), apiVersion v3. */
+        post: operations["upsert_portal_entity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/entities/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Imports entity definition documents (YAML or JSON, apiVersion v3): all are validated first, then
+         *     each creates or replaces the definition of its kind and name. */
+        post: operations["import_portal_entities"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/entities/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_portal_entity"];
+        /** Replaces a definition; its kind and name may change when no other definition has them. */
+        put: operations["update_portal_entity"];
+        post?: never;
+        /** Deletes a definition; telemetry entities stay in the catalog, and a service keeps its metadata. */
+        delete: operations["delete_portal_entity"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/favorites/{entity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Stars an entity for the current member. */
+        put: operations["add_portal_favorite"];
+        post?: never;
+        /** Removes a star. */
+        delete: operations["remove_portal_favorite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/home/entities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Services with their monitors, open issues, dashboards, scorecard level and on-call schedule. */
+        get: operations["portal_entities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/home/prs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The member's pull requests on GitHub or GitLab, grouped (cached for a minute). */
+        get: operations["portal_pull_requests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/home/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The member's open Jira or Linear tickets, or the incidents they work on (`work_items`). */
+        get: operations["portal_tickets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/identities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The current member's identity on each provider. */
+        get: operations["list_portal_identities"];
+        /** Sets the current member's identities; an empty handle goes back to the default. */
+        put: operations["put_portal_identities"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/reports/dashboards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Custom Reports: the dashboards added to the Reports tab, in order. */
+        get: operations["list_portal_report_dashboards"];
+        /** Replaces the dashboards of Custom Reports (the org's own, not deleted). */
+        put: operations["set_portal_report_dashboards"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/reports/scorecards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Scorecards Performance: the mean scorecard level of each team's services per day. */
+        post: operations["portal_scorecards_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/reports/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Teams Performance: incidents per team over time, mean time to resolve, and each team's services,
+         *     SLOs, monitors and On-Call schedules. */
+        post: operations["portal_teams_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Which telemetry signals feed the catalog (last 24 hours) and the external source connectors. */
+        get: operations["portal_sources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/surveys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_portal_surveys"];
+        put?: never;
+        post: operations["create_portal_survey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/surveys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_portal_survey"];
+        put: operations["update_portal_survey"];
+        post?: never;
+        delete: operations["delete_portal_survey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/surveys/{id}/form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The survey as its respondents see it. */
+        get: operations["get_portal_survey_form"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/surveys/{id}/responses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every response, newest first, for the CSV export. Anonymous surveys name no one and list no teams. */
+        get: operations["list_portal_survey_responses"];
+        put?: never;
+        /** Records the signed-in member's response; each member responds once. */
+        post: operations["submit_portal_survey_response"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/surveys/{id}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_portal_survey_results"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pr-gates/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks a pull request's commit against the enabled rules that apply to its repository. Called
+         *     from CI with an application key (`Authorization: Bearer ocak_…`); `pass` is the check's result. */
+        post: operations["evaluate_pr_gates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pr-gates/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_pr_gate_rules"];
+        put?: never;
+        post: operations["create_pr_gate_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pr-gates/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_pr_gate_rule"];
+        post?: never;
+        delete: operations["delete_pr_gate_rule"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2263,6 +4647,24 @@ export interface paths {
         put?: never;
         /** Profiles in the range, newest first (Profile List). */
         post: operations["search_profiles"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/status-pages/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The read-only page at `/status/<slug>`, without sign-in. Public pages answer to anyone; internal
+         *     pages only to signed-in members of the page's org. Everyone else gets 404, as for an unknown slug. */
+        get: operations["get_public_status_page"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2372,6 +4774,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reference-tables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_reference_tables"];
+        put?: never;
+        /** Creates a table from an uploaded file. */
+        post: operations["create_reference_table"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reference-tables/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The table and a page of its rows (in file order), optionally searched. */
+        get: operations["get_reference_table"];
+        /** Replaces every row with those of a new file, which must have the table's primary key column. */
+        put: operations["replace_reference_table"];
+        post?: never;
+        delete: operations["delete_reference_table"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roles": {
         parameters: {
             query?: never;
@@ -2415,6 +4852,778 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["delete_mapping"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scorecards, rules, the last outcomes and every service's levels; `setUp` is false before setup. */
+        get: operations["get_scorecards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reads telemetry again and evaluates every rule now. */
+        post: operations["evaluate_scorecards"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates a custom rule (its outcomes come from `POST /api/v1/scorecards/rules/{id}/outcomes`). */
+        post: operations["create_scorecard_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes a rule: level, scope and enabled for built-in rules, also name and description for custom ones. */
+        put: operations["update_scorecard_rule"];
+        post?: never;
+        /** Deletes a custom rule and its outcomes (built-in rules are disabled instead). */
+        delete: operations["delete_scorecard_rule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/rules/{id}/outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reports outcomes of a custom rule per service (pass, fail or skip, with remarks); replaces
+         *     earlier outcomes of the same services. */
+        post: operations["set_scorecard_outcomes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/services/{service}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Sets a service's team, contacts, code repository and docs (rules read them on the next evaluation, which runs at once). */
+        put: operations["update_service_metadata"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates the recommended scorecards with the chosen built-in rules enabled, and evaluates them. */
+        post: operations["setup_scorecards"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/serverless/functions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The AWS Lambda functions of the range, with their invocations, errors, durations, memory, cost, insights and upgrades. */
+        post: operations["search_serverless_functions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/serverless/invocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The latest invocations (Lambda spans) of one function. */
+        post: operations["serverless_invocations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/serverless/timeseries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invocations, errors, duration and cold starts of the given functions over the range. */
+        post: operations["serverless_timeseries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/service-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The service checks reported in the past day. */
+        get: operations["list_service_checks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/service-checks/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One check's status per host and tag set over the range. */
+        post: operations["service_check_detail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slo-corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's corrections, newest first (at most 1,000). */
+        get: operations["list_slo_corrections"];
+        put?: never;
+        post: operations["create_slo_correction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slo-corrections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_slo_correction"];
+        post?: never;
+        delete: operations["delete_slo_correction"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_slo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slos/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_slos"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_slo"];
+        put: operations["update_slo"];
+        post?: never;
+        delete: operations["delete_slo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spreadsheets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_spreadsheet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spreadsheets/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Spreadsheets by name (or author), all or the current user's, optionally of one team; newest first. */
+        post: operations["search_spreadsheets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spreadsheets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_spreadsheet"];
+        put?: never;
+        post?: never;
+        delete: operations["delete_spreadsheet"];
+        options?: never;
+        head?: never;
+        patch: operations["update_spreadsheet"];
+        trace?: never;
+    };
+    "/api/v1/sql/queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_sql_queries"];
+        put?: never;
+        post: operations["create_sql_query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sql/queries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_sql_query"];
+        post?: never;
+        delete: operations["delete_sql_query"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sql/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Runs one read-only SELECT over the virtual tables (see the module docs). */
+        post: operations["sql_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sql/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sql_schema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sql/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sql_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/status-pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_status_pages"];
+        put?: never;
+        post: operations["create_status_page"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/status-pages/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_status_page"];
+        /** Replaces the page's fields and components. Components sent with the id of an existing one keep
+         *     it (and its notice history); the others get new ids. */
+        put: operations["update_status_page"];
+        post?: never;
+        delete: operations["delete_status_page"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/status-pages/{id}/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Opens a notice with its first update. */
+        post: operations["create_status_page_notice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/status-pages/{id}/notices/{notice_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Deletes a notice posted by mistake, with its updates; it no longer counts in the uptime bars. */
+        delete: operations["delete_status_page_notice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/status-pages/{id}/notices/{notice_id}/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Posts an update to an open notice; `resolved` resolves it. */
+        post: operations["update_status_page_notice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** HTTP endpoints APM saw serving traffic, and the HTTP tests covering each. */
+        post: operations["get_synthetic_coverage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_synthetic_locations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/results/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Searches the runs of every test of the org. */
+        post: operations["search_synthetic_results"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_synthetic_settings"];
+        /** Saves the enforced tag rules and the test editor's defaults. */
+        put: operations["update_synthetic_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/suites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_synthetic_suite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/suites/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The org's suites with their state and uptime over the range. */
+        post: operations["search_synthetic_suites"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/suites/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A suite with its tests; the uptime is over the last day. */
+        get: operations["get_synthetic_suite"];
+        put: operations["update_synthetic_suite"];
+        post?: never;
+        /** Deletes a suite; its tests stay. */
+        delete: operations["delete_synthetic_suite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates a test and its monitor; it first runs within seconds. */
+        post: operations["create_synthetic_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The org's tests, worst state first, with their uptime over the range. */
+        post: operations["search_synthetic_tests"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_synthetic_test"];
+        /** Replaces a test's definition (and updates its monitor). A changed request or assertions run soon. */
+        put: operations["update_synthetic_test"];
+        post?: never;
+        /** Deletes a test with its results and its monitor. */
+        delete: operations["delete_synthetic_test"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests/{id}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A test's runs, alert state and uptime over a range. */
+        post: operations["list_synthetic_results"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests/{id}/results/{result_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_synthetic_result"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/tests/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Runs a saved test now, once. The result is recorded; the alert state isn't changed. */
+        post: operations["run_synthetic_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/try": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends a request once from the editor (nothing is stored) and suggests assertions for its response. */
+        post: operations["try_synthetic_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/variables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_synthetic_variables"];
+        put?: never;
+        post: operations["create_synthetic_variable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/synthetics/variables/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Updates a variable; without a value the stored one is kept. */
+        put: operations["update_synthetic_variable"];
+        post?: never;
+        delete: operations["delete_synthetic_variable"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2536,6 +5745,173 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/watchdog/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Anomalies Watchdog found over the past day: APM error rate and latency per service, error logs
+         *     per service (only the logs the reader may see) and host CPU, memory and disk usage. */
+        get: operations["watchdog_alerts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_workflows"];
+        put?: never;
+        post: operations["create_workflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_workflow"];
+        put: operations["update_workflow"];
+        post?: never;
+        delete: operations["delete_workflow"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publishes the saved draft: triggers run it from now on, as the signed-in member. */
+        post: operations["publish_workflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_workflow_runs"];
+        put?: never;
+        /** Runs the saved draft now, as the signed-in member. The run executes in the background. */
+        post: operations["run_workflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/runs/{run}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_workflow_run"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/runs/{run}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel_workflow_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates a new API trigger token (the previous one stops working). It is shown once. */
+        post: operations["create_workflow_token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/trigger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Starts the published workflow from a script: an application key authenticates the call and the
+         *     workflow's token (`X-Workflow-Token`) proves it may start this one. */
+        post: operations["trigger_workflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workflows/{id}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["unpublish_workflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -2585,6 +5961,47 @@ export interface components {
             RelayState?: string | null;
             SAMLResponse: string;
         };
+        ActionHeader: {
+            name: string;
+            /** @description Template. */
+            value: string;
+        };
+        /** @description One outbound request; its response must be 2xx for the run to go on. */
+        ActionHttpRequest: {
+            /** @description JSON template sent as `application/json`; empty for no body. */
+            body?: string;
+            headers?: components["schemas"]["ActionHeader"][];
+            /** @description GET, POST, PUT, PATCH or DELETE. */
+            method: string;
+            /** @description Template; scheme and host are literal. */
+            url: string;
+        };
+        /** @description A field of the action's form. */
+        ActionInput: {
+            /** @description Pre-filled value (`true` / `false` for booleans). */
+            default?: string;
+            description?: string;
+            /** @description Name used in templates (`{{inputs.<key>}}`): `[a-z0-9_]`. */
+            key: string;
+            kind: components["schemas"]["ActionInputKind"];
+            label: string;
+            /** @description Select only. */
+            options?: string[];
+            required?: boolean;
+        };
+        /** @enum {string} */
+        ActionInputKind: "text" | "select" | "number" | "boolean";
+        ActionStep: {
+            /** @description Internal steps: a template per field. */
+            fields?: {
+                [key: string]: string;
+            };
+            kind: components["schemas"]["ActionStepKind"];
+            /** @description Http only. */
+            requests?: components["schemas"]["ActionHttpRequest"][];
+        };
+        /** @enum {string} */
+        ActionStepKind: "http" | "create_incident" | "page_on_call" | "incident_comment" | "synthetic_run" | "run_workflow";
         AddResponder: {
             role: string;
             userId: string;
@@ -2617,6 +6034,44 @@ export interface components {
             query?: string;
             range: components["schemas"]["TimeRange"];
         };
+        /** @description A component of an app; the fields used depend on its kind. */
+        AppComponent: {
+            /** @description Metric: avg, sum, min, max or last. */
+            aggregation?: string;
+            /** @description Table: columns (keys of the list's items); all when empty. */
+            columns?: string[];
+            /** @description Inputs: pre-filled value. */
+            defaultValue?: string;
+            /** @description `[a-z0-9_]`, unique in the app (`components.<id>.value`). */
+            id: string;
+            /** @description Button: a template per workflow input key (`{{ components.env.value }}`). */
+            inputs?: {
+                [key: string]: string;
+            };
+            kind: components["schemas"]["AppComponentKind"];
+            label?: string;
+            /** @description Select: its options. */
+            options?: string[];
+            /** @description Table: path of the list in the run's data (`Steps.top.output.groups`). */
+            path?: string;
+            placeholder?: string;
+            /** @description Metric: the metric query. */
+            query?: string;
+            /** @description Table: the button whose latest run it shows. */
+            source?: string;
+            /** @description Heading and text: the content. */
+            text?: string;
+            unit?: string;
+            /**
+             * Format: int32
+             * @description Columns of the 12-column grid it spans (3, 4, 6, 8 or 12).
+             */
+            width?: number;
+            /** @description Button: the workflow it runs. */
+            workflowId?: string;
+        };
+        /** @enum {string} */
+        AppComponentKind: "heading" | "text" | "text_input" | "number_input" | "select" | "button" | "table" | "metric";
         AppKey: {
             /** Format: int64 */
             createdAt: number;
@@ -2717,7 +6172,16 @@ export interface components {
             ip?: string | null;
             target: string;
         };
+        AuditFacetValue: {
+            /** Format: int64 */
+            count: number;
+            value: string;
+        };
         AuditPage: {
+            /** @description Events per actor, ignoring the actor filter. */
+            actors: components["schemas"]["AuditFacetValue"][];
+            /** @description Events per action category, ignoring the category filter. */
+            categories: components["schemas"]["AuditFacetValue"][];
             events: components["schemas"]["AuditEvent"][];
             /** Format: int64 */
             total: number;
@@ -2752,10 +6216,202 @@ export interface components {
             serviceProvider: components["schemas"]["ServiceProviderInfo"];
             ssoRequired: boolean;
         };
+        AutomationApp: {
+            blueprint: string;
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            id: string;
+            name: string;
+            published: boolean;
+            spec: components["schemas"]["AutomationAppSpec"];
+            tags: string[];
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        AutomationAppInput: {
+            blueprint?: string;
+            description?: string;
+            name: string;
+            published?: boolean;
+            spec: components["schemas"]["AutomationAppSpec"];
+            tags?: string[];
+        };
+        AutomationAppRun: {
+            /** Format: int64 */
+            runId: number;
+            workflowId: string;
+        };
+        AutomationAppRunInput: {
+            /** @description The button pressed. */
+            component: string;
+            /** @description The app's input values, by component id. */
+            values?: {
+                [key: string]: unknown;
+            };
+        };
+        AutomationAppSpec: {
+            components?: components["schemas"]["AppComponent"][];
+        };
+        /**
+         * @description What the error budget is counted in.
+         * @enum {string}
+         */
+        BudgetUnit: "events" | "minutes";
         /** @enum {string} */
         BulkAction: "mute" | "unmute" | "resolve" | "delete";
+        /**
+         * @description How fast the error budget burns over the last hour.
+         * @enum {string}
+         */
+        BurnLevel: "high" | "elevated" | "normal" | "unknown";
+        /**
+         * @description Broad groups of resource types (the catalog's default grouping).
+         * @enum {string}
+         */
+        CatalogCategory: "compute" | "containers" | "kubernetes" | "ecs";
+        CatalogFacet: {
+            key: string;
+            values: components["schemas"]["CatalogFacetValue"][];
+        };
+        CatalogFacetValue: {
+            count: number;
+            value: string;
+        };
+        /** @description One group of a grouped search, with the distinct regions, envs, teams and services of its members. */
+        CatalogGroup: {
+            count: number;
+            envs: string[];
+            key: string;
+            regions: string[];
+            services: string[];
+            teams: string[];
+        };
+        CatalogPage: {
+            facets: components["schemas"]["CatalogFacet"][];
+            /** @description When grouped: every group of the matching resources, largest first. */
+            groups?: components["schemas"]["CatalogGroup"][] | null;
+            items: components["schemas"]["CatalogResource"][];
+            total: number;
+        };
+        /** @description One row of the catalog. */
+        CatalogResource: {
+            account?: string | null;
+            /** @description Type-specific properties for the side panel (OS, node, images, owner, …). */
+            attributes: {
+                [key: string]: string;
+            };
+            cloud?: string | null;
+            /** @description Kubernetes or ECS cluster. */
+            cluster?: string | null;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            createdAt?: number | null;
+            env?: string | null;
+            health?: null | components["schemas"]["KubeHealth"];
+            /** @description `host:<name>` for hosts, the Kubernetes Explorer uid otherwise. */
+            id: string;
+            kubeKind?: null | components["schemas"]["KubeKind"];
+            /** Format: int64 */
+            lastSeen: number;
+            name: string;
+            namespace?: string | null;
+            region?: string | null;
+            resourceCategory: components["schemas"]["CatalogCategory"];
+            resourceType: components["schemas"]["CatalogType"];
+            service?: string | null;
+            status?: string | null;
+            /** @description `key:value` tags, as on the resource's own page. */
+            tags: string[];
+            team?: string | null;
+        };
+        CatalogSearchRequest: {
+            desc?: boolean;
+            /** @description Group the results by a key (`resource_category`, `resource_type`, `region`, `env`, a tag key, …). */
+            groupBy?: string | null;
+            limit: number;
+            offset?: number;
+            /** @description `resource_type:kube_pod env:prod cluster:shop-* team:payments` + free text on the name. */
+            query?: string;
+            /** @description Hosts are those that reported in this range; Kubernetes and ECS resources are current. */
+            range: components["schemas"]["TimeRange"];
+            /** @description name (default), type, cluster, region or last_seen. */
+            sort?: string | null;
+        };
+        /**
+         * @description The resource types of the catalog.
+         * @enum {string}
+         */
+        CatalogType: "host" | "kube_cluster" | "kube_node" | "kube_namespace" | "kube_deployment" | "kube_statefulset" | "kube_daemonset" | "kube_cronjob" | "kube_job" | "kube_pod" | "kube_service" | "kube_ingress" | "kube_persistent_volume_claim" | "kube_persistent_volume" | "container" | "ecs_cluster" | "ecs_service" | "ecs_task";
+        Change: {
+            author?: string | null;
+            changeType: components["schemas"]["ChangeType"];
+            cluster?: string | null;
+            current?: string | null;
+            details: {
+                [key: string]: string;
+            };
+            env?: string | null;
+            id: string;
+            kubeKind?: null | components["schemas"]["KubeKind"];
+            kubeUid?: string | null;
+            namespace?: string | null;
+            /** @description Before and after (images, replicas, versions), when the change has them. */
+            previous?: string | null;
+            resource: string;
+            /** @description `kube_deployment`, `service`, `monitor`, `host`, … */
+            resourceType: string;
+            service?: string | null;
+            source: components["schemas"]["ChangeSource"];
+            summary: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            timestamp: number;
+        };
+        /** @description Changes in one time bucket, by change type. */
+        ChangeBucket: {
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Format: int64
+             * @description Bucket start, epoch ms.
+             */
+            t: number;
+        };
         /** @enum {string} */
         ChangeMode: "change" | "pct_change";
+        ChangePage: {
+            facets: components["schemas"]["CatalogFacet"][];
+            histogram: components["schemas"]["ChangeBucket"][];
+            /** @description Newest first. */
+            items: components["schemas"]["Change"][];
+            total: number;
+        };
+        ChangeSearchRequest: {
+            limit: number;
+            offset?: number;
+            /** @description `change_type:rollout service:order-service env:prod cluster:shop-*` + free text. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        /**
+         * @description Where a change was found.
+         * @enum {string}
+         */
+        ChangeSource: "kubernetes" | "apm" | "ci" | "events" | "audit";
+        /** @enum {string} */
+        ChangeType: "deployment" | "rollout" | "scale" | "config" | "crash" | "feature_flag";
+        CheckOutcome: {
+            check: string;
+            detail: string;
+            passed: boolean;
+        };
         CiAggregate: {
             /** Format: double */
             avgMs: number;
@@ -2933,6 +6589,77 @@ export interface components {
         };
         /** @enum {string} */
         Cloud: "aws" | "azure" | "gcp" | "oracle" | "alibaba" | "none";
+        CloudMap: {
+            edges: components["schemas"]["CloudMapEdge"][];
+            /** @description The group keys used. */
+            groupBy: string[];
+            providers: components["schemas"]["CloudMapProviderSummary"][];
+            root: components["schemas"]["CloudMapGroup"];
+            /** @description Matching resources, folded ones included. */
+            total: number;
+        };
+        /** @description A service calling another (dependencies overlay). */
+        CloudMapEdge: {
+            /** Format: double */
+            errorRate: number;
+            from: string;
+            /** Format: int64 */
+            requests: number;
+            to: string;
+        };
+        CloudMapGroup: {
+            /** @description Resources under the group, folded ones included. */
+            count: number;
+            groups: components["schemas"]["CloudMapGroup"][];
+            /** @description Worst health of the group's resources. */
+            health: components["schemas"]["CloudMapHealth"];
+            /** @description The group key (`region`), or `root`. */
+            key: string;
+            nodes: components["schemas"]["CloudMapNode"][];
+            /** @description The value (`eu-west-1`); "" when the resources have none; `__other__` for merged small groups. */
+            value: string;
+        };
+        /** @enum {string} */
+        CloudMapHealth: "unknown" | "ok" | "warning" | "error";
+        /** @description One block of the diagram: a resource, or `aggregate` resources folded into one. */
+        CloudMapNode: {
+            /** @description How many resources this block stands for when folded ("+N"); null for one resource. */
+            aggregate?: number | null;
+            /**
+             * Format: int32
+             * @description Monitors alerting (or warning) on the resource; health overlay only.
+             */
+            alerts: number;
+            /**
+             * Format: double
+             * @description APM error rate of the resource's service over the last hour (0–1); health overlay only.
+             */
+            errorRate?: number | null;
+            health: components["schemas"]["CloudMapHealth"];
+            id: string;
+            name: string;
+            resource?: null | components["schemas"]["CatalogResource"];
+            resourceType: components["schemas"]["CatalogType"];
+            service?: string | null;
+        };
+        /** @enum {string} */
+        CloudMapOverlay: "default" | "health" | "dependencies";
+        /** @enum {string} */
+        CloudMapProvider: "kubernetes" | "hosts" | "ecs";
+        /** @description A provider tab with how many resources it has and, for hosts, their clouds. */
+        CloudMapProviderSummary: {
+            clouds: string[];
+            provider: components["schemas"]["CloudMapProvider"];
+            resources: number;
+        };
+        CloudMapRequest: {
+            /** @description Group keys, outermost first; empty for the provider's default. */
+            groupBy?: string[];
+            overlay?: components["schemas"]["CloudMapOverlay"];
+            provider: components["schemas"]["CloudMapProvider"];
+            /** @description Catalog search narrowing the resources (`env:prod team:checkout`, free text on names). */
+            query?: string;
+        };
         CodeRequest: {
             /** @description 6-digit code from the authenticator app. */
             code: string;
@@ -2941,6 +6668,13 @@ export interface components {
         CollectorKind: "observecraft" | "otel" | "datadog";
         /** @enum {string} */
         Comparator: "above" | "above_or_equal" | "below" | "below_or_equal";
+        /**
+         * @description Ordered from best to worst.
+         * @enum {string}
+         */
+        ComponentStatus: "operational" | "degraded_performance" | "partial_outage" | "major_outage";
+        /** @enum {string} */
+        CorrectionCategory: "scheduled_maintenance" | "outside_business_hours" | "deployment" | "other";
         CreateAppKey: {
             name: string;
         };
@@ -2984,11 +6718,36 @@ export interface components {
             kind: components["schemas"]["MappingKind"];
             target: string;
         };
+        CreateNotebookRequest: {
+            /** @description The first cells (e.g. from a template). */
+            cells?: Record<string, never>[];
+            status?: null | components["schemas"]["NotebookStatus"];
+            tags?: string[];
+            teams?: string[];
+            /** @description Relative time range, `1h` by default. */
+            time?: string | null;
+            title: string;
+        };
         CreateNotification: {
             body?: string;
             /** @description Email addresses, #channels or @handles. */
             recipients: string[];
             subject: string;
+        };
+        CreateOnCallOverride: {
+            /** Format: int64 */
+            end: number;
+            /** Format: int64 */
+            start: number;
+            userId: string;
+        };
+        CreateOnCallPage: {
+            description?: string;
+            policyId?: string | null;
+            team?: string | null;
+            title: string;
+            /** @description high | low (default high) */
+            urgency?: string | null;
         };
         CreateOrgRequest: {
             /** @description Becomes the org's first Admin (invited; an existing account joins with its current password). */
@@ -3000,6 +6759,12 @@ export interface components {
         CreatePage: {
             team: string;
             title: string;
+        };
+        CreateSpreadsheetRequest: {
+            /** @description Defaults to one empty sheet. */
+            definition?: Record<string, never> | null;
+            name: string;
+            team?: string | null;
         };
         CreateTeamRequest: {
             description?: string;
@@ -3103,6 +6868,75 @@ export interface components {
             step_ms: number;
             unit?: string | null;
         };
+        DashboardReport: {
+            author?: null | components["schemas"]["UserRef"];
+            /** Format: int64 */
+            createdAt: number;
+            dashboardId: string;
+            dashboardTitle: string;
+            id: string;
+            lastError?: string | null;
+            /** Format: int64 */
+            lastSentAt?: number | null;
+            /** @description sent | partial | failed */
+            lastStatus?: string | null;
+            message: string;
+            name: string;
+            /** Format: int64 */
+            nextRunAt?: number | null;
+            recipients: string[];
+            schedule: components["schemas"]["ReportSchedule"];
+            /** @description "Weekly on Monday at 09:00 (Europe/Paris)". */
+            scheduleLabel: string;
+            /** @description The current user receives it by email. */
+            subscribed: boolean;
+            /** Format: int64 */
+            subscriberCount: number;
+            templateValues: {
+                [key: string]: string;
+            };
+            /** @description 1h | 4h | 1d | 2d | 1w | 1mo */
+            timeFrame: string;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        DashboardReportDelivery: {
+            error?: string | null;
+            recipient: string;
+            /** @description sent | failed | not_sent (email not configured, not a member, unknown channel) */
+            status: string;
+        };
+        DashboardReportInput: {
+            dashboardId: string;
+            message?: string;
+            name: string;
+            recipients?: string[];
+            schedule: components["schemas"]["ReportSchedule"];
+            templateValues?: {
+                [key: string]: string;
+            };
+            timeFrame: string;
+        };
+        DashboardReportOptions: {
+            /** @description The org's channel handles (`slack-checkout`). */
+            channels: string[];
+            /** @description Email is configured on this install (`OC_SMTP_URL`); without it only channels receive reports. */
+            emailEnabled: boolean;
+            timeFrames: components["schemas"]["DashboardReportTimeFrame"][];
+        };
+        DashboardReportPreview: {
+            body: string;
+            range: components["schemas"]["TimeRange"];
+            subject: string;
+            widgets: components["schemas"]["ReportWidgetSummary"][];
+        };
+        DashboardReportSubscription: {
+            subscribed: boolean;
+        };
+        DashboardReportTimeFrame: {
+            key: string;
+            label: string;
+        };
         DashboardSearchPage: {
             dashboards: components["schemas"]["DashboardSummary"][];
             /** Format: int64 */
@@ -3146,6 +6980,42 @@ export interface components {
             /** Format: int64 */
             viewedAt?: number | null;
         };
+        DataJob: {
+            /**
+             * Format: double
+             * @description Average duration of the runs in the range (Airflow).
+             */
+            avgDurationMs?: number | null;
+            cluster?: string | null;
+            env?: string | null;
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            failedTasks: number;
+            framework: components["schemas"]["JobFramework"];
+            host?: string | null;
+            /** @description `framework:name`. */
+            id: string;
+            /** Format: double */
+            lastDurationMs?: number | null;
+            /** Format: int64 */
+            lastSeen: number;
+            /** @description The DAG id or Spark application name. */
+            name: string;
+            /**
+             * Format: int64
+             * @description Spark jobs running at the last check.
+             */
+            running: number;
+            status: components["schemas"]["JobStatus"];
+            /**
+             * Format: int64
+             * @description Successful runs (Airflow DAG runs, Spark jobs) in the range.
+             */
+            succeeded: number;
+            /** Format: int64 */
+            succeededTasks: number;
+        };
         DatabaseStats: {
             dbName: string;
             dbSystem: string;
@@ -3158,6 +7028,72 @@ export interface components {
             statement: string;
             /** Format: double */
             timeShare: number;
+        };
+        /** @enum {string} */
+        DbEngine: "postgres" | "mysql" | "redis" | "mongodb" | "sqlserver";
+        DbFacet: {
+            key: string;
+            values: components["schemas"]["DbFacetValue"][];
+        };
+        DbFacetValue: {
+            count: number;
+            value: string;
+        };
+        DbInstance: {
+            /** Format: double */
+            cacheHitPct?: number | null;
+            cluster?: string | null;
+            /** Format: double */
+            connections?: number | null;
+            /** @description Databases its series are tagged with. */
+            databases: string[];
+            engine: components["schemas"]["DbEngine"];
+            env?: string | null;
+            host: string;
+            /** @description `engine:host[:port]`. */
+            id: string;
+            /** Format: int64 */
+            lastSeen: number;
+            /** Format: double */
+            maxConnections?: number | null;
+            port?: string | null;
+            /** Format: double */
+            replicationLagSec?: number | null;
+            service?: string | null;
+            /**
+             * Format: double
+             * @description On disk (in memory for Redis).
+             */
+            sizeBytes?: number | null;
+            /**
+             * Format: double
+             * @description Transactions (PostgreSQL), queries (MySQL), commands (Redis), operations (MongoDB) or batches (SQL Server) per second.
+             */
+            throughput?: number | null;
+            version?: string | null;
+        };
+        DbInstanceDetail: {
+            instance?: null | components["schemas"]["DbInstance"];
+            /** @description connections, throughput, cache_hit, replication_lag, size. */
+            series: components["schemas"]["MetricSeries"][];
+        };
+        DbInstanceRequest: {
+            /** @description The instance's `id` from the search. */
+            id: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        DbSearchPage: {
+            /** @description False when no database integration metrics arrived in the range (show the setup guide). */
+            enabled: boolean;
+            facets: components["schemas"]["DbFacet"][];
+            instances: components["schemas"]["DbInstance"][];
+            /** @description Database servers seen running on hosts (process metrics) whose engine sends no integration metrics. */
+            unconfigured: components["schemas"]["UnconfiguredDb"][];
+        };
+        DbSearchRequest: {
+            /** @description `engine:postgres env:prod cluster:x host:y service:z` + free text on the instance and its databases. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
         };
         DeclareRequest: {
             /** @description Defaults to the declaring user. */
@@ -3236,6 +7172,58 @@ export interface components {
             /** Format: int64 */
             requests: number;
             version: string;
+        };
+        DeploymentGate: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy: string;
+            dryRun: boolean;
+            env: string;
+            id: string;
+            identifier: string;
+            /** Format: int64 */
+            lastEvaluatedAt?: number | null;
+            lastStatus?: null | components["schemas"]["GateEvaluationStatus"];
+            rules: components["schemas"]["GateRule"][];
+            service: string;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy: string;
+        };
+        DeploymentGateInput: {
+            dryRun?: boolean;
+            env: string;
+            identifier?: string;
+            rules: components["schemas"]["GateRule"][];
+            service: string;
+        };
+        DerivedMetric: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            /** @description Arithmetic over the query letters: `a / b * 100`. */
+            expression: string;
+            /** @description What queries of the name evaluate: the expression with the queries in place of the letters. */
+            formula: string;
+            id: string;
+            name: string;
+            /** @description The metric queries, by letter (a, b, …). */
+            queries: string[];
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        DerivedMetricInput: {
+            description?: string;
+            expression: string;
+            name: string;
+            queries: string[];
         };
         /** @enum {string} */
         Detection: "threshold" | "change";
@@ -3497,6 +7485,67 @@ export interface components {
         };
         /** @enum {string} */
         DowntimeStatus: "active" | "scheduled" | "ended" | "canceled";
+        EntityContact: {
+            /** @description Address, channel or URL. */
+            contact: string;
+            name?: string | null;
+            /** @description email | slack | microsoft-teams | link */
+            type: string;
+        };
+        /** @description An entity definition document (apiVersion v3). */
+        EntityDefinition: {
+            /** @description Always `v3`. */
+            apiVersion: string;
+            datadog?: Record<string, never> | null;
+            extensions?: Record<string, never> | null;
+            /** @description Kept as sent. */
+            integrations?: Record<string, never> | null;
+            /** @description service | datastore | queue | api | system | frontend */
+            kind: string;
+            metadata: components["schemas"]["EntityDefinitionMetadata"];
+            spec?: components["schemas"]["EntityDefinitionSpec"];
+        };
+        EntityDefinitionMetadata: {
+            additionalOwners?: components["schemas"]["EntityOwnerRef"][];
+            contacts?: components["schemas"]["EntityContact"][];
+            description?: string | null;
+            displayName?: string | null;
+            links?: components["schemas"]["EntityLink"][];
+            /** @description Unique per kind; stored in lower case. */
+            name: string;
+            namespace?: string | null;
+            /** @description Team handle. */
+            owner?: string | null;
+            /** @description `key:value` tags. */
+            tags?: string[];
+        };
+        EntityDefinitionSpec: {
+            /** @description Systems this entity belongs to (`system:name`; a bare name is a system). */
+            componentOf?: string[];
+            /** @description Systems: their components (`kind:name`). */
+            components?: string[];
+            /** @description `kind:name` references (a bare name is a service). */
+            dependsOn?: string[];
+            /** @description APIs: the services implementing them. */
+            implementedBy?: string[];
+            languages?: string[];
+            /** @description production | experimental | deprecated, or the org's own words. */
+            lifecycle?: string | null;
+            tier?: string | null;
+            /** @description web, grpc, postgres, kafka, openapi… */
+            type?: string | null;
+        };
+        EntityLink: {
+            name: string;
+            provider?: string | null;
+            /** @description doc | repo | runbook | dashboard | other */
+            type: string;
+            url: string;
+        };
+        EntityOwnerRef: {
+            name: string;
+            type?: string | null;
+        };
         /** @description JSON error body returned by every endpoint. */
         ErrorBody: {
             error: string;
@@ -3535,9 +7584,44 @@ export interface components {
              */
             t: number;
         };
+        EventCorrelator: {
+            enabled: boolean;
+            /** @description `source`, `host`, `status`, `title` or tag keys: one work item per distinct values. */
+            groupBy: string[];
+            id: string;
+            name: string;
+            /**
+             * Format: int32
+             * @description Correlators are tried in this order.
+             */
+            position: number;
+            /** @description Event search: which warning and error events it groups ('' = all). */
+            query: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            updatedAt: number;
+            updatedBy: string;
+            /**
+             * Format: int32
+             * @description Events further apart than this start a new work item.
+             */
+            windowMinutes: number;
+        };
+        EventCorrelatorInput: {
+            enabled?: boolean;
+            groupBy?: string[];
+            name: string;
+            /** Format: int32 */
+            position?: number;
+            query?: string;
+            /** Format: int32 */
+            windowMinutes: number;
+        };
         EventFacet: {
             group: string;
-            /** @description `source`, `status`, `priority` or `host`. */
+            /** @description `source`, `status`, `priority`, `host`, or a tag key (`env`, `service`, added ones). */
             key: string;
             label: string;
             values: components["schemas"]["EventFacetValue"][];
@@ -3547,6 +7631,40 @@ export interface components {
             count: number;
             value: string;
         };
+        EventField: {
+            /**
+             * Format: int64
+             * @description Events with the tag.
+             */
+            count: number;
+            key: string;
+        };
+        EventFieldsRequest: {
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        EventMaintenanceWindow: {
+            createdBy: string;
+            /** Format: int64 */
+            endsAt: number;
+            id: string;
+            name: string;
+            /** @description Event search: which events are expected during the window ('' = all). */
+            query: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            startsAt: number;
+        };
+        EventMaintenanceWindowInput: {
+            /** Format: int64 */
+            endsAt: number;
+            name: string;
+            query?: string;
+            /** Format: int64 */
+            startsAt: number;
+        };
         EventPage: {
             facets: components["schemas"]["EventFacet"][];
             histogram: components["schemas"]["EventBucket"][];
@@ -3555,6 +7673,8 @@ export interface components {
             total: number;
         };
         EventSearchRequest: {
+            /** @description Tag keys added as facets ("+ Add"), after env and service. */
+            extra?: string[];
             limit: number;
             offset?: number;
             query?: string;
@@ -3609,6 +7729,205 @@ export interface components {
             /** Format: int64 */
             count: number;
             value: string;
+        };
+        FeatureFlag: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy?: string | null;
+            defaultVariant: string;
+            description: string;
+            /** @description One per environment of the org, in environment order. */
+            environments: components["schemas"]["FeatureFlagEnvState"][];
+            flagType: components["schemas"]["FlagType"];
+            id: string;
+            key: string;
+            lifecycle: components["schemas"]["FlagLifecycle"];
+            name: string;
+            sdkAccess: components["schemas"]["FlagSdkAccess"];
+            tags: string[];
+            teams: string[];
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+            variants: components["schemas"]["FlagVariant"][];
+            /** Format: int32 */
+            version: number;
+        };
+        FeatureFlagApiKey: {
+            id: string;
+            name: string;
+            prefix: string;
+        };
+        FeatureFlagChange: {
+            /** @description created, updated, deleted, enabled, disabled, targeting, rollout */
+            action: string;
+            actor: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            at: number;
+            /** @description Empty for changes to the flag itself. */
+            environmentName: string;
+            flagId?: string | null;
+            flagKey: string;
+            flagName: string;
+            /** Format: int64 */
+            id: number;
+            summary: string;
+            /**
+             * Format: int32
+             * @description The flag's version after the change.
+             */
+            version: number;
+        };
+        FeatureFlagEnvState: {
+            config: components["schemas"]["FlagEnvConfig"];
+            environmentId: string;
+            environmentName: string;
+            isProduction: boolean;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds; absent while never configured.
+             */
+            updatedAt?: number | null;
+            updatedBy?: string | null;
+        };
+        FeatureFlagEnvUpdate: {
+            /** @description A rollout with `startedAt` 0 starts now. */
+            config: components["schemas"]["FlagEnvConfig"];
+            /**
+             * Format: int32
+             * @description The flag version the change was made from.
+             */
+            version: number;
+        };
+        FeatureFlagEnvironment: {
+            /** @description API keys whose evaluations use this environment when the context names none. */
+            apiKeys: components["schemas"]["FeatureFlagApiKey"][];
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            id: string;
+            isProduction: boolean;
+            name: string;
+            /** @description The `env` values SDKs send that select this environment (`production`, `staging-*`). */
+            queries: string[];
+            requiresApproval: boolean;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        FeatureFlagEnvironmentInput: {
+            /** @description Ingest key ids defaulting to this environment; absent leaves them unchanged (admins only). */
+            apiKeyIds?: string[] | null;
+            isProduction?: boolean;
+            name: string;
+            queries?: string[];
+            requiresApproval?: boolean;
+        };
+        FeatureFlagInput: {
+            /** @description What new environments serve. */
+            defaultVariant: string;
+            description?: string;
+            flagType: components["schemas"]["FlagType"];
+            /** @description Used in code; can't be changed once created. */
+            key: string;
+            lifecycle: components["schemas"]["FlagLifecycle"];
+            name: string;
+            sdkAccess: components["schemas"]["FlagSdkAccess"];
+            tags?: string[];
+            teams?: string[];
+            variants: components["schemas"]["FlagVariant"][];
+            /**
+             * Format: int32
+             * @description For updates: the version the change was made from.
+             */
+            version?: number | null;
+        };
+        FeatureFlagsPage: {
+            environments: components["schemas"]["FeatureFlagEnvironment"][];
+            flags: components["schemas"]["FeatureFlag"][];
+        };
+        FlagCondition: {
+            /** @description A context attribute: `targetingKey`, `country`, or a dotted path into an object (`user.plan`). */
+            attribute: string;
+            operator: components["schemas"]["FlagOperator"];
+            values?: string[];
+        };
+        /** @description A flag's configuration in one environment. */
+        FlagEnvConfig: {
+            /** @description Served when no rule matches (and the rollout doesn't take the subject). */
+            defaultServe?: components["schemas"]["FlagServe"];
+            enabled?: boolean;
+            rollout?: null | components["schemas"]["FlagRollout"];
+            rules?: components["schemas"]["FlagRule"][];
+        };
+        /** @enum {string} */
+        FlagLifecycle: "temporary" | "permanent";
+        /**
+         * @description How a condition compares the context attribute with its values.
+         * @enum {string}
+         */
+        FlagOperator: "one_of" | "not_one_of" | "contains" | "not_contains" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "exists" | "not_exists";
+        /** @description A progressive rollout: the traffic no rule matched moves to `variant` step by step. */
+        FlagRollout: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds the first step began (set by the server when the rollout starts).
+             */
+            startedAt?: number;
+            steps: components["schemas"]["FlagRolloutStep"][];
+            variant: string;
+        };
+        FlagRolloutStep: {
+            /**
+             * Format: int32
+             * @description How long the step lasts before the next one starts (the last step lasts until changed).
+             */
+            durationMinutes: number;
+            /**
+             * Format: double
+             * @description Percent of the remaining traffic that gets the rollout's variant during this step.
+             */
+            percent: number;
+        };
+        FlagRule: {
+            /** @description All must hold; none matches every subject. */
+            conditions?: components["schemas"]["FlagCondition"][];
+            name?: string;
+            serve: components["schemas"]["FlagServe"];
+        };
+        /** @enum {string} */
+        FlagSdkAccess: "all" | "client" | "server";
+        /** @description What a rule (or the default) serves: one variant, or a split between variants. */
+        FlagServe: {
+            /** @description Weights add up to 100. */
+            split?: components["schemas"]["FlagSplit"][];
+            variant?: string | null;
+        };
+        /** @description One part of a percentage split. */
+        FlagSplit: {
+            variant: string;
+            /**
+             * Format: double
+             * @description Percent of subjects (0–100, two decimals).
+             */
+            weight: number;
+        };
+        /**
+         * @description The type of a flag's values.
+         * @enum {string}
+         */
+        FlagType: "boolean" | "string" | "integer" | "number" | "json";
+        /** @description One value a flag can serve; `key` is the variant OpenFeature reports. */
+        FlagVariant: {
+            key: string;
+            value: unknown;
         };
         FlakyPage: {
             /** @description Per state, ignoring the state filter. */
@@ -3701,6 +8020,165 @@ export interface components {
             /** Format: int64 */
             value: number;
         };
+        FleetAgent: {
+            cluster?: string | null;
+            env?: string | null;
+            hostname: string;
+            /** @description `datadog_agent:<hostname>` or `otel_collector:<hostname>`. */
+            id: string;
+            /** @description How it was installed, when it says: helm, datadog-operator, install_script_agent7, observecraft-agent, … */
+            installMethod?: string | null;
+            /** @description The integrations its checks belong to (`system` for the host checks). */
+            integrations: string[];
+            issues: string[];
+            kind: components["schemas"]["FleetAgentKind"];
+            /**
+             * Format: int64
+             * @description Epoch ms of its latest metadata or metric.
+             */
+            lastReported?: number | null;
+            /** @description linux, windows or darwin. */
+            os?: string | null;
+            /** @description Older than the newest version of its kind in the fleet. */
+            outdated: boolean;
+            /** @description Distribution and version, e.g. "ubuntu 24.04". */
+            platform?: string | null;
+            status: components["schemas"]["FleetStatus"];
+            version?: string | null;
+        };
+        FleetAgentDetail: {
+            agent: components["schemas"]["FleetAgent"];
+            /** @description The checks the Datadog Agent runs, with their status. */
+            checks: components["schemas"]["FleetCheck"][];
+            /** @description What the agent reports about its configuration, as YAML with secrets redacted; null when it
+             *     reports nothing (OpenTelemetry Collectors). */
+            configYaml?: string | null;
+            /** @description Recent errors in the agent's own logs, newest first (only logs the viewer may read). */
+            errors: components["schemas"]["FleetLogLine"][];
+            /** @description Whether the Agent sent its full configuration (`inventories_configuration_enabled`). */
+            fullConfigReported: boolean;
+            /** @description The Log Explorer query for the agent's own logs. */
+            logsQuery: string;
+            /** @description Service checks on the agent's host (`datadog.agent.up`, integrations' `*.can_connect`, …). */
+            serviceChecks: components["schemas"]["FleetServiceCheck"][];
+        };
+        /** @enum {string} */
+        FleetAgentKind: "datadog_agent" | "otel_collector";
+        FleetAgentRequest: {
+            /** @description The agent's `id` from the fleet list. */
+            id: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @description A check the Agent runs, over its instances. */
+        FleetCheck: {
+            /** Format: int32 */
+            instances: number;
+            /** @description The check's configuration failed to load. */
+            loadError: boolean;
+            /** @description The message of the worst instance, when it has one. */
+            message?: string | null;
+            name: string;
+            /** @description The worst status of its instances. */
+            status: components["schemas"]["FleetCheckStatus"];
+        };
+        /**
+         * @description Ordered by severity.
+         * @enum {string}
+         */
+        FleetCheckStatus: "OK" | "WARNING" | "ERROR";
+        FleetConfigurationsRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
+        FleetCoverage: {
+            /** @description Of those, hosts running an agent. */
+            covered: number;
+            /** @description Hosts seen in host or cloud metrics, plus hosts with an agent. */
+            hosts: number;
+            /**
+             * Format: double
+             * @description null without hosts.
+             */
+            pct?: number | null;
+        };
+        FleetFacet: {
+            key: string;
+            values: components["schemas"]["FleetFacetValue"][];
+        };
+        FleetFacetValue: {
+            count: number;
+            value: string;
+        };
+        FleetLatest: {
+            datadogAgent?: string | null;
+            otelCollector?: string | null;
+        };
+        FleetLogLine: {
+            message: string;
+            status: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            timestamp: number;
+        };
+        FleetPage: {
+            /** @description The agents matching the query. */
+            agents: components["schemas"]["FleetAgent"][];
+            /** @description False when no agent reported at all (show the empty state). */
+            enabled: boolean;
+            facets: components["schemas"]["FleetFacet"][];
+            latest: components["schemas"]["FleetLatest"];
+            /** @description Over the whole fleet, whatever the query. */
+            summary: components["schemas"]["FleetSummary"];
+            /** @description Agents per kind and version, newest first; over the whole fleet. */
+            versions: components["schemas"]["FleetVersion"][];
+        };
+        /** @description Agents of one kind with the same integrations and settings. */
+        FleetProfile: {
+            agents: components["schemas"]["FleetProfileAgent"][];
+            /** @description Stable for the same kind, integrations and settings. */
+            id: string;
+            integrations: string[];
+            kind: components["schemas"]["FleetAgentKind"];
+            settings: {
+                [key: string]: string;
+            };
+            /** @description The versions its agents run, newest first. */
+            versions: string[];
+        };
+        FleetProfileAgent: {
+            hostname: string;
+            id: string;
+            version?: string | null;
+        };
+        FleetSearchRequest: {
+            /** @description `type:datadog_agent status:issues version:7.62.2 os:linux integration:redisdb cluster:x env:prod outdated:true` + free text on the hostname. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @description The last status of a service check on the agent's host. */
+        FleetServiceCheck: {
+            name: string;
+            /** @description OK, WARNING, CRITICAL or UNKNOWN. */
+            status: string;
+        };
+        /** @enum {string} */
+        FleetStatus: "ok" | "issues" | "offline";
+        FleetSummary: {
+            agents: number;
+            coverage: components["schemas"]["FleetCoverage"];
+            offline: number;
+            outdated: number;
+            /** @description Reporting, with issues. */
+            withIssues: number;
+        };
+        FleetVersion: {
+            count: number;
+            kind: components["schemas"]["FleetAgentKind"];
+            outdated: boolean;
+            /** @description null for agents that don't report their version. */
+            version?: string | null;
+        };
         Flow: {
             /** Format: int64 */
             bytesReceived: number;
@@ -3782,9 +8260,203 @@ export interface components {
         FollowupRequest: {
             title: string;
         };
+        GateEvaluation: {
+            /** Format: int64 */
+            durationMs: number;
+            env: string;
+            gateId?: string | null;
+            id: string;
+            identifier: string;
+            /** @description Whether the deployment may go on (passed or dry run): what a pipeline acts on. */
+            pass: boolean;
+            requestedBy: string;
+            rules: components["schemas"]["GateRuleResult"][];
+            service: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            startedAt: number;
+            status: components["schemas"]["GateEvaluationStatus"];
+            version: string;
+        };
+        GateEvaluationRequest: {
+            env: string;
+            /** @description The gate's identifier; `default` when omitted. */
+            identifier?: string | null;
+            service: string;
+            /** @description The version being deployed; the newest version seen in the window when omitted. */
+            version?: string | null;
+        };
+        /** @enum {string} */
+        GateEvaluationStatus: "passed" | "failed" | "dry_run";
+        /** @description A monitor a monitor rule matched that was failing at evaluation time. */
+        GateMonitorState: {
+            /** @description Its status now (filled when one evaluation is read; None when the monitor was deleted). */
+            currentStatus?: string | null;
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /** @description ok | warn | alert | nodata, at evaluation time. */
+            status: string;
+        };
+        /** @description One rule of a gate. `query` is used by monitor rules; the window and thresholds by faulty
+         *     deployment detection. */
+        GateRule: {
+            /** @description A dry-run rule is evaluated and recorded but never fails the gate. */
+            dryRun?: boolean;
+            /**
+             * Format: double
+             * @description Faulty deployment detection: percentage points the new version's error rate may exceed the previous one's.
+             */
+            maxErrorRateIncrease?: number;
+            /**
+             * Format: int32
+             * @description Faulty deployment detection: requests the new version needs before it is judged.
+             */
+            minRequests?: number;
+            name?: string;
+            /** @description Monitor rules: tags (`service:billing env:prod`, `team:*`) and name words every matching monitor has. */
+            query?: string;
+            type: components["schemas"]["GateRuleKind"];
+            /**
+             * Format: int32
+             * @description Faulty deployment detection: the minutes of spans compared.
+             */
+            windowMinutes?: number;
+        };
+        /** @enum {string} */
+        GateRuleKind: "monitor" | "faulty_deployment";
+        GateRuleResult: {
+            dryRun: boolean;
+            /** Format: double */
+            errorRate?: number | null;
+            /**
+             * Format: int32
+             * @description Monitor rules: how many monitors matched, and those in ALERT or NO DATA.
+             */
+            matchedMonitors?: number;
+            monitors?: components["schemas"]["GateMonitorState"][];
+            name: string;
+            /** Format: double */
+            previousErrorRate?: number | null;
+            previousVersion?: string | null;
+            /** @description Why the rule passed or failed, in a sentence. */
+            reason: string;
+            /** Format: int64 */
+            requests?: number | null;
+            status: components["schemas"]["GateRuleStatus"];
+            type: components["schemas"]["GateRuleKind"];
+            /** @description Faulty deployment detection: the versions compared and their error rates (0–1). */
+            version?: string | null;
+        };
+        /** @enum {string} */
+        GateRuleStatus: "passed" | "failed";
         GeneratePostmortem: {
             /** @description standard | brief */
             template: string;
+        };
+        GpuDevice: {
+            cluster?: string | null;
+            driver?: string | null;
+            host: string;
+            /** @description `host/uuid` (or `host/gpu<index>`). */
+            id: string;
+            index?: string | null;
+            /** Format: double */
+            memTotalBytes?: number | null;
+            /** Format: double */
+            memUsedBytes?: number | null;
+            model?: string | null;
+            /** Format: double */
+            powerW?: number | null;
+            sources: components["schemas"]["GpuSource"][];
+            state: components["schemas"]["GpuState"];
+            /** Format: double */
+            tempC?: number | null;
+            /** Format: double */
+            utilPct?: number | null;
+            uuid?: string | null;
+            vendor?: string | null;
+            /** @description `namespace/pod` (or container) of the workloads its metrics are tagged with. */
+            workloads: string[];
+        };
+        GpuFacet: {
+            key: string;
+            values: components["schemas"]["GpuFacetValue"][];
+        };
+        GpuFacetValue: {
+            count: number;
+            value: string;
+        };
+        GpuSearchPage: {
+            devices: components["schemas"]["GpuDevice"][];
+            /** @description False when no GPU metrics arrived at all in the range (show the setup guide). */
+            enabled: boolean;
+            facets: components["schemas"]["GpuFacet"][];
+            summary: components["schemas"]["GpuSummary"];
+        };
+        GpuSearchRequest: {
+            /** @description `cluster:x host:y model:z state:idle kube_namespace:n` + free text on the device, model and workloads. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        GpuSeries: {
+            /** @description The group's value; null for the whole fleet. */
+            group?: string | null;
+            /** @description utilization (average, %), memory_used (sum, bytes), temperature (average, °C) or power (sum, W). */
+            metric: string;
+            /** @description `[timestamp ms, value]` pairs. */
+            points: [
+                number,
+                number
+            ][];
+            unit: string;
+        };
+        /**
+         * @description What reports a GPU.
+         * @enum {string}
+         */
+        GpuSource: "datadog_gpu" | "datadog_dcgm" | "dcgm_exporter";
+        /** @enum {string} */
+        GpuState: "idle" | "underutilized" | "active" | "no_data";
+        GpuSummary: {
+            /**
+             * Format: double
+             * @description Average over the GPUs that report utilization.
+             */
+            avgUtilPct?: number | null;
+            gpus: number;
+            hosts: number;
+            idle: number;
+            /** Format: double */
+            memTotalBytes: number;
+            /** Format: double */
+            memUsedBytes: number;
+            underutilized: number;
+        };
+        GpuTimeseriesRequest: {
+            /** @description `host`, `cluster`, `model`, `vendor`, `state` or `kube_namespace`: one series per value; none for the whole fleet. */
+            groupBy?: string | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        GrokSampleResult: {
+            /** @description What it extracted, as nested attributes. */
+            attributes: Record<string, never>;
+            matched: boolean;
+            /** @description The match rule that matched. */
+            rule?: string | null;
+        };
+        GrokTestRequest: {
+            matchRules?: string;
+            samples?: string[];
+            supportRules?: string;
+        };
+        GrokTestResult: {
+            /** @description Why the rules don't compile. */
+            error?: string | null;
+            samples: components["schemas"]["GrokSampleResult"][];
         };
         GroupCounts: {
             /** Format: int64 */
@@ -3813,6 +8485,12 @@ export interface components {
              * Format: int64
              * @description Bucket start, epoch milliseconds.
              */
+            t: number;
+        };
+        HistogramPoint: {
+            /** Format: int64 */
+            count: number;
+            /** Format: int64 */
             t: number;
         };
         HostContainer: {
@@ -3948,6 +8626,8 @@ export interface components {
         /** @enum {string} */
         HostSortField: "name" | "cpu" | "mem" | "env" | "monitors";
         HostSummary: {
+            /** @description Integrations the host's Datadog Agent runs (`system` for its host checks). */
+            apps: string[];
             cloud: components["schemas"]["Cloud"];
             collectors: components["schemas"]["CollectorKind"][];
             /** Format: double */
@@ -4027,11 +8707,43 @@ export interface components {
         IncidentSearchPage: {
             /** @description Per status for the same filters, ignoring the status filter (facet counts). */
             counts: components["schemas"]["IncidentCounts"];
+            /** @description Per detection method, ignoring the detection method filter. */
+            detectionCounts: {
+                [key: string]: number;
+            };
+            /** @description `yes` / `no`, ignoring the customer impact filter. */
+            impactCounts: {
+                [key: string]: number;
+            };
             incidents: components["schemas"]["IncidentSummary"][];
+            /** @description Per time-to-resolve bucket (lt1h, 1h_4h, 4h_1d, gt1d, unresolved), ignoring that filter. */
+            resolveTimeCounts: {
+                [key: string]: number;
+            };
+            /** @description Per service, ignoring the service filter. */
+            serviceCounts: {
+                [key: string]: number;
+            };
+            /** @description Per severity, ignoring the severity filter. */
+            severityCounts: {
+                [key: string]: number;
+            };
+            /** @description Per team, ignoring the team filter. */
+            teamCounts: {
+                [key: string]: number;
+            };
             /** Format: int64 */
             total: number;
+            /** @description Per incident type, ignoring the incident type filter. */
+            typeCounts: {
+                [key: string]: number;
+            };
         };
         IncidentSearchRequest: {
+            /** @description Only incidents with (true) or without (false) customer impact. */
+            customerImpact?: boolean | null;
+            detectionMethods?: string[];
+            incidentTypes?: string[];
             /** Format: int64 */
             limit: number;
             /** @description Only incidents the current user commands or responds to. */
@@ -4042,6 +8754,9 @@ export interface components {
             query?: string;
             /** @description Declared within this range. */
             range: components["schemas"]["TimeRange"];
+            /** @description Time from declared to resolved: lt1h, 1h_4h, 4h_1d, gt1d, unresolved. */
+            resolveTimes?: string[];
+            services?: string[];
             severities?: string[];
             statuses?: components["schemas"]["IncidentStatus"][];
             teams?: string[];
@@ -4081,6 +8796,11 @@ export interface components {
             lastUsedAt?: number | null;
             name: string;
             prefix: string;
+            /**
+             * Format: int64
+             * @description Set once revoked: the key no longer authenticates.
+             */
+            revokedAt?: number | null;
         };
         InstanceAuditEvent: {
             action: string;
@@ -4141,6 +8861,293 @@ export interface components {
         InviteRequest: {
             emails: string[];
             roleIds?: string[];
+        };
+        IssueDetailOut: components["schemas"]["IssueOut"] & {
+            activity: unknown[];
+            histogram: components["schemas"]["HistogramPoint"][];
+            /** @description Sessions and users affected (RUM only). */
+            impact?: unknown;
+            tags: components["schemas"]["TagShare"][];
+        };
+        IssueDetailRequest: {
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        IssueFacetsOut: {
+            facets: components["schemas"]["Facet"][];
+            totalAvailable: number;
+        };
+        IssueFacetsRequest: {
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /** @description logs | rum | apm | all */
+            source?: string;
+        };
+        IssueOut: {
+            assignee?: null | components["schemas"]["UserRef"];
+            /** Format: int64 */
+            count: number;
+            errorType: string;
+            /** Format: int64 */
+            firstSeen: number;
+            id: string;
+            isCrash: boolean;
+            isRegression: boolean;
+            /** Format: int64 */
+            lastSeen: number;
+            message: string;
+            persona: string;
+            platform: string;
+            service: string;
+            source: string;
+            sparkline: number[];
+            status: string;
+            suspectedCause?: string | null;
+            team?: string | null;
+        };
+        IssueSearchPage: {
+            issues: components["schemas"]["IssueOut"][];
+            nextCursor?: string | null;
+            /** @description Issues per state tab (for_review, reviewed, ignored, resolved, all). */
+            totals: {
+                [key: string]: number;
+            };
+        };
+        IssueSearchRequest: {
+            /** @description Offset into the result, as returned in `nextCursor`. */
+            cursor?: string | null;
+            limit: number;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /** @description relevance | count | last_seen | first_seen */
+            sort?: string | null;
+            /** @description logs | rum | apm | all */
+            source?: string;
+            /** @description for_review | reviewed | ignored | resolved | all */
+            state?: string;
+        };
+        IssueUpdate: {
+            /** @description A user of the organization, `null` to unassign; absent leaves it as is. */
+            assigneeId?: string | null;
+            /** @description for_review, reviewed, ignored or resolved; absent leaves it as is. */
+            status?: string | null;
+        };
+        JobFacet: {
+            key: string;
+            values: components["schemas"]["JobFacetValue"][];
+        };
+        JobFacetValue: {
+            count: number;
+            value: string;
+        };
+        /** @enum {string} */
+        JobFramework: "airflow" | "spark";
+        JobSearchPage: {
+            /** @description False when no Airflow or Spark metrics arrived in the range (show the setup guide). */
+            enabled: boolean;
+            facets: components["schemas"]["JobFacet"][];
+            jobs: components["schemas"]["DataJob"][];
+        };
+        JobSearchRequest: {
+            /** @description `framework:airflow status:failed env:prod cluster:x host:y` + free text on the job name. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @enum {string} */
+        JobStatus: "failed" | "running" | "succeeded" | "unknown";
+        KafkaBroker: {
+            /** Format: double */
+            bytesIn?: number | null;
+            /** Format: double */
+            bytesOut?: number | null;
+            cluster: string;
+            controller: boolean;
+            host?: string | null;
+            /** @description The broker id, else its host. */
+            id: string;
+            /** Format: int64 */
+            leaders?: number | null;
+            /** Format: double */
+            messagesIn?: number | null;
+            /** Format: int64 */
+            partitions?: number | null;
+            /** Format: double */
+            underReplicated?: number | null;
+        };
+        KafkaChange: {
+            cluster?: string | null;
+            /** @description The event's alert type (error, warning, info, success). */
+            status: string;
+            title: string;
+            /** Format: int64 */
+            ts: number;
+        };
+        /** @enum {string} */
+        KafkaCheckStatus: "passing" | "failing" | "no_data";
+        KafkaCluster: {
+            /** Format: int64 */
+            brokers?: number | null;
+            /** Format: int64 */
+            checksFailing: number;
+            /** Format: int64 */
+            checksPassing: number;
+            /** Format: int64 */
+            connectors: number;
+            /** Format: int64 */
+            consumerGroups: number;
+            /**
+             * Format: double
+             * @description Messages per second produced to the cluster, averaged over the range.
+             */
+            messagesIn?: number | null;
+            /**
+             * Format: int64
+             * @description Monitors whose query names Kafka and this cluster.
+             */
+            monitors: number;
+            name: string;
+            /** Format: double */
+            offline?: number | null;
+            /** Format: int64 */
+            partitions?: number | null;
+            /** Format: int64 */
+            topics: number;
+            /** Format: double */
+            underReplicated?: number | null;
+        };
+        KafkaClusterChart: {
+            cluster: string;
+            /** @description `[timestamp ms, messages/s]`. */
+            messagesIn: [
+                number,
+                number
+            ][];
+            offline: [
+                number,
+                number
+            ][];
+            underReplicated: [
+                number,
+                number
+            ][];
+        };
+        KafkaConnector: {
+            class?: string | null;
+            cluster: string;
+            connectorType?: string | null;
+            /** Format: int64 */
+            failed: number;
+            name: string;
+            /** Format: int64 */
+            running: number;
+            state?: string | null;
+            /** Format: int64 */
+            tasks: number;
+        };
+        KafkaConsole: {
+            brokers: components["schemas"]["KafkaBroker"][];
+            changes: components["schemas"]["KafkaChange"][];
+            charts: components["schemas"]["KafkaClusterChart"][];
+            clusters: components["schemas"]["KafkaCluster"][];
+            connectors: components["schemas"]["KafkaConnector"][];
+            consumerGroups: components["schemas"]["KafkaConsumerGroup"][];
+            /** @description False when no Kafka metrics arrived in the range (show the setup guide). */
+            enabled: boolean;
+            health: components["schemas"]["KafkaHealthCheck"][];
+            topics: components["schemas"]["KafkaTopic"][];
+        };
+        KafkaConsoleRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
+        KafkaConsumerGroup: {
+            cluster: string;
+            /**
+             * Format: double
+             * @description Messages per second committed (average).
+             */
+            consumeRate?: number | null;
+            /**
+             * Format: double
+             * @description Messages behind, all topics and partitions together.
+             */
+            lag: number;
+            lagHigh: boolean;
+            /** Format: double */
+            lagMax: number;
+            /** Format: double */
+            lagSeconds?: number | null;
+            /** Format: int64 */
+            members?: number | null;
+            name: string;
+            partitions: components["schemas"]["KafkaGroupPartition"][];
+            state?: string | null;
+            topics: components["schemas"]["KafkaGroupTopic"][];
+        };
+        KafkaGroupPartition: {
+            /** Format: double */
+            brokerOffset?: number | null;
+            /** Format: double */
+            consumerOffset?: number | null;
+            /** Format: double */
+            lag?: number | null;
+            /** Format: double */
+            lagSeconds?: number | null;
+            partition: string;
+            topic: string;
+        };
+        KafkaGroupTopic: {
+            /**
+             * Format: double
+             * @description Messages behind, all partitions together.
+             */
+            lag: number;
+            /**
+             * Format: double
+             * @description The largest estimated lag in time of a partition (s).
+             */
+            lagSeconds?: number | null;
+            topic: string;
+        };
+        KafkaHealthCheck: {
+            cluster: string;
+            detail: string;
+            name: string;
+            status: components["schemas"]["KafkaCheckStatus"];
+        };
+        KafkaTopic: {
+            /** Format: double */
+            bytesIn?: number | null;
+            /** Format: double */
+            bytesOut?: number | null;
+            cluster: string;
+            consumerGroups: string[];
+            /**
+             * Format: double
+             * @description The largest lag of a consumer group on the topic (messages, all partitions).
+             */
+            consumerLagMax?: number | null;
+            /**
+             * Format: double
+             * @description Messages per second produced (average).
+             */
+            messagesIn?: number | null;
+            /**
+             * Format: double
+             * @description Messages per second consumed, all consumer groups together (average).
+             */
+            messagesOut?: number | null;
+            name: string;
+            /** Format: int64 */
+            partitions?: number | null;
+            /** Format: int64 */
+            replicationFactor?: number | null;
+            /**
+             * Format: double
+             * @description Messages in the topic.
+             */
+            size?: number | null;
+            /** Format: int64 */
+            underReplicated?: number | null;
         };
         KubeContainer: {
             cpu: components["schemas"]["KubeUtilization"];
@@ -4328,12 +9335,16 @@ export interface components {
             items: components["schemas"]["KubeResource"][];
             /** @description Objects of each kind matching the query. */
             kinds: components["schemas"]["KubeKindCount"][];
+            /** @description Objects of this kind with each tag key, for the facets' "+ Add". */
+            tagKeyCounts: components["schemas"]["KubeFacetValue"][];
             /** @description Every tag key seen on this kind, for the group-by menu. */
             tagKeys: string[];
             total: number;
         };
         KubeSearchRequest: {
             desc?: boolean;
+            /** @description Tag keys added as facets ("+ Add"). */
+            extra?: string[];
             /** @description Tag keys, comma-separated (`kube_namespace`, `kube_cluster_name,kube_namespace,kube_deployment`, a label key, …). */
             groupBy?: string | null;
             kind: components["schemas"]["KubeKind"];
@@ -4364,11 +9375,130 @@ export interface components {
             criVersion: string;
             kubeletVersion: string;
         };
+        /** @enum {string} */
+        LambdaComponent: "runtime" | "datadog_lambda" | "extension";
+        LambdaFacet: {
+            key: string;
+            values: components["schemas"]["LambdaFacetValue"][];
+        };
+        LambdaFacetValue: {
+            count: number;
+            value: string;
+        };
+        LambdaFunction: {
+            account?: string | null;
+            architecture?: string | null;
+            arn?: string | null;
+            /** Format: double */
+            coldStartPct?: number | null;
+            /** Format: double */
+            coldStarts?: number | null;
+            /**
+             * Format: double
+             * @description USD over the range: the extension's estimate, else computed from list prices.
+             */
+            costUsd?: number | null;
+            /** Format: double */
+            durationAvgMs?: number | null;
+            /** Format: double */
+            durationP95Ms?: number | null;
+            env?: string | null;
+            /** Format: double */
+            errorRatePct?: number | null;
+            /** Format: double */
+            errors?: number | null;
+            hasLogs: boolean;
+            /** @description `<region>/<function name>` (lowercase name). */
+            id: string;
+            insights: components["schemas"]["LambdaInsight"][];
+            /** Format: double */
+            invocations?: number | null;
+            /**
+             * Format: int64
+             * @description When the current version was first seen, if it replaced another one in the range (epoch ms).
+             */
+            lastDeploy?: number | null;
+            /**
+             * Format: double
+             * @description Allocated memory (MB).
+             */
+            memoryMb?: number | null;
+            /**
+             * Format: double
+             * @description Peak memory used (MB).
+             */
+            memoryUsedMb?: number | null;
+            /** Format: double */
+            memoryUsedPct?: number | null;
+            name: string;
+            /** Format: double */
+            outOfMemory?: number | null;
+            region?: string | null;
+            runtime?: string | null;
+            service?: string | null;
+            sources: components["schemas"]["LambdaSource"][];
+            /** @description Canonical tags (functionname, region, aws_account, runtime, memorysize, env, service, stage, team, version, …). */
+            tags: {
+                [key: string]: string;
+            };
+            /** Format: double */
+            throttles?: number | null;
+            /** Format: double */
+            timeouts?: number | null;
+            upgrades: components["schemas"]["LambdaUpgrade"][];
+            version?: string | null;
+        };
+        LambdaInsight: {
+            kind: components["schemas"]["LambdaInsightKind"];
+            /**
+             * Format: double
+             * @description The measure behind it: a percentage for rates and memory, a count otherwise.
+             */
+            value: number;
+        };
+        /** @enum {string} */
+        LambdaInsightKind: "high_errors" | "cold_starts" | "timeouts" | "out_of_memory" | "throttles" | "high_memory" | "over_provisioned";
+        LambdaInvocation: {
+            coldStart: boolean;
+            /** Format: double */
+            durationMs: number;
+            error: boolean;
+            message: string;
+            requestId: string;
+            spanId: string;
+            /** Format: int64 */
+            timestamp: number;
+            traceId: string;
+            /** @description What invoked it (`api-gateway`, `sqs`, `http`, …), when the tracer says. */
+            trigger: string;
+        };
+        /**
+         * @description Where a function's numbers come from, in order of precedence.
+         * @enum {string}
+         */
+        LambdaSource: "enhanced_metrics" | "integration_metrics" | "otel_metrics" | "traces";
+        LambdaUpgrade: {
+            component: components["schemas"]["LambdaComponent"];
+            current: string;
+            /** @description The newest runtime, or the newest library / extension version used by the organization's functions. */
+            latest: string;
+        };
         /**
          * @description grid = 12-column grid; auto = uniform flow; free = fine grid, overlap allowed.
          * @enum {string}
          */
         LayoutType: "grid" | "auto" | "free";
+        /** @description An integration's pipeline that can be installed. */
+        LibraryPipeline: {
+            filter: string;
+            /** @description The integration (e.g. `nginx`). */
+            id: string;
+            /** @description Already installed in this organization. */
+            installed: boolean;
+            name: string;
+            processors: Record<string, never>[];
+            upstream: components["schemas"]["PipelineUpstream"];
+        };
         LinkInfo: {
             email: string;
             /** @description The email already has an ObserveCraft password (e.g. from another organization): an invite is
@@ -4395,6 +9525,246 @@ export interface components {
              * @description Rate of events matching the query.
              */
             matchedPerSec: number;
+        };
+        LlmAppUsage: {
+            /** Format: int64 */
+            errors: number;
+            /**
+             * Format: double
+             * @description Estimated USD over the app's priced models.
+             */
+            estimatedCostUsd: number;
+            /** Format: double */
+            inputTokens: number;
+            mlApp: string;
+            models: string[];
+            /** Format: double */
+            outputTokens: number;
+            /** Format: double */
+            p50Ms: number;
+            /** Format: double */
+            p95Ms: number;
+            /** Format: int64 */
+            requests: number;
+        };
+        LlmCheckSummary: {
+            description: string;
+            failSeries: number[];
+            /** Format: int64 */
+            failed: number;
+            /** @description A keyword / pattern heuristic rather than an exact rule. */
+            heuristic: boolean;
+            id: string;
+            name: string;
+            /** @description Pass and fail counts per bucket. */
+            passSeries: number[];
+            /** Format: int64 */
+            passed: number;
+            /** @description built_in | recorded (evaluation results found on the spans) */
+            source: string;
+            /**
+             * Format: int64
+             * @description Recorded results whose label is neither a pass nor a fail word.
+             */
+            unlabeled: number;
+        };
+        LlmEvaluationResult: {
+            check: string;
+            detail: string;
+            inputPreview: string;
+            mlApp: string;
+            model: string;
+            outputPreview: string;
+            passed?: boolean | null;
+            /** Format: double */
+            score?: number | null;
+            spanId: string;
+            spanName: string;
+            /** Format: int64 */
+            timestamp: number;
+            traceId: string;
+        };
+        LlmEvaluations: {
+            checks: components["schemas"]["LlmCheckSummary"][];
+            /**
+             * Format: int64
+             * @description LLM calls evaluated (the newest ones, up to the sample size).
+             */
+            evaluated: number;
+            /** @description Matching results, newest first (at most 200). */
+            results: components["schemas"]["LlmEvaluationResult"][];
+            /** Format: int64 */
+            stepMs: number;
+            times: number[];
+            /**
+             * Format: int64
+             * @description LLM calls matching the query in the range.
+             */
+            totalCalls: number;
+        };
+        LlmEvaluationsRequest: components["schemas"]["LlmQuery"] & {
+            /** @description Only results of this check (a built-in id or a recorded evaluation name). */
+            check?: string | null;
+            /** @description fail (default) | pass | all */
+            outcome?: string | null;
+        };
+        LlmFacets: {
+            /** @description Dimension → top values with the number of LLM spans (each ignoring its own selection). */
+            facets: {
+                [key: string]: components["schemas"]["SpanFacetValue"][];
+            };
+        };
+        LlmFacetsRequest: components["schemas"]["LlmQuery"] & {
+            dimensions?: string[];
+        };
+        LlmMessage: {
+            content: string;
+            /** @description system | user | assistant | tool | document … */
+            role: string;
+        };
+        LlmModelUsage: {
+            /** Format: int64 */
+            errors: number;
+            /**
+             * Format: double
+             * @description Estimated USD from the built-in list prices; null when the model has no price.
+             */
+            estimatedCostUsd?: number | null;
+            /** Format: double */
+            inputTokens: number;
+            model: string;
+            /** Format: double */
+            outputTokens: number;
+            provider: string;
+            /** Format: int64 */
+            requests: number;
+        };
+        LlmOverview: {
+            apps: components["schemas"]["LlmAppUsage"][];
+            /** @description Estimated USD per bucket. */
+            costSeries: components["schemas"]["LlmSeries"][];
+            /** Format: double */
+            errorRate: number;
+            /** Format: int64 */
+            errors: number;
+            /**
+             * Format: double
+             * @description Sum over models with a list price; see `unpricedModels`.
+             */
+            estimatedCostUsd: number;
+            /**
+             * Format: double
+             * @description Tokens of model and embedding calls.
+             */
+            inputTokens: number;
+            /** @description p95 latency of model calls per bucket. */
+            latencySeries: components["schemas"]["LlmSeries"][];
+            models: components["schemas"]["LlmModelUsage"][];
+            /** Format: double */
+            outputTokens: number;
+            /** Format: double */
+            p50Ms: number;
+            /** Format: double */
+            p95Ms: number;
+            requestSeries: components["schemas"]["LlmSeries"][];
+            /**
+             * Format: int64
+             * @description Model calls (kind llm).
+             */
+            requests: number;
+            /** Format: int64 */
+            stepMs: number;
+            times: number[];
+            tokenSeries: components["schemas"]["LlmSeries"][];
+            /** Format: double */
+            totalTokens: number;
+            unpricedModels: string[];
+        };
+        LlmOverviewRequest: components["schemas"]["LlmQuery"] & {
+            /** @description Series grouping: model (default) or ml_app. */
+            groupBy?: string | null;
+        };
+        LlmQuery: {
+            /** @description Facet selections: dimension (ml_app, service, model, provider, kind, operation, env, status) → values. */
+            filters?: {
+                [key: string]: string[];
+            };
+            /** @description Span search syntax (`service:support-assistant @gen_ai.request.model:gpt-4o*`). */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        LlmSeries: {
+            group: string;
+            values: (number | null)[];
+        };
+        LlmSpanDetail: components["schemas"]["LlmSpanInfo"] & {
+            /** @description Built-in checks that need no population (outliers are on the Evaluations page). */
+            checks: components["schemas"]["CheckOutcome"][];
+            /** Format: double */
+            estimatedCostUsd?: number | null;
+        };
+        /** @description What a span says about its LLM work. */
+        LlmSpanInfo: {
+            evaluations: components["schemas"]["RecordedEvaluation"][];
+            input: components["schemas"]["LlmMessage"][];
+            /** Format: double */
+            inputTokens: number;
+            kind: string;
+            mlApp: string;
+            model: string;
+            operation: string;
+            output: components["schemas"]["LlmMessage"][];
+            /** Format: double */
+            outputTokens: number;
+            provider: string;
+        };
+        LlmTraceDetail: {
+            /** @description Span id → LLM details, for the LLM spans of the trace. */
+            llm: {
+                [key: string]: components["schemas"]["LlmSpanDetail"];
+            };
+            trace: components["schemas"]["TraceDetail"];
+        };
+        LlmTracePage: {
+            /** Format: int64 */
+            total: number;
+            traces: components["schemas"]["LlmTraceRow"][];
+        };
+        LlmTraceRow: {
+            /** Format: double */
+            durationMs: number;
+            env: string;
+            /** Format: double */
+            estimatedCostUsd?: number | null;
+            inputPreview: string;
+            /** Format: double */
+            inputTokens: number;
+            kind: string;
+            /** Format: int64 */
+            llmSpans: number;
+            mlApp: string;
+            model: string;
+            name: string;
+            outputPreview: string;
+            /** Format: double */
+            outputTokens: number;
+            service: string;
+            /** @description The top LLM span (earliest, longest on ties). */
+            spanId: string;
+            /** @description ok | error (any LLM span of the trace failed). */
+            status: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            timestamp: number;
+            traceId: string;
+        };
+        LlmTraceSearchRequest: components["schemas"]["LlmQuery"] & {
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            offset: number;
         };
         LogArchive: {
             accessKey: string;
@@ -4447,6 +9817,23 @@ export interface components {
             /** @description Trace the log was written in (OTLP logs, or `trace_id` in JSON logs); links to APM. */
             traceId?: string | null;
         };
+        LogFacetsRequest: {
+            /** @description Facets the viewer added (`kube_node`, `@http.url`), up to 20, after the built-in ones. */
+            extra?: string[];
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        LogField: {
+            /**
+             * Format: int64
+             * @description Logs of the sample that have it.
+             */
+            count: number;
+            /** @description A tag (`kube_node`) or an attribute (`@http.url`). */
+            key: string;
+            /** @description One of the org's standard attributes (Logs → Configuration → Standard Attributes). */
+            standard: boolean;
+        };
         LogIndex: {
             /** Format: int64 */
             dailyQuota?: number | null;
@@ -4498,13 +9885,107 @@ export interface components {
             shareOfLogs: number;
             value: string;
         };
+        LogMetric: {
+            aggregation: components["schemas"]["LogMetricAggregation"];
+            groupBy: components["schemas"]["LogMetricGroupBy"][];
+            id: string;
+            /**
+             * Format: int32
+             * @description Distinct group-by value sets counted per 10 s; logs of further series are dropped.
+             */
+            maxSeries: number;
+            name: string;
+            /** @description The measured attribute of a distribution (`@duration`). */
+            path?: string | null;
+            /** @description Logs matching this search are counted; '' = every log. */
+            query: string;
+        };
+        /** @enum {string} */
+        LogMetricAggregation: "count" | "distribution";
+        LogMetricGroupBy: {
+            /** @description A reserved field (`service`, `status`, `host`, `source`), a tag (`env`) or an attribute (`@http.status_code`). */
+            path: string;
+            /** @description The metric's tag; defaults to the path without `@`. */
+            tagName?: string;
+        };
+        LogMetricInput: {
+            aggregation: components["schemas"]["LogMetricAggregation"];
+            groupBy?: components["schemas"]["LogMetricGroupBy"][];
+            name: string;
+            path?: string | null;
+            query?: string;
+        };
+        LogPattern: {
+            /**
+             * Format: int64
+             * @description Logs of the sample with this pattern.
+             */
+            count: number;
+            /** @description The message with its variable parts as `*`. */
+            pattern: string;
+            /** @description The newest message with this pattern. */
+            sample: string;
+            service: string;
+            /** @description The most common status and service among them. */
+            status: string;
+        };
+        LogPatternsRequest: {
+            /** @description How many patterns, 1–200 (default 50). */
+            limit?: number | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        LogPipeline: {
+            enabled: boolean;
+            /** @description Logs matching this search go through the pipeline; '' = every log. */
+            filter: string;
+            id: string;
+            name: string;
+            /** Format: int32 */
+            position: number;
+            /** @description Processors in Datadog's format (`{"type": "grok-parser", "name", "enabled", …}`), run in order. */
+            processors: Record<string, never>[];
+            /** @description Integration pipelines can only be enabled, disabled, moved or deleted; clone one to edit it. */
+            readOnly: boolean;
+            /** @description `custom`, or `integration:<name>` for a pipeline installed from an integration. */
+            source: string;
+        };
+        LogPipelineInput: {
+            enabled?: boolean;
+            filter?: string;
+            name: string;
+            processors?: Record<string, never>[];
+        };
+        LogPipelinePatch: {
+            enabled: boolean;
+        };
         LogQueryRequest: {
             query?: string;
             range: components["schemas"]["TimeRange"];
         };
+        LogRestrictionQuery: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            /** @description Name of the user who created it. */
+            createdBy?: string | null;
+            description: string;
+            id: string;
+            name: string;
+            /** @description Log search syntax; assigned users read only the logs matching it (or another of their queries). */
+            query: string;
+            roles: components["schemas"]["RoleRef"][];
+            teams: components["schemas"]["TeamRef"][];
+            /** Format: int64 */
+            updatedAt: number;
+        };
         LogSearchPage: {
             logs: components["schemas"]["LogEvent"][];
             nextCursor?: string | null;
+            /** @description The reader sees only the logs their restriction queries allow (Logs → Configuration → Data Access). */
+            restricted: boolean;
             /**
              * Format: int64
              * @description Matching logs in the range (not just this page).
@@ -4517,6 +9998,17 @@ export interface components {
             /**
              * Format: int64
              * @description Page size (max 1000). Default 100.
+             */
+            limit?: number | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        LogTopRequest: {
+            /** @description The key to count logs by: `source`, `service`, a tag (`kube_namespace`) or an attribute (`@http.status_code`). */
+            key: string;
+            /**
+             * Format: int64
+             * @description How many values, 1–100 (default 10).
              */
             limit?: number | null;
             query?: string;
@@ -4547,9 +10039,24 @@ export interface components {
             id: string;
             name: string;
         };
+        MetricCardinality: {
+            /**
+             * Format: int64
+             * @description Distinct combinations of its queryable tags (= ingested without an indexing control).
+             */
+            indexed: number;
+            /**
+             * Format: int64
+             * @description Distinct series stored in the range.
+             */
+            ingested: number;
+            name: string;
+            /** @description Names of the enabled rules that match it. */
+            rules: string[];
+        };
         MetricCatalogEntry: {
             description: string;
-            /** @description gauge | sum | histogram | exponential_histogram | summary | span (computed from traces) */
+            /** @description gauge | sum | histogram | exponential_histogram | summary | span (computed from traces) | derived (a formula, see Derived Metrics) */
             kind: string;
             name: string;
             tags: string[];
@@ -4571,6 +10078,48 @@ export interface components {
             /** Format: int32 */
             rollup5m: number;
         };
+        MetricRule: {
+            action: components["schemas"]["MetricRuleAction"];
+            enabled: boolean;
+            id: string;
+            kind: components["schemas"]["MetricRuleKind"];
+            /** @description Metric names it applies to; `*` matches any run of characters. */
+            metricPattern: string;
+            /**
+             * Format: int64
+             * @description Metrics reported in the last day that it matches.
+             */
+            metricsImpacted: number;
+            name: string;
+            tags: string[];
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            updatedAt: number;
+            updatedBy: string;
+        };
+        /** @enum {string} */
+        MetricRuleAction: "drop" | "strip_tags" | "allow_tags";
+        MetricRuleInput: {
+            action: components["schemas"]["MetricRuleAction"];
+            enabled?: boolean;
+            kind: components["schemas"]["MetricRuleKind"];
+            metricPattern: string;
+            name: string;
+            tags?: string[];
+        };
+        /** @enum {string} */
+        MetricRuleKind: "ingestion" | "indexing";
+        MetricRulesOverview: {
+            /** @description Metrics an enabled rule matches, the biggest first. */
+            filtered: components["schemas"]["MetricCardinality"][];
+            /** @description The metrics with the most series. */
+            top: components["schemas"]["MetricCardinality"][];
+        };
+        MetricRulesOverviewRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
         MetricSeries: {
             name: string;
             /** @description `[timestamp ms, value]` pairs. */
@@ -4578,6 +10127,24 @@ export interface components {
                 number,
                 number
             ][];
+            /** @description The metric's unit (`byte`, `nanocore`, `byte/second`…): its sender's, else its integration's. */
+            unit?: string;
+        };
+        MetricVolume: {
+            metrics: components["schemas"]["MetricVolumeEntry"][];
+            /** Format: int64 */
+            totalSeries: number;
+        };
+        MetricVolumeEntry: {
+            kind: string;
+            name: string;
+            /** Format: int64 */
+            series: number;
+            /**
+             * Format: double
+             * @description 0..1 of all the metrics' series.
+             */
+            share: number;
         };
         MfaSetup: {
             /** @description `otpauth://` URI for the QR code. */
@@ -4616,6 +10183,8 @@ export interface components {
             /** @description The metric query alone (`avg:system.load.1{*} by {host}`). */
             metricQuery: string;
             options?: null | components["schemas"]["MonitorOptions"];
+            /** @description Synthetics monitors: the test whose alert state this is. */
+            syntheticTestId?: string | null;
         };
         MonitorEvent: {
             /** Format: int64 */
@@ -4840,7 +10409,7 @@ export interface components {
             query?: string;
         };
         /** @enum {string} */
-        MonitorType: "metric" | "apm" | "log";
+        MonitorType: "metric" | "apm" | "log" | "synthetics";
         MyOrg: {
             current: boolean;
             id: string;
@@ -4884,6 +10453,127 @@ export interface components {
         NoteRequest: {
             body: string;
         };
+        Notebook: components["schemas"]["NotebookSummary"] & {
+            /** @description `{ id, definition, time? }` documents (schema owned by the web app). */
+            cells: Record<string, never>[];
+        };
+        NotebookAuthor: {
+            id: string;
+            name: string;
+        };
+        NotebookFavoriteRequest: {
+            favorite: boolean;
+        };
+        /**
+         * @description The lists of the notebook list's left navigation.
+         * @enum {string}
+         */
+        NotebookListView: "all" | "mine" | "team" | "recents" | "favorites" | "deleted";
+        NotebookPatch: {
+            /** @description Replaces every cell (order included). */
+            cells?: Record<string, never>[] | null;
+            status?: null | components["schemas"]["NotebookStatus"];
+            tags?: string[] | null;
+            teams?: string[] | null;
+            time?: string | null;
+            title?: string | null;
+        };
+        NotebookSearchPage: {
+            /** @description Everyone who wrote one of the org's notebooks (the author filter). */
+            authors: components["schemas"]["NotebookAuthor"][];
+            notebooks: components["schemas"]["NotebookSummary"][];
+            /** @description The teams the org's notebooks are tagged with (the team filter). */
+            teams: string[];
+            /** Format: int64 */
+            total: number;
+        };
+        NotebookSearchRequest: {
+            /** @description An author's user id. */
+            author?: string | null;
+            dir: components["schemas"]["SortDir"];
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            offset: number;
+            /** @description Matched against titles, authors, tags and the text of the cells. */
+            query?: string;
+            /** @description Ignored by Recents, which is ordered by the last visit. */
+            sort: components["schemas"]["NotebookSortField"];
+            /** @description A team handle. */
+            team?: string | null;
+            view: components["schemas"]["NotebookListView"];
+        };
+        /** @enum {string} */
+        NotebookSortField: "title" | "modified" | "created";
+        /** @enum {string} */
+        NotebookStatus: "published" | "draft";
+        NotebookSummary: {
+            author?: null | components["schemas"]["NotebookAuthor"];
+            /** Format: int64 */
+            cellCount: number;
+            /** Format: int64 */
+            createdAt: number;
+            /** Format: int64 */
+            deletedAt?: number | null;
+            /** @description The current user's favorite. */
+            favorite: boolean;
+            id: string;
+            /** Format: int64 */
+            modifiedAt: number;
+            status: components["schemas"]["NotebookStatus"];
+            tags: string[];
+            teams: string[];
+            /** @description The notebook's relative time range (`1h`); cells may override it. */
+            time: string;
+            title: string;
+            /**
+             * Format: int64
+             * @description When the current user last opened it.
+             */
+            viewedAt?: number | null;
+        };
+        NoticeImpact: {
+            componentId: string;
+            /** @description Degraded performance, partial outage or major outage. */
+            impact: components["schemas"]["ComponentStatus"];
+        };
+        NoticeInput: {
+            impacts?: components["schemas"]["NoticeImpact"][];
+            /**
+             * Format: int32
+             * @description IR number of an incident of the org.
+             */
+            incidentId?: number | null;
+            /** @description Markdown: the first update. */
+            message: string;
+            status: components["schemas"]["NoticeStatus"];
+            title: string;
+        };
+        /** @enum {string} */
+        NoticeStatus: "investigating" | "identified" | "monitoring" | "resolved";
+        NoticeUpdate: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy?: string | null;
+            /** Format: int64 */
+            id: number;
+            /** @description The impacts from this update on. */
+            impacts: components["schemas"]["NoticeImpact"][];
+            /** @description Markdown. */
+            message: string;
+            status: components["schemas"]["NoticeStatus"];
+        };
+        NoticeUpdateInput: {
+            /** @description New impacts; omit to keep the current ones. */
+            impacts?: components["schemas"]["NoticeImpact"][] | null;
+            /** @description Markdown. */
+            message: string;
+            /** @description `resolved` resolves the notice; no update can follow. */
+            status: components["schemas"]["NoticeStatus"];
+        };
         Notification: {
             author: string;
             automated: boolean;
@@ -4915,6 +10605,367 @@ export interface components {
             hasClientSecret: boolean;
             issuer?: string | null;
         };
+        OnCallAnalytics: {
+            /** Format: int64 */
+            acknowledged: number;
+            /** @description 7 × 24 counts: index weekday (0 = Monday) × 24 + hour. */
+            byHour: number[];
+            /** Format: double */
+            mttaSeconds?: number | null;
+            /** Format: double */
+            mttrSeconds?: number | null;
+            perDay: components["schemas"]["OnCallDayCount"][];
+            /** Format: int64 */
+            resolved: number;
+            teams: components["schemas"]["OnCallTeamStats"][];
+            /** @description Pages most often raised with the same title. */
+            topSources: components["schemas"]["OnCallSourceCount"][];
+            /** Format: int64 */
+            total: number;
+        };
+        OnCallAnalyticsRequest: {
+            range: components["schemas"]["OnCallRange"];
+            teams?: string[];
+            /** @description IANA time zone for days and hours (default UTC). */
+            timeZone?: string | null;
+        };
+        OnCallChannelOption: {
+            handle: string;
+            /** @description email | slack | webhook */
+            kind: string;
+        };
+        OnCallDayCount: {
+            /** Format: int64 */
+            count: number;
+            /**
+             * Format: int64
+             * @description Start of the day (Unix ms).
+             */
+            day: number;
+            team: string;
+        };
+        /** @description One stretch of the final schedule. */
+        OnCallFinalShift: {
+            /** Format: int64 */
+            end: number;
+            /** @description An override replaces the layers here. */
+            isOverride: boolean;
+            /** Format: int64 */
+            start: number;
+            userIds: string[];
+        };
+        OnCallLayer: {
+            /** @description First handoff in the schedule's time zone, "YYYY-MM-DDTHH:MM". */
+            effectiveFrom: string;
+            /** @description The layer ends here ("YYYY-MM-DDTHH:MM", schedule time zone). */
+            effectiveUntil?: string | null;
+            id: string;
+            /** @description User ids in rotation order. */
+            members: string[];
+            name: string;
+            /** @description Only on call inside these windows (none: always). */
+            restrictions?: components["schemas"]["OnCallRestriction"][];
+            /**
+             * Format: int32
+             * @description Length of a shift: 24 (daily), 168 (weekly) or any number of hours.
+             */
+            rotationHours: number;
+        };
+        OnCallLayerShifts: {
+            layerId: string;
+            shifts: components["schemas"]["OnCallShift"][];
+        };
+        OnCallMyShift: {
+            /** Format: int64 */
+            end: number;
+            scheduleId: string;
+            scheduleName: string;
+            /** Format: int64 */
+            start: number;
+        };
+        OnCallOverride: {
+            /** Format: int64 */
+            end: number;
+            id: string;
+            /** Format: int64 */
+            start: number;
+            userId: string;
+            userName: string;
+        };
+        OnCallPage: {
+            /** Format: int64 */
+            acknowledgedAt?: number | null;
+            acknowledgedBy?: string | null;
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            /** Format: int64 */
+            id: number;
+            /**
+             * Format: int32
+             * @description IR-<n> of the incident that paged.
+             */
+            incidentId?: number | null;
+            /** Format: int64 */
+            monitorId?: number | null;
+            /**
+             * Format: int64
+             * @description When the next escalation step runs (triggered pages).
+             */
+            nextEscalationAt?: number | null;
+            policy?: null | components["schemas"]["OnCallRef"];
+            /** Format: int64 */
+            resolvedAt?: number | null;
+            resolvedBy?: string | null;
+            /** @description Everyone notified so far, in order. */
+            responders: components["schemas"]["OnCallUser"][];
+            /** @description manual | incident | monitor */
+            source: string;
+            status: components["schemas"]["OnCallPageStatus"];
+            team?: string | null;
+            title: string;
+            /** @description high | low */
+            urgency: string;
+        };
+        OnCallPageCounts: {
+            /** Format: int64 */
+            acknowledged: number;
+            /** Format: int64 */
+            active: number;
+            /** Format: int64 */
+            all: number;
+            /** Format: int64 */
+            resolved: number;
+            /** Format: int64 */
+            triggered: number;
+        };
+        OnCallPageDetail: {
+            /** @description The signed-in member may acknowledge and resolve it. */
+            canRespond: boolean;
+            page: components["schemas"]["OnCallPage"];
+            timeline: components["schemas"]["OnCallPageEvent"][];
+        };
+        OnCallPageEvent: {
+            actor: string;
+            body: string;
+            /** Format: int64 */
+            createdAt: number;
+            /** Format: int64 */
+            id: number;
+            /** @description triggered | notified | escalated | acknowledged | resolved | reassigned | failed */
+            kind: string;
+        };
+        OnCallPageSearch: {
+            /**
+             * Format: int64
+             * @description Created within (Unix ms); none: any time.
+             */
+            from?: number | null;
+            /**
+             * Format: int64
+             * @description At most this many pages (1–500, default 200).
+             */
+            limit?: number | null;
+            /** @description Only pages that notified the signed-in member. */
+            mine?: boolean;
+            /** @description Words of the title. */
+            query?: string;
+            /** @description active (triggered or acknowledged) | triggered | acknowledged | resolved | all */
+            status: string;
+            teams?: string[];
+            /** Format: int64 */
+            to?: number | null;
+        };
+        /** @enum {string} */
+        OnCallPageStatus: "triggered" | "acknowledged" | "resolved";
+        OnCallPagesResult: {
+            /** @description Per status, with the other filters applied. */
+            counts: components["schemas"]["OnCallPageCounts"];
+            pages: components["schemas"]["OnCallPage"][];
+        };
+        OnCallPolicy: {
+            /** Format: int64 */
+            createdAt: number;
+            id: string;
+            name: string;
+            /**
+             * Format: int32
+             * @description Times the policy starts over after its last step.
+             */
+            repeat: number;
+            /** Format: int32 */
+            resolveAfterMinutes?: number | null;
+            steps: components["schemas"]["OnCallStep"][];
+            tags: string[];
+            team?: string | null;
+            /** Format: int64 */
+            updatedAt: number;
+            /** @description Teams whose pages follow this policy. */
+            usedBy: string[];
+        };
+        OnCallPolicyInput: {
+            name: string;
+            /** Format: int32 */
+            repeat?: number;
+            /** Format: int32 */
+            resolveAfterMinutes?: number | null;
+            steps: components["schemas"]["OnCallStep"][];
+            tags?: string[];
+            team?: string | null;
+        };
+        OnCallPreviewRequest: {
+            range: components["schemas"]["OnCallRange"];
+            schedule: components["schemas"]["OnCallScheduleInput"];
+            /** @description Include this saved schedule's overrides. */
+            scheduleId?: string | null;
+        };
+        OnCallProfile: {
+            /** @description What can be chosen: email and the org's Slack and webhook channels. */
+            channels: components["schemas"]["OnCallChannelOption"][];
+            /** @description Saved at least once. */
+            configured: boolean;
+            email: string;
+            /** @description Email delivery is configured on this install (OC_SMTP_URL). */
+            emailEnabled: boolean;
+            /** @description 'email' or channel handles, for high-urgency pages. */
+            highUrgency: string[];
+            lowUrgency: string[];
+        };
+        OnCallProfileInput: {
+            highUrgency: string[];
+            lowUrgency: string[];
+        };
+        OnCallRange: {
+            /**
+             * Format: int64
+             * @description Unix ms.
+             */
+            from: number;
+            /** Format: int64 */
+            to: number;
+        };
+        OnCallRef: {
+            id: string;
+            name: string;
+        };
+        /** @description A weekly window in the schedule's time zone: `startDay startTime` → `endDay endTime` (wrapping past Sunday when the end comes first). */
+        OnCallRestriction: {
+            endDay: components["schemas"]["OnCallWeekday"];
+            /** @description "HH:MM" */
+            endTime: string;
+            startDay: components["schemas"]["OnCallWeekday"];
+            /** @description "HH:MM" */
+            startTime: string;
+        };
+        OnCallRouting: {
+            /** @description None: page every member of the team. */
+            policyId?: string | null;
+        };
+        OnCallSchedule: {
+            /** Format: int64 */
+            createdAt: number;
+            id: string;
+            layers: components["schemas"]["OnCallLayer"][];
+            /** Format: int32 */
+            maxConcurrent?: number | null;
+            /** @description The people of the layers (names for the editor). */
+            members: components["schemas"]["OnCallUser"][];
+            name: string;
+            onCallNow: components["schemas"]["OnCallUser"][];
+            /** @description Overrides that haven't ended more than 31 days ago. */
+            overrides: components["schemas"]["OnCallOverride"][];
+            tags: string[];
+            team?: string | null;
+            /** @description IANA time zone the layers' times are in. */
+            timeZone: string;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        OnCallScheduleInput: {
+            layers: components["schemas"]["OnCallLayer"][];
+            /** Format: int32 */
+            maxConcurrent?: number | null;
+            name: string;
+            tags?: string[];
+            team?: string | null;
+            timeZone: string;
+        };
+        OnCallScheduleShifts: {
+            finalShifts: components["schemas"]["OnCallFinalShift"][];
+            layers: components["schemas"]["OnCallLayerShifts"][];
+            overrides: components["schemas"]["OnCallOverride"][];
+            /** @description Everyone named in the shifts. */
+            users: components["schemas"]["OnCallUser"][];
+        };
+        OnCallShift: {
+            /** Format: int64 */
+            end: number;
+            /**
+             * Format: int64
+             * @description Unix ms.
+             */
+            start: number;
+            userId: string;
+        };
+        OnCallSourceCount: {
+            /** Format: int64 */
+            count: number;
+            source: string;
+            title: string;
+        };
+        OnCallStep: {
+            /**
+             * Format: int32
+             * @description Minutes to wait for an acknowledgement before the next step (1–1440).
+             */
+            escalateAfterMinutes: number;
+            targets: components["schemas"]["OnCallTarget"][];
+        };
+        OnCallTarget: {
+            /** @description User id, schedule id or team handle. */
+            id: string;
+            kind: components["schemas"]["OnCallTargetKind"];
+        };
+        /** @enum {string} */
+        OnCallTargetKind: "user" | "schedule" | "team";
+        OnCallTeam: {
+            handle: string;
+            /** Format: int64 */
+            memberCount: number;
+            /** @description The signed-in member belongs to the team. */
+            mine: boolean;
+            name: string;
+            /** @description On call now on the team's schedules. */
+            onCallNow: components["schemas"]["OnCallUser"][];
+            /** Format: int64 */
+            openPages: number;
+            policy?: null | components["schemas"]["OnCallRef"];
+            /** @description Schedules owned by the team. */
+            schedules: components["schemas"]["OnCallRef"][];
+        };
+        OnCallTeamStats: {
+            /** Format: int64 */
+            count: number;
+            /** Format: double */
+            mttaSeconds?: number | null;
+            /** Format: double */
+            mttrSeconds?: number | null;
+            team: string;
+        };
+        OnCallTestResult: {
+            channel: string;
+            error?: string | null;
+            /** @description sent | failed */
+            status: string;
+        };
+        OnCallUser: {
+            email: string;
+            id: string;
+            name: string;
+        };
+        /** @enum {string} */
+        OnCallWeekday: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
         OrgDataSettings: {
             /**
              * Format: int32
@@ -4992,6 +11043,498 @@ export interface components {
             processors: string[];
             receivers: string[];
         };
+        PipelineTestRequest: {
+            /** @description The pipeline's filter; omitted = every log. */
+            filter?: string | null;
+            log: components["schemas"]["SampleLog"];
+            processors?: Record<string, never>[];
+        };
+        PipelineTestResult: {
+            /** @description Processors that don't compile (they were skipped). */
+            errors: string[];
+            log: components["schemas"]["SampleLog"];
+            /** @description The filter matched (otherwise `log` is unchanged). */
+            matched: boolean;
+        };
+        PipelineUpstream: {
+            license: string;
+            path: string;
+            repository: string;
+            revision: string;
+        };
+        /** @enum {string} */
+        PolicyCategory: "cost_optimization" | "reliability" | "security" | "versioning" | "tagging";
+        /** @description One requirement on an attribute of the resource. */
+        PolicyCondition: {
+            /** @description A field (`env`, `team`, `region`, …), a tag key or an attribute (`replicas`, `image_tags`, `version`, …). */
+            attribute: string;
+            operator: components["schemas"]["PolicyOperator"];
+            /** @description None for exists / not exists, one for comparisons, a list for one of / not one of. */
+            values?: string[];
+        };
+        PolicyEvaluation: {
+            /** @description Resources in the policy's type and scope (and the page's filters). */
+            evaluated: number;
+            noncompliant: number;
+            /**
+             * Format: double
+             * @description Compliant share in percent, one decimal; null when nothing is evaluated.
+             */
+            score?: number | null;
+        };
+        /** @enum {string} */
+        PolicyOperator: "exists" | "not_exists" | "equals" | "not_equals" | "one_of" | "not_one_of" | "matches" | "gt" | "gte" | "lt" | "lte" | "version_gt" | "version_gte" | "version_lt" | "version_lte";
+        /** @description What a policy evaluates: which resources and what they must satisfy. */
+        PolicyTarget: {
+            conditions: components["schemas"]["PolicyCondition"][];
+            resourceType: components["schemas"]["CatalogType"];
+            /** @description Catalog query narrowing the resources (`env:prod cluster:shop-*`); empty for all of the type. */
+            scope?: string;
+        };
+        /** @description A ready-made policy for what the catalog knows about. */
+        PolicyTemplate: {
+            category: components["schemas"]["PolicyCategory"];
+            description: string;
+            key: string;
+            name: string;
+            /** Format: int32 */
+            priority: number;
+            target: components["schemas"]["PolicyTarget"];
+        };
+        PortalAction: {
+            allowedTeams: string[];
+            blueprint: string;
+            /** @description The signed-in user may run it. */
+            canRun: boolean;
+            category: components["schemas"]["PortalActionCategory"];
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            id: string;
+            inputs: components["schemas"]["ActionInput"][];
+            /** Format: int64 */
+            lastRunAt?: number | null;
+            /** @description succeeded | failed, for the latest run. */
+            lastRunStatus?: string | null;
+            name: string;
+            ownerTeam: string;
+            /** Format: int64 */
+            runs: number;
+            /** @description Names of the stored credentials (values are never returned). */
+            secretNames: string[];
+            step: components["schemas"]["ActionStep"];
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        /** @enum {string} */
+        PortalActionCategory: "scaffolding" | "release_management" | "infrastructure_provisioning" | "incident_management" | "infrastructure_management" | "other";
+        PortalActionInput: {
+            /** @description Team handles whose members may run it; empty for every standard user and admin. */
+            allowedTeams?: string[];
+            /** @description Blueprint the action started from; empty when built from scratch. */
+            blueprint?: string;
+            category: components["schemas"]["PortalActionCategory"];
+            description?: string;
+            inputs?: components["schemas"]["ActionInput"][];
+            name: string;
+            /** @description Team handle; empty for none. */
+            ownerTeam?: string;
+            /** @description Credentials by name: a value sets one, null removes it, names left out keep their value. */
+            secrets?: {
+                [key: string]: string | null;
+            };
+            step: components["schemas"]["ActionStep"];
+        };
+        PortalActionRun: {
+            actionId: string;
+            /** Format: int64 */
+            createdAt: number;
+            /** Format: double */
+            durationMs: number;
+            error?: string | null;
+            /** Format: int64 */
+            id: number;
+            inputs: {
+                [key: string]: unknown;
+            };
+            /** @description What the run created (repository, pull request, issue, incident, page); may be empty. */
+            link: string;
+            /** @description Start of the last response (or the step's outcome), credentials redacted. */
+            responseExcerpt: string;
+            /** @description succeeded | failed */
+            status: string;
+            /**
+             * Format: int32
+             * @description HTTP status of the last request sent.
+             */
+            statusCode?: number | null;
+            userName: string;
+        };
+        PortalActionRunInput: {
+            /** @description Value per input key. */
+            inputs?: {
+                [key: string]: unknown;
+            };
+        };
+        PortalApp: {
+            id: string;
+            /** @description Logo registry key (`github`, `tile:servicenow`); empty for a generic icon. */
+            logo: string;
+            name: string;
+            url: string;
+        };
+        PortalAppInput: {
+            logo?: string;
+            name: string;
+            url: string;
+        };
+        PortalCatalog: {
+            entities: components["schemas"]["PortalEntity"][];
+            envs: string[];
+            /** @description Handles of the teams the signed-in user belongs to ("My Entities"). */
+            myTeams: string[];
+            teams: components["schemas"]["PortalTeam"][];
+        };
+        PortalCatalogRequest: {
+            /** @description `deployment.environment`; empty or `*` for all. */
+            env?: string | null;
+            range: components["schemas"]["TimeRange"];
+        };
+        PortalConnectionTest: {
+            /** Format: int64 */
+            checkedAt: number;
+            /** @description "Connected as …" or what went wrong. */
+            message: string;
+            ok: boolean;
+        };
+        /** @description A connector as clients see it: never the credential itself. */
+        PortalConnector: {
+            /** @description Jira: the email of the API token's account. */
+            account: string;
+            /** @description API base URL (the default when not configured). */
+            baseUrl: string;
+            configured: boolean;
+            lastCheckError: string;
+            lastCheckOk?: boolean | null;
+            /** Format: int64 */
+            lastCheckedAt?: number | null;
+            provider: components["schemas"]["PortalProvider"];
+            /** Format: int64 */
+            updatedAt?: number | null;
+        };
+        PortalConnectorInput: {
+            /** @description Jira: the email the API token belongs to. */
+            account?: string;
+            /** @description Empty for the provider's default (api.github.com, gitlab.com, api.linear.app). */
+            baseUrl?: string;
+            /** @description Token or API key; left out to keep the stored one. */
+            token?: string | null;
+        };
+        PortalDefinitionItem: {
+            definition: components["schemas"]["EntityDefinition"];
+            id: string;
+            kind: string;
+            name: string;
+            /** @description ui | api | import */
+            source: string;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        /** @description One entity of the catalog, with what telemetry and definitions say about it. */
+        PortalEntity: {
+            /**
+             * Format: int64
+             * @description CI pipeline runs of the repository in the past 30 days.
+             */
+            ciRuns?: number | null;
+            /** Format: double */
+            ciSuccessRate?: number | null;
+            contacts: components["schemas"]["EntityContact"][];
+            /** @description Id of the stored definition, when there is one. */
+            definitionId?: string | null;
+            /** @description `kind:name` references. */
+            dependsOn: string[];
+            description: string;
+            displayName?: string | null;
+            docsUrl: string;
+            /** @description web, worker, or the definition's spec.type. */
+            entityType?: string | null;
+            /**
+             * Format: int64
+             * @description Distinct error types on the service's spans in the range.
+             */
+            errorIssues?: number | null;
+            /** Format: double */
+            errorRate?: number | null;
+            /** @description `kind:name` (endpoints: `endpoint:service/resource`). */
+            id: string;
+            /**
+             * Format: int32
+             * @description Incidents declared in the range that list the service.
+             */
+            incidents: number;
+            /** @description Known only from other services' spans or from log and metric tags: not instrumented, not defined. */
+            inferred: boolean;
+            kind: components["schemas"]["PortalEntityKind"];
+            languages: string[];
+            /** Format: int64 */
+            lastCiRun?: number | null;
+            /**
+             * Format: int64
+             * @description When the current version was first seen (epoch ms).
+             */
+            lastDeploy?: number | null;
+            lifecycle?: string | null;
+            links: components["schemas"]["EntityLink"][];
+            /** Format: int32 */
+            monitors: number;
+            /** Format: int32 */
+            monitorsAlerting: number;
+            name: string;
+            /** Format: int32 */
+            openIncidents: number;
+            /** @description Owning team handle; empty when none. */
+            owner: string;
+            /** Format: double */
+            p95Ms?: number | null;
+            /** @description Datastores, queues and external providers: the services calling them; systems: their
+             *     components; repositories: the services built from them. */
+            related: string[];
+            repoUrl: string;
+            /** Format: double */
+            reqPerSec?: number | null;
+            /** Format: int64 */
+            requests?: number | null;
+            /** @description Endpoints: their service. */
+            service?: string | null;
+            /** Format: int32 */
+            slos: number;
+            /** @description Where it was seen: apm, spans, logs, metrics, ci, metadata, definition. */
+            sources: string[];
+            /** @description Systems it belongs to (names). */
+            systems: string[];
+            tags: string[];
+            /** @description postgresql, redis, kafka, … for datastores and queues. */
+            technology?: string | null;
+            tier?: string | null;
+            version?: string | null;
+        };
+        /** @enum {string} */
+        PortalEntityKind: "service" | "datastore" | "queue" | "api" | "system" | "frontend" | "endpoint" | "external_provider" | "repository";
+        /** @description A service on the home page, with what exists around it. */
+        PortalHomeEntity: {
+            /** Format: int64 */
+            dashboards: number;
+            favorite: boolean;
+            /**
+             * Format: int64
+             * @description Open Error Tracking issues of the past 7 days.
+             */
+            issues: number;
+            /** @description service */
+            kind: string;
+            /**
+             * Format: int64
+             * @description Last CI deployment or first span of the newest version.
+             */
+            lastDeploy?: number | null;
+            /**
+             * Format: int64
+             * @description Last span (epoch ms); null for services only declared in metadata.
+             */
+            lastSeen?: number | null;
+            /** Format: int64 */
+            monitors: number;
+            name: string;
+            /** @description Name of the owning team's on-call schedule. */
+            onCall?: string | null;
+            /**
+             * Format: int32
+             * @description Scorecard level (0–3); null before scorecards are set up.
+             */
+            scorecardLevel?: number | null;
+            /** @description Owning team handle; empty when none. */
+            team: string;
+        };
+        PortalIdentitiesInput: {
+            identities: components["schemas"]["PortalIdentityInput"][];
+        };
+        PortalIdentity: {
+            /** @description Username (GitHub, GitLab) or email (Jira, Linear); empty when unknown. */
+            handle: string;
+            /** @description The handle is the default (the member's email), not one they set. */
+            isDefault: boolean;
+            provider: components["schemas"]["PortalProvider"];
+        };
+        PortalIdentityInput: {
+            /** @description Empty to remove the mapping (back to the default). */
+            handle: string;
+            provider: components["schemas"]["PortalProvider"];
+        };
+        PortalImportRequest: {
+            /** @description One or more entity definition documents: YAML (separated by `---`) or JSON (an object or an array). */
+            content: string;
+        };
+        PortalImportResult: {
+            created: number;
+            entities: components["schemas"]["PortalDefinitionItem"][];
+            updated: number;
+        };
+        /**
+         * @description Whether a home page list could be read.
+         * @enum {string}
+         */
+        PortalListStatus: "ok" | "not_connected" | "identity_required" | "error";
+        PortalPerson: {
+            avatarUrl: string;
+            login: string;
+        };
+        /** @enum {string} */
+        PortalProvider: "github" | "gitlab" | "jira" | "linear";
+        PortalPullRequest: {
+            /**
+             * Format: int64
+             * @description Lines added and removed; GitLab's list API doesn't report them.
+             */
+            additions?: number | null;
+            author: components["schemas"]["PortalPerson"];
+            /** Format: int64 */
+            comments: number;
+            /** Format: int64 */
+            deletions?: number | null;
+            group: components["schemas"]["PrGroup"];
+            /** Format: int64 */
+            number: number;
+            /** @description `owner/repo` (GitHub) or the project path (GitLab). */
+            repo: string;
+            reviewers: components["schemas"]["PortalPerson"][];
+            title: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+            url: string;
+        };
+        PortalPullRequests: {
+            /** Format: int64 */
+            fetchedAt: number;
+            message: string;
+            provider: components["schemas"]["PortalProvider"];
+            pullRequests: components["schemas"]["PortalPullRequest"][];
+            status: components["schemas"]["PortalListStatus"];
+            /** @description The member's username on the provider. */
+            user: string;
+        };
+        PortalReportDashboard: {
+            description?: string | null;
+            id: string;
+            title: string;
+        };
+        PortalReportDashboardsInput: {
+            /** @description Dashboard ids in display order. */
+            dashboardIds: string[];
+        };
+        PortalReportRequest: {
+            range: components["schemas"]["TimeRange"];
+            /** @description Team handles; empty for every team. */
+            teams?: string[];
+        };
+        PortalScorecardTeam: {
+            /** @description Services at level 0–3 on the last evaluated day. */
+            current: number[];
+            /** @description Mean level of the team's services per day (null on days without an evaluation). */
+            levels: (number | null)[];
+            /** @description Team handle; empty for services without a team. */
+            team: string;
+        };
+        PortalScorecardsReport: {
+            /** @description Day starts (epoch ms, UTC). */
+            days: number[];
+            teams: components["schemas"]["PortalScorecardTeam"][];
+        };
+        PortalSignal: {
+            /** @description The org sent this signal in the last 24 hours. */
+            active: boolean;
+            /** @description apm | logs | network | containers */
+            key: string;
+        };
+        PortalSources: {
+            connectors: components["schemas"]["PortalConnector"][];
+            signals: components["schemas"]["PortalSignal"][];
+        };
+        PortalTeam: {
+            /**
+             * Format: int32
+             * @description Entities the team owns (endpoints excluded).
+             */
+            entities: number;
+            handle: string;
+            /** Format: int64 */
+            members: number;
+            name: string;
+        };
+        PortalTeamReport: {
+            handle: string;
+            /** Format: int32 */
+            incidentCount: number;
+            /** @description Incidents declared per bucket (see `buckets`). */
+            incidents: number[];
+            /** Format: int64 */
+            members: number;
+            /** Format: int32 */
+            monitors: number;
+            /**
+             * Format: double
+             * @description Mean time from declaration to resolution of the incidents resolved in the range, in minutes.
+             */
+            mttrMinutes?: number | null;
+            name: string;
+            /** Format: int32 */
+            onCallSchedules: number;
+            /** Format: int32 */
+            openIncidents: number;
+            /** Format: int32 */
+            services: number;
+            /** Format: int32 */
+            slos: number;
+        };
+        PortalTeamsReport: {
+            /** Format: int64 */
+            bucketMs: number;
+            /** @description Bucket starts (epoch ms); a bucket is a day, or a week for ranges over 31 days. */
+            buckets: number[];
+            teams: components["schemas"]["PortalTeamReport"][];
+            /** @description Every team of the org, before the filter. */
+            totalTeams: number;
+        };
+        PortalTicket: {
+            /** Format: int64 */
+            createdAt: number;
+            key: string;
+            /** @description The provider's priority name (`High`, `Urgent`, `SEV-2`); empty when none. */
+            priority: string;
+            /** @description urgent | high | medium | low | none: the colour of the priority dot. */
+            priorityLevel: string;
+            status: string;
+            /** @description todo | in_progress | done */
+            statusCategory: string;
+            title: string;
+            /** Format: int64 */
+            updatedAt: number;
+            url: string;
+        };
+        PortalTickets: {
+            /** Format: int64 */
+            fetchedAt: number;
+            message: string;
+            /** @description jira | linear | work_items */
+            provider: string;
+            status: components["schemas"]["PortalListStatus"];
+            tickets: components["schemas"]["PortalTicket"][];
+            user: string;
+        };
         Postmortem: {
             /** @description Markdown. */
             content: string;
@@ -5003,6 +11546,100 @@ export interface components {
         PostmortemUpdate: {
             content: string;
         };
+        /** @enum {string} */
+        PrGateCheckStatus: "passed" | "failed" | "no_data" | "not_evaluated";
+        /** @description What CI Visibility knows about the commit. */
+        PrGateCiSummary: {
+            /** Format: int64 */
+            failedPipelines: number;
+            /** Format: int64 */
+            failedTests: number;
+            /** Format: int64 */
+            flakyTests: number;
+            /** Format: int64 */
+            pipelines: number;
+            /** Format: int64 */
+            tests: number;
+        };
+        PrGateEvaluation: {
+            ci: components["schemas"]["PrGateCiSummary"];
+            pass: boolean;
+            repository: string;
+            /** @description The enabled rules that apply to the repository. */
+            rules: components["schemas"]["PrGateRuleResult"][];
+            sha: string;
+            /** @description Failed when a blocking rule failed: what the PR check reports. */
+            status: components["schemas"]["PrGateVerdict"];
+        };
+        PrGateEvaluationRequest: {
+            /** @description `example-org/billing` (a repository URL works too). */
+            repository: string;
+            /** @description The pull request's head commit. */
+            sha: string;
+        };
+        PrGateRule: {
+            blocking: boolean;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy: string;
+            enabled: boolean;
+            /** @description False for sources that need Code Security: such rules are stored but not evaluated. */
+            evaluable: boolean;
+            id: string;
+            /** @description Code Security sources: the lowest severity counted. */
+            minSeverity: components["schemas"]["PrGateSeverity"];
+            name: string;
+            /** @description Empty = every repository. */
+            repositories: string[];
+            source: components["schemas"]["PrGateSource"];
+            /**
+             * Format: int32
+             * @description The rule fails when the count of findings is above this.
+             */
+            threshold: number;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy: string;
+        };
+        PrGateRuleInput: {
+            blocking?: boolean;
+            enabled?: boolean;
+            minSeverity?: components["schemas"]["PrGateSeverity"];
+            name: string;
+            repositories?: string[];
+            source: components["schemas"]["PrGateSource"];
+            /** Format: int32 */
+            threshold?: number;
+        };
+        PrGateRuleResult: {
+            blocking: boolean;
+            /**
+             * Format: int64
+             * @description Findings counted (None when not evaluated or without data).
+             */
+            count?: number | null;
+            name: string;
+            reason: string;
+            ruleId: string;
+            source: components["schemas"]["PrGateSource"];
+            status: components["schemas"]["PrGateCheckStatus"];
+            /** Format: int32 */
+            threshold: number;
+        };
+        /** @enum {string} */
+        PrGateSeverity: "critical" | "high" | "medium" | "low";
+        /** @enum {string} */
+        PrGateSource: "pipeline_failures" | "test_failures" | "flaky_tests" | "code_vulnerabilities" | "code_quality" | "library_vulnerabilities" | "license_violations";
+        /** @enum {string} */
+        PrGateVerdict: "passed" | "failed";
+        /**
+         * @description Which group of the home page a pull request belongs to.
+         * @enum {string}
+         */
+        PrGroup: "needs_review" | "returned" | "approved" | "waiting" | "drafts" | "merged";
         /** @enum {string} */
         PresetList: "all" | "custom" | "integrations" | "mine" | "starred" | "deleted";
         PreviewSeries: {
@@ -5199,6 +11836,26 @@ export interface components {
             };
             version: string;
         };
+        /** @description The read-only rendering at `/status/<slug>`: no ids of users, incidents or the org. */
+        PublicStatusPage: {
+            components: components["schemas"]["StatusPageComponent"][];
+            description: string;
+            emailSubscriptions: boolean;
+            logoUrl: string;
+            name: string;
+            /** @description Open notices and those resolved in the last 60 days, newest first, without authors or incident links. */
+            notices: components["schemas"]["StatusPageNotice"][];
+            overallStatus: components["schemas"]["ComponentStatus"];
+            slackSubscriptions: boolean;
+            slug: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            updatedAt: number;
+            visibility: components["schemas"]["StatusPageVisibility"];
+            visualization: components["schemas"]["StatusPageVisualization"];
+        };
         QualityIssue: {
             description: string;
             fix: string;
@@ -5228,6 +11885,10 @@ export interface components {
             nats: boolean;
             postgres: boolean;
         };
+        ReassignOnCallPage: {
+            policyId?: string | null;
+            team?: string | null;
+        };
         Recommendation: {
             id: string;
             kind: components["schemas"]["RecommendationKind"];
@@ -5249,8 +11910,70 @@ export interface components {
         };
         /** @enum {string} */
         RecommendationKind: "repeated_sequential_calls" | "high_error_rate" | "slow_endpoint";
+        /** @description An evaluation result recorded on the span by the application or an evaluator
+         *     (`gen_ai.evaluation.result` events or `gen_ai.evaluation.*` attributes). */
+        RecordedEvaluation: {
+            explanation: string;
+            label: string;
+            name: string;
+            /** @description From the label: pass / fail words; null when the label says neither. */
+            passed?: boolean | null;
+            /** Format: double */
+            score?: number | null;
+        };
         /** @enum {string} */
         Recurrence: "daily" | "weekly";
+        ReferenceTable: {
+            /** @description The file's header, in file order. */
+            columns: string[];
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            /** @description Names of the users who created it and last uploaded a file. */
+            createdBy?: string | null;
+            description: string;
+            /** @description Name of the last uploaded file. */
+            fileName: string;
+            /** @description Lowercase letters, digits and underscores; it identifies the table and can't be changed. */
+            name: string;
+            /** @description The column whose values identify rows (unique, never empty). */
+            primaryKey: string;
+            /** Format: int64 */
+            rowCount: number;
+            /** @description Where the rows come from: `local_file` (a CSV uploaded from the browser). */
+            source: string;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+        };
+        /** @description A new file for an existing table; its primary key column stays the same. */
+        ReferenceTableFile: {
+            columns: string[];
+            fileName?: string;
+            rows: string[][];
+        };
+        ReferenceTableInput: {
+            /** @description The CSV header. */
+            columns: string[];
+            description?: string;
+            fileName?: string;
+            name: string;
+            primaryKey: string;
+            /** @description The CSV rows after the header, each with one value per column. */
+            rows: string[][];
+        };
+        ReferenceTableRows: {
+            /** @description The matching rows in file order, each with one value per column of `table.columns`. */
+            rows: string[][];
+            table: components["schemas"]["ReferenceTable"];
+            /**
+             * Format: int64
+             * @description How many rows match.
+             */
+            total: number;
+        };
         RehydrateRequest: {
             archiveId: string;
             name: string;
@@ -5286,6 +12009,147 @@ export interface components {
             /** @description Every index id, in routing order. */
             ids: string[];
         };
+        ReorderPipelines: {
+            /** @description Every pipeline id, in processing order. */
+            ids: string[];
+        };
+        ReportSchedule: {
+            /** @description daily | weekly | monthly */
+            frequency: string;
+            /**
+             * Format: int32
+             * @description Monthly: 1–28.
+             */
+            monthDay?: number | null;
+            /** @description Local time `HH:MM` (24 h). */
+            time: string;
+            /** @description IANA zone (`UTC`, `Europe/Paris`). */
+            timezone: string;
+            /**
+             * Format: int32
+             * @description Weekly: 0 = Sunday … 6 = Saturday.
+             */
+            weekday?: number | null;
+        };
+        ReportSeriesSummary: {
+            /**
+             * Format: double
+             * @description The last value in the frame.
+             */
+            current?: number | null;
+            /** @description The group (`service:billing`) or, ungrouped, the query. */
+            label: string;
+            /** Format: double */
+            max?: number | null;
+            /** Format: double */
+            min?: number | null;
+        };
+        ReportWidgetSummary: {
+            /** @description Why the widget's queries couldn't be summarized. */
+            error?: string | null;
+            kind: string;
+            /** @description Empty for widgets that are only listed. */
+            series: components["schemas"]["ReportSeriesSummary"][];
+            title: string;
+        };
+        /** @description A policy as stored, with its compliance on the current catalog. */
+        ResourcePolicy: {
+            category: components["schemas"]["PolicyCategory"];
+            conditions: components["schemas"]["PolicyCondition"][];
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            createdAt: number;
+            /** @description Name of the user who created it. */
+            createdBy?: string | null;
+            description: string;
+            evaluation: components["schemas"]["PolicyEvaluation"];
+            id: string;
+            name: string;
+            /**
+             * Format: int32
+             * @description 0 (P0, most urgent) … 4.
+             */
+            priority: number;
+            resourceType: components["schemas"]["CatalogType"];
+            scope: string;
+            template?: string | null;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        /** @description An attribute a policy can check on a resource type, with how many resources have it. */
+        ResourcePolicyAttribute: {
+            count: number;
+            examples: string[];
+            key: string;
+        };
+        ResourcePolicyDetail: {
+            /** @description Daily snapshots, oldest first (last 90 days). */
+            history: components["schemas"]["ResourcePolicySnapshot"][];
+            policy: components["schemas"]["ResourcePolicy"];
+            /** @description Noncompliant resources (at most 500), by name. */
+            violations: components["schemas"]["ResourcePolicyViolation"][];
+        };
+        ResourcePolicyInput: {
+            category: components["schemas"]["PolicyCategory"];
+            conditions: components["schemas"]["PolicyCondition"][];
+            description?: string;
+            name: string;
+            /** Format: int32 */
+            priority: number;
+            resourceType: components["schemas"]["CatalogType"];
+            scope?: string;
+            /** @description The template it was made from. */
+            template?: string | null;
+        };
+        ResourcePolicyList: {
+            /** @description Values of the header filters with resource counts. */
+            facets: components["schemas"]["CatalogFacet"][];
+            policies: components["schemas"]["ResourcePolicy"][];
+            templates: components["schemas"]["ResourcePolicyTemplateView"][];
+        };
+        ResourcePolicyPreview: {
+            evaluation: components["schemas"]["PolicyEvaluation"];
+            /** @description The first noncompliant resources. */
+            violations: components["schemas"]["ResourcePolicyViolation"][];
+        };
+        ResourcePolicyPreviewRequest: {
+            conditions: components["schemas"]["PolicyCondition"][];
+            resourceType: components["schemas"]["CatalogType"];
+            scope?: string;
+        };
+        ResourcePolicySearchRequest: {
+            /** @description The page's filters as a catalog query (`team:checkout region:eu-west-1 env:prod`): scores count
+             *     only the resources matching it. */
+            query?: string;
+        };
+        ResourcePolicySnapshot: {
+            /** @description `YYYY-MM-DD` (UTC). */
+            day: string;
+            /** Format: int32 */
+            evaluated: number;
+            /** Format: int32 */
+            noncompliant: number;
+            /** Format: double */
+            score?: number | null;
+        };
+        /** @description A template with how the catalog would score today. */
+        ResourcePolicyTemplateView: components["schemas"]["PolicyTemplate"] & {
+            /** @description Resources of the template's type exist in the catalog. */
+            available: boolean;
+            preview: components["schemas"]["PolicyEvaluation"];
+        };
+        ResourcePolicyTypeAttributes: {
+            attributes: components["schemas"]["ResourcePolicyAttribute"][];
+            resourceType: components["schemas"]["CatalogType"];
+            resources: number;
+        };
+        /** @description A noncompliant resource and why. */
+        ResourcePolicyViolation: {
+            reason: string;
+            resource: components["schemas"]["CatalogResource"];
+        };
         ResourceStats: {
             /** Format: double */
             errorRate: number;
@@ -5314,6 +12178,31 @@ export interface components {
             range: components["schemas"]["TimeRange"];
             /** @description Restrict to one service (instrumented or inferred). */
             service?: string | null;
+        };
+        RestrictionPreview: {
+            /**
+             * Format: int64
+             * @description Logs of the last hour matching the query.
+             */
+            count: number;
+        };
+        RestrictionPreviewRequest: {
+            query: string;
+        };
+        RestrictionQueryInput: {
+            description?: string;
+            name: string;
+            query: string;
+            /** @description Roles whose users read the matching logs (not the admin role: admins read everything). */
+            roleIds?: string[];
+            /** @description Teams whose (direct) members read the matching logs. */
+            teamHandles?: string[];
+        };
+        RestrictionRoleInput: {
+            roleId: string;
+        };
+        RestrictionTeamInput: {
+            handle: string;
         };
         Role: {
             description: string;
@@ -5349,16 +12238,202 @@ export interface components {
             /** @description Why the stored metadata can't be used, if it can't. */
             problem?: string | null;
         };
+        /** @description A log for the test endpoint, before or after processing. */
+        SampleLog: {
+            /** @description Nested attributes. */
+            attributes?: Record<string, never>;
+            /** @description RFC 3339; a date remapper sets it. */
+            date?: string | null;
+            host?: string;
+            message?: string;
+            service?: string;
+            source?: string;
+            status?: string;
+            tags?: {
+                [key: string]: string;
+            };
+            traceId?: string;
+        };
+        SampleOut: {
+            attributeGroups: unknown[];
+            id: string;
+            json: unknown;
+            spanId?: string | null;
+            stack: components["schemas"]["StackOut"];
+            tags: {
+                [key: string]: string;
+            };
+            timeline: unknown[];
+            /** Format: int64 */
+            timestamp: number;
+            /** @description The trace and span of an APM sample, for a link to the trace. */
+            traceId?: string | null;
+        };
+        SamplePage: {
+            /** @description Logs (or spans) that can be paged through (the newest or oldest 2,000). */
+            available: number;
+            index: number;
+            sample?: null | components["schemas"]["SampleOut"];
+            /**
+             * Format: int64
+             * @description The issue's logs (or spans) in range.
+             */
+            total: number;
+        };
+        SampleRequest: {
+            /** @description Position within `order`. */
+            index: number;
+            /** @description latest | oldest */
+            order?: string | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
         SampleType: {
             /** @description e.g. cpu-time, wall-time, alloc-space, inuse-space, lock-acquire-wait */
             type: string;
             /** @description e.g. nanoseconds, bytes, count */
             unit: string;
         };
+        SavedSqlQuery: {
+            author: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            createdAt: number;
+            id: string;
+            name: string;
+            sql: string;
+            team: string;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy: string;
+        };
+        SavedSqlQueryInput: {
+            name: string;
+            sql: string;
+            team?: string;
+        };
         ScalarRequest: {
             aggregator: components["schemas"]["TimeAggregator"];
             query: string;
             range: components["schemas"]["TimeRange"];
+        };
+        Scorecard: {
+            description: string;
+            id: string;
+            name: string;
+        };
+        ScorecardOutcome: {
+            reason: string;
+            ruleId: string;
+            service: string;
+            state: components["schemas"]["ScorecardOutcomeState"];
+        };
+        ScorecardOutcomeInput: {
+            remarks?: string;
+            service: string;
+            state: components["schemas"]["ScorecardOutcomeState"];
+        };
+        /** @enum {string} */
+        ScorecardOutcomeState: "pass" | "fail" | "skip";
+        ScorecardOutcomesInput: {
+            outcomes: components["schemas"]["ScorecardOutcomeInput"][];
+        };
+        /** @description A built-in rule offered when setting scorecards up. */
+        ScorecardRecommendation: {
+            description: string;
+            key: string;
+            /** Format: int32 */
+            level: number;
+            name: string;
+            scorecard: string;
+        };
+        ScorecardRule: {
+            /** @description Key of a built-in rule (`monitors_defined`, …); null for a custom rule. */
+            builtin?: string | null;
+            description: string;
+            enabled: boolean;
+            id: string;
+            /**
+             * Format: int32
+             * @description 1 (basic) – 3 (advanced).
+             */
+            level: number;
+            name: string;
+            /** @description Service search the rule applies to (`service:order-* team:checkout`); empty for every service. */
+            scope: string;
+            scorecardId: string;
+        };
+        ScorecardRuleInput: {
+            description?: string;
+            /** Format: int32 */
+            level: number;
+            name: string;
+            scope?: string;
+            /** @description Scorecard name; created when it doesn't exist. */
+            scorecard: string;
+        };
+        /** @description Changes to a rule; fields left out stay. Built-in rules take only level, scope and enabled. */
+        ScorecardRuleUpdate: {
+            description?: string | null;
+            enabled?: boolean | null;
+            /** Format: int32 */
+            level?: number | null;
+            name?: string | null;
+            scope?: string | null;
+        };
+        /** @description A service with its metadata and levels. */
+        ScorecardService: {
+            contacts: components["schemas"]["ServiceContact"][];
+            docsUrl: string;
+            fail: number;
+            /** @description Seen on spans of the past 7 days (otherwise only declared in metadata). */
+            instrumented: boolean;
+            /**
+             * Format: int32
+             * @description Level across every enabled rule (0–3).
+             */
+            level: number;
+            /** @description Level per scorecard id. */
+            levels: {
+                [key: string]: number;
+            };
+            pass: number;
+            repoUrl: string;
+            /**
+             * Format: double
+             * @description Passing share of passed and failed rules, in percent.
+             */
+            score?: number | null;
+            service: string;
+            skip: number;
+            team: string;
+        };
+        ScorecardSetupInput: {
+            /** @description Keys of the built-in rules to enable; the others are created disabled. */
+            rules: string[];
+        };
+        ScorecardsOverview: {
+            /**
+             * Format: int64
+             * @description Last evaluation (epoch ms).
+             */
+            evaluatedAt?: number | null;
+            /** Format: int64 */
+            nextEvaluationAt?: number | null;
+            outcomes: components["schemas"]["ScorecardOutcome"][];
+            recommended: components["schemas"]["ScorecardRecommendation"][];
+            rules: components["schemas"]["ScorecardRule"][];
+            scorecards: components["schemas"]["Scorecard"][];
+            services: components["schemas"]["ScorecardService"][];
+            /** @description False until scorecards are set up (the first-run page). */
+            setUp: boolean;
+            /**
+             * Format: int64
+             * @description When telemetry was last read (epoch ms).
+             */
+            telemetryAt?: number | null;
         };
         SecurityStatus: {
             access: components["schemas"]["Access"];
@@ -5379,8 +12454,139 @@ export interface components {
             /** Format: int64 */
             t: number;
         };
+        ServerlessInvocationsRequest: {
+            /** @description The function name. */
+            function: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        ServerlessSearchPage: {
+            /** @description False when no Lambda telemetry arrived at all in the range (show the setup guide). */
+            enabled: boolean;
+            /** @description Over every function of the range, whatever the query. */
+            facets: components["schemas"]["LambdaFacet"][];
+            functions: components["schemas"]["LambdaFunction"][];
+            summary: components["schemas"]["ServerlessSummary"];
+        };
+        ServerlessSearchRequest: {
+            /** @description `functionname:x region:y env:z runtime:r insight:cold_starts …` + free text on the name, service and ARN. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /** @description Only functions with an upgrade available (runtime, Datadog library or extension). */
+            upgradeAvailable?: boolean;
+        };
+        ServerlessSeries: {
+            /** @description The function id. */
+            function: string;
+            /** @description invocations, errors, cold_starts (counts per interval) or duration (p95, else average; ms). */
+            metric: string;
+            /** @description `[timestamp ms, value]` pairs. */
+            points: [
+                number,
+                number
+            ][];
+            unit: string;
+        };
+        ServerlessSummary: {
+            /** Format: double */
+            coldStarts: number;
+            /** Format: double */
+            costUsd: number;
+            /** Format: double */
+            errors: number;
+            functions: number;
+            /** Format: double */
+            invocations: number;
+            /** @description Functions with an upgrade available. */
+            upgradable: number;
+            /** @description Functions with at least one insight. */
+            withInsights: number;
+        };
+        ServerlessTimeseriesRequest: {
+            /** @description Function ids (`<region>/<name>`) to chart; at most 10 are charted. */
+            functions: string[];
+            range: components["schemas"]["TimeRange"];
+        };
+        ServiceCheckCounts: {
+            /** Format: int64 */
+            critical: number;
+            /** Format: int64 */
+            ok: number;
+            /** Format: int64 */
+            unknown: number;
+            /** Format: int64 */
+            warning: number;
+        };
+        ServiceCheckDetail: {
+            /** Format: int64 */
+            bucketMs: number;
+            /** @description Start of each strip cell (epoch ms) and the cell's length. */
+            buckets: number[];
+            check: string;
+            /** @description Groups by their latest status. */
+            counts: components["schemas"]["ServiceCheckCounts"];
+            groups: components["schemas"]["ServiceCheckGroup"][];
+            latestMessage?: null | components["schemas"]["ServiceCheckMessage"];
+            name: string;
+        };
+        ServiceCheckEntry: {
+            /** @description The check as sent (`datadog.agent.up`). */
+            check: string;
+            /**
+             * Format: int64
+             * @description Hosts and tag sets reporting it.
+             */
+            groups: number;
+            /** @description Its readable name. */
+            name: string;
+        };
+        ServiceCheckGroup: {
+            host: string;
+            /** @description The host's latest message for the check, if it sent one. */
+            message?: string | null;
+            /**
+             * Format: int32
+             * @description The latest status (0 OK, 1 WARNING, 2 CRITICAL, 3 UNKNOWN).
+             */
+            status: number;
+            /** @description The worst status per cell of the strip (null: no run), oldest first. */
+            strip: (number | null)[];
+            /** @description The run's other tags (`key:value`), without `check`. */
+            tags: string[];
+        };
+        ServiceCheckMessage: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            at: number;
+            host: string;
+            message: string;
+            /** Format: int32 */
+            status: number;
+        };
+        ServiceCheckRequest: {
+            check: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @description How to reach a service's owners. */
+        ServiceContact: {
+            name?: string;
+            /** @description email | slack | link */
+            type: string;
+            /** @description Address, channel or URL. */
+            value: string;
+        };
         /** @enum {string} */
         ServiceKind: "web" | "worker" | "db" | "cache" | "queue" | "http";
+        ServiceMetadataInput: {
+            contacts?: components["schemas"]["ServiceContact"][];
+            /** @description http(s) URL of the documentation or runbook. */
+            docsUrl?: string;
+            /** @description http(s) URL of the code repository. */
+            repoUrl?: string;
+            /** @description Team handle; empty when no team owns the service. */
+            team?: string;
+        };
         ServiceProviderInfo: {
             /** @description SAML: Reply URL (Assertion Consumer Service URL). */
             acsUrl: string;
@@ -5465,6 +12671,274 @@ export interface components {
             orgId: string;
             userAgent?: string | null;
         };
+        /** @enum {string} */
+        SloComparator: "<" | "<=" | ">" | ">=";
+        SloCorrection: {
+            category: components["schemas"]["CorrectionCategory"];
+            /** Format: int64 */
+            createdAt: number;
+            creator?: null | components["schemas"]["MemberRef"];
+            description: string;
+            /** Format: int64 */
+            end: number;
+            id: string;
+            /** @description Absent = applies to every SLO of the organization. */
+            sloId?: string | null;
+            sloName?: string | null;
+            /** Format: int64 */
+            start: number;
+        };
+        SloCorrectionInput: {
+            category: components["schemas"]["CorrectionCategory"];
+            description?: string;
+            /** Format: int64 */
+            end: number;
+            /** @description Absent = every SLO of the organization. */
+            sloId?: string | null;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            start: number;
+        };
+        SloDetail: {
+            /** @description Corrections overlapping the requested window (the SLO's own and the org-wide ones). */
+            corrections: components["schemas"]["SloCorrection"][];
+            /** @description SLI and error budget over the requested window. */
+            history: components["schemas"]["SloHistoryPoint"][];
+            /** @description The SLO's monitors and the monitors tagged `slo:<id>` (burn rate alerts). */
+            monitors: components["schemas"]["SloMonitor"][];
+            /** @description With its status over the requested window. */
+            slo: components["schemas"]["SloItem"];
+            /** @description Status over each target's window. */
+            statuses: components["schemas"]["SloStatus"][];
+        };
+        SloFacetCount: {
+            /** Format: int64 */
+            count: number;
+            value: string;
+        };
+        SloFacets: {
+            burnRate: components["schemas"]["SloFacetCount"][];
+            /** @description `id|name`. */
+            creators: components["schemas"]["SloFacetCount"][];
+            envs: components["schemas"]["SloFacetCount"][];
+            services: components["schemas"]["SloFacetCount"][];
+            state: components["schemas"]["SloFacetCount"][];
+            tags: components["schemas"]["SloFacetCount"][];
+            teams: components["schemas"]["SloFacetCount"][];
+            type: components["schemas"]["SloFacetCount"][];
+        };
+        SloHistoryPoint: {
+            /**
+             * Format: double
+             * @description SLI of this bucket alone.
+             */
+            bucketSli?: number | null;
+            /**
+             * Format: double
+             * @description Error budget left at the end of this bucket, in percent of the window's budget.
+             */
+            budgetRemaining?: number | null;
+            /**
+             * Format: double
+             * @description SLI from the window's start to the end of this bucket.
+             */
+            sli?: number | null;
+            /**
+             * Format: int64
+             * @description Bucket start, epoch ms.
+             */
+            t: number;
+        };
+        SloInput: {
+            comparator?: null | components["schemas"]["SloComparator"];
+            description?: string;
+            goodQuery?: string | null;
+            monitorIds?: number[];
+            name: string;
+            primaryWindow?: null | components["schemas"]["SloWindow"];
+            /**
+             * Format: int32
+             * @description 1 or 5.
+             */
+            sliceMinutes?: number | null;
+            sliceQuery?: string | null;
+            tags?: string[];
+            /** @description One per window. */
+            targets: components["schemas"]["SloTarget"][];
+            teams?: string[];
+            /** Format: double */
+            threshold?: number | null;
+            totalQuery?: string | null;
+            type: components["schemas"]["SloType"];
+        };
+        SloItem: {
+            comparator?: null | components["schemas"]["SloComparator"];
+            /** Format: int64 */
+            createdAt: number;
+            creator?: null | components["schemas"]["MemberRef"];
+            description: string;
+            /** @description Metric SLOs: metric queries (or formulas) of the good and the total events. */
+            goodQuery?: string | null;
+            id: string;
+            /** @description Monitor SLOs. */
+            monitorIds: number[];
+            name: string;
+            primaryWindow: components["schemas"]["SloWindow"];
+            /** Format: int32 */
+            sliceMinutes?: number | null;
+            /** @description Time-slice SLOs: a slice is good when `sliceQuery comparator threshold`. */
+            sliceQuery?: string | null;
+            /** @description Over the requested window (the primary one by default). */
+            status: components["schemas"]["SloStatus"];
+            tags: string[];
+            targets: components["schemas"]["SloTarget"][];
+            teams: string[];
+            /** Format: double */
+            threshold?: number | null;
+            totalQuery?: string | null;
+            type: components["schemas"]["SloType"];
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        SloMonitor: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            status: string;
+        };
+        SloSearchPage: {
+            facets: components["schemas"]["SloFacets"];
+            slos: components["schemas"]["SloItem"][];
+            summary: components["schemas"]["SloSummary"];
+            /** Format: int64 */
+            total: number;
+        };
+        SloSearchRequest: {
+            /** @default [] */
+            burnRates: components["schemas"]["BurnLevel"][];
+            /**
+             * @description Creator user ids.
+             * @default []
+             */
+            creators: string[];
+            /** @default [] */
+            envs: string[];
+            /**
+             * Format: int64
+             * @default 0
+             */
+            limit: number;
+            /**
+             * Format: int64
+             * @default 0
+             */
+            offset: number;
+            /**
+             * @description Words match name, description and tags; `key:value` words match tags (`service:billing`).
+             * @default
+             */
+            query: string;
+            /**
+             * @description Values of the `service:` and `env:` tags.
+             * @default []
+             */
+            services: string[];
+            /**
+             * @description state (default) | name | sli | budget | modified
+             * @default null
+             */
+            sort: string | null;
+            /** @default [] */
+            states: components["schemas"]["SloState"][];
+            /**
+             * @description Other tags (`key:value`).
+             * @default []
+             */
+            tags: string[];
+            /** @default [] */
+            teams: string[];
+            /** @default [] */
+            types: components["schemas"]["SloType"][];
+            /** @default null */
+            window: null | components["schemas"]["SloWindow"];
+        };
+        /** @enum {string} */
+        SloState: "ok" | "warning" | "breached" | "no_data";
+        SloStatus: {
+            /**
+             * Format: double
+             * @description Bad events (or minutes) the target allows over the window, and how many were spent.
+             */
+            budgetAllowed?: number | null;
+            /**
+             * Format: double
+             * @description Error budget left, in percent of the window's budget (negative once overspent).
+             */
+            budgetRemaining?: number | null;
+            /** Format: double */
+            budgetUsed?: number | null;
+            /** Format: double */
+            burnRate?: number | null;
+            /**
+             * Format: double
+             * @description Bad share over the share the target allows: over the last hour, and over the window.
+             */
+            burnRate1h?: number | null;
+            /**
+             * Format: double
+             * @description Good and total events, or minutes, over the window (corrections excluded).
+             */
+            good: number;
+            /**
+             * Format: double
+             * @description Percent of good events (metric) or good time (monitor, time slice); absent without data.
+             */
+            sli?: number | null;
+            state: components["schemas"]["SloState"];
+            /** Format: double */
+            target: number;
+            /** Format: double */
+            total: number;
+            unit: components["schemas"]["BudgetUnit"];
+            /** Format: double */
+            warning?: number | null;
+            window: components["schemas"]["SloWindow"];
+        };
+        /** @description SLOs per state, every filter but the state applied. */
+        SloSummary: {
+            /** Format: int64 */
+            breached: number;
+            /** Format: int64 */
+            noData: number;
+            /** Format: int64 */
+            ok: number;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            warning: number;
+        };
+        SloTarget: {
+            /**
+             * Format: double
+             * @description Percent, e.g. 99.9.
+             */
+            target: number;
+            /**
+             * Format: double
+             * @description Percent above the target: below it the SLO is in warning.
+             */
+            warning?: number | null;
+            window: components["schemas"]["SloWindow"];
+        };
+        /** @enum {string} */
+        SloType: "metric" | "monitor" | "time_slice";
+        /**
+         * @description Rolling time window an SLO is measured over.
+         * @enum {string}
+         */
+        SloWindow: "1d" | "7d" | "30d" | "90d";
         /** @enum {string} */
         Software: "kubernetes" | "docker";
         /** @enum {string} */
@@ -5615,11 +13089,135 @@ export interface components {
             stepMs: number;
             times: number[];
         };
+        Spreadsheet: {
+            author?: null | components["schemas"]["UserRef"];
+            /** Format: int64 */
+            createdAt: number;
+            /** @description `{ sheets: [...] }` (schema owned by the web app). */
+            definition: Record<string, never>;
+            id: string;
+            /** Format: int64 */
+            modifiedAt: number;
+            name: string;
+            /** Format: int32 */
+            sheetCount: number;
+            team?: string | null;
+        };
+        SpreadsheetPatch: {
+            definition?: Record<string, never> | null;
+            name?: string | null;
+            /** @description An empty string clears the team. */
+            team?: string | null;
+        };
+        SpreadsheetSearchPage: {
+            spreadsheets: components["schemas"]["SpreadsheetSummary"][];
+            /** @description Teams with at least one spreadsheet, for the Teams filter. */
+            teams: string[];
+            /** Format: int64 */
+            total: number;
+        };
+        SpreadsheetSearchRequest: {
+            query?: string;
+            team?: string | null;
+            /** @description all | mine */
+            view?: string;
+        };
+        SpreadsheetSummary: {
+            author?: null | components["schemas"]["UserRef"];
+            /** Format: int64 */
+            createdAt: number;
+            id: string;
+            /** Format: int64 */
+            modifiedAt: number;
+            name: string;
+            /** Format: int32 */
+            sheetCount: number;
+            team?: string | null;
+        };
+        SqlResult: {
+            columns: components["schemas"]["SqlResultColumn"][];
+            /** Format: int64 */
+            elapsedMs: number;
+            /** @description Limits that applied (inventory tables cut, …). */
+            notices: string[];
+            /** @description Rows as arrays, in column order. */
+            rows: unknown[][];
+            /** @description Virtual tables the query read. */
+            tables: string[];
+            /** @description More rows matched than were returned. */
+            truncated: boolean;
+        };
+        SqlResultColumn: {
+            name: string;
+            type: string;
+        };
+        SqlRunRequest: {
+            range?: null | components["schemas"]["TimeRange"];
+            sql: string;
+        };
+        SqlSchema: {
+            /** @description Functions queries may call. */
+            functions: string[];
+            /** Format: int64 */
+            maxRows: number;
+            tables: components["schemas"]["SqlTableInfo"][];
+        };
+        SqlTableColumn: {
+            description: string;
+            name: string;
+            type: string;
+        };
+        SqlTableInfo: {
+            /** @description infrastructure, containers, kubernetes, apm, logs, metrics, ci, monitors, dashboards, incidents, synthetics. */
+            category: string;
+            columns: components["schemas"]["SqlTableColumn"][];
+            description: string;
+            name: string;
+        };
+        SqlTemplate: {
+            description: string;
+            id: string;
+            /** @description Category of the data it reads (for the icon). */
+            source: string;
+            sql: string;
+            title: string;
+        };
         SsoOption: {
             label: string;
             /** @description Where the browser goes to start this sign-in. */
             loginUrl: string;
         };
+        StackOut: {
+            /** @description Parsed frames (none yet: `raw` holds the message and stack as logged). */
+            frames: unknown[];
+            raw: string;
+            title: string;
+        };
+        /** @description A standard attribute of the org's list. */
+        StandardAttribute: {
+            aliases: string[];
+            description: string;
+            /** @description Shipped with ObserveCraft (removing it hides it until a reset). */
+            isDefault: boolean;
+            /** @description A default the org edited. */
+            modified: boolean;
+            path: string;
+            preserveSource: boolean;
+            type: components["schemas"]["StandardAttributeType"];
+        };
+        /** @description A standard attribute as an org defines it. */
+        StandardAttributeInput: {
+            /** @description Attribute paths whose value is copied to `path` when a log lacks it; the first one present wins. */
+            aliases?: string[];
+            description?: string;
+            /** @description The attribute's path (`http.status_code`), without `@`. */
+            path: string;
+            /** @description Keep the alias attribute after copying its value (default); otherwise it is moved. */
+            preserveSource?: boolean;
+            type: components["schemas"]["StandardAttributeType"];
+        };
+        /** @enum {string} */
+        StandardAttributeType: "string" | "integer" | "double" | "boolean";
         StatusCounts: {
             /** Format: int64 */
             debug: number;
@@ -5630,6 +13228,119 @@ export interface components {
             /** Format: int64 */
             warn: number;
         };
+        StatusPageComponent: {
+            /**
+             * Format: int64
+             * @description When the component was added (epoch ms), if known: days before it have no uptime data.
+             */
+            createdAt?: number | null;
+            /** @description The worst of `status` and the impacts of the open notices. */
+            currentStatus: components["schemas"]["ComponentStatus"];
+            group?: string | null;
+            id: string;
+            name: string;
+            /** @description The status set on the page. */
+            status: components["schemas"]["ComponentStatus"];
+        };
+        StatusPageComponentInput: {
+            /** @description Components with the same group are shown together under it. */
+            group?: string | null;
+            /** @description The id of an existing component to keep (and its notice history); omit for a new one. */
+            id?: string | null;
+            name: string;
+            status?: components["schemas"]["ComponentStatus"];
+        };
+        StatusPageDetail: {
+            components: components["schemas"]["StatusPageComponent"][];
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy?: string | null;
+            description: string;
+            /** @description The page offers to subscribe to its updates by email / in Slack. */
+            emailSubscriptions: boolean;
+            id: string;
+            /** @description Shown in the page's header instead of its name; empty for none. */
+            logoUrl: string;
+            name: string;
+            /** @description Open notices and those resolved in the last 60 days, newest first. */
+            notices: components["schemas"]["StatusPageNotice"][];
+            overallStatus: components["schemas"]["ComponentStatus"];
+            slackSubscriptions: boolean;
+            slug: string;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+            visibility: components["schemas"]["StatusPageVisibility"];
+            visualization: components["schemas"]["StatusPageVisualization"];
+        };
+        StatusPageInput: {
+            /** @description In display order. */
+            components?: components["schemas"]["StatusPageComponentInput"][];
+            description?: string;
+            /** @description Show a subscribe button offering email / Slack updates (subscriptions aren't delivered yet). */
+            emailSubscriptions?: boolean;
+            /** @description An http(s) image URL shown in the header instead of the name; empty for none. */
+            logoUrl?: string;
+            name: string;
+            slackSubscriptions?: boolean;
+            /** @description 1–64 lowercase letters, digits and dashes (not first or last); unique across the instance. */
+            slug: string;
+            visibility: components["schemas"]["StatusPageVisibility"];
+            visualization?: components["schemas"]["StatusPageVisualization"];
+        };
+        StatusPageNotice: {
+            createdBy?: string | null;
+            id: string;
+            /** @description The impacts of the latest update. */
+            impacts: components["schemas"]["NoticeImpact"][];
+            /**
+             * Format: int32
+             * @description The linked incident's IR number.
+             */
+            incidentId?: number | null;
+            /** Format: int64 */
+            resolvedAt?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            startedAt: number;
+            /** @description The status of the latest update. */
+            status: components["schemas"]["NoticeStatus"];
+            title: string;
+            /** @description Newest first; the last one opened the notice. */
+            updates: components["schemas"]["NoticeUpdate"][];
+        };
+        StatusPageSummary: {
+            /** Format: int64 */
+            componentCount: number;
+            id: string;
+            name: string;
+            /**
+             * Format: int64
+             * @description Notices not resolved yet.
+             */
+            openNotices: number;
+            overallStatus: components["schemas"]["ComponentStatus"];
+            slug: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            updatedAt: number;
+            updatedBy?: string | null;
+            visibility: components["schemas"]["StatusPageVisibility"];
+        };
+        /** @enum {string} */
+        StatusPageVisibility: "public" | "internal";
+        /**
+         * @description How the page shows its components.
+         * @enum {string}
+         */
+        StatusPageVisualization: "bars_and_uptime" | "bars" | "names";
         StatusSegment: {
             /** Format: int64 */
             from: number;
@@ -5638,13 +13349,963 @@ export interface components {
             /** Format: int64 */
             to: number;
         };
+        StreamEdge: {
+            consumerGroups: string[];
+            /** Format: int64 */
+            errors: number;
+            kind: components["schemas"]["StreamEdgeKind"];
+            /** Format: double */
+            lag?: number | null;
+            lagHigh: boolean;
+            /** Format: double */
+            lagSeconds?: number | null;
+            /**
+             * Format: double
+             * @description Consume edges: time from publish to consume, over the linked messages.
+             */
+            latencyP50Ms?: number | null;
+            /** Format: double */
+            latencyP99Ms?: number | null;
+            source: string;
+            /**
+             * Format: double
+             * @description Duration of the publish / consume spans.
+             */
+            spanP50Ms: number;
+            /** Format: double */
+            spanP99Ms: number;
+            target: string;
+            /**
+             * Format: double
+             * @description Messages per second.
+             */
+            throughput: number;
+        };
+        /** @enum {string} */
+        StreamEdgeKind: "produce" | "consume";
+        StreamLagSeries: {
+            group: string;
+            /** @description `[timestamp ms, messages behind]`. */
+            points: [
+                number,
+                number
+            ][];
+            topic: string;
+        };
+        StreamLatencyPoint: {
+            /** Format: double */
+            p50Ms: number;
+            /** Format: double */
+            p99Ms: number;
+            /** Format: int64 */
+            t: number;
+        };
+        StreamMap: {
+            edges: components["schemas"]["StreamEdge"][];
+            /** @description False when no messaging spans arrived in the range (show the onboarding). */
+            enabled: boolean;
+            nodes: components["schemas"]["StreamNode"][];
+            pathways: components["schemas"]["StreamPathway"][];
+        };
+        StreamMapRequest: {
+            /** @description `deployment.environment`; all when empty. */
+            env?: string | null;
+            range: components["schemas"]["TimeRange"];
+        };
+        StreamMeasure: {
+            /** Format: double */
+            latencyP50Ms?: number | null;
+            /** Format: double */
+            latencyP99Ms?: number | null;
+            /** @description Node ids from start to end; empty when no messages flow from one to the other. */
+            path: string[];
+            series: components["schemas"]["StreamLatencyPoint"][];
+            /**
+             * Format: double
+             * @description Messages per second reaching the end.
+             */
+            throughput?: number | null;
+        };
+        StreamMeasureRequest: {
+            /** @description Node id of the service they reach. */
+            end: string;
+            env?: string | null;
+            range: components["schemas"]["TimeRange"];
+            /** @description Node id of the service messages leave (`service:<name>`). */
+            start: string;
+        };
+        StreamNode: {
+            /**
+             * Format: double
+             * @description Messages per second a service consumes, or a topic delivers.
+             */
+            consumed: number;
+            /** Format: int64 */
+            errors: number;
+            /** @description `service:<name>` or `topic:<system>:<name>`. */
+            id: string;
+            kind: components["schemas"]["StreamNodeKind"];
+            /**
+             * Format: double
+             * @description The largest consumer group lag on a topic, or on what a service consumes (messages).
+             */
+            lag?: number | null;
+            lagHigh: boolean;
+            /** Format: double */
+            lagSeconds?: number | null;
+            name: string;
+            /**
+             * Format: double
+             * @description Messages per second a service publishes, or a topic receives.
+             */
+            produced: number;
+            /** @description The messaging system of a topic (kafka, rabbitmq, …). */
+            system?: string | null;
+        };
+        StreamNodeDetail: {
+            /** @description Consumed by a service or delivered from a topic. */
+            consumed: [
+                number,
+                number
+            ][];
+            lag: components["schemas"]["StreamLagSeries"][];
+            /** @description `[timestamp ms, messages/s]` published by a service or received by a topic. */
+            produced: [
+                number,
+                number
+            ][];
+        };
+        /** @enum {string} */
+        StreamNodeKind: "service" | "topic";
+        StreamNodeRequest: {
+            env?: string | null;
+            /** @description `service:<name>` or `topic:<system>:<name>`. */
+            node: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        StreamPathway: {
+            /** Format: int64 */
+            hops: number;
+            /** @description The node ids joined by `>`. */
+            id: string;
+            /** @description Some consumer on the pathway lags behind. */
+            lagHigh: boolean;
+            /**
+             * Format: double
+             * @description The hops' latencies added up.
+             */
+            latencyP50Ms: number;
+            /** Format: double */
+            latencyP99Ms: number;
+            /** @description Node ids from the first producer to the last consumer. */
+            nodes: string[];
+            /**
+             * Format: double
+             * @description Messages per second reaching the last consumer.
+             */
+            throughput: number;
+        };
         SuggestRequest: {
             /** @description The term being typed, e.g. `serv`, `service:`, `service:pho`, `-env:`. */
             partial?: string;
             range: components["schemas"]["TimeRange"];
         };
+        Survey: {
+            anonymous: boolean;
+            /**
+             * Format: int64
+             * @description Members in the audience.
+             */
+            audienceSize: number;
+            audienceTeams: string[];
+            /** Format: int64 */
+            closesAt?: number | null;
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            id: string;
+            notify: string[];
+            /** Format: int64 */
+            opensAt?: number | null;
+            questions: components["schemas"]["SurveyQuestion"][];
+            /** @description The signed-in user has responded. */
+            responded: boolean;
+            /** Format: int64 */
+            responses: number;
+            state: components["schemas"]["SurveyState"];
+            status: components["schemas"]["SurveyStatus"];
+            template: string;
+            title: string;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        /** @description What a respondent sees. */
+        SurveyForm: {
+            anonymous: boolean;
+            /** Format: int64 */
+            closesAt?: number | null;
+            description: string;
+            id: string;
+            /** @description The signed-in user is in the audience. */
+            inAudience: boolean;
+            questions: components["schemas"]["SurveyQuestion"][];
+            responded: boolean;
+            state: components["schemas"]["SurveyState"];
+            title: string;
+        };
+        SurveyInput: {
+            /** @default false */
+            anonymous: boolean;
+            /**
+             * @description Team handles asked; empty for every member.
+             * @default []
+             */
+            audienceTeams: string[];
+            /**
+             * Format: int64
+             * @default null
+             */
+            closesAt: number | null;
+            /** @default  */
+            description: string;
+            /**
+             * @description Notified of each response: channel handles (`slack-devex`, `webhook-portal`) or member emails.
+             * @default []
+             */
+            notify: string[];
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             * @default null
+             */
+            opensAt: number | null;
+            /** @default [] */
+            questions: components["schemas"]["SurveyQuestion"][];
+            /** @default draft */
+            status: components["schemas"]["SurveyStatus"];
+            /**
+             * @description Template the survey started from; empty for a custom survey.
+             * @default
+             */
+            template: string;
+            /** @default  */
+            title: string;
+        };
+        SurveyNps: {
+            /** Format: int64 */
+            detractors: number;
+            /** Format: int64 */
+            passives: number;
+            /** Format: int64 */
+            promoters: number;
+            /**
+             * Format: double
+             * @description % promoters (9–10) − % detractors (0–6), −100 … 100.
+             */
+            score: number;
+        };
+        SurveyOptionCount: {
+            /** Format: int64 */
+            count: number;
+            label: string;
+        };
+        SurveyQuestion: {
+            description: string;
+            /** @description Stable key of the question within the survey (`[a-z0-9_-]`). */
+            id: string;
+            kind: components["schemas"]["SurveyQuestionKind"];
+            /** @description Single and multiple choice only. */
+            options: string[];
+            required: boolean;
+            title: string;
+        };
+        /** @enum {string} */
+        SurveyQuestionKind: "likert" | "single" | "multi" | "text" | "nps";
+        SurveyQuestionResult: {
+            /**
+             * Format: int64
+             * @description Responses that answered it.
+             */
+            answered: number;
+            /**
+             * Format: double
+             * @description Likert: mean answer (1–5).
+             */
+            average?: number | null;
+            /** @description Likert labels, 0–10 for NPS, or the options; empty for text. */
+            counts: components["schemas"]["SurveyOptionCount"][];
+            kind: components["schemas"]["SurveyQuestionKind"];
+            nps?: null | components["schemas"]["SurveyNps"];
+            questionId: string;
+            /** @description Text: the answers, newest first. */
+            texts: string[];
+            title: string;
+        };
+        SurveyResponseInput: {
+            /** @description Answer per question id: 1–5 (Likert), 0–10 (NPS), an option (single choice), options (multiple
+             *     choice) or text. */
+            answers: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description One response, for the export. Anonymous surveys never name the respondent. */
+        SurveyResponseRow: {
+            answers: {
+                [key: string]: unknown;
+            };
+            /** Format: int64 */
+            id: number;
+            respondent?: string | null;
+            /** Format: int64 */
+            submittedAt: number;
+            teams: string[];
+        };
+        SurveyResults: {
+            /** Format: int64 */
+            audienceSize: number;
+            questions: components["schemas"]["SurveyQuestionResult"][];
+            /**
+             * Format: double
+             * @description Percent of the audience who responded.
+             */
+            responseRate?: number | null;
+            /** Format: int64 */
+            responses: number;
+            surveyId: string;
+            teams: components["schemas"]["SurveyTeamRate"][];
+        };
+        /**
+         * @description Whether a survey accepts responses now: an open survey before its open date is scheduled, after
+         *     its close date closed.
+         * @enum {string}
+         */
+        SurveyState: "draft" | "scheduled" | "open" | "closed";
+        /**
+         * @description What the author sets: draft, open (accepting responses between the dates) or closed.
+         * @enum {string}
+         */
+        SurveyStatus: "draft" | "open" | "closed";
+        SurveyTeamRate: {
+            /** Format: int64 */
+            members: number;
+            name: string;
+            /**
+             * Format: double
+             * @description Percent of members who responded.
+             */
+            rate?: number | null;
+            /** Format: int64 */
+            responded: number;
+            team: string;
+        };
         SwitchOrgRequest: {
             org: string;
+        };
+        SyntheticAssertion: {
+            operator: components["schemas"]["SyntheticOperator"];
+            /** @description Header name, JSON path or DNS record type; empty for the other types. */
+            property?: string;
+            /** @description The expected value (a number for status codes, times and days; a regular expression for matches). */
+            target: string;
+            type: components["schemas"]["SyntheticAssertionType"];
+        };
+        SyntheticAssertionResult: {
+            /** @description The value found (absent when there was none). */
+            actual?: string | null;
+            assertion: components["schemas"]["SyntheticAssertion"];
+            error?: string | null;
+            passed: boolean;
+        };
+        /** @enum {string} */
+        SyntheticAssertionType: "statusCode" | "responseTime" | "header" | "body" | "bodyJsonPath" | "certificate" | "recordEvery" | "recordSome";
+        SyntheticBasicAuth: {
+            password: string;
+            username: string;
+        };
+        SyntheticCertificate: {
+            cipher?: string | null;
+            /** Format: double */
+            daysLeft: number;
+            issuer: string;
+            /** Format: int64 */
+            notAfter: number;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            notBefore: number;
+            protocol?: string | null;
+            subject: string;
+            trustError?: string | null;
+            /** @description The chain verified against the public web roots for the host name. */
+            trusted: boolean;
+        };
+        SyntheticCoverage: {
+            /** @description Most requests first. */
+            endpoints: components["schemas"]["SyntheticEndpoint"][];
+            /** Format: int64 */
+            httpTests: number;
+        };
+        SyntheticCoverageRequest: {
+            env?: string | null;
+            range: components["schemas"]["TimeRange"];
+        };
+        SyntheticCoveringTest: {
+            id: string;
+            name: string;
+        };
+        /** @description What the test editor starts a new test with. */
+        SyntheticDefaults: {
+            /**
+             * Format: int32
+             * @default 300
+             */
+            frequencySeconds: number;
+            /** @default [
+             *       "observecraft-server"
+             *     ] */
+            locations: string[];
+            /**
+             * Format: int32
+             * @default 0
+             */
+            minFailureDurationMinutes: number;
+            /** @default {
+             *       "count": 0,
+             *       "intervalMs": 300
+             *     } */
+            retry: components["schemas"]["SyntheticRetry"];
+            /** @default [] */
+            tags: string[];
+            /**
+             * Format: int32
+             * @description 1–60 seconds.
+             * @default 30
+             */
+            timeoutSeconds: number;
+        };
+        SyntheticDnsRecord: {
+            /** Format: int32 */
+            ttl: number;
+            type: string;
+            value: string;
+        };
+        SyntheticEndpoint: {
+            /** Format: int64 */
+            errors: number;
+            /** @description Empty when the spans don't say. */
+            method: string;
+            /** Format: int64 */
+            requests: number;
+            route: string;
+            service: string;
+            /** @description HTTP tests calling this method and path. */
+            tests: components["schemas"]["SyntheticCoveringTest"][];
+        };
+        SyntheticFacetValue: {
+            /** Format: int64 */
+            count: number;
+            value: string;
+        };
+        SyntheticHeader: {
+            name: string;
+            value: string;
+        };
+        SyntheticLocation: {
+            id: string;
+            name: string;
+            /** @description The operator allows tests of loopback, private and link-local addresses (`OC_SYNTHETICS_ALLOW_PRIVATE`). */
+            privateTargets: boolean;
+        };
+        /** @enum {string} */
+        SyntheticOperator: "is" | "isNot" | "lessThan" | "moreThan" | "contains" | "doesNotContain" | "matches" | "doesNotMatch" | "isInMoreThan";
+        /** @description What a test sends. HTTP tests use `method`, `url`, `headers`, `body`, `basicAuth` and
+         *     `followRedirects`; SSL, DNS and TCP tests use `host` and `port`; DNS tests may name a server. */
+        SyntheticRequest: {
+            /**
+             * @description HTTP(S) and SSL: accept self-signed and otherwise untrusted certificates.
+             * @default false
+             */
+            acceptSelfSigned: boolean;
+            /** @default null */
+            basicAuth: null | components["schemas"]["SyntheticBasicAuth"];
+            /** @default  */
+            body: string;
+            /**
+             * @description Content type sent with a body (`application/json`, `text/plain`, …).
+             * @default
+             */
+            bodyType: string;
+            /**
+             * @description DNS: IP address of the server to ask; empty for the ObserveCraft server's resolver.
+             * @default
+             */
+            dnsServer: string;
+            /**
+             * Format: int32
+             * @description DNS server port (default 53).
+             * @default null
+             */
+            dnsServerPort: number | null;
+            /**
+             * @description HTTP: follow up to 10 redirects.
+             * @default true
+             */
+            followRedirects: boolean;
+            /** @default [] */
+            headers: components["schemas"]["SyntheticHeader"][];
+            /**
+             * @description SSL, TCP: host name or IP address; DNS: the domain to look up.
+             * @default
+             */
+            host: string;
+            /**
+             * @description HTTP: GET, POST, PUT, PATCH, DELETE, HEAD or OPTIONS.
+             * @default GET
+             */
+            method: string;
+            /**
+             * Format: int32
+             * @description SSL (default 443) and TCP.
+             * @default null
+             */
+            port: number | null;
+            /**
+             * Format: int32
+             * @description 1–60 seconds.
+             * @default 30
+             */
+            timeoutSeconds: number;
+            /**
+             * @description HTTP: an http or https URL.
+             * @default
+             */
+            url: string;
+        };
+        SyntheticResult: {
+            /** Format: int32 */
+            attempts: number;
+            detail: components["schemas"]["SyntheticRunDetail"];
+            /** Format: int64 */
+            id: number;
+            location: string;
+            /** Format: int64 */
+            startedAt: number;
+            testId: string;
+            trigger: string;
+        };
+        SyntheticResultBucket: {
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            passed: number;
+            /**
+             * Format: int64
+             * @description Bucket start, epoch milliseconds.
+             */
+            t: number;
+        };
+        SyntheticResultFacet: {
+            /** @description The query key a value filters on. */
+            key: string;
+            label: string;
+            values: components["schemas"]["SyntheticFacetValue"][];
+        };
+        SyntheticResultGroup: {
+            /** Format: double */
+            avgDurationMs: number;
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            lastRunAt: number;
+            /** Format: double */
+            p95DurationMs: number;
+            /** Format: int64 */
+            runs: number;
+            testId: string;
+            testName: string;
+            testType: string;
+        };
+        SyntheticResultRow: {
+            /** Format: int32 */
+            attempts: number;
+            /** Format: double */
+            durationMs: number;
+            env: string;
+            error?: string | null;
+            /** Format: int64 */
+            failedAssertions: number;
+            /** Format: int64 */
+            id: number;
+            location: string;
+            passed: boolean;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            startedAt: number;
+            /** Format: int32 */
+            statusCode?: number | null;
+            tags: string[];
+            team: string;
+            testId: string;
+            testName: string;
+            testType: string;
+            /** @description scheduled | manual */
+            trigger: string;
+        };
+        SyntheticResultSearchPage: {
+            /** Format: int64 */
+            bucketMs: number;
+            facets: components["schemas"]["SyntheticResultFacet"][];
+            /** @description Per test, most runs first (at most 100). */
+            groups: components["schemas"]["SyntheticResultGroup"][];
+            /** @description Newest first. */
+            results: components["schemas"]["SyntheticResultRow"][];
+            series: components["schemas"]["SyntheticResultBucket"][];
+            /**
+             * Format: int64
+             * @description Runs matching the query.
+             */
+            total: number;
+        };
+        SyntheticResultSearchRequest: {
+            /**
+             * Format: int64
+             * @description 1–500 (default 50).
+             */
+            limit?: number | null;
+            /** Format: int64 */
+            offset?: number;
+            /** @description Explorer syntax (see the module docs), e.g. `status:failed @http.status_code:>=500`. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        SyntheticResultSummary: {
+            /** Format: int32 */
+            attempts: number;
+            /** Format: double */
+            durationMs: number;
+            error?: string | null;
+            /** Format: int64 */
+            failedAssertions: number;
+            /** Format: int64 */
+            id: number;
+            location: string;
+            passed: boolean;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            startedAt: number;
+            /** Format: int32 */
+            statusCode?: number | null;
+            /** @description scheduled | manual */
+            trigger: string;
+        };
+        SyntheticResults: {
+            /** @description Newest first, at most 5000. */
+            results: components["schemas"]["SyntheticResultSummary"][];
+            /** @description The test's alert state over the range. */
+            segments: components["schemas"]["SyntheticUptimeSegment"][];
+            /**
+             * Format: int64
+             * @description Runs in the range.
+             */
+            total: number;
+            /** Format: double */
+            uptime?: number | null;
+        };
+        SyntheticResultsRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
+        SyntheticRetry: {
+            /**
+             * Format: int32
+             * @description Retries of a failed run before it counts as failed (0–3).
+             */
+            count?: number;
+            /**
+             * Format: int32
+             * @description Milliseconds between retries.
+             */
+            intervalMs?: number;
+        };
+        /** @description One run of a test, as stored with its result. */
+        SyntheticRunDetail: {
+            /** @default [] */
+            assertions: components["schemas"]["SyntheticAssertionResult"][];
+            /**
+             * @description The start of the body (up to 64 KiB); kept with failed runs and runs started by hand.
+             * @default null
+             */
+            body: string | null;
+            /**
+             * Format: int64
+             * @default null
+             */
+            bodySize: number | null;
+            /**
+             * @description The body was larger than the 1 MiB read.
+             * @default false
+             */
+            bodyTruncated: boolean;
+            /** @default null */
+            certificate: null | components["schemas"]["SyntheticCertificate"];
+            /** @default null */
+            dnsServer: string | null;
+            /**
+             * Format: double
+             * @description Response time in milliseconds: the whole HTTP exchange, the TLS handshake, the DNS lookups or the TCP connect.
+             * @default 0
+             */
+            durationMs: number;
+            /**
+             * @description Why the run failed before its assertions could be checked (timeout, refused address, …).
+             * @default null
+             */
+            error: string | null;
+            /** @default null */
+            method: string | null;
+            /** @default false */
+            passed: boolean;
+            /** @default [] */
+            records: components["schemas"]["SyntheticDnsRecord"][];
+            /** @default [] */
+            redirects: string[];
+            /**
+             * @description The address connected to.
+             * @default null
+             */
+            resolvedIp: string | null;
+            /** @default [] */
+            responseHeaders: components["schemas"]["SyntheticHeader"][];
+            /**
+             * Format: int32
+             * @default null
+             */
+            statusCode: number | null;
+            /**
+             * @description The URL that answered (after redirects).
+             * @default null
+             */
+            url: string | null;
+        };
+        SyntheticSettings: {
+            defaults?: components["schemas"]["SyntheticDefaults"];
+            /** @description Every test needs an environment. */
+            enforceEnv?: boolean;
+            /** @description Every test needs a tag for each key of the default tags. */
+            enforceTagKeys?: boolean;
+        };
+        SyntheticSuite: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy?: string | null;
+            description: string;
+            env: string;
+            id: string;
+            name: string;
+            /** @description The worst state of its running tests. */
+            status: components["schemas"]["MonitorStatus"];
+            tags: string[];
+            team: string;
+            tests: components["schemas"]["SyntheticSuiteTest"][];
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+            /**
+             * Format: double
+             * @description Percent of passing scheduled runs of its tests in the range (absent without runs).
+             */
+            uptime?: number | null;
+        };
+        SyntheticSuiteInput: {
+            description?: string;
+            env?: string;
+            name: string;
+            tags?: string[];
+            team?: string;
+            /** @description The suite's tests, in order. */
+            testIds?: string[];
+        };
+        SyntheticSuiteSearchRequest: {
+            /** @description Words match name, description and tags; `env:`, `team:` and `status:` (ok, alert, nodata) filter; other `key:value` words match tags. */
+            query?: string;
+            /** @description The uptime is computed over this range. */
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @description A test of a suite with its current state. */
+        SyntheticSuiteTest: {
+            id: string;
+            name: string;
+            paused: boolean;
+            status: components["schemas"]["MonitorStatus"];
+            type: components["schemas"]["SyntheticTestType"];
+        };
+        SyntheticSuitesPage: {
+            suites: components["schemas"]["SyntheticSuite"][];
+        };
+        SyntheticTest: {
+            assertions: components["schemas"]["SyntheticAssertion"][];
+            /** Format: int64 */
+            createdAt: number;
+            createdBy?: string | null;
+            /** @description The host the test reaches (from the URL for HTTP tests). */
+            domain: string;
+            env: string;
+            /**
+             * Format: int64
+             * @description First failed scheduled run of the current failure streak.
+             */
+            failingSince?: number | null;
+            /** Format: int32 */
+            frequencySeconds: number;
+            id: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            lastRunAt?: number | null;
+            locations: string[];
+            message: string;
+            /** Format: int32 */
+            minFailureDurationMinutes: number;
+            /** Format: int32 */
+            minLocationFailed: number;
+            /** Format: int64 */
+            monitorId?: number | null;
+            /** @description A downtime silences the test's notifications now. */
+            muted: boolean;
+            name: string;
+            /** Format: int64 */
+            nextRunAt: number;
+            paused: boolean;
+            /** Format: int32 */
+            priority?: number | null;
+            request: components["schemas"]["SyntheticRequest"];
+            retry: components["schemas"]["SyntheticRetry"];
+            /** @description The alert state of the test's monitor. */
+            status: components["schemas"]["MonitorStatus"];
+            tags: string[];
+            team: string;
+            type: components["schemas"]["SyntheticTestType"];
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+            /**
+             * Format: double
+             * @description Percent of the requested time range the test was OK (absent without a state in it).
+             */
+            uptime?: number | null;
+        };
+        SyntheticTestInput: {
+            assertions?: components["schemas"]["SyntheticAssertion"][];
+            env?: string;
+            /**
+             * Format: int32
+             * @description 60, 300, 900, 1800, 3600, 21600, 43200, 86400 or 604800.
+             */
+            frequencySeconds: number;
+            /** @description Location ids; empty for the ObserveCraft server. */
+            locations?: string[];
+            /** @description Notification message of the test's monitor (`{{#is_alert}}…{{/is_alert}}`, `@handles`). */
+            message?: string;
+            /**
+             * Format: int32
+             * @description Alert once the test has failed for this many minutes (0: on the first failed run).
+             */
+            minFailureDurationMinutes?: number;
+            /**
+             * Format: int32
+             * @description … from at least this many locations.
+             */
+            minLocationFailed?: number;
+            name: string;
+            paused?: boolean;
+            /** Format: int32 */
+            priority?: number | null;
+            request: components["schemas"]["SyntheticRequest"];
+            retry?: components["schemas"]["SyntheticRetry"];
+            tags?: string[];
+            team?: string;
+            type: components["schemas"]["SyntheticTestType"];
+        };
+        SyntheticTestSearchRequest: {
+            /** @description Words match name, domain and tags; `type:`, `env:`, `team:` and `status:` (ok, alert, nodata, paused) filter; other `key:value` words match tags. */
+            query?: string;
+            /** @description The uptime is computed over this range. */
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @enum {string} */
+        SyntheticTestType: "http" | "ssl" | "dns" | "tcp";
+        SyntheticTestsPage: {
+            location: components["schemas"]["SyntheticLocation"];
+            tests: components["schemas"]["SyntheticTest"][];
+        };
+        SyntheticTryRequest: {
+            assertions?: components["schemas"]["SyntheticAssertion"][];
+            request: components["schemas"]["SyntheticRequest"];
+            type: components["schemas"]["SyntheticTestType"];
+        };
+        SyntheticTryResult: {
+            location: components["schemas"]["SyntheticLocation"];
+            result: components["schemas"]["SyntheticRunDetail"];
+            /** @description Assertions matching this response, to start the test from. */
+            suggestedAssertions: components["schemas"]["SyntheticAssertion"][];
+        };
+        SyntheticUptimeSegment: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            from: number;
+            status: components["schemas"]["MonitorStatus"];
+            /** Format: int64 */
+            to: number;
+        };
+        SyntheticVariable: {
+            /** Format: int64 */
+            createdAt: number;
+            createdBy?: string | null;
+            description: string;
+            id: string;
+            name: string;
+            secure: boolean;
+            tags: string[];
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+            /** @description Tests that use the variable. */
+            usedBy: components["schemas"]["SyntheticVariableUse"][];
+            /** @description Absent for secure variables. */
+            value?: string | null;
+        };
+        SyntheticVariableInput: {
+            description?: string;
+            /** @description Upper-case letters, digits and underscores, starting with a letter. */
+            name: string;
+            secure?: boolean;
+            tags?: string[];
+            /** @description Required on create; on update, absent keeps the stored value (secure variables are never sent back). */
+            value?: string | null;
+        };
+        SyntheticVariableUse: {
+            id: string;
+            name: string;
+        };
+        TagShare: {
+            key: string;
+            /**
+             * Format: double
+             * @description 0..1 of the issue's logs.
+             */
+            share: number;
+            value: string;
         };
         Team: {
             createdVia: string;
@@ -5914,6 +14575,12 @@ export interface components {
              */
             triggeredWithin: number | null;
         };
+        UnconfiguredDb: {
+            engine: components["schemas"]["DbEngine"];
+            host: string;
+            /** @description The process seen (`postgres`, `mysqld`, …). */
+            process: string;
+        };
         UserPatch: {
             /** @description Replaces the user's roles. */
             roleIds?: string[] | null;
@@ -5958,6 +14625,330 @@ export interface components {
             status: components["schemas"]["UserStatus"];
             title?: string | null;
         };
+        VolumeRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
+        WatchdogAlert: {
+            alertType: components["schemas"]["WatchdogAlertType"];
+            /**
+             * Format: double
+             * @description The baseline median when it started, and the highest value.
+             */
+            baseline: number;
+            category: components["schemas"]["WatchdogCategory"];
+            /** Format: int64 */
+            end: number;
+            host?: string | null;
+            id: string;
+            monitor: components["schemas"]["WatchdogMonitor"];
+            /** Format: double */
+            peak: number;
+            /** @description The series around the anomaly, with its expected range. */
+            points: components["schemas"]["WatchdogPoint"][];
+            /** @description What is affected, as `key:value` tags. */
+            scope: string[];
+            service?: string | null;
+            /**
+             * Format: int64
+             * @description Start of the first and end of the last anomalous bucket, epoch ms.
+             */
+            start: number;
+            status: components["schemas"]["WatchdogAlertStatus"];
+            /** @description The team owning the service (service metadata), if any. */
+            team?: string | null;
+            title: string;
+            /** @description `percent`, `ms` or `logs` (per bucket). */
+            unit: string;
+        };
+        /** @enum {string} */
+        WatchdogAlertStatus: "ongoing" | "resolved" | "expired";
+        /** @enum {string} */
+        WatchdogAlertType: "error_rate" | "latency" | "error_logs" | "cpu" | "memory" | "disk";
+        WatchdogAlerts: {
+            /** @description Ongoing first, then the most recent. */
+            alerts: components["schemas"]["WatchdogAlert"][];
+            /** Format: int64 */
+            bucketMs: number;
+            /**
+             * Format: int64
+             * @description The analysed period (after the baseline), epoch ms.
+             */
+            from: number;
+            /** Format: int64 */
+            hosts: number;
+            /**
+             * Format: int64
+             * @description Services and hosts watched.
+             */
+            services: number;
+            /** Format: int64 */
+            to: number;
+        };
+        /** @enum {string} */
+        WatchdogCategory: "apm" | "infrastructure" | "logs";
+        /** @description A monitor that would catch this again: what the create form is prefilled with. */
+        WatchdogMonitor: {
+            /**
+             * Format: double
+             * @description The top of the expected range when the anomaly started.
+             */
+            critical: number;
+            /** @description `metric`, `apm` or `log`. */
+            monitorType: string;
+            name: string;
+            query: string;
+        };
+        WatchdogPoint: {
+            /**
+             * Format: double
+             * @description The expected range (null where there is no baseline).
+             */
+            lower?: number | null;
+            /**
+             * Format: int64
+             * @description Bucket start, epoch ms.
+             */
+            t: number;
+            /** Format: double */
+            upper?: number | null;
+            /** Format: double */
+            value?: number | null;
+        };
+        /** @description Correlated events: one affected object's warnings and errors. */
+        WorkItem: {
+            /** @description Work item attribute values, by attribute id. */
+            attributes: {
+                [key: string]: string;
+            };
+            /** @description The correlator that grouped its events (Event Management → Settings); none for the default
+             *     grouping per affected object. */
+            correlator?: string | null;
+            /** Format: int64 */
+            count: number;
+            /** Format: int64 */
+            firstSeen: number;
+            id: string;
+            /** Format: int64 */
+            lastSeen: number;
+            /** @description The maintenance window all its events fall in: the work item is suppressed. */
+            maintenance?: string | null;
+            /** @description The newest event's reason (`BackOff`, `OOMKilling`), when it names one. */
+            reason: string;
+            source: string;
+            /** @description open (events in the last 30 minutes of the range) | closed */
+            state: string;
+            /** @description error | warning */
+            status: string;
+            /** @description The newest event's text. */
+            summary: string;
+            /** @description Where it happened (cluster, namespace, service, env). */
+            tags: string[];
+            title: string;
+        };
+        WorkItemAttribute: {
+            id: string;
+            kind: components["schemas"]["WorkItemAttributeKind"];
+            name: string;
+            options: string[];
+            /** Format: int32 */
+            position: number;
+        };
+        WorkItemAttributeInput: {
+            kind: components["schemas"]["WorkItemAttributeKind"];
+            name: string;
+            options?: string[];
+            /** Format: int32 */
+            position?: number;
+        };
+        /** @enum {string} */
+        WorkItemAttributeKind: "select" | "text";
+        WorkItemAttributeValue: {
+            attributeId: string;
+            /** @description '' clears it. */
+            value: string;
+        };
+        WorkItemsPage: {
+            closed: number;
+            items: components["schemas"]["WorkItem"][];
+            /** @description Open and closed count the work items that aren't suppressed. */
+            open: number;
+            /** @description Work items in a maintenance window. */
+            suppressed: number;
+        };
+        WorkItemsRequest: {
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        Workflow: {
+            blueprint: string;
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            handle: string;
+            /** @description An API trigger token exists. */
+            hasApiToken: boolean;
+            id: string;
+            lastRun?: null | components["schemas"]["WorkflowLastRun"];
+            name: string;
+            /** Format: int64 */
+            nextScheduleAt?: number | null;
+            ownerTeam: string;
+            published: boolean;
+            /** Format: int64 */
+            publishedAt?: number | null;
+            publishedBy?: string | null;
+            publishedSpec?: null | components["schemas"]["WorkflowSpec"];
+            /** Format: int64 */
+            runs: number;
+            /** @description Names of the stored credentials (values are never returned). */
+            secretNames: string[];
+            service: string;
+            /** @description The saved draft. */
+            spec: components["schemas"]["WorkflowSpec"];
+            tags: string[];
+            /** @description The draft differs from the published version. */
+            unpublishedChanges: boolean;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        WorkflowApiToken: {
+            /** @description Send it as `X-Workflow-Token`; shown once. */
+            token: string;
+        };
+        WorkflowInput: {
+            blueprint?: string;
+            description?: string;
+            /** @description Mentioned as `@workflow-<handle>`; made from the name when empty at creation, kept otherwise. */
+            handle?: string;
+            name: string;
+            /** @description Team handle; empty for none. */
+            ownerTeam?: string;
+            /** @description Credentials by name: a value sets one, null removes it, names left out keep their value. */
+            secrets?: {
+                [key: string]: string | null;
+            };
+            service?: string;
+            spec: components["schemas"]["WorkflowSpec"];
+            tags?: string[];
+        };
+        WorkflowLastRun: {
+            /** Format: int64 */
+            createdAt: number;
+            /** Format: int64 */
+            id: number;
+            status: string;
+            triggerKind: string;
+        };
+        WorkflowRun: {
+            /** Format: int64 */
+            createdAt: number;
+            error?: string | null;
+            /** Format: int64 */
+            finishedAt?: number | null;
+            /** Format: int64 */
+            id: number;
+            inputs: {
+                [key: string]: unknown;
+            };
+            /**
+             * Format: int64
+             * @description Waiting: when it goes on.
+             */
+            nextAt?: number | null;
+            spec?: null | components["schemas"]["WorkflowSpec"];
+            /** Format: int64 */
+            startedAt?: number | null;
+            /** @description queued | running | waiting | succeeded | failed | canceled */
+            status: string;
+            /** @description Detail only: what each step did, in order. */
+            steps: components["schemas"]["WorkflowRunStep"][];
+            trigger: Record<string, never>;
+            /** @description manual | monitor | schedule | incident | api | app */
+            triggerKind: string;
+            triggeredBy: string;
+            workflowId: string;
+            workflowName: string;
+        };
+        WorkflowRunInput: {
+            /** @description Value per input key. */
+            inputs?: {
+                [key: string]: unknown;
+            };
+        };
+        WorkflowRunStep: {
+            /** Format: int32 */
+            attempts: number;
+            /** Format: double */
+            durationMs: number;
+            error?: string | null;
+            /** Format: int64 */
+            id: number;
+            inputs: Record<string, never>;
+            /**
+             * Format: int32
+             * @description The "for each" item it ran for, when inside one.
+             */
+            iteration?: number | null;
+            kind: string;
+            name: string;
+            output: Record<string, never>;
+            /** Format: int64 */
+            startedAt: number;
+            /** @description succeeded | failed */
+            status: string;
+            stepId: string;
+        };
+        /** @description What a workflow does: its form, triggers and steps. */
+        WorkflowSpec: {
+            inputs?: components["schemas"]["ActionInput"][];
+            steps?: components["schemas"]["WorkflowStep"][];
+            triggers?: components["schemas"]["WorkflowTrigger"][];
+        };
+        /** @description A step of a workflow. */
+        WorkflowStep: {
+            /** @description Action steps: a failure is recorded and the run goes on. */
+            continueOnError?: boolean;
+            /** @description If: run otherwise. */
+            elseSteps?: components["schemas"]["WorkflowStep"][];
+            /** @description If: the condition. For each: the list. */
+            expression?: string;
+            /** @description Action steps: a template per field. */
+            fields?: {
+                [key: string]: string;
+            };
+            /** @description `[a-z0-9_]`, unique in the workflow; others read its result as `Steps.<id>`. */
+            id: string;
+            kind: components["schemas"]["WorkflowStepKind"];
+            /** @description Shown on the canvas; the kind's name when empty. */
+            name?: string;
+            /** @description Http only. */
+            requests?: components["schemas"]["ActionHttpRequest"][];
+            /**
+             * Format: int32
+             * @description Action steps: attempts after a failure (0–3), 5 s apart.
+             */
+            retries?: number;
+            /** @description If: run when the condition holds. For each: run per item. */
+            steps?: components["schemas"]["WorkflowStep"][];
+        };
+        /** @enum {string} */
+        WorkflowStepKind: "http" | "create_incident" | "page_on_call" | "incident_comment" | "synthetic_run" | "notify" | "metric_query" | "log_count" | "wait" | "if" | "for_each";
+        WorkflowTrigger: {
+            /** @description Schedule: `minute hour day-of-month month day-of-week`. */
+            cron?: string;
+            /** @description Incident: declared, updated, resolved; all when empty. */
+            incidentEvents?: string[];
+            kind: components["schemas"]["WorkflowTriggerKind"];
+            /** @description Incident: severities that start a run; any when empty. */
+            severities?: string[];
+            /** @description Schedule: IANA time zone; UTC when empty. */
+            timezone?: string;
+            /** @description Monitor: the states that start a run (alert, warn, nodata, ok); alert when empty. */
+            transitions?: string[];
+        };
+        /** @enum {string} */
+        WorkflowTriggerKind: "manual" | "monitor" | "schedule" | "incident" | "api" | "app";
     };
     responses: never;
     parameters: never;
@@ -6365,11 +15356,203 @@ export interface operations {
             };
         };
     };
+    list_automation_apps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationApp"][];
+                };
+            };
+        };
+    };
+    create_automation_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationAppInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationApp"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_automation_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationApp"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_automation_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationAppInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationApp"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_automation_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_automation_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationAppRunInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationAppRun"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     audit_trail: {
         parameters: {
             query?: {
                 /** @description Matches actor, action, target or detail. */
                 query?: string | null;
+                /** @description Actors, comma-separated. */
+                actor?: string | null;
+                /** @description Action categories (`ingest_key` for `ingest_key.revoked`), comma-separated. */
+                category?: string | null;
                 offset?: number | null;
                 limit?: number | null;
             };
@@ -7000,6 +16183,255 @@ export interface operations {
             };
         };
     };
+    list_dashboard_reports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReport"][];
+                };
+            };
+        };
+    };
+    create_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardReportInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReport"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    dashboard_report_options: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReportOptions"];
+                };
+            };
+        };
+    };
+    get_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReport"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardReportInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReport"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    preview_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReportPreview"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    send_dashboard_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReportDelivery"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_dashboard_report_subscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardReportSubscription"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardReport"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     create: {
         parameters: {
             query?: never;
@@ -7207,6 +16639,344 @@ export interface operations {
             };
         };
     };
+    search_data_jobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSearchPage"];
+                };
+            };
+        };
+    };
+    kafka_console: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KafkaConsoleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KafkaConsole"];
+                };
+            };
+        };
+    };
+    data_streams_map: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StreamMapRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreamMap"];
+                };
+            };
+        };
+    };
+    data_streams_measure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StreamMeasureRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreamMeasure"];
+                };
+            };
+        };
+    };
+    data_streams_node: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StreamNodeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreamNodeDetail"];
+                };
+            };
+        };
+    };
+    database_instance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DbInstanceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbInstanceDetail"];
+                };
+            };
+        };
+    };
+    search_databases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DbSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbSearchPage"];
+                };
+            };
+        };
+    };
+    list_deployment_gates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentGate"][];
+                };
+            };
+        };
+    };
+    create_deployment_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeploymentGateInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentGate"];
+                };
+            };
+        };
+    };
+    evaluate_deployment_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateEvaluationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GateEvaluation"];
+                };
+            };
+            /** @description No gate for this service, environment and identifier */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_deployment_gate_evaluations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GateEvaluation"][];
+                };
+            };
+        };
+    };
+    get_deployment_gate_evaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GateEvaluation"];
+                };
+            };
+        };
+    };
+    get_deployment_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentGate"];
+                };
+            };
+        };
+    };
+    update_deployment_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeploymentGateInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentGate"];
+                };
+            };
+        };
+    };
+    delete_deployment_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     create_downtime: {
         parameters: {
             query?: never;
@@ -7272,6 +17042,295 @@ export interface operations {
             };
         };
     };
+    issue_facets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueFacetsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueFacetsOut"];
+                };
+            };
+        };
+    };
+    search_issues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueSearchPage"];
+                };
+            };
+        };
+    };
+    issue_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueDetailRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueDetailOut"];
+                };
+            };
+        };
+    };
+    issue_samples: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SampleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SamplePage"];
+                };
+            };
+        };
+    };
+    set_issue_state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueUpdate"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_event_correlators: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCorrelator"][];
+                };
+            };
+        };
+    };
+    create_event_correlator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventCorrelatorInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCorrelator"];
+                };
+            };
+        };
+    };
+    update_event_correlator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventCorrelatorInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCorrelator"];
+                };
+            };
+        };
+    };
+    delete_event_correlator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    event_fields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventFieldsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventField"][];
+                };
+            };
+        };
+    };
+    list_event_maintenance_windows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventMaintenanceWindow"][];
+                };
+            };
+        };
+    };
+    create_event_maintenance_window: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventMaintenanceWindowInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventMaintenanceWindow"];
+                };
+            };
+        };
+    };
+    delete_event_maintenance_window: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     search_events: {
         parameters: {
             query?: never;
@@ -7291,6 +17350,638 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventPage"];
+                };
+            };
+        };
+    };
+    list_work_item_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemAttribute"][];
+                };
+            };
+        };
+    };
+    create_work_item_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkItemAttributeInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemAttribute"];
+                };
+            };
+        };
+    };
+    update_work_item_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkItemAttributeInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemAttribute"];
+                };
+            };
+        };
+    };
+    delete_work_item_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    event_work_items: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkItemsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemsPage"];
+                };
+            };
+        };
+    };
+    set_work_item_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkItemAttributeValue"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_feature_flags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagsPage"];
+                };
+            };
+        };
+    };
+    create_feature_flag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlag"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_feature_flag_environments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagEnvironment"][];
+                };
+            };
+        };
+    };
+    create_feature_flag_environment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagEnvironmentInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagEnvironment"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_feature_flag_environment_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagEnvironmentInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagEnvironment"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_feature_flag_environment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_feature_flag_history: {
+        parameters: {
+            query?: {
+                /** @description Default 200, at most 1000. */
+                limit?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagChange"][];
+                };
+            };
+        };
+    };
+    get_feature_flag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlag"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_feature_flag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlag"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_feature_flag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_feature_flag_environment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                environment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagEnvUpdate"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlag"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_feature_flag_history: {
+        parameters: {
+            query?: {
+                /** @description Default 200, at most 1000. */
+                limit?: number | null;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagChange"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    fleet_agent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetAgentRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetAgentDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    fleet_agents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetPage"];
+                };
+            };
+        };
+    };
+    fleet_configurations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetConfigurationsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetProfile"][];
+                };
+            };
+        };
+    };
+    search_gpus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GpuSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuSearchPage"];
+                };
+            };
+        };
+    };
+    gpu_timeseries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GpuTimeseriesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuSeries"][];
                 };
             };
         };
@@ -8081,6 +18772,295 @@ export interface operations {
             };
         };
     };
+    search_catalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogPage"];
+                };
+            };
+        };
+    };
+    search_changes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangePage"];
+                };
+            };
+        };
+    };
+    cloud_map: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloudMapRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudMap"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_resource_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicy"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    resource_policy_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicyTypeAttributes"][];
+                };
+            };
+        };
+    };
+    preview_resource_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePolicyPreviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicyPreview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_resource_policies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePolicySearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicyList"];
+                };
+            };
+        };
+    };
+    get_resource_policy: {
+        parameters: {
+            query?: {
+                /** @description The page's filters, as in the list. */
+                query?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicyDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_resource_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicy"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_resource_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_ingest_keys: {
         parameters: {
             query?: never;
@@ -8301,6 +19281,120 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    llm_evaluations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmEvaluationsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmEvaluations"];
+                };
+            };
+        };
+    };
+    llm_facets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmFacetsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmFacets"];
+                };
+            };
+        };
+    };
+    llm_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmOverviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmOverview"];
+                };
+            };
+        };
+    };
+    llm_search_traces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmTraceSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmTracePage"];
+                };
+            };
+        };
+    };
+    llm_trace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 32 hex characters */
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmTraceDetail"];
+                };
             };
         };
     };
@@ -8557,7 +19651,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LogQueryRequest"];
+                "application/json": components["schemas"]["LogFacetsRequest"];
             };
         };
         responses: {
@@ -8567,6 +19661,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Facet"][];
+                };
+            };
+        };
+    };
+    fields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogQueryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogField"][];
                 };
             };
         };
@@ -8747,6 +19864,333 @@ export interface operations {
             };
         };
     };
+    list_log_metrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogMetric"][];
+                };
+            };
+        };
+    };
+    create_log_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogMetricInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogMetric"];
+                };
+            };
+        };
+    };
+    update_log_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogMetricInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogMetric"];
+                };
+            };
+        };
+    };
+    delete_log_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patterns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogPatternsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPattern"][];
+                };
+            };
+        };
+    };
+    list_pipeline_library: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryPipeline"][];
+                };
+            };
+        };
+    };
+    install_integration_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPipeline"];
+                };
+            };
+        };
+    };
+    list_log_pipelines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPipeline"][];
+                };
+            };
+        };
+    };
+    create_log_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogPipelineInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPipeline"];
+                };
+            };
+        };
+    };
+    parse_grok_samples: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrokTestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrokTestResult"];
+                };
+            };
+        };
+    };
+    reorder_log_pipelines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReorderPipelines"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    test_log_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PipelineTestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineTestResult"];
+                };
+            };
+        };
+    };
+    update_log_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogPipelineInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPipeline"];
+                };
+            };
+        };
+    };
+    delete_log_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_log_pipeline_enabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogPipelinePatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPipeline"];
+                };
+            };
+        };
+    };
     list_rehydrations: {
         parameters: {
             query?: never;
@@ -8808,6 +20252,297 @@ export interface operations {
             };
         };
     };
+    list_log_restriction_queries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogRestrictionQuery"][];
+                };
+            };
+        };
+    };
+    create_log_restriction_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestrictionQueryInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogRestrictionQuery"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    preview_log_restriction_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestrictionPreviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestrictionPreview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_log_restriction_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestrictionQueryInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogRestrictionQuery"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_log_restriction_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    assign_log_restriction_role: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestrictionRoleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogRestrictionQuery"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    unassign_log_restriction_role: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                role_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogRestrictionQuery"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    assign_log_restriction_team: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestrictionTeamInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogRestrictionQuery"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    unassign_log_restriction_team: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                handle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogRestrictionQuery"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     search: {
         parameters: {
             query?: never;
@@ -8839,6 +20574,111 @@ export interface operations {
             };
         };
     };
+    list_standard_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardAttribute"][];
+                };
+            };
+        };
+    };
+    create_standard_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StandardAttributeInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardAttribute"];
+                };
+            };
+        };
+    };
+    reset_standard_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardAttribute"][];
+                };
+            };
+        };
+    };
+    update_standard_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                path: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StandardAttributeInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardAttribute"];
+                };
+            };
+        };
+    };
+    delete_standard_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                path: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     suggest: {
         parameters: {
             query?: never;
@@ -8858,6 +20698,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuerySuggestion"][];
+                };
+            };
+        };
+    };
+    top: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogTopRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FacetValue"][];
                 };
             };
         };
@@ -9228,6 +21091,224 @@ export interface operations {
             };
         };
     };
+    list_derived_metrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DerivedMetric"][];
+                };
+            };
+        };
+    };
+    create_derived_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DerivedMetricInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DerivedMetric"];
+                };
+            };
+        };
+    };
+    update_derived_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DerivedMetricInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DerivedMetric"];
+                };
+            };
+        };
+    };
+    delete_derived_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_metric_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricRule"][];
+                };
+            };
+        };
+    };
+    create_metric_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetricRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricRule"];
+                };
+            };
+        };
+    };
+    metric_rules_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetricRulesOverviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricRulesOverview"];
+                };
+            };
+        };
+    };
+    update_metric_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetricRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricRule"];
+                };
+            };
+        };
+    };
+    delete_metric_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    volume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VolumeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricVolume"];
+                };
+            };
+        };
+    };
     create_monitor: {
         parameters: {
             query?: never;
@@ -9550,6 +21631,230 @@ export interface operations {
             };
         };
     };
+    create_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateNotebookRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+        };
+    };
+    search_notebooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotebookSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotebookSearchPage"];
+                };
+            };
+        };
+    };
+    get_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotebookPatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    clone_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_notebook_favorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotebookFavoriteRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    restore_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_notification_channels: {
         parameters: {
             query?: never;
@@ -9627,6 +21932,660 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Delivery"][];
                 };
+            };
+        };
+    };
+    on_call_analytics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallAnalyticsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallAnalytics"];
+                };
+            };
+        };
+    };
+    list_on_call_policies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPolicy"][];
+                };
+            };
+        };
+    };
+    create_on_call_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallPolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPolicy"];
+                };
+            };
+        };
+    };
+    get_on_call_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPolicy"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_on_call_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallPolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPolicy"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_on_call_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    my_on_call_shifts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallRange"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallMyShift"][];
+                };
+            };
+        };
+    };
+    create_on_call_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOnCallPage"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPage"];
+                };
+            };
+        };
+    };
+    search_on_call_pages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallPageSearch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPagesResult"];
+                };
+            };
+        };
+    };
+    get_on_call_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPageDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    acknowledge_on_call_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPage"];
+                };
+            };
+        };
+    };
+    reassign_on_call_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReassignOnCallPage"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPage"];
+                };
+            };
+        };
+    };
+    resolve_on_call_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallPage"];
+                };
+            };
+        };
+    };
+    get_on_call_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallProfile"];
+                };
+            };
+        };
+    };
+    update_on_call_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallProfileInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallProfile"];
+                };
+            };
+        };
+    };
+    test_on_call_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallTestResult"][];
+                };
+            };
+        };
+    };
+    list_on_call_schedules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallSchedule"][];
+                };
+            };
+        };
+    };
+    create_on_call_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallScheduleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallSchedule"];
+                };
+            };
+        };
+    };
+    preview_on_call_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallPreviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallScheduleShifts"];
+                };
+            };
+        };
+    };
+    get_on_call_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallSchedule"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_on_call_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallScheduleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallSchedule"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_on_call_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_on_call_override: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOnCallOverride"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallOverride"];
+                };
+            };
+        };
+    };
+    delete_on_call_override: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                override_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    on_call_schedule_shifts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallRange"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallScheduleShifts"];
+                };
+            };
+        };
+    };
+    list_on_call_teams: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnCallTeam"][];
+                };
+            };
+        };
+    };
+    set_on_call_routing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handle: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnCallRouting"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -9774,6 +22733,1288 @@ export interface operations {
             };
         };
     };
+    list_portal_actions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalAction"][];
+                };
+            };
+        };
+    };
+    create_portal_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalActionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalAction"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_portal_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalAction"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_portal_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalActionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalAction"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_portal_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_portal_action_runs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalActionRun"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_portal_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalActionRunInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalActionRun"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_portal_apps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalApp"][];
+                };
+            };
+        };
+    };
+    create_portal_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalAppInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalApp"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_portal_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalAppInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalApp"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_portal_app: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    portal_catalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalCatalogRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalCatalog"];
+                };
+            };
+        };
+    };
+    list_portal_connectors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalConnector"][];
+                };
+            };
+        };
+    };
+    put_portal_connector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description github | gitlab | jira | linear */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalConnectorInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalConnector"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_portal_connector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description github | gitlab | jira | linear */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    test_portal_connector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description github | gitlab | jira | linear */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalConnectionTest"];
+                };
+            };
+        };
+    };
+    list_portal_entities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalDefinitionItem"][];
+                };
+            };
+        };
+    };
+    upsert_portal_entity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntityDefinition"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalDefinitionItem"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    import_portal_entities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalImportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalImportResult"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_portal_entity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalDefinitionItem"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_portal_entity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntityDefinition"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalDefinitionItem"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_portal_entity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    add_portal_favorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    remove_portal_favorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    portal_entities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalHomeEntity"][];
+                };
+            };
+        };
+    };
+    portal_pull_requests: {
+        parameters: {
+            query: {
+                /** @description github | gitlab */
+                provider: string;
+                /** @description Skip the cache. */
+                refresh?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalPullRequests"];
+                };
+            };
+        };
+    };
+    portal_tickets: {
+        parameters: {
+            query: {
+                /** @description jira | linear | work_items */
+                provider: string;
+                refresh?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalTickets"];
+                };
+            };
+        };
+    };
+    list_portal_identities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalIdentity"][];
+                };
+            };
+        };
+    };
+    put_portal_identities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalIdentitiesInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalIdentity"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_portal_report_dashboards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalReportDashboard"][];
+                };
+            };
+        };
+    };
+    set_portal_report_dashboards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalReportDashboardsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalReportDashboard"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    portal_scorecards_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalReportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalScorecardsReport"];
+                };
+            };
+        };
+    };
+    portal_teams_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalReportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalTeamsReport"];
+                };
+            };
+        };
+    };
+    portal_sources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalSources"];
+                };
+            };
+        };
+    };
+    list_portal_surveys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Survey"][];
+                };
+            };
+        };
+    };
+    create_portal_survey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Survey"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_portal_survey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Survey"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_portal_survey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Survey"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_portal_survey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_portal_survey_form: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyForm"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_portal_survey_responses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyResponseRow"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    submit_portal_survey_response: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyResponseInput"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_portal_survey_results: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyResults"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    evaluate_pr_gates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrGateEvaluationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrGateEvaluation"];
+                };
+            };
+        };
+    };
+    list_pr_gate_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrGateRule"][];
+                };
+            };
+        };
+    };
+    create_pr_gate_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrGateRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrGateRule"];
+                };
+            };
+        };
+    };
+    update_pr_gate_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrGateRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrGateRule"];
+                };
+            };
+        };
+    };
+    delete_pr_gate_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     profile_flamegraph: {
         parameters: {
             query?: never;
@@ -9883,6 +24124,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProfileList"];
+                };
+            };
+        };
+    };
+    get_public_status_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicStatusPage"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -10025,6 +24295,169 @@ export interface operations {
             };
         };
     };
+    list_reference_tables: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceTable"][];
+                };
+            };
+        };
+    };
+    create_reference_table: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferenceTableInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceTable"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_reference_table: {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive text the primary key or a value contains. */
+                query?: string | null;
+                /** @description Search only this column (default: every column). */
+                column?: string | null;
+                /** @description Default 50, at most 500. */
+                limit?: number | null;
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceTableRows"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    replace_reference_table: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferenceTableFile"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceTable"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_reference_table: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     roles: {
         parameters: {
             query?: never;
@@ -10100,6 +24533,1823 @@ export interface operations {
             header?: never;
             path: {
                 id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_scorecards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+        };
+    };
+    evaluate_scorecards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_scorecard_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScorecardRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_scorecard_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScorecardRuleUpdate"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_scorecard_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_scorecard_outcomes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScorecardOutcomesInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_service_metadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceMetadataInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    setup_scorecards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScorecardSetupInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScorecardsOverview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_serverless_functions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerlessSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerlessSearchPage"];
+                };
+            };
+        };
+    };
+    serverless_invocations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerlessInvocationsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LambdaInvocation"][];
+                };
+            };
+        };
+    };
+    serverless_timeseries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerlessTimeseriesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerlessSeries"][];
+                };
+            };
+        };
+    };
+    list_service_checks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceCheckEntry"][];
+                };
+            };
+        };
+    };
+    service_check_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceCheckRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceCheckDetail"];
+                };
+            };
+        };
+    };
+    list_slo_corrections: {
+        parameters: {
+            query?: {
+                /** @description Only this SLO's corrections and the org-wide ones. */
+                sloId?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloCorrection"][];
+                };
+            };
+        };
+    };
+    create_slo_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloCorrectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloCorrection"];
+                };
+            };
+        };
+    };
+    update_slo_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloCorrectionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloCorrection"];
+                };
+            };
+        };
+    };
+    delete_slo_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_slo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloItem"];
+                };
+            };
+        };
+    };
+    search_slos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloSearchPage"];
+                };
+            };
+        };
+    };
+    get_slo: {
+        parameters: {
+            query?: {
+                /** @description 1d | 7d | 30d | 90d; absent = the primary window. */
+                window?: string | null;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloDetail"];
+                };
+            };
+        };
+    };
+    update_slo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloItem"];
+                };
+            };
+        };
+    };
+    delete_slo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_spreadsheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSpreadsheetRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Spreadsheet"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_spreadsheets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpreadsheetSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpreadsheetSearchPage"];
+                };
+            };
+        };
+    };
+    get_spreadsheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Spreadsheet"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_spreadsheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_spreadsheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpreadsheetPatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Spreadsheet"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_sql_queries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSqlQuery"][];
+                };
+            };
+        };
+    };
+    create_sql_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedSqlQueryInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSqlQuery"];
+                };
+            };
+        };
+    };
+    update_sql_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedSqlQueryInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSqlQuery"];
+                };
+            };
+        };
+    };
+    delete_sql_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sql_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SqlRunRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SqlResult"];
+                };
+            };
+            /** @description Query refused or failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sql_schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SqlSchema"];
+                };
+            };
+        };
+    };
+    sql_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SqlTemplate"][];
+                };
+            };
+        };
+    };
+    list_status_pages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageSummary"][];
+                };
+            };
+        };
+    };
+    create_status_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StatusPageInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageDetail"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_status_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_status_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StatusPageInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageDetail"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_status_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_status_page_notice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoticeInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageDetail"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_status_page_notice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                notice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_status_page_notice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                notice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoticeUpdateInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusPageDetail"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_synthetic_coverage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticCoverageRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticCoverage"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_synthetic_locations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticLocation"][];
+                };
+            };
+        };
+    };
+    search_synthetic_results: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticResultSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticResultSearchPage"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_synthetic_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSettings"];
+                };
+            };
+        };
+    };
+    update_synthetic_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticSettings"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSettings"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_synthetic_suite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticSuiteInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSuite"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_synthetic_suites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticSuiteSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSuitesPage"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_synthetic_suite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSuite"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_synthetic_suite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticSuiteInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticSuite"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_synthetic_suite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_synthetic_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticTestInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_synthetic_tests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticTestSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticTestsPage"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_synthetic_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticTest"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_synthetic_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticTestInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_synthetic_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_synthetic_results: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticResultsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticResults"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_synthetic_result: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                result_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticResult"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_synthetic_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticResult"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    try_synthetic_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticTryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticTryResult"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_synthetic_variables: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticVariable"][];
+                };
+            };
+        };
+    };
+    create_synthetic_variable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticVariableInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticVariable"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_synthetic_variable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyntheticVariableInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyntheticVariable"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_synthetic_variable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
             };
             cookie?: never;
         };
@@ -10288,6 +26538,446 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoginLink"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    watchdog_alerts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchdogAlerts"];
+                };
+            };
+        };
+    };
+    list_workflows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"][];
+                };
+            };
+        };
+    };
+    create_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    publish_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_workflow_runs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowRunInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_workflow_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                run: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    cancel_workflow_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                run: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_workflow_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowApiToken"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    trigger_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowRunInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowRun"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    unpublish_workflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workflow"];
                 };
             };
             404: {

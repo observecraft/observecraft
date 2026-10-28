@@ -90,8 +90,11 @@ if otlp {
   lvl = .severity_text
   if lvl == "" { lvl = null }
 }
+# The Datadog Agent sets `status` from the output stream (stderr → error): the level the line itself
+# carries (a JSON field or a leading word) comes first, the stream only when there is none.
+agent = !otlp && exists(.ddsource)
 for_each(["status", "severity", "level", "syslog.severity"]) -> |_i, k| {
-  if is_null(lvl) {
+  if is_null(lvl) && !(agent && k == "status") {
     v = get(flat, [k]) ?? null
     if !is_null(v) { lvl = v; used = push(used, k) }
   }
@@ -99,13 +102,28 @@ for_each(["status", "severity", "level", "syslog.severity"]) -> |_i, k| {
 # Plain-text lines: a leading level word ("ERROR …", "2026-10-25T… WARN …", "[info] …") or the klog
 # prefix Kubernetes components use ("E1025 18:47:43.4 …").
 if is_null(lvl) && msg != "" {
-  head = slice(msg, 0, 64) ?? msg
+  head = slice(msg, 0, 160) ?? msg
   klog = parse_regex(head, r'^(?P<l>[IWEF])\d{4} \d{2}:\d{2}:\d{2}') ?? null
+  # logfmt (`level=info ts=…`) and Python's `asctime - name - LEVEL - message`.
+  field = parse_regex(head, r'(?i)(?:^|\s)(?:level|lvl|severity)=(?P<l>[a-z]+)') ?? null
+  # … and the Datadog Agent's own `date | CORE | LEVEL | …`.
+  dashed = parse_regex(head, r' [-|] (?P<l>TRACE|DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|FATAL) [-|] ') ?? null
   if klog != null {
     lvl = get!(klog, ["l"])
+  } else if field != null {
+    lvl = get!(field, ["l"])
+  } else if dashed != null {
+    lvl = get!(dashed, ["l"])
   } else {
-    word = parse_regex(head, r'(?i)^\s*(?:\S+\s+){0,2}?[\[<]?(?P<l>trace|debug|info|notice|warn|warning|error|err|fatal|critical|panic)[\]>:]?(?:\s|$)') ?? null
+    word = parse_regex(head, r'(?i)^\s*(?:\S+\s+){0,2}?[\[<]?(?P<l>trace|debug|info|notice|warn|warning|error|err|fatal|critical|panic)[\]>]?(?::|\s|$)') ?? null
     if word != null { lvl = get!(word, ["l"]) }
+  }
+}
+if agent {
+  stream = get(flat, ["status"]) ?? null
+  if !is_null(stream) {
+    used = push(used, "status")
+    if is_null(lvl) { lvl = stream }
   }
 }
 sev = to_int(.severity_number) ?? 0

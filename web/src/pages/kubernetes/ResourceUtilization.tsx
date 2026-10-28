@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { EChartsOption } from 'echarts';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Search, X } from 'lucide-react';
+import { DATADOG_USAGE, groupSeries, usageSeries } from '../../api/kubernetes/usage';
 import { queryTimeseries } from '../../api/dashboards/client';
 import { searchKubernetes, type KubeGroup } from '../../api/kubernetes/client';
 import type { MetricSeries } from '../../api/types';
@@ -23,6 +24,12 @@ const METRICS: Record<Res, { usage: string; requests: string; limits: string; co
   cpu: { usage: 'k8s.pod.cpu.utilization', requests: 'k8s.container.cpu_request', limits: 'k8s.container.cpu_limit', container: 'container.cpu.utilization' },
   memory: { usage: 'k8s.pod.memory.working_set', requests: 'k8s.container.memory_request', limits: 'k8s.container.memory_limit', container: 'container.memory.working_set' },
 };
+
+/** One of the two naming schemes not being sent at all is normal: no series. Other errors stand. */
+function noSuchMetric(error: unknown): MetricSeries[] {
+  if (error instanceof Error && error.message.startsWith('Unknown metric:')) return [];
+  throw error;
+}
 
 /** Single-value, non-negated tag terms of the filter, as a metric scope (`a:b,c:d`). */
 function metricScope(query: string, extra: string[] = []): string {
@@ -125,9 +132,18 @@ export function ResourceUtilization({ query, setQuery, res, setRes }: { query: s
   }, [groupsQ.dataUpdatedAt]);
   const usageQ = useQuery({
     queryKey: ['kubernetes', 'utilization', 'usage', res, query, keys, range],
-    queryFn: () => queryTimeseries({ queries: [`sum:${METRICS[res].usage}{${metricScope(query)}} by {${keys.join(',')}}`], range, points: 30 }),
+    queryFn: async () => {
+      const by = `{${metricScope(query)}} by {${keys.join(',')}}`;
+      const [otel, datadog] = await Promise.all(
+        [METRICS[res].usage, DATADOG_USAGE[res].metric].map((metric) => queryTimeseries({ queries: [`sum:${metric}${by}`], range, points: 30 }).catch(noSuchMetric)),
+      );
+      return usageSeries(res, otel, datadog);
+    },
   });
   const series = useMemo(() => new Map((usageQ.data ?? []).map((s) => [s.name, s])), [usageQ.data]);
+  // One cluster: series without a cluster tag can only be its.
+  const clusterIndex = keys.indexOf('kube_cluster_name');
+  const singleCluster = clusterIndex >= 0 && new Set((groupsQ.data?.groups ?? []).map((g) => g.values[clusterIndex])).size === 1;
 
   const rows = useMemo(() => {
     const list = (groupsQ.data?.groups ?? []).map((g) => {
@@ -235,7 +251,9 @@ export function ResourceUtilization({ query, setQuery, res, setRes }: { query: s
                   <td className="num">
                     <Pct v={r.pctLim} />
                   </td>
-                  <td className="kx-rs-graph">{r.ok ? <Sparkline usage={series.get(seriesName(keys, r.g))} requests={r.req} limits={r.lim} res={res} /> : <span className="muted">—</span>}</td>
+                  <td className="kx-rs-graph">
+                    {r.ok ? <Sparkline usage={groupSeries(series, seriesName(keys, r.g), singleCluster)} requests={r.req} limits={r.lim} res={res} /> : <span className="muted">—</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>

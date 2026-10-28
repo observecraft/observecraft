@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { BadgeCheck, ChevronDown, ChevronRight, Filter, Pencil, Plus, Search, X } from 'lucide-react';
 import type { Facet } from '../../api/types';
 import { clearKey, isValueChecked, onlyValue, selectedValues, toggleChecked, toggleValue, type Term } from '../../lib/searchQuery';
@@ -24,8 +25,49 @@ interface Props {
   totalAvailable?: number;
   noun?: string;
   renderValueIcon?: (key: string, value: string) => ReactNode;
+  /** Display label of a value (default: the value, statuses capitalized). */
+  valueLabel?: (key: string, value: string) => string;
   /** Extra controls above the facet search (e.g. Teams, toggles). */
   header?: ReactNode;
+  /** "+ Add": the fields that can become facets, and what adding one does. No button without it. Standard attributes are listed first. */
+  addable?: { load: () => Promise<{ key: string; count: number; standard?: boolean }[]>; onAdd: (key: string) => void };
+}
+
+/** The "+ Add" list: fields of the current results, filtered as you type. */
+function AddFacet({ addable, present, onClose }: { addable: NonNullable<Props['addable']>; present: Set<string>; onClose: () => void }) {
+  const [filter, setFilter] = useState('');
+  const fields = useQuery({ queryKey: ['facets', 'addable', addable.load], queryFn: addable.load });
+  const shown = (fields.data ?? [])
+    .filter((f) => !present.has(f.key) && f.key.toLowerCase().includes(filter.toLowerCase()))
+    .sort((a, b) => Number(Boolean(b.standard)) - Number(Boolean(a.standard)))
+    .slice(0, 50);
+  return (
+    <div className="facet-add-menu">
+      <input autoFocus placeholder="Filter fields, e.g. kube_node or @http.url" value={filter} onChange={(e) => setFilter(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onClose()} />
+      <div className="facet-add-list">
+        {fields.isPending && <div className="muted-text">Loading fields…</div>}
+        {fields.error && <div className="muted-text">Fields could not be loaded: {fields.error.message}</div>}
+        {!fields.isPending && !shown.length && !fields.error && <div className="muted-text">No other fields in these logs.</div>}
+        {shown.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => {
+              addable.onAdd(f.key);
+              onClose();
+            }}
+          >
+            <span className="mono">{f.key}</span>
+            {f.standard && (
+              <span className="facet-standard" title="A standard attribute of your organization">
+                standard
+              </span>
+            )}
+            <span className="muted-text">{f.count.toLocaleString()}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function label(key: string, value: string): string {
@@ -51,8 +93,11 @@ export function FacetPanel({
   totalAvailable,
   noun = '',
   renderValueIcon,
+  valueLabel = label,
   header,
+  addable,
 }: Props) {
+  const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Set<string>>(() => new Set(defaultOpen));
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -68,10 +113,8 @@ export function FacetPanel({
   const selected = useMemo(() => selectedValues(terms), [terms]);
   const verifiedSet = useMemo(() => new Set(verified), [verified]);
 
-  const checked = (key: string, value: string) =>
-    mode === 'exclude' ? isValueChecked(terms, key, value) : (selected[key] ?? []).includes(value);
-  const toggle = (key: string, value: string) =>
-    onChange(mode === 'exclude' ? toggleChecked(terms, key, value) : toggleValue(terms, key, value));
+  const checked = (key: string, value: string) => (mode === 'exclude' ? isValueChecked(terms, key, value) : (selected[key] ?? []).includes(value));
+  const toggle = (key: string, value: string) => onChange(mode === 'exclude' ? toggleChecked(terms, key, value) : toggleValue(terms, key, value));
 
   const renderFacet = (f: Facet) => {
     const isOpen = open.has(f.key);
@@ -102,11 +145,7 @@ export function FacetPanel({
             {valueSearch && (
               <label className="facet-value-search">
                 <Search size={13} />
-                <input
-                  placeholder="Filter values"
-                  value={valueFilter[f.key] ?? ''}
-                  onChange={(e) => setValueFilter((m) => ({ ...m, [f.key]: e.target.value }))}
-                />
+                <input placeholder="Filter values" value={valueFilter[f.key] ?? ''} onChange={(e) => setValueFilter((m) => ({ ...m, [f.key]: e.target.value }))} />
               </label>
             )}
             <ul className="facet-values">
@@ -114,9 +153,7 @@ export function FacetPanel({
                 <li key={v.value}>
                   <label>
                     <input type="checkbox" className="checkbox" checked={checked(f.key, v.value)} onChange={() => toggle(f.key, v.value)} />
-                    {f.key === 'status' && v.value in STATUS_COLORS && (
-                      <span className="status-bar" style={{ background: `var(${STATUS_COLORS[v.value as keyof typeof STATUS_COLORS]})` }} />
-                    )}
+                    {f.key === 'status' && v.value in STATUS_COLORS && <span className="status-bar" style={{ background: `var(${STATUS_COLORS[v.value as keyof typeof STATUS_COLORS]})` }} />}
                     {renderValueIcon?.(f.key, v.value)}
                     <span
                       className="facet-value"
@@ -129,7 +166,7 @@ export function FacetPanel({
                           : undefined
                       }
                     >
-                      {label(f.key, v.value)}
+                      {valueLabel(f.key, v.value)}
                     </span>
                     <span className="facet-count">{v.count > 0 ? v.count.toLocaleString() : '-'}</span>
                   </label>
@@ -160,12 +197,13 @@ export function FacetPanel({
           Showing {visible.length} of {(totalAvailable ?? facets.length).toLocaleString()}
           {noun && ` ${noun}`}
         </span>
-        {mode === 'include' && (
-          <button className="facet-add">
+        {addable && (
+          <button className="facet-add" onClick={() => setAdding((a) => !a)}>
             <Plus size={15} /> Add
           </button>
         )}
       </div>
+      {addable && adding && <AddFacet addable={addable} present={new Set(facets.map((f) => f.key))} onClose={() => setAdding(false)} />}
 
       {groups.map(([group, list]) => {
         if (!group) return list.map(renderFacet);

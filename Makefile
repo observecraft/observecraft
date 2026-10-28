@@ -28,9 +28,10 @@ web:           ## Run the web app on :5173 against the API
 web-mock:      ## Run the web app with in-browser mocks (no backend needed)
 	cd web && VITE_API_MODE=mock npm run dev
 
-test:          ## Rust tests + web typecheck
+test:          ## Rust tests, web typecheck, integration dashboard tests
 	cd server && cargo test
 	cd web && npx tsc -p .
+	node --test scripts/*.test.mjs
 
 openapi:       ## Regenerate web/src/api/generated/* from the Rust API definition
 	cd server && cargo run -q --bin observecraft-server -- openapi > ../web/src/api/generated/openapi.json

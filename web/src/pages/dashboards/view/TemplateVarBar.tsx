@@ -4,6 +4,7 @@ import type { TemplateVariable, TemplateVarValues } from '../../../api/dashboard
 import { Select } from '../../../components/ui/Dropdown';
 import { Modal } from '../../../components/ui/Modal';
 import { useMetricCatalog, useTagValues } from '../queries';
+import { visibleVariables } from '../tree';
 
 interface SavedView {
   name: string;
@@ -53,6 +54,8 @@ export function TemplateVarBar({ dashboardId, variables, values, onValues, canEd
   const [views, setViews] = useState(() => readViews(dashboardId));
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
+  const [showAll, setShowAll] = useState(false);
+  const visible = visibleVariables(variables, values, showAll);
 
   const save = () => {
     const next = [...views.filter((v) => v.name !== name.trim()), { name: name.trim(), values }];
@@ -92,9 +95,14 @@ export function TemplateVarBar({ dashboardId, variables, values, onValues, canEd
         )}
       />
       {variables.length > 0 && <span className="tv-label">Filter by:</span>}
-      {variables.map((tv) => (
+      {visible.shown.map((tv) => (
         <VarSelect key={tv.name} tv={tv} value={values[tv.name] ?? tv.default} onChange={(v) => onValues({ ...values, [tv.name]: v })} />
       ))}
+      {(visible.hidden > 0 || showAll) && variables.length > 6 && (
+        <button className="tv-more" onClick={() => setShowAll((s) => !s)} title={showAll ? 'Show fewer variables' : 'Show all variables'}>
+          {showAll ? 'Less' : `+${visible.hidden}`}
+        </button>
+      )}
       {canEdit && (
         <button className="link-btn tv-edit" onClick={onEditVariables}>
           <Pencil size={13} /> {variables.length ? 'Edit' : 'Add template variables'}
@@ -130,7 +138,9 @@ export function TemplateVarEditor({ variables, onSave, onClose }: { variables: T
     <Modal onClose={onClose} label="Template variables" width={640} height="auto">
       <div className="small-modal">
         <h3>Template variables</h3>
-        <p className="muted-text">Reference them in queries as <code>$name</code> inside the filter braces.</p>
+        <p className="muted-text">
+          Reference them in queries as <code>$name</code> inside the filter braces.
+        </p>
         {rows.map((r, i) => (
           <div key={i} className="tv-edit-row">
             <input placeholder="name" value={r.name} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, name: e.target.value.replace(/\W/g, '_') } : x)))} />

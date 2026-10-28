@@ -15,11 +15,6 @@
   border-bottom: 1px solid var(--border);
 }
 
-.et-views {
-  color: var(--link);
-  font-size: var(--fs-lg);
-}
-
 /* ---------- Controls bar ---------- */
 .et-controls {
   display: flex;
@@ -784,6 +779,10 @@
 }
 
 .es-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin-top: 8px;
 }
 

@@ -43,6 +43,8 @@ jobs:
               - *ci
               - web/**
               - scripts/**
+              - server/seeds/**
+              - CHANGELOG.md
             licenses:
               - *ci
               - server/Cargo.toml

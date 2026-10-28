@@ -67,6 +67,11 @@ pub fn matches(terms: &[Term], f: &Fields<'_>) -> bool {
     })
 }
 
+/// Whether the event matches at least one of `searches` (none: it matches nothing), like `build_any`.
+pub fn matches_any(searches: &[Vec<Term>], f: &Fields<'_>) -> bool {
+    searches.iter().any(|terms| matches(terms, f))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -81,6 +86,15 @@ mod tests {
         assert!(!matches(&parse_query("-status:error"), &f));
         assert!(matches(&parse_query("service:(a OR order-service)"), &f));
         assert!(!matches(&parse_query("env:qa"), &f));
+    }
+
+    #[test]
+    fn matches_any_of_several_searches() {
+        let none = HashMap::new();
+        let f = Fields { service: "billing", status: "info", host: "h1", source: "go", message: "charged", tags: &none, attr: &none, index: None };
+        assert!(matches_any(&[parse_query("service:catalog-service"), parse_query("service:billing")], &f));
+        assert!(!matches_any(&[parse_query("service:catalog-service")], &f));
+        assert!(!matches_any(&[], &f), "no searches match nothing");
     }
 
     #[test]

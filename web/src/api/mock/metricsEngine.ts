@@ -1,10 +1,16 @@
 // Mock metric store + query evaluator. Each metric is backed by an "entity set" (deployments,
 // hosts, services, monitors) whose members carry tags; every entity gets a smooth deterministic
 // series (value noise), so the same query returns the same shape at any zoom level.
-import { groupLabel, parseMetricQuery, type ParsedMetricQuery } from '../../lib/metricQuery';
+import { evalFormula } from '../../lib/metricFormula';
+import { formulaQueries, groupLabel, parseMetricQuery, QUERY_IN_FORMULA, type ParsedMetricQuery } from '../../lib/metricQuery';
 import type { DistributionResponse, GroupedScalar, MetricCatalogEntry, ScalarRequest, TimeAggregator, TimeseriesRequest } from '../dashboards/types';
 import type { MetricSeries, TimeRange } from '../types';
+import { parseQuery } from '../../lib/searchQuery';
 import { rng } from './generator';
+import { generatedMetrics } from './logMetrics';
+import { derivedFormulas } from './derivedMetrics';
+import { derivedTags, expandDerived } from '../../lib/derivedMetrics';
+import { matchesTerms } from './match';
 
 type Tags = Record<string, string>;
 
@@ -14,7 +20,7 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-const pick = <T,>(r: () => number, a: readonly T[]) => a[Math.floor(r() * a.length)];
+const pick = <T>(r: () => number, a: readonly T[]) => a[Math.floor(r() * a.length)];
 
 // ---------------------------------------------------------------- entity sets
 
@@ -23,6 +29,16 @@ const NAMESPACES = ['ns-mongo-prod', 'ns-platform', 'ns-checkout-qa', 'ns-billin
 const APPS = ['api', 'worker', 'backend', 'frontend', 'scheduler', 'gateway', 'consumer', 'mongo', 'redis', 'notifier', 'auth', 'billing'];
 export const SERVICES = ['storefront-api', 'inventory-service', 'order-service', 'billing', 'billing-watcher', 'workflow-engine', 'pricing-service', 'notificationsrv', 'gateway', 'support-portal'];
 const TEAMS = ['storefront', 'billing', 'platform', 'payments', 'checkout'];
+/** Services behind the `trace.*` APM metrics (the same services as the APM mock's traces). */
+const APM_SERVICES: [service: string, team: string][] = [
+  ['api-gateway', 'platform'],
+  ['storefront-api', 'storefront'],
+  ['order-service', 'checkout'],
+  ['billing', 'billing'],
+  ['inventory-service', 'checkout'],
+  ['catalog-service', 'catalog'],
+  ['notification-worker', 'notifications'],
+];
 
 function build<T extends Tags>(n: number, seed: number, make: (r: () => number, i: number) => T): T[] {
   const r = rng(seed);
@@ -39,9 +55,12 @@ const SETS: Record<string, Tags[]> = {
     const cluster = pick(r, CLUSTERS);
     return { host: `i-0${(hash(`h${i}`) >>> 0).toString(16).padStart(8, '0')}${i.toString(16)}`, kube_cluster_name: cluster, env: cluster.includes('prod') ? 'prod' : 'qa', team: pick(r, TEAMS) };
   }),
-  services: SERVICES.flatMap((service, i) =>
-    ['prod', 'qa'].map((env) => ({ service, env, team: TEAMS[i % TEAMS.length] })),
-  ),
+  services: SERVICES.flatMap((service, i) => ['prod', 'qa'].map((env) => ({ service, env, team: TEAMS[i % TEAMS.length] }))),
+  apm: APM_SERVICES.flatMap(([service, team]) => ['prod', 'staging'].map((env) => ({ service, env, team }))),
+  nodes: build(36, 14, (r, i) => {
+    const cluster = CLUSTERS[i % CLUSTERS.length];
+    return { kube_cluster_name: cluster, kube_node: `ip-10-0-${(i * 7) % 250}-${10 + i}.ec2.internal`, status: r() < 0.06 ? 'unschedulable' : 'schedulable' };
+  }),
   monitors: build(320, 13, (r, i) => {
     const service = r() < 0.3 ? 'undefined' : pick(r, SERVICES);
     const name = pick(r, [
@@ -56,7 +75,15 @@ const SETS: Record<string, Tags[]> = {
       `[${service}] p95 latency above SLO`,
     ]);
     const s = r();
-    return { monitor_id: String(100000 + i), monitor_name: name, service, team: pick(r, TEAMS), env: r() < 0.7 ? 'prod' : 'qa', host: `i-0${hash(`mh${i % 40}`).toString(16)}`, status: s < 0.08 ? 'alert' : s < 0.1 ? 'warn' : s < 0.92 ? 'ok' : 'nodata' };
+    return {
+      monitor_id: String(100000 + i),
+      monitor_name: name,
+      service,
+      team: pick(r, TEAMS),
+      env: r() < 0.7 ? 'prod' : 'qa',
+      host: `i-0${hash(`mh${i % 40}`).toString(16)}`,
+      status: s < 0.08 ? 'alert' : s < 0.1 ? 'warn' : s < 0.92 ? 'ok' : 'nodata',
+    };
   }),
 };
 
@@ -73,9 +100,16 @@ interface MetricDef {
   integer?: boolean;
   /** Clamp to [0, max]. */
   max?: number;
+  /** The entities when not the whole set (generated metrics: the log streams their query matches). */
+  entities?: Tags[];
+  /** The catalog's tags when not the set's. */
+  tags?: string[];
+  /** Seeds the series instead of the metric's name (a distribution's statistics share one shape). */
+  seed?: string;
 }
 
-const REPLICAS = (e: Tags, r: () => number) => (e.kube_deployment.startsWith('mongo') ? 1300 : 6 + Math.floor(r() * 40));
+// Per deployment (not per metric), so desired, available and running replicas describe the same deployment.
+const REPLICAS = (e: Tags, _r?: () => number) => (e.kube_deployment.startsWith('mongo') ? 1300 : 6 + (hash(e.kube_deployment) % 40));
 
 const METRICS: Record<string, MetricDef> = {
   'kubernetes_state.deployment.count': { set: 'deployments', description: 'Deployments', base: () => 1, noise: 0, integer: true },
@@ -83,8 +117,20 @@ const METRICS: Record<string, MetricDef> = {
   'kubernetes_state.deployment.replicas_desired': { set: 'deployments', description: 'Desired replicas', base: REPLICAS, noise: 0.01, integer: true },
   'kubernetes_state.deployment.replicas_available': { set: 'deployments', description: 'Available replicas', base: (e, r) => REPLICAS(e, r) * 0.98, noise: 0.02, integer: true },
   'kubernetes_state.deployment.replicas_updated': { set: 'deployments', description: 'Updated replicas', base: (e, r) => REPLICAS(e, r) * 0.99, noise: 0.01, integer: true },
-  'kubernetes_state.deployment.replicas_unavailable': { set: 'deployments', description: 'Unavailable replicas', base: (_e, r) => (r() < 0.15 ? 1 + Math.floor(r() * 4) : 0), noise: 0.4, integer: true },
-  'kubernetes_state.deployment.replicas_desired_not_available': { set: 'deployments', description: 'Desired but not available replicas', base: (_e, r) => (r() < 0.6 ? 2 + r() * 30 : 0), noise: 0.5, integer: true },
+  'kubernetes_state.deployment.replicas_unavailable': {
+    set: 'deployments',
+    description: 'Unavailable replicas',
+    base: (_e, r) => (r() < 0.15 ? 1 + Math.floor(r() * 4) : 0),
+    noise: 0.4,
+    integer: true,
+  },
+  'kubernetes_state.deployment.replicas_desired_not_available': {
+    set: 'deployments',
+    description: 'Desired but not available replicas',
+    base: (_e, r) => (r() < 0.6 ? 2 + r() * 30 : 0),
+    noise: 0.5,
+    integer: true,
+  },
   'kubernetes_state.deployment.outdated': { set: 'deployments', description: 'Deployments with outdated replicas', base: (_e, r) => (r() < 0.01 ? 1 : 0), noise: 0, integer: true },
   'kubernetes_state.pod.running': { set: 'deployments', description: 'Running pods', base: (e, r) => REPLICAS(e, r) * 0.97, noise: 0.02, integer: true },
   'kubernetes_state.pod.pending': { set: 'deployments', description: 'Pending pods', base: (_e, r) => (r() < 0.1 ? 1 + r() * 3 : 0), noise: 0.6, integer: true },
@@ -96,16 +142,117 @@ const METRICS: Record<string, MetricDef> = {
   'system.cpu.idle': { set: 'hosts', description: 'CPU idle', unit: '%', base: (_e, r) => 20 + r() * 70, noise: 0.1, max: 100 },
   'system.mem.used': { set: 'hosts', description: 'Memory used', unit: 'GiB', base: (_e, r) => 2 + r() * 12, noise: 0.05 },
   'system.load.1': { set: 'hosts', description: 'Load average (1m)', base: (_e, r) => 0.5 + r() * 12, noise: 0.3 },
+  'system.load.5': { set: 'hosts', description: 'Load average (5m)', base: (_e, r) => 0.5 + r() * 9, noise: 0.2 },
+  'system.mem.pct_usable': { set: 'hosts', description: 'Share of memory usable', unit: 'fraction', base: (_e, r) => 0.06 + r() * 0.8, noise: 0.05, max: 1 },
+  'system.net.bytes_rcvd': { set: 'hosts', description: 'Bytes received', unit: 'B/s', base: (_e, r) => 2e5 + Math.pow(r(), 3) * 8e7, noise: 0.35 },
   'system.disk.in_use': { set: 'hosts', description: 'Disk usage fraction', unit: '%', base: (_e, r) => 20 + r() * 70, noise: 0.01, max: 100 },
   'trace.http.request.hits': { set: 'services', description: 'HTTP requests', unit: 'req/s', base: (e, r) => (e.env === 'prod' ? 40 + r() * 400 : 5 + r() * 40), noise: 0.2 },
   'trace.http.request.errors': { set: 'services', description: 'HTTP request errors', unit: 'err/s', base: (_e, r) => r() * 6, noise: 0.5 },
   'trace.http.request.error_rate': { set: 'services', description: 'HTTP error rate', unit: '%', base: (_e, r) => 0.2 + r() * 4, noise: 0.4, max: 100 },
   'trace.http.request.duration.p95': { set: 'services', description: 'p95 latency', unit: 'ms', base: (_e, r) => 40 + r() * 400, noise: 0.15 },
-  'observecraft.monitor.notifications': { set: 'monitors', description: 'Monitor notifications sent', base: (e, r) => (e.status === 'ok' ? r() * 0.12 : e.status === 'nodata' ? 0 : r() * 0.25), noise: 1.2, integer: false },
+  'trace.requests': { set: 'apm', description: 'Requests', unit: 'req/s', base: (e, r) => (e.env === 'prod' ? 30 + r() * 300 : 2 + r() * 20), noise: 0.1 },
+  'trace.errors': { set: 'apm', description: 'Errored requests', unit: 'err/s', base: (e, r) => (e.service === 'order-service' ? 14 : r() * 3), noise: 0.4 },
+  // order-service fails a growing share of checkouts; the others stay below the recommended thresholds.
+  'trace.error_rate': { set: 'apm', description: 'Share of requests in error', unit: '%', base: (e, r) => (e.service === 'order-service' ? 6.6 : 0.2 + r() * 1.6), noise: 0.15, max: 100 },
+  'trace.latency.p50': { set: 'apm', description: 'Median latency', unit: 'ms', base: (e, r) => (e.service === 'catalog-service' ? 210 : 12 + r() * 60), noise: 0.12 },
+  // catalog-service's slower product query (see the APM mock) keeps its p95 above 300 ms.
+  'trace.latency.p95': { set: 'apm', description: 'p95 latency', unit: 'ms', base: (e, r) => (e.service === 'catalog-service' ? 410 : 60 + r() * 200), noise: 0.1 },
+  'kubernetes_state.node.status': { set: 'nodes', description: 'Nodes by status', base: () => 1, noise: 0, integer: true },
+  'observecraft.monitor.notifications': {
+    set: 'monitors',
+    description: 'Monitor notifications sent',
+    base: (e, r) => (e.status === 'ok' ? r() * 0.12 : e.status === 'nodata' ? 0 : r() * 0.25),
+    noise: 1.2,
+    integer: false,
+  },
 };
 
+// ---------------------------------------------------------------- generated metrics (mock/logMetrics.ts)
+
+const LOG_SERVICES: [service: string, namespace: string][] = [
+  ['api-gateway', 'ns-platform'],
+  ['storefront-api', 'ns-storefront'],
+  ['order-service', 'ns-checkout'],
+  ['billing', 'ns-billing'],
+  ['catalog-service', 'ns-catalog'],
+  ['inventory-service', 'ns-checkout'],
+];
+const LOG_STATUSES: [status: string, code: string][] = [
+  ['info', '200'],
+  ['warn', '404'],
+  ['error', '502'],
+];
+
+/** One entity per (service, status, env): the log streams generated metrics count. */
+const LOG_STREAMS: Tags[] = LOG_SERVICES.flatMap(([service, namespace], i) =>
+  LOG_STATUSES.flatMap(([status, code]) =>
+    ['prod', 'staging'].map((env) => ({
+      service,
+      status,
+      env,
+      host: `i-0a1b2c3d4e5f6000${i}`,
+      source: service === 'api-gateway' ? 'nginx' : 'app',
+      kube_namespace: namespace,
+      'http.status_code': code,
+    })),
+  ),
+);
+
+/** Each definition as a metric over the log streams its query matches, tagged by its group-by tag names. */
+function generatedMetricDefs(): Record<string, MetricDef> {
+  return Object.fromEntries(
+    generatedMetrics().flatMap((m) => {
+      const terms = parseQuery(m.query);
+      const groupBy = m.groupBy.map((g) => ({ field: g.path.replace(/^@/, ''), tag: g.tagName || g.path.replace(/^@/, '') }));
+      const entities = LOG_STREAMS.filter((e) => matchesTerms((k) => e[k.replace(/^@/, '')], '', terms)).map((e) => ({
+        ...e,
+        ...Object.fromEntries(groupBy.map((g) => [g.tag, e[g.field] ?? 'N/A'])),
+      }));
+      const matched = `logs matching: ${m.query || '*'}`;
+      const rate = (e: Tags, r: () => number) => (e.status === 'info' ? 20 + r() * 80 : e.status === 'warn' ? 1 + r() * 6 : 0.2 + r() * 3);
+      const common = { set: 'services', entities, tags: groupBy.map((g) => g.tag), noise: 0.3, seed: m.name };
+      if (m.aggregation === 'count') return [[m.name, { ...common, description: `Count of ${matched}`, unit: 'logs/s', base: rate }]];
+      // A distribution is queried by statistic (`<name>.p95`); the statistics share one series shape.
+      return DIST_STAT_SCALES.map(([stat, scale]) => [
+        `${m.name}.${stat}`,
+        { ...common, description: `${stat} of ${m.path} in ${matched}`, base: stat === 'count' ? rate : (_e: Tags, r: () => number) => (20 + r() * 300) * scale },
+      ]);
+    }),
+  );
+}
+
+/** Distribution statistics and their size relative to the average. */
+const DIST_STAT_SCALES: [stat: string, scale: number][] = [
+  ['count', 1],
+  ['avg', 1],
+  ['p50', 0.8],
+  ['p95', 2.2],
+  ['p99', 3.5],
+  ['max', 5],
+];
+
+/** A metric's definition: a built-in one or a generated metric. */
+function lookup(name: string): MetricDef | undefined {
+  return METRICS[name] ?? generatedMetricDefs()[name];
+}
+
+const entitiesOf = (d: MetricDef) => d.entities ?? SETS[d.set];
+
 export function metricCatalog(): MetricCatalogEntry[] {
-  return Object.entries(METRICS).map(([name, d]) => ({ name, tags: Object.keys(SETS[d.set][0]), unit: d.unit, description: d.description }));
+  const defs = { ...METRICS, ...generatedMetricDefs() };
+  const entries: MetricCatalogEntry[] = Object.entries(defs).map(([name, d]) => ({ name, tags: d.tags ?? Object.keys(SETS[d.set][0]), unit: d.unit, description: d.description }));
+  // Derived metrics (mock/derivedMetrics.ts), with the tags of the metrics they read.
+  const tagsOf = (metric: string) => entries.find((e) => e.name === metric)?.tags ?? [];
+  for (const [name, formula] of Object.entries(derivedFormulas())) entries.push({ name, tags: derivedTags(formula, tagsOf), description: `Derived: ${formula}`, kind: 'derived' });
+  return entries;
+}
+
+/** Metrics by series: one series per entity of the metric's set. */
+export function metricVolume(): { totalSeries: number; metrics: { name: string; kind: string; series: number; share: number }[] } {
+  const rows = Object.entries({ ...METRICS, ...generatedMetricDefs() }).map(([name, d]) => ({ name, kind: 'gauge', series: entitiesOf(d).length }));
+  const totalSeries = rows.reduce((n, r) => n + r.series, 0);
+  const metrics = rows.map((r) => ({ ...r, share: totalSeries ? r.series / totalSeries : 0 })).sort((a, b) => b.series - a.series || a.name.localeCompare(b.name));
+  return { totalSeries, metrics };
 }
 
 export function tagValues(key: string): string[] {
@@ -136,7 +283,7 @@ function smooth(seed: number, t: number): number {
 }
 
 function entityValue(metric: string, def: MetricDef, e: Tags, t: number): number {
-  const key = `${metric}|${Object.values(e).join('|')}`;
+  const key = `${def.seed ?? metric}|${Object.values(e).join('|')}`;
   const seed = hash(key);
   const base = def.base(e, rng(seed));
   if (base === 0 && def.noise < 0.5) return 0;
@@ -170,7 +317,7 @@ function combine(values: number[], agg: ParsedMetricQuery['aggregator']): number
   }
 }
 
-interface GroupSeries {
+export interface GroupSeries {
   tags: Tags;
   points: [number, number][];
 }
@@ -178,10 +325,10 @@ interface GroupSeries {
 function evaluate(query: string, range: TimeRange, points: number): GroupSeries[] {
   const q = parseMetricQuery(query);
   if (!q) throw new Error(`Invalid query: ${query}`);
-  const def = METRICS[q.metric];
+  const def = lookup(q.metric);
   if (!def) throw new Error(`Unknown metric: ${q.metric}`);
   const step = stepFor(range, points);
-  const entities = SETS[def.set].filter((e) => matches(e, q));
+  const entities = entitiesOf(def).filter((e) => matches(e, q));
   const groups = new Map<string, { tags: Tags; members: Tags[] }>();
   for (const e of entities) {
     const tags = Object.fromEntries(q.by.map((k) => [k, e[k] ?? 'N/A']));
@@ -195,12 +342,25 @@ function evaluate(query: string, range: TimeRange, points: number): GroupSeries[
   for (const g of groups.values()) {
     const pts: [number, number][] = [];
     for (let t = start; t <= range.to; t += step) {
-      const v = combine(g.members.map((e) => entityValue(q.metric, def, e, t)), q.aggregator);
+      const v = combine(
+        g.members.map((e) => entityValue(q.metric, def, e, t)),
+        q.aggregator,
+      );
       pts.push([t, Math.round(v * 100) / 100]);
     }
     out.push({ tags: g.tags, points: pts });
   }
   return out;
+}
+
+/**
+ * A metric query's groups over `range` (`points` ≈ resolution), for monitors: an unknown metric has no
+ * series (no data), like a metric that has not been reported yet; an unparsable query throws.
+ */
+export function evaluateGroups(query: string, range: TimeRange, points: number): GroupSeries[] {
+  const q = parseMetricQuery(query);
+  if (!q) throw new Error(`Invalid query: ${query}`);
+  return lookup(q.metric) ? evaluate(query, range, points) : [];
 }
 
 function reduce(points: [number, number][], agg: TimeAggregator): number {
@@ -220,8 +380,8 @@ function reduce(points: [number, number][], agg: TimeAggregator): number {
   }
 }
 
-const delay = <T,>(v: T, ms = 60 + Math.random() * 140) => new Promise<T>((r) => setTimeout(() => r(v), ms));
-const attempt = <T,>(fn: () => T): Promise<T> => {
+const delay = <T>(v: T, ms = 60 + Math.random() * 140) => new Promise<T>((r) => setTimeout(() => r(v), ms));
+const attempt = <T>(fn: () => T): Promise<T> => {
   try {
     return delay(fn());
   } catch (e) {
@@ -229,10 +389,50 @@ const attempt = <T,>(fn: () => T): Promise<T> => {
   }
 };
 
+/** A formula between metric queries: each query's groups joined by tags (a tag-less query applies to all). */
+function evaluateFormula(formula: string, range: TimeRange, points: number): GroupSeries[] {
+  const queries = formulaQueries(formula);
+  if (!queries) throw new Error(`Invalid query: ${formula}`);
+  const texts = formula.match(QUERY_IN_FORMULA) ?? [];
+  let n = 0;
+  const shape = formula.replace(QUERY_IN_FORMULA, () => `Q${n++}`).replace(/default_zero\(/g, '(');
+  const results = texts.map((t) => evaluate(t, range, points));
+  const keyed = results.map((gs) => new Map(gs.map((g) => [JSON.stringify(g.tags), new Map(g.points)])));
+  const keys = [
+    ...new Set(
+      results
+        .flat()
+        .filter((g) => Object.keys(g.tags).length)
+        .map((g) => JSON.stringify(g.tags)),
+    ),
+  ];
+  const times = [...new Set(results.flat().flatMap((g) => g.points.map((p) => p[0])))].sort((a, b) => a - b);
+  return (keys.length ? keys : ['{}']).map((key) => ({
+    tags: JSON.parse(key) as Tags,
+    points: times.flatMap((t) => {
+      const v = evalFormula(
+        shape,
+        keyed.map((m) => (m.get(key) ?? m.get('{}'))?.get(t) ?? null),
+      );
+      return v === null ? [] : [[t, Math.round(v * 100) / 100] as [number, number]];
+    }),
+  }));
+}
+
+/** A query's groups; a derived metric's (mock/derivedMetrics.ts) are its formula's. */
+function evaluateAny(query: string, range: TimeRange, points: number): GroupSeries[] {
+  const resolved = expandDerived(query, derivedFormulas());
+  return resolved === query ? evaluate(query, range, points) : evaluateFormula(resolved, range, points);
+}
+
 export function queryTimeseries(req: TimeseriesRequest): Promise<MetricSeries[]> {
   return attempt(() =>
-    req.queries.flatMap((query) => {
-      const q = parseMetricQuery(query)!;
+    req.queries.flatMap((raw) => {
+      // The mock averages every interval: a `.rollup(method)` suffix is accepted and ignored.
+      const query = raw.replace(/\.rollup\([^()]*\)$/, '');
+      const resolved = expandDerived(query, derivedFormulas());
+      const q = resolved === query ? parseMetricQuery(query) : null;
+      if (!q) return evaluateFormula(resolved, req.range, req.points ?? 120).map((g) => ({ name: Object.keys(g.tags).length ? groupLabel(g.tags) : query, points: g.points }));
       return evaluate(query, req.range, req.points ?? 120).map((g) => ({
         // Ungrouped series are named by their full query so several queries stay distinct.
         name: q?.by.length ? groupLabel(g.tags) : query,
@@ -244,18 +444,27 @@ export function queryTimeseries(req: TimeseriesRequest): Promise<MetricSeries[]>
 
 export function queryScalar(req: ScalarRequest): Promise<number> {
   return attempt(() => {
-    const groups = evaluate(req.query, req.range, 60);
+    const groups = evaluateAny(req.query, req.range, 60);
     // A grouped query reduced to one number: combine groups per timestamp first.
     const q = parseMetricQuery(req.query)!;
     if (groups.length === 0) return 0;
-    const merged = groups[0].points.map(([t], i) => [t, combine(groups.map((g) => g.points[i]?.[1] ?? 0), q.aggregator)] as [number, number]);
+    const merged = groups[0].points.map(
+      ([t], i) =>
+        [
+          t,
+          combine(
+            groups.map((g) => g.points[i]?.[1] ?? 0),
+            q.aggregator,
+          ),
+        ] as [number, number],
+    );
     return reduce(merged, req.aggregator);
   });
 }
 
 export function queryGrouped(req: ScalarRequest): Promise<GroupedScalar[]> {
   return attempt(() =>
-    evaluate(req.query, req.range, 60)
+    evaluateAny(req.query, req.range, 60)
       .map((g) => ({ group: groupLabel(g.tags), tags: g.tags, value: Math.round(reduce(g.points, req.aggregator) * 100) / 100 }))
       .sort((a, b) => b.value - a.value),
   );
@@ -265,8 +474,14 @@ export function queryDistribution(req: { query: string; range: TimeRange }): Pro
   return attempt(() => {
     const q = parseMetricQuery(req.query);
     if (!q) throw new Error(`Invalid query: ${req.query}`);
+    const def = lookup(q.metric);
+    if (!def) throw new Error(`Unknown metric: ${q.metric}`);
     // Distribution across entities: re-run without grouping but keep each entity separate.
-    const perEntity = evaluate(`${q.aggregator}:${q.metric}{${q.filters.map((f) => `${f.negate ? '!' : ''}${f.key}:${f.value}`).join(',') || '*'}} by {${Object.keys(SETS[METRICS[q.metric].set][0]).join(',')}}`, req.range, 40);
+    const perEntity = evaluate(
+      `${q.aggregator}:${q.metric}{${q.filters.map((f) => `${f.negate ? '!' : ''}${f.key}:${f.value}`).join(',') || '*'}} by {${Object.keys(entitiesOf(def)[0] ?? {}).join(',')}}`,
+      req.range,
+      40,
+    );
     const all = perEntity.flatMap((s) => s.points.map((p) => p[1]));
     const max = Math.max(1, ...all);
     const bucketCount = 10;

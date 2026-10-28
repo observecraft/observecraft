@@ -20,6 +20,8 @@ pub struct Inner {
     pub postgres: sqlx::PgPool,
     pub nats: async_nats::Client,
     pub secrets: SecretBox,
+    /// Each org's log restriction queries (Logs → Configuration → Data Access).
+    pub log_restrictions: crate::log_access::RestrictionCache,
 }
 
 impl Inner {

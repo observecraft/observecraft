@@ -9,6 +9,8 @@ interface Item {
   label: string;
   /** Lives elsewhere in the app; shown with an external-link mark. */
   href?: string;
+  /** No page yet: listed (greyed), not a link. */
+  soon?: boolean;
 }
 
 /** Log Configuration navigation. Each slug is served at /logs/<slug>. */
@@ -18,14 +20,14 @@ export const LOGS_CONFIG_NAV: { section: string; isNew?: boolean; items: Item[] 
     items: [
       { slug: 'pipelines', label: 'Pipelines' },
       { slug: 'attributes', label: 'Standard Attributes' },
-      { slug: 'sensitive-data-scanner', label: 'Sensitive Data Scanner', href: '/organization-settings/sensitive-data-scanner' },
+      { slug: 'sensitive-data-scanner', label: 'Sensitive Data Scanner', href: '/organization-settings/sensitive-data-scanner', soon: true },
     ],
   },
   {
     section: 'ROUTING',
     items: [
       { slug: 'indexes', label: 'Indexes' },
-      { slug: 'flex-controls', label: 'Flex Logs Controls' },
+      { slug: 'flex-controls', label: 'Flex Logs Controls', soon: true },
       { slug: 'archives', label: 'Archiving & Forwarding' },
       { slug: 'rehydrations', label: 'Rehydrations' },
     ],
@@ -36,8 +38,8 @@ export const LOGS_CONFIG_NAV: { section: string; isNew?: boolean; items: Item[] 
     section: 'MIGRATION',
     isNew: true,
     items: [
-      { slug: 'migration/import', label: 'Import' },
-      { slug: 'migration/translate', label: 'Translate' },
+      { slug: 'migration/import', label: 'Import', soon: true },
+      { slug: 'migration/translate', label: 'Translate', soon: true },
     ],
   },
 ];
@@ -64,12 +66,19 @@ export function LogsConfigLayout() {
                 <div className="org-nav-section">
                   {g.section} {g.isNew && <span className="badge-new">NEW</span>}
                 </div>
-                {g.items.map((i) => (
-                  <NavLink key={i.slug} to={i.href ?? `/logs/${i.slug}`} className={({ isActive }) => `settings-link${isActive ? ' active' : ''}`}>
-                    {i.label}
-                    {i.href && <ExternalLink size={16} className="org-nav-chevron" />}
-                  </NavLink>
-                ))}
+                {g.items.map((i) =>
+                  i.soon ? (
+                    <span key={i.slug} className="settings-link settings-link-soon" title={`${i.label} isn't built yet`}>
+                      {i.label}
+                      <span className="badge-soon">SOON</span>
+                    </span>
+                  ) : (
+                    <NavLink key={i.slug} to={i.href ?? `/logs/${i.slug}`} className={({ isActive }) => `settings-link${isActive ? ' active' : ''}`}>
+                      {i.label}
+                      {i.href && <ExternalLink size={16} className="org-nav-chevron" />}
+                    </NavLink>
+                  ),
+                )}
               </div>
             ))}
           </aside>

@@ -487,16 +487,11 @@
   border-radius: 4px;
 }
 
-.k-slack {
-  background: #611f69;
-}
-
-.k-pagerduty {
-  background: #06ac38;
-}
-
+.k-slack,
+.k-pagerduty,
 .k-webhook {
-  background: #c2185b;
+  border: 1px solid var(--border);
+  background: var(--bg);
 }
 
 .k-email {
@@ -841,9 +836,7 @@
   min-height: 0;
   display: flex;
   overflow: auto;
-  background:
-    radial-gradient(circle at 75% 45%, rgba(170, 120, 255, 0.12), transparent 40%),
-    radial-gradient(circle at 55% 20%, rgba(80, 170, 255, 0.1), transparent 40%);
+  background: radial-gradient(circle at 75% 45%, rgba(170, 120, 255, 0.12), transparent 40%), radial-gradient(circle at 55% 20%, rgba(80, 170, 255, 0.1), transparent 40%);
 }
 
 .mon-types {
@@ -2138,4 +2131,10 @@
 
 .mon-delivery-bad {
   color: var(--status-error);
+}
+
+.mon-channel-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }

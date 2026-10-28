@@ -60,6 +60,20 @@
   --brand-strong: #073f3d;    /* brand text/edges on light backgrounds */
   --brand-accent: #ffb547;    /* amber from the logo: highlights, active nav marker */
   --hero-tint: #8fd1c7;
+  /* Developer Portal hero band (deep teal into a lighter sea green) */
+  --hero-from: #073f3d;
+  --hero-mid: #0b6e69;
+  --hero-to: #3fae9a;
+
+  /* Scorecard levels: 1 light, 2 medium, 3 dark */
+  --level-0-bg: #eceef2;
+  --level-0-fg: #5a6273;
+  --level-1-bg: #d6efe9;
+  --level-1-fg: #0b5f5c;
+  --level-2-bg: #6cc1b2;
+  --level-2-fg: #062f2d;
+  --level-3-bg: #0b5f5c;
+  --level-3-fg: #ffffff;
   --insight: #e0218a;        /* anomaly-insight highlight (dashed panel, badge) */
 
   /* Log / monitor status */

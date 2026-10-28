@@ -71,7 +71,8 @@ function OverviewBody() {
   const workloads = counts.data?.items ?? [];
   const scaled = new Set((hpas.data?.items ?? []).map((h) => `${h.cluster}/${h.namespace}/${h.target?.split('/')[1] ?? ''}`));
   const ready = workloads.filter((w) => w.cpu?.requests != null && !scaled.has(`${w.cluster}/${w.namespace}/${w.name}`)).length;
-  const totalWorkloads = (count.get('deployments') ?? 0) + (count.get('statefulsets') ?? 0) + (count.get('daemonsets') ?? 0);
+  // The same workloads as the percentage (Deployments), so "63 %" is a share of this total.
+  const totalWorkloads = count.get('deployments') ?? workloads.length;
 
   return (
     <div className="hosts-page ox-page">
@@ -159,7 +160,7 @@ function OverviewBody() {
                 <div className="ox-glance-row">
                   <div>
                     <div className="ox-glance-label">READY TO AUTOSCALE</div>
-                    <div className="ox-glance-big">{totalWorkloads ? `${Math.round((ready / Math.max(1, workloads.length)) * 100)} %` : '—'}</div>
+                    <div className="ox-glance-big">{workloads.length ? `${Math.round((ready / workloads.length) * 100)} %` : '—'}</div>
                   </div>
                   <div className="ox-glance-right">
                     <div className="ox-glance-label">TOTAL WORKLOADS</div>

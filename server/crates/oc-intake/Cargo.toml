@@ -16,6 +16,8 @@ bytes = "1"
 # Datadog payloads: zlib/deflate, gzip and zstd bodies; protobuf series (agent-payload).
 flate2 = "1"
 prost = "0.13"
+oc-flags.workspace = true
+oc-query.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -24,6 +26,7 @@ sqlx.workspace = true
 tokio.workspace = true
 # OTLP/gRPC: framing, compression and status codes only (messages are passed through undecoded).
 tonic = { version = "0.12", default-features = false, features = ["gzip", "zstd"] }
+tower-http.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 zstd = "0.13"

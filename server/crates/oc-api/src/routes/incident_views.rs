@@ -1,8 +1,9 @@
 //! Incident detail tabs beyond the overview: response team, pages, stakeholder notifications,
 //! linked documents, postmortem, and flagging timeline entries as important.
 //!
-//! Pages and notifications are recorded and shown with their status; delivering them (on-call
-//! paging, email, chat) needs an outbound integration, which isn't configured yet.
+//! Pages are On-Call pages (routes/on_call.rs): the team's escalation policy notifies its on-call,
+//! and acknowledging or resolving either side updates both. Stakeholder notifications are recorded
+//! and shown with their status; delivering them (email, chat) needs an outbound integration.
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -11,6 +12,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::incidents::{find, user_name};
+use super::on_call;
+use super::on_call_escalation::PageAction;
 use crate::auth::{AuthContext, Writer};
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, OrgId};
@@ -163,11 +166,30 @@ pub async fn create_page(State(st): State<AppState>, Writer(ctx): Writer, Path(i
     let title = text(&req.title, "title", 300)?;
     let team: Option<(String,)> = sqlx::query_as("SELECT handle FROM teams WHERE org_id = $1 AND handle = $2").bind(&ctx.org_id).bind(&req.team).fetch_optional(&st.postgres).await?;
     let Some((team,)) = team else { return Err(ApiError::BadRequest(format!("unknown team '{}'", req.team))) };
-    let (pid,): (i64,) = sqlx::query_as("INSERT INTO incident_pages (incident_id, team_handle, title, created_by) VALUES ($1, $2, $3, $4) RETURNING id")
+    let oncall = on_call::create_page_row(
+        &st,
+        on_call::NewPage {
+            org: ctx.org_id.clone(),
+            title: title.clone(),
+            description: format!("Incident IR-{}: {}", row.public_id, row.title),
+            urgency: "high".into(),
+            team: Some(team.clone()),
+            policy_id: None,
+            source: "incident",
+            incident_pk: Some(row.pk),
+            monitor_id: None,
+            monitor_group: None,
+            created_by: ctx.name.clone(),
+            created_by_id: Some(ctx.user_id.clone()),
+        },
+    )
+    .await?;
+    let (pid,): (i64,) = sqlx::query_as("INSERT INTO incident_pages (incident_id, team_handle, title, created_by, oncall_page_id) VALUES ($1, $2, $3, $4, $5) RETURNING id")
         .bind(row.pk)
         .bind(&team)
         .bind(&title)
         .bind(&ctx.name)
+        .bind(oncall)
         .fetch_one(&st.postgres)
         .await?;
     event(&st, row.pk, "notification", &ctx, &format!("Paged @{team}: {title}")).await?;
@@ -184,6 +206,21 @@ pub struct PagePatch {
 #[utoipa::path(patch, path = "/api/v1/incidents/{id}/pages/{page_id}", params(("id" = i32, Path), ("page_id" = i64, Path)), request_body = PagePatch, responses((status = 204), (status = 404, body = crate::error::ErrorBody)), tag = "incidents")]
 pub async fn update_page(State(st): State<AppState>, Writer(ctx): Writer, Path((id, page_id)): Path<(i32, i64)>, Json(p): Json<PagePatch>) -> Result<StatusCode, ApiError> {
     let row = find(&st, &ctx.org_id, id).await?;
+    // Pages sent through On-Call change there (which updates this row too).
+    let linked: Option<(Option<i64>,)> = sqlx::query_as("SELECT oncall_page_id FROM incident_pages WHERE incident_id = $1 AND id = $2").bind(row.pk).bind(page_id).fetch_optional(&st.postgres).await?;
+    if let Some((Some(oncall),)) = linked {
+        let action = match p.status.as_str() {
+            "acknowledged" => PageAction::Acknowledge,
+            "resolved" => PageAction::Resolve,
+            _ => return Err(ApiError::BadRequest("status must be acknowledged or resolved".into())),
+        };
+        on_call::set_page_status(&st, &ctx.org_id, oncall, action, &ctx.name).await.map_err(|e| match e {
+            ApiError::BadRequest(_) => ApiError::NotFound("Page not found or already in that state".into()),
+            e => e,
+        })?;
+        event(&st, row.pk, "note", &ctx, &format!("Page {} {}", page_id, p.status)).await?;
+        return Ok(StatusCode::NO_CONTENT);
+    }
     let sql = match p.status.as_str() {
         "acknowledged" => "UPDATE incident_pages SET status = 'acknowledged', acknowledged_by = $3, acknowledged_at = now() WHERE incident_id = $1 AND id = $2 AND status = 'triggered'",
         "resolved" => "UPDATE incident_pages SET status = 'resolved', resolved_at = now(), acknowledged_by = COALESCE(acknowledged_by, $3), acknowledged_at = COALESCE(acknowledged_at, now()) WHERE incident_id = $1 AND id = $2 AND status <> 'resolved'",

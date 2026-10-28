@@ -4,7 +4,7 @@ import type { EChartsOption } from 'echarts';
 import { Check, Copy, ExternalLink, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { searchSpans } from '../../api/apm/client';
-import { searchLogs } from '../../api/client';
+import { searchLogPage } from '../../api/client';
 import { queryTimeseries } from '../../api/dashboards/client';
 import { API_MODE } from '../../api/http';
 import { getKubeResource, searchKubernetes, type KubeDetail, type KubeResource } from '../../api/kubernetes/client';
@@ -247,7 +247,7 @@ function Logs({ r }: { r: KubeResource }) {
     const to = Date.now();
     return { from: to - HOUR, to };
   }, []);
-  const q = useQuery({ queryKey: ['logs', 'kubernetes', query, range], queryFn: () => searchLogs({ range, query: query! }), enabled: !!query });
+  const q = useQuery({ queryKey: ['logs', 'kubernetes', query, range], queryFn: () => searchLogPage({ range, query: query! }, 100), enabled: !!query });
   if (!query) return <Empty>Logs are not linked to this kind of resource.</Empty>;
   return (
     <div>

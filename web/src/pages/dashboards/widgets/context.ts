@@ -2,11 +2,14 @@ import type { DashboardExecution } from '../execution';
 import { createContext, useContext } from 'react';
 import type { Widget } from '../../../api/dashboards/types';
 import type { TimeRange } from '../../../api/types';
+import type { OverlayMark } from '../../../lib/overlays';
 
 /** Everything a widget needs from its dashboard: the time range, query resolution and edit callbacks. */
 export interface DashboardContextValue {
   range: TimeRange;
   metrics?: DashboardExecution;
+  /** Events drawn over timeseries ("Show Overlays"); none when off. */
+  overlays?: OverlayMark[];
   /** Resolves template variables in a metric query. */
   resolve: (query: string) => string;
   /** Applies the dashboard's `$var` values to a log/monitor search query. */

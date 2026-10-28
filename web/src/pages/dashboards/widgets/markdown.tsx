@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
+import { markdownBlocks } from './markdownBlocks';
 
 // Tiny, safe Markdown subset for Note widgets: #/##/### headings, **bold**, *italic*, `code`,
-// [links](http…) (http/https only), "- " lists, "---" rules, paragraphs. No raw HTML is ever rendered.
+// [links](http…) (http/https only), "- " and "1. " lists, "---" rules, paragraphs. No raw HTML is ever rendered.
 
 function inline(text: string, key: string): ReactNode[] {
   const out: ReactNode[] = [];
-  const re = /(\*\*[^*]+\*\*)|(\*[^*]+\*)|(`[^`]+`)|(\[[^\]]+\]\([^)\s]+\))/g;
+  const re = /(\*\*[^*]+\*\*)|(\*[^*]+\*)|((?<!\w)_[^_\n]+_(?!\w))|(`[^`]+`)|(\[[^\]]+\]\([^)\s]+\))/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let i = 0;
@@ -21,10 +22,10 @@ function inline(text: string, key: string): ReactNode[] {
       out.push(
         /^https?:\/\//.test(href) ? (
           <a key={k} href={href} target="_blank" rel="noreferrer noopener">
-            {label}
+            {inline(label, k)}
           </a>
         ) : (
-          label
+          inline(label, k)
         ),
       );
     } else out.push(<em key={k}>{tok.slice(1, -1)}</em>);
@@ -35,50 +36,25 @@ function inline(text: string, key: string): ReactNode[] {
 }
 
 export function Markdown({ source }: { source: string }) {
-  const blocks: ReactNode[] = [];
-  const lines = source.split('\n');
-  let para: string[] = [];
-  let list: string[] = [];
-  const flushPara = () => {
-    if (para.length) blocks.push(<p key={`p${blocks.length}`}>{inline(para.join(' '), `p${blocks.length}`)}</p>);
-    para = [];
-  };
-  const flushList = () => {
-    if (list.length)
-      blocks.push(
-        <ul key={`u${blocks.length}`}>
-          {list.map((li, i) => (
-            <li key={i}>{inline(li, `l${blocks.length}-${i}`)}</li>
-          ))}
-        </ul>,
-      );
-    list = [];
-  };
-  for (const raw of lines) {
-    const line = raw.trimEnd();
-    const h = /^(#{1,3})\s+(.*)$/.exec(line);
-    if (h) {
-      flushPara();
-      flushList();
-      const level = h[1].length;
-      const content = inline(h[2], `h${blocks.length}`);
-      blocks.push(level === 1 ? <h1 key={`h${blocks.length}`}>{content}</h1> : level === 2 ? <h2 key={`h${blocks.length}`}>{content}</h2> : <h3 key={`h${blocks.length}`}>{content}</h3>);
-    } else if (/^[-*]\s+/.test(line)) {
-      flushPara();
-      list.push(line.replace(/^[-*]\s+/, ''));
-    } else if (/^---+$/.test(line)) {
-      flushPara();
-      flushList();
-      blocks.push(<hr key={`r${blocks.length}`} />);
-    } else if (line === '') {
-      flushPara();
-      flushList();
-    } else {
-      flushList();
-      para.push(line);
-    }
-  }
-  flushPara();
-  flushList();
-  return <>{blocks}</>;
+  return (
+    <>
+      {markdownBlocks(source).map((block, b) => {
+        const key = `b${b}`;
+        if (block.type === 'rule') return <hr key={key} />;
+        if (block.type === 'paragraph') return <p key={key}>{inline(block.text, key)}</p>;
+        if (block.type === 'heading') {
+          const Heading = (['h1', 'h2', 'h3'] as const)[block.level - 1];
+          return <Heading key={key}>{inline(block.text, key)}</Heading>;
+        }
+        const List = block.ordered ? 'ol' : 'ul';
+        return (
+          <List key={key}>
+            {block.items.map((li, i) => (
+              <li key={i}>{inline(li, `${key}-${i}`)}</li>
+            ))}
+          </List>
+        );
+      })}
+    </>
+  );
 }

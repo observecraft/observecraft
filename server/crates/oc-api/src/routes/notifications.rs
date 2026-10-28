@@ -5,7 +5,12 @@
 //! - `@slack-<name>`: Slack incoming webhook.
 //! - `@someone@example.com`: email through the install's SMTP server (`OC_SMTP_URL`). Only addresses
 //!   of the organization's members are mailed, so monitors can't be used to send mail to anyone.
+//! - `@oncall-<team>`: pages the team through On-Call (its escalation policy); a recovery resolves
+//!   the monitor's open pages for that group. Tests only check that the team exists.
+//! - `@workflow-<handle>`: starts the published workflow when it has a monitor trigger for the new
+//!   state. Tests only check that it can be started.
 //!
+//! On-Call pages reuse the same channels to reach responders ([`send`]).
 //! Each monitor transition that notifies creates one delivery per recipient; a background worker
 //! sends them and retries failures with backoff (30 s, 2 min, 10 min, 30 min, then gives up).
 
@@ -150,7 +155,7 @@ pub(crate) struct Notice {
 }
 
 impl Notice {
-    fn title(&self) -> String {
+    pub(crate) fn title(&self) -> String {
         let what = match self.to.as_str() {
             "alert" => "Triggered",
             "warn" => "Warn",
@@ -175,13 +180,59 @@ fn sign(secret: &str, body: &[u8]) -> String {
     mac.finalize().into_bytes().iter().map(|b| format!("{b:02x}")).collect()
 }
 
+/// One message, rendered for each kind of channel.
+pub(crate) struct Outgoing {
+    pub org: String,
+    /// Email subject and the bold first line elsewhere.
+    pub title: String,
+    pub email_body: String,
+    pub slack_text: String,
+    pub webhook: serde_json::Value,
+}
+
+impl Notice {
+    fn outgoing(&self, link: &str) -> Outgoing {
+        let value = self.value.map(|v| format!(" (value {v})")).unwrap_or_default();
+        let email_value = self.value.map(|v| format!("Value: {v}\n")).unwrap_or_default();
+        Outgoing {
+            org: self.org.clone(),
+            title: self.title(),
+            email_body: format!("{}\n\n{}\n\n{email_value}Monitor: {link}\n", self.title(), self.message.trim()),
+            slack_text: format!("*{}*{value}\n{}\n<{link}|View monitor>", self.title(), self.message.trim()),
+            webhook: json!({
+                "event": format!("monitor.{}", self.to),
+                "test": self.test,
+                "title": self.title(),
+                "organization": self.org,
+                "monitor": { "id": self.monitor_id, "name": self.monitor_name, "priority": self.priority, "tags": self.tags, "url": link },
+                "group": self.group,
+                "transition": { "from": self.from, "to": self.to },
+                "value": self.value,
+                "message": self.message,
+                "timestamp": self.at,
+            }),
+        }
+    }
+}
+
 pub(crate) async fn deliver(st: &AppState, recipient: &str, n: &Notice) -> Outcome {
+    if let Some(team) = recipient.strip_prefix("oncall-") {
+        return super::on_call::page_from_monitor(st, team, n).await;
+    }
+    if let Some(handle) = recipient.strip_prefix("workflow-") {
+        return super::workflows::start_from_monitor(st, handle, n).await;
+    }
     let link = format!("{}/monitors/{}", st.config.public_url, n.monitor_id);
+    send(st, recipient, &n.outgoing(&link)).await
+}
+
+/// Sends a message to an email address (of a member) or a channel handle (`slack-…`, `webhook-…`).
+pub(crate) async fn send(st: &AppState, recipient: &str, out: &Outgoing) -> Outcome {
     if recipient.contains('@') {
-        return send_email(st, recipient, n, &link).await;
+        return send_email(st, recipient, out).await;
     }
     let row: Option<(String, String, Option<String>)> =
-        match sqlx::query_as("SELECT kind, url_enc, secret_enc FROM notification_channels WHERE org_id = $1 AND handle = $2").bind(&n.org).bind(recipient).fetch_optional(&st.postgres).await {
+        match sqlx::query_as("SELECT kind, url_enc, secret_enc FROM notification_channels WHERE org_id = $1 AND handle = $2").bind(&out.org).bind(recipient).fetch_optional(&st.postgres).await {
             Ok(r) => r,
             Err(e) => return Outcome::Failed(e.to_string()),
         };
@@ -191,23 +242,7 @@ pub(crate) async fn deliver(st: &AppState, recipient: &str, n: &Notice) -> Outco
     let (Ok(url), secret) = (st.secrets.decrypt(&url_enc), secret_enc.and_then(|s| st.secrets.decrypt(&s).ok())) else {
         return Outcome::Failed("The channel's URL can't be decrypted (was OC_SECRET_KEY changed?)".into());
     };
-    let body = if kind == "slack" {
-        let value = n.value.map(|v| format!(" (value {v})")).unwrap_or_default();
-        json!({ "text": format!("*{}*{value}\n{}\n<{link}|View monitor>", n.title(), n.message.trim()) })
-    } else {
-        json!({
-            "event": format!("monitor.{}", n.to),
-            "test": n.test,
-            "title": n.title(),
-            "organization": n.org,
-            "monitor": { "id": n.monitor_id, "name": n.monitor_name, "priority": n.priority, "tags": n.tags, "url": link },
-            "group": n.group,
-            "transition": { "from": n.from, "to": n.to },
-            "value": n.value,
-            "message": n.message,
-            "timestamp": n.at,
-        })
-    };
+    let body = if kind == "slack" { json!({ "text": out.slack_text }) } else { out.webhook.clone() };
     let raw = serde_json::to_vec(&body).unwrap_or_default();
     let mut req = reqwest::Client::new().post(url).timeout(Duration::from_secs(10)).header("content-type", "application/json").header("user-agent", "ObserveCraft-Notifier");
     if let Some(s) = &secret {
@@ -220,22 +255,20 @@ pub(crate) async fn deliver(st: &AppState, recipient: &str, n: &Notice) -> Outco
     }
 }
 
-async fn send_email(st: &AppState, to: &str, n: &Notice, link: &str) -> Outcome {
+async fn send_email(st: &AppState, to: &str, out: &Outgoing) -> Outcome {
     use lettre::message::header::ContentType;
     use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
     let Some(smtp) = &st.config.smtp_url else {
         return Outcome::Unknown("Email isn't configured on this install (OC_SMTP_URL)".into());
     };
-    let member: Result<bool, _> = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM users WHERE org_id = $1 AND lower(email) = lower($2) AND status = 'active')").bind(&n.org).bind(to).fetch_one(&st.postgres).await;
+    let member: Result<bool, _> = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM users WHERE org_id = $1 AND lower(email) = lower($2) AND status = 'active')").bind(&out.org).bind(to).fetch_one(&st.postgres).await;
     if !member.unwrap_or(false) {
         return Outcome::Unknown(format!("{to} isn't an active member of this organization"));
     }
-    let value = n.value.map(|v| format!("Value: {v}\n")).unwrap_or_default();
-    let text = format!("{}\n\n{}\n\n{value}Monitor: {link}\n", n.title(), n.message.trim());
     let (Ok(from), Ok(to_addr)) = (st.config.smtp_from.parse(), to.parse()) else {
         return Outcome::Unknown(format!("Invalid email address {to}"));
     };
-    let email = match Message::builder().from(from).to(to_addr).subject(n.title()).header(ContentType::TEXT_PLAIN).body(text) {
+    let email = match Message::builder().from(from).to(to_addr).subject(out.title.clone()).header(ContentType::TEXT_PLAIN).body(out.email_body.clone()) {
         Ok(m) => m,
         Err(e) => return Outcome::Failed(e.to_string()),
     };
@@ -455,5 +488,10 @@ mod tests {
             test: false,
         };
         assert_eq!(n.title(), "[Triggered] High error rate on service:billing");
+        let out = n.outgoing("https://oc.example.com/monitors/1");
+        assert_eq!(out.slack_text, "*[Triggered] High error rate on service:billing* (value 5)\n\n<https://oc.example.com/monitors/1|View monitor>");
+        assert_eq!(out.email_body, "[Triggered] High error rate on service:billing\n\n\n\nValue: 5\nMonitor: https://oc.example.com/monitors/1\n");
+        assert_eq!(out.webhook["transition"]["to"], "alert");
+        assert_eq!(out.webhook["monitor"]["url"], "https://oc.example.com/monitors/1");
     }
 }

@@ -31,6 +31,8 @@ export interface LogQuery {
   range: TimeRange;
   /** Search syntax, e.g. `service:(a OR b) env:prod -status:info "bad response" @http.status_code:5*` */
   query: string;
+  /** Facets the viewer added (`kube_node`, `@http.url`), counted after the built-in ones. */
+  facets?: string[];
 }
 
 export interface FacetValue {

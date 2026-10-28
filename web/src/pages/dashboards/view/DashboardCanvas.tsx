@@ -46,7 +46,7 @@ function WidgetGrid({ widgets, layoutType, editable, onLayout, nested = false }:
           x: w.layout.x,
           y: w.layout.y,
           w: w.layout.w,
-          h: w.definition.type === 'group' ? Math.max(w.layout.h, groupHeight(w.definition.widgets, w.definition.compact)) : w.layout.h,
+          h: w.definition.type === 'group' ? Math.max(w.layout.h, groupHeight(w.definition.widgets, w.definition.compact, w.definition.showTitle !== false)) : w.layout.h,
           minW: layoutType === 'free' ? 4 : 2,
           minH: layoutType === 'free' ? 4 : 2,
           resizeHandles: group ? ['e'] : ['se'],

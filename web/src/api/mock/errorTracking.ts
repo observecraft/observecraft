@@ -31,11 +31,11 @@ import { rng, type Rand } from './generator';
 import { matchesTerms } from './match';
 
 const DAY = 24 * 3600_000;
-const delay = <T,>(value: T, ms = 120 + Math.random() * 180) => new Promise<T>((r) => setTimeout(() => r(value), ms));
+const delay = <T>(value: T, ms = 120 + Math.random() * 180) => new Promise<T>((r) => setTimeout(() => r(value), ms));
 
 // ---------------------------------------------------------------- users
 
-const USERS: User[] = [
+export const USERS: User[] = [
   { id: 'u-1', name: 'Alex Morgan', email: 'alex.morgan@example.com' },
   { id: 'u-2', name: 'Priya Shah', email: 'priya.shah@example.com' },
   { id: 'u-3', name: 'Daniel Kim', email: 'daniel.kim@example.com' },
@@ -69,34 +69,381 @@ interface Template {
 const SHOP_APP = { name: 'shop-mobile-app', packageId: 'com.example.shop' };
 
 const TEMPLATES: Template[] = [
-  { errorType: 'SIGSEGV', message: 'NDK crash detected with signal: SIGSEGV', platform: 'android', persona: 'mobile', source: 'rum', service: 'shop-mobile-app', application: SHOP_APP, perDay: 38, ageDays: 27, isCrash: true, cause: null, versions: ['3.9.0', '3.9.0'] },
-  { errorType: 'io.observecraft.android.rum.anr.ANRException', message: 'Application Not Responding', platform: 'android', persona: 'mobile', source: 'rum', service: 'shop-mobile-app', application: SHOP_APP, perDay: 2, ageDays: 120, isCrash: true, isRegression: true, cause: null, versions: ['3.4.2', '3.9.0'] },
-  { errorType: 'java.lang.IndexOutOfBoundsException', message: 'Index X out of bounds for length X', platform: 'java', persona: 'backend', source: 'apm', service: 'partner-proposals', location: { function: 'outOfBounds', file: 'util.Preconditions.java' }, perDay: 21, ageDays: 380, isRegression: true, cause: 'code_exception', versions: ['1.12.0', '1.31.4'] },
-  { errorType: 'java.lang.NullPointerException', message: 'Cannot invoke "java.util.Collection.toArray()" because "c" is null', platform: 'java', persona: 'backend', source: 'apm', service: 'support-portal', location: { function: 'addAll', file: 'base/java.util.ArrayList.java' }, perDay: 1, ageDays: 4, cause: 'code_exception', versions: ['2.8.1', '2.8.1'] },
-  { errorType: 'Oracle.DataAccess.Client.OracleException', message: 'ORA-01422: exact fetch returns more than requested number of rows ORA-06512: at "INVENTORY.UPDATE_STOCK_PKG", line 1538 ORA-06512: at line 1', platform: 'dotnet', persona: 'backend', source: 'logs', service: 'catalog-service-oracle', location: { function: '…ess.Client.OracleCommand.ExecuteNonQuery', file: '' }, perDay: 780, ageDays: 365, cause: null, versions: ['4.2.0', '4.6.3'] },
-  { errorType: 'TypeError', message: "Cannot read properties of undefined (reading 'map')", platform: 'browser', persona: 'browser', source: 'rum', service: 'storefront-web-rum', application: { name: 'storefront-web-rum' }, location: { function: 'renderQuotes', file: 'src/components/CartList.tsx' }, perDay: 10, ageDays: 18, cause: 'code_exception', versions: ['5.3.0', '5.4.1'] },
-  { errorType: 'ChunkLoadError', message: 'Loading chunk 412 failed. (error: https://account.example.com/static/js/412.8c1f.chunk.js)', platform: 'browser', persona: 'browser', source: 'rum', service: 'account-web-rum', application: { name: 'account-web-rum' }, perDay: 8, ageDays: 9, cause: 'lost_connection', versions: ['2.1.0', '2.2.0'] },
-  { errorType: 'AxiosError', message: 'Network Error', platform: 'browser', persona: 'browser', source: 'rum', service: 'gift-cards', application: { name: 'gift-cards' }, location: { function: 'fetchOffers', file: 'src/api/offers.ts' }, perDay: 7, ageDays: 60, cause: 'failed_request', versions: ['1.0.9', '1.1.2'] },
-  { errorType: 'Error', message: 'Request failed with status code 502', platform: 'browser', persona: 'browser', source: 'rum', service: 'store-locator-web-RUM', application: { name: 'store-locator-web-RUM' }, perDay: 2, ageDays: 33, cause: 'failed_request', versions: ['0.9.0', '0.9.4'] },
-  { errorType: 'TypeError', message: 'Failed to fetch', platform: 'browser', persona: 'browser', source: 'rum', service: 'partner-widget-RUM', application: { name: 'partner-widget-RUM' }, perDay: 3, ageDays: 140, cause: 'lost_connection', versions: ['3.0.0', '3.2.7'] },
-  { errorType: 'Error', message: 'Route not found: /orders/undefined', platform: 'browser', persona: 'browser', source: 'rum', service: 'ROUTE-CHANGE', application: { name: 'ROUTE-CHANGE' }, location: { function: 'resolveRoute', file: 'src/router/index.ts' }, perDay: 4, ageDays: 6, cause: 'invalid_argument', versions: ['1.4.0', '1.4.0'] },
-  { errorType: 'TypeError', message: 'e.data is undefined', platform: 'browser', persona: 'browser', source: 'rum', service: 'identity', application: { name: 'IDENTITY' }, location: { function: 'onMessage', file: 'src/workers/sync.ts' }, perDay: 13, ageDays: 45, cause: 'code_exception', versions: ['7.2.0', '7.3.1'] },
-  { errorType: 'Invariant Violation', message: 'Text strings must be rendered within a <Text> component.', platform: 'react-native', persona: 'mobile', source: 'rum', service: 'shop-mobile-app', application: SHOP_APP, perDay: 6, ageDays: 2, isCrash: true, cause: 'code_exception', versions: ['3.9.0', '3.9.0'] },
-  { errorType: 'MongoServerSelectionError', message: 'Server selection timed out after 30000 ms', platform: 'node', persona: 'backend', source: 'logs', service: 'checkout-worker', perDay: 17, ageDays: 75, cause: 'lost_connection', versions: ['2.0.3', '2.3.0'] },
-  { errorType: 'UnhandledPromiseRejection', message: "Cannot read properties of null (reading 'orderId')", platform: 'node', persona: 'backend', source: 'apm', service: 'checkout-backend', location: { function: 'loadPolicy', file: 'src/orders/service.ts' }, perDay: 8, ageDays: 12, cause: 'code_exception', versions: ['2.3.0', '2.3.0'] },
-  { errorType: 'MongoServerError', message: 'E11000 duplicate key error collection: identity.users index: email_1 dup key', platform: 'node', persona: 'backend', source: 'logs', service: 'identity', perDay: 5, ageDays: 210, cause: 'invalid_argument', versions: ['7.0.0', '7.3.1'] },
-  { errorType: 'System.ServiceModel.FaultException', message: 'The creator of this fault did not specify a Reason.', platform: 'dotnet', persona: 'backend', source: 'logs', service: 'microsoft_dynamics_crm', perDay: 9, ageDays: 300, cause: 'failed_request', versions: ['9.1.0', '9.2.4'] },
-  { errorType: 'KeyError', message: "'order_number'", platform: 'python', persona: 'backend', source: 'apm', service: 'etl-pipeline', location: { function: 'transform_row', file: 'etl/pipeline/transform.py' }, perDay: 9, ageDays: 21, cause: 'code_exception', versions: ['0.14.2', '0.15.0'] },
-  { errorType: 'pymongo.errors.AutoReconnect', message: 'connection closed', platform: 'python', persona: 'backend', source: 'logs', service: 'mongo', perDay: 8, ageDays: 95, cause: 'lost_connection', versions: ['1.2.0', '1.2.0'] },
-  { errorType: 'context deadline exceeded', message: 'rpc error: code = DeadlineExceeded desc = context deadline exceeded', platform: 'go', persona: 'backend', source: 'apm', service: 'import-service', location: { function: 'ConfigClient.Reload', file: 'internal/config/client.go' }, perDay: 5, ageDays: 14, cause: 'lost_connection', versions: ['0.8.0', '0.8.2'] },
-  { errorType: 'UpstreamError', message: 'GetCustomer bad response', platform: 'go', persona: 'backend', source: 'logs', service: 'order-service', location: { function: 'handleOrder.GetCustomer', file: 'internal/orders/submitr.go' }, perDay: 12, ageDays: 3, isRegression: true, cause: 'failed_request', versions: ['3.1.0', '3.2.0'] },
-  { errorType: 'java.net.SocketTimeoutException', message: 'Read timed out', platform: 'java', persona: 'backend', source: 'apm', service: 'pricing-service', location: { function: 'socketRead0', file: 'java.net.SocketInputStream.java' }, perDay: 4, ageDays: 50, cause: 'lost_connection', versions: ['6.0.1', '6.2.0'] },
-  { errorType: 'NSInvalidArgumentException', message: '-[__NSCFNumber length]: unrecognized selector sent to instance 0x8000000000000000', platform: 'ios', persona: 'mobile', source: 'rum', service: 'shop-mobile-app', application: { name: 'shop-mobile-app', packageId: 'com.example.shop.ios' }, perDay: 1, ageDays: 8, isCrash: true, cause: 'invalid_argument', versions: ['3.9.0', '3.9.0'] },
-  { errorType: 'java.lang.IllegalStateException', message: 'Cannot call commit after onSaveInstanceState', platform: 'android', persona: 'mobile', source: 'rum', service: 'shop-mobile-app', application: SHOP_APP, perDay: 3, ageDays: 70, isCrash: true, cause: 'illegal_object_access', status: 'resolved', versions: ['3.6.0', '3.8.2'] },
-  { errorType: 'TypeError', message: "Cannot destructure property 'id' of 'undefined'", platform: 'browser', persona: 'browser', source: 'rum', service: 'gift-cards', application: { name: 'gift-cards' }, perDay: 2, ageDays: 30, cause: 'code_exception', status: 'resolved', versions: ['1.0.4', '1.0.9'] },
-  { errorType: 'redis.exceptions.ConnectionError', message: 'Error 111 connecting to redis:6379. Connection refused.', platform: 'python', persona: 'backend', source: 'logs', service: 'etl-pipeline', perDay: 4, ageDays: 40, cause: 'lost_connection', status: 'resolved', versions: ['0.13.0', '0.14.2'] },
-  { errorType: 'System.TimeoutException', message: 'The request channel timed out while waiting for a reply after 00:01:00.', platform: 'dotnet', persona: 'backend', source: 'logs', service: 'microsoft_dynamics_crm', perDay: 3, ageDays: 160, cause: 'lost_connection', status: 'reviewed', versions: ['9.0.0', '9.2.4'] },
-  { errorType: 'ResizeObserver loop limit exceeded', message: 'ResizeObserver loop completed with undelivered notifications.', platform: 'browser', persona: 'browser', source: 'rum', service: 'store-locator-web-RUM', application: { name: 'store-locator-web-RUM' }, perDay: 20, ageDays: 200, cause: null, status: 'ignored', versions: ['0.1.0', '0.9.4'] },
+  {
+    errorType: 'SIGSEGV',
+    message: 'NDK crash detected with signal: SIGSEGV',
+    platform: 'android',
+    persona: 'mobile',
+    source: 'rum',
+    service: 'shop-mobile-app',
+    application: SHOP_APP,
+    perDay: 38,
+    ageDays: 27,
+    isCrash: true,
+    cause: null,
+    versions: ['3.9.0', '3.9.0'],
+  },
+  {
+    errorType: 'io.observecraft.android.rum.anr.ANRException',
+    message: 'Application Not Responding',
+    platform: 'android',
+    persona: 'mobile',
+    source: 'rum',
+    service: 'shop-mobile-app',
+    application: SHOP_APP,
+    perDay: 2,
+    ageDays: 120,
+    isCrash: true,
+    isRegression: true,
+    cause: null,
+    versions: ['3.4.2', '3.9.0'],
+  },
+  {
+    errorType: 'java.lang.IndexOutOfBoundsException',
+    message: 'Index X out of bounds for length X',
+    platform: 'java',
+    persona: 'backend',
+    source: 'apm',
+    service: 'billing',
+    location: { function: 'outOfBounds', file: 'util.Preconditions.java' },
+    perDay: 21,
+    ageDays: 380,
+    isRegression: true,
+    cause: 'code_exception',
+    versions: ['1.12.0', '1.31.4'],
+  },
+  {
+    errorType: 'java.lang.NullPointerException',
+    message: 'Cannot invoke "java.util.Collection.toArray()" because "c" is null',
+    platform: 'java',
+    persona: 'backend',
+    source: 'apm',
+    service: 'support-portal',
+    location: { function: 'addAll', file: 'base/java.util.ArrayList.java' },
+    perDay: 1,
+    ageDays: 4,
+    cause: 'code_exception',
+    versions: ['2.8.1', '2.8.1'],
+  },
+  {
+    errorType: 'Oracle.DataAccess.Client.OracleException',
+    message: 'ORA-01422: exact fetch returns more than requested number of rows ORA-06512: at "INVENTORY.UPDATE_STOCK_PKG", line 1538 ORA-06512: at line 1',
+    platform: 'dotnet',
+    persona: 'backend',
+    source: 'logs',
+    service: 'catalog-service-oracle',
+    location: { function: '…ess.Client.OracleCommand.ExecuteNonQuery', file: '' },
+    perDay: 780,
+    ageDays: 365,
+    cause: null,
+    versions: ['4.2.0', '4.6.3'],
+  },
+  {
+    errorType: 'TypeError',
+    message: "Cannot read properties of undefined (reading 'map')",
+    platform: 'browser',
+    persona: 'browser',
+    source: 'rum',
+    service: 'storefront-web-rum',
+    application: { name: 'storefront-web-rum' },
+    location: { function: 'renderQuotes', file: 'src/components/CartList.tsx' },
+    perDay: 10,
+    ageDays: 18,
+    cause: 'code_exception',
+    versions: ['5.3.0', '5.4.1'],
+  },
+  {
+    errorType: 'ChunkLoadError',
+    message: 'Loading chunk 412 failed. (error: https://account.example.com/static/js/412.8c1f.chunk.js)',
+    platform: 'browser',
+    persona: 'browser',
+    source: 'rum',
+    service: 'account-web-rum',
+    application: { name: 'account-web-rum' },
+    perDay: 8,
+    ageDays: 9,
+    cause: 'lost_connection',
+    versions: ['2.1.0', '2.2.0'],
+  },
+  {
+    errorType: 'AxiosError',
+    message: 'Network Error',
+    platform: 'browser',
+    persona: 'browser',
+    source: 'rum',
+    service: 'gift-cards',
+    application: { name: 'gift-cards' },
+    location: { function: 'fetchOffers', file: 'src/api/offers.ts' },
+    perDay: 7,
+    ageDays: 60,
+    cause: 'failed_request',
+    versions: ['1.0.9', '1.1.2'],
+  },
+  {
+    errorType: 'Error',
+    message: 'Request failed with status code 502',
+    platform: 'browser',
+    persona: 'browser',
+    source: 'rum',
+    service: 'store-locator-web-rum',
+    application: { name: 'store-locator-web-rum' },
+    perDay: 2,
+    ageDays: 33,
+    cause: 'failed_request',
+    versions: ['0.9.0', '0.9.4'],
+  },
+  {
+    errorType: 'TypeError',
+    message: 'Failed to fetch',
+    platform: 'browser',
+    persona: 'browser',
+    source: 'rum',
+    service: 'checkout-web-rum',
+    application: { name: 'checkout-web-rum' },
+    perDay: 3,
+    ageDays: 140,
+    cause: 'lost_connection',
+    versions: ['3.0.0', '3.2.7'],
+  },
+  {
+    errorType: 'Error',
+    message: 'Route not found: /orders/undefined',
+    platform: 'browser',
+    persona: 'browser',
+    source: 'rum',
+    service: 'order-tracking-web-rum',
+    application: { name: 'order-tracking-web-rum' },
+    location: { function: 'resolveRoute', file: 'src/router/index.ts' },
+    perDay: 4,
+    ageDays: 6,
+    cause: 'invalid_argument',
+    versions: ['1.4.0', '1.4.0'],
+  },
+  {
+    errorType: 'TypeError',
+    message: 'e.data is undefined',
+    platform: 'browser',
+    persona: 'browser',
+    source: 'rum',
+    service: 'identity',
+    application: { name: 'identity' },
+    location: { function: 'onMessage', file: 'src/workers/sync.ts' },
+    perDay: 13,
+    ageDays: 45,
+    cause: 'code_exception',
+    versions: ['7.2.0', '7.3.1'],
+  },
+  {
+    errorType: 'Invariant Violation',
+    message: 'Text strings must be rendered within a <Text> component.',
+    platform: 'react-native',
+    persona: 'mobile',
+    source: 'rum',
+    service: 'shop-mobile-app',
+    application: SHOP_APP,
+    perDay: 6,
+    ageDays: 2,
+    isCrash: true,
+    cause: 'code_exception',
+    versions: ['3.9.0', '3.9.0'],
+  },
+  {
+    errorType: 'MongoServerSelectionError',
+    message: 'Server selection timed out after 30000 ms',
+    platform: 'node',
+    persona: 'backend',
+    source: 'logs',
+    service: 'checkout-worker',
+    perDay: 17,
+    ageDays: 75,
+    cause: 'lost_connection',
+    versions: ['2.0.3', '2.3.0'],
+  },
+  {
+    errorType: 'UnhandledPromiseRejection',
+    message: "Cannot read properties of null (reading 'orderId')",
+    platform: 'node',
+    persona: 'backend',
+    source: 'apm',
+    service: 'checkout-backend',
+    location: { function: 'loadPolicy', file: 'src/orders/service.ts' },
+    perDay: 8,
+    ageDays: 12,
+    cause: 'code_exception',
+    versions: ['2.3.0', '2.3.0'],
+  },
+  {
+    errorType: 'MongoServerError',
+    message: 'E11000 duplicate key error collection: identity.users index: email_1 dup key',
+    platform: 'node',
+    persona: 'backend',
+    source: 'logs',
+    service: 'identity',
+    perDay: 5,
+    ageDays: 210,
+    cause: 'invalid_argument',
+    versions: ['7.0.0', '7.3.1'],
+  },
+  {
+    errorType: 'System.ServiceModel.FaultException',
+    message: 'The creator of this fault did not specify a Reason.',
+    platform: 'dotnet',
+    persona: 'backend',
+    source: 'logs',
+    service: 'crm-sync',
+    perDay: 9,
+    ageDays: 300,
+    cause: 'failed_request',
+    versions: ['9.1.0', '9.2.4'],
+  },
+  {
+    errorType: 'KeyError',
+    message: "'order_number'",
+    platform: 'python',
+    persona: 'backend',
+    source: 'apm',
+    service: 'etl-pipeline',
+    location: { function: 'transform_row', file: 'etl/pipeline/transform.py' },
+    perDay: 9,
+    ageDays: 21,
+    cause: 'code_exception',
+    versions: ['0.14.2', '0.15.0'],
+  },
+  {
+    errorType: 'pymongo.errors.AutoReconnect',
+    message: 'connection closed',
+    platform: 'python',
+    persona: 'backend',
+    source: 'logs',
+    service: 'mongo',
+    perDay: 8,
+    ageDays: 95,
+    cause: 'lost_connection',
+    versions: ['1.2.0', '1.2.0'],
+  },
+  {
+    errorType: 'context deadline exceeded',
+    message: 'rpc error: code = DeadlineExceeded desc = context deadline exceeded',
+    platform: 'go',
+    persona: 'backend',
+    source: 'apm',
+    service: 'import-service',
+    location: { function: 'ConfigClient.Reload', file: 'internal/config/client.go' },
+    perDay: 5,
+    ageDays: 14,
+    cause: 'lost_connection',
+    versions: ['0.8.0', '0.8.2'],
+  },
+  {
+    errorType: 'UpstreamError',
+    message: 'GetCustomer bad response',
+    platform: 'go',
+    persona: 'backend',
+    source: 'logs',
+    service: 'order-service',
+    location: { function: 'handleOrder.GetCustomer', file: 'internal/orders/submitr.go' },
+    perDay: 12,
+    ageDays: 3,
+    isRegression: true,
+    cause: 'failed_request',
+    versions: ['3.1.0', '3.2.0'],
+  },
+  {
+    errorType: 'java.net.SocketTimeoutException',
+    message: 'Read timed out',
+    platform: 'java',
+    persona: 'backend',
+    source: 'apm',
+    service: 'pricing-service',
+    location: { function: 'socketRead0', file: 'java.net.SocketInputStream.java' },
+    perDay: 4,
+    ageDays: 50,
+    cause: 'lost_connection',
+    versions: ['6.0.1', '6.2.0'],
+  },
+  {
+    errorType: 'NSInvalidArgumentException',
+    message: '-[__NSCFNumber length]: unrecognized selector sent to instance 0x8000000000000000',
+    platform: 'ios',
+    persona: 'mobile',
+    source: 'rum',
+    service: 'shop-mobile-app',
+    application: { name: 'shop-mobile-app', packageId: 'com.example.shop.ios' },
+    perDay: 1,
+    ageDays: 8,
+    isCrash: true,
+    cause: 'invalid_argument',
+    versions: ['3.9.0', '3.9.0'],
+  },
+  {
+    errorType: 'java.lang.IllegalStateException',
+    message: 'Cannot call commit after onSaveInstanceState',
+    platform: 'android',
+    persona: 'mobile',
+    source: 'rum',
+    service: 'shop-mobile-app',
+    application: SHOP_APP,
+    perDay: 3,
+    ageDays: 70,
+    isCrash: true,
+    cause: 'illegal_object_access',
+    status: 'resolved',
+    versions: ['3.6.0', '3.8.2'],
+  },
+  {
+    errorType: 'TypeError',
+    message: "Cannot destructure property 'id' of 'undefined'",
+    platform: 'browser',
+    persona: 'browser',
+    source: 'rum',
+    service: 'gift-cards',
+    application: { name: 'gift-cards' },
+    perDay: 2,
+    ageDays: 30,
+    cause: 'code_exception',
+    status: 'resolved',
+    versions: ['1.0.4', '1.0.9'],
+  },
+  {
+    errorType: 'redis.exceptions.ConnectionError',
+    message: 'Error 111 connecting to redis:6379. Connection refused.',
+    platform: 'python',
+    persona: 'backend',
+    source: 'logs',
+    service: 'etl-pipeline',
+    perDay: 4,
+    ageDays: 40,
+    cause: 'lost_connection',
+    status: 'resolved',
+    versions: ['0.13.0', '0.14.2'],
+  },
+  {
+    errorType: 'System.TimeoutException',
+    message: 'The request channel timed out while waiting for a reply after 00:01:00.',
+    platform: 'dotnet',
+    persona: 'backend',
+    source: 'logs',
+    service: 'crm-sync',
+    perDay: 3,
+    ageDays: 160,
+    cause: 'lost_connection',
+    status: 'reviewed',
+    versions: ['9.0.0', '9.2.4'],
+  },
+  {
+    errorType: 'ResizeObserver loop limit exceeded',
+    message: 'ResizeObserver loop completed with undelivered notifications.',
+    platform: 'browser',
+    persona: 'browser',
+    source: 'rum',
+    service: 'store-locator-web-rum',
+    application: { name: 'store-locator-web-rum' },
+    perDay: 20,
+    ageDays: 200,
+    cause: null,
+    status: 'ignored',
+    versions: ['0.1.0', '0.9.4'],
+  },
 ];
 
 // ---------------------------------------------------------------- store
@@ -247,7 +594,7 @@ function passesControls(s: StoredIssue, req: IssueFacetsRequest): boolean {
 
 function relevance(i: Issue): number {
   const ageH = (Date.now() - i.lastSeen) / 3600_000;
-  return i.count * (i.isCrash ? 3 : 1) * (i.isRegression ? 2 : 1) / (1 + ageH / 6);
+  return (i.count * (i.isCrash ? 3 : 1) * (i.isRegression ? 2 : 1)) / (1 + ageH / 6);
 }
 
 export function searchIssues(req: IssueSearchRequest): Promise<IssueSearchPage> {
@@ -375,9 +722,7 @@ function detail(s: StoredIssue, range: TimeRange): IssueDetail {
   return {
     ...issue,
     histogram: counts.map((count, i) => ({ t: Math.round(range.from + i * size), count })),
-    impact: frontend
-      ? { sessions: issue.count, sessionShare: issue.count / 12000, views: Math.max(1, Math.min(issue.count, 5)), users: Math.ceil(issue.count * 0.8) }
-      : null,
+    impact: frontend ? { sessions: issue.count, sessionShare: issue.count / 12000, views: Math.max(1, Math.min(issue.count, 5)), users: Math.ceil(issue.count * 0.8) } : null,
     tags: tagDistributions(s),
     activity: [...s.activity].sort((a, b) => b.at - a.at),
   };
@@ -431,6 +776,8 @@ function frames(s: StoredIssue, r: Rand): { title: string; frames: StackFrame[] 
   const f = (index: number, module: string, symbol: string, extra: Partial<StackFrame> = {}): StackFrame => ({ index, module, symbol, inApp: false, ...extra });
   const msg = b.message.replace(/\bX\b/g, () => String(Math.floor(r() * 9) + 1));
   switch (b.platform) {
+    case 'unknown':
+      return { title: msg, frames: [] };
     case 'android':
       if (b.errorType === 'SIGSEGV') {
         const list: StackFrame[] = [
@@ -440,8 +787,18 @@ function frames(s: StoredIssue, r: Rand): { title: string; frames: StackFrame[] 
         ];
         for (let i = 3; i < 28; i++) list.push(f(i, i % 3 ? 'libhermes.so' : 'libreactnativejni.so', '', { address: addr(r) }));
         list.push(
-          f(28, 'libfbjni.so', '_ZN8facebook3jni6detail13MethodWrapperIMNS0_15JNativeRunnableEFvvEXadL_ZNS3_3runEvEES3_vJEE8dispatchENS0_9alias_refIPNS1_8JTypeForINS0_11HybridClassIS3_NS0_9JRunnableEE8JavaPartESA_vE11_javaobjectEEE', { address: '0x0000000000017dd4' }),
-          f(29, 'libfbjni.so', '_ZN8facebook3jni6detail15FunctionWrapperIPFvNS0_9alias_refIPNS1_8JTypeForINS0_11HybridClassINS0_15JNativeRunnableENS0_9JRunnableEE8JavaPartES7_vE11_javaobjectEEESC_vJEE4callEP7_JNIEnvP8_jobjectSF_', { address: '0x0000000000017d14' }),
+          f(
+            28,
+            'libfbjni.so',
+            '_ZN8facebook3jni6detail13MethodWrapperIMNS0_15JNativeRunnableEFvvEXadL_ZNS3_3runEvEES3_vJEE8dispatchENS0_9alias_refIPNS1_8JTypeForINS0_11HybridClassIS3_NS0_9JRunnableEE8JavaPartESA_vE11_javaobjectEEE',
+            { address: '0x0000000000017dd4' },
+          ),
+          f(
+            29,
+            'libfbjni.so',
+            '_ZN8facebook3jni6detail15FunctionWrapperIPFvNS0_9alias_refIPNS1_8JTypeForINS0_11HybridClassINS0_15JNativeRunnableENS0_9JRunnableEE8JavaPartES7_vE11_javaobjectEEESC_vJEE4callEP7_JNIEnvP8_jobjectSF_',
+            { address: '0x0000000000017d14' },
+          ),
         );
         return { title: `SIGSEGV: ${b.message}`, frames: list };
       }
@@ -462,8 +819,8 @@ function frames(s: StoredIssue, r: Rand): { title: string; frames: StackFrame[] 
         frames: [
           f(0, 'jdk.internal.util.Preconditions', b.location?.function ?? 'outOfBounds', { file: 'Preconditions.java', line: 64 }),
           f(1, 'java.util.ArrayList', 'get', { file: 'ArrayList.java', line: 427 }),
-          f(2, `com.billing.${b.service.replace(/-/g, '')}.service.ProposalService`, 'buildProposal', { file: 'ProposalService.java', line: 212, inApp: true }),
-          f(3, `com.billing.${b.service.replace(/-/g, '')}.web.ProposalController`, 'create', { file: 'ProposalController.java', line: 58, inApp: true }),
+          f(2, `com.example.${b.service.replace(/-/g, '')}.service.InvoiceService`, 'buildInvoice', { file: 'InvoiceService.java', line: 212, inApp: true }),
+          f(3, `com.example.${b.service.replace(/-/g, '')}.web.InvoiceController`, 'create', { file: 'InvoiceController.java', line: 58, inApp: true }),
           f(4, 'org.springframework.web.servlet.FrameworkServlet', 'service', { file: 'FrameworkServlet.java', line: 885 }),
           f(5, 'jakarta.servlet.http.HttpServlet', 'service', { file: 'HttpServlet.java', line: 658 }),
         ],
@@ -533,9 +890,7 @@ function rawStack(title: string, list: StackFrame[]): string {
   return [
     title,
     ...list.map((fr) =>
-      fr.address
-        ? `${String(fr.index).padEnd(3)} ${fr.module.padEnd(22)} ${fr.address} ${fr.symbol}`
-        : `    at ${fr.module}.${fr.symbol}(${fr.file ?? fr.module}${fr.line ? `:${fr.line}` : ''})`,
+      fr.address ? `${String(fr.index).padEnd(3)} ${fr.module.padEnd(22)} ${fr.address} ${fr.symbol}` : `    at ${fr.module}.${fr.symbol}(${fr.file ?? fr.module}${fr.line ? `:${fr.line}` : ''})`,
     ),
   ].join('\n');
 }
@@ -579,6 +934,9 @@ function buildSample(s: StoredIssue, ts: number, r: Rand, tags: Record<string, s
         { at: ts - 40, type: 'log', label: 'Log', message: 'request received POST /api/v1/process' },
       ];
 
+  // Backend errors happen in a trace; APM samples link to it.
+  const traceId = frontend ? '' : hexStr(r, 32);
+  const spanId = frontend ? '' : hexStr(r, 16);
   const attributeGroups: AttributeGroup[] = frontend
     ? [
         {
@@ -600,12 +958,42 @@ function buildSample(s: StoredIssue, ts: number, r: Rand, tags: Record<string, s
           ],
         },
         ...(mobile
-          ? [{ name: 'Device', attributes: [{ label: 'Brand', value: 'OnePlus' }, { label: 'Model', value: 'PJZ110' }, { label: 'Architecture', value: 'aarch64' }] }]
-          : [{ name: 'Browser', attributes: [{ label: 'Browser', value: tags['@browser.name'] ?? 'Chrome' }, { label: 'Version', value: '129.0' }] }]),
+          ? [
+              {
+                name: 'Device',
+                attributes: [
+                  { label: 'Brand', value: 'OnePlus' },
+                  { label: 'Model', value: 'PJZ110' },
+                  { label: 'Architecture', value: 'aarch64' },
+                ],
+              },
+            ]
+          : [
+              {
+                name: 'Browser',
+                attributes: [
+                  { label: 'Browser', value: tags['@browser.name'] ?? 'Chrome' },
+                  { label: 'Version', value: '129.0' },
+                ],
+              },
+            ]),
       ]
     : [
-        { name: 'Host', attributes: [{ label: 'Host', value: tags.host }, { label: 'Env', value: s.env }, { label: 'Version', value: tags.version }] },
-        { name: 'Trace', attributes: [{ label: 'Trace Id', value: hexStr(r, 32) }, { label: 'Span Id', value: hexStr(r, 16) }] },
+        {
+          name: 'Host',
+          attributes: [
+            { label: 'Host', value: tags.host },
+            { label: 'Env', value: s.env },
+            { label: 'Version', value: tags.version },
+          ],
+        },
+        {
+          name: 'Trace',
+          attributes: [
+            { label: 'Trace Id', value: traceId },
+            { label: 'Span Id', value: spanId },
+          ],
+        },
       ];
 
   const json: Record<string, JsonValue> = {
@@ -620,7 +1008,7 @@ function buildSample(s: StoredIssue, ts: number, r: Rand, tags: Record<string, s
           }
         : {}),
       error: { type: b.errorType, message: b.message, is_crash: b.isCrash, source: b.source, stack: rawStack(title, list.slice(0, 4)) },
-      ...(frontend ? { view: { id: viewId, name: view }, session: { id: sessionId } } : { host: tags.host, trace_id: hexStr(r, 32) }),
+      ...(frontend ? { view: { id: viewId, name: view }, session: { id: sessionId } } : { host: tags.host, trace_id: traceId }),
       env: s.env,
       service: b.service,
       version: tags.version,
@@ -628,7 +1016,8 @@ function buildSample(s: StoredIssue, ts: number, r: Rand, tags: Record<string, s
     date: new Date(ts).toISOString(),
   };
 
-  return { id: `${b.id}-${ts}`, timestamp: ts, tags, stack: { title, frames: list, raw: rawStack(title, list) }, timeline, attributeGroups, json };
+  const trace = b.source === 'apm' ? { traceId, spanId } : {};
+  return { id: `${b.id}-${ts}`, timestamp: ts, tags, stack: { title, frames: list, raw: rawStack(title, list) }, timeline, attributeGroups, json, ...trace };
 }
 
 export function getErrorSample(req: ErrorSampleRequest): Promise<ErrorSamplePage> {
@@ -644,5 +1033,5 @@ export function getErrorSample(req: ErrorSampleRequest): Promise<ErrorSamplePage
     .filter((c) => matchesTerms((k) => c.tags[k], s.base.message, terms));
   const index = Math.max(0, Math.min(req.index, candidates.length - 1));
   const c = candidates[index];
-  return delay({ sample: c ? buildSample(s, c.ts, c.r, c.tags) : null, index, total: candidates.length });
+  return delay({ sample: c ? buildSample(s, c.ts, c.r, c.tags) : null, index, total: candidates.length, available: candidates.length });
 }

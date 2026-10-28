@@ -62,6 +62,8 @@ function useParamState() {
 }
 
 /** Infrastructure → Kubernetes Explorer / ECS Explorer (Datadog's orchestrator explorer). */
+const ADDED_FACETS_KEY = 'oc.kubernetes.addedFacets';
+
 export function OrchestrationExplorer() {
   return (
     <LiveProvider>
@@ -94,12 +96,7 @@ function ExplorerBody() {
     <div className="hosts-page ox-page">
       <OrchestrationHeader product={product} active="Explorer" />
       <div className="ox-subbar">
-        <button className="link-btn ox-views">
-          <PanelLeft size={15} /> Views
-        </button>
-        <span className="ox-myview">
-          My View <EllipsisVertical size={15} className="muted" />
-        </span>
+        <span className="ox-myview">My View</span>
         {product === 'kubernetes' && (
           <span className="ox-subtabs">
             <button className={`ox-subtab${sub === 'inventory' ? ' active' : ''}`} onClick={() => setParam({ sub: null })}>
@@ -239,8 +236,27 @@ function Inventory({ kind, onUpdated, filter }: { kind: ExplorerKind; onUpdated:
   const apiKind: KubeKind = kind;
   const info = KIND_INFO[kind];
 
+  // Tag facets this viewer added with "+ Add" (kept in this browser).
+  const [addedFacets, setAddedFacets] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(ADDED_FACETS_KEY) ?? '[]') as string[];
+    } catch {
+      return [];
+    }
+  });
+  const addFacet = (key: string) =>
+    setAddedFacets((list) => {
+      const next = list.includes(key) ? list : [...list, key];
+      try {
+        localStorage.setItem(ADDED_FACETS_KEY, JSON.stringify(next));
+      } catch {
+        // Private windows: the facet still shows until the page is left.
+      }
+      return next;
+    });
+
   const q = useQuery({
-    queryKey: ['kubernetes', 'search', kind, query, groupBy, sortField, sortDir, view === 'map' ? 0 : offset, view],
+    queryKey: ['kubernetes', 'search', kind, query, groupBy, sortField, sortDir, view === 'map' ? 0 : offset, view, addedFacets],
     queryFn: async () => {
       const page = await searchKubernetes({
         kind: apiKind,
@@ -250,6 +266,7 @@ function Inventory({ kind, onUpdated, filter }: { kind: ExplorerKind; onUpdated:
         desc: sortDir === 'desc',
         offset: view === 'map' ? 0 : offset,
         limit: view === 'map' ? 1000 : PAGE_SIZE,
+        extra: addedFacets,
       });
       onUpdated(Date.now());
       return page;
@@ -349,6 +366,7 @@ function Inventory({ kind, onUpdated, filter }: { kind: ExplorerKind; onUpdated:
                 defaultOpen={['status', 'kube_cluster_name', 'kube_namespace', 'task_launch_type', 'ecs_cluster']}
                 verified={[]}
                 valueSearch
+                addable={{ load: async () => (q.data?.tagKeyCounts ?? []).map((t) => ({ key: t.value, count: t.count })), onAdd: addFacet }}
               />
             )}
           </aside>

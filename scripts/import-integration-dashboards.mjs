@@ -1,11 +1,57 @@
-﻿// Import dashboard data from integrations-core without proprietary artwork or documentation prose.
+﻿// Import integrations-core dashboards (BSD-3-Clause): widgets, notes, colors and the images embedded
+// in them. Images only linked from them are hosted by Datadog, not part of the repository, and are
+// replaced by our own artwork (web/public/images/integrations/<integration>-banner.svg).
 // node scripts/import-integration-dashboards.mjs [integration] [commit SHA]
 import { mkdir, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-import { dashboardNote } from './integration-dashboard-copy.mjs';
+import { formulaQueries, parseMetricQuery } from '../web/src/lib/metricQuery.ts';
 export const PINNED_REVISION = 'c7dbc72cac1946294acda77f6491ecd081d9b498';
 
+/** Units of the Agent's own host metrics (they have no integrations-core metadata.csv); memory is in MiB. */
+const AGENT_UNITS = {
+  kubernetes: [
+    ['system.cpu.idle', 'percent'],
+    ['system.cpu.iowait', 'percent'],
+    ['system.cpu.system', 'percent'],
+    ['system.cpu.user', 'percent'],
+    ['system.cpu.num_cores', 'core'],
+    ['system.mem.free', 'mebibyte'],
+    ['system.mem.pct_usable', 'fraction'],
+    ['system.mem.total', 'mebibyte'],
+    ['system.mem.usable', 'mebibyte'],
+    ['system.mem.used', 'mebibyte'],
+  ],
+};
+
+/** Integrations whose metadata.csv gives the units of the metrics an integration's dashboards use. */
+const UNIT_SOURCES = {
+  kubernetes: [
+    'kubelet',
+    'kubernetes_state_core',
+    'kubernetes_state',
+    'etcd',
+    'kube_apiserver_metrics',
+    'kube_controller_manager',
+    'kube_scheduler',
+    'container',
+    'system_core',
+    'disk',
+    'network',
+    'tls',
+  ],
+};
+
+/** Our colors for integrations-core's note and group colors (vivid_* are the saturated variants). */
+const NOTE_COLORS = { white: 'white', transparent: 'white', gray: 'gray', blue: 'blue', purple: 'purple', pink: 'purple', yellow: 'yellow', orange: 'yellow', green: 'green', red: 'red' };
+const GROUP_COLORS = { blue: 'blue', purple: 'purple', pink: 'purple', green: 'green', gray: 'gray', white: 'gray', orange: 'orange', yellow: 'orange', red: 'orange' };
+const color = (map, name, fallback) => map[(name ?? '').replace(/^vivid_/, '')] ?? fallback;
+/** Font size in px → our note sizes. */
+const noteSize = (px) => (!px ? 'md' : px <= 14 ? 'sm' : px <= 16 ? 'md' : px <= 24 ? 'lg' : 'xl');
+/** Rows a group banner takes above the group's widgets. */
+const BANNER_ROWS = 5;
+
 export function convertDashboard(doc, integration, path, revision) {
+  const banner = { type: 'image', title: integration.charAt(0).toUpperCase() + integration.slice(1).replace(/_/g, ' '), src: `/images/integrations/${integration}-banner.svg` };
   const free = doc.layout_type === 'free';
   let seq = 0;
   function widgets(items, sourceWidth, nested = false, section = '') {
@@ -21,25 +67,34 @@ export function convertDashboard(doc, integration, path, revision) {
       const d = item.definition;
       let definition;
       if (d.type === 'group') {
+        const children = widgets(d.widgets ?? [], item.layout?.width, true, d.title ?? '');
+        if (d.banner_img) {
+          // The banner spans the group above its widgets.
+          for (const w of children) w.layout.y += BANNER_ROWS;
+          // A banner embedded in the file is part of it; a linked one is Datadog's and becomes ours.
+          const image = d.banner_img.startsWith('data:image/') ? { ...banner, src: d.banner_img } : banner;
+          children.unshift({ id: `upstream-${item.id ?? ++seq}-banner`, definition: image, layout: { x: 0, y: 0, w: 12, h: BANNER_ROWS } });
+        }
         definition = {
           type: 'group',
           title: d.title || (d.banner_img ? doc.title : ''),
-          color: 'blue',
-          compact: true,
-          ...(d.banner_img ? { logo: integration } : {}),
-          widgets: widgets(d.widgets ?? [], item.layout?.width, true, d.title ?? ''),
+          color: color(GROUP_COLORS, d.background_color, 'blue'),
+          compact: false,
+          ...(d.show_title === false ? { showTitle: false } : {}),
+          widgets: children,
         };
       } else if (d.type === 'note') {
-        // Do not republish Datadog documentation or marketing copy.
         definition = {
           type: 'note',
-          content: dashboardNote(d.content ?? '', doc.title, section),
-          background: d.background_color === 'gray' ? 'gray' : 'white',
-          align: 'left',
-          fontSize: 'md',
+          content: d.content ?? '',
+          background: color(NOTE_COLORS, d.background_color, 'white'),
+          align: d.text_align === 'center' ? 'center' : 'left',
+          fontSize: noteSize(Number(d.font_size)),
+          ...(d.show_tick ? { pointer: true } : {}),
         };
       } else if (d.type === 'image') {
-        definition = { type: 'image', title: 'Kubernetes resource model', src: '/images/dashboard-kubernetes-capacity.svg' };
+        // Embedded images are part of the BSD-licensed file; linked ones are Datadog's.
+        definition = d.url?.startsWith('data:image/') ? { type: 'image', title: d.title ?? '', src: d.url } : banner;
       } else {
         // Preserve requests, formulas, units, thresholds and visualization options verbatim.
         const { banner_img, image_url, ...original } = d;
@@ -60,7 +115,9 @@ export function convertDashboard(doc, integration, path, revision) {
         geometry = { x: 0, y: cursor, w: cols, h };
       }
       if (definition.type === 'group') {
-        geometry.h = Math.max(geometry.h, 2 + Math.max(0, ...definition.widgets.map((w) => w.layout.y + w.layout.h)));
+        // Two rows for the group's header, unless it has none.
+        const header = definition.showTitle === false ? 0 : 2;
+        geometry.h = Math.max(geometry.h, header + Math.max(0, ...definition.widgets.map((w) => w.layout.y + w.layout.h)));
       }
       cursor = Math.max(cursor, geometry.y + geometry.h);
       return { id: `upstream-${item.id ?? ++seq}`, definition, layout: geometry };
@@ -100,6 +157,97 @@ export function convertDashboard(doc, integration, path, revision) {
   };
 }
 
+const COMPARATORS = { '>': 'above', '>=': 'above_or_equal', '<': 'below', '<=': 'below_or_equal' };
+
+/**
+ * A recommended monitor (assets/monitors/*.json `definition`) as a monitor template, or null when its
+ * query is neither a metric query nor arithmetic between metric queries (`a - b`, `a * 100 / b`).
+ */
+export function convertMonitor(def, integration, title) {
+  const m = /^(?:change\((\w+)\(last_(\d+)m\),last_(\d+)m\)|(\w+)\(last_(\d+)m\)):(.+?)\s*(>=|<=|>|<)\s*(-?[\d.]+)$/.exec(def.query?.trim() ?? '');
+  if (!m) return null;
+  const [, changeAgg, changeWindow, changeShift, agg, window, rawExpr, op] = m;
+  // default_zero() around one query: no data counts as 0, which a threshold above zero treats like no data
+  // anyway. Around a formula it stays (a ratio's missing values matter there).
+  const single = rawExpr.replace(/^default_zero\((.*)\)$/, '$1').trim();
+  const expr = parseMetricQuery(single) ? single : rawExpr.trim();
+  if (!formulaQueries(expr)) return null;
+  const t = def.options?.thresholds ?? {};
+  const change = Boolean(changeAgg);
+  return {
+    id: `${integration}-${title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')}`,
+    source: integration.toUpperCase().replace(/_/g, ' '),
+    title,
+    description: `Recommended ${integration} monitor from integrations-core.`,
+    type: 'metric',
+    name: def.name,
+    query: expr,
+    options: {
+      detection: change ? 'change' : 'threshold',
+      timeAggregation: change ? changeAgg : agg,
+      windowMinutes: Number(change ? changeWindow : window),
+      comparator: COMPARATORS[op],
+      thresholds: { critical: t.critical ?? null, warning: t.warning ?? null, criticalRecovery: t.critical_recovery ?? null, warningRecovery: t.warning_recovery ?? null },
+      notifyNoData: false,
+      noDataMinutes: 10,
+      changeMode: change ? 'change' : null,
+      changeMinutes: change ? Number(changeShift) : null,
+    },
+    message: def.message ?? '',
+    keywords: [
+      integration,
+      ...title
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((w) => w.length > 2),
+    ],
+  };
+}
+
+/** One CSV record's fields (RFC 4180 quoting: commas and doubled quotes inside quotes). */
+function csvFields(line) {
+  const fields = [];
+  let field = '';
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quoted) {
+      if (c === '"' && line[i + 1] === '"') ((field += '"'), i++);
+      else if (c === '"') quoted = false;
+      else field += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') (fields.push(field), (field = ''));
+    else field += c;
+  }
+  fields.push(field);
+  return fields;
+}
+
+/** [metric, unit] for every metric of a metadata.csv that has a unit; per-unit as "unit/per" (byte/second). */
+export function metricUnits(csv) {
+  const [header, ...rows] = csv.trim().split('\n');
+  const cols = csvFields(header);
+  const [name, unit, per] = ['metric_name', 'unit_name', 'per_unit_name'].map((c) => cols.indexOf(c));
+  return rows
+    .map(csvFields)
+    .filter((f) => f[unit])
+    .map((f) => [f[name], f[per] ? `${f[unit]}/${f[per]}` : f[unit]]);
+}
+
+/** [metric, description] for every metric of a metadata.csv with a description (its first line). */
+export function metricDescriptions(csv) {
+  const [header, ...rows] = csv.trim().split('\n');
+  const cols = csvFields(header);
+  const [name, description] = ['metric_name', 'description'].map((c) => cols.indexOf(c));
+  return rows
+    .map(csvFields)
+    .filter((f) => /^[\w.]+$/.test(f[name] ?? '') && f[description]?.trim())
+    .map((f) => [f[name], f[description].trim().replace(/\s+/g, ' ')]);
+}
+
 async function main() {
   const integration = process.argv[2] ?? 'kubernetes';
   const revision = process.argv[3] ?? PINNED_REVISION;
@@ -119,10 +267,53 @@ async function main() {
     if (!/^assets\/dashboards\/[a-zA-Z0-9_-]+\.json$/.test(path)) throw new Error(`Unexpected asset path: ${path}`);
     dashboards.push(convertDashboard(JSON.parse(await read(`${integration}/${path}`)), integration, path, revision));
   }
+  const monitors = [];
+  const skipped = [];
+  for (const [title, path] of Object.entries(manifest.assets?.monitors ?? {})) {
+    if (!/^assets\/monitors\/[a-zA-Z0-9_-]+\.json$/.test(path)) throw new Error(`Unexpected asset path: ${path}`);
+    const template = convertMonitor(JSON.parse(await read(`${integration}/${path}`)).definition, integration, title);
+    if (template) monitors.push(template);
+    else skipped.push(title);
+  }
+  const units = new Map(AGENT_UNITS[integration] ?? []);
+  const descriptions = new Map();
+  for (const source of UNIT_SOURCES[integration] ?? [integration]) {
+    const metadata = await read(`${source}/metadata.csv`);
+    for (const [metric, unit] of metricUnits(metadata)) if (!units.has(metric)) units.set(metric, unit);
+    for (const [metric, text] of metricDescriptions(metadata)) if (!descriptions.has(metric)) descriptions.set(metric, text);
+  }
   const target = new URL(`../server/seeds/integrations/${integration}/`, import.meta.url);
   await mkdir(target, { recursive: true });
   await writeFile(new URL('dashboards.json', target), JSON.stringify(dashboards, null, 2) + '\n');
+  const sources = (UNIT_SOURCES[integration] ?? [integration]).map((s) => `${s}/metadata.csv`).join(', ');
+  const header = `# Metric units from DataDog/integrations-core@${revision} (${sources}); BSD-3-Clause, see LICENSE. Agent host metrics (system.*) added here.\n`;
+  await writeFile(
+    new URL('units.csv', target),
+    header +
+      [...units]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([m, u]) => `${m},${u}`)
+        .join('\n') +
+      '\n',
+  );
+  await writeFile(
+    new URL('descriptions.tsv', target),
+    `# Metric descriptions from DataDog/integrations-core@${revision} (${sources}); BSD-3-Clause, see LICENSE.\n` +
+      [...descriptions]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([m, d]) => `${m}\t${d}`)
+        .join('\n') +
+      '\n',
+  );
   await writeFile(new URL('LICENSE', target), license);
-  console.log(`Imported ${dashboards.length} upstream dashboards with original metric widget definitions.`);
+  const templates = new URL(`../web/src/pages/monitors/${integration}Templates.generated.ts`, import.meta.url);
+  await writeFile(
+    templates,
+    `// GENERATED by scripts/import-integration-dashboards.mjs from DataDog/integrations-core@${revision}\n` +
+      `// (${integration}/assets/monitors, BSD-3-Clause, see server/seeds/integrations/${integration}/LICENSE). Do not edit.\n` +
+      (skipped.length ? `// Not expressible as one monitor query (arithmetic between queries): ${skipped.join('; ')}.\n` : '') +
+      `import type { MonitorTemplate } from './templates';\n\nexport const ${integration.toUpperCase()}_TEMPLATES: MonitorTemplate[] = ${JSON.stringify(monitors, null, 2)};\n`,
+  );
+  console.log(`Imported ${dashboards.length} upstream dashboards, ${monitors.length} monitors (${skipped.length} skipped) and ${units.size} metric units.`);
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

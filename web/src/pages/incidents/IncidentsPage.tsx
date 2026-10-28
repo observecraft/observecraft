@@ -31,6 +31,15 @@ export function StatusBadge({ status }: { status: IncidentStatus }) {
   return <span className={`inc-status inc-${status}`}>{status.toUpperCase()}</span>;
 }
 
+/** Time from declared to resolved, as the server buckets it. */
+const RESOLVE_TIMES: [string, string][] = [
+  ['lt1h', 'Under 1 hour'],
+  ['1h_4h', '1 – 4 hours'],
+  ['4h_1d', '4 – 24 hours'],
+  ['gt1d', 'Over 1 day'],
+  ['unresolved', 'Not resolved'],
+];
+
 function toggle<T>(list: T[], v: T): T[] {
   return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 }
@@ -50,7 +59,11 @@ function Accordion({ title, children, defaultOpen = false }: { title: string; ch
 function csv(rows: IncidentSummary[]) {
   const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
   const lines = [['id', 'title', 'status', 'severity', 'type', 'commander', 'declared', 'resolved'].join(',')].concat(
-    rows.map((r) => [`IR-${r.id}`, r.title, r.status, r.severity, r.incidentType, r.commander?.name ?? '', new Date(r.declaredAt).toISOString(), r.resolvedAt ? new Date(r.resolvedAt).toISOString() : ''].map(esc).join(',')),
+    rows.map((r) =>
+      [`IR-${r.id}`, r.title, r.status, r.severity, r.incidentType, r.commander?.name ?? '', new Date(r.declaredAt).toISOString(), r.resolvedAt ? new Date(r.resolvedAt).toISOString() : '']
+        .map(esc)
+        .join(','),
+    ),
   );
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
@@ -66,6 +79,11 @@ export function IncidentsPage() {
   const [statuses, setStatuses] = useState<IncidentStatus[]>(['active', 'stable', 'resolved']);
   const [severities, setSeverities] = useState<string[]>([]);
   const [teams, setTeams] = useState<string[]>([]);
+  const [services, setServices] = useState<string[]>([]);
+  const [detectionMethods, setDetectionMethods] = useState<string[]>([]);
+  const [incidentTypes, setIncidentTypes] = useState<string[]>([]);
+  const [customerImpact, setCustomerImpact] = useState<boolean | null>(null);
+  const [resolveTimes, setResolveTimes] = useState<string[]>([]);
   const [days, setDays] = useState('365');
   const [controls, setControls] = useState(true);
   const [declaring, setDeclaring] = useState(false);
@@ -82,7 +100,21 @@ export function IncidentsPage() {
   const range = useMemo(() => ({ from: to - Number(days) * DAY, to }), [days, to]);
   const allTeams = useTeams({ query: '', sort: 'name', offset: 0, limit: 200 });
 
-  const q = useIncidents({ query, statuses: statuses.length === 3 ? [] : statuses, severities, mine, teams, range, offset: 0, limit: 200 });
+  const q = useIncidents({
+    query,
+    statuses: statuses.length === 3 ? [] : statuses,
+    severities,
+    mine,
+    teams,
+    services,
+    detectionMethods,
+    incidentTypes,
+    customerImpact,
+    resolveTimes,
+    range,
+    offset: 0,
+    limit: 200,
+  });
   const live = (q.data?.incidents ?? []).filter((i) => i.status !== 'resolved');
   const resolved = (q.data?.incidents ?? []).filter((i) => i.status === 'resolved');
   const rangeOpt = RANGES.find((r) => r.value === days)!;
@@ -129,6 +161,7 @@ export function IncidentsPage() {
                   <label key={t.handle} className="inc-check">
                     <input type="checkbox" className="checkbox" checked={teams.includes(t.handle)} onChange={() => setTeams(toggle(teams, t.handle))} />
                     {t.handle}
+                    <span className="inc-count">{q.data?.teamCounts[t.handle] ?? 0}</span>
                   </label>
                 ))}
               </Accordion>
@@ -149,8 +182,39 @@ export function IncidentsPage() {
                 <label key={s} className="inc-check">
                   <input type="checkbox" className="checkbox" checked={severities.includes(s)} onChange={() => setSeverities(toggle(severities, s))} />
                   {s} <span className="muted">{SEVERITY_LABEL[s]}</span>
+                  <span className="inc-count">{q.data?.severityCounts[s] ?? 0}</span>
                 </label>
               ))}
+            </Accordion>
+            <div className="inc-group-title">IMPACT</div>
+            <Accordion title="Customer Impact">
+              {(['yes', 'no'] as const).map((v) => (
+                <label key={v} className="inc-check">
+                  <input type="checkbox" className="checkbox" checked={customerImpact === (v === 'yes')} onChange={() => setCustomerImpact((c) => (c === (v === 'yes') ? null : v === 'yes'))} />
+                  {v === 'yes' ? 'Customers impacted' : 'No customer impact'}
+                  <span className="inc-count">{q.data?.impactCounts[v] ?? 0}</span>
+                </label>
+              ))}
+            </Accordion>
+            <Accordion title="Services">
+              <FacetChecks counts={q.data?.serviceCounts} selected={services} onToggle={(v) => setServices(toggle(services, v))} />
+            </Accordion>
+            <div className="inc-group-title">RESPONSE</div>
+            <Accordion title="Time to Resolve">
+              {RESOLVE_TIMES.map(([key, label]) => (
+                <label key={key} className="inc-check">
+                  <input type="checkbox" className="checkbox" checked={resolveTimes.includes(key)} onChange={() => setResolveTimes(toggle(resolveTimes, key))} />
+                  {label}
+                  <span className="inc-count">{q.data?.resolveTimeCounts[key] ?? 0}</span>
+                </label>
+              ))}
+            </Accordion>
+            <div className="inc-group-title">DETECTION</div>
+            <Accordion title="Detection Method">
+              <FacetChecks counts={q.data?.detectionCounts} selected={detectionMethods} onToggle={(v) => setDetectionMethods(toggle(detectionMethods, v))} />
+            </Accordion>
+            <Accordion title="Incident Type">
+              <FacetChecks counts={q.data?.typeCounts} selected={incidentTypes} onToggle={(v) => setIncidentTypes(toggle(incidentTypes, v))} />
             </Accordion>
           </aside>
         )}
@@ -187,7 +251,11 @@ export function IncidentsPage() {
             <>
               <Group title={live.length === 1 ? 'There is 1 live incident.' : `There are ${live.length} live incidents.`} items={live} />
               <Group title={`Resolved incidents (${resolved.length})`} items={resolved} />
-              {q.data.total > q.data.incidents.length && <p className="muted inc-more">Showing the {q.data.incidents.length} most relevant of {q.data.total}. Narrow the filters to see more.</p>}
+              {q.data.total > q.data.incidents.length && (
+                <p className="muted inc-more">
+                  Showing the {q.data.incidents.length} most relevant of {q.data.total}. Narrow the filters to see more.
+                </p>
+              )}
             </>
           )}
         </main>
@@ -326,5 +394,22 @@ function Analytics({ incidents, from, to }: { incidents: IncidentSummary[]; from
         <Chart option={option} height={300} />
       </section>
     </div>
+  );
+}
+
+/** Checkboxes for a facet's values, most incidents first (selected values stay listed). */
+function FacetChecks({ counts, selected, onToggle }: { counts?: Record<string, number>; selected: string[]; onToggle: (value: string) => void }) {
+  const values = [...new Set([...selected, ...Object.keys(counts ?? {})])].sort((a, b) => (counts?.[b] ?? 0) - (counts?.[a] ?? 0) || a.localeCompare(b));
+  if (!values.length) return <span className="muted inc-check">None</span>;
+  return (
+    <>
+      {values.map((v) => (
+        <label key={v} className="inc-check">
+          <input type="checkbox" className="checkbox" checked={selected.includes(v)} onChange={() => onToggle(v)} />
+          {v}
+          <span className="inc-count">{counts?.[v] ?? 0}</span>
+        </label>
+      ))}
+    </>
   );
 }

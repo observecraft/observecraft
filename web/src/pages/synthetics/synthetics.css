@@ -1,0 +1,752 @@
+/* Synthetic tests: list, editor and test page. Builds on monitors.css (frame, steps, tables). */
+
+/* ---------- shared ---------- */
+.syn-type {
+  display: inline-block;
+  min-width: 40px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+}
+
+.syn-type-http {
+  color: var(--chart-1);
+  border-color: var(--chart-1);
+}
+
+.syn-type-ssl {
+  color: var(--chart-3);
+  border-color: var(--chart-3);
+}
+
+.syn-type-dns {
+  color: var(--chart-5);
+  border-color: var(--chart-5);
+}
+
+.syn-type-tcp {
+  color: var(--chart-7);
+  border-color: var(--chart-7);
+}
+
+.mon-status.syn-paused {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
+.syn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--pill-bg);
+  font-size: var(--fs-sm);
+}
+
+.syn-muted-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+  font-size: var(--fs-xs);
+}
+
+.syn-result {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.syn-result.pass {
+  background: var(--mon-ok);
+}
+
+.syn-result.fail {
+  background: var(--mon-alert);
+}
+
+.syn-wrap {
+  overflow-wrap: anywhere;
+}
+
+.syn-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.syn-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.syn-h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 8px;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+
+.syn-pad {
+  margin: 10px 40px 0;
+}
+
+.syn-input,
+.syn-select,
+.syn-textarea {
+  min-width: 0;
+  height: var(--control-height);
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--fs-md);
+}
+
+.syn-textarea {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+  padding: 8px;
+  resize: vertical;
+}
+
+.syn-input:focus,
+.syn-select:focus,
+.syn-textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+/* ---------- list ---------- */
+.syn-list {
+  padding: 16px 24px 30px;
+}
+
+.syn-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 12px 0;
+  font-size: var(--fs-md);
+}
+
+.syn-counts .c-ok {
+  color: var(--mon-ok);
+}
+
+.syn-counts .c-nodata {
+  color: var(--mon-nodata);
+}
+
+.syn-counts-right {
+  margin-left: auto;
+}
+
+.syn-table .syn-col-status {
+  width: 110px;
+}
+
+.syn-table .syn-col-type {
+  width: 70px;
+}
+
+.syn-table .syn-col-env {
+  width: 110px;
+}
+
+.syn-table .syn-col-freq {
+  width: 110px;
+}
+
+.syn-table .syn-col-uptime {
+  width: 100px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.syn-table .syn-col-uptime.low {
+  color: var(--mon-alert);
+}
+
+.syn-table .syn-col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.syn-table .syn-col-icon {
+  width: 80px;
+}
+
+.syn-kv-table .syn-col-icon {
+  width: 30px;
+}
+
+.syn-name {
+  font-size: var(--fs-md);
+  color: var(--text);
+}
+
+.syn-domain {
+  color: var(--text-muted);
+}
+
+.syn-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 560px;
+  margin: 60px auto;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.syn-empty h3 {
+  margin: 0;
+  color: var(--text);
+}
+
+/* ---------- editor ---------- */
+.syn-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 10px;
+  align-items: start;
+}
+
+.syn-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.syn-type-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--border-strong);
+  margin-left: -1px;
+  background: var(--bg);
+  font-size: var(--fs-md);
+}
+
+.syn-type-btn:first-child {
+  margin-left: 0;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.syn-type-btn:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.syn-type-btn.active {
+  position: relative;
+  border-color: var(--primary);
+  background: var(--primary-subtle);
+  color: var(--primary);
+  font-weight: var(--fw-semibold);
+}
+
+.syn-type-btn:disabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+.syn-soon {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-faint);
+}
+
+.syn-request-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 900px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+
+.syn-request-label {
+  font-size: var(--fs-lg);
+}
+
+.syn-required {
+  color: var(--status-error);
+}
+
+.syn-request {
+  display: flex;
+}
+
+/* the controls join into one bar: method, URL and Send */
+.syn-request > * + * {
+  margin-left: -1px;
+}
+
+.syn-request > :not(:first-child):not(:last-child) {
+  border-radius: 0;
+}
+
+.syn-request > :first-child:not(:last-child) {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.syn-request > :last-child:not(:first-child) {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.syn-method {
+  width: 110px;
+}
+
+.syn-port {
+  width: 80px;
+}
+
+.syn-server {
+  width: 190px;
+}
+
+.syn-hint {
+  margin: 6px 0 0;
+  font-size: var(--fs-sm);
+}
+
+.syn-hint.warn {
+  color: var(--status-warn);
+}
+
+.syn-advanced-toggle {
+  margin-top: 10px;
+  font-size: var(--fs-md);
+}
+
+.syn-advanced {
+  max-width: 900px;
+  margin-top: 8px;
+  padding: 12px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.syn-advanced h4 {
+  margin: 14px 0 6px;
+  font-size: var(--fs-md);
+}
+
+.syn-advanced h4:first-child {
+  margin-top: 0;
+}
+
+.syn-advanced .mon-check {
+  margin-top: 6px;
+}
+
+.syn-send-result {
+  max-width: 900px;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.syn-send-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.syn-send-result .syn-run {
+  padding: 10px 12px 12px;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.syn-name-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  max-width: 900px;
+  margin-top: 18px;
+}
+
+.syn-span-2 {
+  grid-column: span 2;
+}
+
+.syn-assertion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 900px;
+  margin-bottom: 8px;
+}
+
+.syn-assert-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+}
+
+.syn-assert-result.pass {
+  color: var(--mon-ok);
+}
+
+.syn-assert-result.fail {
+  color: var(--mon-alert);
+}
+
+.syn-location {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 640px;
+  padding: 12px 14px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-md);
+  background: var(--primary-subtle);
+}
+
+.syn-location > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.syn-sched {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.syn-pause {
+  margin-top: 12px;
+}
+
+.syn-text {
+  max-width: 900px;
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.syn-priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.syn-snippets {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  padding: 0 16px 30px;
+  border-left: 1px solid var(--border);
+}
+
+.syn-snippets-tab {
+  margin: 0 -16px 14px;
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+}
+
+.syn-snippets-intro {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--brand-strong), var(--brand));
+  color: #fff;
+  font-size: var(--fs-lg);
+}
+
+.syn-snippet-group h4 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 16px 0 8px;
+  font-size: 16px;
+  font-weight: var(--fw-semibold);
+}
+
+.syn-snippet-group h4 .muted {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+}
+
+.syn-snippet {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  text-align: left;
+}
+
+.syn-snippet:hover {
+  background: var(--bg-hover);
+}
+
+/* ---------- test page ---------- */
+.syn-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.syn-head-facts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  font-size: var(--fs-md);
+}
+
+.syn-uptime {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 8px;
+}
+
+.syn-uptime-value {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+}
+
+.syn-uptime-value b {
+  font-size: 26px;
+  font-weight: var(--fw-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+.syn-uptime-bar {
+  position: relative;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  overflow: hidden;
+}
+
+.syn-uptime-bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.syn-uptime-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: var(--fs-sm);
+}
+
+.syn-legend {
+  display: inline-flex;
+  gap: 12px;
+}
+
+.syn-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+.syn-results {
+  padding: 4px 40px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.syn-results-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.syn-results-head .syn-h3 {
+  margin-right: auto;
+}
+
+.syn-props {
+  padding: 0 0 30px;
+}
+
+.syn-props .syn-h3 {
+  margin: 18px 40px 0;
+}
+
+/* ---------- result drawer and run view ---------- */
+.syn-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(20, 24, 36, 0.18);
+}
+
+.syn-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(820px, 100%);
+  background: var(--bg);
+  box-shadow: var(--shadow-pop);
+}
+
+.syn-drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.syn-drawer-head h2 {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+}
+
+.syn-drawer-actions {
+  margin-left: auto;
+}
+
+.syn-drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px 24px;
+}
+
+.syn-run-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.syn-run-summary.pass b {
+  color: var(--mon-ok);
+}
+
+.syn-run-summary.fail b {
+  color: var(--mon-alert);
+}
+
+.syn-run-error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
+  overflow-wrap: anywhere;
+}
+
+.syn-run-section {
+  margin-top: 14px;
+}
+
+.syn-run-section h4 {
+  margin: 0 0 6px;
+  font-size: var(--fs-md);
+}
+
+.syn-run-section h4 .link-btn {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+
+.syn-run-section p {
+  margin: 0 0 4px;
+}
+
+.syn-kv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-md);
+}
+
+.syn-kv-table td {
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.syn-kv-table .syn-col-key {
+  width: 200px;
+  color: var(--text-muted);
+}
+
+.syn-body {
+  max-height: 320px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .syn-editor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .syn-snippets {
+    position: static;
+    padding: 0 30px 30px;
+  }
+}

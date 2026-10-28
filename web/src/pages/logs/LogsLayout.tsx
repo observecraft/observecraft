@@ -5,7 +5,7 @@ import './logs.css';
 const TABS = [
   { to: '/logs', label: 'Log Explorer', end: true },
   { to: '/logs/livetail', label: 'Live Tail' },
-  { to: '/logs/notebooks', label: 'Notebooks' },
+  { to: '/notebooks', label: 'Notebooks' },
   { to: '/logs/archive-search', label: 'Archive Search', isNew: true },
 ];
 
@@ -35,8 +35,4 @@ export function LogsLayout() {
       </div>
     </div>
   );
-}
-
-export function LogsComingSoon({ title }: { title: string }) {
-  return <div className="placeholder-page">{title} hasn't been designed yet.</div>;
 }

@@ -16,9 +16,10 @@ use oc_query::{matches, parse_query, short_tag, Fields, MetricQuery, SpaceAgg, T
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::logs::TimeRange;
+use super::logs::{bind, scope, TimeRange};
 use super::metrics::{evaluate_query, name_list, now_ms, points_subquery, with_window, MetricSeries, OPEN_END_MS};
 use crate::error::{ApiError, ApiResult};
+use crate::log_access::LogAccess;
 use crate::state::{AppState, OrgId};
 
 const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
@@ -79,6 +80,8 @@ pub struct HostSummary {
     pub distro: Option<String>,
     pub collectors: Vec<CollectorKind>,
     pub software: Vec<Software>,
+    /// Integrations the host's Datadog Agent runs (`system` for its host checks).
+    pub apps: Vec<String>,
     pub env: Option<String>,
     pub service: Option<String>,
     pub team: Option<String>,
@@ -90,13 +93,44 @@ pub struct HostSummary {
     pub error_spans: Option<u64>,
 }
 
+/// The Datadog Agent's host checks, shown together as the `system` app.
+const SYSTEM_CHECKS: [&str; 8] = ["cpu", "disk", "file_handle", "io", "load", "memory", "network", "uptime"];
+/// Checks the Agent runs for itself, not integrations.
+const INTERNAL_CHECKS: [&str; 6] = ["telemetry", "container_lifecycle", "container_image", "sbom", "orchestrator_pod", "orchestrator_kubelet_config"];
+
+/// A host's apps (the integrations its Agent runs), sorted.
+pub(crate) fn host_apps(checks: &[String]) -> Vec<String> {
+    let mut apps: Vec<String> = checks
+        .iter()
+        .filter(|c| !INTERNAL_CHECKS.contains(&c.as_str()))
+        .map(|c| if SYSTEM_CHECKS.contains(&c.as_str()) { "system".to_string() } else { c.clone() })
+        .collect();
+    apps.sort();
+    apps.dedup();
+    apps
+}
+
+/// Kubernetes when the host is in a cluster or runs the kubelet check; Docker when it runs the docker check.
+pub(crate) fn host_software(res: &HashMap<String, String>, apps: &[String]) -> Vec<Software> {
+    let mut software = Vec::new();
+    if res.get("k8s.cluster.name").is_some_and(|c| !c.is_empty()) || apps.iter().any(|a| a == "kubelet") {
+        software.push(Software::Kubernetes);
+    }
+    if apps.iter().any(|a| a == "docker") {
+        software.push(Software::Docker);
+    }
+    software
+}
+
 /// Everything known about a host, gathered once per request.
-struct HostRow {
-    summary: HostSummary,
-    res: HashMap<String, String>,
+pub(crate) struct HostRow {
+    pub(crate) summary: HostSummary,
+    pub(crate) res: HashMap<String, String>,
     cpu_user: f64,
     load1: f64,
     uptime: Option<f64>,
+    /// Epoch ms of the host's latest CPU point in range.
+    pub(crate) last_seen: i64,
 }
 
 impl HostRow {
@@ -129,7 +163,7 @@ impl HostRow {
     }
 }
 
-fn enum_str<T: Serialize>(v: &T) -> String {
+pub(crate) fn enum_str<T: Serialize>(v: &T) -> String {
     serde_json::to_value(v).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default()
 }
 
@@ -151,6 +185,7 @@ struct Inventory {
     res: String,
     idle: f64,
     user: f64,
+    seen: i64,
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -161,7 +196,7 @@ struct SpanHost {
 }
 
 /// All hosts that reported host metrics in `range`, with current (last 5 minutes of range) values.
-async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<HostRow>, ApiError> {
+pub(crate) async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<HostRow>, ApiError> {
     range.validate()?;
     let recent_from = range.from.max(range.to - 5 * 60_000);
     #[derive(clickhouse::Row, Deserialize)]
@@ -179,7 +214,8 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
             // system.cpu.idle / system.cpu.user in percent.
             "SELECT ResourceAttributes['host.name'] AS name, toJSONString(argMax(ResourceAttributes, TimeUnix)) AS res, \
              avgIf(if(MetricName = 'system.cpu.idle', Value / 100, Value), (MetricName = 'system.cpu.idle' OR Attributes['state'] = 'idle') AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS idle, \
-             avgIf(if(MetricName = 'system.cpu.user', Value / 100, Value), (MetricName = 'system.cpu.user' OR Attributes['state'] = 'user') AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS user \
+             avgIf(if(MetricName = 'system.cpu.user', Value / 100, Value), (MetricName = 'system.cpu.user' OR Attributes['state'] = 'user') AND TimeUnix >= fromUnixTimestamp64Milli(?)) AS user, \
+             toInt64(toUnixTimestamp64Milli(max(TimeUnix))) AS seen \
              FROM {cpu_src} \
              WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) \
              AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) AND name != '' \
@@ -230,9 +266,10 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
         cloud: String,
         instance_id: String,
         host_tags: Vec<String>,
+        agent_checks: Vec<String>,
     }
     let dd_hosts = sqlx::query_as::<_, DdHost>(
-        "SELECT host, agent_version, os, platform, kernel, arch, cpu_cores, memory_bytes, cloud, instance_id, host_tags FROM datadog_hosts WHERE org_id = $1",
+        "SELECT host, agent_version, os, platform, kernel, arch, cpu_cores, memory_bytes, cloud, instance_id, host_tags, agent_checks FROM datadog_hosts WHERE org_id = $1",
     )
     .bind(org)
     .fetch_all(&st.postgres);
@@ -315,11 +352,8 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
                 Some("datadog-agent") => CollectorKind::Datadog,
                 _ => CollectorKind::Otel,
             };
-            let software = if get("k8s.cluster.name").is_some() {
-                vec![Software::Kubernetes]
-            } else {
-                vec![]
-            };
+            let apps = dd_hosts.get(&i.name).map(|d| host_apps(&d.agent_checks)).unwrap_or_default();
+            let software = host_software(&res, &apps);
             let summary = HostSummary {
                 name: i.name.clone(),
                 cloud,
@@ -327,6 +361,7 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
                 distro,
                 collectors: vec![collector],
                 software,
+                apps,
                 env: get("deployment.environment"),
                 service: span.map(|s| s.service.clone()).filter(|s| !s.is_empty()),
                 team: get("team"),
@@ -341,6 +376,7 @@ async fn load_hosts(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<Ho
                 cpu_user: round1(finite(i.user * 100.0)),
                 load1: v.map_or(0.0, |v| finite(v.load1)),
                 uptime: v.map(|v| v.uptime).filter(|u| u.is_finite() && *u > 0.0),
+                last_seen: i.seen,
                 res,
             }
         })
@@ -558,7 +594,7 @@ pub struct HostRequest {
 }
 
 /// Resource attributes not worth showing as tags.
-const HIDDEN_TAGS: &[&str] = &[
+pub(crate) const HIDDEN_TAGS: &[&str] = &[
     "oc.org_id",
     "oc.retention_days",
     "host.id",
@@ -571,16 +607,11 @@ const HIDDEN_TAGS: &[&str] = &[
 ];
 
 #[utoipa::path(post, path = "/api/v1/hosts/{name}", params(("name" = String, Path)), request_body = HostRequest, responses((status = 200, body = HostDetail), (status = 404, body = crate::error::ErrorBody)), tag = "infrastructure")]
-pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, Path(name): Path<String>, Json(req): Json<HostRequest>) -> ApiResult<HostDetail> {
+pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Path(name): Path<String>, Json(req): Json<HostRequest>) -> ApiResult<HostDetail> {
     let host = load_hosts(&st, &org, req.range).await?.into_iter().find(|h| h.summary.name == name).ok_or_else(|| ApiError::NotFound(format!("Host {name} has not reported in this time range")))?;
-    let has_logs = st
-        .ch(&org)
-        .query("SELECT count() FROM oc.logs WHERE org_id = ? AND host = ? AND timestamp >= fromUnixTimestamp64Milli(?) AND timestamp <= fromUnixTimestamp64Milli(?)")
-        .bind(&org)
-        .bind(&name)
-        .bind(req.range.from)
-        .bind(req.range.to)
-        .fetch_one::<u64>();
+    // Logs the viewer may read (their restriction queries apply).
+    let host_logs = scope(&org, &access, req.range, &[Term::Tag { key: "host".into(), values: vec![name.clone()], negate: false }], None);
+    let has_logs = bind(st.ch(&org).query(&format!("SELECT count() FROM {} WHERE {}", host_logs.table, host_logs.clause)), &host_logs.params).fetch_one::<u64>();
     let now = now_ms();
     let procs_src = points_subquery("gauge", &["process.cpu.utilization"]);
     let has_procs = with_window(st.ch(&org), now - 15 * 60_000, now + OPEN_END_MS)
@@ -662,7 +693,7 @@ pub struct HostMetrics {
 fn host_query(agg: SpaceAgg, metric: &str, host: &str, extra: &[(&str, &str, bool)]) -> MetricQuery {
     let mut filters = vec![TagFilter { key: "host".into(), value: host.into(), negate: false }];
     filters.extend(extra.iter().map(|(k, v, n)| TagFilter { key: k.to_string(), value: v.to_string(), negate: *n }));
-    MetricQuery { agg, metric: metric.into(), filters, by: vec![] }
+    MetricQuery { agg, metric: metric.into(), filters, by: vec![], rollup: None }
 }
 
 #[utoipa::path(post, path = "/api/v1/hosts/{name}/metrics", params(("name" = String, Path)), request_body = HostRequest, responses((status = 200, body = HostMetrics)), tag = "infrastructure")]
@@ -670,6 +701,8 @@ pub async fn metrics(State(st): State<AppState>, OrgId(org): OrgId, Path(name): 
     let series = |label: String, groups: Vec<super::metrics::Group>, scale: f64| MetricSeries {
         name: label,
         points: groups.into_iter().next().map(|g| g.points.into_iter().map(|(t, v)| (t, (v * scale * 100.0).round() / 100.0)).collect()).unwrap_or_default(),
+        // The host panel labels its own charts.
+        unit: None,
     };
     let cpu_states = ["user", "system", "iowait", "idle"];
     let mut cpu = Vec::new();
@@ -900,4 +933,26 @@ pub async fn containers(State(st): State<AppState>, OrgId(org): OrgId, Path(name
     items.sort_by(|a, b| b.rss_bytes.unwrap_or(0.0).total_cmp(&a.rss_bytes.unwrap_or(0.0)).then(a.name.cmp(&b.name)));
     let total = items.len();
     Ok(Json(HostContainerPage { items: items.into_iter().skip(req.offset).take(req.limit.min(500)).collect(), total }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn agent_checks_become_the_hosts_apps() {
+        let checks: Vec<String> = ["cpu", "disk", "kubelet", "telemetry", "container_lifecycle", "ntp", "redisdb", "memory"].map(String::from).to_vec();
+        // The Agent's host checks show as one `system` app; its internal checks aren't apps.
+        assert_eq!(host_apps(&checks), vec!["kubelet", "ntp", "redisdb", "system"]);
+        assert!(host_apps(&[]).is_empty());
+    }
+
+    #[test]
+    fn kubernetes_and_docker_software_from_cluster_or_checks() {
+        let res = HashMap::new();
+        assert_eq!(host_software(&res, &["kubelet".into(), "docker".into()]).len(), 2);
+        let res = HashMap::from([("k8s.cluster.name".to_string(), "shop-prod".to_string())]);
+        assert!(matches!(host_software(&res, &[])[..], [Software::Kubernetes]));
+        assert!(host_software(&HashMap::new(), &["system".into()]).is_empty());
+    }
 }

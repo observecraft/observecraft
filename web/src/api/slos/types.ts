@@ -1,0 +1,23 @@
+import type { components } from '../generated/schema';
+
+type S = components['schemas'];
+export type SloType = S['SloType'];
+export type SloWindow = S['SloWindow'];
+export type SloState = S['SloState'];
+export type SloComparator = S['SloComparator'];
+export type SloTarget = S['SloTarget'];
+export type SloStatus = S['SloStatus'];
+export type SloItem = S['SloItem'];
+export type SloInput = S['SloInput'];
+export type SloSearchRequest = S['SloSearchRequest'];
+export type SloSearchPage = S['SloSearchPage'];
+export type SloSummary = S['SloSummary'];
+export type SloFacetCount = S['SloFacetCount'];
+export type SloDetail = S['SloDetail'];
+export type SloHistoryPoint = S['SloHistoryPoint'];
+export type SloMonitor = S['SloMonitor'];
+export type SloCorrection = S['SloCorrection'];
+export type SloCorrectionInput = S['SloCorrectionInput'];
+export type CorrectionCategory = S['CorrectionCategory'];
+export type BurnLevel = S['BurnLevel'];
+export type BudgetUnit = S['BudgetUnit'];

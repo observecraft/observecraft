@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useMemo, useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, Download, Flag, PanelLeftClose, PanelLeftOpen, PhoneCall, Plus, Search, Star, Trash2, X } from 'lucide-react';
 import type { IncidentDetail, TimelineEvent } from '../../api/incidents/client';
@@ -227,7 +228,11 @@ export function TimelineTab({ inc }: { inc: IncidentDetail }) {
                       </div>
                     )}
                   </div>
-                  <button className={`itl-star${e.important ? ' on' : ''}`} title={e.important ? 'Unmark important' : 'Mark important'} onClick={() => star.mutate({ eventId: e.id, important: !e.important })}>
+                  <button
+                    className={`itl-star${e.important ? ' on' : ''}`}
+                    title={e.important ? 'Unmark important' : 'Mark important'}
+                    onClick={() => star.mutate({ eventId: e.id, important: !e.important })}
+                  >
                     <Star size={16} />
                   </button>
                 </div>
@@ -278,7 +283,10 @@ function Markdown({ source }: { source: string }) {
     else if (l.startsWith('|')) {
       const rows: string[][] = [];
       while (i < lines.length && lines[i].startsWith('|')) {
-        const cells = lines[i].slice(1, -1).split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, '|'));
+        const cells = lines[i]
+          .slice(1, -1)
+          .split(/(?<!\\)\|/)
+          .map((c) => c.trim().replace(/\\\|/g, '|'));
         if (!cells.every((c) => /^-*$/.test(c))) rows.push(cells);
         i++;
       }
@@ -286,13 +294,15 @@ function Markdown({ source }: { source: string }) {
       blocks.push(
         <table key={i} className="pm-table">
           <tbody>
-            {rows.filter((r) => r.some(Boolean)).map((r, j) => (
-              <tr key={j}>
-                {r.map((c, k) => (
-                  <td key={k}>{inline(c, `${i}-${j}-${k}`)}</td>
-                ))}
-              </tr>
-            ))}
+            {rows
+              .filter((r) => r.some(Boolean))
+              .map((r, j) => (
+                <tr key={j}>
+                  {r.map((c, k) => (
+                    <td key={k}>{inline(c, `${i}-${j}-${k}`)}</td>
+                  ))}
+                </tr>
+              ))}
           </tbody>
         </table>,
       );
@@ -369,7 +379,11 @@ export function PostIncidentTab({ inc }: { inc: IncidentDetail }) {
                 </button>
               </>
             )}
-            <button className="btn btn-primary" disabled={generate.isPending} onClick={() => (!doc || window.confirm('Regenerate the postmortem? Manual edits will be replaced.')) && generate.mutate(template)}>
+            <button
+              className="btn btn-primary"
+              disabled={generate.isPending}
+              onClick={() => (!doc || window.confirm('Regenerate the postmortem? Manual edits will be replaced.')) && generate.mutate(template)}
+            >
               {doc ? 'Regenerate' : 'Generate Postmortem'}
             </button>
           </span>
@@ -691,7 +705,9 @@ export function PagesTab({ inc }: { inc: IncidentDetail }) {
               Message
               <input value={paging.title} onChange={(e) => setPaging({ ...paging, title: e.target.value })} required maxLength={300} />
             </label>
-            <p className="muted">The page is tracked here. Delivering it to the team's on-call (phone, push, SMS) needs an on-call integration.</p>
+            <p className="muted">
+              The page goes to <Link to="/on-call/pages">On-Call</Link>: the team&apos;s escalation policy notifies whoever is on call by email, Slack or webhook (no phone or SMS).
+            </p>
             <div className="small-modal-actions">
               <button type="button" className="btn" onClick={() => setPaging(null)}>
                 Cancel

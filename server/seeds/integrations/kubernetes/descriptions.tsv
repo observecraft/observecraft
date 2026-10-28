@@ -1,0 +1,1167 @@
+# Metric descriptions from DataDog/integrations-core@c7dbc72cac1946294acda77f6491ecd081d9b498 (kubelet/metadata.csv, kubernetes_state_core/metadata.csv, kubernetes_state/metadata.csv, etcd/metadata.csv, kube_apiserver_metrics/metadata.csv, kube_controller_manager/metadata.csv, kube_scheduler/metadata.csv, container/metadata.csv, system_core/metadata.csv, disk/metadata.csv, network/metadata.csv, tls/metadata.csv); BSD-3-Clause, see LICENSE.
+container.cpu.limit	The maximum CPU time available to the container
+container.cpu.partial_stall	The total time at least one task in the container was stalled waiting for CPU
+container.cpu.system	The container system CPU usage
+container.cpu.throttled	The total cpu throttled time
+container.cpu.throttled.periods	The number of periods during which the container was throttled
+container.cpu.usage	The container total CPU Usage
+container.cpu.user	The container userspace CPU usage
+container.io.partial_stall	The total time at least one task in the container was stalled waiting for IO
+container.io.read	The number of bytes read from disks by this container
+container.io.read.operations	The number of read operations done by this container
+container.io.write	The number of bytes written to disks by this container
+container.io.write.operations	The number of write operations done by this container
+container.memory.active_anon	The container active anonymous memory (requires extended_memory_metrics flag in the check config)
+container.memory.active_file	The container active file-backed memory (requires extended_memory_metrics flag in the check config)
+container.memory.cache	The container cache usage
+container.memory.commit	The container commit memory usage
+container.memory.commit.peak	The container peak commit memory usage
+container.memory.file_dirty	The container memory that are waiting to get written back to the disk (requires extended_memory_metrics flag in the check config)
+container.memory.file_mapped	The container mapped file memory (requires extended_memory_metrics flag in the check config)
+container.memory.file_writeback	The container memory that is queued for syncing to disk (requires extended_memory_metrics flag in the check config)
+container.memory.inactive_anon	The container inactive anonymous memory (requires extended_memory_metrics flag in the check config)
+container.memory.inactive_file	The container inactive file-backed memory (requires extended_memory_metrics flag in the check config)
+container.memory.kernel	The container kernel memory usage
+container.memory.limit	The container memory limit
+container.memory.major_page_faults	Number of major page faults incurred
+container.memory.oom_events	The number of OOM events triggered by the container
+container.memory.page_faults	Total number of page faults incurred
+container.memory.page_tables	The container memory allocated for page tables (requires extended_memory_metrics flag in the check config)
+container.memory.partial_stall	The total time at least one task in the container was stalled waiting for memory
+container.memory.refault_anon	The number of refaults of previously evicted anonymous pages (requires extended_memory_metrics flag in the check config)
+container.memory.refault_file	The number of refaults of previously evicted file pages (requires extended_memory_metrics flag in the check config)
+container.memory.rss	The container RSS usage
+container.memory.shmem	The container swap-backed memory such as tmpfs (requires extended_memory_metrics flag in the check config), shm segments...
+container.memory.soft_limit	The container memory soft limit
+container.memory.swap	The container swap usage
+container.memory.unevictable	The container memory that can't be reclaimed (requires extended_memory_metrics flag in the check config)
+container.memory.usage	The container total memory usage
+container.memory.usage.peak	The maximum memory usage recorded since the container started
+container.memory.working_set	The container working set usage
+container.net.rcvd	The number of network bytes received (per interface)
+container.net.rcvd.packets	The number of network packets received (per interface)
+container.net.sent	The number of network bytes sent (per interface)
+container.net.sent.packets	The number of network packets sent (per interface)
+container.pid.open_files	The number of open file descriptors (Linux only)
+container.pid.thread_count	The number of threads running inside this container
+container.pid.thread_limit	The maximum number of threads for this container
+container.restarts	The number of container restarted
+container.uptime	The container uptime
+etcd.cluster.version	Which version is the etcd cluster is running. 1 for each version identified in the labels
+etcd.debugging.auth.revision	The current revision of auth store
+etcd.debugging.disk.backend.commit.rebalance.duration.seconds.count	The latency distributions of commit.rebalance called by bboltdb backend
+etcd.debugging.disk.backend.commit.rebalance.duration.seconds.sum	The latency distributions of commit.rebalance called by bboltdb backend
+etcd.debugging.disk.backend.commit.spill.duration.seconds.count	The latency distributions of commit.spill called by bboltdb backend
+etcd.debugging.disk.backend.commit.spill.duration.seconds.sum	The latency distributions of commit.spill called by bboltdb backend
+etcd.debugging.disk.backend.commit.write.duration.seconds.count	The latency distributions of commit.write called by bboltdb backend
+etcd.debugging.disk.backend.commit.write.duration.seconds.sum	The latency distributions of commit.write called by bboltdb backend
+etcd.debugging.lease.granted.total	The total number of granted leases
+etcd.debugging.lease.renewed.total	The number of renewed leases seen by the leader
+etcd.debugging.lease.revoked.total	The total number of revoked leases
+etcd.debugging.lease.ttl.total.count	Bucketed histogram of lease TTLs
+etcd.debugging.lease.ttl.total.sum	Bucketed histogram of lease TTLs
+etcd.debugging.mvcc.compact.revision	The revision of the last compaction in store
+etcd.debugging.mvcc.current.revision	The current revision of the store
+etcd.debugging.mvcc.db.compaction.keys.total	Total number of db keys compacted.
+etcd.debugging.mvcc.db.compaction.last	The unix time of the last db compaction. Resets to 0 on start
+etcd.debugging.mvcc.db.compaction.pause.duration.milliseconds.count	Bucketed histogram of db compaction pause duration.
+etcd.debugging.mvcc.db.compaction.pause.duration.milliseconds.sum	Bucketed histogram of db compaction pause duration.
+etcd.debugging.mvcc.db.compaction.total.duration.milliseconds.count	Bucketed histogram of db compaction total duration.
+etcd.debugging.mvcc.db.compaction.total.duration.milliseconds.sum	Bucketed histogram of db compaction total duration.
+etcd.debugging.mvcc.db.total.size.in_bytes	Total size of the underlying database in bytes.
+etcd.debugging.mvcc.delete.total	Total number of deletes seen by this member.
+etcd.debugging.mvcc.events.total	Total number of events sent by this member.
+etcd.debugging.mvcc.index.compaction.pause.duration.milliseconds.count	Bucketed histogram of index compaction pause duration.
+etcd.debugging.mvcc.index.compaction.pause.duration.milliseconds.sum	Bucketed histogram of index compaction pause duration.
+etcd.debugging.mvcc.keys.total	Total number of keys.
+etcd.debugging.mvcc.pending.events.total	Total number of pending events to be sent.
+etcd.debugging.mvcc.put.total	Total number of puts seen by this member.
+etcd.debugging.mvcc.range.total	Total number of ranges seen by this member.
+etcd.debugging.mvcc.slow_watcher.total	Total number of unsynced slow watchers.
+etcd.debugging.mvcc.total.put.size.in_bytes	The total size of put kv pairs seen by this member
+etcd.debugging.mvcc.txn.total	Total number of txns seen by this member.
+etcd.debugging.mvcc.watch_stream.total	Total number of watch streams.
+etcd.debugging.mvcc.watcher.total	Total number of watchers.
+etcd.debugging.server.lease.expired.total	The total number of expired leases.
+etcd.debugging.snap.save.marshalling.duration.seconds.count	The marshalling cost distributions of save called by snapshot.
+etcd.debugging.snap.save.marshalling.duration.seconds.sum	The marshalling cost distributions of save called by snapshot.
+etcd.debugging.snap.save.total.duration.seconds.count	The total latency distributions of save called by snapshot.
+etcd.debugging.snap.save.total.duration.seconds.sum	The total latency distributions of save called by snapshot.
+etcd.debugging.store.expires.total	Total number of expired keys.
+etcd.debugging.store.reads.total	Total number of reads action by (get/getRecursive), local to this member.
+etcd.debugging.store.watch.requests.total	Total number of incoming watch requests (new or reestablished).
+etcd.debugging.store.watchers	Count of currently active watchers.
+etcd.debugging.store.writes.total	Total number of writes (e.g. set/compareAndDelete) seen by this member.
+etcd.disk.backend.commit.duration.seconds.count	The latency distributions of commit called by backend.
+etcd.disk.backend.commit.duration.seconds.sum	The latency distributions of commit called by backend.
+etcd.disk.backend.defrag.duration.seconds.count	The latency distribution of backend defragmentation
+etcd.disk.backend.defrag.duration.seconds.sum	The latency distribution of backend defragmentation
+etcd.disk.backend.snapshot.duration.seconds.count	The latency distribution of backend snapshots.
+etcd.disk.backend.snapshot.duration.seconds.sum	The latency distribution of backend snapshots.
+etcd.disk.defrag.inflight	Whether or not defrag is active on the member. 1 means active 0 means not
+etcd.disk.wal.fsync.duration.seconds.count	The count of latency distributions of fsync called by wal.
+etcd.disk.wal.fsync.duration.seconds.sum	The sum of latency distributions of fsync called by wal.
+etcd.disk.wal.write.bytes.total	Total number of bytes written in WAL
+etcd.disk.wal.write.duration.seconds.count	The latency distributions of write called by WAL
+etcd.disk.wal.write.duration.seconds.sum	The latency distributions of write called by WAL
+etcd.etcd.server.client.requests.total	The total number of client requests per client version
+etcd.go.gc.duration.seconds.count	A summary of the GC invocation durations.
+etcd.go.gc.duration.seconds.quantile	GC invocation duration quantile.
+etcd.go.gc.duration.seconds.sum	A summary of the GC invocation durations.
+etcd.go.gc.gogc.percent	Heap size target percentage configured by the user otherwise 100
+etcd.go.gc.gomemlimit.bytes	Go runtime memory limit configured by the user otherwise math.MaxInt64
+etcd.go.goroutines	Number of goroutines that currently exist.
+etcd.go.info	Information about the Go environment.
+etcd.go.memstats.alloc.bytes	Number of bytes allocated and still in use.
+etcd.go.memstats.alloc.bytes.total	Total number of bytes allocated, even if freed.
+etcd.go.memstats.buck.hash.sys.bytes	Number of bytes used by the profiling bucket hash table.
+etcd.go.memstats.frees.total	Total number of frees.
+etcd.go.memstats.gc.cpu.fraction	The fraction of this program's available CPU time used by the GC since the program started.
+etcd.go.memstats.gc.sys.bytes	Number of bytes used for garbage collection system metadata.
+etcd.go.memstats.heap.alloc.bytes	Number of heap bytes allocated and still in use.
+etcd.go.memstats.heap.idle.bytes	Number of heap bytes waiting to be used.
+etcd.go.memstats.heap.inuse.bytes	Number of heap bytes that are in use.
+etcd.go.memstats.heap.objects	Number of allocated objects.
+etcd.go.memstats.heap.released.bytes	Number of heap bytes released to OS.
+etcd.go.memstats.heap.sys.bytes	Number of heap bytes obtained from system.
+etcd.go.memstats.last.gc.time.seconds	Number of seconds since 1970 of last garbage collection.
+etcd.go.memstats.lookups.total	Total number of pointer lookups.
+etcd.go.memstats.mallocs.total	Total number of mallocs.
+etcd.go.memstats.mcache.inuse.bytes	Number of bytes in use by mcache structures.
+etcd.go.memstats.mcache.sys.bytes	Number of bytes used for mcache structures obtained from system.
+etcd.go.memstats.mspan.inuse.bytes	Number of bytes in use by mspan structures.
+etcd.go.memstats.mspan.sys.bytes	Number of bytes used for mspan structures obtained from system.
+etcd.go.memstats.next.gc.bytes	Number of heap bytes when next garbage collection will take place.
+etcd.go.memstats.other.sys.bytes	Number of bytes used for other system allocations.
+etcd.go.memstats.stack.inuse.bytes	Number of bytes in use by the stack allocator.
+etcd.go.memstats.stack.sys.bytes	Number of bytes obtained from system for stack allocator.
+etcd.go.memstats.sys.bytes	Number of bytes obtained from system.
+etcd.go.sched.gomaxprocs.threads	The current runtime.GOMAXPROCS setting or the number of operating system threads that can execute user-level Go code simultaneously
+etcd.go.threads	Number of OS threads created.
+etcd.grpc.proxy.cache.hits.total	Total number of cache hits
+etcd.grpc.proxy.cache.keys.total	Total number of keys/ranges cached
+etcd.grpc.proxy.cache.misses.total	Total number of cache misses
+etcd.grpc.proxy.events.coalescing.total	Total number of events coalescing
+etcd.grpc.proxy.watchers.coalescing.total	Total number of current watchers coalescing
+etcd.grpc.server.handled.total	Total number of RPCs completed on the server, regardless of success or failure.
+etcd.grpc.server.msg.received.total	Total number of RPC stream messages received on the server.
+etcd.grpc.server.msg.sent.total	Total number of gRPC stream messages sent by the server.
+etcd.grpc.server.started.total	Total number of RPCs started on the server.
+etcd.leader.counts.fail	Rate of failed Raft RPC requests (ETCD API V2 only)
+etcd.leader.counts.success	Rate of successful Raft RPC requests (ETCD API V2 only)
+etcd.leader.latency.avg	Average latency to each peer in the cluster (ETCD API V2 only)
+etcd.leader.latency.current	Current latency to each peer in the cluster (ETCD API V2 only)
+etcd.leader.latency.max	Maximum latency to each peer in the cluster (ETCD API V2 only)
+etcd.leader.latency.min	Minimum latency to each peer in the cluster (ETCD API V2 only)
+etcd.leader.latency.stddev	Standard deviation latency to each peer in the cluster (ETCD API V2 only)
+etcd.mvcc.db.total.size.in_use.bytes	Total size of the underlying database logically in use
+etcd.network.active_peers	The current number of active peer connections
+etcd.network.client.grpc.received.bytes.total	The total number of bytes received from grpc clients.
+etcd.network.client.grpc.sent.bytes.total	The total number of bytes sent to grpc clients.
+etcd.network.disconnected_peers.total	The total number of disconnected peers
+etcd.network.known_peers	The current number of known peer connections
+etcd.network.peer.received.bytes.total	The total number of bytes received from peers.
+etcd.network.peer.received.failures.total	The total number of receive failures from peers
+etcd.network.peer.round_trip_time.seconds	Round-Trip-Time histogram between peers.
+etcd.network.peer.sent.bytes.total	The total number of bytes sent to peers.
+etcd.network.peer.sent.failures.total	The total number of send failures from peers
+etcd.network.snapshot.receive.failures.total	Total number of snapshot receive failures
+etcd.network.snapshot.receive.inflights.total	Total number of inflight snapshot sends
+etcd.network.snapshot.receive.success.total	Total number of successful snapshot receives
+etcd.network.snapshot.receive.total.duration.seconds.count	Total latency distributions of v3 snapshot receives
+etcd.network.snapshot.receive.total.duration.seconds.sum	Total latency distributions of v3 snapshot receives
+etcd.network.snapshot.send.failures.total	The total number of send failures from peers
+etcd.network.snapshot.send.inflights.total	Total number of inflight snapshot receives
+etcd.network.snapshot.send.sucess.total	Total number of successful snapshot sends
+etcd.network.snapshot.send.total.duration.seconds.count	Total latency distributions of v3 snapshot sends
+etcd.network.snapshot.send.total.duration.seconds.sum	Total latency distributions of v3 snapshot sends
+etcd.os.fd.limit	The file descriptor limit
+etcd.os.fd.used	The number of used file descriptors
+etcd.process.cpu.seconds.total	Total user and system CPU time spent in seconds.
+etcd.process.max.fds	Maximum number of open file descriptors.
+etcd.process.network.receive_bytes.total	Number of bytes received by the process over the network
+etcd.process.network.transmit_bytes.total	Number of bytes sent by the process over the network
+etcd.process.open.fds	Number of open file descriptors.
+etcd.process.resident.memory.bytes	Resident memory size in bytes.
+etcd.process.start.time.seconds	Start time of the process since unix epoch in seconds.
+etcd.process.virtual.memory.bytes	Virtual memory size in bytes.
+etcd.process.virtual.memory.max_bytes	Maximum amount of virtual memory available in bytes
+etcd.self.recv.appendrequest.count	Rate of append requests this node has processed (ETCD API V2 only)
+etcd.self.recv.bandwidthrate	Rate of bytes received (ETCD API V2 only)
+etcd.self.recv.pkgrate	Rate of packets received (ETCD API V2 only)
+etcd.self.send.appendrequest.count	Rate of append requests this node has sent (ETCD API V2 only)
+etcd.self.send.bandwidthrate	Rate of bytes sent (ETCD API V2 only)
+etcd.self.send.pkgrate	Rate of packets sent (ETCD API V2 only)
+etcd.server.apply.duration.seconds.count	Apply request latency
+etcd.server.apply.duration.seconds.sum	Apply request latency
+etcd.server.apply.slow.total	The total number of slow apply requests (likely overloaded from slow disk)
+etcd.server.feature_enabled	Feature flags enabled
+etcd.server.go_version	Which Go version server is running with. 1 with label with current version
+etcd.server.has_leader	Whether or not a leader exists. 1 is existence, 0 is not.
+etcd.server.health.failures.total	The total number of failed health checks
+etcd.server.health.success.total	The total number of successful health checks
+etcd.server.healthcheck	Health check result
+etcd.server.healthchecks.total	Total health checks
+etcd.server.heartbeat.send.failures.total	The total number of leader heartbeat send failures (likely overloaded from slow disk)
+etcd.server.id	The server member ID
+etcd.server.is_leader	Whether or not this member is a leader. 1 if is, 0 otherwise.
+etcd.server.is_learner	Whether this node is a learner
+etcd.server.leader.changes.seen.total	The number of leader changes seen.
+etcd.server.learner.promote_failures	Learner promotion failures
+etcd.server.learner.promote_successes	Learner promotion successes
+etcd.server.lease.expired.total	The total number of expired leases
+etcd.server.proposals.applied.total	The total number of consensus proposals applied.
+etcd.server.proposals.committed.total	The total number of consensus proposals committed.
+etcd.server.proposals.failed.total	The total number of failed proposals seen.
+etcd.server.proposals.pending	The current number of pending proposals to commit.
+etcd.server.quota.backend.bytes	Current backend storage quota size in bytes
+etcd.server.range.duration.seconds.count	Range request latency
+etcd.server.range.duration.seconds.sum	Range request latency
+etcd.server.read_indexes.failed.total	The total number of failed read indexes seen
+etcd.server.read_indexes.slow.total	The total number of pending read indexes not in sync with leader or timed out read index requests
+etcd.server.snapshot.apply.in_progress.total	Snapshots being applied
+etcd.server.version	Which version is running. 1 for 'server_version' label with current version.
+etcd.snap.db.fsync.duration.seconds.count	The latency distributions of fsyncing .snap.db file
+etcd.snap.db.fsync.duration.seconds.sum	The latency distributions of fsyncing .snap.db file
+etcd.snap.db.save.total.duration.seconds.count	The total latency distributions of v3 snapshot save
+etcd.snap.db.save.total.duration.seconds.sum	The total latency distributions of v3 snapshot save
+etcd.snap.fsync.duration.seconds.count	The latency distributions of fsync called by snap
+etcd.snap.fsync.duration.seconds.sum	The latency distributions of fsync called by snap
+etcd.store.compareanddelete.fail	Rate of compare and delete requests failure (ETCD API V2 only)
+etcd.store.compareanddelete.success	Rate of compare and delete requests success (ETCD API V2 only)
+etcd.store.compareandswap.fail	Rate of compare and swap requests failure (ETCD API V2 only)
+etcd.store.compareandswap.success	Rate of compare and swap requests success (ETCD API V2 only)
+etcd.store.create.fail	Rate of failed create requests (ETCD API V2 only)
+etcd.store.create.success	Rate of successful create requests (ETCD API V2 only)
+etcd.store.delete.fail	Rate of failed delete requests (ETCD API V2 only)
+etcd.store.delete.success	Rate of successful delete requests (ETCD API V2 only)
+etcd.store.expire.count	Rate of expired keys (ETCD API V2 only)
+etcd.store.gets.fail	Rate of failed get requests (ETCD API V2 only)
+etcd.store.gets.success	Rate of successful get requests (ETCD API V2 only)
+etcd.store.sets.fail	Rate of failed set requests (ETCD API V2 only)
+etcd.store.sets.success	Rate of successful set requests (ETCD API V2 only)
+etcd.store.update.fail	Rate of failed update requests (ETCD API V2 only)
+etcd.store.update.success	Rate of successful update requests (ETCD API V2 only)
+etcd.store.watchers	Rate of watchers (ETCD API V2 only)
+kube_apiserver.admission_controller_admission_duration_seconds.count	The admission controller latency histogram in seconds identified by name and broken out for each operation and API resource and type (validate or admit) count
+kube_apiserver.admission_controller_admission_duration_seconds.sum	The admission controller latency histogram in seconds identified by name and broken out for each operation and API resource and type (validate or admit)
+kube_apiserver.admission_step_admission_latencies_seconds_summary.count	The admission sub-step latency summary broken out for each operation and API resource and step type (validate or admit) count
+kube_apiserver.admission_step_admission_latencies_seconds_summary.quantile	The admission sub-step latency summary broken out for each operation and API resource and step type (validate or admit) quantile
+kube_apiserver.admission_step_admission_latencies_seconds_summary.sum	The admission sub-step latency summary broken out for each operation and API resource and step type (validate or admit)
+kube_apiserver.admission_step_admission_latencies_seconds.count	The admission sub-step latency histogram broken out for each operation and API resource and step type (validate or admit) count
+kube_apiserver.admission_step_admission_latencies_seconds.sum	The admission sub-step latency broken out for each operation and API resource and step type (validate or admit)
+kube_apiserver.admission_webhook_admission_latencies_seconds.count	The admission webhook latency identified by name and broken out for each operation and API resource and type (validate or admit) count
+kube_apiserver.admission_webhook_admission_latencies_seconds.sum	The admission webhook latency identified by name and broken out for each operation and API resource and type (validate or admit)
+kube_apiserver.aggregator_unavailable_apiservice	Gauge of APIServices which are marked as unavailable broken down by APIService name (alpha; Kubernetes 1.14+)
+kube_apiserver.apiserver_admission_webhook_fail_open_count	Admission webhook fail open count, identified by name and broken out for each admission type (validating or mutating).
+kube_apiserver.apiserver_admission_webhook_fail_open_count.count	Admission webhook fail open count, identified by name and broken out for each admission type (validating or mutating).
+kube_apiserver.apiserver_admission_webhook_request_total	Admission webhook request total, identified by name and broken out for each admission type (alpha; Kubernetes 1.23+)
+kube_apiserver.apiserver_admission_webhook_request_total.count	Admission webhook request total, identified by name and broken out for each admission type (alpha; Kubernetes 1.23+)
+kube_apiserver.apiserver_dropped_requests_total	The accumulated number of requests dropped with 'Try again later' response(deprecated in Kubernetes 1.29)
+kube_apiserver.apiserver_dropped_requests_total.count	The monotonic count of requests dropped with 'Try again later' response (deprecated in Kubernetes 1.29 replaced by kube_apiserver.flowcontrol_rejected_requests_total.count)
+kube_apiserver.apiserver_request_count	The accumulated number of apiserver requests broken out for each verb API resource client and HTTP response contentType and code (deprecated in Kubernetes 1.15)
+kube_apiserver.apiserver_request_count.count	The monotonic count of apiserver requests broken out for each verb API resource client and HTTP response contentType and code (deprecated in Kubernetes 1.15)
+kube_apiserver.apiserver_request_terminations_total.count	The number of requests the apiserver terminated in self-defense (Kubernetes 1.17+)
+kube_apiserver.apiserver_request_total	The accumulated number of apiserver requests broken out for each verb API resource client and HTTP response contentType and code (Kubernetes 1.15+; replaces apiserver_request_count)
+kube_apiserver.apiserver_request_total.count	The monotonic count of apiserver requests broken out for each verb API resource client and HTTP response contentType and code (Kubernetes 1.15+; replaces apiserver_request_count.count)
+kube_apiserver.APIServiceRegistrationController_depth	The current depth of workqueue: APIServiceRegistrationController (deprecated in Kubernetes 1.26)
+kube_apiserver.audit_event	The accumulated number audit events generated and sent to the audit backend
+kube_apiserver.audit_event.count	The monotonic count of audit events generated and sent to the audit backend
+kube_apiserver.authenticated_user_requests	The accumulated number of authenticated requests broken out by username
+kube_apiserver.authenticated_user_requests.count	The monotonic count of authenticated requests broken out by username
+kube_apiserver.authentication_attempts.count	The counter of authenticated attempts (Kubernetes 1.16+)
+kube_apiserver.authentication_duration_seconds.count	The authentication duration histogram broken out by result (Kubernetes 1.17+)
+kube_apiserver.authentication_duration_seconds.sum	The authentication duration histogram broken out by result (Kubernetes 1.17+)
+kube_apiserver.current_inflight_requests	The maximal number of currently used inflight request limit of this apiserver per request kind in last second.
+kube_apiserver.envelope_encryption_dek_cache_fill_percent	Percent of the cache slots currently occupied by cached DEKs.
+kube_apiserver.etcd_object_counts	The number of stored objects at the time of last check split by kind (alpha; deprecated in Kubernetes 1.22 replaced by apiserver_storage_objects)
+kube_apiserver.etcd_request_duration_seconds.count	Etcd request latencies count for each operation and object type (alpha)
+kube_apiserver.etcd_request_duration_seconds.sum	Etcd request latencies for each operation and object type (alpha)
+kube_apiserver.etcd_request_errors_total	Etcd failed request counts for each operation and object type
+kube_apiserver.etcd_requests_total	Etcd request counts for each operation and object type
+kube_apiserver.etcd.db.total_size	The total size of the etcd database file physically allocated in bytes (alpha; Kubernetes 1.19+)
+kube_apiserver.flowcontrol_current_executing_requests	Number of requests in initial (for a WATCH) or any (for a non-WATCH) execution stage in the API Priority and Fairness subsystem
+kube_apiserver.flowcontrol_current_executing_seats	Number of seats (concurrency units) currently occupied by executing requests in the API Priority and Fairness subsystem
+kube_apiserver.flowcontrol_current_inqueue_requests	Number of requests currently pending in queues of the API Priority and Fairness subsystem
+kube_apiserver.flowcontrol_dispatched_requests_total	Number of requests executed by API Priority and Fairness subsystem
+kube_apiserver.flowcontrol_nominal_limit_seats	Nominal limit on the number of execution seats available to requests in the API Priority and Fairness subsystem
+kube_apiserver.flowcontrol_rejected_requests_total.count	Number of requests rejected by API Priority and Fairness subsystem
+kube_apiserver.flowcontrol_request_concurrency_limit	Shared concurrency limit in the API Priority and Fairness subsystem (deprecated in Kubernetes 1.26 replaced by kube_apiserver.nominal_limit_seats)
+kube_apiserver.flowcontrol_request_wait_duration_seconds.count	The request wait duration histogram count in the API Priority and Fairness subsystem
+kube_apiserver.flowcontrol_request_wait_duration_seconds.sum	The request wait duration histogram sum in the API Priority and Fairness subsystem
+kube_apiserver.go_goroutines	The number of goroutines that currently exist
+kube_apiserver.go_threads	The number of OS threads created
+kube_apiserver.grpc_client_handled_total	The total number of RPCs completed by the client regardless of success or failure
+kube_apiserver.grpc_client_msg_received_total	The total number of gRPC stream messages received by the client
+kube_apiserver.grpc_client_msg_sent_total	The total number of gRPC stream messages sent by the client
+kube_apiserver.grpc_client_started_total	The total number of RPCs started on the client
+kube_apiserver.http_requests_total	The accumulated number of HTTP requests made
+kube_apiserver.http_requests_total.count	The monotonic count of the number of HTTP requests made
+kube_apiserver.kubernetes_feature_enabled	Whether a Kubernetes feature gate is enabled or not, identified by name and stage (alpha; Kubernetes 1.26+)
+kube_apiserver.longrunning_gauge	The gauge of all active long-running apiserver requests broken out by verb, group, version, resource, scope, and component. Not all requests are tracked this way.
+kube_apiserver.process_cpu_total	Total user and system CPU time spent in seconds.
+kube_apiserver.process_resident_memory_bytes	The resident memory size in bytes
+kube_apiserver.process_virtual_memory_bytes	The virtual memory size in bytes
+kube_apiserver.registered_watchers	The number of currently registered watchers for a given resource
+kube_apiserver.request_duration_seconds.count	The response latency distribution in seconds for each verb, dry run value, group, version, resource, subresource, scope, and component count
+kube_apiserver.request_duration_seconds.sum	The response latency distribution in seconds for each verb, dry run value, group, version, resource, subresource, scope, and component
+kube_apiserver.request_latencies.count	The response latency distribution in microseconds for each verb, resource, and subresource count (deprecated in Kubernetes 1.14, replaced by apiserver_request_duration_seconds)
+kube_apiserver.request_latencies.sum	The response latency distribution in microseconds for each verb, resource and subresource
+kube_apiserver.requested_deprecated_apis	Gauge of deprecated APIs that have been requested, broken out by API group, version, resource, subresource, and removed_release
+kube_apiserver.rest_client_request_latency_seconds.count	The request latency in seconds broken down by verb and URL count
+kube_apiserver.rest_client_request_latency_seconds.sum	The request latency in seconds broken down by verb and URL
+kube_apiserver.rest_client_requests_total	The accumulated number of HTTP requests partitioned by status code method and host
+kube_apiserver.rest_client_requests_total.count	The monotonic count of HTTP requests partitioned by status code method and host
+kube_apiserver.slis.kubernetes_healthcheck	Result of a single kubernetes apiserver healthcheck (alpha; requires k8s v1.26+)
+kube_apiserver.slis.kubernetes_healthchecks_total	The monotonic count of all kubernetes apiserver healthchecks (alpha; requires k8s v1.26+)
+kube_apiserver.storage_list_evaluated_objects_total	The number of objects tested in the course of serving a LIST request from storage (alpha; Kubernetes 1.23+)
+kube_apiserver.storage_list_fetched_objects_total	The number of objects read from storage in the course of serving a LIST request (alpha; Kubernetes 1.23+)
+kube_apiserver.storage_list_returned_objects_total	The number of objects returned for a LIST request from storage (alpha; Kubernetes 1.23+)
+kube_apiserver.storage_list_total	The number of LIST requests served from storage (alpha; Kubernetes 1.23+)
+kube_apiserver.storage_objects	The number of stored objects at the time of last check split by kind (Kubernetes 1.21+; replaces etcd_object_counts)
+kube_apiserver.watch_events_sizes.count	The watch event size distribution (Kubernetes 1.16+)
+kube_apiserver.watch_events_sizes.sum	The watch event size distribution (Kubernetes 1.16+)
+kube_controller_manager.goroutines	Number of goroutines that currently exist
+kube_controller_manager.job_controller.terminated_pods_tracking_finalizer	Used to monitor whether the job controller is removing Pod finalizers from terminated Pods after accounting them in Job status
+kube_controller_manager.leader_election.lease_duration	Duration of the leadership lease
+kube_controller_manager.leader_election.transitions	Number of leadership transitions observed
+kube_controller_manager.max_fds	Maximum allowed open file descriptors
+kube_controller_manager.nodes.count	Number of registered nodes, per zone
+kube_controller_manager.nodes.evictions	Count of node eviction events, per zone
+kube_controller_manager.nodes.unhealthy	Number of unhealthy nodes, per zone
+kube_controller_manager.open_fds	Number of open file descriptors
+kube_controller_manager.queue.adds	Elements added, by queue
+kube_controller_manager.queue.depth	Current depth, by queue
+kube_controller_manager.queue.latency.count	Processing latency count, by queue (deprecated in kubernetes v1.14)
+kube_controller_manager.queue.latency.quantile	Processing latency quantiles, by queue (deprecated in kubernetes v1.14)
+kube_controller_manager.queue.latency.sum	Processing latency sum, by queue (deprecated in kubernetes v1.14)
+kube_controller_manager.queue.process_duration.count	How long processing an item from workqueue takes, by queue
+kube_controller_manager.queue.process_duration.sum	Total workqueue processing time, by queue
+kube_controller_manager.queue.queue_duration.count	How long item stays in a queue before being requested, by queue
+kube_controller_manager.queue.queue_duration.sum	Total time of items stays in a queue before being requested, by queue
+kube_controller_manager.queue.retries	Retries handled, by queue
+kube_controller_manager.queue.work_duration.count	Work duration, by queue (deprecated in kubernetes v1.14)
+kube_controller_manager.queue.work_duration.quantile	Work duration quantiles, by queue (deprecated in kubernetes v1.14)
+kube_controller_manager.queue.work_duration.sum	Work duration sum, by queue (deprecated in kubernetes v1.14)
+kube_controller_manager.queue.work_longest_duration	How many seconds has the longest running processor been running, by queue
+kube_controller_manager.queue.work_unfinished_duration	How many seconds of work has done that is in progress and hasn't been observed by process_duration, by queue
+kube_controller_manager.rate_limiter.use	Usage of the rate limiter, by limiter
+kube_controller_manager.slis.kubernetes_healthcheck	Result of a single controller manager healthcheck (alpha; requires k8s v1.26+)
+kube_controller_manager.slis.kubernetes_healthcheck_total	Cumulative results of all controller manager healthchecks (alpha; requires k8s v1.26+)
+kube_controller_manager.threads	Number of OS threads created
+kube_scheduler.binding_duration.count	Number of latency in seconds
+kube_scheduler.binding_duration.sum	Total binding latency in seconds
+kube_scheduler.cache.lookups	Number of equivalence cache lookups, by whether or not a cache entry was found
+kube_scheduler.client.http.requests	Number of HTTP requests, partitioned by status code, method, and host
+kube_scheduler.client.http.requests_duration.count	Number of client requests. Broken down by verb and URL
+kube_scheduler.client.http.requests_duration.sum	Total latency. Broken down by verb and URL
+kube_scheduler.gc_duration_seconds.count	Number of the GC invocation
+kube_scheduler.gc_duration_seconds.quantile	GC invocation durations quantiles
+kube_scheduler.gc_duration_seconds.sum	GC invocation durations sum
+kube_scheduler.goroutine_by_scheduling_operation	Number of running goroutines split by the work they do such as binding (alpha; requires k8s v1.26+)
+kube_scheduler.goroutines	Number of goroutines that currently exist
+kube_scheduler.max_fds	Maximum allowed open file descriptors
+kube_scheduler.open_fds	Number of open file descriptors
+kube_scheduler.pending_pods	Number of pending pods, by the queue type (requires k8s v1.15+)
+kube_scheduler.pod_preemption.attempts	Number of preemption attempts in the cluster till now
+kube_scheduler.pod_preemption.victims.count	Number of selected pods during the latest preemption round
+kube_scheduler.pod_preemption.victims.sum	Total selected pods during the latest preemption round
+kube_scheduler.queue.incoming_pods	Number of pods added to scheduling queues by event and queue type (requires k8s v1.17+)
+kube_scheduler.schedule_attempts	Number of attempts to schedule pods, by the result. 'unschedulable' means a pod could not be scheduled, while 'error' means an internal scheduler problem.
+kube_scheduler.scheduling.algorithm_duration.count	Number of scheduling algorithm latency
+kube_scheduler.scheduling.algorithm_duration.sum	Total scheduling algorithm latency
+kube_scheduler.scheduling.algorithm.predicate_duration.count	Number of scheduling algorithm predicate evaluation
+kube_scheduler.scheduling.algorithm.predicate_duration.sum	Total scheduling algorithm predicate evaluation duration
+kube_scheduler.scheduling.algorithm.preemption_duration.count	Number of scheduling algorithm preemption evaluation
+kube_scheduler.scheduling.algorithm.preemption_duration.sum	Total scheduling algorithm preemption evaluation duration
+kube_scheduler.scheduling.algorithm.priority_duration.count	Number of scheduling algorithm priority evaluation
+kube_scheduler.scheduling.algorithm.priority_duration.sum	Total scheduling algorithm priority evaluation duration
+kube_scheduler.scheduling.attempt_duration.count	Scheduling attempt latency in seconds (scheduling algorithm + binding) (requires k8s v1.23+)
+kube_scheduler.scheduling.attempt_duration.sum	Total scheduling attempt latency in seconds (scheduling algorithm + binding) (requires k8s v1.23+)
+kube_scheduler.scheduling.e2e_scheduling_duration.count	Number of E2e scheduling latency (scheduling algorithm + binding)
+kube_scheduler.scheduling.e2e_scheduling_duration.sum	Total E2e scheduling latency (scheduling algorithm + binding)
+kube_scheduler.scheduling.pod.scheduling_attempts.count	Number of attempts to successfully schedule a pod (requires k8s v1.23+)
+kube_scheduler.scheduling.pod.scheduling_attempts.sum	Total number of attempts to successfully schedule a pod (requires k8s v1.23+)
+kube_scheduler.scheduling.pod.scheduling_duration.count	E2e latency for a pod being scheduled which may include multiple scheduling attempts (requires k8s v1.23+)
+kube_scheduler.scheduling.pod.scheduling_duration.sum	Total e2e latency for a pod being scheduled which may include multiple scheduling attempts (requires k8s v1.23+)
+kube_scheduler.scheduling.scheduling_duration.count	Number of scheduling split by sub-parts of the scheduling operation
+kube_scheduler.scheduling.scheduling_duration.quantile	Scheduling latency quantiles split by sub-parts of the scheduling operation
+kube_scheduler.scheduling.scheduling_duration.sum	Total scheduling latency split by sub-parts of the scheduling operation
+kube_scheduler.slis.kubernetes_healthcheck	Result of a single scheduler healthcheck (alpha; requires k8s v1.26+)
+kube_scheduler.slis.kubernetes_healthcheck_total	Cumulative results of all scheduler healthchecks (alpha; requires k8s v1.26+)
+kube_scheduler.threads	Number of OS threads created
+kube_scheduler.volume_scheduling_duration.count	Number of Volume scheduling
+kube_scheduler.volume_scheduling_duration.sum	Total Volume scheduling stage latency
+kubernetes_state.apiservice.condition	The current condition of this apiservice. Tags:`kube_namespace` `apiservice` `condition` `status`.
+kubernetes_state.apiservice.count	The current count of apiservices.
+kubernetes_state.configmap.count	Number of ConfigMaps. Requires ConfigMaps to be added to Cluster Agent collector. Tags: `kube_namespace`.
+kubernetes_state.container.cpu_limit	The value of CPU limit by a container. Tags:`kube_namespace` `pod_name` `kube_container_name` `node` `resource` `unit` (`env` `service` `version` from standard labels).
+kubernetes_state.container.cpu_limit.total	The total value of CPU limits by all containers in the cluster. Tags:`kube_namespace` `kube_container_name` `kube_<owner kind>`.
+kubernetes_state.container.cpu_requested	The value of CPU requested by a container. Tags:`kube_namespace` `pod_name` `kube_container_name` `node` `resource` `unit` (`env` `service` `version` from standard labels).
+kubernetes_state.container.cpu_requested.total	The total value of CPU requested by all containers in the cluster. Tags:`kube_namespace` `kube_container_name` `kube_<owner kind>`.
+kubernetes_state.container.gpu_limit	The value of GPU limit by a container. Tags:`kube_namespace` `pod_name` `kube_container_name` `node` `resource` `mig_profile` `unit` (`env` `service` `version` from standard labels).
+kubernetes_state.container.gpu_limit.total	The total value of GPU limits by all containers in the cluster. Tags:`kube_namespace` `kube_container_name` `kube_<owner kind>`.
+kubernetes_state.container.gpu_requested	The value of GPU requested by a container. Tags:`kube_namespace` `pod_name` `kube_container_name` `node` `resource` `mig_profile` `unit` (`env` `service` `version` from standard labels).
+kubernetes_state.container.gpu_requested.total	The total value of GPU requested by all containers in the cluster. Tags:`kube_namespace` `kube_container_name` `kube_<owner kind>`.
+kubernetes_state.container.gpu.limit	The limit on gpu devices to be used by a container
+kubernetes_state.container.gpu.request	The number of requested gpu devices by a container
+kubernetes_state.container.memory_limit	The value of memory limit by a container. Tags:`kube_namespace` `pod_name` `kube_container_name` `node` `resource` `unit` (`env` `service` `version` from standard labels).
+kubernetes_state.container.memory_limit.total	The total value of memory limits by all containers in the cluster. Tags:`kube_namespace` `kube_container_name` `kube_<owner kind>`.
+kubernetes_state.container.memory_requested	The value of memory requested by a container. Tags:`kube_namespace` `pod_name` `kube_container_name` `node` `resource` `unit` (`env` `service` `version` from standard labels).
+kubernetes_state.container.memory_requested.total	The total value of memory requested by all containers in the cluster. Tags:`kube_namespace` `kube_container_name` `kube_<owner kind>`.
+kubernetes_state.container.network_bandwidth_limit	The value of network bandwidth limit for a container. Tags:`kube_namespace` `pod_name` `kube_container_name` `node` `resource` `unit` (`env` `service` `version` from standard labels).
+kubernetes_state.container.network_bandwidth_requested	The value of network bandwidth requested by a container. Tags:`kube_namespace` `pod_name` `kube_container_name` `node` `resource` `unit` (`env` `service` `version` from standard labels).
+kubernetes_state.container.ready	Describes whether the containers readiness check succeeded. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.container.restarts	The number of container restarts per container. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.container.running	Describes whether the container is currently in running state. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.container.status_report.count.terminated	Describes the reason the container is currently in terminated state. Tags:`kube_namespace` `pod_name` `kube_container_name` `reason` (`env` `service` `version` from standard labels).
+kubernetes_state.container.status_report.count.waiting	Describes the reason the container is currently in waiting state. Tags:`kube_namespace` `pod_name` `kube_container_name` `reason` (`env` `service` `version` from standard labels).
+kubernetes_state.container.terminated	Describes whether the container is currently in terminated state. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.container.waiting	Describes whether the container is currently in waiting state. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.crd.condition	The current condition of this custom resource definition. Tags: `customresourcedefinition` `condition` `status`.
+kubernetes_state.crd.count	Number of custom resource definitions.
+kubernetes_state.cronjob.count	Number of cronjobs. Tags:`kube_namespace`.
+kubernetes_state.cronjob.duration_since_last_schedule	The duration since the last time the cronjob was scheduled. Tags:`kube_cronjob` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.cronjob.duration_since_last_successful	The duration since the last time the cronjob was successfully scheduled. Tags:`kube_cronjob` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.cronjob.spec_suspend	Suspend flag tells the controller to suspend subsequent executions. Tags:`kube_namespace` `kube_cronjob` (`env` `service` `version` from standard labels).
+kubernetes_state.daemonset.count	Number of DaemonSets. Tags:`kube_namespace`.
+kubernetes_state.daemonset.daemons_available	The number of nodes that should be running the daemon pod and have one or more of the daemon pod running and available. Tags:`kube_daemon_set` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.daemonset.daemons_unavailable	The number of nodes that should be running the daemon pod and have none of the daemon pod running and available. Tags:`kube_daemon_set` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.daemonset.desired	The number of nodes that should be running the daemon pod. Tags:`kube_daemon_set` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.daemonset.misscheduled	The number of nodes running a daemon pod but are not supposed to. Tags:`kube_daemon_set` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.daemonset.ready	The number of nodes that should be running the daemon pod and have one or more of the daemon pod running and ready. Tags:`kube_daemon_set` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.daemonset.scheduled	The number of nodes running at least one daemon pod and are supposed to. Tags:`kube_daemon_set` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.daemonset.updated	The total number of nodes that are running updated daemon pod. Tags:`kube_daemon_set` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.deployment.condition	The current status conditions of a deployment. Tags:`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.deployment.count	Number of deployments. Tags:`kube_namespace`.
+kubernetes_state.deployment.paused	Whether the deployment is paused and will not be processed by the deployment controller. Tags:`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.deployment.replicas	The number of replicas per deployment. Tags:`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.deployment.replicas_available	The number of available replicas per deployment. Tags:`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.deployment.replicas_desired	Number of desired pods for a deployment. Tags:`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.deployment.replicas_ready	The number of ready replicas per deployment. Tags:`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.deployment.replicas_unavailable	The number of unavailable replicas per deployment. Tags:`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.deployment.replicas_updated	The number of updated replicas per deployment. Tags:`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.deployment.rollingupdate.max_surge	Maximum number of replicas that can be scheduled above the desired number of replicas during a rolling update of a deployment. Tags:`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.deployment.rollingupdate.max_unavailable	Maximum number of unavailable replicas during a rolling update of a deployment. Tags:`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.deployment.rollout_duration	Number of seconds since deployment rollout started. Tags:`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.endpoint.address_available	Number of addresses available in endpoint. Tags:`endpoint` `kube_namespace`.
+kubernetes_state.endpoint.address_not_ready	Number of addresses not ready in endpoint. Tags:`endpoint` `kube_namespace`.
+kubernetes_state.endpoint.count	Number of endpoints. Tags:`kube_namespace`.
+kubernetes_state.endpoint.created	Unix creation timestamp
+kubernetes_state.hpa.condition	The condition of this autoscaler. Tags:`kube_namespace` `horizontalpodautoscaler` `condition` `status`.
+kubernetes_state.hpa.count	Number of horizontal pod autoscalers. Tags: `kube_namespace`.
+kubernetes_state.hpa.current_replicas	Current number of replicas of pods managed by this autoscaler. Tags:`kube_namespace` `horizontalpodautoscaler`.
+kubernetes_state.hpa.desired_replicas	Desired number of replicas of pods managed by this autoscaler. Tags:`kube_namespace` `horizontalpodautoscaler`.
+kubernetes_state.hpa.max_replicas	Upper limit for the number of pods that can be set by the autoscaler; cannot be smaller than MinReplicas. Tags:`kube_namespace` `horizontalpodautoscaler`.
+kubernetes_state.hpa.min_replicas	Lower limit for the number of pods that can be set by the autoscaler default 1. Tags:`kube_namespace` `horizontalpodautoscaler`.
+kubernetes_state.hpa.spec_target_metric	The metric specifications used by this autoscaler when calculating the desired replica count. Tags:`kube_namespace` `horizontalpodautoscaler` `metric_name` `metric_target_type`.
+kubernetes_state.hpa.status_target_metric	The current metric status used by this autoscaler when calculating the desired replica count. Tags:`kube_namespace` `horizontalpodautoscaler` `metric_name` `metric_target_type`.
+kubernetes_state.ingress.count	Number of ingresses. Tags:`kube_namespace`.
+kubernetes_state.ingress.path	Information about the ingress path. Tags:`kube_namespace` `kube_ingress_path` `kube_ingress` `kube_service` `kube_service_port` `kube_ingress_host` .
+kubernetes_state.initcontainer.cpu_limit	Maximum number of cpus a container can request. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.initcontainer.cpu_requested	Number of cpus requested by the container. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.initcontainer.memory_limit	Maximum number of byte a container can request. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.initcontainer.memory_requested	Number of bytes memory requested by the container. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.initcontainer.ready	Indicates when the container is ready. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.initcontainer.restarts	Describes whether the number of restarts for the init container. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.initcontainer.running	Indicates when the container is running. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.initcontainer.status_report.count.terminated	Number of containers in a terminated state. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.initcontainer.status_report.count.waiting	Number of containers in a waiting state. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.initcontainer.waiting	Describes whether the init container is currently in waiting state. Tags:`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
+kubernetes_state.job.completion.failed	The job has failed its execution. Tags:`kube_job` or `kube_cronjob` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.job.completion.succeeded	The job has completed its execution. Tags:`kube_job` or `kube_cronjob` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.job.count	Number of jobs. Tags:`kube_namespace` `kube_cronjob`.
+kubernetes_state.job.duration	Time elapsed between the start and completion time of the job or the current time if the job is still running. Tags:`kube_job` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.job.failed	The number of pods which reached Phase Failed. Tags:`kube_job` or `kube_cronjob` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.job.succeeded	The number of pods which reached Phase Succeeded. Tags:`kube_job` or `kube_cronjob` `kube_namespace` (`env` `service` `version` from standard labels).
+kubernetes_state.limitrange.cpu.default	Information about CPU limit range usage by constraint. Tags:`kube_namespace` `limitrange` `type`.
+kubernetes_state.limitrange.cpu.default_request	Information about CPU limit range usage by constraint. Tags:`kube_namespace` `limitrange` `type`.
+kubernetes_state.limitrange.cpu.max	Information about CPU limit range usage by constraint. Tags:`kube_namespace` `limitrange` `type`.
+kubernetes_state.limitrange.cpu.max_limit_request_ratio	Information about CPU limit range usage by constraint. Tags:`kube_namespace` `limitrange` `type`.
+kubernetes_state.limitrange.cpu.min	Information about CPU limit range usage by constraint. Tags:`kube_namespace` `limitrange` `type`.
+kubernetes_state.limitrange.memory.default	Information about memory limit range usage by constraint. Tags:`kube_namespace` `limitrange` `type`.
+kubernetes_state.limitrange.memory.default_request	Information about memory limit range usage by constraint. Tags:`kube_namespace` `limitrange` `type`.
+kubernetes_state.limitrange.memory.max	Information about memory limit range usage by constraint. Tags:`kube_namespace` `limitrange` `type`.
+kubernetes_state.limitrange.memory.max_limit_request_ratio	Information about memory limit range usage by constraint. Tags:`kube_namespace` `limitrange` `type`.
+kubernetes_state.limitrange.memory.min	Information about memory limit range usage by constraint. Tags:`kube_namespace` `limitrange` `type`.
+kubernetes_state.namespace.count	Number of namespaces. Tags:`phase`.
+kubernetes_state.node.age	The time in seconds since the creation of the node. Tags:`node`.
+kubernetes_state.node.by_condition	The condition of a cluster node. Tags:`condition` `node` `status`.
+kubernetes_state.node.count	Number of nodes. Tags:`kernel_version` `os_image` `container_runtime_version` `kubelet_version`.
+kubernetes_state.node.cpu_allocatable	The allocatable CPU of a node that is available for scheduling. Tags:`node` `resource` `unit`.
+kubernetes_state.node.cpu_allocatable.total	The total allocatable CPU of all nodes in the cluster that is available for scheduling.
+kubernetes_state.node.cpu_capacity	The CPU capacity of a node. Tags:`node` `resource` `unit`.
+kubernetes_state.node.cpu_capacity.total	The total CPU capacity of all nodes in the cluster.
+kubernetes_state.node.ephemeral_storage_allocatable	The allocatable ephemeral-storage of a node that is available for scheduling. Tags:`node` `resource` `unit`.
+kubernetes_state.node.ephemeral_storage_capacity	The ephemeral-storage capacity of a node. Tags:`node` `resource` `unit`.
+kubernetes_state.node.gpu_allocatable	The allocatable GPU of a node that is available for scheduling. Tags:`node` `resource` `mig_profile` `unit`.
+kubernetes_state.node.gpu_allocatable.total	The total allocatable GPU of all nodes in the cluster that is available for scheduling.
+kubernetes_state.node.gpu_capacity	The GPU capacity of a node. Tags:`node` `resource` `mig_profile` `unit`.
+kubernetes_state.node.gpu_capacity.total	The total GPU capacity of all nodes in the cluster.
+kubernetes_state.node.gpu.cards_allocatable	The GPU resources of a node that are available for scheduling
+kubernetes_state.node.gpu.cards_capacity	The total GPU resources of the node
+kubernetes_state.node.memory_allocatable	The allocatable memory of a node that is available for scheduling. Tags:`node` `resource` `unit`.
+kubernetes_state.node.memory_allocatable.total	The total allocatable memory of all nodes in the cluster that is available for scheduling.
+kubernetes_state.node.memory_capacity	The memory capacity of a node. Tags:`node` `resource` `unit`.
+kubernetes_state.node.memory_capacity.total	The total memory capacity of all nodes in the cluster.
+kubernetes_state.node.network_bandwidth_allocatable	The allocatable network bandwidth of a node that is available for scheduling. Tags:`node` `resource` `unit`.
+kubernetes_state.node.network_bandwidth_capacity	The network bandwidth capacity of a node. Tags:`node` `resource` `unit`.
+kubernetes_state.node.pods_allocatable	The allocatable memory of a node that is available for scheduling. Tags:`node` `resource` `unit`.
+kubernetes_state.node.pods_capacity	The pods capacity of a node. Tags:`node` `resource` `unit`.
+kubernetes_state.node.status	Whether the node can schedule new pods. Tags:`node` `status`.
+kubernetes_state.nodes.by_condition	To sum by `condition` and `status` to get number of nodes in a given condition.
+kubernetes_state.pdb.disruptions_allowed	Number of pod disruptions that are currently allowed. Tags:`kube_namespace` `poddisruptionbudget`.
+kubernetes_state.pdb.pods_desired	Minimum desired number of healthy pods. Tags:`kube_namespace` `poddisruptionbudget`.
+kubernetes_state.pdb.pods_healthy	Current number of healthy pods. Tags:`kube_namespace` `poddisruptionbudget`.
+kubernetes_state.pdb.pods_total	Total number of pods counted by this disruption budget. Tags:`kube_namespace` `poddisruptionbudget`.
+kubernetes_state.persistentvolume.by_phase	The phase indicates if a volume is available bound to a claim or released by a claim. Tags:`persistentvolume` `storageclass` `phase`.
+kubernetes_state.persistentvolume.capacity	Persistentvolume capacity in bytes. Tags:`persistentvolume` `storageclass`.
+kubernetes_state.persistentvolumeclaim.access_mode	The access mode(s) specified by the persistent volume claim. Tags:`kube_namespace` `persistentvolumeclaim` `access_mode` `storageclass`.
+kubernetes_state.persistentvolumeclaim.request_storage	The capacity of storage requested by the persistent volume claim. Tags:`kube_namespace` `persistentvolumeclaim` `storageclass`.
+kubernetes_state.persistentvolumeclaim.status	The phase the persistent volume claim is currently in. Tags:`kube_namespace` `persistentvolumeclaim` `phase` `storageclass`.
+kubernetes_state.persistentvolumes.by_phase	Number of persistent volumes to sum by phase and storageclass
+kubernetes_state.pod.age	The time in seconds since the creation of the pod. Tags:`node` `kube_namespace` `pod_name` `pod_phase` (`env` `service` `version` from standard labels).
+kubernetes_state.pod.count	Number of Pods. Tags:`node` `kube_namespace` `kube_<owner kind>`.
+kubernetes_state.pod.ready	Describes whether the pod is ready to serve requests. Tags:`node` `kube_namespace` `pod_name` `condition` (`env` `service` `version` from standard labels).
+kubernetes_state.pod.scheduled	Describes the status of the scheduling process for the pod. Tags:`node` `kube_namespace` `pod_name` `condition` (`env` `service` `version` from standard labels).
+kubernetes_state.pod.status_phase	The pods current phase. Tags:`node` `kube_namespace` `pod_name` `pod_phase` (`env` `service` `version` from standard labels).
+kubernetes_state.pod.tolerations	Information about the pod tolerations
+kubernetes_state.pod.unschedulable	Describes the unschedulable status for the pod. Tags:`kube_namespace` `pod_name` (`env` `service` `version` from standard labels).
+kubernetes_state.pod.uptime	The time in seconds since the pod has been scheduled and acknowledged by the Kubelet. Tags:`node` `kube_namespace` `pod_name` `pod_phase` (`env` `service` `version` from standard labels).
+kubernetes_state.pod.volumes.persistentvolumeclaims_readonly	Describes whether a persistentvolumeclaim is mounted read only. Tags:`node` `kube_namespace` `pod_name` `volume` `persistentvolumeclaim` (`env` `service` `version` from standard labels).
+kubernetes_state.replicaset.count	Number of ReplicaSets Tags:`kube_namespace` `kube_deployment`.
+kubernetes_state.replicaset.fully_labeled_replicas	The number of fully labeled replicas per ReplicaSet. Tags:`kube_namespace` `kube_replica_set` (`env` `service` `version` from standard labels).
+kubernetes_state.replicaset.replicas	The number of replicas per ReplicaSet. Tags:`kube_namespace` `kube_replica_set` (`env` `service` `version` from standard labels).
+kubernetes_state.replicaset.replicas_desired	Number of desired pods for a ReplicaSet. Tags:`kube_namespace` `kube_replica_set` (`env` `service` `version` from standard labels).
+kubernetes_state.replicaset.replicas_ready	The number of ready replicas per ReplicaSet. Tags:`kube_namespace` `kube_replica_set` (`env` `service` `version` from standard labels).
+kubernetes_state.replicationcontroller.fully_labeled_replicas	The number of fully labeled replicas per ReplicationController. Tags:`kube_namespace` `kube_replication_controller`.
+kubernetes_state.replicationcontroller.replicas	The number of replicas per ReplicationController. Tags:`kube_namespace` `kube_replication_controller`.
+kubernetes_state.replicationcontroller.replicas_available	The number of available replicas per ReplicationController. Tags:`kube_namespace` `kube_replication_controller`.
+kubernetes_state.replicationcontroller.replicas_desired	Number of desired pods for a ReplicationController. Tags:`kube_namespace` `kube_replication_controller`.
+kubernetes_state.replicationcontroller.replicas_ready	The number of ready replicas per ReplicationController. Tags:`kube_namespace` `kube_replication_controller`.
+kubernetes_state.resourcequota.count_configmaps.limit	Information about resource quota limits by resource. Tags:`kube_namespace` `resourcequota`.
+kubernetes_state.resourcequota.count_configmaps.used	Information about resource quota usage by resource. Tags:`kube_namespace` `resourcequota`.
+kubernetes_state.resourcequota.count_secrets.limit	Information about resource quota limits by resource. Tags:`kube_namespace` `resourcequota`.
+kubernetes_state.resourcequota.count_secrets.used	Information about resource quota usage by resource. Tags:`kube_namespace` `resourcequota`.
+kubernetes_state.resourcequota.limits.cpu.limit	Hard limit on the sum of CPU core limits for a resource quota
+kubernetes_state.resourcequota.limits.cpu.used	Observed sum of limits for CPU cores for a resource quota
+kubernetes_state.resourcequota.limits.memory.limit	Hard limit on the sum of memory bytes limits for a resource quota
+kubernetes_state.resourcequota.limits.memory.used	Observed sum of limits for memory bytes for a resource quota
+kubernetes_state.resourcequota.persistentvolumeclaims.limit	Hard limit of the number of PVC for a resource quota
+kubernetes_state.resourcequota.persistentvolumeclaims.used	Observed number of persistent volume claims used for a resource quota
+kubernetes_state.resourcequota.pods.limit	Information about resource quota limits by resource. Tags:`kube_namespace` `resourcequota`.
+kubernetes_state.resourcequota.pods.used	Information about resource quota usage by resource. Tags:`kube_namespace` `resourcequota`.
+kubernetes_state.resourcequota.requests.cpu.limit	Information about resource quota limits by resource. Tags:`kube_namespace` `resourcequota`.
+kubernetes_state.resourcequota.requests.cpu.used	Information about resource quota usage by resource. Tags:`kube_namespace` `resourcequota`.
+kubernetes_state.resourcequota.requests.memory.limit	Hard limit on the total of memory bytes requested for a resource quota
+kubernetes_state.resourcequota.requests.memory.used	Observed sum of memory bytes requested for a resource quota
+kubernetes_state.resourcequota.requests.storage.limit	Hard limit on the total of storage bytes requested for a resource quota
+kubernetes_state.resourcequota.requests.storage.used	Observed sum of storage bytes requested for a resource quota
+kubernetes_state.resourcequota.services.limit	Hard limit of the number of services for a resource quota
+kubernetes_state.resourcequota.services.loadbalancers.limit	Hard limit of the number of loadbalancers for a resource quota
+kubernetes_state.resourcequota.services.loadbalancers.used	Observed number of loadbalancers used for a resource quota
+kubernetes_state.resourcequota.services.nodeports.limit	Hard limit of the number of node ports for a resource quota
+kubernetes_state.resourcequota.services.nodeports.used	Observed number of node ports used for a resource quota
+kubernetes_state.resourcequota.services.used	Observed number of services used for a resource quota
+kubernetes_state.secret.count	Number of Secrets. Requires Secrets to be added to Cluster Agent collector. Tags: `kube_namespace`.
+kubernetes_state.secret.type	Type about secret. Tags:`kube_namespace` `secret` `type`.
+kubernetes_state.service.count	Number of services. Tags:`kube_namespace` `type`.
+kubernetes_state.service.type	Service types. Tags:`kube_namespace` `kube_service` `type`.
+kubernetes_state.statefulset.count	Number of StatefulSets Tags:`kube_namespace`.
+kubernetes_state.statefulset.replicas	The number of replicas per StatefulSet. Tags:`kube_namespace` `kube_stateful_set` (`env` `service` `version` from standard labels).
+kubernetes_state.statefulset.replicas_current	The number of current replicas per StatefulSet. Tags:`kube_namespace` `kube_stateful_set` (`env` `service` `version` from standard labels).
+kubernetes_state.statefulset.replicas_desired	Number of desired pods for a StatefulSet. Tags:`kube_namespace` `kube_stateful_set` (`env` `service` `version` from standard labels).
+kubernetes_state.statefulset.replicas_ready	The number of ready replicas per StatefulSet. Tags:`kube_namespace` `kube_stateful_set` (`env` `service` `version` from standard labels).
+kubernetes_state.statefulset.replicas_updated	The number of updated replicas per StatefulSet. Tags:`kube_namespace` `kube_stateful_set` (`env` `service` `version` from standard labels).
+kubernetes_state.telemetry.collector.metrics.count	The number of metrics by collector (kubernetes object kind) by kubernetes namespaces
+kubernetes_state.telemetry.metrics.blacklist.count	The number of metrics blacklisted by the check
+kubernetes_state.telemetry.metrics.ignored.count	The number of metrics ignored by the check
+kubernetes_state.telemetry.metrics.input.count	The number of metrics received
+kubernetes_state.telemetry.metrics.processed.count	The number of metrics processed
+kubernetes_state.telemetry.payload.size	The message size received from kube-state-metrics
+kubernetes_state.vpa.count	Number of vertical pod autoscalers. Tags: `kube_namespace`.
+kubernetes_state.vpa.lower_bound	Minimum resources the container can use before the VerticalPodAutoscaler updater evicts it. Tags:`kube_namespace` `verticalpodautoscaler` `kube_container_name` `resource` `target_api_version` `target_kind` `target_name` `unit`.
+kubernetes_state.vpa.spec_container_maxallowed	Maximum resources the VerticalPodAutoscaler can set for containers matching the name. Tags:`kube_namespace` `verticalpodautoscaler` `kube_container_name` `resource` `target_api_version` `target_kind` `target_name` `unit`.
+kubernetes_state.vpa.spec_container_minallowed	Minimum resources the VerticalPodAutoscaler can set for containers matching the name. Tags:`kube_namespace` `verticalpodautoscaler` `kube_container_name` `resource` `target_api_version` `target_kind` `target_name` `unit`.
+kubernetes_state.vpa.target	Target resources the VerticalPodAutoscaler recommends for the container. Tags:`kube_namespace` `verticalpodautoscaler` `kube_container_name` `resource` `target_api_version` `target_kind` `target_name` `unit`.
+kubernetes_state.vpa.uncapped_target	Target resources the VerticalPodAutoscaler recommends for the container ignoring bounds. Tags:`kube_namespace` `verticalpodautoscaler` `kube_container_name` `resource` `target_api_version` `target_kind` `target_name` `unit`.
+kubernetes_state.vpa.update_mode	Update mode of the VerticalPodAutoscaler. Tags:`kube_namespace` `verticalpodautoscaler` `target_api_version` `target_kind` `target_name` `update_mode`.
+kubernetes_state.vpa.upperbound	Maximum resources the container can use before the VerticalPodAutoscaler updater evicts it. Tags:`kube_namespace` `verticalpodautoscaler` `kube_container_name` `resource` `target_api_version` `target_kind` `target_name` `unit`.
+kubernetes.apiserver.certificate.expiration.count	The count of remaining lifetime on the certificate used to authenticate a request
+kubernetes.apiserver.certificate.expiration.sum	The sum of remaining lifetime on the certificate used to authenticate a request
+kubernetes.containers.last_state.terminated	The number of containers that were previously terminated
+kubernetes.containers.restarts	The number of times the container has been restarted
+kubernetes.containers.running	The number of running containers
+kubernetes.containers.state.terminated	The number of currently terminated containers
+kubernetes.containers.state.waiting	The number of currently waiting containers
+kubernetes.cpu.capacity	The number of cores in this machine (available until kubernetes v1.18)
+kubernetes.cpu.cfs.periods	Number of elapsed enforcement period intervals
+kubernetes.cpu.cfs.throttled.periods	Number of throttled period intervals
+kubernetes.cpu.cfs.throttled.seconds	Total time duration the container has been throttled
+kubernetes.cpu.limits	The limit of cpu cores set
+kubernetes.cpu.load.10s.avg	Container cpu load average over the last 10 seconds (available until kubernetes v1.36)
+kubernetes.cpu.requests	The requested cpu cores
+kubernetes.cpu.system.total	The number of cores used for system time
+kubernetes.cpu.usage.total	The number of cores used
+kubernetes.cpu.user.total	The number of cores used for user time
+kubernetes.diskio.io_service_bytes.stats.total	The amount of disk space the container uses
+kubernetes.ephemeral_storage.limits	Ephemeral storage limit of the container (requires kubernetes v1.8+)
+kubernetes.ephemeral_storage.requests	Ephemeral storage request of the container (requires kubernetes v1.8+)
+kubernetes.ephemeral_storage.usage	Ephemeral storage usage of the POD
+kubernetes.filesystem.usage	The amount of disk used
+kubernetes.filesystem.usage_pct	The percentage of disk used
+kubernetes.go_goroutines	Number of goroutines that currently exist
+kubernetes.go_threads	Number of OS threads created
+kubernetes.io.read_bytes	The amount of bytes read from the disk
+kubernetes.io.write_bytes	The amount of bytes written to the disk
+kubernetes.kubelet.container.log_filesystem.used_bytes	Bytes used by the container's logs on the filesystem (requires kubernetes 1.14+)
+kubernetes.kubelet.containers_per_pod.count	The count of the number of containers per pod
+kubernetes.kubelet.containers_per_pod.sum	The cumulative sum of the number of containers per pod
+kubernetes.kubelet.cpu.usage	The number of cores used by kubelet
+kubernetes.kubelet.docker.errors	The number of docker operations errors
+kubernetes.kubelet.docker.operations	The number of docker operations
+kubernetes.kubelet.docker.operations.duration.count	The count of docker operations
+kubernetes.kubelet.docker.operations.duration.sum	The sum of duration of docker operations
+kubernetes.kubelet.evictions	The number of pods that have been evicted from the kubelet (ALPHA in kubernetes v1.16)
+kubernetes.kubelet.memory.rss	Size of kubelet RSS in bytes
+kubernetes.kubelet.memory.usage	Current kubelet memory usage in bytes
+kubernetes.kubelet.network_plugin.latency.count	The count of network plugin operations by latency
+kubernetes.kubelet.network_plugin.latency.quantile	The quantiles of network plugin operations by latency
+kubernetes.kubelet.network_plugin.latency.sum	The sum of latency in microseconds of network plugin operations
+kubernetes.kubelet.pleg.discard_events	The number of discard events in PLEG
+kubernetes.kubelet.pleg.last_seen	Timestamp in seconds when PLEG was last seen active
+kubernetes.kubelet.pleg.relist_duration.count	The count of relisting pods in PLEG
+kubernetes.kubelet.pleg.relist_duration.sum	The sum of duration in seconds for relisting pods in PLEG
+kubernetes.kubelet.pleg.relist_interval.count	The count of relisting pods in PLEG
+kubernetes.kubelet.pleg.relist_interval.sum	The sum of interval in seconds between relisting in PLEG
+kubernetes.kubelet.pod.start.duration	Duration in microseconds for a single pod to go from pending to running
+kubernetes.kubelet.pod.worker.duration	Duration in microseconds to sync a single pod. Broken down by operation type: create, update, or sync
+kubernetes.kubelet.pod.worker.start.duration	Duration in microseconds from seeing a pod to starting a worker
+kubernetes.kubelet.runtime.errors	Cumulative number of runtime operations errors
+kubernetes.kubelet.runtime.operations	The number of runtime operations
+kubernetes.kubelet.runtime.operations.duration.count	The count of operations
+kubernetes.kubelet.runtime.operations.duration.sum	The sum of duration of operations
+kubernetes.kubelet.volume.stats.available_bytes	The number of available bytes in the volume
+kubernetes.kubelet.volume.stats.capacity_bytes	The capacity in bytes of the volume
+kubernetes.kubelet.volume.stats.inodes	The maximum number of inodes in the volume
+kubernetes.kubelet.volume.stats.inodes_free	The number of free inodes in the volume
+kubernetes.kubelet.volume.stats.inodes_used	The number of used inodes in the volume
+kubernetes.kubelet.volume.stats.used_bytes	The number of used bytes in the volume
+kubernetes.liveness_probe.failure.total	Cumulative number of failed liveness probe for a container (ALPHA in kubernetes v1.15)
+kubernetes.liveness_probe.success.total	Cumulative number of successful liveness probe for a container (ALPHA in kubernetes v1.15)
+kubernetes.memory.cache	The amount of memory that is being used to cache data from disk (e.g. memory contents that can be associated precisely with a block on a block device)
+kubernetes.memory.capacity	The amount of memory (in bytes) in this machine (available until kubernetes v1.18)
+kubernetes.memory.limits	The limit of memory set
+kubernetes.memory.requests	The requested memory
+kubernetes.memory.rss	Size of RSS in bytes
+kubernetes.memory.sw_in_use	The percentage of swap space used
+kubernetes.memory.sw_limit	The limit of swap space set
+kubernetes.memory.swap	The amount of swap currently used by by processes in this cgroup
+kubernetes.memory.usage	Current memory usage in bytes including all memory regardless of when it was accessed
+kubernetes.memory.usage_pct	The percentage of memory used per pod (memory limit must be set)
+kubernetes.memory.working_set	Current working set in bytes - this is what the OOM killer is watching for
+kubernetes.network.rx_bytes	The amount of bytes per second received
+kubernetes.network.rx_dropped	The amount of rx packets dropped per second
+kubernetes.network.rx_errors	The amount of rx errors per second
+kubernetes.network.tx_bytes	The amount of bytes per second transmitted
+kubernetes.network.tx_dropped	The amount of tx packets dropped per second
+kubernetes.network.tx_errors	The amount of tx errors per second
+kubernetes.node.filesystem.usage	The amount of disk used at node level
+kubernetes.node.filesystem.usage_pct	The percentage of disk space used at node level
+kubernetes.node.image.filesystem.usage	The amount of disk used on image filesystem (node level)
+kubernetes.node.image.filesystem.usage_pct	The percentage of disk used (node level)
+kubernetes.pod.cpu.limits	The pod-level CPU core limit
+kubernetes.pod.cpu.requests	The pod-level requested CPU cores
+kubernetes.pod.memory.limits	The pod-level memory limit in bytes
+kubernetes.pod.memory.requests	The pod-level requested memory in bytes
+kubernetes.pod.resize.pending	Number of pods with resource resize request in pending state
+kubernetes.pod.terminating.duration	Amount of time the pod hangs in termination phase
+kubernetes.pods.expired	The number of expired pods the check ignored
+kubernetes.pods.running	The number of running pods
+kubernetes.readiness_probe.failure.total	Cumulative number of failed readiness probe for a container (ALPHA in kubernetes v1.15)
+kubernetes.readiness_probe.success.total	Cumulative number of successful readiness probe for a container (ALPHA in kubernetes v1.15)
+kubernetes.rest.client.latency.count	The count of request latency in seconds broken down by verb and URL
+kubernetes.rest.client.latency.sum	The sum of request latency in seconds broken down by verb and URL
+kubernetes.rest.client.requests	The number of HTTP requests
+kubernetes.runtime.cpu.usage	The number of cores used by the runtime
+kubernetes.runtime.memory.rss	Size of runtime RSS in bytes
+kubernetes.runtime.memory.usage	Current runtime memory usage in bytes
+kubernetes.startup_probe.failure.total	Cumulative number of failed startup probe for a container (ALPHA in kubernetes v1.15)
+kubernetes.startup_probe.success.total	Cumulative number of successful startup probe for a container (ALPHA in kubernetes v1.15)
+system.core.count	The number of CPU cores on the host
+system.core.dpc	[Windows] The percentage of time a given CPU core has spent servicing deferred procedure calls (DPCs)
+system.core.dpc.total	[Windows] The percentage of time the whole CPU has spent servicing deferred procedure calls (DPCs)
+system.core.frequency	The frequency or clock speed a given CPU
+system.core.guest	[Linux] The percentage of time a given CPU core has spent running a virtual CPU for guest operating systems under the control of the Linux kernel
+system.core.guest_nice	[Linux] The percentage of time a given CPU core has spent running a niced guest
+system.core.guest_nice.total	[Linux] The percentage of time the whole CPU has spent running running a niced guest
+system.core.guest.total	[Linux] The percentage of time the whole CPU has spent running a virtual CPU for guest operating systems under the control of the Linux kernel
+system.core.idle	The percentage of time a given CPU core has spent idle
+system.core.idle.total	The percentage of time the whole CPU has spent idle
+system.core.interrupt	[Windows] The percentage of time a given CPU core has spent servicing hardware interrupts
+system.core.interrupt.total	[Windows] The percentage of time the whole CPU has spent servicing hardware interrupts
+system.core.iowait	[Linux] The percentage of time a given CPU core has spent waiting for I/O to complete
+system.core.iowait.total	[Linux] The percentage of time the whole CPU has spent waiting for I/O to complete
+system.core.irq	[Linux, BSD] The percentage of time a given CPU core has spent servicing hardware interrupts
+system.core.irq.total	[Linux, BSD] The percentage of time the whole CPU has spent servicing hardware interrupts
+system.core.nice	[Unix] The percentage of time a given CPU core has spent in niced (prioritized) processes in user mode
+system.core.nice.total	[Unix] The percentage of time the whole CPU has spent in niced (prioritized) processes in user mode
+system.core.softirq	[Linux, BSD] The percentage of time a given CPU core has spent servicing software interrupts
+system.core.softirq.total	[Linux, BSD] The percentage of time the whole CPU has spent servicing software interrupts
+system.core.steal	[Linux] The percentage of time a given CPU core has spent running a virtual CPU for guest operating systems under the control of the Linux kernel
+system.core.steal.total	[Linux] The percentage of time a given CPU core has spent running a virtual CPU for guest operating systems under the control of the Linux kernel
+system.core.system	The percentage of time a given CPU core has spent in kernel mode
+system.core.system.total	The percentage of time the whole CPU has spent in kernel mode
+system.core.user	The percentage of time a given CPU core has spent in user mode
+system.core.user.total	The percentage of time the whole CPU has spent in user mode
+system.disk.free	The amount of disk space that is free.
+system.disk.in_use	The amount of disk space in use as a percent of the total.
+system.disk.read_time	The time in ms spent reading per device
+system.disk.read_time_pct	Percent of time spent reading from disk.
+system.disk.total	The total amount of disk space.
+system.disk.used	The amount of disk space in use.
+system.disk.utilized	The amount of disk space in use as a percentage of the total.
+system.disk.write_time	The time in ms spent writing per device.
+system.disk.write_time_pct	Percent of time spent writing to disk.
+system.fs.inodes.free	The number of free inodes.
+system.fs.inodes.in_use	The number of inodes in use as a percent of the total.
+system.fs.inodes.total	The total number of inodes.
+system.fs.inodes.used	The number of inodes in use.
+system.fs.inodes.utilized	The number of inodes in use as a percentage of the total.
+system.net.aws.ec2.bw_in_allowance_exceeded	The number of packets shaped because the inbound aggregate bandwidth exceeded the maximum for the instance.
+system.net.aws.ec2.bw_out_allowance_exceeded	The number of packets shaped because the outbound aggregate bandwidth exceeded the maximum for the instance.
+system.net.aws.ec2.conntrack_allowance_available	The number of tracked connections that can be established before hitting the Connections Tracked allowance.
+system.net.aws.ec2.conntrack_allowance_exceeded	The number of packets shaped because connection tracking exceeded the maximum for the instance and new connections could not be established.
+system.net.aws.ec2.linklocal_allowance_exceeded	The number of packets shaped because the PPS of the traffic to local proxy services exceeded the maximum for the network interface.
+system.net.aws.ec2.pps_allowance_exceeded	The number of packets shaped because the bidirectional PPS exceeded the maximum for the instance.
+system.net.bytes_rcvd	The number of bytes received on a device per second.
+system.net.bytes_sent	The number of bytes sent from a device per second.
+system.net.conntrack.acct	Boolean to enable connection tracking flow accounting. 64-bit byte and packet counters per flow are added.
+system.net.conntrack.buckets	Size of the hash table.
+system.net.conntrack.checksum	Boolean to verify checksum of incoming packets.
+system.net.conntrack.count	The number of connections present in the conntrack table.
+system.net.conntrack.drop	The number of drop in the conntrack table.
+system.net.conntrack.early_drop	The number of early drop in the conntrack table.
+system.net.conntrack.error	The number of error in the conntrack table.
+system.net.conntrack.events	Boolean to enable the connection tracking code will provide userspace with connection tracking events via ctnetlink.
+system.net.conntrack.expect_max	Maximum size of expectation table.
+system.net.conntrack.found	The number of currently allocated flow entries.
+system.net.conntrack.generic_timeout	Default for generic timeout. This refers to layer 4 unknown/unsupported protocols.
+system.net.conntrack.helper	Boolean to enable automatic conntrack helper assignment.
+system.net.conntrack.icmp_timeout	Default for ICMP timeout.
+system.net.conntrack.ignore	The number of ignored in the conntrack table.
+system.net.conntrack.insert	The number of insertion in the conntrack table.
+system.net.conntrack.insert_failed	The number of failed insertion in the conntrack table.
+system.net.conntrack.invalid	The number of invalid in the conntrack table.
+system.net.conntrack.log_invalid	Log invalid packets of a type specified by value.
+system.net.conntrack.max	Conntrack table max capacity.
+system.net.conntrack.tcp_be_liberal	Boolean to mark only out of window RST segments as INVALID.
+system.net.conntrack.tcp_loose	Boolean to enable picking up already established connections.
+system.net.conntrack.tcp_max_retrans	Maximum number of packets that can be retransmitted without received an (acceptable) ACK from the destination.
+system.net.conntrack.timestamp	Boolean to enable connection tracking flow timestamping.
+system.net.ena.queue.rx_bad_csum	The number of packets received by a queue with an incorrect checksum (Linux only).
+system.net.ena.queue.rx_bad_desc_num	The number of times received too many descriptors (Linux only).
+system.net.ena.queue.rx_bad_req_id	The number of times a request id was invalid on a receive queue (Linux only).
+system.net.ena.queue.rx_bytes	The number of bytes received by a queue (Linux only).
+system.net.ena.queue.rx_cnt	The number of packets received by a queue (Linux only).
+system.net.ena.queue.rx_csum_good	The number packets received by a queue with a good checksum (Linux only).
+system.net.ena.queue.rx_csum_unchecked	The number packets received by a queue with an unchecked checksum (Linux only).
+system.net.ena.queue.rx_dma_mapping_err	The number of dma mapping errors for a rx queue (Linux only).
+system.net.ena.queue.rx_empty_rx_ring	The number time the rx ring was empty for a queue (Linux only).
+system.net.ena.queue.rx_good_csum	The number of packets received by a queue with an correct checksum (Linux only).
+system.net.ena.queue.rx_page_alloc_fail	The number of page allocation failures (Linux only).
+system.net.ena.queue.rx_refil_partial	The number of times a queue had partially allocated rx buffers (Linux only).
+system.net.ena.queue.rx_rx_copybreak_pkt	The number of packets received by a queue copied to the skb header due to being smaller than the copybreak threshold (Linux only).
+system.net.ena.queue.rx_skb_alloc_fail	The number of socket buffer allocation failures (Linux only).
+system.net.ena.queue.rx_xdp_aborted	The number XPD packets tagged as XDP_ABORTED (Linux only).
+system.net.ena.queue.rx_xdp_drop	The number of XDP packets tagged as XDP_DROP (Linux only).
+system.net.ena.queue.rx_xdp_invalid	The number of XDP packets tagged as XDP_INVALID (Linux only).
+system.net.ena.queue.rx_xdp_pass	The number of XDP packets tagged as XDP_PASS (Linux only).
+system.net.ena.queue.rx_xdp_redirect	The number of XDP packets tagged as XDP_REDIRECT (Linux only).
+system.net.ena.queue.rx_xdp_tx	The number of XDP packets tagged as XDP_TX (Linux only).
+system.net.ena.queue.tx_bad_req_id	The number of times a request id was invalid on a transmit queue (Linux only).
+system.net.ena.queue.tx_bytes	The number of bytes sent by a queue (Linux only).
+system.net.ena.queue.tx_cnt	The number of packets sent by a queue (Linux only).
+system.net.ena.queue.tx_dma_mapping_err	The number of dma mapping errors for a tx queue (Linux only).
+system.net.ena.queue.tx_doorbells	The number of submission queue doorbells written on a transmit queue (Linux only).
+system.net.ena.queue.tx_linearize	The number of times skb was linearized on a transmit queue (Linux only).
+system.net.ena.queue.tx_linearize_failed	The number of skb linearization failed on a transmit queue (Linux only).
+system.net.ena.queue.tx_llq_buffer_copy	The number of times a skb header was copied with Low Latency Queue (Linux only).
+system.net.ena.queue.tx_missed_tx	The number of packets that timeouted in the transmit queue (Linux only).
+system.net.ena.queue.tx_napi_comp	The number of times napi_complete was called on a queue
+system.net.ena.queue.tx_prepare_ctx_err	The number of times prepare tx failed on a transmit queue (Linux only).
+system.net.ena.queue.tx_queue_stop	The number of times a transmit queue was full and stopped (Linux only).
+system.net.ena.queue.tx_queue_wakeup	The number of times a transmit queue was resumed after being stopped (Linux only).
+system.net.ena.queue.tx_tx_poll	The number of times the napi handler was scheduled for a queue (Linux only).
+system.net.ena.queue.tx_unmask_interrupt	The number of times interrupt was unmasked in a transmit queue (Linux only).
+system.net.ena.resume	The number of times the device was resumed (Linux only).
+system.net.ena.suspend	The number of times the device was suspended (Linux only).
+system.net.ena.tx_timeout	The number of transmit timeouts (Linux only).
+system.net.ena.wd_expired	The number of times watchdog keep-alive event expired (Linux only).
+system.net.gve.dma_mapping_error	The number of Direct Memory Access mapping errors (Linux only).
+system.net.gve.page_alloc_fail	The number of page allocation errors (Linux only).
+system.net.gve.queue.rx_bytes	The number of bytes sent by a receveive queue (Linux only).
+system.net.gve.queue.rx_completed_desc	The number of descriptors completed on a receive queue (Linux only).
+system.net.gve.queue.rx_copied_pkt	The number of packets copied (Linux only).
+system.net.gve.queue.rx_copybreak_pkt	The number of packets copied to the socket buffer header because they are smaller than the copybreak threshold (Linux only).
+system.net.gve.queue.rx_dropped_pkt	The number of packets dropped because of descriptor errors (Linux only).
+system.net.gve.queue.rx_drops_invalid_checksum	The number of packets dropped because due to invalid checksum. Stats from NIC (Linux only).
+system.net.gve.queue.rx_drops_packet_over_mru	The number of packets dropped because it exceeds the Maximum Receive Unit. Stats from NIC (Linux only).
+system.net.gve.queue.rx_no_buffers_posted	The number of times there's no available buffer for posting descriptor. Stats from NIC (Linux only).
+system.net.gve.queue.rx_posted_desc	The number of descriptors posted on a receive queue (Linux only).
+system.net.gve.queue.rx_queue_drop_cnt	The number of packets dropped. Stats from NIC (Linux only).
+system.net.gve.queue.tx_bytes	The number of bytes sent by a transmit queue (Linux only).
+system.net.gve.queue.tx_completed_desc	The number of descriptors completed on a transmit queue (Linux only).
+system.net.gve.queue.tx_dma_mapping_error	The number of Direct Memory Access mapping errors for a transmit queue (Linux only).
+system.net.gve.queue.tx_event_counter	The number of event for this transmit queue (Linux only).
+system.net.gve.queue.tx_posted_desc	The number of descriptors posted on a transmit queue (Linux only).
+system.net.gve.queue.tx_stop	The number of time the transmit queue was stopped (Linux only).
+system.net.gve.queue.tx_wake	The number of time the transmit queue was woken up (Linux only).
+system.net.gve.rx_buf_alloc_fail	The number of buffer allocation failures for a receive queue (Linux only).
+system.net.gve.rx_desc_err_dropped_pkt	The number of packets dropped due to descriptor error (Linux only).
+system.net.gve.rx_skb_alloc_fail	The number of socket buffer allocation failures for a receive queue (Linux only).
+system.net.gve.tx_timeouts	The number of times a transmit queue has timeouted (Linux only).
+system.net.hv_netvsc.cpu.rx_bytes	The number of received bytes processed by a cpu (Linux only).
+system.net.hv_netvsc.cpu.rx_packets	The number of received packets processed by a cpu (Linux only).
+system.net.hv_netvsc.cpu.tx_bytes	The number of sent bytes processed by a cpu (Linux only).
+system.net.hv_netvsc.cpu.tx_packets	The number of sent packets processed by a cpu (Linux only).
+system.net.hv_netvsc.cpu.vf_rx_bytes	The number of received packets processed by a cpu using virtual function (Linux only).
+system.net.hv_netvsc.cpu.vf_rx_packets	The number of received packets processed by a cpu using virtual function (Linux only).
+system.net.hv_netvsc.cpu.vf_tx_bytes	The number of sent packets processed by a cpu using virtual function (Linux only).
+system.net.hv_netvsc.cpu.vf_tx_packets	The number of sent packets processed by a cpu using virtual function (Linux only).
+system.net.hv_netvsc.queue.rx_bytes	The number of bytes received by a queue (Linux only).
+system.net.hv_netvsc.queue.rx_packets	The number of packets received by a queue (Linux only).
+system.net.hv_netvsc.queue.rx_xdp_drop	The number of XDP packets tagged as XDP_DROP in a receive queue (Linux only).
+system.net.hv_netvsc.queue.tx_bytes	The number of bytes sent by a queue (Linux only).
+system.net.hv_netvsc.queue.tx_packets	The number of packets sent by a queue (Linux only).
+system.net.hv_netvsc.rx_comp_busy	The number of completion requests that failed (Linux only).
+system.net.hv_netvsc.rx_no_memory	The number of failed receive due to allocation error (Linux only).
+system.net.hv_netvsc.stop_queue	The number of times a queue was stopped (Linux only).
+system.net.hv_netvsc.tx_busy	The number of failed transmits due to busy queue (Linux only).
+system.net.hv_netvsc.tx_no_memory	The number of failed transmit due to allocation error (Linux only).
+system.net.hv_netvsc.tx_no_space	The number of failed transmit due to a full ring buffer (Linux only).
+system.net.hv_netvsc.tx_scattered	The number of transmits exceeding the max page count. This will trigger a socket buffer linearization to try to reduce the number of necessary pages (Linux only).
+system.net.hv_netvsc.tx_send_full	The number of time a send buffer was full (Linux only).
+system.net.hv_netvsc.tx_too_big	The number of dropped transmits due to exceeding the max page count even after socket buffer linearization (Linux only).
+system.net.hv_netvsc.wake_queue	The number of times a queue was woken up (Linux only).
+system.net.iface.mtu	The Maximum Transmission Unit (MTU) of the network interface (Linux only).
+system.net.iface.num_rx_queues	The number of receive queue of a network interface (Linux only).
+system.net.iface.num_tx_queues	The number of transmit queue of a network interface (Linux only).
+system.net.iface.tx_queue_len	The length of the transmit queue of the network interface (Linux only).
+system.net.iface.up	Indicates whether the network interface is up (Linux only).
+system.net.ip.forwarded_datagrams	Number of IP datagrams forwarded (Linux only).
+system.net.ip.forwarded_datagrams.count	Number of IP datagrams forwarded (Linux only).
+system.net.ip.fragmentation_creates	Number of output IP fragments generated as a result of IP fragmentation (Linux only).
+system.net.ip.fragmentation_creates.count	Number of output IP fragments generated as a result of IP fragmentation (Linux only).
+system.net.ip.fragmentation_fails	Number of output IP datagrams discarded because they couldn't be fragmented (Linux only).
+system.net.ip.fragmentation_fails.count	Number of output IP datagrams discarded because they couldn't be fragmented (Linux only).
+system.net.ip.fragmentation_oks	Number of output IP datagrams that were successfully fragmented (Linux only).
+system.net.ip.fragmentation_oks.count	Number of output IP datagrams that were successfully fragmented (Linux only).
+system.net.ip.in_addr_errors	Number of received IP datagrams discarded because of an invalid IP address (Linux only).
+system.net.ip.in_addr_errors.count	Number of received IP datagrams discarded because of an invalid IP address (Linux only).
+system.net.ip.in_csum_errors	Number of input IP datagrams with incorrect checksum (Linux only).
+system.net.ip.in_csum_errors.count	Number of input IP datagrams with incorrect checksum (Linux only).
+system.net.ip.in_delivers	Number of received IP datagrams delivered to IP user-protocols (including ICMP) (Linux only).
+system.net.ip.in_delivers.count	Number of received IP datagrams delivered to IP user-protocols (including ICMP) (Linux only).
+system.net.ip.in_discards	Number of received IP datagrams which were valid but discarded due to buffer issue (Linux only).
+system.net.ip.in_discards.count	Number of received IP datagrams which were valid but discarded due to buffer issue (Linux only).
+system.net.ip.in_header_errors	Number of received IP datagrams discarded because of IP header errors (Linux only).
+system.net.ip.in_header_errors.count	Number of received IP datagrams discarded because of IP header errors (Linux only).
+system.net.ip.in_no_routes	Number of input IP datagrams discarded because no route was found (Linux only).
+system.net.ip.in_no_routes.count	Number of input IP datagrams discarded because no route was found (Linux only).
+system.net.ip.in_receives	Number of received IP datagrams (including dropped datagrams) (Linux only).
+system.net.ip.in_receives.count	Number of received IP datagrams (including dropped datagrams) (Linux only).
+system.net.ip.in_truncated_pkts	Number of input IP datagrams whose actual size is smaller than the Total Length field in the IPv4 header (Linux only).
+system.net.ip.in_truncated_pkts.count	Number of input IP datagrams whose actual size is smaller than the Total Length field in the IPv4 header (Linux only).
+system.net.ip.in_unknown_protos	Number of received IP datagrams discarded because of an unknown IP proto (Linux only).
+system.net.ip.in_unknown_protos.count	Number of received IP datagrams discarded because of an unknown IP proto (Linux only).
+system.net.ip.out_discards	Number of output IP datagrams which were valid but discarded due to buffer issue (Linux only).
+system.net.ip.out_discards.count	Number of output IP datagrams which were valid but discarded due to buffer issue (Linux only).
+system.net.ip.out_no_routes	Number of output IP datagrams discarded because no route was found (Linux only).
+system.net.ip.out_no_routes.count	Number of output IP datagrams discarded because no route was found (Linux only).
+system.net.ip.out_requests	Number of output IP datagrams (Linux only).
+system.net.ip.out_requests.count	Number of output IP datagrams (Linux only).
+system.net.ip.reassembly_fails	Number of failures during IP reassembly (Linux only).
+system.net.ip.reassembly_fails.count	Number of failures during IP reassembly (Linux only).
+system.net.ip.reassembly_oks	Number of IP datagrams successfully reassembled (Linux only).
+system.net.ip.reassembly_oks.count	Number of IP datagrams successfully reassembled (Linux only).
+system.net.ip.reassembly_overlaps	Number of input IP fragments overlapping during reassembly (Linux only).
+system.net.ip.reassembly_overlaps.count	Number of input IP fragments overlapping during reassembly (Linux only).
+system.net.ip.reassembly_requests	Number of IP fragments received that needed to be reassembled (Linux only).
+system.net.ip.reassembly_requests.count	Number of IP fragments received that needed to be reassembled (Linux only).
+system.net.ip.reassembly_timeouts	Number of IP timeouts triggered during reassembly (Linux only).
+system.net.ip.reassembly_timeouts.count	Number of IP timeouts triggered during reassembly (Linux only).
+system.net.ip.reverse_path_filter	The number of martian packets dropped by the reverse path filter (Linux only).
+system.net.ip.reverse_path_filter.count	Total number of martian packets dropped by the reverse path filter (Linux only).
+system.net.mlx5_core.ch_arm	The number of times the NAPI poll function completed and armed the completion queues (Linux only).
+system.net.mlx5_core.ch_eq_rearm	The number of times the EQ was recovered (Linux only).
+system.net.mlx5_core.ch_poll	The number of invocations of NAPI poll function (Linux only).
+system.net.mlx5_core.dev_out_of_buffer	Number of times the device was out of receive buffers (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.link_down_events_phy	The number of times where the link operative state changed to down (Linux only).
+system.net.mlx5_core.module_bad_shorted	The number of times that the module cables were shorted (Linux only).
+system.net.mlx5_core.module_bus_stuck	The number of times that module's I2C bus (data or clock) short-wire was detected (Linux only).
+system.net.mlx5_core.module_high_temp	The number of times that the module temperature was too high (Linux only).
+system.net.mlx5_core.module_unplug	Number of times the transceiver module was unplugged (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.outbound_pci_buffer_overflow	Number of packets dropped because the PCIe outbound buffer overflowed (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.outbound_pci_stalled_rd_events	Number of seconds where outbound PCIe read was stalled for more than 30 percent of the time (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.outbound_pci_stalled_wr_events	Number of seconds where outbound PCIe write was stalled for more than 30 percent of the time (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.pci_bw_inbound_high	Number of times inbound PCIe bandwidth crossed above the high threshold (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.pci_bw_inbound_low	Number of times inbound PCIe bandwidth crossed below the low threshold (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.pci_bw_outbound_high	Number of times outbound PCIe bandwidth crossed above the high threshold (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.pci_bw_outbound_low	Number of times outbound PCIe bandwidth crossed below the low threshold (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.pci_bw_stale_event	Number of times a PCIe congestion event fired without a bandwidth threshold transition (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.rx_buf_discard	Number of received packets discarded due to buffer shortage on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.rx_bytes	Number of bytes received on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.rx_cong_discard	Number of received packets discarded due to congestion on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.rx_discards	Number of received packets discarded on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.rx_marked	Number of received packets marked by ECN on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.rx_packets	Number of packets received on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.rx_pause	Number of PFC pause frames received on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.rx_pause_duration	Time in microseconds the receiver was paused by PFC on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.rx_pause_transition	Number of transitions into the PFC paused state on receive for this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.tx_bytes	Number of bytes transmitted on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.tx_packets	Number of packets transmitted on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.tx_pause	Number of PFC pause frames transmitted on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.prio.tx_pause_duration	Time in microseconds the transmitter requested a pause by PFC on this 802.1p priority (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.queue.rx_arfs_err	Number of flow rules that failed to be added to the flow table (Linux only).
+system.net.mlx5_core.queue.rx_buff_alloc_err	Failed to allocate a buffer to received packet (or SKB) on ring i (Linux only).
+system.net.mlx5_core.queue.rx_bytes	Number of bytes received on this ring (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.queue.rx_packets	Number of packets received on this ring (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.queue.rx_recover	The number of times the RQ was recovered (Linux only).
+system.net.mlx5_core.queue.rx_tls_err	Number of times when CQE TLS offload was problematic (Linux only).
+system.net.mlx5_core.queue.rx_tls_resync_req_skip	Number of times the TLS async resync request procedure was started but not properly ended (Linux only).
+system.net.mlx5_core.queue.rx_tls_resync_res_retry	Number of times the TLS resync response call to the driver was reattempted when ICOSQ is full (Linux only).
+system.net.mlx5_core.queue.rx_wqe_err	The number of wrong opcodes received on ring i (Linux only).
+system.net.mlx5_core.queue.rx_xdp_tx_err	The number of times an XDP_TX error such as frame too long and frame too short occurred on XDP_TX ring of RX ring (Linux only).
+system.net.mlx5_core.queue.rx_xdp_tx_full	The number of packets that should have been forwarded back to the port due to XDP_TX action but were dropped due to full tx queue (Linux only).
+system.net.mlx5_core.queue.tx_bytes	Number of bytes transmitted on this ring (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.queue.tx_cqe_err	The number of error CQEs encountered on the SQ for ring i (Linux only).
+system.net.mlx5_core.queue.tx_dropped	Packets transmitted that were dropped due to DMA mapping failure on ring i (Linux only).
+system.net.mlx5_core.queue.tx_packets	Number of packets transmitted on this ring (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.queue.tx_recover	The number of times the SQ was recovered (Linux only).
+system.net.mlx5_core.rx_bits_phy	Total number of bits received at the physical layer. Use as the denominator for symbol error and corrected bit rates (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.rx_buffer_passed_thres_phy	Number of times the receive buffer crossed its high water mark (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.rx_bytes	The number of bytes received (Linux only).
+system.net.mlx5_core.rx_corrected_bits_phy	Number of received bits corrected by forward error correction (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.rx_crc_errors_phy	The number of dropped received packets due to FCS (Frame Check Sequence) error on the physical port (Linux only).
+system.net.mlx5_core.rx_csum_complete	Packets received with a CHECKSUM_COMPLETE (Linux only).
+system.net.mlx5_core.rx_csum_none	Packets received with a CHECKSUM_NONE (Linux only).
+system.net.mlx5_core.rx_csum_unnecessary	Packets received with a CHECKSUM_UNNECESSARY (Linux only).
+system.net.mlx5_core.rx_discards_phy	The number of received packets dropped due to lack of buffers on a physical port (Linux only).
+system.net.mlx5_core.rx_fragments_phy	The number of received packets dropped due to a length which is shorter than 64 bytes and has FCS error on a physical port (Linux only).
+system.net.mlx5_core.rx_global_pause	Number of link-level 802.3x pause frames received (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.rx_global_pause_duration	Time in microseconds the receiver was paused by link-level 802.3x flow control (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.rx_global_pause_transition	Number of transitions into the link-level paused state on receive (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.rx_if_down_packets	Number of packets received and dropped while the interface was down (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.rx_in_range_len_errors_phy	The number of received packets dropped due to length/type errors on a physical port (Linux only).
+system.net.mlx5_core.rx_jabbers_phy	The number of received packets due to a length which is longer than 64 bytes and had FCS error on a physical port (Linux only).
+system.net.mlx5_core.rx_out_of_buffer	Number of times receive queue had no software buffers allocated for the adapter's incoming traffic (Linux only).
+system.net.mlx5_core.rx_out_of_range_len_phy	The number of received packets dropped due to length greater than allowed on a physical port (Linux only).
+system.net.mlx5_core.rx_oversize_pkts_buffer	The number of dropped received packets due to length which arrived to RQ and exceed software buffer size allocated by the device for incoming traffic (Linux only).
+system.net.mlx5_core.rx_oversize_pkts_phy	The number of dropped received packets due to length which exceed MTU size on a physical port (Linux only).
+system.net.mlx5_core.rx_oversize_pkts_sw_drop	Number of received packets dropped in software because the CQE data is larger than the MTU size (Linux only).
+system.net.mlx5_core.rx_packets	The number of packets received (Linux only).
+system.net.mlx5_core.rx_pause_ctrl_phy	Number of link-level pause frames received at the physical layer (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.rx_pci_signal_integrity	Number of physical layer PCIe signal integrity errors on receive (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.rx_pcs_symbol_err_phy	Number of physical coding sublayer symbol errors that FEC could not correct (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.rx_pp_alloc_empty	Counter is incremented when ptr ring is empty so a slow path allocation was forced (Linux only).
+system.net.mlx5_core.rx_steer_missed_packets	Number of packets that was received by the NIC however was discarded because it did not match any flow in the NIC flow table (Linux only).
+system.net.mlx5_core.rx_symbol_err_phy	The number of received packets dropped due to physical coding errors (symbol errors) on a physical port (Linux only).
+system.net.mlx5_core.rx_undersize_pkts_phy	The number of received packets dropped due to length which is shorter than 64 bytes on a physical port (Linux only).
+system.net.mlx5_core.rx_unsupported_op_phy	The number of MAC control packets received with unsupported opcode on a physical port (Linux only).
+system.net.mlx5_core.rx_xdp_drop	The number of packets dropped due to XDP program XDP_DROP action (Linux only).
+system.net.mlx5_core.rx_xdp_redirect	The number of times an XDP redirect action was triggered (Linux only).
+system.net.mlx5_core.rx_xdp_tx_err	The number of times an XDP_TX error such as frame too long and frame too short occurred on XDP_TX ring of RX ring (Linux only).
+system.net.mlx5_core.rx_xsk_buff_alloc_err	The number of times allocating an skb or XSK buffer failed in the XSK RQ context (Linux only).
+system.net.mlx5_core.total_success_recovery_phy	Number of successful physical layer link recovery events (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.tx_bytes	The number of bytes sent (Linux only).
+system.net.mlx5_core.tx_discards_phy	The number of packets which were discarded on transmission even no errors were detected (Linux only).
+system.net.mlx5_core.tx_errors_phy	The number of transmitted packets dropped due to a length which exceed MTU size on a physical port (Linux only).
+system.net.mlx5_core.tx_global_pause	Number of link-level 802.3x pause frames transmitted (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.tx_global_pause_duration	Time in microseconds the transmitter requested a link-level 802.3x pause (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.tx_packets	The number of packets sent (Linux only).
+system.net.mlx5_core.tx_pause_ctrl_phy	Number of link-level pause frames transmitted at the physical layer (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.tx_pause_storm_error_events	Number of times transmission was disabled because the pause period exceeded the error threshold (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.tx_pause_storm_warning_events	Number of times the transmitter was paused for longer than the warning threshold (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.tx_pci_signal_integrity	Number of physical layer PCIe signal integrity errors on transmit (Linux only). Requires GPU monitoring.
+system.net.mlx5_core.tx_queue_dropped	Packets transmitted that were dropped due to DMA mapping failure (Linux only).
+system.net.mlx5_core.tx_queue_stopped	Events where SQ was full (Linux only).
+system.net.mlx5_core.tx_queue_wake	Events where SQ was full and has become not full (Linux only).
+system.net.mlx5_core.tx_xdp_err	The number of packets redirected to the interface(due to XDP redirect) but were dropped due to error such as frame too long and frame too short (Linux only).
+system.net.mlx5_core.tx_xsk_err	Number of errors that occurred in XSK zerocopy mode such as if the data size is larger than the MTU size (Linux only).
+system.net.mlx5_core.tx_xsk_full	Number of times doorbell is rung in XSK zerocopy mode when SQ is full (Linux only).
+system.net.packets_in.count	The number of packets of data received by the interface.
+system.net.packets_in.drop	The number of packet receive drops detected by the device driver. This metric is only available on Linux or Windows.
+system.net.packets_in.error	The number of packet receive errors detected by the device driver.
+system.net.packets_out.count	The number of packets of data transmitted by the interface.
+system.net.packets_out.drop	The number of packet transmit drops detected by the device driver. This metric is only available on Linux or Windows.
+system.net.packets_out.error	The number of packet transmit errors detected by the device driver.
+system.net.tcp.abort_on_timeout	The number of sockets closed due to timeout (maximum retransmission reached or tcp keepalive timeout) (Linux only).
+system.net.tcp.abort_on_timeout.count	Total number of sockets closed due to timeout (maximum retransmission reached or tcp keepalive timeout) (Linux only).
+system.net.tcp.active_opens	Number of times TCP connections have made a direct transition to the SYN-SENT state from the CLOSED state (Linux or Windows only).
+system.net.tcp.active_opens.count	Number of times TCP connections have made a direct transition to the SYN-SENT state from the CLOSED state (Linux or Windows only).
+system.net.tcp.attempt_fails	The number of times TCP connections have made a direct transition to the CLOSED state from either the SYN-SENT state or the SYN-RCVD state plus the number of times TCP connections have made a direct transition to the LISTEN state from the SYN-RCVD state (Linux or Windows only).
+system.net.tcp.attempt_fails.count	The number of times TCP connections have made a direct transition to the CLOSED state from either the SYN-SENT state or the SYN-RCVD state plus the number of times TCP connections have made a direct transition to the LISTEN state from the SYN-RCVD state (Linux or Windows only).
+system.net.tcp.backlog_drops	The number of packets dropped because there wasn't room in the TCP backlog (Linux only). Available since Agent v5.14.0.
+system.net.tcp.backlog_drops.count	Total number of packets dropped because there wasn't room in the TCP backlog (Linux only).
+system.net.tcp.connections	The number of TCP connections in all states except listening connections.
+system.net.tcp.current_established	The number of TCP connections for which the current state is either ESTABLISHED or CLOSE-WAIT (Linux or Windows only).
+system.net.tcp.established_resets	The number of times TCP connections have made a direct transition to the CLOSED state from either the ESTABLISHED state or the CLOSE-WAIT state (Linux or Windows only).
+system.net.tcp.established_resets.count	The number of times TCP connections have made a direct transition to the CLOSED state from either the ESTABLISHED state or the CLOSE-WAIT state (Linux or Windows only).
+system.net.tcp.failed_retransmits	Number of TCP packets that failed to be retransmitted (Linux only)
+system.net.tcp.failed_retransmits.count	Number of TCP packets that failed to be retransmitted (Linux only)
+system.net.tcp.from_zero_window	The number of sockets exiting a zero window state (Linux only).
+system.net.tcp.from_zero_window.count	Total number of sockets exiting a zero window state (Linux only).
+system.net.tcp.in_csum_errors	The number of TCP segments received with a bad TCP checksum (Linux only).
+system.net.tcp.in_csum_errors.count	The number of TCP segments received with a bad TCP checksum (Linux only).
+system.net.tcp.in_errors	The total number of segments received in error (e.g. bad TCP checksums) (Linux or Windows only).
+system.net.tcp.in_errors.count	The total number of segments received in error (e.g. bad TCP checksums) (Linux or Windows only).
+system.net.tcp.in_segs	The number of TCP segments received (Linux, Solaris, or Windows only).
+system.net.tcp.in_segs.count	Total number of received TCP segments (Linux, Solaris, or Windows only).
+system.net.tcp.listen_drops	The number of times connections have dropped out of listen (Linux only). Available since Agent v5.14.0.
+system.net.tcp.listen_drops.count	Total number of times connections have dropped out of listen (Linux only).
+system.net.tcp.listen_overflows	The number of times connections have overflowed the accept buffer (Linux only). Available since Agent v5.14.0.
+system.net.tcp.listen_overflows.count	Total number of times connections have overflowed the accept buffer (Linux only).
+system.net.tcp.out_resets	The number of TCP segments sent containing the RST flag (Linux or Windows only).
+system.net.tcp.out_resets.count	The number of TCP segments sent containing the RST flag (Linux or Windows only).
+system.net.tcp.out_segs	The number of TCP segments transmitted (Linux, Solaris, or Windows only).
+system.net.tcp.out_segs.count	Total number of transmitted TCP segments (Linux, Solaris, or Windows only).
+system.net.tcp.passive_opens	Number of times TCP connections have made a direct transition to the SYN-RCVD state from the LISTEN state (Linux or Windows only).
+system.net.tcp.passive_opens.count	Number of times TCP connections have made a direct transition to the SYN-RCVD state from the LISTEN state (Linux or Windows only).
+system.net.tcp.paws_connection_drops	The number of SYN-ACK packets dropped by PAWS (Linux only).
+system.net.tcp.paws_connection_drops.count	Total number of SYN-ACK packets dropped by PAWS (Linux only).
+system.net.tcp.paws_established_drops	The number of packets dropped by PAWS in an established connection (Linux only).
+system.net.tcp.paws_established_drops.count	Total number of packets dropped by PAWS in an established connection (Linux only).
+system.net.tcp.prune_called	The number of times TCP prune was called (Linux only).
+system.net.tcp.prune_called.count	Total number of times TCP prune was called (Linux only).
+system.net.tcp.prune_ofo_called	The number of times the out-of-order queues were pruned (Linux only).
+system.net.tcp.prune_ofo_called.count	Total number of times the out-of-order queues were pruned (Linux only).
+system.net.tcp.prune_rcv_drops	The number of received packets dropped after an unsuccessful prune (Linux only).
+system.net.tcp.prune_rcv_drops.count	Total number of received packets dropped after an unsuccessful prune (Linux only).
+system.net.tcp.rcv_packs	The number of TCP packets received (BSD only).
+system.net.tcp.recv_q.95percentile	The 95th percentile of the size of the TCP receive queue.
+system.net.tcp.recv_q.avg	The average TCP receive queue size.
+system.net.tcp.recv_q.count	The rate of connections.
+system.net.tcp.recv_q.max	The maximum TCP receive queue size.
+system.net.tcp.recv_q.median	The median TCP receive queue size.
+system.net.tcp.retrans_packs	The number of TCP packets retransmitted (BSD only).
+system.net.tcp.retrans_segs	The number of TCP segments retransmitted (Linux, Solaris, or Windows only).
+system.net.tcp.retrans_segs.count	Total number of retransmitted TCP segments (Linux, Solaris, or Windows only).
+system.net.tcp.send_q.95percentile	The 95th percentile of the size of the TCP send queue.
+system.net.tcp.send_q.avg	The average TCP send queue size.
+system.net.tcp.send_q.count	The rate of connections.
+system.net.tcp.send_q.max	The maximum TCP send queue size.
+system.net.tcp.send_q.median	The median TCP send queue size.
+system.net.tcp.sent_packs	The number of TCP packets transmitted (BSD only).
+system.net.tcp.syn_cookies_failed	The number of failed SYN cookie packets received (Linux only).
+system.net.tcp.syn_cookies_failed.count	Total number of failed SYN cookie packets received (Linux only).
+system.net.tcp.syn_cookies_recv	The number of SYN cookie packets received (Linux only).
+system.net.tcp.syn_cookies_recv.count	Total number of SYN cookie packets received (Linux only).
+system.net.tcp.syn_cookies_sent	The number of SYN cookie packets sent (Linux only).
+system.net.tcp.syn_cookies_sent.count	Total number of SYN cookie packets sent (Linux only).
+system.net.tcp.syn_retrans	The number of SYN packets retransmitted (Linux only).
+system.net.tcp.syn_retrans.count	Total number of SYN packets retransmitted (Linux only).
+system.net.tcp.to_zero_window	The number of sockets entering a zero window state (Linux only).
+system.net.tcp.to_zero_window.count	Total number of sockets entering a zero window state (Linux only).
+system.net.tcp.tw_reused	The number of time wait sockets reused (Linux only).
+system.net.tcp.tw_reused.count	Total number of time wait sockets reused (Linux only).
+system.net.tcp4.active_opens	Number of times TCP IPv4 connections have made a direct transition to the SYN-SENT state from the CLOSED state (Windows only).
+system.net.tcp4.active_opens.count	Number of times TCP IPv4 connections have made a direct transition to the SYN-SENT state from the CLOSED state (Windows only).
+system.net.tcp4.attempt_fails	The number of times TCP IPv4 connections have made a direct transition to the CLOSED state from either the SYN-SENT state or the SYN-RCVD state plus the number of times TCP IPv4 connections have made a direct transition to the LISTEN state from the SYN-RCVD state (Windows only).
+system.net.tcp4.attempt_fails.count	The number of times TCP IPv4 connections have made a direct transition to the CLOSED state from either the SYN-SENT state or the SYN-RCVD state plus the number of times TCP IPv4 connections have made a direct transition to the LISTEN state from the SYN-RCVD state (Windows only).
+system.net.tcp4.close	The number of closed TCP IPv4 connections.
+system.net.tcp4.close_wait	The number of TCP IPv4 connections waiting for termination.
+system.net.tcp4.closing	The number of TCP IPv4 closing connections.
+system.net.tcp4.connections	The number of TCP IPv4 connections connections in all states except listening connections (Windows only).
+system.net.tcp4.current_established	The number of currently established TCP IPv4 connections (Windows only).
+system.net.tcp4.estab	The number of open TCP IPv4 connections.
+system.net.tcp4.established	The number of TCP IPv4 established connections.
+system.net.tcp4.established_resets	The number of times TCP IPv4 connections have made a direct transition to the CLOSED state from either the ESTABLISHED state or the CLOSE-WAIT state (Windows only).
+system.net.tcp4.established_resets.count	The number of times TCP IPv4 connections have made a direct transition to the CLOSED state from either the ESTABLISHED state or the CLOSE-WAIT state (Windows only).
+system.net.tcp4.fin_wait_1	The number of TCP IPv4 connections waiting for a connection termination request or an ack of a connection termination request sent previously.
+system.net.tcp4.fin_wait_2	The number of TCP IPv4 connections waiting for a connection termination request.
+system.net.tcp4.in_errors	The total number of segments received in error (e.g. bad TCP IPv4 checksums) (Windows only).
+system.net.tcp4.in_errors.count	The total number of segments received in error (e.g. bad TCP IPv4 checksums) (Windows only).
+system.net.tcp4.in_segs	The number of TCP IPv4 segments received (Windows only).
+system.net.tcp4.in_segs.count	Total number of received TCP IPv4 segments (Windows only).
+system.net.tcp4.listen	The number of TCP IPv4 listening connections.
+system.net.tcp4.listening	The number of TCP IPv4 listening connections.
+system.net.tcp4.opening	The number of TCP IPv4 opening connections.
+system.net.tcp4.out_resets	The number of TCP IPv4 segments sent containing the RST flag (Windows only).
+system.net.tcp4.out_resets.count	The number of TCP IPv4 segments sent containing the RST flag (Windows only).
+system.net.tcp4.out_segs	The number of TCP IPv4 segments transmitted (Windows only).
+system.net.tcp4.out_segs.count	Total number of transmitted TCP IPv4 segments (Windows only).
+system.net.tcp4.passive_opens	Number of times TCP IPv4 connections have made a direct transition to the SYN-RCVD state from the LISTEN state (Windows only).
+system.net.tcp4.passive_opens.count	Number of times TCP IPv4 connections have made a direct transition to the SYN-RCVD state from the LISTEN state (Windows only).
+system.net.tcp4.retrans_segs	The number of TCP IPv4 segments retransmitted (Windows only).
+system.net.tcp4.retrans_segs.count	Total number of retransmitted TCP IPv4 segments (Windows only).
+system.net.tcp4.syn_recv	The number of TCP IPv4 connections waiting for confirming connection request.
+system.net.tcp4.syn_sent	The number of TCP IPv4 connections waiting for matching connection request.
+system.net.tcp4.time_wait	The number of TCP IPv4 closed connections waiting for delayed packets.
+system.net.tcp4.unconn	The number of TCP IPv4 connections in unconnected state.
+system.net.tcp6.active_opens	Number of times TCP IPv6 connections have made a direct transition to the SYN-SENT state from the CLOSED state (Windows only).
+system.net.tcp6.active_opens.count	Number of times TCP IPv6 connections have made a direct transition to the SYN-SENT state from the CLOSED state (Windows only).
+system.net.tcp6.attempt_fails	The number of times TCP IPv6 connections have made a direct transition to the CLOSED state from either the SYN-SENT state or the SYN-RCVD state plus the number of times TCP IPv6 connections have made a direct transition to the LISTEN state from the SYN-RCVD state (Windows only).
+system.net.tcp6.attempt_fails.count	The number of times TCP IPv6 connections have made a direct transition to the CLOSED state from either the SYN-SENT state or the SYN-RCVD state plus the number of times TCP IPv6 connections have made a direct transition to the LISTEN state from the SYN-RCVD state (Windows only).
+system.net.tcp6.close	The number of closed TCP IPv6 connections.
+system.net.tcp6.close_wait	The number of TCP IPv6 connections waiting for termination.
+system.net.tcp6.closing	The number of TCP IPv6 closing connections.
+system.net.tcp6.connections	The number of TCP IPv6 connections connections in all states except listening connections (Windows only).
+system.net.tcp6.current_established	The number of currently established TCP IPv6 connections (Windows only).
+system.net.tcp6.estab	The number of open TCP IPv6 connections.
+system.net.tcp6.established	The number of TCP IPv6 established connections.
+system.net.tcp6.established_resets	The number of times TCP IPv6 connections have made a direct transition to the CLOSED state from either the ESTABLISHED state or the CLOSE-WAIT state (Windows only).
+system.net.tcp6.established_resets.count	The number of times TCP IPv6 connections have made a direct transition to the CLOSED state from either the ESTABLISHED state or the CLOSE-WAIT state (Windows only).
+system.net.tcp6.fin_wait_1	The number of TCP IPv6 connections waiting for a connection termination request or an ack of a connection termination request sent previously.
+system.net.tcp6.fin_wait_2	The number of TCP IPv6 connections waiting for a connection termination request.
+system.net.tcp6.in_errors	The total number of segments received in error (e.g. bad TCP IPv6 checksums) (Windows only).
+system.net.tcp6.in_errors.count	The total number of segments received in error (e.g. bad TCP IPv6 checksums) (Windows only).
+system.net.tcp6.in_segs	The number of TCP IPv6 segments received (Windows only).
+system.net.tcp6.in_segs.count	Total number of received TCP IPv6 segments (Windows only).
+system.net.tcp6.listen	The number of TCP IPv6 listening connections.
+system.net.tcp6.listening	The number of TCP IPv6 listening connections.
+system.net.tcp6.opening	The number of TCP IPv6 opening connections.
+system.net.tcp6.out_resets	The number of TCP IPv6 segments sent containing the RST flag (Windows only).
+system.net.tcp6.out_resets.count	The number of TCP IPv6 segments sent containing the RST flag (Windows only).
+system.net.tcp6.out_segs	The number of TCP IPv6 segments transmitted (Windows only).
+system.net.tcp6.out_segs.count	Total number of transmitted TCP IPv6 segments (Windows only).
+system.net.tcp6.passive_opens	Number of times TCP IPv6 connections have made a direct transition to the SYN-RCVD state from the LISTEN state (Windows only).
+system.net.tcp6.passive_opens.count	Number of times TCP IPv6 connections have made a direct transition to the SYN-RCVD state from the LISTEN state (Windows only).
+system.net.tcp6.retrans_segs	The number of TCP IPv6 segments retransmitted (Windows only).
+system.net.tcp6.retrans_segs.count	Total number of retransmitted TCP IPv6 segments (Windows only).
+system.net.tcp6.syn_recv	The number of TCP IPv6 connections waiting for confirming connection request.
+system.net.tcp6.syn_sent	The number of TCP IPv6 connections waiting for matching connection request.
+system.net.tcp6.time_wait	The number of TCP IPv6 closed connections waiting for delayed packets.
+system.net.tcp6.unconn	The number of TCP IPv6 connections in unconnected state.
+system.net.udp.in_csum_errors	The rate of UDP datagrams that failed checksum verification (Linux only).
+system.net.udp.in_csum_errors.count	Total number of UDP datagrams that failed checksum verification (Linux only).
+system.net.udp.in_datagrams	The rate of UDP datagrams delivered to UDP users (Linux only).
+system.net.udp.in_datagrams.count	Total number of UDP datagrams delivered to UDP users (Linux only).
+system.net.udp.in_errors	The rate of received UDP datagrams that could not be delivered for reasons other than the lack of an application at the destination port (Linux only).
+system.net.udp.in_errors.count	Total number of received UDP datagrams that could not be delivered for reasons other than the lack of an application at the destination port (Linux only).
+system.net.udp.no_ports	The rate of received UDP datagrams for which there was no application at the destination port (Linux only).
+system.net.udp.no_ports.count	Total number of received UDP datagrams for which there was no application at the destination port (Linux only).
+system.net.udp.out_datagrams	The rate of UDP datagrams sent from this entity (Linux only).
+system.net.udp.out_datagrams.count	Total number of UDP datagrams sent from this entity (Linux only).
+system.net.udp.rcv_buf_errors	The rate of UDP datagrams lost because there was no room in the receive buffer (Linux only).
+system.net.udp.rcv_buf_errors.count	Total number of UDP datagrams lost because there was no room in the receive buffer (Linux only).
+system.net.udp.snd_buf_errors	The rate of UDP datagrams lost because there was no room in the send buffer (Linux only).
+system.net.udp.snd_buf_errors.count	Total number of UDP datagrams lost because there was no room in the send buffer (Linux only).
+system.net.udp4.connections	The number of UDP IPv4 sockets currently opened.
+system.net.udp6.connections	The number of UDP IPv6 sockets currently opened.
+system.net.virtio_net.queue.rx_bytes	The number of bytes received by a queue (Linux only).
+system.net.virtio_net.queue.rx_drops	The number of packets dropped on a receive queue (Linux only).
+system.net.virtio_net.queue.rx_kicks	The number of kicks sent to the hypervisor for a receive queue (Linux only).
+system.net.virtio_net.queue.rx_packets	The number of packets received by a queue (Linux only).
+system.net.virtio_net.queue.rx_xdp_drops	The number of XDP packets tagged as XDP_DROP in a receive queue (Linux only).
+system.net.virtio_net.queue.rx_xdp_redirects	The number of XDP packets tagged as XDP_REDIRECT in a receive queue (Linux only).
+system.net.virtio_net.queue.rx_xdp_tx	The number of XDP packets tagged as XDP_TX in a receive queue (Linux only).
+system.net.virtio_net.queue.tx_bytes	The number of bytes sent by a transmit queue (Linux only).
+system.net.virtio_net.queue.tx_kicks	The number of kicks sent to the hypervisor for a transmit queue (Linux only).
+system.net.virtio_net.queue.tx_packets	The number of packets sent by a transmit queue (Linux only).
+system.net.virtio_net.queue.tx_xdp_tx	The number of XDP packets tagged as XDP_TX in a transmit queue (Linux only).
+system.net.virtio_net.queue.tx_xdp_tx_drops	The number of XDP packets tagged as XDP_DROP in a transmit queue (Linux only).
+tls.days_left	Days until X.509 certificate expiration
+tls.issued_days	Day duration of timespan certificate is issued for
+tls.issued_seconds	Second duration of timespan certificate is issued for
+tls.seconds_left	Seconds until X.509 certificate expiration

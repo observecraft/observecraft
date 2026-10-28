@@ -55,6 +55,13 @@ pub struct Config {
     pub smtp_url: Option<String>,
     /// Sender address of notification emails.
     pub smtp_from: String,
+    /// Synthetic tests may reach loopback, private, link-local and other internal addresses
+    /// (`OC_SYNTHETICS_ALLOW_PRIVATE`; off by default: user-chosen targets are an SSRF risk).
+    pub synthetics_allow_private: bool,
+    /// Developer Portal connectors may call GitHub, GitLab, Jira or Linear servers on internal
+    /// addresses, over http too (`OC_PORTAL_ALLOW_PRIVATE`; off by default, for self-hosted
+    /// instances inside the network).
+    pub portal_allow_private: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -136,6 +143,8 @@ impl Config {
             internal_token: env::var("OC_INTERNAL_TOKEN").ok().filter(|s| !s.is_empty()),
             smtp_url: env::var("OC_SMTP_URL").ok().filter(|s| !s.is_empty()),
             smtp_from: var("OC_SMTP_FROM", "ObserveCraft <alerts@observecraft.local>"),
+            synthetics_allow_private: var("OC_SYNTHETICS_ALLOW_PRIVATE", "false") == "true",
+            portal_allow_private: var("OC_PORTAL_ALLOW_PRIVATE", "false") == "true",
             retention: Retention {
                 logs_days: days("OC_RETENTION_LOGS_DAYS", 15),
                 traces_days: days("OC_RETENTION_TRACES_DAYS", 15),

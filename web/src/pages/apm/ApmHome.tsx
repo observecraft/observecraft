@@ -45,26 +45,44 @@ export function ApmHome() {
     setParams({}, { replace: true });
   }, [want, setParams]);
   const scope = { range, env: env === ALL_ENVS ? null : env };
+  const services = useServices(scope);
 
   return (
     <div className="apm-home">
       <div className="apm-hero">
         <h1>Welcome to APM</h1>
         <div className="apm-hero-actions">
-          <Select
-            label="Env"
-            value={env}
-            onChange={setEnv}
-            options={[{ value: ALL_ENVS, label: 'All environments' }, ...(envs.data ?? []).map((e) => ({ value: e, label: e }))]}
-          />
+          <Select label="Env" value={env} onChange={setEnv} options={[{ value: ALL_ENVS, label: 'All environments' }, ...(envs.data ?? []).map((e) => ({ value: e, label: e }))]} />
           <TimePicker compact />
           <button className="btn btn-primary" onClick={() => setInstrumenting(true)}>
             <Plus size={14} /> Instrument a Service
           </button>
         </div>
       </div>
-      <AttentionSection scope={scope} env={env} />
-      <GlanceSection scope={scope} env={env} />
+      {services.data?.length === 0 ? (
+        <section className="apm-block apm-onboard">
+          <h2>No traces yet</h2>
+          <p>
+            APM shows services once they send traces. Keep your Datadog tracing libraries (<code>dd-trace</code>) and point them at the Datadog Agent, which forwards traces here, or send OpenTelemetry
+            traces to the intake.
+          </p>
+          <ol>
+            <li>Install the tracing library for your language, or enable Single Step Instrumentation in the Agent.</li>
+            <li>
+              Set <code>DD_SERVICE</code>, <code>DD_ENV</code> and <code>DD_VERSION</code> so services, environments and deployments show up.
+            </li>
+            <li>Send a few requests: services appear here within a minute.</li>
+          </ol>
+          <button className="btn btn-primary" onClick={() => setInstrumenting(true)}>
+            <Plus size={14} /> Instrument a Service
+          </button>
+        </section>
+      ) : (
+        <>
+          <AttentionSection scope={scope} env={env} />
+          <GlanceSection scope={scope} env={env} />
+        </>
+      )}
       {instrumenting && <InstrumentModal onClose={() => setInstrumenting(false)} />}
     </div>
   );
@@ -188,7 +206,9 @@ function RecommendationCard({ rec, onOpen }: { rec: Recommendation; onOpen: () =
 function ReviewCard({ recs, onOpen }: { recs: Recommendation[]; onOpen: (r: Recommendation) => void }) {
   return (
     <div className="apm-card apm-review">
-      <h3>Review {recs.length} recommendation{recs.length === 1 ? '' : 's'}</h3>
+      <h3>
+        Review {recs.length} recommendation{recs.length === 1 ? '' : 's'}
+      </h3>
       <table className="apm-mini">
         <tbody>
           {recs.slice(0, 5).map((r) => (

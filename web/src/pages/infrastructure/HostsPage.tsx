@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Columns3, Download, EllipsisVertical, List, Megaphone, Network, PanelLeft, PanelLeftClose, Search, Server, Sparkles, X } from 'lucide-react';
+import { Columns3, Download, Hexagon, List, PanelLeft, PanelLeftClose, Search, Server } from 'lucide-react';
 import type { HostSortField, HostSummary, MetricFilter } from '../../api/infrastructure/types';
 import { TimePicker } from '../../components/shell/PageHeader';
 import { TimeProvider, useTime } from '../../components/shell/TimeContext';
@@ -12,11 +12,13 @@ import { snapRange } from '../../lib/time';
 import { HostFilters } from './HostFilters';
 import { ALL_COLUMNS, HostTable, type HostColumn } from './HostTable';
 import { HostPanel } from './panel/HostPanel';
+import { HostMap } from './HostMap';
 import { useHosts } from './queries';
 import './infrastructure.css';
 
 const PAGE_SIZE = 20;
-const BANNER_KEY = 'oc.infra.bannerDismissed';
+/** Hosts the Host Map draws at once. */
+const MAP_LIMIT = 1000;
 
 const GROUP_OPTIONS = [
   { value: '', label: 'Attributes or Tags' },
@@ -28,14 +30,6 @@ const GROUP_OPTIONS = [
   { value: 'region', label: 'region' },
   { value: 'collector', label: 'collector' },
 ];
-
-function readBannerDismissed(): boolean {
-  try {
-    return localStorage.getItem(BANNER_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
 
 function toCsv(hosts: HostSummary[]): string {
   const rows = [['host', 'cloud', 'os', 'env', 'team', 'cpu_pct', 'mem_pct', 'monitors_alert', 'monitors_ok']].concat(
@@ -93,6 +87,7 @@ function HostsPageBody() {
   const [sortField, sortDir] = (params.get('sort') ?? 'cpu:desc').split(':') as [HostSortField, 'asc' | 'desc'];
   const offset = Number(params.get('offset') ?? 0);
   const openHost = params.get('host');
+  const view = params.get('view') === 'map' ? 'map' : 'list';
 
   const setParam = useCallback(
     (updates: Record<string, string | null>, push = false) =>
@@ -114,7 +109,6 @@ function HostsPageBody() {
   const [metricFilters, setMetricFilters] = useState<MetricFilter[]>([{ metric: 'system.uptime' }, { metric: 'system.mem.pct_usable' }]);
   const [showFilters, setShowFilters] = useState(true);
   const [columns, setColumns] = useState<Set<HostColumn>>(() => new Set(ALL_COLUMNS.map((c) => c.key)));
-  const [bannerHidden, setBannerHidden] = useState(readBannerDismissed);
 
   const terms = useMemo(() => parseQuery(query), [query]);
   const setTerms = useCallback((t: Term[]) => setParam({ q: formatQuery(t), offset: null }), [setParam]);
@@ -127,8 +121,9 @@ function HostsPageBody() {
     metricFilters: activeFilters,
     groupBy,
     sort: { field: sortField, dir: sortDir },
-    offset,
-    limit: PAGE_SIZE,
+    // The map shows every host at once.
+    offset: view === 'map' ? 0 : offset,
+    limit: view === 'map' ? MAP_LIMIT : PAGE_SIZE,
   });
 
   const onSort = (field: HostSortField) => {
@@ -154,28 +149,18 @@ function HostsPageBody() {
         <div className="product-title">
           <Server size={20} /> Hosts
         </div>
-        <div className="hosts-header-right">
-          <button className="link-btn">
-            <Megaphone size={15} /> Give Feedback
-          </button>
-        </div>
       </header>
 
       <div className="section-header et-section-header">
         <div className="section-header-left">
-          <button className="page-tab et-views">
-            <PanelLeft size={15} /> Views
-          </button>
-          <div className="page-tab active">
-            My View <EllipsisVertical size={16} className="muted" />
-          </div>
+          <div className="page-tab active">My View</div>
           <div className="hosts-tabs">
-            <span className="hosts-tab active">
+            <button className={`hosts-tab${view === 'list' ? ' active' : ''}`} onClick={() => setParam({ view: null })}>
               <List size={15} /> Hosts
-            </span>
-            <span className="hosts-tab" title="Not built yet">
-              <Network size={15} /> Infrastructure Diagram <span className="badge-new">NEW</span>
-            </span>
+            </button>
+            <button className={`hosts-tab${view === 'map' ? ' active' : ''}`} onClick={() => setParam({ view: 'map', offset: null })}>
+              <Hexagon size={15} /> Host Map
+            </button>
           </div>
         </div>
         <TimePicker compact />
@@ -197,34 +182,21 @@ function HostsPageBody() {
           <Select value={groupBy ?? ''} options={GROUP_OPTIONS} onChange={(g) => setParam({ group: g || null, offset: null })} triggerClassName="dd-trigger hosts-groupby" align="right" />
         </div>
 
-        {!bannerHidden && (
-          <div className="hosts-banner">
-            <div>
-              <h3>
-                <Sparkles size={18} /> Assist Infrastructure Operations Coming Soon!
-              </h3>
-              <p>Sign up to be part of the AI-assisted troubleshooting & remediation private preview for host and infrastructure issues.</p>
-              <button className="btn">Join Preview</button>
-            </div>
-            <button
-              className="hosts-banner-close"
-              title="Dismiss"
-              onClick={() => {
-                setBannerHidden(true);
-                try {
-                  localStorage.setItem(BANNER_KEY, '1');
-                } catch {
-                  /* storage unavailable: dismiss for this session only */
-                }
-              }}
-            >
-              <X size={20} />
-            </button>
-          </div>
-        )}
-
         <div className="hosts-body">
-          {showFilters && <HostFilters terms={terms} onTerms={(t) => { setDraft(formatQuery(t)); setTerms(t); }} metricFilters={metricFilters} onMetricFilters={(f) => { setMetricFilters(f); setParam({ offset: null }); }} />}
+          {showFilters && (
+            <HostFilters
+              terms={terms}
+              onTerms={(t) => {
+                setDraft(formatQuery(t));
+                setTerms(t);
+              }}
+              metricFilters={metricFilters}
+              onMetricFilters={(f) => {
+                setMetricFilters(f);
+                setParam({ offset: null });
+              }}
+            />
+          )}
 
           <div className="hosts-main">
             <div className="hosts-toolbar">
@@ -251,8 +223,14 @@ function HostsPageBody() {
               <Empty>No hosts match these filters.</Empty>
             ) : (
               <div className={hostsQ.isPlaceholderData ? 'is-stale' : undefined}>
-                <HostTable page={page} columns={columns} sort={{ field: sortField, dir: sortDir }} onSort={onSort} selected={openHost} onOpen={(h) => setParam({ host: h }, true)} />
-                <Pager offset={offset} limit={PAGE_SIZE} total={total} onChange={(o) => setParam({ offset: o ? String(o) : null })} />
+                {view === 'map' ? (
+                  <HostMap hosts={page.hosts} selected={openHost} onOpen={(h) => setParam({ host: h }, true)} />
+                ) : (
+                  <>
+                    <HostTable page={page} columns={columns} sort={{ field: sortField, dir: sortDir }} onSort={onSort} selected={openHost} onOpen={(h) => setParam({ host: h }, true)} />
+                    <Pager offset={offset} limit={PAGE_SIZE} total={total} onChange={(o) => setParam({ offset: o ? String(o) : null })} />
+                  </>
+                )}
               </div>
             )}
           </div>

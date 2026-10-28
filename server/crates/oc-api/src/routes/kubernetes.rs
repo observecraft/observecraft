@@ -439,7 +439,8 @@ struct EcsRow {
     mem: Option<f64>,
 }
 
-async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
+/// The org's current objects, only of the API `kinds` when given.
+async fn load_objects(st: &AppState, org: &str, kinds: &[&str]) -> Result<Vec<(KubeKind, String, i64, Value)>, ApiError> {
     #[derive(clickhouse::Row, Deserialize)]
     struct Obj {
         cluster: String,
@@ -447,6 +448,26 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         seen: i64,
         body: String,
     }
+    let query = format!(
+        "SELECT Cluster AS cluster, Kind AS kind, toUnixTimestamp64Milli(LastSeen) AS seen, Body AS body FROM otel.k8s_resources FINAL \
+         WHERE OrgId = {{oc_org:String}} AND LastSeen > now64(3) - INTERVAL {STALE_MINUTES} MINUTE{filter} LIMIT {MAX_OBJECTS}",
+        filter = if kinds.is_empty() { "" } else { " AND Kind IN ?" }
+    );
+    let mut q = st.ch(org).query(&query);
+    if !kinds.is_empty() {
+        q = q.bind(kinds);
+    }
+    let objects = q.fetch_all::<Obj>().await?;
+    Ok(objects
+        .into_iter()
+        .filter_map(|o| match (KubeKind::from_api(&o.kind), serde_json::from_str::<Value>(&o.body)) {
+            (Some(kind), Ok(body)) => Some((kind, o.cluster, o.seen, body)),
+            _ => None,
+        })
+        .collect())
+}
+
+async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
     #[derive(clickhouse::Row, Deserialize)]
     struct Usage {
         cluster: String,
@@ -456,13 +477,7 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         cpu: f64,
         mem: f64,
     }
-    let objects = st
-        .ch(org)
-        .query(&format!(
-            "SELECT Cluster AS cluster, Kind AS kind, toUnixTimestamp64Milli(LastSeen) AS seen, Body AS body FROM otel.k8s_resources FINAL \
-             WHERE OrgId = {{oc_org:String}} AND LastSeen > now64(3) - INTERVAL {STALE_MINUTES} MINUTE LIMIT {MAX_OBJECTS}"
-        ))
-        .fetch_all::<Obj>();
+    let objects = load_objects(st, org, &[]);
     // Points of the last 15 minutes (5 for processes), from the new storage once it has them.
     let now = now_ms();
     let (recent, procs_from, end) = (now - 15 * 60_000, now - 5 * 60_000, now + OPEN_END_MS);
@@ -544,7 +559,7 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
     .bind(org)
     .fetch_all(&st.postgres);
     let (objects, usage, dd_usage, ecs, processes, host_cpus) = tokio::try_join!(
-        async { objects.await.map_err(ApiError::from) },
+        objects,
         async { usage.await.map_err(ApiError::from) },
         async { dd_usage.await.map_err(ApiError::from) },
         async { ecs.await.map_err(ApiError::from) },
@@ -557,7 +572,7 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         .map(|(h, c)| (h, c as u32))
         .collect();
     let mut inv = Inventory {
-        objects: Vec::with_capacity(objects.len()),
+        objects,
         pod_usage: HashMap::new(),
         container_usage: HashMap::new(),
         node_usage: HashMap::new(),
@@ -565,10 +580,6 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         processes,
         host_cpus,
     };
-    for o in objects {
-        let (Some(kind), Ok(body)) = (KubeKind::from_api(&o.kind), serde_json::from_str::<Value>(&o.body)) else { continue };
-        inv.objects.push((kind, o.cluster, o.seen, body));
-    }
     for u in usage {
         let v = (u.cpu, u.mem);
         if !u.container.is_empty() {
@@ -580,38 +591,34 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         }
     }
     if !dd_usage.is_empty() {
-        // (cluster, namespace, name) → uid of the pods we know.
-        let uids: HashMap<(&str, &str, &str), &str> = inv
-            .objects
-            .iter()
-            .filter(|(k, ..)| *k == KubeKind::Pods)
-            .filter_map(|(_, cluster, _, b)| {
-                let m = &b["metadata"];
-                Some((
-                    (
-                        cluster.as_str(),
-                        m["namespace"].as_str()?,
-                        m["name"].as_str()?,
-                    ),
-                    m["uid"].as_str()?,
-                ))
-            })
-            .collect();
+        let pods = PodIndex::new(inv.objects.iter().filter(|(k, ..)| *k == KubeKind::Pods).filter_map(|(_, cluster, _, b)| {
+            let m = &b["metadata"];
+            Some((cluster.as_str(), m["namespace"].as_str()?, m["name"].as_str()?, m["uid"].as_str()?))
+        }));
+        // Node name → cluster, to find the node a Datadog host is.
+        let node_clusters: HashMap<&str, &str> =
+            inv.objects.iter().filter(|(k, ..)| *k == KubeKind::Nodes).filter_map(|(_, cluster, _, b)| Some((b["metadata"]["name"].as_str()?, cluster.as_str()))).collect();
         let mut container_usage = Vec::new();
         let mut node_usage = Vec::new();
+        let mut container_on_node = Vec::new();
         for u in dd_usage {
             if u.pod.is_empty() {
-                if !u.node.is_empty() {
-                    node_usage.push(((u.cluster, u.node), (u.cpu, u.mem)));
+                if let Some((cluster, node)) = node_of_host(&u.node, &u.cluster, &node_clusters) {
+                    node_usage.push(((cluster.to_string(), node.to_string()), (u.cpu, u.mem)));
                 }
-            } else if let Some(uid) =
-                uids.get(&(u.cluster.as_str(), u.namespace.as_str(), u.pod.as_str()))
-            {
-                if !u.container.is_empty() {
-                    container_usage.push(((uid.to_string(), u.container), (u.cpu, u.mem)));
+            } else {
+                // The kubelet check reports containers only: a node's usage is the sum of its containers'.
+                if let Some((cluster, node)) = node_of_host(&u.node, &u.cluster, &node_clusters) {
+                    container_on_node.push(((cluster.to_string(), node.to_string()), (u.cpu, u.mem)));
+                }
+                if let Some(uid) = pods.uid(&u.cluster, &u.namespace, &u.pod) {
+                    if !u.container.is_empty() {
+                        container_usage.push(((uid.to_string(), u.container), (u.cpu, u.mem)));
+                    }
                 }
             }
         }
+        node_usage.extend(node_totals(container_on_node));
         for (k, v) in container_usage {
             inv.container_usage.entry(k).or_insert(v);
         }
@@ -620,6 +627,52 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         }
     }
     Ok(inv)
+}
+
+/// Pod uids by (cluster, namespace, name), and by (namespace, name) for metrics without a cluster
+/// (an Agent with no cluster name, or before its host tags arrive) when only one cluster has the pod.
+struct PodIndex<'a> {
+    full: HashMap<(&'a str, &'a str, &'a str), &'a str>,
+    /// None: the same namespace/name in several clusters.
+    by_name: HashMap<(&'a str, &'a str), Option<&'a str>>,
+}
+
+impl<'a> PodIndex<'a> {
+    fn new(pods: impl Iterator<Item = (&'a str, &'a str, &'a str, &'a str)>) -> Self {
+        let mut index = PodIndex { full: HashMap::new(), by_name: HashMap::new() };
+        for (cluster, ns, name, uid) in pods {
+            index.full.insert((cluster, ns, name), uid);
+            index.by_name.entry((ns, name)).and_modify(|u| *u = None).or_insert(Some(uid));
+        }
+        index
+    }
+
+    fn uid(&self, cluster: &str, ns: &str, name: &str) -> Option<&'a str> {
+        if cluster.is_empty() {
+            self.by_name.get(&(ns, name)).copied().flatten()
+        } else {
+            self.full.get(&(cluster, ns, name)).copied()
+        }
+    }
+}
+
+/// The Kubernetes node (and its cluster) a Datadog host is: the Agent names it `<node>-<cluster>`.
+fn node_of_host<'a>(host: &str, cluster: &str, nodes: &HashMap<&'a str, &'a str>) -> Option<(&'a str, &'a str)> {
+    if let Some((node, c)) = nodes.get_key_value(host) {
+        return Some((c, node));
+    }
+    nodes.iter().find(|(node, c)| (cluster.is_empty() || cluster == **c) && host.strip_suffix(**c).and_then(|h| h.strip_suffix('-')) == Some(**node)).map(|(node, c)| (*c, *node))
+}
+
+/// Per-node CPU and memory as the sum of its containers' (-1: not measured).
+fn node_totals<K: std::hash::Hash + Eq>(rows: impl IntoIterator<Item = (K, (f64, f64))>) -> HashMap<K, (f64, f64)> {
+    let add = |total: f64, v: f64| if v < 0.0 { total } else if total < 0.0 { v } else { total + v };
+    let mut out: HashMap<K, (f64, f64)> = HashMap::new();
+    for (k, (cpu, mem)) in rows {
+        let t = out.entry(k).or_insert((-1.0, -1.0));
+        *t = (add(t.0, cpu), add(t.1, mem));
+    }
+    out
 }
 
 fn measured(v: f64) -> Option<f64> {
@@ -702,7 +755,7 @@ fn quantity(v: &Value, path: &[&str]) -> Option<f64> {
 }
 
 /// `docker.io/library/busybox:1.36` → (`docker.io/library/busybox`, `busybox`, `1.36`).
-fn image_parts(image: &str) -> (String, String, String) {
+pub(crate) fn image_parts(image: &str) -> (String, String, String) {
     let no_digest = image.split('@').next().unwrap_or(image);
     let (name, tag) = match no_digest.rsplit_once(':') {
         Some((n, t)) if !t.contains('/') => (n, t),
@@ -814,6 +867,17 @@ fn pod_utilization(containers: &[KubeContainer], pick: impl Fn(&KubeContainer) -
 }
 
 /// Turns one object into a row (without the cross-object rollups, done in [`build`]).
+/// A pod's `pod_phase` and `kube_condition_ready` tags (as the Datadog Agent tags pods), for queries.
+fn pod_tags(status: &Value) -> Vec<String> {
+    let phase = s(status, &["phase"]).map(|p| format!("pod_phase:{}", p.to_lowercase()));
+    let ready = arr(status, &["conditions"])
+        .iter()
+        .find(|c| s(c, &["type"]) == Some("Ready"))
+        .and_then(|c| s(c, &["status"]))
+        .map(|v| format!("kube_condition_ready:{}", v.to_lowercase()));
+    phase.into_iter().chain(ready).collect()
+}
+
 fn to_row(kind: KubeKind, cluster: &str, seen: i64, body: &Value, inv: &Inventory) -> KubeResource {
     let meta = body.get("metadata").cloned().unwrap_or(Value::Null);
     let uid = s(&meta, &["uid"]).unwrap_or_default().to_string();
@@ -847,7 +911,7 @@ fn to_row(kind: KubeKind, cluster: &str, seen: i64, body: &Value, inv: &Inventor
             r.node = s(&spec, &["nodeName"]).map(str::to_string);
             r.ip = s(&status, &["podIP"]).map(str::to_string);
             r.qos = s(&status, &["qosClass"]).map(str::to_string);
-            r.tags = s(&status, &["phase"]).map(|p| format!("pod_phase:{}", p.to_lowercase())).into_iter().collect();
+            r.tags = pod_tags(&status);
             r.images = regular.iter().map(|c| c.image.clone()).collect();
             let usage = inv.pod_usage.get(&r.uid);
             r.cpu = Some(pod_utilization(&r.containers, |c| &c.cpu, usage.and_then(|u| measured(u.0))));
@@ -1553,6 +1617,9 @@ pub struct KubeSearchRequest {
     #[serde(default)]
     pub offset: usize,
     pub limit: usize,
+    /// Tag keys added as facets ("+ Add").
+    #[serde(default)]
+    pub extra: Vec<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -1600,6 +1667,33 @@ pub struct KubeSearchPage {
     pub kinds: Vec<KubeKindCount>,
     /// Every tag key seen on this kind, for the group-by menu.
     pub tag_keys: Vec<String>,
+    /// Objects of this kind with each tag key, for the facets' "+ Add".
+    pub tag_key_counts: Vec<KubeFacetValue>,
+}
+
+/// Added tag facets per search.
+const MAX_EXTRA_FACETS: usize = 10;
+
+/// The facets of a kind (cluster, namespace, status, the kind's own), then the added tag keys the
+/// kind has (`seen`), once each.
+fn facet_keys(kind: KubeKind, extra: &[String], seen: &[String]) -> Vec<String> {
+    let mut keys: Vec<String> = Vec::new();
+    if !kind.is_ecs() && kind != KubeKind::Processes {
+        keys.push("kube_cluster_name".into());
+    }
+    if kind.namespaced() {
+        keys.push("kube_namespace".into());
+    }
+    if kind != KubeKind::Processes {
+        keys.push("status".into());
+    }
+    keys.extend(kind.facets().iter().map(|k| k.to_string()));
+    for k in extra.iter().filter(|k| seen.contains(k)).take(MAX_EXTRA_FACETS) {
+        if !keys.contains(k) {
+            keys.push(k.clone());
+        }
+    }
+    keys
 }
 
 fn sort_key(r: &KubeResource, field: &str) -> SortVal {
@@ -1654,22 +1748,21 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
     let kinds = KubeKind::ALL.into_iter().map(|k| KubeKindCount { kind: k, count: all.iter().filter(|r| r.kind == Some(k) && r.matches(&terms)).count() }).collect();
     let of_kind: Vec<KubeResource> = all.into_iter().filter(|r| r.kind == Some(req.kind)).collect();
 
+    let mut key_counts: BTreeMap<String, usize> = BTreeMap::new();
+    for r in &of_kind {
+        for k in r.tags.iter().filter_map(|t| t.split_once(':').map(|(k, _)| k)).collect::<HashSet<_>>() {
+            *key_counts.entry(k.to_string()).or_default() += 1;
+        }
+    }
+    let tag_keys: Vec<String> = key_counts.keys().cloned().collect();
+    let mut tag_key_counts: Vec<KubeFacetValue> = key_counts.into_iter().map(|(value, count)| KubeFacetValue { value, count }).collect();
+    tag_key_counts.sort_by(|a, b| b.count.cmp(&a.count).then(a.value.cmp(&b.value)));
+
     // KubeFacet counts honour every filter except the facet's own.
-    let mut keys = if req.kind.is_ecs() || req.kind == KubeKind::Processes {
-        vec![]
-    } else {
-        vec!["kube_cluster_name"]
-    };
-    if req.kind.namespaced() {
-        keys.push("kube_namespace");
-    }
-    if req.kind != KubeKind::Processes {
-        keys.push("status");
-    }
-    keys.extend(req.kind.facets());
-    let facets = keys
+    let facets = facet_keys(req.kind, &req.extra, &tag_keys)
         .into_iter()
         .map(|key| {
+            let key = key.as_str();
             let others: Vec<Term> = terms.iter().filter(|t| !matches!(t, Term::Tag { key: k, .. } if k == key)).cloned().collect();
             let mut counts: BTreeMap<String, usize> = BTreeMap::new();
             for r in of_kind.iter().filter(|r| r.matches(&others)) {
@@ -1684,8 +1777,6 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
         })
         .filter(|f| !f.values.is_empty())
         .collect();
-    let mut tag_keys: Vec<String> = of_kind.iter().flat_map(|r| r.tags.iter().filter_map(|t| t.split_once(':').map(|(k, _)| k.to_string()))).collect::<HashSet<_>>().into_iter().collect();
-    tag_keys.sort();
 
     let mut rows: Vec<KubeResource> = of_kind.into_iter().filter(|r| r.matches(&terms)).collect();
     let field = req.sort.as_deref().unwrap_or("name");
@@ -1733,7 +1824,7 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
         }
     };
     let items = rows.into_iter().skip(req.offset).take(limit).collect();
-    Ok(Json(KubeSearchPage { items, total, groups, facets, kinds, tag_keys }))
+    Ok(Json(KubeSearchPage { items, total, groups, facets, kinds, tag_keys, tag_key_counts }))
 }
 
 // ================================================================ side panel
@@ -1905,6 +1996,19 @@ fn related(rows: &[KubeResource], r: &KubeResource) -> Vec<KubeResource> {
     out
 }
 
+/// Every current object of the org with ownership, rollups and tags resolved (the resource catalog
+/// and change tracking read them).
+pub(crate) async fn resources(st: &AppState, org: &str) -> Result<Vec<KubeResource>, ApiError> {
+    Ok(build(&load(st, org).await?))
+}
+
+/// The org's current deployments and their replica sets, without usage (change tracking's rollouts).
+pub(crate) async fn replica_sets(st: &AppState, org: &str) -> Result<Vec<KubeResource>, ApiError> {
+    let objects = load_objects(st, org, &["Deployment", "ReplicaSet"]).await?;
+    let inv = Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), host_cpus: HashMap::new() };
+    Ok(build(&inv).into_iter().filter(|r| r.kind == Some(KubeKind::ReplicaSets)).collect())
+}
+
 /// The node named like a host and the pods running on it, for the host panel.
 pub async fn host_inventory(st: &AppState, org: &str, host: &str) -> Result<(Option<KubeResource>, Vec<KubeResource>), ApiError> {
     let rows = build(&load(st, org).await?);
@@ -1914,7 +2018,56 @@ pub async fn host_inventory(st: &AppState, org: &str, host: &str) -> Result<(Opt
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn facet_keys_are_the_kinds_then_the_added_tags_seen_on_it() {
+        let seen = vec!["app".to_string(), "team".to_string()];
+        let keys = |extra: &[&str]| facet_keys(KubeKind::Pods, &extra.iter().map(|s| s.to_string()).collect::<Vec<_>>(), &seen);
+        let base = keys(&[]);
+        assert_eq!(&base[..3], &["kube_cluster_name".to_string(), "kube_namespace".to_string(), "status".to_string()]);
+        // Added keys come last, once, and only when the kind has the tag.
+        let added = keys(&["team", "status", "missing", "team"]);
+        assert_eq!(added.len(), base.len() + 1);
+        assert_eq!(added.last().map(String::as_str), Some("team"));
+    }
+
     use super::*;
+
+    #[test]
+    fn datadog_usage_without_a_cluster_matches_a_unique_pod() {
+        let pods = [("prod", "shop", "web-1", "uid-a"), ("stage", "shop", "web-1", "uid-b"), ("prod", "shop", "api-1", "uid-c")];
+        let index = PodIndex::new(pods.iter().copied());
+        assert_eq!(index.uid("prod", "shop", "web-1"), Some("uid-a"));
+        // No cluster on the metric (an Agent without a cluster name): only an unambiguous pod matches.
+        assert_eq!(index.uid("", "shop", "api-1"), Some("uid-c"));
+        assert_eq!(index.uid("", "shop", "web-1"), None);
+        assert_eq!(index.uid("prod", "shop", "gone"), None);
+    }
+
+    #[test]
+    fn datadog_hosts_map_to_their_kubernetes_node() {
+        let nodes = HashMap::from([("aks-pool-1-vmss000003", "shop-prod"), ("worker-1", "prod")]);
+        // The Agent names a Kubernetes host `<node>-<cluster>`.
+        assert_eq!(node_of_host("aks-pool-1-vmss000003-shop-prod", "", &nodes), Some(("shop-prod", "aks-pool-1-vmss000003")));
+        assert_eq!(node_of_host("aks-pool-1-vmss000003-shop-prod", "shop-prod", &nodes), Some(("shop-prod", "aks-pool-1-vmss000003")));
+        assert_eq!(node_of_host("worker-1", "", &nodes), Some(("prod", "worker-1")));
+        assert_eq!(node_of_host("laptop", "", &nodes), None);
+    }
+
+    #[test]
+    fn a_nodes_usage_sums_its_containers() {
+        let key = |n: &str| ("shop-prod".to_string(), n.to_string());
+        let totals = node_totals([(key("n1"), (0.25, 100.0)), (key("n1"), (0.5, -1.0)), (key("n2"), (-1.0, 50.0))]);
+        assert_eq!(totals[&key("n1")], (0.75, 100.0));
+        // -1: not measured; a node with nothing measured stays unmeasured.
+        assert_eq!(totals[&key("n2")], (-1.0, 50.0));
+    }
+
+    #[test]
+    fn pod_tags_carry_phase_and_readiness() {
+        let status = serde_json::json!({ "phase": "Running", "conditions": [{ "type": "PodScheduled", "status": "True" }, { "type": "Ready", "status": "False" }] });
+        assert_eq!(pod_tags(&status), vec!["pod_phase:running", "kube_condition_ready:false"]);
+        assert_eq!(pod_tags(&serde_json::json!({ "phase": "Pending" })), vec!["pod_phase:pending"]);
+    }
 
     #[test]
     fn quantities() {

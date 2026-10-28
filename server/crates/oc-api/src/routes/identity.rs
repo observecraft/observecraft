@@ -636,8 +636,23 @@ pub async fn delete_mapping(State(st): State<AppState>, Admin(auth): Admin, OrgI
 pub struct AuditParams {
     /// Matches actor, action, target or detail.
     pub query: Option<String>,
+    /// Actors, comma-separated.
+    pub actor: Option<String>,
+    /// Action categories (`ingest_key` for `ingest_key.revoked`), comma-separated.
+    pub category: Option<String>,
     pub offset: Option<i64>,
     pub limit: Option<i64>,
+}
+
+/// The non-empty, trimmed values of a comma-separated filter.
+fn csv_list(v: Option<String>) -> Vec<String> {
+    v.unwrap_or_default().split(',').map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect()
+}
+
+#[derive(Serialize, ToSchema, sqlx::FromRow)]
+pub struct AuditFacetValue {
+    pub value: String,
+    pub count: i64,
 }
 
 #[derive(Serialize, ToSchema, sqlx::FromRow)]
@@ -658,23 +673,56 @@ pub struct AuditEvent {
 pub struct AuditPage {
     pub events: Vec<AuditEvent>,
     pub total: i64,
+    /// Events per actor, ignoring the actor filter.
+    pub actors: Vec<AuditFacetValue>,
+    /// Events per action category, ignoring the category filter.
+    pub categories: Vec<AuditFacetValue>,
+}
+
+/// The audit filter after the org: $2 text, $3 its ILIKE pattern, $4 actors, $5 categories (empty = all).
+const AUDIT_WHERE: &str = "org_id = $1 AND ($2 = '' OR actor ILIKE $3 OR action ILIKE $3 OR target ILIKE $3 OR detail ILIKE $3) \
+    AND (cardinality($4::text[]) = 0 OR actor = ANY($4)) AND (cardinality($5::text[]) = 0 OR split_part(action, '.', 1) = ANY($5))";
+
+/// Audit events per value of `expr` (a column expression constant) under the filter.
+async fn audit_facet(st: &AppState, expr: &str, org: &str, text: &str, actors: &[String], categories: &[String]) -> Result<Vec<AuditFacetValue>, ApiError> {
+    let sql = format!("SELECT {expr} AS value, count(*) AS count FROM audit_events WHERE {AUDIT_WHERE} GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 25");
+    Ok(sqlx::query_as(&sql).bind(org).bind(text).bind(ilike(text)).bind(actors).bind(categories).fetch_all(&st.postgres).await?)
 }
 
 #[utoipa::path(get, path = "/api/v1/audit", params(AuditParams), responses((status = 200, body = AuditPage)), tag = "identity")]
 pub async fn audit_trail(State(st): State<AppState>, Admin(auth): Admin, Query(p): Query<AuditParams>) -> ApiResult<AuditPage> {
     let q = p.query.unwrap_or_default();
-    let events: Vec<AuditEvent> = sqlx::query_as(
+    let (actors, categories) = (csv_list(p.actor), csv_list(p.category));
+    let events: Vec<AuditEvent> = sqlx::query_as(&format!(
         "SELECT id, actor, action, target, detail, ip, (extract(epoch FROM created_at) * 1000)::bigint AS created_at, count(*) OVER () AS total \
-         FROM audit_events WHERE org_id = $1 AND ($2 = '' OR actor ILIKE $3 OR action ILIKE $3 OR target ILIKE $3 OR detail ILIKE $3) \
-         ORDER BY created_at DESC, id DESC LIMIT $4 OFFSET $5",
-    )
+         FROM audit_events WHERE {AUDIT_WHERE} ORDER BY created_at DESC, id DESC LIMIT $6 OFFSET $7"
+    ))
     .bind(&auth.org_id)
     .bind(q.trim())
     .bind(ilike(q.trim()))
+    .bind(&actors)
+    .bind(&categories)
     .bind(p.limit.unwrap_or(50).clamp(1, 200))
     .bind(p.offset.unwrap_or(0).max(0))
     .fetch_all(&st.postgres)
     .await?;
     let total = events.first().map_or(0, |e| e.total);
-    Ok(Json(AuditPage { events, total }))
+    // Each facet's counts honour every filter but its own.
+    let (actor_facet, category_facet) = tokio::try_join!(
+        audit_facet(&st, "actor", &auth.org_id, q.trim(), &[], &categories),
+        audit_facet(&st, "split_part(action, '.', 1)", &auth.org_id, q.trim(), &actors, &[]),
+    )?;
+    Ok(Json(AuditPage { events, total, actors: actor_facet, categories: category_facet }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn audit_filters_are_comma_separated_values() {
+        assert_eq!(csv_list(Some("Alex Morgan, Priya Shah,,".into())), vec!["Alex Morgan".to_string(), "Priya Shah".to_string()]);
+        assert!(csv_list(None).is_empty());
+        assert!(csv_list(Some(" ".into())).is_empty());
+    }
 }

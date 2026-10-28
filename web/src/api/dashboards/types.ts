@@ -92,7 +92,14 @@ export type WidgetDefinition =
       pointer?: boolean;
     })
   | (Base & { type: 'image'; src?: string; logo?: string; background?: string })
-  | (Base & { type: 'group'; color: 'blue' | 'purple' | 'green' | 'gray' | 'orange'; widgets: Widget[]; compact?: boolean; logo?: string })
+  | (Base & {
+      type: 'group';
+      color: 'blue' | 'purple' | 'green' | 'gray' | 'orange';
+      widgets: Widget[];
+      compact?: boolean;
+      logo?: string;
+      /** false: no header bar, only the group's widgets. */ showTitle?: boolean;
+    })
   | (Base & { type: 'monitor_summary'; query: string })
   | (Base & { type: 'log_stream'; query: string; limit: number });
 

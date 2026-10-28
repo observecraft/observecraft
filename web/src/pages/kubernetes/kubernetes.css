@@ -671,10 +671,6 @@
   border-bottom: 1px solid var(--border);
 }
 
-.ox-views {
-  color: var(--primary);
-}
-
 .ox-myview {
   display: inline-flex;
   align-items: center;

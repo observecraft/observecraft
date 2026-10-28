@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { TimeRange } from '../../api/types';
+import { centeredEnd } from '../../lib/time';
 
 export interface RelativeRange {
   key: string;
@@ -25,6 +26,8 @@ interface TimeState {
   setLive: (live: boolean) => void;
   shift: (direction: -1 | 1) => void;
   zoomOut: () => void;
+  /** 15 minutes around `center` (e.g. a log's time), paused. */
+  focus: (center: number) => void;
   refresh: () => void;
   refreshVersion: number;
 }
@@ -69,6 +72,13 @@ export function TimeProvider({ children, initial = '1h' }: { children: ReactNode
     setRel(RELATIVE_RANGES[Math.min(idx + 1, RELATIVE_RANGES.length - 1)]);
   }, [relative]);
 
+  const focus = useCallback((center: number) => {
+    const window = RELATIVE_RANGES[0];
+    setRel(window);
+    setLive(false);
+    setTo(centeredEnd(center, window.ms, Date.now()));
+  }, []);
+
   const value = useMemo<TimeState>(
     () => ({
       relative,
@@ -78,13 +88,14 @@ export function TimeProvider({ children, initial = '1h' }: { children: ReactNode
       setLive,
       shift,
       zoomOut,
+      focus,
       refresh: () => {
         setTo(live ? Date.now() : to);
         setRefreshVersion((v) => v + 1);
       },
       refreshVersion,
     }),
-    [relative, to, live, refreshVersion, setRelative, shift, zoomOut],
+    [relative, to, live, refreshVersion, setRelative, shift, zoomOut, focus],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

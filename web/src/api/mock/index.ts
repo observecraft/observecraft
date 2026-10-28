@@ -1,20 +1,10 @@
 // In-browser stand-in for the query service. Implements the same contract (types.ts)
 // so pages don't change when client.ts switches to fetch()/SSE.
 import { parseQuery } from '../../lib/searchQuery';
-import type {
-  Facet,
-  HistogramBucket,
-  LiveTailBatch,
-  LogEvent,
-  LogInsight,
-  LogQuery,
-  LogSearchResult,
-  MetricSeries,
-  QuerySuggestion,
-  TimeRange,
-} from '../types';
+import type { Facet, FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, MetricSeries, QuerySuggestion, TimeRange } from '../types';
 import { generateLog, rng } from './generator';
 import { logField, matchLog } from './match';
+import { standardPaths } from './standardAttributes';
 
 const HOUR = 3600_000;
 const MAX_STORED = 150_000;
@@ -95,18 +85,93 @@ export function mockSearchLogs(q: LogQuery): LogSearchResult {
       if (v !== undefined) counts.set(v, (counts.get(v) ?? 0) + 1);
     }
     const order = ['error', 'warn', 'info', 'debug'];
-    const values = [...counts.entries()]
-      .map(([v, count]) => ({ value: v, count }))
-      .sort((a, b) => (key === 'status' ? order.indexOf(a.value) - order.indexOf(b.value) : b.count - a.count));
+    const values = [...counts.entries()].map(([v, count]) => ({ value: v, count })).sort((a, b) => (key === 'status' ? order.indexOf(a.value) - order.indexOf(b.value) : b.count - a.count));
     return { key, label, group, values };
   });
 
+  const standard = standardPaths();
+  for (const key of q.facets ?? []) {
+    if (facets.some((f) => f.key === key)) continue;
+    const counts = new Map<string, number>();
+    for (const l of scope) {
+      const v = matchLog(l, terms, key) ? logField(l, key) : undefined;
+      if (v !== undefined) counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    const values = [...counts]
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+    facets.push({ key, label: key.replace(/^@/, ''), group: isStandard(key, standard) ? 'STANDARD ATTRIBUTES' : 'ADDED', values });
+  }
   return { logs: hits, total: hits.length, facets, histogram: histogramFor(hits, q.range), insights: insights(scope) };
+}
+
+/** The most frequent values of `key` among the matching logs, every filter applied. */
+export function mockTopLogValues(q: LogQuery & { key: string; limit?: number }): FacetValue[] {
+  const terms = parseQuery(q.query);
+  const counts = new Map<string, number>();
+  for (const l of inRange(q.range)) {
+    const v = matchLog(l, terms) ? logField(l, q.key) : undefined;
+    if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, q.limit ?? 10);
+}
+
+/** Logs grouped by message pattern (numbers and ids as `*`), newest 10,000 matching logs. */
+export function mockLogPatterns(q: LogQuery): { pattern: string; count: number; status: string; service: string; sample: string }[] {
+  const terms = parseQuery(q.query);
+  const groups = new Map<string, { count: number; status: string; service: string; sample: string }>();
+  for (const l of inRange(q.range)
+    .filter((l) => matchLog(l, terms))
+    .slice(0, 10_000)) {
+    const pattern = l.message
+      .split(/\s+/)
+      .map((w) => (/^\d|[0-9a-f]{8,}/.test(w) ? '*' : w))
+      .join(' ');
+    const g = groups.get(pattern) ?? { count: 0, status: l.status, service: l.service, sample: l.message };
+    g.count += 1;
+    groups.set(pattern, g);
+  }
+  return [...groups]
+    .map(([pattern, g]) => ({ pattern, ...g }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 50);
+}
+
+/** Tags and `@attributes` of the newest 10,000 matching logs, most common first. */
+/** A facet key that is one of the org's standard attributes (`@http.url`; tags aren't). */
+const isStandard = (key: string, standard: Set<string>) => key.startsWith('@') && standard.has(key.slice(1));
+
+/** Attribute paths of nested attributes, as the server flattens them (`http.method`). */
+function attributePaths(attrs: Record<string, JsonValue>, prefix = ''): string[] {
+  return Object.entries(attrs).flatMap(([k, v]) => {
+    const path = prefix ? `${prefix}.${k}` : k;
+    return v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length ? attributePaths(v, path) : [path];
+  });
+}
+
+export function mockLogFields(q: LogQuery): { key: string; count: number; standard: boolean }[] {
+  const terms = parseQuery(q.query);
+  const counts = new Map<string, number>();
+  for (const l of inRange(q.range)
+    .filter((l) => matchLog(l, terms))
+    .slice(0, 10_000)) {
+    const keys = [...Object.keys(l.tags ?? {}), ...attributePaths(l.attributes ?? {}).map((k) => `@${k}`)];
+    for (const k of keys) counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  const standard = standardPaths();
+  return [...counts].map(([key, count]) => ({ key, count, standard: isStandard(key, standard) })).sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 }
 
 export function mockHistogram(q: LogQuery): HistogramBucket[] {
   const terms = parseQuery(q.query);
-  return histogramFor(inRange(q.range).filter((l) => matchLog(l, terms)), q.range);
+  return histogramFor(
+    inRange(q.range).filter((l) => matchLog(l, terms)),
+    q.range,
+  );
 }
 
 /** Services whose share of errors is far above their share of traffic. */
@@ -204,7 +269,7 @@ export function mockLiveTail(query: string, onBatch: (b: LiveTailBatch) => void)
     const matched = fresh.filter((l) => matchLog(l, terms));
     const cap = Math.ceil((DISPLAY_CAP_PER_SEC * (now - last)) / 1000);
     const shown = matched.length > cap ? matched.filter(() => r() < cap / matched.length) : matched;
-    matchedRate = matchedRate * 0.8 + (matched.length * 1000) / (now - last) * 0.2;
+    matchedRate = matchedRate * 0.8 + ((matched.length * 1000) / (now - last)) * 0.2;
     last = now;
     onBatch({
       events: shown,

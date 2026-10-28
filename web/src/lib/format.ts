@@ -44,3 +44,24 @@ export function hhmm(t: number): string {
   const d = new Date(t);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+/** A terminal line without its ANSI color and style codes (`ESC[94m`), as logs are displayed. */
+export function stripAnsi(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/\u001b\[[0-9;]*[A-Za-z]/g, '');
+}
+
+/** A Datadog event's text: the Markdown between its `%%%` markers, or the text as it is. */
+export function eventMarkdown(text: string): string {
+  const m = /^\s*%%%([\s\S]*?)%%%\s*$/.exec(text);
+  return (m ? m[1] : text).trim();
+}
+
+/** A Datadog event's text on one line, without Markdown markers (event lists). */
+export function eventSnippet(text: string): string {
+  return eventMarkdown(text)
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/\*\*|__|`|(?<!\w)_|_(?!\w)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}

@@ -63,6 +63,7 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ $secret }}, key: smtp-url, optional: true } }
             {{- end }}
             - { name: OC_SMTP_FROM, value: {{ .Values.smtp.from | quote }} }
+            - { name: OC_SYNTHETICS_ALLOW_PRIVATE, value: {{ .Values.synthetics.allowPrivateTargets | quote }} }
             - { name: OC_QUERY_TIMEOUT_SECONDS, value: {{ .Values.query.timeoutSeconds | quote }} }
             - { name: OC_QUERY_MAX_MEMORY_BYTES, value: {{ .Values.query.maxMemoryBytes | int64 | quote }} }
             - { name: OC_RETENTION_LOGS_DAYS, value: {{ .Values.retention.logsDays | quote }} }

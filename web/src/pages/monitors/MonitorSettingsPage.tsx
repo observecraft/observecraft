@@ -1,3 +1,4 @@
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -100,7 +101,12 @@ export function MonitorSettingsPage() {
               {channels.data.map((c) => (
                 <tr key={c.id}>
                   <td className="mono">@{c.handle}</td>
-                  <td>{c.kind === 'slack' ? 'Slack' : 'Webhook'}</td>
+                  <td>
+                    <span className="mon-channel-kind">
+                      <BrandLogo name={c.kind === 'slack' ? 'slack' : 'webhook'} size={16} />
+                      {c.kind === 'slack' ? 'Slack' : 'Webhook'}
+                    </span>
+                  </td>
                   <td>{c.target}</td>
                   <td>{c.kind === 'webhook' ? (c.signed ? 'HMAC-SHA256' : 'No') : '—'}</td>
                   <td className="muted">{timeAgo(c.createdAt)}</td>
