@@ -127,6 +127,13 @@ import { PortalSettings, PortalSettingsSoon } from './pages/portal/PortalSetting
 import { SettingsConfigurations } from './pages/portal/SettingsConfigurations';
 import { SettingsSources } from './pages/portal/SettingsSources';
 import { ScorecardsPage } from './pages/portal/ScorecardsPage';
+import { SurveysPage } from './pages/portal/surveys/SurveysPage';
+import { SurveyEditorPage } from './pages/portal/surveys/SurveyEditorPage';
+import { SurveyResultsPage } from './pages/portal/surveys/SurveyResultsPage';
+import { SurveyRespondPage } from './pages/portal/surveys/SurveyRespondPage';
+import { ActionsPage } from './pages/portal/actions/ActionsPage';
+import { ActionEditorPage } from './pages/portal/actions/ActionEditorPage';
+import { ActionRunPage } from './pages/portal/actions/ActionRunPage';
 
 function ComingSoon() {
   const { pathname } = useLocation();
@@ -288,6 +295,14 @@ function Shell() {
               <Route index element={<Navigate to="/portal/home" replace />} />
               <Route path="home" element={<PortalHome />} />
               <Route path="scorecards" element={<ScorecardsPage />} />
+              <Route path="surveys" element={<SurveysPage />} />
+              <Route path="surveys/new" element={<SurveyEditorPage />} />
+              <Route path="surveys/:id/edit" element={<SurveyEditorPage />} />
+              <Route path="surveys/:id/results" element={<SurveyResultsPage />} />
+              <Route path="actions" element={<ActionsPage />} />
+              <Route path="actions/new" element={<ActionEditorPage />} />
+              <Route path="actions/:id/edit" element={<ActionEditorPage />} />
+              <Route path="actions/:id" element={<ActionRunPage />} />
             </Route>
             <Route path="/portal/settings" element={<PortalSettings />}>
               <Route index element={<Navigate to="sources" replace />} />
@@ -295,6 +310,7 @@ function Shell() {
               <Route path="configurations" element={<SettingsConfigurations />} />
               <Route path=":page" element={<PortalSettingsSoon />} />
             </Route>
+            <Route path="/portal/surveys/:id/respond" element={<SurveyRespondPage />} />
             <Route path="/incidents" element={<IncidentsPage />} />
             <Route path="/incidents/:id" element={<IncidentPage />} />
             <Route path="/on-call" element={<OnCallLayout />}>
