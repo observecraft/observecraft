@@ -37,13 +37,15 @@ test('the verdict honours dry runs', () => {
 
 test('every CI/CD tool gets a snippet that calls the evaluation API with the gate', () => {
   const opts = { apiUrl: 'https://observecraft.example.com', service: 'billing', env: 'prod', identifier: 'pre-deploy' };
+  const expectedEvaluateUrl = 'https://observecraft.example.com/api/v1/deployment-gates/evaluate';
+  const expectedEvaluateUrlPattern = new RegExp(`(^|[^A-Za-z0-9._~:/?#[\\]@!$&'()*+,;=%-])${expectedEvaluateUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^A-Za-z0-9._~:/?#[\\]@!$&'()*+,;=%-])`);
   assert.deepEqual(
     model.CI_TOOLS.map((t) => t.id),
     ['argo', 'github', 'gitlab', 'jenkins', 'circleci', 'custom'],
   );
   for (const tool of model.CI_TOOLS) {
     const s = model.ciSnippet(tool.id, opts);
-    assert.ok(s.includes('https://observecraft.example.com/api/v1/deployment-gates/evaluate'), tool.id);
+    assert.ok(expectedEvaluateUrlPattern.test(s), tool.id);
     assert.ok(s.includes('billing') && s.includes('prod') && s.includes('pre-deploy'), tool.id);
     assert.ok(/OC_APP_KEY/.test(s), `${tool.id} reads the application key from a secret`);
     assert.ok(!/ocak_[a-z0-9]/i.test(s), `${tool.id} never embeds a key`);
