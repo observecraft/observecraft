@@ -4676,6 +4676,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/serverless/functions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The AWS Lambda functions of the range, with their invocations, errors, durations, memory, cost, insights and upgrades. */
+        post: operations["search_serverless_functions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/serverless/invocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The latest invocations (Lambda spans) of one function. */
+        post: operations["serverless_invocations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/serverless/timeseries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invocations, errors, duration and cold starts of the given functions over the range. */
+        post: operations["serverless_timeseries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/service-checks": {
         parameters: {
             query?: never;
@@ -8369,6 +8420,114 @@ export interface components {
             criVersion: string;
             kubeletVersion: string;
         };
+        /** @enum {string} */
+        LambdaComponent: "runtime" | "datadog_lambda" | "extension";
+        LambdaFacet: {
+            key: string;
+            values: components["schemas"]["LambdaFacetValue"][];
+        };
+        LambdaFacetValue: {
+            count: number;
+            value: string;
+        };
+        LambdaFunction: {
+            account?: string | null;
+            architecture?: string | null;
+            arn?: string | null;
+            /** Format: double */
+            coldStartPct?: number | null;
+            /** Format: double */
+            coldStarts?: number | null;
+            /**
+             * Format: double
+             * @description USD over the range: the extension's estimate, else computed from list prices.
+             */
+            costUsd?: number | null;
+            /** Format: double */
+            durationAvgMs?: number | null;
+            /** Format: double */
+            durationP95Ms?: number | null;
+            env?: string | null;
+            /** Format: double */
+            errorRatePct?: number | null;
+            /** Format: double */
+            errors?: number | null;
+            hasLogs: boolean;
+            /** @description `<region>/<function name>` (lowercase name). */
+            id: string;
+            insights: components["schemas"]["LambdaInsight"][];
+            /** Format: double */
+            invocations?: number | null;
+            /**
+             * Format: int64
+             * @description When the current version was first seen, if it replaced another one in the range (epoch ms).
+             */
+            lastDeploy?: number | null;
+            /**
+             * Format: double
+             * @description Allocated memory (MB).
+             */
+            memoryMb?: number | null;
+            /**
+             * Format: double
+             * @description Peak memory used (MB).
+             */
+            memoryUsedMb?: number | null;
+            /** Format: double */
+            memoryUsedPct?: number | null;
+            name: string;
+            /** Format: double */
+            outOfMemory?: number | null;
+            region?: string | null;
+            runtime?: string | null;
+            service?: string | null;
+            sources: components["schemas"]["LambdaSource"][];
+            /** @description Canonical tags (functionname, region, aws_account, runtime, memorysize, env, service, stage, team, version, …). */
+            tags: {
+                [key: string]: string;
+            };
+            /** Format: double */
+            throttles?: number | null;
+            /** Format: double */
+            timeouts?: number | null;
+            upgrades: components["schemas"]["LambdaUpgrade"][];
+            version?: string | null;
+        };
+        LambdaInsight: {
+            kind: components["schemas"]["LambdaInsightKind"];
+            /**
+             * Format: double
+             * @description The measure behind it: a percentage for rates and memory, a count otherwise.
+             */
+            value: number;
+        };
+        /** @enum {string} */
+        LambdaInsightKind: "high_errors" | "cold_starts" | "timeouts" | "out_of_memory" | "throttles" | "high_memory" | "over_provisioned";
+        LambdaInvocation: {
+            coldStart: boolean;
+            /** Format: double */
+            durationMs: number;
+            error: boolean;
+            message: string;
+            requestId: string;
+            spanId: string;
+            /** Format: int64 */
+            timestamp: number;
+            traceId: string;
+            /** @description What invoked it (`api-gateway`, `sqs`, `http`, …), when the tracer says. */
+            trigger: string;
+        };
+        /**
+         * @description Where a function's numbers come from, in order of precedence.
+         * @enum {string}
+         */
+        LambdaSource: "enhanced_metrics" | "integration_metrics" | "otel_metrics" | "traces";
+        LambdaUpgrade: {
+            component: components["schemas"]["LambdaComponent"];
+            current: string;
+            /** @description The newest runtime, or the newest library / extension version used by the organization's functions. */
+            latest: string;
+        };
         /**
          * @description grid = 12-column grid; auto = uniform flow; free = fine grid, overlap allowed.
          * @enum {string}
@@ -11191,6 +11350,58 @@ export interface components {
             p99Ms: number;
             /** Format: int64 */
             t: number;
+        };
+        ServerlessInvocationsRequest: {
+            /** @description The function name. */
+            function: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        ServerlessSearchPage: {
+            /** @description False when no Lambda telemetry arrived at all in the range (show the setup guide). */
+            enabled: boolean;
+            /** @description Over every function of the range, whatever the query. */
+            facets: components["schemas"]["LambdaFacet"][];
+            functions: components["schemas"]["LambdaFunction"][];
+            summary: components["schemas"]["ServerlessSummary"];
+        };
+        ServerlessSearchRequest: {
+            /** @description `functionname:x region:y env:z runtime:r insight:cold_starts …` + free text on the name, service and ARN. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /** @description Only functions with an upgrade available (runtime, Datadog library or extension). */
+            upgradeAvailable?: boolean;
+        };
+        ServerlessSeries: {
+            /** @description The function id. */
+            function: string;
+            /** @description invocations, errors, cold_starts (counts per interval) or duration (p95, else average; ms). */
+            metric: string;
+            /** @description `[timestamp ms, value]` pairs. */
+            points: [
+                number,
+                number
+            ][];
+            unit: string;
+        };
+        ServerlessSummary: {
+            /** Format: double */
+            coldStarts: number;
+            /** Format: double */
+            costUsd: number;
+            /** Format: double */
+            errors: number;
+            functions: number;
+            /** Format: double */
+            invocations: number;
+            /** @description Functions with an upgrade available. */
+            upgradable: number;
+            /** @description Functions with at least one insight. */
+            withInsights: number;
+        };
+        ServerlessTimeseriesRequest: {
+            /** @description Function ids (`<region>/<name>`) to chart; at most 10 are charted. */
+            functions: string[];
+            range: components["schemas"]["TimeRange"];
         };
         ServiceCheckCounts: {
             /** Format: int64 */
@@ -22382,6 +22593,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_serverless_functions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerlessSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerlessSearchPage"];
+                };
+            };
+        };
+    };
+    serverless_invocations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerlessInvocationsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LambdaInvocation"][];
+                };
+            };
+        };
+    };
+    serverless_timeseries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerlessTimeseriesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerlessSeries"][];
                 };
             };
         };

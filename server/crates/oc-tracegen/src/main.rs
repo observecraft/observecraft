@@ -11,6 +11,8 @@
 //! Every minute it also uploads continuous profiles like a Datadog profiler (see `profiles`), and
 //! every 30 s network connections like the Agent's system-probe (see `network`).
 //!
+//! Every 10 s it also sends the invocations of the shop's AWS Lambda functions (see `serverless`).
+//!
 //! Every other second it also sends an LLM conversation of `support-assistant` with OpenTelemetry
 //! GenAI attributes (see `llm`), for LLM Observability.
 //!
@@ -25,6 +27,7 @@ mod kubernetes;
 mod llm;
 mod network;
 mod profiles;
+mod serverless;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -850,6 +853,21 @@ async fn main() -> anyhow::Result<()> {
                 .and_then(|r| r.error_for_status())
             {
                 tracing::warn!(error = %e, "Kubernetes metrics export failed");
+            }
+            let (lambda_traces, lambda_metrics) = serverless::payloads(&mut rng, now_ns(), 10.0);
+            for (target, payload, what) in [
+                (&url, lambda_traces, "Lambda spans"),
+                (&metrics_url, lambda_metrics, "Lambda metrics"),
+            ] {
+                if let Err(e) = http
+                    .post(target)
+                    .json(&payload)
+                    .send()
+                    .await
+                    .and_then(|r| r.error_for_status())
+                {
+                    tracing::warn!(error = %e, "{what} export failed");
+                }
             }
             let payload = app_metrics.payload(&mut rng, now_ns());
             if let Err(e) = http

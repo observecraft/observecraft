@@ -18,6 +18,7 @@ pub mod events;
 pub mod feature_flags;
 pub mod fleet;
 pub mod gpu;
+pub mod serverless;
 pub mod health;
 pub mod hosts;
 pub mod identity;
@@ -199,6 +200,9 @@ use crate::state::AppState;
         cloud_map::cloud_map,
         gpu::search,
         gpu::timeseries,
+        serverless::search,
+        serverless::timeseries,
+        serverless::invocations,
         databases::search,
         databases::instance,
         data_jobs::search,
@@ -723,6 +727,9 @@ pub fn router() -> Router<AppState> {
         )
         .route("/api/v1/gpu/search", post(gpu::search))
         .route("/api/v1/gpu/timeseries", post(gpu::timeseries))
+        .route("/api/v1/serverless/functions", post(serverless::search))
+        .route("/api/v1/serverless/timeseries", post(serverless::timeseries))
+        .route("/api/v1/serverless/invocations", post(serverless::invocations))
         .route("/api/v1/databases/search", post(databases::search))
         .route("/api/v1/databases/instance", post(databases::instance))
         .route("/api/v1/data-jobs/search", post(data_jobs::search))
@@ -1175,6 +1182,7 @@ mod tests {
             include_str!("health.rs"),
             include_str!("hosts.rs"),
             include_str!("gpu.rs"),
+            include_str!("serverless.rs"),
             include_str!("databases.rs"),
             include_str!("data_jobs.rs"),
             include_str!("metric_inventory.rs"),
@@ -1262,6 +1270,7 @@ mod tests {
             ("error_tracking.rs", include_str!("error_tracking.rs")),
             ("hosts.rs", include_str!("hosts.rs")),
             ("gpu.rs", include_str!("gpu.rs")),
+            ("serverless.rs", include_str!("serverless.rs")),
             ("databases.rs", include_str!("databases.rs")),
             ("data_jobs.rs", include_str!("data_jobs.rs")),
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
@@ -1378,6 +1387,7 @@ mod tests {
             ("health.rs", include_str!("health.rs")),
             ("hosts.rs", include_str!("hosts.rs")),
             ("gpu.rs", include_str!("gpu.rs")),
+            ("serverless.rs", include_str!("serverless.rs")),
             ("databases.rs", include_str!("databases.rs")),
             ("data_jobs.rs", include_str!("data_jobs.rs")),
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),

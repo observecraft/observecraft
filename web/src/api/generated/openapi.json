@@ -12636,6 +12636,105 @@
         }
       }
     },
+    "/api/v1/serverless/functions": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "The AWS Lambda functions of the range, with their invocations, errors, durations, memory, cost, insights and upgrades.",
+        "operationId": "search_serverless_functions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServerlessSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerlessSearchPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/serverless/invocations": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "The latest invocations (Lambda spans) of one function.",
+        "operationId": "serverless_invocations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServerlessInvocationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LambdaInvocation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/serverless/timeseries": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "Invocations, errors, duration and cold starts of the given functions over the range.",
+        "operationId": "serverless_timeseries",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServerlessTimeseriesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServerlessSeries"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/service-checks": {
       "get": {
         "tags": [
@@ -25101,6 +25200,362 @@
           }
         }
       },
+      "LambdaComponent": {
+        "type": "string",
+        "enum": [
+          "runtime",
+          "datadog_lambda",
+          "extension"
+        ]
+      },
+      "LambdaFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "values"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LambdaFacetValue"
+            }
+          }
+        }
+      },
+      "LambdaFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "LambdaFunction": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "insights",
+          "upgrades",
+          "sources",
+          "hasLogs",
+          "tags"
+        ],
+        "properties": {
+          "account": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "architecture": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "arn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "coldStartPct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "coldStarts": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "costUsd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "USD over the range: the extension's estimate, else computed from list prices."
+          },
+          "durationAvgMs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "durationP95Ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "errorRatePct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "errors": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "hasLogs": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "description": "`<region>/<function name>` (lowercase name)."
+          },
+          "insights": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LambdaInsight"
+            }
+          },
+          "invocations": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "lastDeploy": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "When the current version was first seen, if it replaced another one in the range (epoch ms)."
+          },
+          "memoryMb": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Allocated memory (MB)."
+          },
+          "memoryUsedMb": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Peak memory used (MB)."
+          },
+          "memoryUsedPct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "name": {
+            "type": "string"
+          },
+          "outOfMemory": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "region": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runtime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "service": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LambdaSource"
+            }
+          },
+          "tags": {
+            "type": "object",
+            "description": "Canonical tags (functionname, region, aws_account, runtime, memorysize, env, service, stage, team, version, …).",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "throttles": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "timeouts": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "upgrades": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LambdaUpgrade"
+            }
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "LambdaInsight": {
+        "type": "object",
+        "required": [
+          "kind",
+          "value"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/LambdaInsightKind"
+          },
+          "value": {
+            "type": "number",
+            "format": "double",
+            "description": "The measure behind it: a percentage for rates and memory, a count otherwise."
+          }
+        }
+      },
+      "LambdaInsightKind": {
+        "type": "string",
+        "enum": [
+          "high_errors",
+          "cold_starts",
+          "timeouts",
+          "out_of_memory",
+          "throttles",
+          "high_memory",
+          "over_provisioned"
+        ]
+      },
+      "LambdaInvocation": {
+        "type": "object",
+        "required": [
+          "timestamp",
+          "traceId",
+          "spanId",
+          "durationMs",
+          "error",
+          "coldStart",
+          "requestId",
+          "trigger",
+          "message"
+        ],
+        "properties": {
+          "coldStart": {
+            "type": "boolean"
+          },
+          "durationMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "error": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "spanId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "string",
+            "description": "What invoked it (`api-gateway`, `sqs`, `http`, …), when the tracer says."
+          }
+        }
+      },
+      "LambdaSource": {
+        "type": "string",
+        "description": "Where a function's numbers come from, in order of precedence.",
+        "enum": [
+          "enhanced_metrics",
+          "integration_metrics",
+          "otel_metrics",
+          "traces"
+        ]
+      },
+      "LambdaUpgrade": {
+        "type": "object",
+        "required": [
+          "component",
+          "current",
+          "latest"
+        ],
+        "properties": {
+          "component": {
+            "$ref": "#/components/schemas/LambdaComponent"
+          },
+          "current": {
+            "type": "string"
+          },
+          "latest": {
+            "type": "string",
+            "description": "The newest runtime, or the newest library / extension version used by the organization's functions."
+          }
+        }
+      },
       "LayoutType": {
         "type": "string",
         "description": "grid = 12-column grid; auto = uniform flow; free = fine grid, overlap allowed.",
@@ -34298,6 +34753,175 @@
           "t": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "ServerlessInvocationsRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "function"
+        ],
+        "properties": {
+          "function": {
+            "type": "string",
+            "description": "The function name."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "ServerlessSearchPage": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "summary",
+          "functions",
+          "facets"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "False when no Lambda telemetry arrived at all in the range (show the setup guide)."
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LambdaFacet"
+            },
+            "description": "Over every function of the range, whatever the query."
+          },
+          "functions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LambdaFunction"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ServerlessSummary"
+          }
+        }
+      },
+      "ServerlessSearchRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "`functionname:x region:y env:z runtime:r insight:cold_starts …` + free text on the name, service and ARN."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "upgradeAvailable": {
+            "type": "boolean",
+            "description": "Only functions with an upgrade available (runtime, Datadog library or extension)."
+          }
+        }
+      },
+      "ServerlessSeries": {
+        "type": "object",
+        "required": [
+          "metric",
+          "function",
+          "unit",
+          "points"
+        ],
+        "properties": {
+          "function": {
+            "type": "string",
+            "description": "The function id."
+          },
+          "metric": {
+            "type": "string",
+            "description": "invocations, errors, cold_starts (counts per interval) or duration (p95, else average; ms)."
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            },
+            "description": "`[timestamp ms, value]` pairs."
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      },
+      "ServerlessSummary": {
+        "type": "object",
+        "required": [
+          "functions",
+          "invocations",
+          "errors",
+          "coldStarts",
+          "costUsd",
+          "withInsights",
+          "upgradable"
+        ],
+        "properties": {
+          "coldStarts": {
+            "type": "number",
+            "format": "double"
+          },
+          "costUsd": {
+            "type": "number",
+            "format": "double"
+          },
+          "errors": {
+            "type": "number",
+            "format": "double"
+          },
+          "functions": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "invocations": {
+            "type": "number",
+            "format": "double"
+          },
+          "upgradable": {
+            "type": "integer",
+            "description": "Functions with an upgrade available.",
+            "minimum": 0
+          },
+          "withInsights": {
+            "type": "integer",
+            "description": "Functions with at least one insight.",
+            "minimum": 0
+          }
+        }
+      },
+      "ServerlessTimeseriesRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "functions"
+        ],
+        "properties": {
+          "functions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Function ids (`<region>/<name>`) to chart; at most 10 are charted."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
           }
         }
       },
