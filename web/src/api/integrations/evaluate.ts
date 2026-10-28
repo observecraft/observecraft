@@ -170,6 +170,22 @@ export function timeShifts(text: string): { text: string; shifts: { name: string
   return { text: rewritten, shifts };
 }
 
+/** The next quarter of a series' span (same step), projected linearly or by repeating its last stretch. */
+function forecastPoints(points: [number, number][], algorithm: 'linear' | 'seasonal'): [number, number][] {
+  const n = points.length;
+  if (n < 2) return [];
+  const step = (points[n - 1][0] - points[0][0]) / (n - 1);
+  const ahead = Math.max(1, Math.round(n / 4));
+  if (algorithm === 'seasonal') return Array.from({ length: ahead }, (_, k) => [points[n - 1][0] + (k + 1) * step, points[n - ahead + k][1]]);
+  const meanT = points.reduce((a, [t]) => a + t, 0) / n;
+  const meanV = points.reduce((a, [, v]) => a + v, 0) / n;
+  const slope = points.reduce((a, [t, v]) => a + (t - meanT) * (v - meanV), 0) / points.reduce((a, [t]) => a + (t - meanT) ** 2, 0);
+  return Array.from({ length: ahead }, (_, k) => {
+    const t = points[n - 1][0] + (k + 1) * step;
+    return [t, meanV + slope * (t - meanT)];
+  });
+}
+
 export function formula(text: string, inputs: Record<string, Vector>): Vector {
   const tokens = text.match(/'[^']*'|"[^"]*"|\d+(?:\.\d+)?(?:e[+-]?\d+)?|[a-zA-Z_]\w*|[()+*/,\-]/g) ?? [];
   if (tokens.join('') !== text.replace(/\s/g, '')) throw new Error(`Unsupported formula: ${text}`);
@@ -185,7 +201,16 @@ export function formula(text: string, inputs: Record<string, Vector>): Vector {
     else if (tokens[i] === '(') {
       i++;
       const arg = expr();
-      if (token === 'top') {
+      if (token === 'forecast') {
+        // forecast(query, 'linear' | 'seasonal', deviations[, …options]): the observed points, then the
+        // next quarter of their span projected (a straight-line fit, or the last stretch repeated).
+        if (tokens[i++] !== ',') throw new Error('forecast requires an algorithm');
+        const algorithm = tokens[i++]?.slice(1, -1);
+        while (tokens[i] !== ')' && i < tokens.length) i++;
+        i++;
+        if (algorithm !== 'linear' && algorithm !== 'seasonal') throw new Error(`Unsupported forecast algorithm: ${algorithm}`);
+        value = arg.map((s) => ({ ...s, points: [...s.points, ...forecastPoints(s.points, algorithm)] }));
+      } else if (token === 'top') {
         if (tokens[i++] !== ',') throw new Error('top requires a limit');
         const limit = Number(tokens[i++]);
         if (tokens[i++] !== ',') throw new Error('top requires an aggregation');

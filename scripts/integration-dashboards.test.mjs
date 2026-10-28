@@ -676,3 +676,22 @@ test('panel queries keep a rollup method other than avg, for the API to apply', 
   assert.equal(preparePanelQuery('avg:k.cpu{*}.rollup(sum, 60)', same, range).points, 60);
   assert.throws(() => preparePanelQuery('avg:k.cpu{*}.rollup(median)', same, range), /Rollup median/);
 });
+
+test('forecast() keeps the series and projects the next quarter of its span', () => {
+  const minute = 60_000;
+  const rising = [{ name: '*', points: Array.from({ length: 8 }, (_, k) => [k * minute, 10 + 2 * k]) }];
+  const linear = formula("forecast(a, 'linear', 1)", { a: rising })[0].points;
+  // 8 observed points, then 2 more (a quarter of the span) on the same trend.
+  assert.equal(linear.length, 10);
+  assert.deepEqual(linear.slice(-2), [
+    [8 * minute, 26],
+    [9 * minute, 28],
+  ]);
+  // Seasonal: the last stretch of the pattern repeats.
+  const wave = [{ name: '*', points: [0, 5, 0, 5, 0, 5, 0, 5].map((v, k) => [k * minute, v]) }];
+  assert.deepEqual(formula("forecast(a, 'seasonal', 1)", { a: wave })[0].points.slice(-2), [
+    [8 * minute, 0],
+    [9 * minute, 5],
+  ]);
+  assert.throws(() => formula("forecast(a, 'magic', 1)", { a: wave }), /forecast/);
+});
