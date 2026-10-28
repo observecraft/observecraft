@@ -4596,12 +4596,16 @@ export interface components {
             items: components["schemas"]["KubeResource"][];
             /** @description Objects of each kind matching the query. */
             kinds: components["schemas"]["KubeKindCount"][];
+            /** @description Objects of this kind with each tag key, for the facets' "+ Add". */
+            tagKeyCounts: components["schemas"]["KubeFacetValue"][];
             /** @description Every tag key seen on this kind, for the group-by menu. */
             tagKeys: string[];
             total: number;
         };
         KubeSearchRequest: {
             desc?: boolean;
+            /** @description Tag keys added as facets ("+ Add"). */
+            extra?: string[];
             /** @description Tag keys, comma-separated (`kube_namespace`, `kube_cluster_name,kube_namespace,kube_deployment`, a label key, …). */
             groupBy?: string | null;
             kind: components["schemas"]["KubeKind"];

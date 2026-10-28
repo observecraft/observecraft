@@ -1606,6 +1606,9 @@ pub struct KubeSearchRequest {
     #[serde(default)]
     pub offset: usize,
     pub limit: usize,
+    /// Tag keys added as facets ("+ Add").
+    #[serde(default)]
+    pub extra: Vec<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -1653,6 +1656,33 @@ pub struct KubeSearchPage {
     pub kinds: Vec<KubeKindCount>,
     /// Every tag key seen on this kind, for the group-by menu.
     pub tag_keys: Vec<String>,
+    /// Objects of this kind with each tag key, for the facets' "+ Add".
+    pub tag_key_counts: Vec<KubeFacetValue>,
+}
+
+/// Added tag facets per search.
+const MAX_EXTRA_FACETS: usize = 10;
+
+/// The facets of a kind (cluster, namespace, status, the kind's own), then the added tag keys the
+/// kind has (`seen`), once each.
+fn facet_keys(kind: KubeKind, extra: &[String], seen: &[String]) -> Vec<String> {
+    let mut keys: Vec<String> = Vec::new();
+    if !kind.is_ecs() && kind != KubeKind::Processes {
+        keys.push("kube_cluster_name".into());
+    }
+    if kind.namespaced() {
+        keys.push("kube_namespace".into());
+    }
+    if kind != KubeKind::Processes {
+        keys.push("status".into());
+    }
+    keys.extend(kind.facets().iter().map(|k| k.to_string()));
+    for k in extra.iter().filter(|k| seen.contains(k)).take(MAX_EXTRA_FACETS) {
+        if !keys.contains(k) {
+            keys.push(k.clone());
+        }
+    }
+    keys
 }
 
 fn sort_key(r: &KubeResource, field: &str) -> SortVal {
@@ -1707,22 +1737,21 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
     let kinds = KubeKind::ALL.into_iter().map(|k| KubeKindCount { kind: k, count: all.iter().filter(|r| r.kind == Some(k) && r.matches(&terms)).count() }).collect();
     let of_kind: Vec<KubeResource> = all.into_iter().filter(|r| r.kind == Some(req.kind)).collect();
 
+    let mut key_counts: BTreeMap<String, usize> = BTreeMap::new();
+    for r in &of_kind {
+        for k in r.tags.iter().filter_map(|t| t.split_once(':').map(|(k, _)| k)).collect::<HashSet<_>>() {
+            *key_counts.entry(k.to_string()).or_default() += 1;
+        }
+    }
+    let tag_keys: Vec<String> = key_counts.keys().cloned().collect();
+    let mut tag_key_counts: Vec<KubeFacetValue> = key_counts.into_iter().map(|(value, count)| KubeFacetValue { value, count }).collect();
+    tag_key_counts.sort_by(|a, b| b.count.cmp(&a.count).then(a.value.cmp(&b.value)));
+
     // KubeFacet counts honour every filter except the facet's own.
-    let mut keys = if req.kind.is_ecs() || req.kind == KubeKind::Processes {
-        vec![]
-    } else {
-        vec!["kube_cluster_name"]
-    };
-    if req.kind.namespaced() {
-        keys.push("kube_namespace");
-    }
-    if req.kind != KubeKind::Processes {
-        keys.push("status");
-    }
-    keys.extend(req.kind.facets());
-    let facets = keys
+    let facets = facet_keys(req.kind, &req.extra, &tag_keys)
         .into_iter()
         .map(|key| {
+            let key = key.as_str();
             let others: Vec<Term> = terms.iter().filter(|t| !matches!(t, Term::Tag { key: k, .. } if k == key)).cloned().collect();
             let mut counts: BTreeMap<String, usize> = BTreeMap::new();
             for r in of_kind.iter().filter(|r| r.matches(&others)) {
@@ -1737,8 +1766,6 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
         })
         .filter(|f| !f.values.is_empty())
         .collect();
-    let mut tag_keys: Vec<String> = of_kind.iter().flat_map(|r| r.tags.iter().filter_map(|t| t.split_once(':').map(|(k, _)| k.to_string()))).collect::<HashSet<_>>().into_iter().collect();
-    tag_keys.sort();
 
     let mut rows: Vec<KubeResource> = of_kind.into_iter().filter(|r| r.matches(&terms)).collect();
     let field = req.sort.as_deref().unwrap_or("name");
@@ -1786,7 +1813,7 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
         }
     };
     let items = rows.into_iter().skip(req.offset).take(limit).collect();
-    Ok(Json(KubeSearchPage { items, total, groups, facets, kinds, tag_keys }))
+    Ok(Json(KubeSearchPage { items, total, groups, facets, kinds, tag_keys, tag_key_counts }))
 }
 
 // ================================================================ side panel
@@ -1967,6 +1994,18 @@ pub async fn host_inventory(st: &AppState, org: &str, host: &str) -> Result<(Opt
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn facet_keys_are_the_kinds_then_the_added_tags_seen_on_it() {
+        let seen = vec!["app".to_string(), "team".to_string()];
+        let keys = |extra: &[&str]| facet_keys(KubeKind::Pods, &extra.iter().map(|s| s.to_string()).collect::<Vec<_>>(), &seen);
+        let base = keys(&[]);
+        assert_eq!(&base[..3], &["kube_cluster_name".to_string(), "kube_namespace".to_string(), "status".to_string()]);
+        // Added keys come last, once, and only when the kind has the tag.
+        let added = keys(&["team", "status", "missing", "team"]);
+        assert_eq!(added.len(), base.len() + 1);
+        assert_eq!(added.last().map(String::as_str), Some("team"));
+    }
+
     use super::*;
 
     #[test]

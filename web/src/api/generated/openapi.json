@@ -12782,7 +12782,8 @@
           "total",
           "facets",
           "kinds",
-          "tagKeys"
+          "tagKeys",
+          "tagKeyCounts"
         ],
         "properties": {
           "facets": {
@@ -12813,6 +12814,13 @@
             },
             "description": "Objects of each kind matching the query."
           },
+          "tagKeyCounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KubeFacetValue"
+            },
+            "description": "Objects of this kind with each tag key, for the facets' \"+ Add\"."
+          },
           "tagKeys": {
             "type": "array",
             "items": {
@@ -12835,6 +12843,13 @@
         "properties": {
           "desc": {
             "type": "boolean"
+          },
+          "extra": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tag keys added as facets (\"+ Add\")."
           },
           "groupBy": {
             "type": [

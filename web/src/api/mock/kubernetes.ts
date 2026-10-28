@@ -298,7 +298,11 @@ const FACETS: Partial<Record<KubeKind, string[]>> = {
 export async function searchKubernetes(req: KubeSearchRequest): Promise<KubeSearchPage> {
   const all = inventory();
   const ofKind = all.filter((r) => r.kind === req.kind);
-  const keys = ['kube_cluster_name', ...(['clusters', 'nodes', 'namespaces', 'persistentvolumes'].includes(req.kind) ? [] : ['kube_namespace']), 'status', ...(FACETS[req.kind] ?? [])];
+  const tagCounts = new Map<string, number>();
+  for (const r of ofKind) for (const k of new Set(r.tags.map((t) => t.split(':')[0]))) tagCounts.set(k, (tagCounts.get(k) ?? 0) + 1);
+  const base = ['kube_cluster_name', ...(['clusters', 'nodes', 'namespaces', 'persistentvolumes'].includes(req.kind) ? [] : ['kube_namespace']), 'status', ...(FACETS[req.kind] ?? [])];
+  // Added tag facets ("+ Add") the kind has, after its own.
+  const keys = [...new Set([...base, ...(req.extra ?? []).filter((k) => tagCounts.has(k))])];
   const facets: KubeFacet[] = keys
     .map((key) => {
       const counts = new Map<string, number>();
@@ -353,7 +357,8 @@ export async function searchKubernetes(req: KubeSearchRequest): Promise<KubeSear
     const rank = new Map(groups.map((x, i) => [x.key, i]));
     rows.sort((a, b) => rank.get(of(a))! - rank.get(of(b))!);
   }
-  const tagKeys = [...new Set(ofKind.flatMap((r) => r.tags.map((t) => t.split(':')[0])))].sort();
+  const tagKeys = [...tagCounts.keys()].sort();
+  const tagKeyCounts = [...tagCounts].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
   return {
     items: rows.slice(req.offset ?? 0, (req.offset ?? 0) + req.limit),
     total: rows.length,
@@ -361,6 +366,7 @@ export async function searchKubernetes(req: KubeSearchRequest): Promise<KubeSear
     facets,
     kinds: KINDS.map((k) => ({ kind: k, count: all.filter((r) => r.kind === k).length })),
     tagKeys,
+    tagKeyCounts,
   };
 }
 
