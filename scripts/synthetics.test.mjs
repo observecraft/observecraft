@@ -200,3 +200,12 @@ test('the mock sends requests, refuses private targets and saves tests', async (
   await mock.deleteSyntheticTest(created.id);
   await assert.rejects(mock.getSyntheticTest(created.id), /not found/);
 });
+
+test('snippets are grouped by category, like the editor shows them', async () => {
+  const { SNIPPETS, SNIPPET_CATEGORIES } = await import('../web/src/api/synthetics/logic.ts');
+  assert.ok(SNIPPETS.every((s) => SNIPPET_CATEGORIES.includes(s.category)));
+  assert.deepEqual(
+    SNIPPET_CATEGORIES.filter((c) => SNIPPETS.some((s) => s.category === c)),
+    SNIPPET_CATEGORIES,
+  );
+});

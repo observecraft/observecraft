@@ -11,6 +11,7 @@ import {
   OPERATOR_LABEL,
   RECORD_TYPES,
   SNIPPETS,
+  SNIPPET_CATEGORIES,
   SOON_TYPES,
   TEST_TYPES,
   TYPE_LABEL,
@@ -276,14 +277,27 @@ function EditorForm({ test }: { test?: SyntheticTest }) {
             </Step>
           </div>
           <aside className="syn-snippets">
-            <h3>Snippets</h3>
-            <p className="muted">Pre-filled settings to start from.</p>
-            {SNIPPETS.map((s) => (
-              <button key={s.id} className="syn-snippet" onClick={() => setD((x) => s.apply(x))}>
-                <b>{s.title}</b>
-                <span className="muted">{s.description}</span>
-              </button>
-            ))}
+            <div className="syn-snippets-tab">Snippets</div>
+            <div className="syn-snippets-intro">
+              <Sparkles size={18} />
+              <span>Start from pre-filled settings for common checks.</span>
+            </div>
+            {SNIPPET_CATEGORIES.map((c) => {
+              const items = SNIPPETS.filter((s) => s.category === c);
+              return (
+                <section key={c} className="syn-snippet-group">
+                  <h4>
+                    {c} <span className="muted">{items.length} snippets</span>
+                  </h4>
+                  {items.map((s) => (
+                    <button key={s.id} className="syn-snippet" onClick={() => setD((x) => s.apply(x))}>
+                      <b>{s.title}</b>
+                      <span className="muted">{s.description}</span>
+                    </button>
+                  ))}
+                </section>
+              );
+            })}
           </aside>
         </div>
       </div>
@@ -334,34 +348,44 @@ function RequestFields({
   );
   if (type === 'http')
     return (
-      <div className="syn-request">
-        <select className="syn-select syn-method" value={r.method} onChange={(e) => setReq({ method: e.target.value })} aria-label="Method">
-          {METHODS.map((m) => (
-            <option key={m}>{m}</option>
-          ))}
-        </select>
-        <input className="syn-input syn-grow mono" value={r.url} onChange={(e) => setReq({ url: e.target.value })} placeholder="https://shop.example.com/health" aria-label="URL" />
-        {sendButton}
+      <div className="syn-request-panel">
+        <span className="syn-request-label">
+          URL <span className="syn-required">*</span>
+        </span>
+        <div className="syn-request">
+          <select className="syn-select syn-method" value={r.method} onChange={(e) => setReq({ method: e.target.value })} aria-label="Method">
+            {METHODS.map((m) => (
+              <option key={m}>{m}</option>
+            ))}
+          </select>
+          <input className="syn-input syn-grow mono" value={r.url} onChange={(e) => setReq({ url: e.target.value })} placeholder="https://shop.example.com/health" aria-label="URL" />
+          {sendButton}
+        </div>
       </div>
     );
   return (
-    <div className="syn-request">
-      <input
-        className="syn-input syn-grow mono"
-        value={r.host}
-        onChange={(e) => setReq({ host: e.target.value })}
-        placeholder={type === 'dns' ? 'shop.example.com' : 'host name or IP address'}
-        aria-label={type === 'dns' ? 'Domain' : 'Host'}
-      />
-      {type === 'dns' ? (
-        <>
-          <input className="syn-input syn-server mono" value={r.dnsServer} onChange={(e) => setReq({ dnsServer: e.target.value })} placeholder="DNS server (optional)" aria-label="DNS server" />
-          <input className="syn-input syn-port" value={r.dnsServerPort ?? ''} onChange={(e) => setReq({ dnsServerPort: port(e.target.value) })} placeholder="53" aria-label="DNS server port" />
-        </>
-      ) : (
-        <input className="syn-input syn-port" value={r.port ?? ''} onChange={(e) => setReq({ port: port(e.target.value) })} placeholder={type === 'ssl' ? '443' : 'Port'} aria-label="Port" />
-      )}
-      {sendButton}
+    <div className="syn-request-panel">
+      <span className="syn-request-label">
+        {type === 'dns' ? 'Domain' : 'Host'} <span className="syn-required">*</span>
+      </span>
+      <div className="syn-request">
+        <input
+          className="syn-input syn-grow mono"
+          value={r.host}
+          onChange={(e) => setReq({ host: e.target.value })}
+          placeholder={type === 'dns' ? 'shop.example.com' : 'host name or IP address'}
+          aria-label={type === 'dns' ? 'Domain' : 'Host'}
+        />
+        {type === 'dns' ? (
+          <>
+            <input className="syn-input syn-server mono" value={r.dnsServer} onChange={(e) => setReq({ dnsServer: e.target.value })} placeholder="DNS server (optional)" aria-label="DNS server" />
+            <input className="syn-input syn-port" value={r.dnsServerPort ?? ''} onChange={(e) => setReq({ dnsServerPort: port(e.target.value) })} placeholder="53" aria-label="DNS server port" />
+          </>
+        ) : (
+          <input className="syn-input syn-port" value={r.port ?? ''} onChange={(e) => setReq({ port: port(e.target.value) })} placeholder={type === 'ssl' ? '443' : 'Port'} aria-label="Port" />
+        )}
+        {sendButton}
+      </div>
     </div>
   );
 }

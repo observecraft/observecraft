@@ -437,6 +437,7 @@ export function withType(d: TestDraft, type: SyntheticTestType): TestDraft {
 }
 
 export interface Snippet {
+  category: SnippetCategory;
   id: string;
   title: string;
   description: string;
@@ -453,9 +454,14 @@ const withAssertions = (d: TestDraft, add: SyntheticAssertion[]): TestDraft => (
 });
 
 /** Pre-filled starting points the editor's Snippets panel applies to the draft. */
+/** The groups of the editor's Snippets panel, in order. */
+export const SNIPPET_CATEGORIES = ['Authentication', 'Performance', 'Validation'] as const;
+export type SnippetCategory = (typeof SNIPPET_CATEGORIES)[number];
+
 export const SNIPPETS: Snippet[] = [
   {
     id: 'health',
+    category: 'Performance',
     title: 'Health check',
     description: 'GET a health endpoint: status 200 within a second.',
     apply: (d) => {
@@ -469,6 +475,7 @@ export const SNIPPETS: Snippet[] = [
   },
   {
     id: 'json',
+    category: 'Validation',
     title: 'JSON API',
     description: 'Ask for JSON and check a field of the response.',
     apply: (d) =>
@@ -479,6 +486,7 @@ export const SNIPPETS: Snippet[] = [
   },
   {
     id: 'basic',
+    category: 'Authentication',
     title: 'Basic authentication',
     description: 'Send a username and password with the request.',
     apply: (d) => {
@@ -488,18 +496,21 @@ export const SNIPPETS: Snippet[] = [
   },
   {
     id: 'bearer',
+    category: 'Authentication',
     title: 'Bearer token',
     description: 'Send an Authorization: Bearer header.',
     apply: (d) => withHeader(withType(d, 'http'), 'Authorization', 'Bearer <token>'),
   },
   {
     id: 'uptime',
+    category: 'Performance',
     title: 'High uptime',
     description: 'Run every minute, retry once and alert after 2 minutes of failures.',
     apply: (d) => ({ ...d, frequencySeconds: 60, retry: { count: 1, intervalMs: 300 }, minFailureDurationMinutes: 2 }),
   },
   {
     id: 'certificate',
+    category: 'Validation',
     title: 'Certificate expiry',
     description: 'An SSL test that alerts 30 days before the certificate expires.',
     apply: (d) => {

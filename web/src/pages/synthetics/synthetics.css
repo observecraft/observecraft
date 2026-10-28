@@ -281,10 +281,43 @@
   color: var(--text-faint);
 }
 
+.syn-request-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 900px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+
+.syn-request-label {
+  font-size: var(--fs-lg);
+}
+
+.syn-required {
+  color: var(--status-error);
+}
+
 .syn-request {
   display: flex;
-  gap: 8px;
-  max-width: 900px;
+}
+
+/* the controls join into one bar: method, URL and Send */
+.syn-request > * + * {
+  margin-left: -1px;
+}
+
+.syn-request > :not(:first-child):not(:last-child) {
+  border-radius: 0;
+}
+
+.syn-request > :first-child:not(:last-child) {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.syn-request > :last-child:not(:first-child) {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 .syn-method {
@@ -441,16 +474,42 @@
 .syn-snippets {
   position: sticky;
   top: 0;
-  padding: 26px 24px 30px 0;
+  align-self: start;
+  padding: 0 16px 30px;
+  border-left: 1px solid var(--border);
 }
 
-.syn-snippets h3 {
-  margin: 0 0 4px;
+.syn-snippets-tab {
+  margin: 0 -16px 14px;
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+}
+
+.syn-snippets-intro {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--brand-strong), var(--brand));
+  color: #fff;
   font-size: var(--fs-lg);
 }
 
-.syn-snippets > p {
-  margin: 0 0 12px;
+.syn-snippet-group h4 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 16px 0 8px;
+  font-size: 16px;
+  font-weight: var(--fw-semibold);
+}
+
+.syn-snippet-group h4 .muted {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
 }
 
 .syn-snippet {
@@ -458,16 +517,15 @@
   flex-direction: column;
   gap: 2px;
   width: 100%;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
   text-align: left;
 }
 
 .syn-snippet:hover {
-  border-color: var(--primary);
   background: var(--bg-hover);
 }
 
