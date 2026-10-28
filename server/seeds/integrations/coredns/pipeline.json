@@ -1,0 +1,42 @@
+{
+  "id": "coredns",
+  "name": "CoreDNS",
+  "filter": "source:coredns",
+  "processors": [
+    {
+      "type": "grok-parser",
+      "name": "Parsing Coredns logs",
+      "enabled": true,
+      "source": "message",
+      "samples": [
+        "[INFO] 127.0.0.1:50759 - 29008 \"A IN example.org. udp 41 false 4096\" NOERROR qr,rd,ra,ad 68 0.037990251s"
+      ],
+      "grok": {
+        "supportRules": "",
+        "matchRules": "dns_common_format (%{date(\"yyyy-MM-dd'T'HH:mm:ss.SSZ\"):timestamp}|%{date(\"yyyy-MM-dd'T'HH:mm:ss.SSSZ\"):timestamp})?\\s*\\[%{word:level}\\] %{notSpace:network.client.ip}:%{port:network.client.port} - %{number:dns.id} \"%{word:dns.question.type} %{word:dns.question.class} %{hostname:dns.question.name} %{word:dns.protocol} %{number:dns.question.size} %{word:dns.dnssec} %{number:dns.buffer}\" %{word:dns.flags.rcode} %{notSpace:dns.flags.list:array(\",\")} %{number:dns.answer.size} %{number:duration:scale(1000000000)}s.*\n"
+      }
+    },
+    {
+      "type": "date-remapper",
+      "name": "Define `timestamp` as the official date of the log",
+      "enabled": true,
+      "sources": [
+        "timestamp"
+      ]
+    },
+    {
+      "type": "status-remapper",
+      "name": "Define `level` as the official status of the log",
+      "enabled": true,
+      "sources": [
+        "level"
+      ]
+    }
+  ],
+  "source": {
+    "repository": "DataDog/integrations-core",
+    "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+    "path": "coredns/assets/logs/coredns.yaml",
+    "license": "BSD-3-Clause"
+  }
+}

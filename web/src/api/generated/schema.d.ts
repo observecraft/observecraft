@@ -1709,6 +1709,123 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/pipeline-library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Integration pipelines (from integrations-core) and whether each is installed. */
+        get: operations["list_pipeline_library"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipeline-library/{id}/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Installs an integration's pipeline (read-only, at the end of the list). */
+        post: operations["install_integration_pipeline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipelines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_log_pipelines"];
+        put?: never;
+        post: operations["create_log_pipeline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipelines/grok": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Parses sample values with grok rules (the grok parser editor's live preview). */
+        post: operations["parse_grok_samples"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipelines/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reorder_log_pipelines"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipelines/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Runs processors (and optionally a filter) on a sample log and returns the processed log. */
+        post: operations["test_log_pipeline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipelines/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_log_pipeline"];
+        post?: never;
+        delete: operations["delete_log_pipeline"];
+        options?: never;
+        head?: never;
+        /** Enables or disables a pipeline (integration pipelines too). */
+        patch: operations["set_log_pipeline_enabled"];
+        trace?: never;
+    };
     "/api/v1/logs/rehydrations": {
         parameters: {
             query?: never;
@@ -3998,6 +4115,23 @@ export interface components {
             /** @description standard | brief */
             template: string;
         };
+        GrokSampleResult: {
+            /** @description What it extracted, as nested attributes. */
+            attributes: Record<string, never>;
+            matched: boolean;
+            /** @description The match rule that matched. */
+            rule?: string | null;
+        };
+        GrokTestRequest: {
+            matchRules?: string;
+            samples?: string[];
+            supportRules?: string;
+        };
+        GrokTestResult: {
+            /** @description Why the rules don't compile. */
+            error?: string | null;
+            samples: components["schemas"]["GrokSampleResult"][];
+        };
         GroupCounts: {
             /** Format: int64 */
             alert: number;
@@ -4697,6 +4831,17 @@ export interface components {
          * @enum {string}
          */
         LayoutType: "grid" | "auto" | "free";
+        /** @description An integration's pipeline that can be installed. */
+        LibraryPipeline: {
+            filter: string;
+            /** @description The integration (e.g. `nginx`). */
+            id: string;
+            /** @description Already installed in this organization. */
+            installed: boolean;
+            name: string;
+            processors: Record<string, never>[];
+            upstream: components["schemas"]["PipelineUpstream"];
+        };
         LinkInfo: {
             email: string;
             /** @description The email already has an ObserveCraft password (e.g. from another organization): an invite is
@@ -4860,6 +5005,30 @@ export interface components {
             limit?: number | null;
             query?: string;
             range: components["schemas"]["TimeRange"];
+        };
+        LogPipeline: {
+            enabled: boolean;
+            /** @description Logs matching this search go through the pipeline; '' = every log. */
+            filter: string;
+            id: string;
+            name: string;
+            /** Format: int32 */
+            position: number;
+            /** @description Processors in Datadog's format (`{"type": "grok-parser", "name", "enabled", …}`), run in order. */
+            processors: Record<string, never>[];
+            /** @description Integration pipelines can only be enabled, disabled, moved or deleted; clone one to edit it. */
+            readOnly: boolean;
+            /** @description `custom`, or `integration:<name>` for a pipeline installed from an integration. */
+            source: string;
+        };
+        LogPipelineInput: {
+            enabled?: boolean;
+            filter?: string;
+            name: string;
+            processors?: Record<string, never>[];
+        };
+        LogPipelinePatch: {
+            enabled: boolean;
         };
         LogQueryRequest: {
             query?: string;
@@ -5384,6 +5553,25 @@ export interface components {
             processors: string[];
             receivers: string[];
         };
+        PipelineTestRequest: {
+            /** @description The pipeline's filter; omitted = every log. */
+            filter?: string | null;
+            log: components["schemas"]["SampleLog"];
+            processors?: Record<string, never>[];
+        };
+        PipelineTestResult: {
+            /** @description Processors that don't compile (they were skipped). */
+            errors: string[];
+            log: components["schemas"]["SampleLog"];
+            /** @description The filter matched (otherwise `log` is unchanged). */
+            matched: boolean;
+        };
+        PipelineUpstream: {
+            license: string;
+            path: string;
+            repository: string;
+            revision: string;
+        };
         Postmortem: {
             /** @description Markdown. */
             content: string;
@@ -5678,6 +5866,10 @@ export interface components {
             /** @description Every index id, in routing order. */
             ids: string[];
         };
+        ReorderPipelines: {
+            /** @description Every pipeline id, in processing order. */
+            ids: string[];
+        };
         ResourceStats: {
             /** Format: double */
             errorRate: number;
@@ -5740,6 +5932,22 @@ export interface components {
             nameAttribute: string;
             /** @description Why the stored metadata can't be used, if it can't. */
             problem?: string | null;
+        };
+        /** @description A log for the test endpoint, before or after processing. */
+        SampleLog: {
+            /** @description Nested attributes. */
+            attributes?: Record<string, never>;
+            /** @description RFC 3339; a date remapper sets it. */
+            date?: string | null;
+            host?: string;
+            message?: string;
+            service?: string;
+            source?: string;
+            status?: string;
+            tags?: {
+                [key: string]: string;
+            };
+            traceId?: string;
         };
         SampleOut: {
             attributeGroups: unknown[];
@@ -9433,6 +9641,224 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LogPattern"][];
+                };
+            };
+        };
+    };
+    list_pipeline_library: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryPipeline"][];
+                };
+            };
+        };
+    };
+    install_integration_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPipeline"];
+                };
+            };
+        };
+    };
+    list_log_pipelines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPipeline"][];
+                };
+            };
+        };
+    };
+    create_log_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogPipelineInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPipeline"];
+                };
+            };
+        };
+    };
+    parse_grok_samples: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrokTestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrokTestResult"];
+                };
+            };
+        };
+    };
+    reorder_log_pipelines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReorderPipelines"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    test_log_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PipelineTestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineTestResult"];
+                };
+            };
+        };
+    };
+    update_log_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogPipelineInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPipeline"];
+                };
+            };
+        };
+    };
+    delete_log_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_log_pipeline_enabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogPipelinePatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPipeline"];
                 };
             };
         };

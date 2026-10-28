@@ -9,7 +9,10 @@
 //!
 //! Logs no index keeps are not lost: live tail and archives get every log (they read before this step).
 //!
-//! Index rules are reloaded from Postgres every 10 s; quota counters are local and re-synced from
+//! Before routing, the org's log pipelines (see `pipelines`) process each log, so index filters,
+//! exclusion filters and the indexed row see the parsed and remapped log.
+//!
+//! Index rules and pipelines are reloaded from Postgres every 10 s; quota counters are local and re-synced from
 //! ClickHouse every 30 s, so several servers sharing the work stay close to the quota.
 
 use std::collections::HashMap;
@@ -26,6 +29,7 @@ use oc_query::{matches, parse_query, Fields, Term};
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::pipelines::{self, Pipeline};
 use crate::state::AppState;
 
 const DAY_MS: i64 = 86_400_000;
@@ -63,6 +67,17 @@ struct Counter {
 pub struct Indexer {
     rules: RwLock<HashMap<String, Arc<Vec<IndexRule>>>>,
     counters: Mutex<HashMap<(String, String), Counter>>,
+    /// Each org's enabled log pipelines, in order.
+    pipelines: RwLock<HashMap<String, Arc<Vec<Pipeline>>>>,
+}
+
+#[derive(sqlx::FromRow)]
+struct PipelineRow {
+    org_id: String,
+    id: String,
+    name: String,
+    filter: String,
+    processors: Value,
 }
 
 #[derive(Deserialize, sqlx::FromRow)]
@@ -119,6 +134,27 @@ impl Indexer {
             });
         }
         *self.rules.write().unwrap() = by_org.into_iter().map(|(k, v)| (k, Arc::new(v))).collect();
+        self.reload_pipelines(st).await
+    }
+
+    async fn reload_pipelines(&self, st: &AppState) -> Result<(), sqlx::Error> {
+        let rows: Vec<PipelineRow> = sqlx::query_as(
+            "SELECT p.org_id, p.id::text AS id, p.name, p.filter, p.processors FROM log_pipelines p JOIN orgs o ON o.id = p.org_id \
+             WHERE o.status = 'active' AND p.enabled ORDER BY p.org_id, p.position, p.created_at",
+        )
+        .fetch_all(&st.postgres)
+        .await?;
+        let mut by_org: HashMap<String, Vec<Pipeline>> = HashMap::new();
+        for r in rows {
+            let processors = r.processors.as_array().map(Vec::as_slice).unwrap_or_default();
+            let (p, errors) = Pipeline::compile(&r.name, &r.filter, processors);
+            // Saved pipelines were checked by the API; a processor that stopped compiling is skipped.
+            if !errors.is_empty() {
+                tracing::warn!(org = %r.org_id, pipeline = %r.id, errors = %errors.join("; "), "log pipeline processors skipped");
+            }
+            by_org.entry(r.org_id).or_default().push(p);
+        }
+        *self.pipelines.write().unwrap() = by_org.into_iter().map(|(k, v)| (k, Arc::new(v))).collect();
         Ok(())
     }
 
@@ -199,6 +235,10 @@ fn route_batch(ix: &Indexer, body: &[u8]) -> (Vec<u8>, usize, usize) {
     for line in body.split(|b| *b == b'\n').filter(|l| !l.is_empty()) {
         let Ok(mut ev) = serde_json::from_slice::<Value>(line) else { continue };
         seen += 1;
+        let org_pipelines = ev.get("org_id").and_then(Value::as_str).and_then(|org| ix.pipelines.read().unwrap().get(org).cloned());
+        if let Some(p) = org_pipelines {
+            pipelines::process_row(&p, &mut ev, now);
+        }
         let s = |k: &str| ev.get(k).and_then(Value::as_str).unwrap_or("").to_string();
         let (org, id) = (s("org_id"), s("id"));
         let (service, status, host, source, message) = (s("service"), s("status"), s("host"), s("source"), s("message"));
@@ -340,6 +380,28 @@ mod tests {
         let body = (0..2000).map(|i| line("acme", &format!("id-{i}"), "api", "info")).collect::<String>();
         let kept = route_batch(&half, body.as_bytes()).2;
         assert!((800..1200).contains(&kept), "about half kept, got {kept}");
+    }
+
+    #[test]
+    fn pipelines_run_before_index_routing() {
+        let ix = indexer(vec![rule("server-errors", "@http.status_code:5* status:error", None, vec![]), rule("main", "", None, vec![])]);
+        let processors = serde_json::json!([
+            {"type": "grok-parser", "grok": {"matchRules": "access %{word:http.method} %{notSpace:http.url} %{integer:http.status_code}"}},
+            {"type": "category-processor", "target": "level", "categories": [{"filter": {"query": "@http.status_code:[500 TO 599]"}, "name": "error"}]},
+            {"type": "status-remapper", "sources": ["level"]}
+        ]);
+        let (p, errors) = Pipeline::compile("access logs", "service:api", processors.as_array().unwrap());
+        assert!(errors.is_empty());
+        ix.pipelines.write().unwrap().insert("acme".into(), Arc::new(vec![p]));
+        let access = |id: &str, msg: &str| format!("{{\"org_id\":\"acme\",\"id\":\"{id}\",\"service\":\"api\",\"status\":\"info\",\"message\":\"{msg}\",\"tags\":{{}},\"attr\":{{}},\"attributes\":\"{{}}\"}}\n");
+        let body = [access("1", "GET /cart 503"), access("2", "GET /cart 200"), line("other", "3", "api", "info")].concat();
+        let (out, seen, kept) = route_batch(&ix, body.as_bytes());
+        assert_eq!((seen, kept), (3, 2), "the other org has no index");
+        let rows: Vec<Value> = out.split(|b| *b == b'\n').filter(|l| !l.is_empty()).map(|l| serde_json::from_slice(l).unwrap()).collect();
+        assert_eq!((rows[0]["index_name"].as_str(), rows[0]["status"].as_str()), (Some("server-errors"), Some("error")));
+        assert_eq!(rows[0]["attr"]["http.url"], "/cart");
+        assert_eq!(serde_json::from_str::<Value>(rows[0]["attributes"].as_str().unwrap()).unwrap()["http"]["status_code"], 503);
+        assert_eq!((rows[1]["index_name"].as_str(), rows[1]["status"].as_str()), (Some("main"), Some("info")));
     }
 
     #[test]

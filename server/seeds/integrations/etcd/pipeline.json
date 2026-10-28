@@ -1,0 +1,52 @@
+{
+  "id": "etcd",
+  "name": "etcd",
+  "filter": "source:etcd",
+  "processors": [
+    {
+      "type": "grok-parser",
+      "name": "Parsing etcd logs",
+      "enabled": true,
+      "source": "message",
+      "samples": [
+        "2020-08-20 18:19:25.769683 I | embed: ready to serve client requests",
+        "2020-08-20 18:23:44.714594 W | rafthttp: lost the TCP streaming connection with peer d282ac2ce600c1ce (stream Message reader)",
+        "2020-08-20 18:23:44.721706 E | rafthttp: failed to dial d282ac2ce600c1ce on stream Message (peer d282ac2ce600c1ce failed to find local node cf1d15c5d194b5c9)"
+      ],
+      "grok": {
+        "supportRules": "_date %{date(\"yyyy-MM-dd HH:mm:ss.SSSSSS\"):date}\n",
+        "matchRules": "etcd %{_date} %{word: level} \\| (%{notSpace:package}: )?%{data:message}\n"
+      }
+    },
+    {
+      "type": "date-remapper",
+      "name": "Define `date` as the official date of the log",
+      "enabled": true,
+      "sources": [
+        "date"
+      ]
+    },
+    {
+      "type": "message-remapper",
+      "name": "Define `message` as the official message of the log",
+      "enabled": true,
+      "sources": [
+        "message"
+      ]
+    },
+    {
+      "type": "status-remapper",
+      "name": "Define `level` as the official status of the log",
+      "enabled": true,
+      "sources": [
+        "level"
+      ]
+    }
+  ],
+  "source": {
+    "repository": "DataDog/integrations-core",
+    "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+    "path": "etcd/assets/logs/etcd.yaml",
+    "license": "BSD-3-Clause"
+  }
+}

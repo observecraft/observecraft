@@ -10,6 +10,7 @@ mod config;
 mod demo;
 mod error;
 mod logproc;
+mod pipelines;
 mod routes;
 mod s3;
 mod state;

@@ -16,8 +16,12 @@ argon2 = "0.5"
 async-nats.workspace = true
 axum = { workspace = true, features = ["multipart"] }
 base64 = "0.22"
+# Log pipelines: dates parsed by grok `date()` and the date remapper.
+chrono = { version = "0.4", default-features = false, features = ["std"] }
 clickhouse.workspace = true
 data-encoding = "2"
+# Log pipelines: grok patterns use atomic groups and lookarounds, which `regex` lacks.
+fancy-regex = "0.20"
 # Archive search over Parquet files (C++ engine compiled in; Parquet reader included).
 duckdb = { version = "=1.10506.0", features = ["bundled", "parquet"] }
 # Profiles: gzip-compressed pprof uploads.

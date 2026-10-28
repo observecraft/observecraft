@@ -1,0 +1,76 @@
+{
+  "id": "redisdb",
+  "name": "Redis",
+  "filter": "source:redis",
+  "processors": [
+    {
+      "type": "grok-parser",
+      "name": "Parsing Redis logs",
+      "enabled": true,
+      "source": "message",
+      "samples": [
+        "12115:M 08 Jan 17:55:41.572 # WARNING: The TCP backlog setting of 511 cannot be enforced because /proc/sys/net/core/somaxconn is set to the lower value of 128.",
+        "12115:M 08 Jan 17:45:41.572 # Server started, Redis version 3.0.6",
+        "1:M 14 May 2019 19:11:40.164 * Background saving terminated with success"
+      ],
+      "grok": {
+        "supportRules": "_date (%{date(\"dd MMM HH:mm:ss.SSS\"):date}|%{date(\"dd MMM yyyy HH:mm:ss.SSS\"):date})\n_pid %{integer:pid}\n_severity %{notSpace:severity}\n_role %{word:role}\n",
+        "matchRules": "default_format %{_pid}:%{_role} %{_date} %{_severity} %{data:message}\n"
+      }
+    },
+    {
+      "type": "date-remapper",
+      "name": "Define `date` as the official date of the log",
+      "enabled": true,
+      "sources": [
+        "date"
+      ]
+    },
+    {
+      "type": "category-processor",
+      "name": "Categorise severity level",
+      "enabled": true,
+      "categories": [
+        {
+          "filter": {
+            "query": "@severity: \".\""
+          },
+          "name": "debug"
+        },
+        {
+          "filter": {
+            "query": "@severity: \"-\""
+          },
+          "name": "verbose"
+        },
+        {
+          "filter": {
+            "query": "@severity: \"*\""
+          },
+          "name": "notice"
+        },
+        {
+          "filter": {
+            "query": "@severity: \"#\""
+          },
+          "name": "warning"
+        }
+      ],
+      "target": "redis.severity"
+    },
+    {
+      "type": "status-remapper",
+      "name": "Define `redis.severity` as the official status of the log",
+      "enabled": true,
+      "sources": [
+        "redis.severity"
+      ]
+    }
+  ],
+  "source": {
+    "repository": "DataDog/integrations-core",
+    "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+    "path": "redisdb/assets/logs/redis.yaml",
+    "license": "BSD-3-Clause"
+  }
+}

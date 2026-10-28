@@ -16,6 +16,7 @@ pub mod instance;
 pub mod kubernetes;
 pub mod live;
 pub mod log_indexes;
+pub mod log_pipelines;
 pub mod logs;
 pub mod metrics;
 pub mod monitor_engine;
@@ -190,6 +191,16 @@ use crate::state::AppState;
         log_indexes::reorder,
         log_indexes::get_settings,
         log_indexes::update_settings,
+        log_pipelines::list,
+        log_pipelines::create,
+        log_pipelines::update,
+        log_pipelines::set_enabled,
+        log_pipelines::delete,
+        log_pipelines::reorder,
+        log_pipelines::test,
+        log_pipelines::grok,
+        log_pipelines::library_list,
+        log_pipelines::install,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -446,6 +457,27 @@ pub fn router() -> Router<AppState> {
             axum::routing::put(log_indexes::update).delete(log_indexes::delete),
         )
         .route(
+            "/api/v1/logs/pipelines",
+            get(log_pipelines::list).post(log_pipelines::create),
+        )
+        .route("/api/v1/logs/pipelines/reorder", post(log_pipelines::reorder))
+        .route("/api/v1/logs/pipelines/test", post(log_pipelines::test))
+        .route("/api/v1/logs/pipelines/grok", post(log_pipelines::grok))
+        .route(
+            "/api/v1/logs/pipelines/:id",
+            axum::routing::put(log_pipelines::update)
+                .patch(log_pipelines::set_enabled)
+                .delete(log_pipelines::delete),
+        )
+        .route(
+            "/api/v1/logs/pipeline-library",
+            get(log_pipelines::library_list),
+        )
+        .route(
+            "/api/v1/logs/pipeline-library/:id/install",
+            post(log_pipelines::install),
+        )
+        .route(
             "/api/v1/org/data-settings",
             get(log_indexes::get_settings).patch(log_indexes::update_settings),
         )
@@ -617,6 +649,7 @@ mod tests {
             include_str!("kubernetes.rs"),
             include_str!("live.rs"),
             include_str!("log_indexes.rs"),
+            include_str!("log_pipelines.rs"),
             include_str!("logs.rs"),
             include_str!("metrics.rs"),
             include_str!("metrics/dashboard.rs"),
@@ -660,6 +693,7 @@ mod tests {
             ("kubernetes.rs", include_str!("kubernetes.rs")),
             ("live.rs", include_str!("live.rs")),
             ("log_indexes.rs", include_str!("log_indexes.rs")),
+            ("log_pipelines.rs", include_str!("log_pipelines.rs")),
             ("logs.rs", include_str!("logs.rs")),
             ("metrics.rs", include_str!("metrics.rs")),
             ("metrics/dashboard.rs", include_str!("metrics/dashboard.rs")),

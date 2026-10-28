@@ -4264,6 +4264,297 @@
         }
       }
     },
+    "/api/v1/logs/pipeline-library": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Integration pipelines (from integrations-core) and whether each is installed.",
+        "operationId": "list_pipeline_library",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryPipeline"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/pipeline-library/{id}/install": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Installs an integration's pipeline (read-only, at the end of the list).",
+        "operationId": "install_integration_pipeline",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogPipeline"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/pipelines": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "list_log_pipelines",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogPipeline"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "create_log_pipeline",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogPipelineInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogPipeline"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/pipelines/grok": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Parses sample values with grok rules (the grok parser editor's live preview).",
+        "operationId": "parse_grok_samples",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrokTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrokTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/pipelines/reorder": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "reorder_log_pipelines",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderPipelines"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/logs/pipelines/test": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Runs processors (and optionally a filter) on a sample log and returns the processed log.",
+        "operationId": "test_log_pipeline",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/pipelines/{id}": {
+      "put": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "update_log_pipeline",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogPipelineInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogPipeline"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "delete_log_pipeline",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Enables or disables a pipeline (integration pipelines too).",
+        "operationId": "set_log_pipeline_enabled",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogPipelinePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogPipeline"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/logs/rehydrations": {
       "get": {
         "tags": [
@@ -10523,6 +10814,67 @@
           }
         }
       },
+      "GrokSampleResult": {
+        "type": "object",
+        "required": [
+          "matched",
+          "attributes"
+        ],
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "description": "What it extracted, as nested attributes."
+          },
+          "matched": {
+            "type": "boolean"
+          },
+          "rule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The match rule that matched."
+          }
+        }
+      },
+      "GrokTestRequest": {
+        "type": "object",
+        "properties": {
+          "matchRules": {
+            "type": "string"
+          },
+          "samples": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "supportRules": {
+            "type": "string"
+          }
+        }
+      },
+      "GrokTestResult": {
+        "type": "object",
+        "required": [
+          "samples"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the rules don't compile."
+          },
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GrokSampleResult"
+            }
+          }
+        }
+      },
       "GroupCounts": {
         "type": "object",
         "required": [
@@ -13122,6 +13474,43 @@
           "free"
         ]
       },
+      "LibraryPipeline": {
+        "type": "object",
+        "description": "An integration's pipeline that can be installed.",
+        "required": [
+          "id",
+          "name",
+          "filter",
+          "processors",
+          "upstream",
+          "installed"
+        ],
+        "properties": {
+          "filter": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "description": "The integration (e.g. `nginx`)."
+          },
+          "installed": {
+            "type": "boolean",
+            "description": "Already installed in this organization."
+          },
+          "name": {
+            "type": "string"
+          },
+          "processors": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "upstream": {
+            "$ref": "#/components/schemas/PipelineUpstream"
+          }
+        }
+      },
       "LinkInfo": {
         "type": "object",
         "required": [
@@ -13586,6 +13975,87 @@
           },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "LogPipeline": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "filter",
+          "processors",
+          "position",
+          "source",
+          "readOnly"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "filter": {
+            "type": "string",
+            "description": "Logs matching this search go through the pipeline; '' = every log."
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "processors": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Processors in Datadog's format (`{\"type\": \"grok-parser\", \"name\", \"enabled\", …}`), run in order."
+          },
+          "readOnly": {
+            "type": "boolean",
+            "description": "Integration pipelines can only be enabled, disabled, moved or deleted; clone one to edit it."
+          },
+          "source": {
+            "type": "string",
+            "description": "`custom`, or `integration:<name>` for a pipeline installed from an integration."
+          }
+        }
+      },
+      "LogPipelineInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "filter": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "processors": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "LogPipelinePatch": {
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
           }
         }
       },
@@ -15294,6 +15764,77 @@
           }
         }
       },
+      "PipelineTestRequest": {
+        "type": "object",
+        "required": [
+          "log"
+        ],
+        "properties": {
+          "filter": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The pipeline's filter; omitted = every log."
+          },
+          "log": {
+            "$ref": "#/components/schemas/SampleLog"
+          },
+          "processors": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "PipelineTestResult": {
+        "type": "object",
+        "required": [
+          "matched",
+          "log",
+          "errors"
+        ],
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Processors that don't compile (they were skipped)."
+          },
+          "log": {
+            "$ref": "#/components/schemas/SampleLog"
+          },
+          "matched": {
+            "type": "boolean",
+            "description": "The filter matched (otherwise `log` is unchanged)."
+          }
+        }
+      },
+      "PipelineUpstream": {
+        "type": "object",
+        "required": [
+          "repository",
+          "revision",
+          "path",
+          "license"
+        ],
+        "properties": {
+          "license": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          }
+        }
+      },
       "Postmortem": {
         "type": "object",
         "required": [
@@ -16249,6 +16790,21 @@
           }
         }
       },
+      "ReorderPipelines": {
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every pipeline id, in processing order."
+          }
+        }
+      },
       "ResourceStats": {
         "type": "object",
         "required": [
@@ -16453,6 +17009,50 @@
               "null"
             ],
             "description": "Why the stored metadata can't be used, if it can't."
+          }
+        }
+      },
+      "SampleLog": {
+        "type": "object",
+        "description": "A log for the test endpoint, before or after processing.",
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "description": "Nested attributes."
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "RFC 3339; a date remapper sets it."
+          },
+          "host": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "traceId": {
+            "type": "string"
           }
         }
       },
