@@ -196,7 +196,8 @@ function Flyout({ open, rail, onEnter, onLeave, onPick }: { open: Open; rail: bo
                       <ul key={i}>
                         {col.map((l) => (
                           <li key={l.label}>
-                            <Link to={l.to} role="menuitem" onClick={onPick}>
+                            <Link to={l.to} role="menuitem" onClick={onPick} className={l.plus ? 'flyout-create' : undefined}>
+                              {l.plus && <span className="flyout-plus">+</span>}
                               {l.label}
                               {l.isNew && <span className="flyout-new">NEW</span>}
                               {l.isPreview && <span className="flyout-new preview">PREVIEW</span>}

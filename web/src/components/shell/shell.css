@@ -574,7 +574,6 @@
   font-size: 16px;
 }
 
-
 .topbar-account {
   display: grid;
   place-items: center;
@@ -599,4 +598,25 @@
 
 .flyout-new.preview {
   color: #8fd1c7;
+}
+
+/* a create action: a "+" set on the column's line, before the label */
+.flyout-cols a.flyout-create {
+  position: relative;
+}
+
+.flyout-plus {
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 9px;
+  height: 14px;
+  background: var(--nav-bg);
+  color: var(--brand-accent);
+  font-size: 15px;
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  transform: translateY(-50%);
 }
