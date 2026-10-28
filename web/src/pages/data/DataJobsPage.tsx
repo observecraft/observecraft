@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { Workflow, PanelLeft, X } from 'lucide-react';
+import { ArrowRight, Workflow, PanelLeft, X } from 'lucide-react';
 import { searchDataJobs, type DataJob, type JobSearchPage, type JobStatus } from '../../api/databases/client';
 import { FacetPanel } from '../../components/facets/FacetPanel';
 import { QueryBar } from '../../components/query/QueryBar';
@@ -32,6 +32,15 @@ export function DataJobsPage() {
   const query = params.get('q') ?? '';
   const [setup, setSetup] = useState(false);
   const page = useQuery({ queryKey: ['data-jobs', range, query], queryFn: () => searchDataJobs({ range, query }), placeholderData: keepPreviousData });
+  if (page.data && !page.data.enabled)
+    return (
+      <div className="dbm-page">
+        <div className="dbm-body">
+          <JobsHero onSetup={() => setSetup(true)} />
+        </div>
+        {setup && <JobsSetup onClose={() => setSetup(false)} />}
+      </div>
+    );
   return (
     <div className="dbm-page">
       <header className="product-header">
@@ -51,57 +60,88 @@ export function DataJobsPage() {
           <ErrorState error={page.error} onRetry={() => page.refetch()} />
         ) : !page.data ? (
           <Loading label="Loading data jobs…" />
-        ) : !page.data.enabled ? (
-          <JobsHero onSetup={() => setSetup(true)} />
         ) : (
           <JobsList page={page.data} query={query} onQuery={(q) => setParams(q ? { q } : {}, { replace: true })} />
         )}
       </div>
-      {setup && (
-        <Modal label="Data Jobs setup" onClose={() => setSetup(false)} width={860} height="auto">
-          <div className="dbm-modal">
-            <header>
-              <h2>Send data job metrics to ObserveCraft</h2>
-              <button className="icon-btn" onClick={() => setSetup(false)} title="Close">
-                <X size={16} />
-              </button>
-            </header>
-            <SetupOptions options={JOB_SETUP} />
-          </div>
-        </Modal>
-      )}
+      {setup && <JobsSetup onClose={() => setSetup(false)} />}
     </div>
   );
 }
 
+function JobsSetup({ onClose }: { onClose: () => void }) {
+  return (
+    <Modal label="Data Jobs setup" onClose={onClose} width={860} height="auto">
+      <div className="dbm-modal">
+        <header>
+          <h2>Send data job metrics to ObserveCraft</h2>
+          <button className="icon-btn" onClick={onClose} title="Close">
+            <X size={16} />
+          </button>
+        </header>
+        <SetupOptions options={JOB_SETUP} />
+      </div>
+    </Modal>
+  );
+}
+
+/** The demo rows in the hero's preview: fictional jobs of the e-commerce demo. */
+const PREVIEW: { name: string; framework: string; status: JobStatus; width: number }[] = [
+  { name: 'orders_daily_etl', framework: 'Airflow', status: 'failed', width: 72 },
+  { name: 'catalog-enrichment', framework: 'Spark', status: 'running', width: 48 },
+  { name: 'inventory_snapshot', framework: 'Airflow', status: 'succeeded', width: 86 },
+  { name: 'billing-reconciliation', framework: 'Spark', status: 'succeeded', width: 34 },
+  { name: 'storefront_sessions_rollup', framework: 'Airflow', status: 'succeeded', width: 58 },
+];
+
 function JobsHero({ onSetup }: { onSetup: () => void }) {
   return (
-    <section className="dbm-hero">
-      <div>
-        <span className="dbm-hero-kicker">Data Observability</span>
-        <h2>Know when a pipeline fails or runs late, before the dashboards it feeds go stale</h2>
-        <p>
-          Data Jobs lists your Airflow DAGs and Spark applications with their successful and failed runs, durations and failing tasks, from the metrics the Datadog Agent already collects for them.
-        </p>
-        <ul className="dbm-sources">
-          {SOURCES.map((s) => (
-            <li key={s.name}>
-              <strong>{s.name}</strong>
-              <span className="muted">{s.note}</span>
+    <section className="dj-hero">
+      <div className="dj-hero-text">
+        <div className="dj-hero-kicker">
+          <span className="dj-hero-icon">
+            <Workflow size={22} />
+          </span>
+          Data Observability
+        </div>
+        <h2>
+          Reliable pipelines,
+          <br />
+          fresh data,
+          <br />
+          no surprises.
+        </h2>
+        <p>Follow your Airflow DAGs and Spark applications: which runs failed, which ran late and which tasks broke, from the metrics the Datadog Agent already collects.</p>
+        <ul className="dj-sources">
+          {SOURCES.map((x) => (
+            <li key={x.name} title={x.note}>
+              <strong>{x.name}</strong>
+              <span>{x.note}</span>
             </li>
           ))}
         </ul>
-        <button className="btn btn-primary" onClick={onSetup}>
-          Set up Data Jobs
+        <button className="dj-hero-cta" onClick={onSetup}>
+          Set up Data Jobs <ArrowRight size={18} />
         </button>
       </div>
-      <div className="dbm-hero-preview" aria-hidden="true">
-        {(['failed', 'running', 'succeeded', 'succeeded'] as JobStatus[]).map((s, i) => (
-          <div key={i} className="dbm-hero-row">
-            <span className={`dbm-status dbm-status-${s}`}>{STATUS_LABELS[s]}</span>
-            <span className="dbm-hero-bar" style={{ width: `${[70, 45, 85, 30][i]}%` }} />
-          </div>
-        ))}
+      <div className="dj-hero-preview" aria-hidden="true">
+        <div className="dj-preview-head">
+          <Workflow size={16} /> Data Jobs
+        </div>
+        <div className="dj-preview-rows">
+          {PREVIEW.map((r) => (
+            <div key={r.name} className="dj-preview-row">
+              <span className={`dbm-status dbm-status-${r.status}`}>{STATUS_LABELS[r.status]}</span>
+              <span className="dj-preview-name">
+                <strong>{r.name}</strong>
+                <span>{r.framework}</span>
+              </span>
+              <span className="dj-preview-bar">
+                <span className={`dbm-status-${r.status}`} style={{ width: `${r.width}%` }} />
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
