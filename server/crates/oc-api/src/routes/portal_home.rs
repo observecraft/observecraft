@@ -160,7 +160,7 @@ pub struct PortalTicketParams {
 /// A service on the home page, with what exists around it.
 #[derive(Serialize, ToSchema, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct PortalEntity {
+pub struct PortalHomeEntity {
     pub name: String,
     /// service
     pub kind: String,
@@ -352,17 +352,17 @@ struct EntityInputs {
     favorites: HashSet<String>,
 }
 
-fn merge_entities(i: &EntityInputs) -> Vec<PortalEntity> {
+fn merge_entities(i: &EntityInputs) -> Vec<PortalHomeEntity> {
     let mut names: Vec<&String> = i.seen.keys().chain(i.teams.keys()).chain(i.favorites.iter()).collect();
     names.sort();
     names.dedup();
-    let mut out: Vec<PortalEntity> = names
+    let mut out: Vec<PortalHomeEntity> = names
         .into_iter()
         .map(|name| {
             let mentions = |text: &str| super::scorecard_rules::references_service(text, name);
             let team = i.teams.get(name).cloned().unwrap_or_default();
             let (last_seen, last_deploy) = i.seen.get(name).map(|(s, d)| (Some(*s), *d)).unwrap_or((None, None));
-            PortalEntity {
+            PortalHomeEntity {
                 kind: "service".into(),
                 monitors: i.monitors.iter().filter(|(q, tags)| mentions(q) || tags.iter().any(|t| mentions(t))).count() as u64,
                 dashboards: i.dashboards.iter().filter(|d| mentions(d)).count() as u64,
@@ -830,8 +830,8 @@ pub async fn tickets(State(st): State<AppState>, ctx: AuthContext, Query(p): Que
 }
 
 /// Services with their monitors, open issues, dashboards, scorecard level and on-call schedule.
-#[utoipa::path(get, path = "/api/v1/portal/home/entities", operation_id = "portal_entities", responses((status = 200, body = Vec<PortalEntity>)), tag = "portal")]
-pub async fn entities(State(st): State<AppState>, ctx: AuthContext, access: LogAccess) -> ApiResult<Vec<PortalEntity>> {
+#[utoipa::path(get, path = "/api/v1/portal/home/entities", operation_id = "portal_entities", responses((status = 200, body = Vec<PortalHomeEntity>)), tag = "portal")]
+pub async fn entities(State(st): State<AppState>, ctx: AuthContext, access: LogAccess) -> ApiResult<Vec<PortalHomeEntity>> {
     let inputs = entity_inputs(&st, &ctx, &access).await?;
     Ok(Json(merge_entities(&inputs)))
 }

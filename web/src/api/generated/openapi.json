@@ -9576,7 +9576,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/PortalEntity"
+                    "$ref": "#/components/schemas/PortalHomeEntity"
                   }
                 }
               }
@@ -27619,6 +27619,83 @@
           "external_provider",
           "repository"
         ]
+      },
+      "PortalHomeEntity": {
+        "type": "object",
+        "description": "A service on the home page, with what exists around it.",
+        "required": [
+          "name",
+          "kind",
+          "team",
+          "monitors",
+          "issues",
+          "dashboards",
+          "favorite"
+        ],
+        "properties": {
+          "dashboards": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "favorite": {
+            "type": "boolean"
+          },
+          "issues": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Open Error Tracking issues of the past 7 days.",
+            "minimum": 0
+          },
+          "kind": {
+            "type": "string",
+            "description": "service"
+          },
+          "lastDeploy": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Last CI deployment or first span of the newest version."
+          },
+          "lastSeen": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Last span (epoch ms); null for services only declared in metadata."
+          },
+          "monitors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "onCall": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of the owning team's on-call schedule."
+          },
+          "scorecardLevel": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Scorecard level (0–3); null before scorecards are set up.",
+            "minimum": 0
+          },
+          "team": {
+            "type": "string",
+            "description": "Owning team handle; empty when none."
+          }
+        }
       },
       "PortalIdentitiesInput": {
         "type": "object",

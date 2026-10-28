@@ -9123,6 +9123,41 @@ export interface components {
         };
         /** @enum {string} */
         PortalEntityKind: "service" | "datastore" | "queue" | "api" | "system" | "frontend" | "endpoint" | "external_provider" | "repository";
+        /** @description A service on the home page, with what exists around it. */
+        PortalHomeEntity: {
+            /** Format: int64 */
+            dashboards: number;
+            favorite: boolean;
+            /**
+             * Format: int64
+             * @description Open Error Tracking issues of the past 7 days.
+             */
+            issues: number;
+            /** @description service */
+            kind: string;
+            /**
+             * Format: int64
+             * @description Last CI deployment or first span of the newest version.
+             */
+            lastDeploy?: number | null;
+            /**
+             * Format: int64
+             * @description Last span (epoch ms); null for services only declared in metadata.
+             */
+            lastSeen?: number | null;
+            /** Format: int64 */
+            monitors: number;
+            name: string;
+            /** @description Name of the owning team's on-call schedule. */
+            onCall?: string | null;
+            /**
+             * Format: int32
+             * @description Scorecard level (0–3); null before scorecards are set up.
+             */
+            scorecardLevel?: number | null;
+            /** @description Owning team handle; empty when none. */
+            team: string;
+        };
         PortalIdentitiesInput: {
             identities: components["schemas"]["PortalIdentityInput"][];
         };
@@ -18562,7 +18597,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PortalEntity"][];
+                    "application/json": components["schemas"]["PortalHomeEntity"][];
                 };
             };
         };
