@@ -54,6 +54,29 @@ pub struct MetricQuery {
     pub rollup: Option<Rollup>,
 }
 
+/// The query as text, in the syntax [`parse_metric_query`] reads (`avg:m{a:b,!c:d} by {x}.rollup(max)`).
+impl std::fmt::Display for MetricQuery {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let filters: Vec<String> = self.filters.iter().map(|t| format!("{}{}:{}", if t.negate { "!" } else { "" }, t.key, t.value)).collect();
+        let filters = if filters.is_empty() { "*".to_string() } else { filters.join(",") };
+        write!(f, "{}:{}{{{filters}}}", self.agg.sql(), self.metric)?;
+        if !self.by.is_empty() {
+            write!(f, " by {{{}}}", self.by.join(","))?;
+        }
+        if let Some(r) = self.rollup {
+            let method = match r {
+                Rollup::Avg => "avg",
+                Rollup::Sum => "sum",
+                Rollup::Min => "min",
+                Rollup::Max => "max",
+                Rollup::Count => "count",
+            };
+            write!(f, ".rollup({method})")?;
+        }
+        Ok(())
+    }
+}
+
 fn valid_name(s: &str) -> bool {
     !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-' | '/'))
 }
@@ -266,6 +289,15 @@ mod tests {
         assert_eq!(parse_metric_query("avg:a{*}.rollup(sum, 60)").unwrap().rollup, Some(Rollup::Sum));
         assert_eq!(parse_metric_query("avg:a{*}").unwrap().rollup, None);
         assert!(parse_metric_query("avg:a{*}.rollup(median)").is_err());
+    }
+
+    #[test]
+    fn a_query_formats_back_to_text_that_parses_the_same() {
+        for text in ["avg:system.cpu.utilization{env:prod,!host:i-0a*} by {host,region}", "sum:trace.requests{*}", "max:k.terminated{reason:oomkilled} by {pod_name}.rollup(max)"] {
+            let q = parse_metric_query(text).unwrap();
+            assert_eq!(q.to_string(), text);
+            assert_eq!(parse_metric_query(&q.to_string()).unwrap(), q);
+        }
     }
 
     #[test]

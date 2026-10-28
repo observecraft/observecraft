@@ -79,7 +79,8 @@ async fn monitor_series(st: &AppState, org: &str, access: &LogAccess, kind: Moni
         let step = ((range.to - range.from) / points.max(1) as i64).max(60_000);
         return log_counts(st, org, access, &search, &by, range, step).await;
     }
-    let f = parse_formula(query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+    let query = super::derived_metrics::resolve_text(st, org, query).await?;
+    let f = parse_formula(&query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
     let mut results = Vec::with_capacity(f.queries.len());
     for q in &f.queries {
         let q = parse_metric_query(q).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;

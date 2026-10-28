@@ -32,23 +32,26 @@ pub(crate) struct Formula {
     pub expr: Expr,
     /// The metric queries, each valid for `parse_metric_query`.
     pub queries: Vec<String>,
+    /// Where each query is in the trimmed text (byte offsets).
+    pub spans: Vec<(usize, usize)>,
 }
 
 /// Parses a monitor's metric query: one metric query, or arithmetic between metric queries and numbers.
 pub(crate) fn parse_formula(text: &str) -> Result<Formula, String> {
-    let mut p = Parser { s: text.trim(), pos: 0, queries: Vec::new() };
+    let mut p = Parser { s: text.trim(), pos: 0, queries: Vec::new(), spans: Vec::new() };
     let expr = p.expr()?;
     p.skip_ws();
     if p.pos < p.s.len() {
         return Err(format!("unexpected '{}' at {}", &p.s[p.pos..], p.pos + 1));
     }
-    Ok(Formula { expr, queries: p.queries })
+    Ok(Formula { expr, queries: p.queries, spans: p.spans })
 }
 
 struct Parser<'a> {
     s: &'a str,
     pos: usize,
     queries: Vec<String>,
+    spans: Vec<(usize, usize)>,
 }
 
 impl Parser<'_> {
@@ -135,6 +138,8 @@ impl Parser<'_> {
         }
         let text = self.s[start..end].trim();
         parse_metric_query(text)?;
+        let raw = &self.s[start..end];
+        self.spans.push((start + raw.len() - raw.trim_start().len(), end - (raw.len() - raw.trim_end().len())));
         self.pos = end;
         self.queries.push(text.to_string());
         Ok(Expr::Query(self.queries.len() - 1))

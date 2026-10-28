@@ -712,6 +712,8 @@ async fn inner_query_at_step(
     points: u32,
     forced: Option<(Source, i64)>,
 ) -> Result<(String, Vec<Param>, i64), ApiError> {
+    // Indexing controls (Metrics → Settings → Rules) limit the tags a query may use.
+    super::metric_rules::check_query(st, org, q).await?;
     let mut params = Vec::new();
     if let Some((_, expr, _, _)) = SPAN_METRICS.iter().find(|m| m.0 == q.metric) {
         let step = forced
@@ -957,18 +959,32 @@ async fn org_tiers(st: &AppState, org: &str) -> Result<Tiers, ApiError> {
 
 /// A metric query, or a formula between metric queries (`sum:a{*} by {x} / sum:b{*} by {x} * 100`):
 /// the plain query (none for a formula) and the series.
-async fn evaluate_formula(st: &AppState, org: &str, text: &str, range: TimeRange, points: u32) -> Result<(Option<MetricQuery>, Vec<Group>), ApiError> {
-    let f = super::monitor_formula::parse_formula(text).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+/// Derived metric names (see `derived_metrics`) are resolved to their formulas first.
+pub(crate) async fn evaluate_formula(st: &AppState, org: &str, text: &str, range: TimeRange, points: u32) -> Result<(Option<MetricQuery>, Vec<Group>), ApiError> {
+    let text = super::derived_metrics::resolve_text(st, org, text).await?;
+    let f = super::monitor_formula::parse_formula(&text).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
     if f.expr == super::monitor_formula::Expr::Query(0) {
-        let (q, groups) = evaluate(st, org, text, range, points).await?;
+        let (q, groups) = evaluate_plain(st, org, &f.queries[0], range, points).await?;
         return Ok((Some(q), groups));
     }
-    let results = futures::future::try_join_all(f.queries.iter().map(|q| evaluate(st, org, q, range, points))).await?;
+    let results = futures::future::try_join_all(f.queries.iter().map(|q| evaluate_plain(st, org, q, range, points))).await?;
     let groups: Vec<Vec<Group>> = results.into_iter().map(|(_, g)| g).collect();
     Ok((None, super::monitor_formula::combine(&f.expr, &groups)))
 }
 
-async fn evaluate(
+/// One metric query; a derived metric's is evaluated as its formula (the query's space aggregator
+/// still combines the groups of a scalar).
+async fn evaluate(st: &AppState, org: &str, query: &str, range: TimeRange, points: u32) -> Result<(MetricQuery, Vec<Group>), ApiError> {
+    let q = parse(query)?;
+    if super::derived_metrics::is_derived(st, org, &q.metric).await? {
+        validate_metric_range(st, org, range).await?;
+        let (_, groups) = evaluate_formula(st, org, query, range, points).await?;
+        return Ok((q, groups));
+    }
+    evaluate_plain(st, org, query, range, points).await
+}
+
+async fn evaluate_plain(
     st: &AppState,
     org: &str,
     query: &str,
@@ -1250,6 +1266,9 @@ pub async fn distribution(
 ) -> ApiResult<DistributionResponse> {
     validate_metric_range(&st, &org, req.range).await?;
     let q = parse(&req.query)?;
+    if super::derived_metrics::is_derived(&st, &org, &q.metric).await? {
+        return Err(ApiError::BadRequest(format!("'{}' is a derived metric: graph it as a timeseries instead", q.metric)));
+    }
     let (inner, params, _) = inner_query(&st, &org, &q, req.range, 40).await?;
     let sql = format!("SELECT sid, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64(v) AS value FROM ({inner}) WHERE isFinite(v) ORDER BY ts");
     let rows = bind(st.ch(&org).query(&sql), &params)
@@ -1290,7 +1309,7 @@ pub struct MetricCatalogEntry {
     pub tags: Vec<String>,
     pub unit: Option<String>,
     pub description: String,
-    /// gauge | sum | histogram | exponential_histogram | summary | span (computed from traces)
+    /// gauge | sum | histogram | exponential_histogram | summary | span (computed from traces) | derived (a formula, see Derived Metrics)
     pub kind: String,
 }
 
@@ -1401,6 +1420,13 @@ pub async fn catalog(
                 kind: "span".into(),
             }),
     );
+    // Derived metrics, with the tags of the metrics their formula reads.
+    let derived: Vec<(String, String, String)> = sqlx::query_as("SELECT name, description, formula FROM derived_metrics WHERE org_id = $1").bind(&org).fetch_all(&st.postgres).await?;
+    for (name, description, formula) in derived {
+        let reads: BTreeSet<String> = super::monitor_formula::parse_formula(&formula).map(|f| f.queries.iter().filter_map(|q| parse_metric_query(q).ok()).map(|q| q.metric).collect()).unwrap_or_default();
+        let tags: BTreeSet<String> = out.iter().filter(|e| reads.contains(&e.name)).flat_map(|e| e.tags.iter().cloned()).collect();
+        out.push(MetricCatalogEntry { name, tags: tags.into_iter().collect(), unit: None, description: if description.is_empty() { format!("Derived: {formula}") } else { description }, kind: "derived".into() });
+    }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(Json(out))
 }

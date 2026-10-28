@@ -1031,6 +1031,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/correlators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_event_correlators"];
+        put?: never;
+        post: operations["create_event_correlator"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/correlators/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_event_correlator"];
+        post?: never;
+        delete: operations["delete_event_correlator"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/fields": {
         parameters: {
             query?: never;
@@ -1043,6 +1075,38 @@ export interface paths {
         /** Tag keys of the matching events, most common first: the facets "+ Add" offers. */
         post: operations["event_fields"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/maintenance-windows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_event_maintenance_windows"];
+        put?: never;
+        post: operations["create_event_maintenance_window"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/maintenance-windows/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_event_maintenance_window"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1065,6 +1129,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/work-item-attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_work_item_attributes"];
+        put?: never;
+        post: operations["create_work_item_attribute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/work-item-attributes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_work_item_attribute"];
+        post?: never;
+        delete: operations["delete_work_item_attribute"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/work-items": {
         parameters: {
             query?: never;
@@ -1077,6 +1173,23 @@ export interface paths {
         /** Triage Inbox: the range's warning and error events correlated into work items, one per affected
          *     object (the Agent's aggregation key) or, without one, per source and title. */
         post: operations["event_work_items"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/work-items/{id}/attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Sets one attribute of a work item (a select's value must be one of its options). */
+        put: operations["set_work_item_attribute"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2850,6 +2963,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/metrics/derived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_derived_metrics"];
+        put?: never;
+        post: operations["create_derived_metric"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metrics/derived/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes the description, queries or formula; the name stays (dashboards and monitors use it). */
+        put: operations["update_derived_metric"];
+        post?: never;
+        delete: operations["delete_derived_metric"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metrics/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_metric_rules"];
+        put?: never;
+        post: operations["create_metric_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metrics/rules/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rules Overview: cardinality of the metrics rules filter and of the biggest metrics. */
+        post: operations["metric_rules_overview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metrics/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_metric_rule"];
+        post?: never;
+        delete: operations["delete_metric_rule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/metrics/volume": {
         parameters: {
             query?: never;
@@ -4475,6 +4670,40 @@ export interface paths {
         put?: never;
         /** Creates the recommended scorecards with the chosen built-in rules enabled, and evaluates them. */
         post: operations["setup_scorecards"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/service-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The service checks reported in the past day. */
+        get: operations["list_service_checks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/service-checks/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One check's status per host and tag set over the range. */
+        post: operations["service_check_detail"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6233,6 +6462,31 @@ export interface components {
             requests: number;
             version: string;
         };
+        DerivedMetric: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            /** @description Arithmetic over the query letters: `a / b * 100`. */
+            expression: string;
+            /** @description What queries of the name evaluate: the expression with the queries in place of the letters. */
+            formula: string;
+            id: string;
+            name: string;
+            /** @description The metric queries, by letter (a, b, …). */
+            queries: string[];
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        DerivedMetricInput: {
+            description?: string;
+            expression: string;
+            name: string;
+            queries: string[];
+        };
         /** @enum {string} */
         Detection: "threshold" | "change";
         DiscoverRequest: {
@@ -6592,6 +6846,41 @@ export interface components {
              */
             t: number;
         };
+        EventCorrelator: {
+            enabled: boolean;
+            /** @description `source`, `host`, `status`, `title` or tag keys: one work item per distinct values. */
+            groupBy: string[];
+            id: string;
+            name: string;
+            /**
+             * Format: int32
+             * @description Correlators are tried in this order.
+             */
+            position: number;
+            /** @description Event search: which warning and error events it groups ('' = all). */
+            query: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            updatedAt: number;
+            updatedBy: string;
+            /**
+             * Format: int32
+             * @description Events further apart than this start a new work item.
+             */
+            windowMinutes: number;
+        };
+        EventCorrelatorInput: {
+            enabled?: boolean;
+            groupBy?: string[];
+            name: string;
+            /** Format: int32 */
+            position?: number;
+            query?: string;
+            /** Format: int32 */
+            windowMinutes: number;
+        };
         EventFacet: {
             group: string;
             /** @description `source`, `status`, `priority`, `host`, or a tag key (`env`, `service`, added ones). */
@@ -6615,6 +6904,28 @@ export interface components {
         EventFieldsRequest: {
             query?: string;
             range: components["schemas"]["TimeRange"];
+        };
+        EventMaintenanceWindow: {
+            createdBy: string;
+            /** Format: int64 */
+            endsAt: number;
+            id: string;
+            name: string;
+            /** @description Event search: which events are expected during the window ('' = all). */
+            query: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            startsAt: number;
+        };
+        EventMaintenanceWindowInput: {
+            /** Format: int64 */
+            endsAt: number;
+            name: string;
+            query?: string;
+            /** Format: int64 */
+            startsAt: number;
         };
         EventPage: {
             facets: components["schemas"]["EventFacet"][];
@@ -8596,9 +8907,24 @@ export interface components {
             id: string;
             name: string;
         };
+        MetricCardinality: {
+            /**
+             * Format: int64
+             * @description Distinct combinations of its queryable tags (= ingested without an indexing control).
+             */
+            indexed: number;
+            /**
+             * Format: int64
+             * @description Distinct series stored in the range.
+             */
+            ingested: number;
+            name: string;
+            /** @description Names of the enabled rules that match it. */
+            rules: string[];
+        };
         MetricCatalogEntry: {
             description: string;
-            /** @description gauge | sum | histogram | exponential_histogram | summary | span (computed from traces) */
+            /** @description gauge | sum | histogram | exponential_histogram | summary | span (computed from traces) | derived (a formula, see Derived Metrics) */
             kind: string;
             name: string;
             tags: string[];
@@ -8619,6 +8945,48 @@ export interface components {
             rollup1h: number;
             /** Format: int32 */
             rollup5m: number;
+        };
+        MetricRule: {
+            action: components["schemas"]["MetricRuleAction"];
+            enabled: boolean;
+            id: string;
+            kind: components["schemas"]["MetricRuleKind"];
+            /** @description Metric names it applies to; `*` matches any run of characters. */
+            metricPattern: string;
+            /**
+             * Format: int64
+             * @description Metrics reported in the last day that it matches.
+             */
+            metricsImpacted: number;
+            name: string;
+            tags: string[];
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            updatedAt: number;
+            updatedBy: string;
+        };
+        /** @enum {string} */
+        MetricRuleAction: "drop" | "strip_tags" | "allow_tags";
+        MetricRuleInput: {
+            action: components["schemas"]["MetricRuleAction"];
+            enabled?: boolean;
+            kind: components["schemas"]["MetricRuleKind"];
+            metricPattern: string;
+            name: string;
+            tags?: string[];
+        };
+        /** @enum {string} */
+        MetricRuleKind: "ingestion" | "indexing";
+        MetricRulesOverview: {
+            /** @description Metrics an enabled rule matches, the biggest first. */
+            filtered: components["schemas"]["MetricCardinality"][];
+            /** @description The metrics with the most series. */
+            top: components["schemas"]["MetricCardinality"][];
+        };
+        MetricRulesOverviewRequest: {
+            range: components["schemas"]["TimeRange"];
         };
         MetricSeries: {
             name: string;
@@ -10806,6 +11174,68 @@ export interface components {
             /** Format: int64 */
             t: number;
         };
+        ServiceCheckCounts: {
+            /** Format: int64 */
+            critical: number;
+            /** Format: int64 */
+            ok: number;
+            /** Format: int64 */
+            unknown: number;
+            /** Format: int64 */
+            warning: number;
+        };
+        ServiceCheckDetail: {
+            /** Format: int64 */
+            bucketMs: number;
+            /** @description Start of each strip cell (epoch ms) and the cell's length. */
+            buckets: number[];
+            check: string;
+            /** @description Groups by their latest status. */
+            counts: components["schemas"]["ServiceCheckCounts"];
+            groups: components["schemas"]["ServiceCheckGroup"][];
+            latestMessage?: null | components["schemas"]["ServiceCheckMessage"];
+            name: string;
+        };
+        ServiceCheckEntry: {
+            /** @description The check as sent (`datadog.agent.up`). */
+            check: string;
+            /**
+             * Format: int64
+             * @description Hosts and tag sets reporting it.
+             */
+            groups: number;
+            /** @description Its readable name. */
+            name: string;
+        };
+        ServiceCheckGroup: {
+            host: string;
+            /** @description The host's latest message for the check, if it sent one. */
+            message?: string | null;
+            /**
+             * Format: int32
+             * @description The latest status (0 OK, 1 WARNING, 2 CRITICAL, 3 UNKNOWN).
+             */
+            status: number;
+            /** @description The worst status per cell of the strip (null: no run), oldest first. */
+            strip: (number | null)[];
+            /** @description The run's other tags (`key:value`), without `check`. */
+            tags: string[];
+        };
+        ServiceCheckMessage: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            at: number;
+            host: string;
+            message: string;
+            /** Format: int32 */
+            status: number;
+        };
+        ServiceCheckRequest: {
+            check: string;
+            range: components["schemas"]["TimeRange"];
+        };
         /** @description How to reach a service's owners. */
         ServiceContact: {
             name?: string;
@@ -12383,6 +12813,13 @@ export interface components {
         };
         /** @description Correlated events: one affected object's warnings and errors. */
         WorkItem: {
+            /** @description Work item attribute values, by attribute id. */
+            attributes: {
+                [key: string]: string;
+            };
+            /** @description The correlator that grouped its events (Event Management → Settings); none for the default
+             *     grouping per affected object. */
+            correlator?: string | null;
             /** Format: int64 */
             count: number;
             /** Format: int64 */
@@ -12390,6 +12827,8 @@ export interface components {
             id: string;
             /** Format: int64 */
             lastSeen: number;
+            /** @description The maintenance window all its events fall in: the work item is suppressed. */
+            maintenance?: string | null;
             /** @description The newest event's reason (`BackOff`, `OOMKilling`), when it names one. */
             reason: string;
             source: string;
@@ -12403,10 +12842,35 @@ export interface components {
             tags: string[];
             title: string;
         };
+        WorkItemAttribute: {
+            id: string;
+            kind: components["schemas"]["WorkItemAttributeKind"];
+            name: string;
+            options: string[];
+            /** Format: int32 */
+            position: number;
+        };
+        WorkItemAttributeInput: {
+            kind: components["schemas"]["WorkItemAttributeKind"];
+            name: string;
+            options?: string[];
+            /** Format: int32 */
+            position?: number;
+        };
+        /** @enum {string} */
+        WorkItemAttributeKind: "select" | "text";
+        WorkItemAttributeValue: {
+            attributeId: string;
+            /** @description '' clears it. */
+            value: string;
+        };
         WorkItemsPage: {
             closed: number;
             items: components["schemas"]["WorkItem"][];
+            /** @description Open and closed count the work items that aren't suppressed. */
             open: number;
+            /** @description Work items in a maintenance window. */
+            suppressed: number;
         };
         WorkItemsRequest: {
             query?: string;
@@ -14276,6 +14740,92 @@ export interface operations {
             };
         };
     };
+    list_event_correlators: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCorrelator"][];
+                };
+            };
+        };
+    };
+    create_event_correlator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventCorrelatorInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCorrelator"];
+                };
+            };
+        };
+    };
+    update_event_correlator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventCorrelatorInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCorrelator"];
+                };
+            };
+        };
+    };
+    delete_event_correlator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     event_fields: {
         parameters: {
             query?: never;
@@ -14296,6 +14846,67 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["EventField"][];
                 };
+            };
+        };
+    };
+    list_event_maintenance_windows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventMaintenanceWindow"][];
+                };
+            };
+        };
+    };
+    create_event_maintenance_window: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventMaintenanceWindowInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventMaintenanceWindow"];
+                };
+            };
+        };
+    };
+    delete_event_maintenance_window: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -14322,6 +14933,92 @@ export interface operations {
             };
         };
     };
+    list_work_item_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemAttribute"][];
+                };
+            };
+        };
+    };
+    create_work_item_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkItemAttributeInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemAttribute"];
+                };
+            };
+        };
+    };
+    update_work_item_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkItemAttributeInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemAttribute"];
+                };
+            };
+        };
+    };
+    delete_work_item_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     event_work_items: {
         parameters: {
             query?: never;
@@ -14342,6 +15039,29 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["WorkItemsPage"];
                 };
+            };
+        };
+    };
+    set_work_item_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkItemAttributeValue"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -17950,6 +18670,201 @@ export interface operations {
             };
         };
     };
+    list_derived_metrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DerivedMetric"][];
+                };
+            };
+        };
+    };
+    create_derived_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DerivedMetricInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DerivedMetric"];
+                };
+            };
+        };
+    };
+    update_derived_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DerivedMetricInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DerivedMetric"];
+                };
+            };
+        };
+    };
+    delete_derived_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_metric_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricRule"][];
+                };
+            };
+        };
+    };
+    create_metric_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetricRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricRule"];
+                };
+            };
+        };
+    };
+    metric_rules_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetricRulesOverviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricRulesOverview"];
+                };
+            };
+        };
+    };
+    update_metric_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetricRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricRule"];
+                };
+            };
+        };
+    };
+    delete_metric_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     volume: {
         parameters: {
             query?: never;
@@ -21363,6 +22278,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_service_checks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceCheckEntry"][];
+                };
+            };
+        };
+    };
+    service_check_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceCheckRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceCheckDetail"];
                 };
             };
         };

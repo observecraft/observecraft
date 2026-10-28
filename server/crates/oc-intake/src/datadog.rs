@@ -18,6 +18,7 @@ use axum::Json;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::check_messages::CheckMessage;
 use crate::otlp::{self, KeyValue};
 use crate::{admit, send, Rejection, Shared};
 
@@ -246,14 +247,18 @@ struct CheckRun {
     status: u8,
     #[serde(default)]
     tags: Option<Vec<String>>,
+    #[serde(default)]
+    message: Option<String>,
 }
 
 /// Service checks (`/api/v1/check_run`) as the gauge `service_check.status` (0 OK, 1 WARNING,
-/// 2 CRITICAL, 3 UNKNOWN) tagged `check:<name>`, so monitors and dashboards can use them like metrics.
-pub fn parse_check_runs(body: &[u8]) -> Result<Vec<Series>, String> {
+/// 2 CRITICAL, 3 UNKNOWN) tagged `check:<name>`, so monitors and dashboards can use them like metrics;
+/// and each run's message (see `check_messages`).
+pub fn parse_check_runs(body: &[u8]) -> Result<(Vec<Series>, Vec<CheckMessage>), String> {
     let runs: Vec<CheckRun> = serde_json::from_slice(body).map_err(|e| format!("invalid JSON payload: {e}"))?;
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-    Ok(runs
+    let messages = runs.iter().map(|r| CheckMessage { check: r.check.clone(), host: r.host_name.clone(), status: r.status.min(3), message: r.message.clone().unwrap_or_default() }).collect();
+    let series = runs
         .into_iter()
         .map(|r| {
             let mut tags = r.tags.unwrap_or_default();
@@ -268,7 +273,8 @@ pub fn parse_check_runs(body: &[u8]) -> Result<Vec<Series>, String> {
                 points: vec![(r.timestamp.map_or(now, |t| t as i64), f64::from(r.status.min(3)))],
             }
         })
-        .collect())
+        .collect();
+    Ok((series, messages))
 }
 
 pub fn parse_v1(body: &[u8]) -> Result<Vec<Series>, String> {
@@ -524,19 +530,26 @@ async fn ingest(st: Shared, headers: HeaderMap, body: Bytes, parse: impl FnOnce(
         Ok(org) => org,
         Err(r) => return r.into_response(),
     };
-    let mut series = match inflate(&headers, &body).and_then(|raw| parse(&raw)) {
+    let series = match inflate(&headers, &body).and_then(|raw| parse(&raw)) {
         Ok(series) => series,
         Err(e) => return bad_request(e),
     };
     drop(body);
-    with_host_tags(&mut series, &st.host_tags.hosts(&st.pg, &org.org_id).await);
-    let collector = sender(&headers);
-    for chunk in series.chunks(CHUNK) {
-        if let Err(r) = deliver_metrics(&st, &org, otlp::encode(&to_otlp(chunk, collector))).await {
-            return r.into_response();
-        }
+    match deliver_series(&st, &org, &headers, series).await {
+        Ok(()) => (StatusCode::ACCEPTED, Json(ok)).into_response(),
+        Err(r) => r.into_response(),
     }
-    (StatusCode::ACCEPTED, Json(ok)).into_response()
+}
+
+/// Adds host tags, applies the org's ingestion controls, converts and sends the series.
+async fn deliver_series(st: &Shared, org: &crate::KeyOrg, headers: &HeaderMap, mut series: Vec<Series>) -> Result<(), Rejection> {
+    with_host_tags(&mut series, &st.host_tags.hosts(&st.pg, &org.org_id).await);
+    crate::metric_rules::apply(&mut series, &st.metric_rules.rules(&st.pg, &org.org_id).await);
+    let collector = sender(headers);
+    for chunk in series.chunks(CHUNK) {
+        deliver_metrics(st, org, otlp::encode(&to_otlp(chunk, collector))).await?;
+    }
+    Ok(())
 }
 
 /// Sends converted OTLP metrics (protobuf) to the collector.
@@ -561,7 +574,20 @@ pub async fn series_v1(State(st): State<Shared>, headers: HeaderMap, body: Bytes
 
 /// `POST /api/v1/check_run`: the Agent's service checks.
 pub async fn check_run(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
-    ingest(st, headers, body, parse_check_runs, json!({ "status": "ok" })).await
+    let org = match admit(&st, &headers, body.len()).await {
+        Ok(org) => org,
+        Err(r) => return r.into_response(),
+    };
+    let (series, messages) = match inflate(&headers, &body).and_then(|raw| parse_check_runs(&raw)) {
+        Ok(parsed) => parsed,
+        Err(e) => return bad_request(e),
+    };
+    drop(body);
+    st.check_messages.record(&st.pg, &org.org_id, messages).await;
+    match deliver_series(&st, &org, &headers, series).await {
+        Ok(()) => (StatusCode::ACCEPTED, Json(json!({ "status": "ok" }))).into_response(),
+        Err(r) => r.into_response(),
+    }
 }
 
 /// `POST /api/beta/sketches`: the Agent's distribution metrics (SketchPayload protobuf).
@@ -581,6 +607,7 @@ pub async fn sketches(State(st): State<Shared>, headers: HeaderMap, body: Bytes)
             crate::host_tags::merge(&mut s.tags, tags);
         }
     }
+    crate::metric_rules::apply_sketches(&mut payload.sketches, &st.metric_rules.rules(&st.pg, &org.org_id).await);
     let collector = sender(&headers);
     for chunk in payload.sketches.chunks(CHUNK) {
         if let Err(r) = deliver_metrics(&st, &org, otlp::encode(&sketches_to_otlp(chunk, collector))).await {
@@ -1004,7 +1031,8 @@ mod tests {
 
     #[test]
     fn service_checks_become_a_gauge() {
-        let s = parse_check_runs(br#"[{"check":"ntp.in_sync","host_name":"web-1","timestamp":1700000000,"status":2,"message":"offset 3s","tags":["env:prod"]}]"#).unwrap();
+        let (s, messages) = parse_check_runs(br#"[{"check":"ntp.in_sync","host_name":"web-1","timestamp":1700000000,"status":2,"message":"offset 3s","tags":["env:prod"]}]"#).unwrap();
+        assert_eq!(messages, vec![CheckMessage { check: "ntp.in_sync".into(), host: "web-1".into(), status: 2, message: "offset 3s".into() }]);
         assert_eq!(s[0].metric, "service_check.status");
         assert_eq!(s[0].points, vec![(1_700_000_000, 2.0)]);
         assert!(s[0].tags.contains(&"check:ntp.in_sync".to_string()));

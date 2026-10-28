@@ -35,6 +35,7 @@
 //! OC_INTAKE_FLAG_EVALUATIONS_URL (http://localhost:8090/ingest/feature-flag-evaluations), OC_INTERNAL_TOKEN,
 //! OC_INTAKE_MAX_BODY_MB (16), OC_INTAKE_ORG_RPS (500), OC_INTAKE_ORG_MBPS (50).
 
+mod check_messages;
 mod datadog;
 mod datadog_apm;
 mod datadog_dns;
@@ -45,6 +46,7 @@ mod datadog_process;
 mod datadog_tags;
 mod grpc;
 mod host_tags;
+mod metric_rules;
 mod ofrep;
 mod otlp;
 
@@ -194,6 +196,10 @@ struct Inner {
     host_tags: host_tags::HostTags,
     /// Feature flag configuration per org and evaluation counts (OFREP).
     flags: ofrep::FlagState,
+    /// Ingestion controls per org (Metrics → Settings → Rules).
+    metric_rules: metric_rules::MetricRules,
+    /// The last service check messages written per org, check and host.
+    check_messages: check_messages::CheckMessages,
 }
 
 type Shared = Arc<Inner>;
@@ -527,7 +533,7 @@ async fn main() -> anyhow::Result<()> {
     let addr = cfg.addr.clone();
     let grpc_addr = cfg.grpc_addr.clone();
     let max_body = cfg.max_body;
-    let st: Shared = Arc::new(Inner { cfg, pg, http, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default(), flags: ofrep::FlagState::default() });
+    let st: Shared = Arc::new(Inner { cfg, pg, http, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default(), flags: ofrep::FlagState::default(), metric_rules: metric_rules::MetricRules::default(), check_messages: check_messages::CheckMessages::default() });
     let flusher = st.clone();
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(ofrep::FLUSH_EVERY);

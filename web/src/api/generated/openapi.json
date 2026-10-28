@@ -2355,6 +2355,118 @@
         }
       }
     },
+    "/api/v1/events/correlators": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "operationId": "list_event_correlators",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventCorrelator"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "operationId": "create_event_correlator",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventCorrelatorInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCorrelator"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/correlators/{id}": {
+      "put": {
+        "tags": [
+          "events"
+        ],
+        "operationId": "update_event_correlator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventCorrelatorInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCorrelator"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "operationId": "delete_event_correlator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/events/fields": {
       "post": {
         "tags": [
@@ -2385,6 +2497,80 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/events/maintenance-windows": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "operationId": "list_event_maintenance_windows",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventMaintenanceWindow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "operationId": "create_event_maintenance_window",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventMaintenanceWindowInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventMaintenanceWindow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/maintenance-windows/{id}": {
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "operationId": "delete_event_maintenance_window",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
           }
         }
       }
@@ -2420,6 +2606,118 @@
         }
       }
     },
+    "/api/v1/events/work-item-attributes": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "operationId": "list_work_item_attributes",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkItemAttribute"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "operationId": "create_work_item_attribute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkItemAttributeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemAttribute"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/work-item-attributes/{id}": {
+      "put": {
+        "tags": [
+          "events"
+        ],
+        "operationId": "update_work_item_attribute",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkItemAttributeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemAttribute"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "operationId": "delete_work_item_attribute",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/events/work-items": {
       "post": {
         "tags": [
@@ -2447,6 +2745,40 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/events/work-items/{id}/attributes": {
+      "put": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Sets one attribute of a work item (a select's value must be one of its options).",
+        "operationId": "set_work_item_attribute",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkItemAttributeValue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
           }
         }
       }
@@ -7408,6 +7740,262 @@
         }
       }
     },
+    "/api/v1/metrics/derived": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "operationId": "list_derived_metrics",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DerivedMetric"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "metrics"
+        ],
+        "operationId": "create_derived_metric",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DerivedMetricInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DerivedMetric"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/derived/{id}": {
+      "put": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Changes the description, queries or formula; the name stays (dashboards and monitors use it).",
+        "operationId": "update_derived_metric",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DerivedMetricInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DerivedMetric"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "metrics"
+        ],
+        "operationId": "delete_derived_metric",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/rules": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "operationId": "list_metric_rules",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MetricRule"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "metrics"
+        ],
+        "operationId": "create_metric_rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetricRuleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricRule"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/rules/overview": {
+      "post": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Rules Overview: cardinality of the metrics rules filter and of the biggest metrics.",
+        "operationId": "metric_rules_overview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetricRulesOverviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricRulesOverview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/rules/{id}": {
+      "put": {
+        "tags": [
+          "metrics"
+        ],
+        "operationId": "update_metric_rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetricRuleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricRule"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "metrics"
+        ],
+        "operationId": "delete_metric_rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/metrics/volume": {
       "post": {
         "tags": [
@@ -12041,6 +12629,61 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/service-checks": {
+      "get": {
+        "tags": [
+          "monitors"
+        ],
+        "summary": "The service checks reported in the past day.",
+        "operationId": "list_service_checks",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceCheckEntry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/service-checks/detail": {
+      "post": {
+        "tags": [
+          "monitors"
+        ],
+        "summary": "One check's status per host and tag set over the range.",
+        "operationId": "service_check_detail",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceCheckDetail"
                 }
               }
             }
@@ -18069,6 +18712,83 @@
           }
         }
       },
+      "DerivedMetric": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "queries",
+          "expression",
+          "formula",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "expression": {
+            "type": "string",
+            "description": "Arithmetic over the query letters: `a / b * 100`."
+          },
+          "formula": {
+            "type": "string",
+            "description": "What queries of the name evaluate: the expression with the queries in place of the letters."
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "queries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The metric queries, by letter (a, b, …)."
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "DerivedMetricInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "queries",
+          "expression"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "expression": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "queries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "Detection": {
         "type": "string",
         "enum": [
@@ -19187,6 +19907,92 @@
           }
         }
       },
+      "EventCorrelator": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "query",
+          "groupBy",
+          "windowMinutes",
+          "enabled",
+          "position",
+          "updatedBy",
+          "updatedAt"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`source`, `host`, `status`, `title` or tag keys: one work item per distinct values."
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Correlators are tried in this order."
+          },
+          "query": {
+            "type": "string",
+            "description": "Event search: which warning and error events it groups ('' = all)."
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "updatedBy": {
+            "type": "string"
+          },
+          "windowMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Events further apart than this start a new work item."
+          }
+        }
+      },
+      "EventCorrelatorInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "windowMinutes"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "query": {
+            "type": "string"
+          },
+          "windowMinutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "EventFacet": {
         "type": "object",
         "required": [
@@ -19260,6 +20066,65 @@
           },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "EventMaintenanceWindow": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "query",
+          "startsAt",
+          "endsAt",
+          "createdBy"
+        ],
+        "properties": {
+          "createdBy": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "description": "Event search: which events are expected during the window ('' = all)."
+          },
+          "startsAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          }
+        }
+      },
+      "EventMaintenanceWindowInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "startsAt",
+          "endsAt"
+        ],
+        "properties": {
+          "endsAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -25966,6 +26831,39 @@
           }
         }
       },
+      "MetricCardinality": {
+        "type": "object",
+        "required": [
+          "name",
+          "ingested",
+          "indexed",
+          "rules"
+        ],
+        "properties": {
+          "indexed": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Distinct combinations of its queryable tags (= ingested without an indexing control).",
+            "minimum": 0
+          },
+          "ingested": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Distinct series stored in the range.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Names of the enabled rules that match it."
+          }
+        }
+      },
       "MetricCatalogEntry": {
         "type": "object",
         "required": [
@@ -25980,7 +26878,7 @@
           },
           "kind": {
             "type": "string",
-            "description": "gauge | sum | histogram | exponential_histogram | summary | span (computed from traces)"
+            "description": "gauge | sum | histogram | exponential_histogram | summary | span (computed from traces) | derived (a formula, see Derived Metrics)"
           },
           "name": {
             "type": "string"
@@ -26044,6 +26942,143 @@
           "rollup5m": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "MetricRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "metricPattern",
+          "action",
+          "tags",
+          "enabled",
+          "updatedBy",
+          "updatedAt",
+          "metricsImpacted"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/MetricRuleAction"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MetricRuleKind"
+          },
+          "metricPattern": {
+            "type": "string",
+            "description": "Metric names it applies to; `*` matches any run of characters."
+          },
+          "metricsImpacted": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Metrics reported in the last day that it matches.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "updatedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "MetricRuleAction": {
+        "type": "string",
+        "enum": [
+          "drop",
+          "strip_tags",
+          "allow_tags"
+        ]
+      },
+      "MetricRuleInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "metricPattern",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/MetricRuleAction"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MetricRuleKind"
+          },
+          "metricPattern": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MetricRuleKind": {
+        "type": "string",
+        "enum": [
+          "ingestion",
+          "indexing"
+        ]
+      },
+      "MetricRulesOverview": {
+        "type": "object",
+        "required": [
+          "filtered",
+          "top"
+        ],
+        "properties": {
+          "filtered": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricCardinality"
+            },
+            "description": "Metrics an enabled rule matches, the biggest first."
+          },
+          "top": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricCardinality"
+            },
+            "description": "The metrics with the most series."
+          }
+        }
+      },
+      "MetricRulesOverviewRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
           }
         }
       },
@@ -33245,6 +34280,201 @@
           }
         }
       },
+      "ServiceCheckCounts": {
+        "type": "object",
+        "required": [
+          "ok",
+          "warning",
+          "critical",
+          "unknown"
+        ],
+        "properties": {
+          "critical": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "ok": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unknown": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "warning": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ServiceCheckDetail": {
+        "type": "object",
+        "required": [
+          "check",
+          "name",
+          "counts",
+          "buckets",
+          "bucketMs",
+          "groups"
+        ],
+        "properties": {
+          "bucketMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Start of each strip cell (epoch ms) and the cell's length."
+          },
+          "check": {
+            "type": "string"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ServiceCheckCounts",
+            "description": "Groups by their latest status."
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServiceCheckGroup"
+            }
+          },
+          "latestMessage": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ServiceCheckMessage",
+                "description": "The most recent non-empty message."
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "ServiceCheckEntry": {
+        "type": "object",
+        "required": [
+          "check",
+          "name",
+          "groups"
+        ],
+        "properties": {
+          "check": {
+            "type": "string",
+            "description": "The check as sent (`datadog.agent.up`)."
+          },
+          "groups": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hosts and tag sets reporting it.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string",
+            "description": "Its readable name."
+          }
+        }
+      },
+      "ServiceCheckGroup": {
+        "type": "object",
+        "required": [
+          "host",
+          "tags",
+          "status",
+          "strip"
+        ],
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The host's latest message for the check, if it sent one."
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The latest status (0 OK, 1 WARNING, 2 CRITICAL, 3 UNKNOWN).",
+            "minimum": 0
+          },
+          "strip": {
+            "type": "array",
+            "items": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            },
+            "description": "The worst status per cell of the strip (null: no run), oldest first."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The run's other tags (`key:value`), without `check`."
+          }
+        }
+      },
+      "ServiceCheckMessage": {
+        "type": "object",
+        "required": [
+          "host",
+          "status",
+          "message",
+          "at"
+        ],
+        "properties": {
+          "at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "host": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "ServiceCheckRequest": {
+        "type": "object",
+        "required": [
+          "check",
+          "range"
+        ],
+        "properties": {
+          "check": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
       "ServiceContact": {
         "type": "object",
         "description": "How to reach a service's owners.",
@@ -37946,9 +39176,27 @@
           "firstSeen",
           "lastSeen",
           "state",
-          "tags"
+          "tags",
+          "attributes"
         ],
         "properties": {
+          "attributes": {
+            "type": "object",
+            "description": "Work item attribute values, by attribute id.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "correlator": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The correlator that grouped its events (Event Management → Settings); none for the default\ngrouping per affected object."
+          },
           "count": {
             "type": "integer",
             "format": "int64",
@@ -37964,6 +39212,13 @@
           "lastSeen": {
             "type": "integer",
             "format": "int64"
+          },
+          "maintenance": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The maintenance window all its events fall in: the work item is suppressed."
           },
           "reason": {
             "type": "string",
@@ -37996,12 +39251,92 @@
           }
         }
       },
+      "WorkItemAttribute": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "options",
+          "position"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WorkItemAttributeKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "WorkItemAttributeInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/WorkItemAttributeKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "WorkItemAttributeKind": {
+        "type": "string",
+        "enum": [
+          "select",
+          "text"
+        ]
+      },
+      "WorkItemAttributeValue": {
+        "type": "object",
+        "required": [
+          "attributeId",
+          "value"
+        ],
+        "properties": {
+          "attributeId": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string",
+            "description": "'' clears it."
+          }
+        }
+      },
       "WorkItemsPage": {
         "type": "object",
         "required": [
           "items",
           "open",
-          "closed"
+          "closed",
+          "suppressed"
         ],
         "properties": {
           "closed": {
@@ -38016,6 +39351,12 @@
           },
           "open": {
             "type": "integer",
+            "description": "Open and closed count the work items that aren't suppressed.",
+            "minimum": 0
+          },
+          "suppressed": {
+            "type": "integer",
+            "description": "Work items in a maintenance window.",
             "minimum": 0
           }
         }

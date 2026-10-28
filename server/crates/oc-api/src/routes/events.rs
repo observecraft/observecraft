@@ -10,6 +10,8 @@ use clickhouse::Row;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use super::event_correlation::{correlate, Correlator, MaintenanceWindow, RawEvent};
+use super::event_settings;
 use super::logs::TimeRange;
 use crate::error::ApiResult;
 use crate::state::{AppState, OrgId};
@@ -307,13 +309,23 @@ pub struct WorkItem {
     pub state: String,
     /// Where it happened (cluster, namespace, service, env).
     pub tags: Vec<String>,
+    /// The correlator that grouped its events (Event Management → Settings); none for the default
+    /// grouping per affected object.
+    pub correlator: Option<String>,
+    /// The maintenance window all its events fall in: the work item is suppressed.
+    pub maintenance: Option<String>,
+    /// Work item attribute values, by attribute id.
+    pub attributes: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Serialize, ToSchema)]
 pub struct WorkItemsPage {
     pub items: Vec<WorkItem>,
+    /// Open and closed count the work items that aren't suppressed.
     pub open: usize,
     pub closed: usize,
+    /// Work items in a maintenance window.
+    pub suppressed: usize,
 }
 
 /// A work item stays open while its object keeps reporting.
@@ -359,7 +371,36 @@ fn work_item(r: WorkItemRow, range_end: i64) -> WorkItem {
         count: r.count,
         first_seen: r.first,
         last_seen: r.last,
+        correlator: None,
+        maintenance: None,
+        attributes: Default::default(),
     }
+}
+
+/// Raw events correlated with the org's correlators and maintenance windows read at most this many.
+const CORRELATED_EVENTS: u64 = 20_000;
+
+/// Work item rows from correlated events (see `event_correlation`): the row, its correlator's name
+/// and its maintenance window.
+fn correlated_rows(events: &[RawEvent], correlators: &[Correlator], windows: &[MaintenanceWindow]) -> Vec<(WorkItemRow, Option<String>, Option<String>)> {
+    correlate(events, correlators, windows)
+        .into_iter()
+        .filter_map(|c| {
+            let first = &events[*c.events.first()?];
+            let last = &events[*c.events.last()?];
+            let mut statuses: Vec<String> = c.events.iter().map(|&i| events[i].status.clone()).collect();
+            statuses.sort();
+            statuses.dedup();
+            let correlator = c.correlator.map(|i| &correlators[i]);
+            let title = match correlator {
+                Some(k) if c.values.iter().any(|v| !v.is_empty()) => format!("{}: {}", k.name, c.values.iter().filter(|v| !v.is_empty()).cloned().collect::<Vec<_>>().join(", ")),
+                Some(k) => k.name.clone(),
+                None => last.title.clone(),
+            };
+            let row = WorkItemRow { key: c.key, title, source: last.source.clone(), statuses, count: c.events.len() as u64, first: first.ts, last: last.ts, text: last.text.clone(), tags: last.tags.join(",") };
+            Some((row, correlator.map(|k| k.name.clone()), c.maintenance))
+        })
+        .collect()
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -400,9 +441,78 @@ pub async fn work_items(State(st): State<AppState>, OrgId(org): OrgId, Json(req)
             q = q.bind(b.as_str());
         }
     }
-    let items: Vec<WorkItem> = q.fetch_all::<WorkItemRow>().await?.into_iter().map(|r| work_item(r, req.range.to)).collect();
-    let open = items.iter().filter(|i| i.state == "open").count();
-    Ok(Json(WorkItemsPage { closed: items.len() - open, open, items }))
+    let (correlators, windows) = tokio::try_join!(event_settings::active_correlators(&st, &org), event_settings::windows_between(&st, &org, req.range.from, req.range.to))?;
+    let mut items: Vec<WorkItem> = if correlators.is_empty() && windows.is_empty() {
+        q.fetch_all::<WorkItemRow>().await?.into_iter().map(|r| work_item(r, req.range.to)).collect()
+    } else {
+        let events = raw_events(&st, &org, &req, &conds).await?;
+        let mut items: Vec<WorkItem> = correlated_rows(&events, &correlators, &windows)
+            .into_iter()
+            .map(|(row, correlator, maintenance)| WorkItem { correlator, maintenance, ..work_item(row, req.range.to) })
+            .collect();
+        items.sort_by(|a, b| b.last_seen.cmp(&a.last_seen));
+        items.truncate(WORK_ITEMS as usize);
+        items
+    };
+    let ids: Vec<String> = items.iter().map(|i| i.id.clone()).collect();
+    let mut values = event_settings::values_of(&st, &org, &ids).await?;
+    for i in &mut items {
+        i.attributes = values.remove(&i.id).unwrap_or_default();
+    }
+    let suppressed = items.iter().filter(|i| i.maintenance.is_some()).count();
+    let open = items.iter().filter(|i| i.maintenance.is_none() && i.state == "open").count();
+    Ok(Json(WorkItemsPage { closed: items.len() - suppressed - open, open, suppressed, items }))
+}
+
+/// The range's warning and error events matching the inbox query, newest first (at most [`CORRELATED_EVENTS`]).
+async fn raw_events(st: &AppState, org: &str, req: &WorkItemsRequest, conds: &[Cond]) -> Result<Vec<RawEvent>, crate::error::ApiError> {
+    let mut where_sql = RANGE.to_string();
+    for c in conds {
+        where_sql.push_str(" AND ");
+        where_sql.push_str(&c.sql);
+    }
+    #[derive(Row, Deserialize)]
+    struct RawRow {
+        ts: i64,
+        title: String,
+        text: String,
+        status: String,
+        priority: String,
+        source: String,
+        host: String,
+        aggregation_key: String,
+        tags: String,
+    }
+    let mut q = st
+        .ch(org)
+        .query(&format!(
+            "SELECT toInt64(toUnixTimestamp64Milli(Timestamp)) AS ts, LogAttributes['title'] AS title, Body AS text, toString(SeverityText) AS status, LogAttributes['priority'] AS priority, \
+             LogAttributes['source_type_name'] AS source, ResourceAttributes['host.name'] AS host, LogAttributes['aggregation_key'] AS aggregation_key, LogAttributes['tags'] AS tags \
+             FROM otel.otel_events WHERE OrgId = {{oc_org:String}} AND {where_sql} AND SeverityText IN ('error', 'warning') ORDER BY Timestamp DESC LIMIT {CORRELATED_EVENTS}"
+        ))
+        .bind(req.range.from)
+        .bind(req.range.to);
+    for c in conds {
+        for b in &c.binds {
+            q = q.bind(b.as_str());
+        }
+    }
+    Ok(q
+        .fetch_all::<RawRow>()
+        .await?
+        .into_iter()
+        .map(|r| RawEvent {
+            ts: r.ts,
+            title: r.title,
+            text: r.text,
+            status: r.status,
+            priority: r.priority,
+            source: r.source,
+            host: r.host,
+            aggregation_key: r.aggregation_key,
+            tags: r.tags.split(',').filter(|t| !t.is_empty()).map(str::to_string).collect(),
+        })
+        .collect())
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -468,6 +578,22 @@ mod tests {
         assert_eq!(open.id, work_item(row.clone(), 10_000_000).id);
         // Quiet for more than 30 minutes before the range's end: closed.
         assert_eq!(work_item(row, 9_000_000 + 31 * 60_000).state, "closed");
+    }
+
+    #[test]
+    fn correlated_work_items_keep_the_default_ids_and_name_their_correlator() {
+        let ev = |ts: i64, key: &str, title: &str, ns: &str| RawEvent { ts, title: title.into(), text: "12 BackOff: Back-off restarting".into(), status: "warning".into(), source: "kubernetes".into(), aggregation_key: key.into(), tags: vec![format!("kube_namespace:{ns}")], ..Default::default() };
+        let events = vec![ev(1_000, "pod-a", "Pod a", "shop"), ev(2_000, "pod-b", "Pod b", "billing")];
+        // The default grouping gives the work items the ids the SQL grouping gives them.
+        let rows = correlated_rows(&events, &[], &[]);
+        assert_eq!(rows[0].0.key, "pod-a");
+        let row = WorkItemRow { key: "pod-a".into(), title: "Pod a".into(), source: "kubernetes".into(), statuses: vec!["warning".into()], count: 1, first: 1_000, last: 1_000, text: String::new(), tags: String::new() };
+        assert_eq!(work_item(rows[0].0.clone(), 5_000).id, work_item(row, 5_000).id);
+
+        let shop = Correlator { id: "c1".into(), name: "Shop".into(), query: "kube_namespace:shop".into(), group_by: vec!["kube_namespace".into()], window_ms: 600_000 };
+        let rows = correlated_rows(&events, &[shop], &[]);
+        assert_eq!((rows[0].0.title.as_str(), rows[0].1.as_deref()), ("Shop: shop", Some("Shop")));
+        assert_eq!((rows[1].0.title.as_str(), rows[1].1.as_deref()), ("Pod b", None));
     }
 
     #[test]

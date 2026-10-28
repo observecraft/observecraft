@@ -7,10 +7,13 @@ pub mod changes;
 pub mod ci;
 pub mod cloud_map;
 pub mod dashboards;
+pub mod derived_metrics;
 pub mod data_jobs;
 pub mod databases;
 pub mod downtimes;
 pub mod error_tracking;
+pub mod event_correlation;
+pub mod event_settings;
 pub mod events;
 pub mod feature_flags;
 pub mod fleet;
@@ -33,6 +36,7 @@ pub mod log_pipelines;
 pub mod log_restrictions;
 pub mod logs;
 pub mod metric_inventory;
+pub mod metric_rules;
 pub mod metrics;
 pub mod monitor_engine;
 pub mod monitor_formula;
@@ -61,6 +65,7 @@ pub mod resource_policies;
 pub mod resource_policy_rules;
 pub mod scorecard_rules;
 pub mod scorecards;
+pub mod service_checks;
 pub mod spans;
 pub mod standard_attributes;
 pub mod slo_math;
@@ -118,6 +123,15 @@ use crate::state::AppState;
         metrics::catalog,
         metrics::volume,
         metrics::tag_values,
+        derived_metrics::list,
+        derived_metrics::create,
+        derived_metrics::update,
+        derived_metrics::delete,
+        metric_rules::list,
+        metric_rules::create,
+        metric_rules::update,
+        metric_rules::delete,
+        metric_rules::overview,
         dashboards::search,
         dashboards::recent,
         dashboards::get_one,
@@ -141,6 +155,20 @@ use crate::state::AppState;
         events::search,
         events::fields,
         events::work_items,
+        event_settings::list_correlators,
+        event_settings::create_correlator,
+        event_settings::update_correlator,
+        event_settings::delete_correlator,
+        event_settings::list_windows,
+        event_settings::create_window,
+        event_settings::delete_window,
+        event_settings::list_attributes,
+        event_settings::create_attribute,
+        event_settings::update_attribute,
+        event_settings::delete_attribute,
+        event_settings::set_value,
+        service_checks::list,
+        service_checks::detail,
         network::flows,
         network::dns,
         profiles::search,
@@ -559,6 +587,11 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/query/distribution", post(metrics::distribution))
         .route("/api/v1/metrics", get(metrics::catalog))
         .route("/api/v1/metrics/volume", post(metrics::volume))
+        .route("/api/v1/metrics/derived", get(derived_metrics::list).post(derived_metrics::create))
+        .route("/api/v1/metrics/derived/:id", axum::routing::put(derived_metrics::update).delete(derived_metrics::delete))
+        .route("/api/v1/metrics/rules", get(metric_rules::list).post(metric_rules::create))
+        .route("/api/v1/metrics/rules/overview", post(metric_rules::overview))
+        .route("/api/v1/metrics/rules/:id", axum::routing::put(metric_rules::update).delete(metric_rules::delete))
         .route("/api/v1/tags/:key/values", get(metrics::tag_values))
         .route("/api/v1/dashboards", post(dashboards::create))
         .route("/api/v1/dashboards/search", post(dashboards::search))
@@ -646,6 +679,15 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/events/search", post(events::search))
         .route("/api/v1/events/fields", post(events::fields))
         .route("/api/v1/events/work-items", post(events::work_items))
+        .route("/api/v1/events/work-items/:id/attributes", axum::routing::put(event_settings::set_value))
+        .route("/api/v1/events/correlators", get(event_settings::list_correlators).post(event_settings::create_correlator))
+        .route("/api/v1/events/correlators/:id", axum::routing::put(event_settings::update_correlator).delete(event_settings::delete_correlator))
+        .route("/api/v1/events/maintenance-windows", get(event_settings::list_windows).post(event_settings::create_window))
+        .route("/api/v1/events/maintenance-windows/:id", delete(event_settings::delete_window))
+        .route("/api/v1/events/work-item-attributes", get(event_settings::list_attributes).post(event_settings::create_attribute))
+        .route("/api/v1/events/work-item-attributes/:id", axum::routing::put(event_settings::update_attribute).delete(event_settings::delete_attribute))
+        .route("/api/v1/service-checks", get(service_checks::list))
+        .route("/api/v1/service-checks/detail", post(service_checks::detail))
         .route("/api/v1/network/flows", post(network::flows))
         .route("/api/v1/network/dns", post(network::dns))
         .route("/api/v1/profiles/search", post(profiles::search))
@@ -1133,6 +1175,11 @@ mod tests {
             include_str!("databases.rs"),
             include_str!("data_jobs.rs"),
             include_str!("metric_inventory.rs"),
+            include_str!("metric_rules.rs"),
+            include_str!("derived_metrics.rs"),
+            include_str!("event_correlation.rs"),
+            include_str!("event_settings.rs"),
+            include_str!("service_checks.rs"),
             include_str!("events.rs"),
             include_str!("feature_flags.rs"),
             include_str!("fleet.rs"),
@@ -1214,6 +1261,8 @@ mod tests {
             ("databases.rs", include_str!("databases.rs")),
             ("data_jobs.rs", include_str!("data_jobs.rs")),
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
+            ("metric_rules.rs", include_str!("metric_rules.rs")),
+            ("service_checks.rs", include_str!("service_checks.rs")),
             ("events.rs", include_str!("events.rs")),
             ("feature_flags.rs", include_str!("feature_flags.rs")),
             ("fleet.rs", include_str!("fleet.rs")),
@@ -1316,6 +1365,9 @@ mod tests {
             ("downtimes.rs", include_str!("downtimes.rs")),
             ("error_tracking.rs", include_str!("error_tracking.rs")),
             ("events.rs", include_str!("events.rs")),
+            ("event_correlation.rs", include_str!("event_correlation.rs")),
+            ("event_settings.rs", include_str!("event_settings.rs")),
+            ("derived_metrics.rs", include_str!("derived_metrics.rs")),
             ("feature_flags.rs", include_str!("feature_flags.rs")),
             ("fleet.rs", include_str!("fleet.rs")),
             ("health.rs", include_str!("health.rs")),
@@ -1324,6 +1376,8 @@ mod tests {
             ("databases.rs", include_str!("databases.rs")),
             ("data_jobs.rs", include_str!("data_jobs.rs")),
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
+            ("metric_rules.rs", include_str!("metric_rules.rs")),
+            ("service_checks.rs", include_str!("service_checks.rs")),
             ("identity.rs", include_str!("identity.rs")),
             ("incident_views.rs", include_str!("incident_views.rs")),
             ("incidents.rs", include_str!("incidents.rs")),

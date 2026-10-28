@@ -552,7 +552,8 @@ fn forget(org: &str) {
 
 /// A metric query or formula added up over its groups, and the interval (ms) of its points.
 async fn metric_series(st: &AppState, org: &str, text: &str, range: TimeRange, points: u32) -> Result<(BTreeMap<i64, f64>, i64), ApiError> {
-    let f = parse_formula(text).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
+    let text = super::derived_metrics::resolve_text(st, org, text).await?;
+    let f = parse_formula(&text).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
     let mut results = Vec::with_capacity(f.queries.len());
     let mut step = 0;
     for q in &f.queries {

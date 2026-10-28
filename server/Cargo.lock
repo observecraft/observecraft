@@ -2792,6 +2792,7 @@ dependencies = [
  "bytes",
  "flate2",
  "oc-flags",
+ "oc-query",
  "prost",
  "reqwest",
  "serde",

@@ -77,6 +77,8 @@ struct Prepared {
     step: i64,
     source: Source,
     error: Option<String>,
+    /// A derived metric's query: evaluated on its own as its formula, over the whole range.
+    formula: Option<String>,
 }
 
 struct Plan {
@@ -126,6 +128,8 @@ impl Plan {
         )?;
         let mut items: Vec<Prepared> = Vec::new();
         let mut seen = HashMap::new();
+        let derived = super::super::derived_metrics::org_derived(st, org).await?;
+        let index = super::super::metric_rules::index_rules(st, org).await?;
         for item in &req.queries {
             let key = (
                 item.query.clone(),
@@ -142,10 +146,21 @@ impl Plan {
                     .strip_suffix(".weighted()")
                     .unwrap_or(&item.query),
             );
-            let (query, error) = match parsed {
+            let (query, mut error) = match parsed {
                 Ok(q) => (q, None),
                 Err(e) => (parse("avg:invalid{*}")?, Some(e.to_string())),
             };
+            if let (None, Err(e)) = (&error, super::super::metric_rules::check_indexed(&query, &index)) {
+                error = Some(e);
+            }
+            let mut formula = None;
+            if error.is_none() && derived.contains_key(&query.metric) {
+                match super::super::derived_metrics::expand(&item.query, &derived) {
+                    Ok(_) if weighted => error = Some("weighted() isn't supported on derived metrics".into()),
+                    Ok(_) => formula = Some(item.query.clone()),
+                    Err(e) => error = Some(e),
+                }
+            }
             let (query, scale) = super::resolve_alias_if_missing(st, org, &query).await?;
             seen.insert(key.clone(), items.len());
             items.push(Prepared {
@@ -160,11 +175,12 @@ impl Plan {
                 step: step_ms(req.range, key.1, 10_000),
                 source: Source::Samples,
                 error,
+                formula,
             });
         }
         let names: Vec<_> = items
             .iter()
-            .filter(|i| i.error.is_none())
+            .filter(|i| i.error.is_none() && i.formula.is_none())
             .map(|i| i.query.metric.clone())
             .collect::<HashSet<_>>()
             .into_iter()
@@ -198,6 +214,11 @@ impl Plan {
         let mut fallback = Vec::new();
         for (index, p) in items.iter_mut().enumerate() {
             if p.error.is_some() {
+                continue;
+            }
+            if p.formula.is_some() {
+                p.kind = "derived".into();
+                fallback.push(index);
                 continue;
             }
             let points = req
@@ -310,7 +331,8 @@ impl Plan {
                 kind: p.kind.clone(),
                 unit: p.unit.clone(),
                 step_ms: p.step,
-                replace_from: query_range(range, previous_to, p.step).from,
+                // A derived metric is evaluated over the whole range every time.
+                replace_from: if p.formula.is_some() { range.from } else { query_range(range, previous_to, p.step).from },
                 error: p.error.clone(),
             })
             .collect();
@@ -324,6 +346,12 @@ impl Plan {
         let mut work = stream::iter(jobs.into_iter().map(|indices| async move {
             let step = self.items[indices[0]].step;
             let subrange = query_range(range, previous_to, step);
+            if let Some(text) = &self.items[indices[0]].formula {
+                let derived = super::evaluate_formula(st, org, text, range, 120).await.map(|(_, groups)| {
+                    groups.into_iter().map(|g| DashboardMetricSeries { name: if g.tags.is_empty() { text.clone() } else { group_label(&g.tags) }, tags: g.tags, points: g.points }).collect::<Vec<_>>()
+                });
+                return (indices, derived.map(Fetched::Series));
+            }
             let data = if self.items[indices[0]].scalar_kind.is_some() {
                 let (sql, params) = shared_sql(&self.items, &indices, subrange);
                 bind(st.ch(org).query(&sql), &params).fetch_all::<BatchRow>().await.map_err(ApiError::from)
@@ -337,11 +365,12 @@ impl Plan {
                     Err(e) => Err(e),
                 }
             };
-            (indices, data)
+            (indices, data.map(Fetched::Rows))
         })).buffer_unordered(4);
         while let Some((indices, data)) = work.next().await {
             match data {
-                Ok(rows) => {
+                Ok(Fetched::Series(series)) => results[indices[0]].series = series,
+                Ok(Fetched::Rows(rows)) => {
                     for r in rows {
                         let p = &self.items[r.qi as usize];
                         let tags = p
@@ -413,6 +442,12 @@ fn query_range(range: TimeRange, previous_to: Option<i64>, step: i64) -> TimeRan
             .unwrap_or_else(|| range.from.div_euclid(step) * step),
         to: range.to,
     }
+}
+
+/// What one scan returned: rows of shared or single queries, or a derived metric's series.
+enum Fetched {
+    Rows(Vec<BatchRow>),
+    Series(Vec<DashboardMetricSeries>),
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -919,6 +954,7 @@ mod tests {
             step: 30_000,
             source: Source::Samples,
             error: None,
+            formula: None,
         }
     }
 
