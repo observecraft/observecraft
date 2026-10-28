@@ -77,6 +77,10 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
         "0007_log_error_keys",
         include_str!("../../../migrations/clickhouse/0007_log_error_keys.sql"),
     ),
+    (
+        "0008_k8s_generations",
+        include_str!("../../../migrations/clickhouse/0008_k8s_generations.sql"),
+    ),
 ];
 
 /// Migrations of the schema before 0001_schema (no org-first sort keys, no cluster support).

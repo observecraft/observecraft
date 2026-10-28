@@ -3,7 +3,7 @@
 //! - Kubernetes rollouts: the replica sets of each deployment (their revision, creation time and pod
 //!   template images; old replica sets stay in the cluster for the deployment's revision history),
 //! - Kubernetes spec changes: successive `metadata.generation`s of deployments, stateful sets and
-//!   daemon sets in the collectors' raw object snapshots (`otel.otel_k8s_objects`, kept a day):
+//!   daemon sets, summarized from the collectors' object snapshots (`otel.k8s_workload_generations`):
 //!   scaling, stateful set / daemon set image rollouts and other spec edits,
 //! - pod crashes and evictions: Kubernetes events (`otel.k8s_events`),
 //! - deployments: the first span of a new `service.version` (APM) and CI deployment jobs,
@@ -18,7 +18,6 @@ use axum::extract::State;
 use axum::Json;
 use oc_query::parse_query;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use utoipa::ToSchema;
 
 use super::catalog::{facets, CatalogFacet, Faceted};
@@ -239,7 +238,8 @@ fn replicaset_rollouts(rows: &[KubeResource], range: TimeRange) -> Vec<Change> {
 
 // ================================================================ Kubernetes spec generations
 
-/// The first snapshot of one generation of a workload.
+/// One generation of a workload (`otel.k8s_workload_generations`): its spec as the parts the
+/// comparison needs, the other spec keys and the pod template spec's keys as value hashes.
 #[derive(clickhouse::Row, Deserialize, Debug, Clone)]
 struct Snapshot {
     cluster: String,
@@ -249,19 +249,22 @@ struct Snapshot {
     uid: String,
     generation: i64,
     first_seen: i64,
-    spec: String,
-    labels: String,
+    replicas: Option<i64>,
+    /// Pod template container images, in order.
+    images: Vec<String>,
+    /// Hash of the whole pod template.
+    template: u64,
+    /// Pod template spec key → value hash.
+    template_spec: Vec<(String, u64)>,
+    /// Spec key → value hash, without replicas and template.
+    spec: Vec<(String, u64)>,
+    labels: Vec<(String, String)>,
 }
 
-fn template_images(spec: &Value) -> Vec<String> {
-    spec.pointer("/template/spec/containers").and_then(Value::as_array).into_iter().flatten().filter_map(|c| c.get("image").and_then(Value::as_str).map(str::to_string)).collect()
-}
-
-/// Keys of `a` and `b` (objects) whose values differ, skipping `skip`.
-fn changed_keys(a: &Value, b: &Value, skip: &[&str]) -> Vec<String> {
-    let empty = serde_json::Map::new();
-    let (a, b) = (a.as_object().unwrap_or(&empty), b.as_object().unwrap_or(&empty));
-    let mut keys: Vec<String> = a.keys().chain(b.keys()).filter(|k| !skip.contains(&k.as_str()) && a.get(*k) != b.get(*k)).cloned().collect();
+/// Keys whose value hashes differ between `a` and `b` (a key in only one of them included).
+fn changed_keys(a: &[(String, u64)], b: &[(String, u64)]) -> Vec<String> {
+    let (a, b): (BTreeMap<&str, u64>, BTreeMap<&str, u64>) = (a.iter().map(|(k, v)| (k.as_str(), *v)).collect(), b.iter().map(|(k, v)| (k.as_str(), *v)).collect());
+    let mut keys: Vec<String> = a.keys().chain(b.keys()).filter(|k| a.get(*k) != b.get(*k)).map(|k| k.to_string()).collect();
     keys.sort();
     keys.dedup();
     keys
@@ -269,7 +272,7 @@ fn changed_keys(a: &Value, b: &Value, skip: &[&str]) -> Vec<String> {
 
 /// Changes between consecutive generations of each workload, for generations first seen in `range`.
 /// Deployment pod template changes are left to [`replicaset_rollouts`], which also covers revisions
-/// older than the raw snapshots.
+/// older than the generations kept.
 fn spec_changes(mut snaps: Vec<Snapshot>, range: TimeRange) -> Vec<Change> {
     snaps.sort_by(|a, b| a.uid.cmp(&b.uid).then(a.generation.cmp(&b.generation)));
     let mut out = Vec::new();
@@ -278,8 +281,7 @@ fn spec_changes(mut snaps: Vec<Snapshot>, range: TimeRange) -> Vec<Change> {
         if prev.uid != cur.uid || cur.first_seen < range.from || cur.first_seen > range.to {
             continue;
         }
-        let (Ok(a), Ok(b)) = (serde_json::from_str::<Value>(&prev.spec), serde_json::from_str::<Value>(&cur.spec)) else { continue };
-        let labels: BTreeMap<String, String> = serde_json::from_str(&cur.labels).unwrap_or_default();
+        let labels: BTreeMap<&str, &str> = cur.labels.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
         let (resource_type, kube_kind) = match cur.kind.as_str() {
             "Deployment" => ("kube_deployment", KubeKind::Deployments),
             "StatefulSet" => ("kube_statefulset", KubeKind::StatefulSets),
@@ -290,25 +292,24 @@ fn spec_changes(mut snaps: Vec<Snapshot>, range: TimeRange) -> Vec<Change> {
             let mut c = Change::new(format!("gen:{}:{}:{suffix}", cur.uid, cur.generation), cur.first_seen, change_type, ChangeSource::Kubernetes, resource_type, &cur.name, summary);
             c.cluster = non_empty(&cur.cluster);
             c.namespace = non_empty(&cur.namespace);
-            c.service = labels.get("tags.datadoghq.com/service").or(labels.get("app.kubernetes.io/name")).or(labels.get("app")).cloned();
-            c.env = labels.get("tags.datadoghq.com/env").cloned();
+            c.service = labels.get("tags.datadoghq.com/service").or(labels.get("app.kubernetes.io/name")).or(labels.get("app")).map(|s| s.to_string());
+            c.env = labels.get("tags.datadoghq.com/env").map(|s| s.to_string());
             c.kube_kind = Some(kube_kind);
             c.kube_uid = Some(cur.uid.clone());
             c.details.insert("generation".into(), format!("{} → {}", prev.generation, cur.generation));
             c
         };
-        let replicas = |s: &Value| s.get("replicas").and_then(Value::as_i64);
-        if cur.kind != "DaemonSet" && replicas(&a) != replicas(&b) {
-            let (p, n) = (replicas(&a).unwrap_or(1), replicas(&b).unwrap_or(1));
+        if cur.kind != "DaemonSet" && prev.replicas != cur.replicas {
+            let (p, n) = (prev.replicas.unwrap_or(1), cur.replicas.unwrap_or(1));
             let mut c = base("scale", ChangeType::Scale, format!("Scaled from {p} to {n} replicas"));
             (c.previous, c.current) = (Some(p.to_string()), Some(n.to_string()));
             out.push(c);
         }
-        if cur.kind != "Deployment" && a.get("template") != b.get("template") {
-            let (pi, ci) = (template_images(&a), template_images(&b));
-            let changed = image_changes(&pi, &ci);
+        if cur.kind != "Deployment" && prev.template != cur.template {
+            let (pi, ci) = (&prev.images, &cur.images);
+            let changed = image_changes(pi, ci);
             let mut c = if changed.is_empty() {
-                let keys = changed_keys(a.pointer("/template/spec").unwrap_or(&Value::Null), b.pointer("/template/spec").unwrap_or(&Value::Null), &[]);
+                let keys = changed_keys(&prev.template_spec, &cur.template_spec);
                 base("template", ChangeType::Config, if keys.is_empty() { "Pod template changed".into() } else { format!("Pod template changed: {}", keys.join(", ")) })
             } else {
                 base("template", ChangeType::Rollout, format!("Rolled out {}", changed.join(", ")))
@@ -316,7 +317,7 @@ fn spec_changes(mut snaps: Vec<Snapshot>, range: TimeRange) -> Vec<Change> {
             (c.previous, c.current) = (Some(pi.join(", ")), Some(ci.join(", ")));
             out.push(c);
         }
-        let other = changed_keys(&a, &b, &["replicas", "template"]);
+        let other = changed_keys(&prev.spec, &cur.spec);
         if !other.is_empty() {
             out.push(base("spec", ChangeType::Config, format!("Spec changed: {}", other.join(", "))));
         }
@@ -615,8 +616,8 @@ fn search_page(all: Vec<Change>, req: &ChangeSearchRequest) -> ChangePage {
     ChangePage { items, total, facets, histogram }
 }
 
-/// Raw object snapshots are kept a day: look this far before the range for the generation a change
-/// in the range replaced.
+/// The generation a change in the range replaced was last seen just before it (collectors resend
+/// objects every minute): generations last seen this long before the range are not needed.
 const SNAPSHOT_LOOKBACK_MS: i64 = 86_400_000;
 const MAX_ROWS: u64 = 5000;
 
@@ -625,16 +626,16 @@ pub async fn search(State(st): State<AppState>, auth: AuthContext, Json(req): Js
     req.range.validate()?;
     let org = auth.org_id.as_str();
     let (from, to) = (req.range.from, req.range.to);
-    let kube = super::kubernetes::resources(&st, org);
+    let kube = super::kubernetes::replica_sets(&st, org);
     let snapshots = st
         .ch(org)
         .query(
-            "SELECT ResourceAttributes['k8s.cluster.name'] AS cluster, JSONExtractString(Body, 'kind') AS kind, JSONExtractString(Body, 'metadata', 'namespace') AS namespace, \
-             JSONExtractString(Body, 'metadata', 'name') AS name, JSONExtractString(Body, 'metadata', 'uid') AS uid, JSONExtractInt(Body, 'metadata', 'generation') AS generation, \
-             toInt64(toUnixTimestamp64Milli(min(Timestamp))) AS first_seen, any(JSONExtractRaw(Body, 'spec')) AS spec, any(JSONExtractRaw(Body, 'metadata', 'labels')) AS labels \
-             FROM otel.otel_k8s_objects WHERE OrgId = {oc_org:String} AND TimestampTime >= toDateTime(intDiv(?, 1000)) AND TimestampTime <= toDateTime(intDiv(?, 1000)) \
-             AND JSONExtractString(Body, 'kind') IN ('Deployment', 'StatefulSet', 'DaemonSet') AND uid != '' \
-             GROUP BY cluster, kind, namespace, name, uid, generation ORDER BY uid, generation LIMIT ?",
+            "SELECT any(Cluster) AS cluster, any(Kind) AS kind, any(Namespace) AS namespace, any(Name) AS name, Uid AS uid, Generation AS generation, \
+             toInt64(toUnixTimestamp64Milli(min(FirstSeen))) AS first_seen, any(Replicas) AS replicas, any(Images) AS images, any(TemplateHash) AS template, \
+             arrayZip(mapKeys(any(TemplateSpecHashes)), mapValues(any(TemplateSpecHashes))) AS template_spec, arrayZip(mapKeys(any(SpecHashes)), mapValues(any(SpecHashes))) AS spec, \
+             arrayZip(mapKeys(any(Labels)), mapValues(any(Labels))) AS labels \
+             FROM otel.k8s_workload_generations WHERE OrgId = {oc_org:String} GROUP BY Uid, Generation \
+             HAVING max(LastSeen) >= fromUnixTimestamp64Milli(?) AND min(FirstSeen) <= fromUnixTimestamp64Milli(?) ORDER BY uid, generation LIMIT ?",
         )
         .bind(from - SNAPSHOT_LOOKBACK_MS)
         .bind(to)
@@ -732,6 +733,7 @@ pub async fn search(State(st): State<AppState>, auth: AuthContext, Json(req): Js
 mod tests {
     use super::*;
     use crate::routes::kubernetes::KubeObjectRef;
+    use serde_json::Value;
 
     const RANGE: TimeRange = TimeRange { from: 1_000_000, to: 2_000_000 };
 
@@ -773,7 +775,19 @@ mod tests {
         assert_eq!(created[0].summary, "Created with order-service:1.4.0");
     }
 
+    /// A hash for test rows, as the summary table's cityHash64 of the raw JSON.
+    fn hash(v: &Value) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        v.to_string().hash(&mut h);
+        h.finish()
+    }
+
+    /// The summary row of one generation with `spec`, as the materialized view stores it.
     fn snap(kind: &str, generation: i64, first_seen: i64, spec: Value) -> Snapshot {
+        let hashes = |v: Option<&Value>, skip: &[&str]| -> Vec<(String, u64)> {
+            v.and_then(Value::as_object).into_iter().flatten().filter(|(k, _)| !skip.contains(&k.as_str())).map(|(k, v)| (k.clone(), hash(v))).collect()
+        };
         Snapshot {
             cluster: "shop-prod".into(),
             kind: kind.into(),
@@ -782,8 +796,12 @@ mod tests {
             uid: format!("uid-{kind}"),
             generation,
             first_seen,
-            spec: spec.to_string(),
-            labels: r#"{"tags.datadoghq.com/service":"cart-db","tags.datadoghq.com/env":"prod"}"#.into(),
+            replicas: spec.get("replicas").and_then(Value::as_i64),
+            images: spec.pointer("/template/spec/containers").and_then(Value::as_array).into_iter().flatten().filter_map(|c| c["image"].as_str().map(str::to_string)).collect(),
+            template: spec.get("template").map(hash).unwrap_or(0),
+            template_spec: hashes(spec.pointer("/template/spec"), &[]),
+            spec: hashes(Some(&spec), &["replicas", "template"]),
+            labels: vec![("tags.datadoghq.com/service".into(), "cart-db".into()), ("tags.datadoghq.com/env".into(), "prod".into())],
         }
     }
 
@@ -815,6 +833,18 @@ mod tests {
         assert_eq!(edits.iter().map(|c| (c.change_type, c.summary.as_str())).collect::<Vec<_>>(), vec![(ChangeType::Config, "Spec changed: strategy")]);
         // A generation before the range is only the baseline.
         assert!(spec_changes(vec![snap("Deployment", 1, 10, strategy("A")), snap("Deployment", 2, 20, strategy("B"))], RANGE).is_empty());
+    }
+
+    #[test]
+    fn pod_template_edits_without_new_images_name_the_changed_keys() {
+        let daemon = |dns: &str| serde_json::json!({ "template": { "spec": { "containers": [{ "name": "agent", "image": "otel/collector:0.112.0" }], "dnsPolicy": dns } } });
+        let changes = spec_changes(vec![snap("DaemonSet", 1, 10, daemon("ClusterFirst")), snap("DaemonSet", 2, 1_500_000, daemon("Default"))], RANGE);
+        assert_eq!(changes.iter().map(|c| (c.change_type, c.summary.as_str())).collect::<Vec<_>>(), vec![(ChangeType::Config, "Pod template changed: dnsPolicy")]);
+        let c = &changes[0];
+        assert_eq!((c.resource_type.as_str(), c.kube_kind, c.env.as_deref()), ("kube_daemonset", Some(KubeKind::DaemonSets), Some("prod")));
+        assert_eq!(c.details.get("generation").map(String::as_str), Some("1 → 2"));
+        // A daemon set has no replicas: no scale change.
+        assert!(changes.iter().all(|c| c.change_type != ChangeType::Scale));
     }
 
     #[test]

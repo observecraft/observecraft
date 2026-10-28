@@ -439,7 +439,8 @@ struct EcsRow {
     mem: Option<f64>,
 }
 
-async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
+/// The org's current objects, only of the API `kinds` when given.
+async fn load_objects(st: &AppState, org: &str, kinds: &[&str]) -> Result<Vec<(KubeKind, String, i64, Value)>, ApiError> {
     #[derive(clickhouse::Row, Deserialize)]
     struct Obj {
         cluster: String,
@@ -447,6 +448,26 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         seen: i64,
         body: String,
     }
+    let query = format!(
+        "SELECT Cluster AS cluster, Kind AS kind, toUnixTimestamp64Milli(LastSeen) AS seen, Body AS body FROM otel.k8s_resources FINAL \
+         WHERE OrgId = {{oc_org:String}} AND LastSeen > now64(3) - INTERVAL {STALE_MINUTES} MINUTE{filter} LIMIT {MAX_OBJECTS}",
+        filter = if kinds.is_empty() { "" } else { " AND Kind IN ?" }
+    );
+    let mut q = st.ch(org).query(&query);
+    if !kinds.is_empty() {
+        q = q.bind(kinds);
+    }
+    let objects = q.fetch_all::<Obj>().await?;
+    Ok(objects
+        .into_iter()
+        .filter_map(|o| match (KubeKind::from_api(&o.kind), serde_json::from_str::<Value>(&o.body)) {
+            (Some(kind), Ok(body)) => Some((kind, o.cluster, o.seen, body)),
+            _ => None,
+        })
+        .collect())
+}
+
+async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
     #[derive(clickhouse::Row, Deserialize)]
     struct Usage {
         cluster: String,
@@ -456,13 +477,7 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         cpu: f64,
         mem: f64,
     }
-    let objects = st
-        .ch(org)
-        .query(&format!(
-            "SELECT Cluster AS cluster, Kind AS kind, toUnixTimestamp64Milli(LastSeen) AS seen, Body AS body FROM otel.k8s_resources FINAL \
-             WHERE OrgId = {{oc_org:String}} AND LastSeen > now64(3) - INTERVAL {STALE_MINUTES} MINUTE LIMIT {MAX_OBJECTS}"
-        ))
-        .fetch_all::<Obj>();
+    let objects = load_objects(st, org, &[]);
     // Points of the last 15 minutes (5 for processes), from the new storage once it has them.
     let now = now_ms();
     let (recent, procs_from, end) = (now - 15 * 60_000, now - 5 * 60_000, now + OPEN_END_MS);
@@ -544,7 +559,7 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
     .bind(org)
     .fetch_all(&st.postgres);
     let (objects, usage, dd_usage, ecs, processes, host_cpus) = tokio::try_join!(
-        async { objects.await.map_err(ApiError::from) },
+        objects,
         async { usage.await.map_err(ApiError::from) },
         async { dd_usage.await.map_err(ApiError::from) },
         async { ecs.await.map_err(ApiError::from) },
@@ -557,7 +572,7 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         .map(|(h, c)| (h, c as u32))
         .collect();
     let mut inv = Inventory {
-        objects: Vec::with_capacity(objects.len()),
+        objects,
         pod_usage: HashMap::new(),
         container_usage: HashMap::new(),
         node_usage: HashMap::new(),
@@ -565,10 +580,6 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         processes,
         host_cpus,
     };
-    for o in objects {
-        let (Some(kind), Ok(body)) = (KubeKind::from_api(&o.kind), serde_json::from_str::<Value>(&o.body)) else { continue };
-        inv.objects.push((kind, o.cluster, o.seen, body));
-    }
     for u in usage {
         let v = (u.cpu, u.mem);
         if !u.container.is_empty() {
@@ -1989,6 +2000,13 @@ fn related(rows: &[KubeResource], r: &KubeResource) -> Vec<KubeResource> {
 /// and change tracking read them).
 pub(crate) async fn resources(st: &AppState, org: &str) -> Result<Vec<KubeResource>, ApiError> {
     Ok(build(&load(st, org).await?))
+}
+
+/// The org's current deployments and their replica sets, without usage (change tracking's rollouts).
+pub(crate) async fn replica_sets(st: &AppState, org: &str) -> Result<Vec<KubeResource>, ApiError> {
+    let objects = load_objects(st, org, &["Deployment", "ReplicaSet"]).await?;
+    let inv = Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), host_cpus: HashMap::new() };
+    Ok(build(&inv).into_iter().filter(|r| r.kind == Some(KubeKind::ReplicaSets)).collect())
 }
 
 /// The node named like a host and the pods running on it, for the host panel.
