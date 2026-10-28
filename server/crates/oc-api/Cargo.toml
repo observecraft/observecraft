@@ -34,6 +34,7 @@ hmac = "0.12"
 hickory-resolver = { version = "0.25", default-features = false, features = ["system-config", "tokio"] }
 # Monitor notification email (SMTP over rustls).
 lettre = { version = "=0.11.23", default-features = false, features = ["builder", "hostname", "smtp-transport", "pool", "tokio1-rustls-tls"] }
+oc-flags = { workspace = true, features = ["openapi"] }
 oc-query.workspace = true
 oc-store.workspace = true
 openidconnect = "4"

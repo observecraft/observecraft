@@ -22,6 +22,7 @@
 //!   Its host tags are added to that host's series, sketches and service checks (see `host_tags`)
 //! - `POST /api/v1/events`, `/api/v2/events`     Datadog events (API, Agent) → otel.otel_events
 //! - `POST /api/v2/service_checks`               the Agent's service checks (as `/api/v1/check_run`)
+//! - `POST /ofrep/v1/evaluate/flags[/{key}]`     feature flag evaluation for OpenFeature SDKs (OFREP, see `ofrep`)
 //! - `POST /api/v1/metadata`, `/api/v2/orch`: the Agent's inventories and orchestrator summaries,
 //!   acknowledged but not stored
 //!
@@ -29,7 +30,8 @@
 //!
 //! Env: OC_INTAKE_ADDR (0.0.0.0:4318), OC_INTAKE_GRPC_ADDR (0.0.0.0:4317), OC_POSTGRES_URL,
 //! OC_INTAKE_COLLECTOR_URL (http://localhost:14318), OC_INTAKE_LOGS_URL (http://localhost:8687),
-//! OC_INTAKE_PROFILES_URL (http://localhost:8090/ingest/profiles), OC_INTERNAL_TOKEN,
+//! OC_INTAKE_PROFILES_URL (http://localhost:8090/ingest/profiles),
+//! OC_INTAKE_FLAG_EVALUATIONS_URL (http://localhost:8090/ingest/feature-flag-evaluations), OC_INTERNAL_TOKEN,
 //! OC_INTAKE_MAX_BODY_MB (16), OC_INTAKE_ORG_RPS (500), OC_INTAKE_ORG_MBPS (50).
 
 mod datadog;
@@ -42,6 +44,7 @@ mod datadog_process;
 mod datadog_tags;
 mod grpc;
 mod host_tags;
+mod ofrep;
 mod otlp;
 
 use std::collections::HashMap;
@@ -77,6 +80,8 @@ struct Config {
     logs_url: String,
     /// The server's internal listener for profile uploads.
     profiles_url: String,
+    /// The server's internal listener for feature flag evaluation counts.
+    flag_evaluations_url: String,
     /// Bearer token of the server's internal listener (OC_INTERNAL_TOKEN), if it requires one.
     internal_token: Option<String>,
     max_body: usize,
@@ -107,6 +112,7 @@ impl Config {
                 "OC_INTAKE_PROFILES_URL",
                 "http://localhost:8090/ingest/profiles",
             ),
+            flag_evaluations_url: env("OC_INTAKE_FLAG_EVALUATIONS_URL", "http://localhost:8090/ingest/feature-flag-evaluations"),
             internal_token: std::env::var("OC_INTERNAL_TOKEN")
                 .ok()
                 .filter(|t| !t.is_empty()),
@@ -129,6 +135,8 @@ pub struct KeyOrg {
     pub metrics_retention_days: i32,
     pub metrics_5m_days: i32,
     pub metrics_1h_days: i32,
+    /// The feature flag environment its OFREP evaluations use when the context names none.
+    pub flag_environment_id: Option<String>,
 }
 
 /// Headers every forwarded body carries; the collector turns them into resource attributes
@@ -183,6 +191,8 @@ struct Inner {
     limits: Mutex<HashMap<String, Limits>>,
     /// Datadog host tags per (org, host), added to the host's series.
     host_tags: host_tags::HostTags,
+    /// Feature flag configuration per org and evaluation counts (OFREP).
+    flags: ofrep::FlagState,
 }
 
 type Shared = Arc<Inner>;
@@ -231,7 +241,7 @@ async fn resolve(st: &Shared, key: &str) -> anyhow::Result<Option<KeyOrg>> {
     }
     let org: Option<KeyOrg> = sqlx::query_as(
         "SELECT k.org_id, COALESCE(s.span_retention_days, 0) AS span_retention_days, COALESCE(s.metrics_retention_days, 0) AS metrics_retention_days, \
-         COALESCE(s.metrics_5m_days, 0) AS metrics_5m_days, COALESCE(s.metrics_1h_days, 0) AS metrics_1h_days FROM ingest_keys k JOIN orgs o ON o.id = k.org_id \
+         COALESCE(s.metrics_5m_days, 0) AS metrics_5m_days, COALESCE(s.metrics_1h_days, 0) AS metrics_1h_days, k.flag_environment_id::text AS flag_environment_id FROM ingest_keys k JOIN orgs o ON o.id = k.org_id \
          LEFT JOIN org_data_settings s ON s.org_id = k.org_id WHERE k.key_hash = $1 AND k.revoked_at IS NULL AND o.status = 'active'",
     )
     .bind(&hash)
@@ -516,7 +526,19 @@ async fn main() -> anyhow::Result<()> {
     let addr = cfg.addr.clone();
     let grpc_addr = cfg.grpc_addr.clone();
     let max_body = cfg.max_body;
-    let st: Shared = Arc::new(Inner { cfg, pg, http, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default() });
+    let st: Shared = Arc::new(Inner { cfg, pg, http, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default(), flags: ofrep::FlagState::default() });
+    let flusher = st.clone();
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(ofrep::FLUSH_EVERY);
+        loop {
+            tick.tick().await;
+            ofrep::flush(&flusher).await;
+        }
+    });
+    let ofrep_routes = Router::new()
+        .route("/ofrep/v1/evaluate/flags", post(ofrep::evaluate_flags))
+        .route("/ofrep/v1/evaluate/flags/:key", post(ofrep::evaluate_flag))
+        .layer(ofrep::cors());
     let app = Router::new()
         .route("/healthz", get(|| async { "ok" }))
         .route("/v1/traces", post(traces))
@@ -542,6 +564,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/events", post(datadog_events::post_v1))
         .route("/api/v2/events", post(datadog_events::post_agent))
         .route("/api/v2/service_checks", post(datadog::check_run))
+        .merge(ofrep_routes)
         .layer(DefaultBodyLimit::max(max_body))
         .layer(axum::middleware::from_fn(query_api_key))
         .layer(axum::middleware::from_fn(log_requests))
@@ -566,7 +589,7 @@ mod tests {
 
     #[test]
     fn org_headers_carry_its_retention() {
-        let org = KeyOrg { org_id: "acme".into(), span_retention_days: 15, metrics_retention_days: 30, metrics_5m_days: 90, metrics_1h_days: 395 };
+        let org = KeyOrg { org_id: "acme".into(), span_retention_days: 15, metrics_retention_days: 30, metrics_5m_days: 90, metrics_1h_days: 395, flag_environment_id: None };
         assert_eq!(
             org_headers(&org),
             [

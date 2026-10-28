@@ -2200,6 +2200,533 @@
         }
       }
     },
+    "/api/v1/feature-flags": {
+      "get": {
+        "tags": [
+          "feature_flags"
+        ],
+        "summary": "Every flag of the org with its state per environment, and the environments.",
+        "operationId": "list_feature_flags",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlagsPage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "feature_flags"
+        ],
+        "summary": "Creates a flag, off in every environment and serving its default variant there.",
+        "operationId": "create_feature_flag",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeatureFlagInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlag"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feature-flags/environments": {
+      "get": {
+        "tags": [
+          "feature_flags"
+        ],
+        "operationId": "list_feature_flag_environments",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeatureFlagEnvironment"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "feature_flags"
+        ],
+        "operationId": "create_feature_flag_environment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeatureFlagEnvironmentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlagEnvironment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feature-flags/environments/{id}": {
+      "put": {
+        "tags": [
+          "feature_flags"
+        ],
+        "operationId": "update_feature_flag_environment_settings",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeatureFlagEnvironmentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlagEnvironment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "feature_flags"
+        ],
+        "summary": "Deletes an environment and every flag's configuration in it.",
+        "operationId": "delete_feature_flag_environment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feature-flags/history": {
+      "get": {
+        "tags": [
+          "feature_flags"
+        ],
+        "summary": "Global Flag History: changes across every flag, newest first.",
+        "operationId": "list_feature_flag_history",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Default 200, at most 1000.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeatureFlagChange"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feature-flags/{id}": {
+      "get": {
+        "tags": [
+          "feature_flags"
+        ],
+        "operationId": "get_feature_flag",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlag"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "feature_flags"
+        ],
+        "summary": "Changes a flag's details and variants (its key stays). Environments that serve a removed\nvariant must be changed first.",
+        "operationId": "update_feature_flag",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeatureFlagInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlag"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "feature_flags"
+        ],
+        "operationId": "delete_feature_flag",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feature-flags/{id}/environments/{environment_id}": {
+      "put": {
+        "tags": [
+          "feature_flags"
+        ],
+        "summary": "Sets a flag's configuration in one environment: on or off, targeting rules, the default and\na progressive rollout.",
+        "operationId": "update_feature_flag_environment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeatureFlagEnvUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlag"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feature-flags/{id}/history": {
+      "get": {
+        "tags": [
+          "feature_flags"
+        ],
+        "operationId": "get_feature_flag_history",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Default 200, at most 1000.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeatureFlagChange"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/gpu/search": {
       "post": {
         "tags": [
@@ -15258,6 +15785,610 @@
           "value": {
             "type": "string"
           }
+        }
+      },
+      "FeatureFlag": {
+        "type": "object",
+        "required": [
+          "id",
+          "key",
+          "name",
+          "description",
+          "flagType",
+          "variants",
+          "defaultVariant",
+          "sdkAccess",
+          "lifecycle",
+          "teams",
+          "tags",
+          "version",
+          "environments",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "defaultVariant": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "environments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeatureFlagEnvState"
+            },
+            "description": "One per environment of the org, in environment order."
+          },
+          "flagType": {
+            "$ref": "#/components/schemas/FlagType"
+          },
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "lifecycle": {
+            "$ref": "#/components/schemas/FlagLifecycle"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sdkAccess": {
+            "$ref": "#/components/schemas/FlagSdkAccess"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagVariant"
+            }
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "FeatureFlagApiKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "prefix"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          }
+        }
+      },
+      "FeatureFlagChange": {
+        "type": "object",
+        "required": [
+          "id",
+          "flagKey",
+          "flagName",
+          "environmentName",
+          "action",
+          "summary",
+          "actor",
+          "version",
+          "at"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "created, updated, deleted, enabled, disabled, targeting, rollout"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "environmentName": {
+            "type": "string",
+            "description": "Empty for changes to the flag itself."
+          },
+          "flagId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "flagKey": {
+            "type": "string"
+          },
+          "flagName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The flag's version after the change."
+          }
+        }
+      },
+      "FeatureFlagEnvState": {
+        "type": "object",
+        "required": [
+          "environmentId",
+          "environmentName",
+          "isProduction",
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/FlagEnvConfig"
+          },
+          "environmentId": {
+            "type": "string"
+          },
+          "environmentName": {
+            "type": "string"
+          },
+          "isProduction": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch milliseconds; absent while never configured."
+          },
+          "updatedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FeatureFlagEnvUpdate": {
+        "type": "object",
+        "required": [
+          "version",
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/FlagEnvConfig",
+            "description": "A rollout with `startedAt` 0 starts now."
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The flag version the change was made from."
+          }
+        }
+      },
+      "FeatureFlagEnvironment": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "queries",
+          "isProduction",
+          "requiresApproval",
+          "apiKeys",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "apiKeys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeatureFlagApiKey"
+            },
+            "description": "API keys whose evaluations use this environment when the context names none."
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds."
+          },
+          "id": {
+            "type": "string"
+          },
+          "isProduction": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "queries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The `env` values SDKs send that select this environment (`production`, `staging-*`)."
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "FeatureFlagEnvironmentInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "apiKeyIds": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Ingest key ids defaulting to this environment; absent leaves them unchanged (admins only)."
+          },
+          "isProduction": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "queries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FeatureFlagInput": {
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "flagType",
+          "variants",
+          "defaultVariant",
+          "sdkAccess",
+          "lifecycle"
+        ],
+        "properties": {
+          "defaultVariant": {
+            "type": "string",
+            "description": "What new environments serve."
+          },
+          "description": {
+            "type": "string"
+          },
+          "flagType": {
+            "$ref": "#/components/schemas/FlagType"
+          },
+          "key": {
+            "type": "string",
+            "description": "Used in code; can't be changed once created."
+          },
+          "lifecycle": {
+            "$ref": "#/components/schemas/FlagLifecycle"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sdkAccess": {
+            "$ref": "#/components/schemas/FlagSdkAccess"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagVariant"
+            }
+          },
+          "version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "For updates: the version the change was made from."
+          }
+        }
+      },
+      "FeatureFlagsPage": {
+        "type": "object",
+        "required": [
+          "flags",
+          "environments"
+        ],
+        "properties": {
+          "environments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeatureFlagEnvironment"
+            }
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeatureFlag"
+            }
+          }
+        }
+      },
+      "FlagCondition": {
+        "type": "object",
+        "required": [
+          "attribute",
+          "operator"
+        ],
+        "properties": {
+          "attribute": {
+            "type": "string",
+            "description": "A context attribute: `targetingKey`, `country`, or a dotted path into an object (`user.plan`)."
+          },
+          "operator": {
+            "$ref": "#/components/schemas/FlagOperator"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FlagEnvConfig": {
+        "type": "object",
+        "description": "A flag's configuration in one environment.",
+        "properties": {
+          "defaultServe": {
+            "$ref": "#/components/schemas/FlagServe",
+            "description": "Served when no rule matches (and the rollout doesn't take the subject)."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "rollout": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FlagRollout"
+              }
+            ]
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagRule"
+            }
+          }
+        }
+      },
+      "FlagLifecycle": {
+        "type": "string",
+        "enum": [
+          "temporary",
+          "permanent"
+        ]
+      },
+      "FlagOperator": {
+        "type": "string",
+        "description": "How a condition compares the context attribute with its values.",
+        "enum": [
+          "one_of",
+          "not_one_of",
+          "contains",
+          "not_contains",
+          "starts_with",
+          "ends_with",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "exists",
+          "not_exists"
+        ]
+      },
+      "FlagRollout": {
+        "type": "object",
+        "description": "A progressive rollout: the traffic no rule matched moves to `variant` step by step.",
+        "required": [
+          "variant",
+          "steps"
+        ],
+        "properties": {
+          "startedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds the first step began (set by the server when the rollout starts)."
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagRolloutStep"
+            }
+          },
+          "variant": {
+            "type": "string"
+          }
+        }
+      },
+      "FlagRolloutStep": {
+        "type": "object",
+        "required": [
+          "percent",
+          "durationMinutes"
+        ],
+        "properties": {
+          "durationMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How long the step lasts before the next one starts (the last step lasts until changed).",
+            "minimum": 0
+          },
+          "percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Percent of the remaining traffic that gets the rollout's variant during this step."
+          }
+        }
+      },
+      "FlagRule": {
+        "type": "object",
+        "required": [
+          "serve"
+        ],
+        "properties": {
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagCondition"
+            },
+            "description": "All must hold; none matches every subject."
+          },
+          "name": {
+            "type": "string"
+          },
+          "serve": {
+            "$ref": "#/components/schemas/FlagServe"
+          }
+        }
+      },
+      "FlagSdkAccess": {
+        "type": "string",
+        "enum": [
+          "all",
+          "client",
+          "server"
+        ]
+      },
+      "FlagServe": {
+        "type": "object",
+        "description": "What a rule (or the default) serves: one variant, or a split between variants.",
+        "properties": {
+          "split": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlagSplit"
+            },
+            "description": "Weights add up to 100."
+          },
+          "variant": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FlagSplit": {
+        "type": "object",
+        "description": "One part of a percentage split.",
+        "required": [
+          "variant",
+          "weight"
+        ],
+        "properties": {
+          "variant": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "number",
+            "format": "double",
+            "description": "Percent of subjects (0–100, two decimals)."
+          }
+        }
+      },
+      "FlagType": {
+        "type": "string",
+        "description": "The type of a flag's values.",
+        "enum": [
+          "boolean",
+          "string",
+          "integer",
+          "number",
+          "json"
+        ]
+      },
+      "FlagVariant": {
+        "type": "object",
+        "description": "One value a flag can serve; `key` is the variant OpenFeature reports.",
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {}
         }
       },
       "FlakyPage": {
@@ -30342,6 +31473,10 @@
     {
       "name": "scorecards",
       "description": "Developer Portal scorecards: rules evaluated per service, their levels and service metadata"
+    },
+    {
+      "name": "feature_flags",
+      "description": "Feature flags, their targeting per environment and history; SDKs evaluate them over OFREP at the intake"
     },
     {
       "name": "auth",

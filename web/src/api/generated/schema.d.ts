@@ -1034,6 +1034,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/feature-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every flag of the org with its state per environment, and the environments. */
+        get: operations["list_feature_flags"];
+        put?: never;
+        /** Creates a flag, off in every environment and serving its default variant there. */
+        post: operations["create_feature_flag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/environments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_feature_flag_environments"];
+        put?: never;
+        post: operations["create_feature_flag_environment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/environments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_feature_flag_environment_settings"];
+        post?: never;
+        /** Deletes an environment and every flag's configuration in it. */
+        delete: operations["delete_feature_flag_environment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Global Flag History: changes across every flag, newest first. */
+        get: operations["list_feature_flag_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_feature_flag"];
+        /** Changes a flag's details and variants (its key stays). Environments that serve a removed
+         *     variant must be changed first. */
+        put: operations["update_feature_flag"];
+        post?: never;
+        delete: operations["delete_feature_flag"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/{id}/environments/{environment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Sets a flag's configuration in one environment: on or off, targeting rules, the default and
+         *     a progressive rollout. */
+        put: operations["update_feature_flag_environment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feature-flags/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_feature_flag_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/gpu/search": {
         parameters: {
             query?: never;
@@ -5511,6 +5631,205 @@ export interface components {
             /** Format: int64 */
             count: number;
             value: string;
+        };
+        FeatureFlag: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            createdBy?: string | null;
+            defaultVariant: string;
+            description: string;
+            /** @description One per environment of the org, in environment order. */
+            environments: components["schemas"]["FeatureFlagEnvState"][];
+            flagType: components["schemas"]["FlagType"];
+            id: string;
+            key: string;
+            lifecycle: components["schemas"]["FlagLifecycle"];
+            name: string;
+            sdkAccess: components["schemas"]["FlagSdkAccess"];
+            tags: string[];
+            teams: string[];
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+            variants: components["schemas"]["FlagVariant"][];
+            /** Format: int32 */
+            version: number;
+        };
+        FeatureFlagApiKey: {
+            id: string;
+            name: string;
+            prefix: string;
+        };
+        FeatureFlagChange: {
+            /** @description created, updated, deleted, enabled, disabled, targeting, rollout */
+            action: string;
+            actor: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            at: number;
+            /** @description Empty for changes to the flag itself. */
+            environmentName: string;
+            flagId?: string | null;
+            flagKey: string;
+            flagName: string;
+            /** Format: int64 */
+            id: number;
+            summary: string;
+            /**
+             * Format: int32
+             * @description The flag's version after the change.
+             */
+            version: number;
+        };
+        FeatureFlagEnvState: {
+            config: components["schemas"]["FlagEnvConfig"];
+            environmentId: string;
+            environmentName: string;
+            isProduction: boolean;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds; absent while never configured.
+             */
+            updatedAt?: number | null;
+            updatedBy?: string | null;
+        };
+        FeatureFlagEnvUpdate: {
+            /** @description A rollout with `startedAt` 0 starts now. */
+            config: components["schemas"]["FlagEnvConfig"];
+            /**
+             * Format: int32
+             * @description The flag version the change was made from.
+             */
+            version: number;
+        };
+        FeatureFlagEnvironment: {
+            /** @description API keys whose evaluations use this environment when the context names none. */
+            apiKeys: components["schemas"]["FeatureFlagApiKey"][];
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            createdAt: number;
+            id: string;
+            isProduction: boolean;
+            name: string;
+            /** @description The `env` values SDKs send that select this environment (`production`, `staging-*`). */
+            queries: string[];
+            requiresApproval: boolean;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        FeatureFlagEnvironmentInput: {
+            /** @description Ingest key ids defaulting to this environment; absent leaves them unchanged (admins only). */
+            apiKeyIds?: string[] | null;
+            isProduction?: boolean;
+            name: string;
+            queries?: string[];
+            requiresApproval?: boolean;
+        };
+        FeatureFlagInput: {
+            /** @description What new environments serve. */
+            defaultVariant: string;
+            description?: string;
+            flagType: components["schemas"]["FlagType"];
+            /** @description Used in code; can't be changed once created. */
+            key: string;
+            lifecycle: components["schemas"]["FlagLifecycle"];
+            name: string;
+            sdkAccess: components["schemas"]["FlagSdkAccess"];
+            tags?: string[];
+            teams?: string[];
+            variants: components["schemas"]["FlagVariant"][];
+            /**
+             * Format: int32
+             * @description For updates: the version the change was made from.
+             */
+            version?: number | null;
+        };
+        FeatureFlagsPage: {
+            environments: components["schemas"]["FeatureFlagEnvironment"][];
+            flags: components["schemas"]["FeatureFlag"][];
+        };
+        FlagCondition: {
+            /** @description A context attribute: `targetingKey`, `country`, or a dotted path into an object (`user.plan`). */
+            attribute: string;
+            operator: components["schemas"]["FlagOperator"];
+            values?: string[];
+        };
+        /** @description A flag's configuration in one environment. */
+        FlagEnvConfig: {
+            /** @description Served when no rule matches (and the rollout doesn't take the subject). */
+            defaultServe?: components["schemas"]["FlagServe"];
+            enabled?: boolean;
+            rollout?: null | components["schemas"]["FlagRollout"];
+            rules?: components["schemas"]["FlagRule"][];
+        };
+        /** @enum {string} */
+        FlagLifecycle: "temporary" | "permanent";
+        /**
+         * @description How a condition compares the context attribute with its values.
+         * @enum {string}
+         */
+        FlagOperator: "one_of" | "not_one_of" | "contains" | "not_contains" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "exists" | "not_exists";
+        /** @description A progressive rollout: the traffic no rule matched moves to `variant` step by step. */
+        FlagRollout: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds the first step began (set by the server when the rollout starts).
+             */
+            startedAt?: number;
+            steps: components["schemas"]["FlagRolloutStep"][];
+            variant: string;
+        };
+        FlagRolloutStep: {
+            /**
+             * Format: int32
+             * @description How long the step lasts before the next one starts (the last step lasts until changed).
+             */
+            durationMinutes: number;
+            /**
+             * Format: double
+             * @description Percent of the remaining traffic that gets the rollout's variant during this step.
+             */
+            percent: number;
+        };
+        FlagRule: {
+            /** @description All must hold; none matches every subject. */
+            conditions?: components["schemas"]["FlagCondition"][];
+            name?: string;
+            serve: components["schemas"]["FlagServe"];
+        };
+        /** @enum {string} */
+        FlagSdkAccess: "all" | "client" | "server";
+        /** @description What a rule (or the default) serves: one variant, or a split between variants. */
+        FlagServe: {
+            /** @description Weights add up to 100. */
+            split?: components["schemas"]["FlagSplit"][];
+            variant?: string | null;
+        };
+        /** @description One part of a percentage split. */
+        FlagSplit: {
+            variant: string;
+            /**
+             * Format: double
+             * @description Percent of subjects (0–100, two decimals).
+             */
+            weight: number;
+        };
+        /**
+         * @description The type of a flag's values.
+         * @enum {string}
+         */
+        FlagType: "boolean" | "string" | "integer" | "number" | "json";
+        /** @description One value a flag can serve; `key` is the variant OpenFeature reports. */
+        FlagVariant: {
+            key: string;
+            value: unknown;
         };
         FlakyPage: {
             /** @description Per state, ignoring the state filter. */
@@ -11691,6 +12010,383 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkItemsPage"];
+                };
+            };
+        };
+    };
+    list_feature_flags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagsPage"];
+                };
+            };
+        };
+    };
+    create_feature_flag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlag"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_feature_flag_environments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagEnvironment"][];
+                };
+            };
+        };
+    };
+    create_feature_flag_environment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagEnvironmentInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagEnvironment"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_feature_flag_environment_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagEnvironmentInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagEnvironment"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_feature_flag_environment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_feature_flag_history: {
+        parameters: {
+            query?: {
+                /** @description Default 200, at most 1000. */
+                limit?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagChange"][];
+                };
+            };
+        };
+    };
+    get_feature_flag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlag"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_feature_flag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlag"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_feature_flag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_feature_flag_environment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                environment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagEnvUpdate"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlag"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_feature_flag_history: {
+        parameters: {
+            query?: {
+                /** @description Default 200, at most 1000. */
+                limit?: number | null;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagChange"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

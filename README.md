@@ -164,6 +164,8 @@ The intake accepts what Datadog accepts, so you can keep Datadog's open-source a
 - **OTLP**, over HTTP (`:4318`) and gRPC (`:4317`), for traces, metrics and logs;
 - **Datadog's API and Agent formats**: metrics, distributions, logs, APM traces, service checks, and the Cluster
   Agent's Kubernetes manifests.
+- **OpenFeature flag evaluation** (OFREP, `/ofrep/v1/evaluate/flags`): any OpenFeature SDK with the OFREP provider
+  evaluates the flags managed under *Software Delivery → Feature Flags*.
 
 The **Datadog Agent** (official Helm chart or Operator) and Datadog's tracing libraries (dd-trace-*) and DogStatsD
 clients need only a new URL and key. Fluent Bit, Fluentd, Vector and Logstash work through their Datadog outputs.

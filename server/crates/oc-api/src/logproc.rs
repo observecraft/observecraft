@@ -1,5 +1,6 @@
 //! The internal listener (`OC_LOGPROC_ADDR`): the log indexer, and profile uploads from the intake
-//! (`/ingest/profiles`, see `routes::profiles`).
+//! (`/ingest/profiles`, see `routes::profiles`) and feature flag evaluation counts
+//! (`/ingest/feature-flag-evaluations`, see `routes::feature_flags`).
 //!
 //! The log indexer: Vector sends every normalized log here (NDJSON, internal listener on
 //! `OC_LOGPROC_ADDR`) after writing it to `oc.logs_raw`. Each log goes to the first of its org's
@@ -415,6 +416,7 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
     let addr = st.config.logproc_addr.clone();
     let profiles = Router::new()
         .route("/ingest/profiles", post(crate::routes::profiles::ingest))
+        .route("/ingest/feature-flag-evaluations", post(crate::routes::feature_flags::ingest_evaluations))
         .with_state(st.clone());
     let app = Router::new()
         .route("/ingest/logs", post(ingest))

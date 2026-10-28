@@ -64,6 +64,8 @@ or SDK features.
   - live processes and containers `/api/v1/collector` and `/api/v1/container`, stored as `process.*` / `container.*` metrics;
   - network connections and DNS stats `/api/v1/connections`, stored in `otel.otel_network` (Cloud Network Monitoring);
   - orchestrator manifests `/api/v2/orchmanif`, which feed the Kubernetes Explorer;
+  - feature flag evaluation over OpenFeature's OFREP (`/ofrep/v1/evaluate/flags[/{key}]`, `oc-intake/src/ofrep.rs`,
+    model in `oc-flags`), for any OpenFeature SDK with the OFREP provider; also takes the key as `X-API-Key`;
   - `/api/v1/validate`. The API key is also accepted as `?api_key=`.
 - **Deployment:** use the official Datadog Helm chart and Datadog Operator unchanged; examples are in
   `deploy/examples/datadog`.

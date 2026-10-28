@@ -10,6 +10,7 @@ pub mod databases;
 pub mod downtimes;
 pub mod error_tracking;
 pub mod events;
+pub mod feature_flags;
 pub mod gpu;
 pub mod health;
 pub mod hosts;
@@ -318,6 +319,18 @@ use crate::state::AppState;
         scorecards::delete_rule,
         scorecards::set_outcomes,
         scorecards::update_metadata,
+        feature_flags::list,
+        feature_flags::get_one,
+        feature_flags::create,
+        feature_flags::update,
+        feature_flags::delete,
+        feature_flags::update_environment,
+        feature_flags::history,
+        feature_flags::flag_history,
+        feature_flags::list_environments,
+        feature_flags::create_environment,
+        feature_flags::update_environment_settings,
+        feature_flags::delete_environment,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -397,6 +410,7 @@ use crate::state::AppState;
         (name = "on-call", description = "On-Call: schedules, escalation policies, team routing, pages and notification preferences"),
         (name = "synthetics", description = "Synthetic API tests (HTTP, SSL, DNS, TCP) run by the server, their results and uptime"),
         (name = "scorecards", description = "Developer Portal scorecards: rules evaluated per service, their levels and service metadata"),
+        (name = "feature_flags", description = "Feature flags, their targeting per environment and history; SDKs evaluate them over OFREP at the intake"),
         (name = "auth", description = "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"),
         (name = "health")
     )
@@ -741,6 +755,19 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/scorecards/rules/:id", axum::routing::put(scorecards::update_rule).delete(scorecards::delete_rule))
         .route("/api/v1/scorecards/rules/:id/outcomes", post(scorecards::set_outcomes))
         .route("/api/v1/scorecards/services/:service/metadata", axum::routing::put(scorecards::update_metadata))
+        .route("/api/v1/feature-flags", get(feature_flags::list).post(feature_flags::create))
+        .route("/api/v1/feature-flags/history", get(feature_flags::history))
+        .route("/api/v1/feature-flags/environments", get(feature_flags::list_environments).post(feature_flags::create_environment))
+        .route(
+            "/api/v1/feature-flags/environments/:id",
+            axum::routing::put(feature_flags::update_environment_settings).delete(feature_flags::delete_environment),
+        )
+        .route(
+            "/api/v1/feature-flags/:id",
+            get(feature_flags::get_one).put(feature_flags::update).delete(feature_flags::delete),
+        )
+        .route("/api/v1/feature-flags/:id/history", get(feature_flags::flag_history))
+        .route("/api/v1/feature-flags/:id/environments/:environment_id", axum::routing::put(feature_flags::update_environment))
         // Needs no sign-in (auth::is_public); answers only for public pages or members of the page's org.
         .route("/api/v1/public/status-pages/:slug", get(status_pages::get_public))
         .route(
@@ -942,6 +969,7 @@ mod tests {
             include_str!("data_jobs.rs"),
             include_str!("metric_inventory.rs"),
             include_str!("events.rs"),
+            include_str!("feature_flags.rs"),
             include_str!("network.rs"),
             include_str!("notebooks.rs"),
             include_str!("profiles.rs"),
@@ -1012,6 +1040,7 @@ mod tests {
             ("data_jobs.rs", include_str!("data_jobs.rs")),
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
             ("events.rs", include_str!("events.rs")),
+            ("feature_flags.rs", include_str!("feature_flags.rs")),
             ("network.rs", include_str!("network.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),
@@ -1106,6 +1135,7 @@ mod tests {
             ("downtimes.rs", include_str!("downtimes.rs")),
             ("error_tracking.rs", include_str!("error_tracking.rs")),
             ("events.rs", include_str!("events.rs")),
+            ("feature_flags.rs", include_str!("feature_flags.rs")),
             ("health.rs", include_str!("health.rs")),
             ("hosts.rs", include_str!("hosts.rs")),
             ("gpu.rs", include_str!("gpu.rs")),

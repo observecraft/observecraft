@@ -70,6 +70,11 @@ import { OnCallTeamsPage } from './pages/onCall/TeamsPage';
 import { SyntheticTestEditor } from './pages/synthetics/SyntheticTestEditor';
 import { SyntheticTestPage } from './pages/synthetics/SyntheticTestPage';
 import { SyntheticTestsPage } from './pages/synthetics/SyntheticTestsPage';
+import { CreateFlagPage } from './pages/featureFlags/CreateFlagPage';
+import { EnvironmentsPage } from './pages/featureFlags/EnvironmentsPage';
+import { FeatureFlagsLayout, FlagsOverview } from './pages/featureFlags/FeatureFlagsPage';
+import { FlagDetailPage } from './pages/featureFlags/FlagDetailPage';
+import { FlagHistoryPage } from './pages/featureFlags/FlagHistoryPage';
 import { AuditTrailPage } from './pages/settings/AuditTrailPage';
 import { LoginMethodsPage } from './pages/settings/LoginMethodsPage';
 import { OrgComingSoon, OrgSettingsLayout } from './pages/settings/OrgSettingsLayout';
@@ -260,6 +265,15 @@ function Shell() {
             <Route path="/synthetics/create" element={<SyntheticTestEditor />} />
             <Route path="/synthetics/tests/:id" element={<SyntheticTestPage />} />
             <Route path="/synthetics/tests/:id/edit" element={<SyntheticTestEditor />} />
+            <Route path="/feature-flags" element={<FeatureFlagsLayout />}>
+              <Route index element={<FlagsOverview />} />
+              <Route path="history" element={<FlagHistoryPage />} />
+            </Route>
+            <Route path="/feature-flags/create" element={<CreateFlagPage />} />
+            <Route path="/feature-flags/environments" element={<EnvironmentsPage />} />
+            <Route path="/feature-flags/settings" element={<Navigate to="/feature-flags/environments" replace />} />
+            <Route path="/feature-flags/:id" element={<FlagDetailPage />} />
+            <Route path="/feature-flags/:id/edit" element={<CreateFlagPage />} />
             <Route path="/event" element={<EventsLayout />}>
               <Route index element={<Navigate to="explorer" replace />} />
               <Route path="explorer" element={<EventExplorer />} />

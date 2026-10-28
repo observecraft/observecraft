@@ -2743,6 +2743,7 @@ dependencies = [
  "hickory-resolver",
  "hmac 0.12.1",
  "lettre",
+ "oc-flags",
  "oc-query",
  "oc-store",
  "openidconnect",
@@ -2772,6 +2773,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "oc-flags"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "utoipa",
+]
+
+[[package]]
 name = "oc-intake"
 version = "0.1.0"
 dependencies = [
@@ -2779,6 +2790,7 @@ dependencies = [
  "axum",
  "bytes",
  "flate2",
+ "oc-flags",
  "prost",
  "reqwest",
  "serde",
@@ -2788,6 +2800,7 @@ dependencies = [
  "tokio",
  "tonic",
  "tower",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
  "zstd",
