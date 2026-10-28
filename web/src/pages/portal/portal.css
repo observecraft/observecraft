@@ -101,7 +101,7 @@
   display: flex;
   min-height: 360px;
   padding: 56px 40px 40px;
-  margin-bottom: 290px;
+  margin-bottom: 0;
   background: linear-gradient(115deg, var(--hero-from) 0%, var(--hero-mid) 55%, var(--hero-to) 100%);
   color: var(--text-inverse);
 }
@@ -228,26 +228,6 @@
   width: 100%;
   height: 36px;
   font-weight: var(--fw-medium);
-}
-
-.sc-features {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 32px;
-  max-width: 1200px;
-  padding: 0 40px;
-}
-
-.sc-feature h3 {
-  margin: 16px 0 8px;
-  font-size: 17px;
-  font-weight: var(--fw-semibold);
-}
-
-.sc-feature p {
-  margin: 0;
-  color: var(--text-muted);
-  line-height: 1.55;
 }
 
 .sc-feature-art {
@@ -1000,5 +980,40 @@ textarea.sc-input {
 
   .sc-summary {
     flex-wrap: wrap;
+  }
+}
+
+/* the features run down the left column, beside the start card */
+.sc-features {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  max-width: none;
+  margin: 0 540px 0 0;
+  padding: 56px 40px 0 80px;
+}
+
+.sc-feature h3 {
+  margin: 0 0 14px;
+  font-size: 28px;
+  font-weight: var(--fw-semibold);
+}
+
+.sc-feature p {
+  max-width: 560px;
+  margin: 0 0 20px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1150px) {
+  .sc-start-card {
+    position: static;
+    width: auto;
+    margin: 24px 40px 0;
+  }
+
+  .sc-features {
+    margin-right: 0;
   }
 }

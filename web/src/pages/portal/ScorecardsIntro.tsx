@@ -41,7 +41,7 @@ export function ScorecardsIntro({ recommended }: { recommended: ScorecardRecomme
                   <label key={r.key} className="sc-start-rule" title={r.description}>
                     <input type="checkbox" checked={picked.has(r.key)} onChange={() => toggle(r.key)} />
                     <span className="sc-start-rule-name">{r.name}</span>
-                    <LevelBadge level={r.level} />
+                    <LevelBadge level={r.level} prefix="" />
                   </label>
                 ))}
               </div>
@@ -73,9 +73,9 @@ export function ScorecardsIntro({ recommended }: { recommended: ScorecardRecomme
 function Feature({ title, art, children }: { title: string; art: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="sc-feature">
-      <div className="sc-feature-art">{art}</div>
       <h3>{title}</h3>
       <p>{children}</p>
+      <div className="sc-feature-art">{art}</div>
     </div>
   );
 }
