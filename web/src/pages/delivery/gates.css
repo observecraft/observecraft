@@ -621,7 +621,7 @@
 }
 
 .prg-suggested {
-  width: min(980px, 100%);
+  width: min(620px, 100%);
   margin-top: 44px;
   padding: 18px 20px 20px;
   border: 1px solid rgba(255, 255, 255, 0.9);
@@ -633,25 +633,29 @@
 }
 
 .prg-suggested-title {
+  display: block;
+  text-align: center;
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
   letter-spacing: 0.08em;
   color: var(--text-muted);
 }
 
+/* One rule per row: icon on the left, title over its description. */
 .prg-suggestions {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  margin-top: 12px;
+  margin: 14px 20px 0;
 }
 
 .prg-suggestion {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 14px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  row-gap: 4px;
+  align-items: center;
+  padding: 14px 16px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
@@ -666,6 +670,7 @@
 }
 
 .prg-suggestion svg {
+  grid-row: span 2;
   color: var(--primary);
 }
 
@@ -804,8 +809,7 @@
   .dg-preview {
     grid-template-columns: minmax(0, 1fr);
   }
-  .dg-tools,
-  .prg-suggestions {
+  .dg-tools {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
