@@ -73,6 +73,7 @@ pub mod slos;
 pub mod status_pages;
 pub mod sso;
 pub mod synthetics;
+pub mod watchdog;
 pub mod synthetics_exec;
 pub mod synthetics_net;
 
@@ -169,6 +170,7 @@ use crate::state::AppState;
         event_settings::set_value,
         service_checks::list,
         service_checks::detail,
+        watchdog::alerts,
         network::flows,
         network::dns,
         profiles::search,
@@ -688,6 +690,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/events/work-item-attributes/:id", axum::routing::put(event_settings::update_attribute).delete(event_settings::delete_attribute))
         .route("/api/v1/service-checks", get(service_checks::list))
         .route("/api/v1/service-checks/detail", post(service_checks::detail))
+        .route("/api/v1/watchdog/alerts", get(watchdog::alerts))
         .route("/api/v1/network/flows", post(network::flows))
         .route("/api/v1/network/dns", post(network::dns))
         .route("/api/v1/profiles/search", post(profiles::search))
@@ -1180,6 +1183,7 @@ mod tests {
             include_str!("event_correlation.rs"),
             include_str!("event_settings.rs"),
             include_str!("service_checks.rs"),
+            include_str!("watchdog.rs"),
             include_str!("events.rs"),
             include_str!("feature_flags.rs"),
             include_str!("fleet.rs"),
@@ -1263,6 +1267,7 @@ mod tests {
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
             ("metric_rules.rs", include_str!("metric_rules.rs")),
             ("service_checks.rs", include_str!("service_checks.rs")),
+            ("watchdog.rs", include_str!("watchdog.rs")),
             ("events.rs", include_str!("events.rs")),
             ("feature_flags.rs", include_str!("feature_flags.rs")),
             ("fleet.rs", include_str!("fleet.rs")),
@@ -1378,6 +1383,7 @@ mod tests {
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
             ("metric_rules.rs", include_str!("metric_rules.rs")),
             ("service_checks.rs", include_str!("service_checks.rs")),
+            ("watchdog.rs", include_str!("watchdog.rs")),
             ("identity.rs", include_str!("identity.rs")),
             ("incident_views.rs", include_str!("incident_views.rs")),
             ("incidents.rs", include_str!("incidents.rs")),

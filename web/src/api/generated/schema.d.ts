@@ -5127,6 +5127,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/watchdog/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Anomalies Watchdog found over the past day: APM error rate and latency per service, error logs
+         *     per service (only the logs the reader may see) and host CPU, memory and disk usage. */
+        get: operations["watchdog_alerts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workflows": {
         parameters: {
             query?: never;
@@ -12810,6 +12828,92 @@ export interface components {
         };
         VolumeRequest: {
             range: components["schemas"]["TimeRange"];
+        };
+        WatchdogAlert: {
+            alertType: components["schemas"]["WatchdogAlertType"];
+            /**
+             * Format: double
+             * @description The baseline median when it started, and the highest value.
+             */
+            baseline: number;
+            category: components["schemas"]["WatchdogCategory"];
+            /** Format: int64 */
+            end: number;
+            host?: string | null;
+            id: string;
+            monitor: components["schemas"]["WatchdogMonitor"];
+            /** Format: double */
+            peak: number;
+            /** @description The series around the anomaly, with its expected range. */
+            points: components["schemas"]["WatchdogPoint"][];
+            /** @description What is affected, as `key:value` tags. */
+            scope: string[];
+            service?: string | null;
+            /**
+             * Format: int64
+             * @description Start of the first and end of the last anomalous bucket, epoch ms.
+             */
+            start: number;
+            status: components["schemas"]["WatchdogAlertStatus"];
+            /** @description The team owning the service (service metadata), if any. */
+            team?: string | null;
+            title: string;
+            /** @description `percent`, `ms` or `logs` (per bucket). */
+            unit: string;
+        };
+        /** @enum {string} */
+        WatchdogAlertStatus: "ongoing" | "resolved" | "expired";
+        /** @enum {string} */
+        WatchdogAlertType: "error_rate" | "latency" | "error_logs" | "cpu" | "memory" | "disk";
+        WatchdogAlerts: {
+            /** @description Ongoing first, then the most recent. */
+            alerts: components["schemas"]["WatchdogAlert"][];
+            /** Format: int64 */
+            bucketMs: number;
+            /**
+             * Format: int64
+             * @description The analysed period (after the baseline), epoch ms.
+             */
+            from: number;
+            /** Format: int64 */
+            hosts: number;
+            /**
+             * Format: int64
+             * @description Services and hosts watched.
+             */
+            services: number;
+            /** Format: int64 */
+            to: number;
+        };
+        /** @enum {string} */
+        WatchdogCategory: "apm" | "infrastructure" | "logs";
+        /** @description A monitor that would catch this again: what the create form is prefilled with. */
+        WatchdogMonitor: {
+            /**
+             * Format: double
+             * @description The top of the expected range when the anomaly started.
+             */
+            critical: number;
+            /** @description `metric`, `apm` or `log`. */
+            monitorType: string;
+            name: string;
+            query: string;
+        };
+        WatchdogPoint: {
+            /**
+             * Format: double
+             * @description The expected range (null where there is no baseline).
+             */
+            lower?: number | null;
+            /**
+             * Format: int64
+             * @description Bucket start, epoch ms.
+             */
+            t: number;
+            /** Format: double */
+            upper?: number | null;
+            /** Format: double */
+            value?: number | null;
         };
         /** @description Correlated events: one affected object's warnings and errors. */
         WorkItem: {
@@ -23261,6 +23365,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    watchdog_alerts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchdogAlerts"];
                 };
             };
         };

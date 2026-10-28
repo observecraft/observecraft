@@ -14006,6 +14006,27 @@
         }
       }
     },
+    "/api/v1/watchdog/alerts": {
+      "get": {
+        "tags": [
+          "monitors"
+        ],
+        "summary": "Anomalies Watchdog found over the past day: APM error rate and latency per service, error logs\nper service (only the logs the reader may see) and host CPU, memory and disk usage.",
+        "operationId": "watchdog_alerts",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchdogAlerts"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflows": {
       "get": {
         "tags": [
@@ -39159,6 +39180,232 @@
         "properties": {
           "range": {
             "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "WatchdogAlert": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "alertType",
+          "status",
+          "title",
+          "scope",
+          "unit",
+          "start",
+          "end",
+          "baseline",
+          "peak",
+          "points",
+          "monitor"
+        ],
+        "properties": {
+          "alertType": {
+            "$ref": "#/components/schemas/WatchdogAlertType"
+          },
+          "baseline": {
+            "type": "number",
+            "format": "double",
+            "description": "The baseline median when it started, and the highest value."
+          },
+          "category": {
+            "$ref": "#/components/schemas/WatchdogCategory"
+          },
+          "end": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "monitor": {
+            "$ref": "#/components/schemas/WatchdogMonitor"
+          },
+          "peak": {
+            "type": "number",
+            "format": "double"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WatchdogPoint"
+            },
+            "description": "The series around the anomaly, with its expected range."
+          },
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What is affected, as `key:value` tags."
+          },
+          "service": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Start of the first and end of the last anomalous bucket, epoch ms."
+          },
+          "status": {
+            "$ref": "#/components/schemas/WatchdogAlertStatus"
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The team owning the service (service metadata), if any."
+          },
+          "title": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string",
+            "description": "`percent`, `ms` or `logs` (per bucket)."
+          }
+        }
+      },
+      "WatchdogAlertStatus": {
+        "type": "string",
+        "enum": [
+          "ongoing",
+          "resolved",
+          "expired"
+        ]
+      },
+      "WatchdogAlertType": {
+        "type": "string",
+        "enum": [
+          "error_rate",
+          "latency",
+          "error_logs",
+          "cpu",
+          "memory",
+          "disk"
+        ]
+      },
+      "WatchdogAlerts": {
+        "type": "object",
+        "required": [
+          "alerts",
+          "from",
+          "to",
+          "bucketMs",
+          "services",
+          "hosts"
+        ],
+        "properties": {
+          "alerts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WatchdogAlert"
+            },
+            "description": "Ongoing first, then the most recent."
+          },
+          "bucketMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "from": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The analysed period (after the baseline), epoch ms."
+          },
+          "hosts": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "services": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Services and hosts watched.",
+            "minimum": 0
+          },
+          "to": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "WatchdogCategory": {
+        "type": "string",
+        "enum": [
+          "apm",
+          "infrastructure",
+          "logs"
+        ]
+      },
+      "WatchdogMonitor": {
+        "type": "object",
+        "description": "A monitor that would catch this again: what the create form is prefilled with.",
+        "required": [
+          "monitorType",
+          "query",
+          "name",
+          "critical"
+        ],
+        "properties": {
+          "critical": {
+            "type": "number",
+            "format": "double",
+            "description": "The top of the expected range when the anomaly started."
+          },
+          "monitorType": {
+            "type": "string",
+            "description": "`metric`, `apm` or `log`."
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          }
+        }
+      },
+      "WatchdogPoint": {
+        "type": "object",
+        "required": [
+          "t"
+        ],
+        "properties": {
+          "lower": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "The expected range (null where there is no baseline)."
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bucket start, epoch ms."
+          },
+          "upper": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           }
         }
       },

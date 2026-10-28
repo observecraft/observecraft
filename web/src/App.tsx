@@ -15,6 +15,8 @@ import { MetricsVolume } from './pages/metrics/MetricsVolume';
 import { DerivedMetrics } from './pages/metrics/DerivedMetrics';
 import { FilteredMetricsPage, MetricRulesPage, MetricsSettingsLayout } from './pages/metrics/settings/MetricsSettings';
 import { CheckSummary } from './pages/checks/CheckSummary';
+import { ExternalProviderStatus, WatchdogLayout } from './pages/watchdog/WatchdogLayout';
+import { WatchdogPage } from './pages/watchdog/WatchdogPage';
 import { ReleaseNotesPage } from './pages/releaseNotes/ReleaseNotesPage';
 import { SetupGuidePage } from './pages/setup/SetupGuidePage';
 import { ReferenceTableCreatePage } from './pages/integrations/ReferenceTableCreatePage';
@@ -347,6 +349,10 @@ function Shell() {
               <Route path="generate-metrics" element={<EventGenerateMetricsPage />} />
             </Route>
             <Route path="/check/summary" element={<CheckSummary />} />
+            <Route path="/watchdog" element={<WatchdogLayout />}>
+              <Route index element={<WatchdogPage />} />
+              <Route path="external-provider-status" element={<ExternalProviderStatus />} />
+            </Route>
             <Route path="/portal" element={<PortalLayout />}>
               <Route index element={<Navigate to="/portal/home" replace />} />
               <Route path="home" element={<PortalHome />} />

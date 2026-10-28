@@ -25,6 +25,8 @@ interface Props {
   totalAvailable?: number;
   noun?: string;
   renderValueIcon?: (key: string, value: string) => ReactNode;
+  /** Display label of a value (default: the value, statuses capitalized). */
+  valueLabel?: (key: string, value: string) => string;
   /** Extra controls above the facet search (e.g. Teams, toggles). */
   header?: ReactNode;
   /** "+ Add": the fields that can become facets, and what adding one does. No button without it. Standard attributes are listed first. */
@@ -91,6 +93,7 @@ export function FacetPanel({
   totalAvailable,
   noun = '',
   renderValueIcon,
+  valueLabel = label,
   header,
   addable,
 }: Props) {
@@ -163,7 +166,7 @@ export function FacetPanel({
                           : undefined
                       }
                     >
-                      {label(f.key, v.value)}
+                      {valueLabel(f.key, v.value)}
                     </span>
                     <span className="facet-count">{v.count > 0 ? v.count.toLocaleString() : '-'}</span>
                   </label>
