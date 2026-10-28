@@ -10,7 +10,9 @@
 //!   Re-running an hour overwrites the same object, so retries are idempotent.
 //! - **Archive Search**: downloads only the partitions inside the requested range into a local cache
 //!   and queries them with DuckDB (same search syntax as the Log Explorer). Runs as a background job
-//!   with progress; matching events are kept with the search.
+//!   with progress; matching events are kept with the search. A search reads only what its creator's
+//!   log restriction queries allow; a restricted user sees only their own searches, and their hits
+//!   are checked again against the current restriction when read.
 //! - **Rehydration**: DuckDB filters the archived files; the result is loaded into
 //!   `oc.logs_rehydrated` (search it with `index:rehydrated`) until the rehydration expires.
 //!
@@ -23,7 +25,7 @@ use std::time::Duration;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use oc_query::{build_where, build_where_duckdb, parse_query, LogsSchema, Param};
+use oc_query::{build_where, build_where_duckdb, parse_query, Fields, LogsSchema, Param, SqlFilter};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::{IntoParams, ToSchema};
@@ -31,6 +33,7 @@ use utoipa::{IntoParams, ToSchema};
 use super::logs::{bind, LogEvent, TimeRange};
 use crate::auth::{Admin, AuthContext, Writer};
 use crate::error::{ApiError, ApiResult};
+use crate::log_access::LogAccess;
 use crate::s3::{prefix_dir, Store};
 use crate::state::{AppState, OrgId};
 
@@ -537,7 +540,7 @@ const SEARCH_SELECT: &str = "SELECT s.id::text, s.archive_id::text, a.name AS ar
 
 /// Starts a search over archived logs; poll it with GET /api/v1/logs/archive-searches/{id}.
 #[utoipa::path(post, path = "/api/v1/logs/archive-searches", operation_id = "create_archive_search", request_body = ArchiveSearchRequest, responses((status = 200, body = ArchiveSearch)), tag = "archives")]
-pub async fn create_search(State(st): State<AppState>, ctx: AuthContext, Json(req): Json<ArchiveSearchRequest>) -> ApiResult<ArchiveSearch> {
+pub async fn create_search(State(st): State<AppState>, ctx: AuthContext, access: LogAccess, Json(req): Json<ArchiveSearchRequest>) -> ApiResult<ArchiveSearch> {
     req.range.validate()?;
     let a = load_archive(&st, &ctx.org_id, &req.archive_id).await?;
     let max = req.max_results.unwrap_or(1000).clamp(1, 5000);
@@ -556,7 +559,7 @@ pub async fn create_search(State(st): State<AppState>, ctx: AuthContext, Json(re
     .await?;
     let (st2, id2, query) = (st.clone(), id.clone(), req.query.clone());
     tokio::spawn(async move {
-        let r = run_search(&st2, &id2, &a, &query, req.range, max).await;
+        let r = run_search(&st2, &id2, &a, &query, &access, req.range, max).await;
         let (status, error) = match r {
             Ok(()) => ("done", None),
             Err(e) => ("failed", Some(e.to_string())),
@@ -568,13 +571,20 @@ pub async fn create_search(State(st): State<AppState>, ctx: AuthContext, Json(re
             .execute(&st2.postgres)
             .await;
     });
-    get_search(&st, &ctx.org_id, &id).await.map(Json)
+    get_search(&st, &ctx.org_id, &id, None).await.map(Json)
 }
 
-async fn get_search(st: &AppState, org: &str, id: &str) -> Result<ArchiveSearch, ApiError> {
-    sqlx::query_as(&format!("{SEARCH_SELECT} WHERE s.org_id = $1 AND s.id::text = $2"))
+/// The searches a reader may see: all of the org's, or only their own when their log access is restricted.
+fn search_owner<'a>(ctx: &'a AuthContext, access: &LogAccess) -> Option<&'a str> {
+    access.restricted().then_some(ctx.user_id.as_str())
+}
+
+/// One search of the org (with `owner`, only if that user created it).
+async fn get_search(st: &AppState, org: &str, id: &str, owner: Option<&str>) -> Result<ArchiveSearch, ApiError> {
+    sqlx::query_as(&format!("{SEARCH_SELECT} WHERE s.org_id = $1 AND s.id::text = $2 AND ($3::uuid IS NULL OR s.created_by = $3::uuid)"))
         .bind(org)
         .bind(id)
+        .bind(owner)
         .fetch_optional(&st.postgres)
         .await?
         .ok_or_else(|| ApiError::NotFound("Search not found".into()))
@@ -584,7 +594,7 @@ async fn canceled(st: &AppState, search: &str) -> bool {
     sqlx::query_scalar::<_, String>("SELECT status FROM archive_searches WHERE id = $1::uuid").bind(search).fetch_optional(&st.postgres).await.ok().flatten().as_deref() != Some("running")
 }
 
-async fn run_search(st: &AppState, id: &str, a: &ArchiveRow, query: &str, range: TimeRange, max: i32) -> Result<(), ApiError> {
+async fn run_search(st: &AppState, id: &str, a: &ArchiveRow, query: &str, access: &LogAccess, range: TimeRange, max: i32) -> Result<(), ApiError> {
     let store = a.store(st)?;
     let objects = objects_in_range(&store, a, range).await?;
     sqlx::query("UPDATE archive_searches SET files_total = $2 WHERE id = $1::uuid").bind(id).bind(objects.len() as i32).execute(&st.postgres).await?;
@@ -603,8 +613,8 @@ async fn run_search(st: &AppState, id: &str, a: &ArchiveRow, query: &str, range:
     if files.is_empty() {
         return Ok(());
     }
-    let terms = parse_query(query);
-    let (events, matches) = tokio::task::spawn_blocking(move || duck_search(&files, &terms, range, max as usize)).await.map_err(|e| ApiError::Internal(e.into()))??;
+    let (terms, restriction) = (parse_query(query), access.duckdb_filter());
+    let (events, matches) = tokio::task::spawn_blocking(move || duck_search(&files, &terms, restriction, range, max as usize)).await.map_err(|e| ApiError::Internal(e.into()))??;
     let mut tx = st.postgres.begin().await?;
     for (seq, ev) in events.iter().enumerate() {
         sqlx::query("INSERT INTO archive_search_hits (search_id, seq, event) VALUES ($1::uuid, $2, $3)").bind(id).bind(seq as i32).bind(ev).execute(&mut *tx).await?;
@@ -614,13 +624,23 @@ async fn run_search(st: &AppState, id: &str, a: &ArchiveRow, query: &str, range:
     Ok(())
 }
 
-/// DuckDB over the downloaded files: newest `max` matching events (as LogEvent JSON) and the total.
-fn duck_search(files: &[PathBuf], terms: &[oc_query::Term], range: TimeRange, max: usize) -> Result<(Vec<Value>, i64), ApiError> {
+/// The archive search's WHERE clause: the range, the search, and the reader's restriction if any.
+fn search_clause(terms: &[oc_query::Term], restriction: Option<SqlFilter>, range: TimeRange) -> (String, Vec<Param>) {
     let f = build_where_duckdb(terms);
-    let from = format!("read_parquet({}, union_by_name = true)", file_list(files));
-    let clause = format!("epoch_ms(timestamp) BETWEEN ? AND ? AND ({})", f.clause);
+    let mut clause = format!("epoch_ms(timestamp) BETWEEN ? AND ? AND ({})", f.clause);
     let mut params = vec![Param::Int(range.from), Param::Int(range.to)];
     params.extend(f.params);
+    if let Some(r) = restriction {
+        clause.push_str(&format!(" AND ({})", r.clause));
+        params.extend(r.params);
+    }
+    (clause, params)
+}
+
+/// DuckDB over the downloaded files: newest `max` matching events (as LogEvent JSON) and the total.
+fn duck_search(files: &[PathBuf], terms: &[oc_query::Term], restriction: Option<SqlFilter>, range: TimeRange, max: usize) -> Result<(Vec<Value>, i64), ApiError> {
+    let from = format!("read_parquet({}, union_by_name = true)", file_list(files));
+    let (clause, params) = search_clause(terms, restriction, range);
     let conn = duckdb::Connection::open_in_memory().map_err(duck_err)?;
     let total: i64 = conn.query_row(&format!("SELECT count(*) FROM {from} WHERE {clause}"), duckdb::params_from_iter(duck_params(&params)), |r| r.get(0)).map_err(duck_err)?;
     let mut stmt = conn
@@ -657,8 +677,12 @@ fn duck_search(files: &[PathBuf], terms: &[oc_query::Term], range: TimeRange, ma
 }
 
 #[utoipa::path(get, path = "/api/v1/logs/archive-searches", operation_id = "list_archive_searches", responses((status = 200, body = Vec<ArchiveSearch>)), tag = "archives")]
-pub async fn list_searches(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<Vec<ArchiveSearch>> {
-    let rows = sqlx::query_as(&format!("{SEARCH_SELECT} WHERE s.org_id = $1 ORDER BY s.created_at DESC LIMIT 50")).bind(&org).fetch_all(&st.postgres).await?;
+pub async fn list_searches(State(st): State<AppState>, ctx: AuthContext, access: LogAccess) -> ApiResult<Vec<ArchiveSearch>> {
+    let rows = sqlx::query_as(&format!("{SEARCH_SELECT} WHERE s.org_id = $1 AND ($2::uuid IS NULL OR s.created_by = $2::uuid) ORDER BY s.created_at DESC LIMIT 50"))
+        .bind(&ctx.org_id)
+        .bind(search_owner(&ctx, &access))
+        .fetch_all(&st.postgres)
+        .await?;
     Ok(Json(rows))
 }
 
@@ -676,22 +700,31 @@ pub struct ArchiveSearchDetail {
 }
 
 #[utoipa::path(get, path = "/api/v1/logs/archive-searches/{id}", operation_id = "get_archive_search", params(("id" = String, Path), HitsParams), responses((status = 200, body = ArchiveSearchDetail)), tag = "archives")]
-pub async fn get_search_detail(State(st): State<AppState>, OrgId(org): OrgId, Path(id): Path<String>, Query(p): Query<HitsParams>) -> ApiResult<ArchiveSearchDetail> {
-    let search = get_search(&st, &org, &id).await?;
+pub async fn get_search_detail(State(st): State<AppState>, ctx: AuthContext, access: LogAccess, Path(id): Path<String>, Query(p): Query<HitsParams>) -> ApiResult<ArchiveSearchDetail> {
+    let search = get_search(&st, &ctx.org_id, &id, search_owner(&ctx, &access)).await?;
     let raw: Vec<Value> = sqlx::query_scalar("SELECT event FROM archive_search_hits WHERE search_id = $1::uuid ORDER BY seq OFFSET $2 LIMIT $3")
         .bind(&id)
         .bind(p.offset.max(0))
         .bind(p.limit.unwrap_or(100).clamp(1, 1000))
         .fetch_all(&st.postgres)
         .await?;
-    let events = raw.into_iter().filter_map(|v| serde_json::from_value(v).ok()).collect();
+    let events = raw.into_iter().filter_map(|v| serde_json::from_value(v).ok()).filter(|e| allowed_hit(&access, e)).collect();
     Ok(Json(ArchiveSearchDetail { search, events }))
+}
+
+/// A stored hit, checked against the reader's current restriction (it may have narrowed since the search ran).
+fn allowed_hit(access: &LogAccess, e: &LogEvent) -> bool {
+    if !access.restricted() {
+        return true;
+    }
+    let attr = e.attributes.as_object().map(crate::pipelines::log::flatten).unwrap_or_default();
+    access.allows(&Fields { service: &e.service, status: &e.status, host: &e.host, source: &e.source, message: &e.message, tags: &e.tags, attr: &attr, index: None })
 }
 
 /// Cancels a running search, or deletes a finished one with its results.
 #[utoipa::path(delete, path = "/api/v1/logs/archive-searches/{id}", operation_id = "delete_archive_search", params(("id" = String, Path)), responses((status = 204)), tag = "archives")]
-pub async fn delete_search(State(st): State<AppState>, OrgId(org): OrgId, Path(id): Path<String>) -> Result<StatusCode, ApiError> {
-    let s = get_search(&st, &org, &id).await?;
+pub async fn delete_search(State(st): State<AppState>, ctx: AuthContext, access: LogAccess, Path(id): Path<String>) -> Result<StatusCode, ApiError> {
+    let s = get_search(&st, &ctx.org_id, &id, search_owner(&ctx, &access)).await?;
     if s.status == "running" {
         sqlx::query("UPDATE archive_searches SET status = 'canceled', finished_at = now() WHERE id = $1::uuid").bind(&id).execute(&st.postgres).await?;
     } else {

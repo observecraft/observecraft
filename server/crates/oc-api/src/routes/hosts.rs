@@ -16,9 +16,10 @@ use oc_query::{matches, parse_query, short_tag, Fields, MetricQuery, SpaceAgg, T
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::logs::TimeRange;
+use super::logs::{bind, scope, TimeRange};
 use super::metrics::{evaluate_query, name_list, now_ms, points_subquery, with_window, MetricSeries, OPEN_END_MS};
 use crate::error::{ApiError, ApiResult};
+use crate::log_access::LogAccess;
 use crate::state::{AppState, OrgId};
 
 const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
@@ -601,16 +602,11 @@ const HIDDEN_TAGS: &[&str] = &[
 ];
 
 #[utoipa::path(post, path = "/api/v1/hosts/{name}", params(("name" = String, Path)), request_body = HostRequest, responses((status = 200, body = HostDetail), (status = 404, body = crate::error::ErrorBody)), tag = "infrastructure")]
-pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, Path(name): Path<String>, Json(req): Json<HostRequest>) -> ApiResult<HostDetail> {
+pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Path(name): Path<String>, Json(req): Json<HostRequest>) -> ApiResult<HostDetail> {
     let host = load_hosts(&st, &org, req.range).await?.into_iter().find(|h| h.summary.name == name).ok_or_else(|| ApiError::NotFound(format!("Host {name} has not reported in this time range")))?;
-    let has_logs = st
-        .ch(&org)
-        .query("SELECT count() FROM oc.logs WHERE org_id = ? AND host = ? AND timestamp >= fromUnixTimestamp64Milli(?) AND timestamp <= fromUnixTimestamp64Milli(?)")
-        .bind(&org)
-        .bind(&name)
-        .bind(req.range.from)
-        .bind(req.range.to)
-        .fetch_one::<u64>();
+    // Logs the viewer may read (their restriction queries apply).
+    let host_logs = scope(&org, &access, req.range, &[Term::Tag { key: "host".into(), values: vec![name.clone()], negate: false }], None);
+    let has_logs = bind(st.ch(&org).query(&format!("SELECT count() FROM {} WHERE {}", host_logs.table, host_logs.clause)), &host_logs.params).fetch_one::<u64>();
     let now = now_ms();
     let procs_src = points_subquery("gauge", &["process.cpu.utilization"]);
     let has_procs = with_window(st.ch(&org), now - 15 * 60_000, now + OPEN_END_MS)

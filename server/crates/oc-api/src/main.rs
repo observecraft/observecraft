@@ -9,6 +9,7 @@ mod auth;
 mod config;
 mod demo;
 mod error;
+mod log_access;
 mod log_metrics;
 mod logproc;
 mod pipelines;
@@ -93,6 +94,7 @@ async fn main() -> anyhow::Result<()> {
         postgres,
         nats,
         secrets,
+        log_restrictions: Default::default(),
         config: cfg.clone(),
     }));
     routes::auth::ensure_instance_admin(&state)

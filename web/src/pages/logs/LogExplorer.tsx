@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Download, LayoutDashboard, PanelLeft, Settings } from 'lucide-react';
+import { Download, LayoutDashboard, Lock, PanelLeft, Settings } from 'lucide-react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { logFacets, logFields, logHistogram, logInsights, searchLogPage, suggestLogQuery } from '../../api/client';
 import type { LogEvent, LogInsight } from '../../api/types';
@@ -108,6 +108,13 @@ export function LogExplorer() {
         <div className="log-query">
           <QueryBar value={query} onChange={setQuery} suggest={suggest} placeholder="Search for logs, e.g. service:order-service status:error" />
         </div>
+        {page.data?.restricted && (
+          <div className="log-restricted-notice" role="status">
+            <Lock size={13} />
+            <b>Restricted view</b>
+            <span className="muted">You see only the logs that the restriction queries of your roles and teams allow (Logs → Configuration → Data Access).</span>
+          </div>
+        )}
 
         <div className="viz-row">
           <div className="btn-group">

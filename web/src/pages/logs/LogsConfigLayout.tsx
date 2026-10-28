@@ -33,7 +33,7 @@ export const LOGS_CONFIG_NAV: { section: string; isNew?: boolean; items: Item[] 
     ],
   },
   { section: 'STREAM INSIGHTS', items: [{ slug: 'generate-metrics', label: 'Generate Metrics' }] },
-  { section: 'ACCESS CONTROL', items: [{ slug: 'data-access', label: 'Data Access', soon: true }] },
+  { section: 'ACCESS CONTROL', items: [{ slug: 'data-access', label: 'Data Access' }] },
   {
     section: 'MIGRATION',
     isNew: true,

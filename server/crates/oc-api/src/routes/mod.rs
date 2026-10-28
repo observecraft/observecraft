@@ -18,6 +18,7 @@ pub mod live;
 pub mod log_indexes;
 pub mod log_metrics;
 pub mod log_pipelines;
+pub mod log_restrictions;
 pub mod logs;
 pub mod metrics;
 pub mod monitor_engine;
@@ -207,6 +208,15 @@ use crate::state::AppState;
         log_metrics::create,
         log_metrics::update,
         log_metrics::delete,
+        log_restrictions::list,
+        log_restrictions::create,
+        log_restrictions::update,
+        log_restrictions::delete,
+        log_restrictions::assign_role,
+        log_restrictions::unassign_role,
+        log_restrictions::assign_team,
+        log_restrictions::unassign_team,
+        log_restrictions::preview,
         standard_attributes::list,
         standard_attributes::create,
         standard_attributes::update,
@@ -497,6 +507,34 @@ pub fn router() -> Router<AppState> {
             axum::routing::put(log_metrics::update).delete(log_metrics::delete),
         )
         .route(
+            "/api/v1/logs/restriction-queries",
+            get(log_restrictions::list).post(log_restrictions::create),
+        )
+        .route(
+            "/api/v1/logs/restriction-queries/preview",
+            post(log_restrictions::preview),
+        )
+        .route(
+            "/api/v1/logs/restriction-queries/:id",
+            axum::routing::put(log_restrictions::update).delete(log_restrictions::delete),
+        )
+        .route(
+            "/api/v1/logs/restriction-queries/:id/roles",
+            post(log_restrictions::assign_role),
+        )
+        .route(
+            "/api/v1/logs/restriction-queries/:id/roles/:role_id",
+            delete(log_restrictions::unassign_role),
+        )
+        .route(
+            "/api/v1/logs/restriction-queries/:id/teams",
+            post(log_restrictions::assign_team),
+        )
+        .route(
+            "/api/v1/logs/restriction-queries/:id/teams/:handle",
+            delete(log_restrictions::unassign_team),
+        )
+        .route(
             "/api/v1/logs/standard-attributes",
             get(standard_attributes::list)
                 .post(standard_attributes::create)
@@ -680,6 +718,7 @@ mod tests {
             include_str!("log_indexes.rs"),
             include_str!("log_pipelines.rs"),
             include_str!("log_metrics.rs"),
+            include_str!("log_restrictions.rs"),
             include_str!("standard_attributes.rs"),
             include_str!("../standard_attributes.rs"),
             include_str!("logs.rs"),
@@ -790,5 +829,206 @@ mod tests {
             "queries on the unbounded ClickHouse client (use st.ch(&org)):\n{}",
             unbounded.join("\n")
         );
+    }
+
+    /// Every source file of the server, relative to `src/routes`.
+    fn server_sources() -> Vec<(&'static str, &'static str)> {
+        vec![
+            ("apm.rs", include_str!("apm.rs")),
+            ("archives.rs", include_str!("archives.rs")),
+            ("auth.rs", include_str!("auth.rs")),
+            ("ci.rs", include_str!("ci.rs")),
+            ("dashboards.rs", include_str!("dashboards.rs")),
+            ("downtimes.rs", include_str!("downtimes.rs")),
+            ("error_tracking.rs", include_str!("error_tracking.rs")),
+            ("events.rs", include_str!("events.rs")),
+            ("health.rs", include_str!("health.rs")),
+            ("hosts.rs", include_str!("hosts.rs")),
+            ("identity.rs", include_str!("identity.rs")),
+            ("incident_views.rs", include_str!("incident_views.rs")),
+            ("incidents.rs", include_str!("incidents.rs")),
+            ("ingest_keys.rs", include_str!("ingest_keys.rs")),
+            ("instance.rs", include_str!("instance.rs")),
+            ("kubernetes.rs", include_str!("kubernetes.rs")),
+            ("live.rs", include_str!("live.rs")),
+            ("log_indexes.rs", include_str!("log_indexes.rs")),
+            ("log_metrics.rs", include_str!("log_metrics.rs")),
+            ("log_pipelines.rs", include_str!("log_pipelines.rs")),
+            ("log_restrictions.rs", include_str!("log_restrictions.rs")),
+            ("logs.rs", include_str!("logs.rs")),
+            ("metrics.rs", include_str!("metrics.rs")),
+            ("metrics/dashboard.rs", include_str!("metrics/dashboard.rs")),
+            ("mod.rs", include_str!("mod.rs")),
+            ("monitor_engine.rs", include_str!("monitor_engine.rs")),
+            ("monitor_formula.rs", include_str!("monitor_formula.rs")),
+            ("monitors.rs", include_str!("monitors.rs")),
+            ("network.rs", include_str!("network.rs")),
+            ("notifications.rs", include_str!("notifications.rs")),
+            ("profiles.rs", include_str!("profiles.rs")),
+            ("spans.rs", include_str!("spans.rs")),
+            ("sso.rs", include_str!("sso.rs")),
+            ("standard_attributes.rs", include_str!("standard_attributes.rs")),
+            ("../auth/crypto.rs", include_str!("../auth/crypto.rs")),
+            ("../auth/mod.rs", include_str!("../auth/mod.rs")),
+            ("../auth/password.rs", include_str!("../auth/password.rs")),
+            ("../auth/totp.rs", include_str!("../auth/totp.rs")),
+            ("../config.rs", include_str!("../config.rs")),
+            ("../demo.rs", include_str!("../demo.rs")),
+            ("../error.rs", include_str!("../error.rs")),
+            ("../log_access.rs", include_str!("../log_access.rs")),
+            ("../log_metrics.rs", include_str!("../log_metrics.rs")),
+            ("../logproc.rs", include_str!("../logproc.rs")),
+            ("../main.rs", include_str!("../main.rs")),
+            ("../pipelines/dates.rs", include_str!("../pipelines/dates.rs")),
+            ("../pipelines/filter.rs", include_str!("../pipelines/filter.rs")),
+            ("../pipelines/grok.rs", include_str!("../pipelines/grok.rs")),
+            ("../pipelines/library.rs", include_str!("../pipelines/library.rs")),
+            ("../pipelines/log.rs", include_str!("../pipelines/log.rs")),
+            ("../pipelines/mod.rs", include_str!("../pipelines/mod.rs")),
+            ("../pipelines/processors.rs", include_str!("../pipelines/processors.rs")),
+            ("../s3.rs", include_str!("../s3.rs")),
+            ("../standard_attributes.rs", include_str!("../standard_attributes.rs")),
+            ("../state.rs", include_str!("../state.rs")),
+        ]
+    }
+
+    /// The code of a source file without its tests.
+    fn without_tests(src: &str) -> &str {
+        src.split("#[cfg(test)]").next().unwrap_or(src)
+    }
+
+    /// The string literals of a source file (queries span lines with `\` continuations).
+    fn string_literals(src: &str) -> Vec<&str> {
+        let mut out = Vec::new();
+        let mut rest = src;
+        while let Some(start) = rest.find('"') {
+            let body = &rest[start + 1..];
+            let bytes = body.as_bytes();
+            let mut end = 0;
+            while end < bytes.len() && bytes[end] != b'"' {
+                end += if bytes[end] == b'\\' { 2 } else { 1 };
+            }
+            out.push(&body[..end.min(body.len())]);
+            rest = &body[(end + 1).min(body.len())..];
+        }
+        out
+    }
+
+    /// `a/routes/../b.rs` → `a/b.rs`.
+    fn normalize(p: &std::path::Path) -> std::path::PathBuf {
+        let mut out = std::path::PathBuf::new();
+        for c in p.components() {
+            match c {
+                std::path::Component::ParentDir => {
+                    out.pop();
+                }
+                c => out.push(c),
+            }
+        }
+        out
+    }
+
+    /// The source guards below see every file: a new one must be added to `server_sources`.
+    #[test]
+    fn source_guards_cover_every_file() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let listed: std::collections::HashSet<std::path::PathBuf> = server_sources()
+            .iter()
+            .map(|(f, _)| normalize(&root.join("routes").join(f)))
+            .collect();
+        let mut stack = vec![root];
+        let mut missing = Vec::new();
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(&dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else if path.extension().is_some_and(|e| e == "rs")
+                    && !listed.contains(&normalize(&path))
+                {
+                    missing.push(path.display().to_string());
+                }
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "add these files to server_sources():\n{}",
+            missing.join("\n")
+        );
+    }
+
+    /// Log data access: a query that names a log table itself skips the reader's restriction
+    /// queries, which `logs::scope` adds. Only the reads below may do that, and none of them serves
+    /// log events to a user; every other read builds its table and WHERE clause with
+    /// `logs::scope`, which always carries the restriction.
+    #[test]
+    fn log_reads_go_through_the_restricted_scope() {
+        const ALLOWED: &[(&str, &str, &str)] = &[
+            (
+                "log_indexes.rs",
+                "FROM logs WHERE org_id = ? AND timestamp >= now() - INTERVAL 25 HOUR GROUP BY index_name, hour",
+                "per-index volumes on the index settings (counts)",
+            ),
+            (
+                "log_indexes.rs",
+                "SELECT count() FROM logs_raw WHERE org_id = ?",
+                "today's ingested volume (a count)",
+            ),
+            (
+                "archives.rs",
+                "FROM logs_raw WHERE {clause}",
+                "the archiver writing the org's logs to its archives (background)",
+            ),
+            (
+                "instance.rs",
+                "count() AS n FROM oc.logs WHERE timestamp > now() - INTERVAL 1 DAY GROUP BY org_id",
+                "per-org volumes for instance admins (counts)",
+            ),
+            (
+                "../logproc.rs",
+                "FROM logs WHERE timestamp >= now() - INTERVAL 25 HOUR GROUP BY org_id, index_name, hour",
+                "the indexer's daily quotas (background)",
+            ),
+        ];
+        let mut direct = Vec::new();
+        for (file, src) in server_sources() {
+            for lit in string_literals(without_tests(src)) {
+                let names_log_table = ["FROM logs", "FROM oc.logs", "JOIN logs", "JOIN oc.logs"]
+                    .iter()
+                    .any(|t| lit.contains(t));
+                let allowed = ALLOWED
+                    .iter()
+                    .any(|(f, fragment, _)| *f == file && lit.contains(fragment));
+                if names_log_table && !allowed {
+                    let text = lit.split_whitespace().collect::<Vec<_>>().join(" ");
+                    direct.push(format!("{file}: {}", text.chars().take(120).collect::<String>()));
+                }
+            }
+        }
+        assert!(
+            direct.is_empty(),
+            "log reads that skip the restriction queries (use logs::scope):\n{}",
+            direct.join("\n")
+        );
+    }
+
+    /// `LogAccess::org_background()` reads every log of the org: only the monitor engine's own
+    /// evaluation (and backfill) may use it, never a request handler.
+    #[test]
+    fn unrestricted_log_access_is_only_for_background_jobs() {
+        const ALLOWED: &[(&str, usize)] = &[("monitors.rs", 2)];
+        for (file, src) in server_sources() {
+            if file == "../log_access.rs" {
+                continue;
+            }
+            let uses = without_tests(src)
+                .matches("LogAccess::org_background()")
+                .count();
+            let allowed = ALLOWED.iter().find(|(f, _)| *f == file).map_or(0, |(_, n)| *n);
+            assert_eq!(
+                uses, allowed,
+                "{file} reads logs unrestricted (LogAccess::org_background()) {uses} times, {allowed} allowed"
+            );
+        }
     }
 }

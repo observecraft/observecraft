@@ -27,6 +27,7 @@ use super::monitor_engine::{
 };
 use crate::auth::Writer;
 use crate::error::{ApiError, ApiResult};
+use crate::log_access::LogAccess;
 use crate::state::{AppState, OrgId};
 
 fn now_ms() -> i64 {
@@ -62,12 +63,13 @@ impl MonitorType {
 }
 
 /// The series a monitor evaluates over `range`: its metric query's groups, or for log monitors the
-/// matching logs per interval (per group).
-async fn monitor_series(st: &AppState, org: &str, kind: MonitorType, query: &str, range: TimeRange, points: u32) -> Result<Vec<Group>, ApiError> {
+/// matching logs per interval (per group), counted within `access` (the previewing user's, or
+/// every log of the org when the engine evaluates).
+async fn monitor_series(st: &AppState, org: &str, access: &LogAccess, kind: MonitorType, query: &str, range: TimeRange, points: u32) -> Result<Vec<Group>, ApiError> {
     if kind == MonitorType::Log {
         let (search, by) = parse_log_monitor(query).map_err(ApiError::BadRequest)?;
         let step = ((range.to - range.from) / points.max(1) as i64).max(60_000);
-        return log_counts(st, org, &search, &by, range, step).await;
+        return log_counts(st, org, access, &search, &by, range, step).await;
     }
     let f = parse_formula(query).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))?;
     let mut results = Vec::with_capacity(f.queries.len());
@@ -914,7 +916,7 @@ pub struct MonitorPreview {
 
 /// Backtests a monitor definition: how its value and status would have evolved over `range`.
 #[utoipa::path(post, path = "/api/v1/monitors/preview", request_body = MonitorPreviewRequest, responses((status = 200, body = MonitorPreview)), tag = "monitors")]
-pub async fn preview(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<MonitorPreviewRequest>) -> ApiResult<MonitorPreview> {
+pub async fn preview(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<MonitorPreviewRequest>) -> ApiResult<MonitorPreview> {
     req.range.validate()?;
     if req.range.to - req.range.from > 7 * DAY_MS {
         return Err(ApiError::BadRequest("previews cover at most a week".into()));
@@ -923,7 +925,7 @@ pub async fn preview(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
     let span = req.range.to - req.range.from;
     let fetch = TimeRange { from: req.range.from - req.options.lookback_ms(), to: req.range.to };
     let points = ((fetch.to - fetch.from) / (span / 300).max(10_000)).clamp(10, 1000) as u32;
-    let groups = monitor_series(&st, &org, req.r#type.unwrap_or(MonitorType::Metric), &req.query, fetch, points).await?;
+    let groups = monitor_series(&st, &org, &access, req.r#type.unwrap_or(MonitorType::Metric), &req.query, fetch, points).await?;
     let step = (span / 240).max(60_000);
     let b = backtest(&req.options, &groups, req.range.from, req.range.to, step);
     let mut transitions = TransitionCounts::default();
@@ -1188,7 +1190,7 @@ async fn evaluate_inner(st: &AppState, id: i64, now: i64) -> Result<(), ApiError
     let range = TimeRange { from: now - opts.lookback_ms() - 60_000, to: now };
     let points = ((range.to - range.from) / 10_000).clamp(10, 1000) as u32;
     // A metric that doesn't exist (yet), or an unparsable query, is no data, not an error.
-    let series = match monitor_series(st, &m.row.org_id, MonitorType::parse(&m.row.kind), &m.row.query, range, points).await {
+    let series = match monitor_series(st, &m.row.org_id, &LogAccess::org_background(), MonitorType::parse(&m.row.kind), &m.row.query, range, points).await {
         Ok(s) => s,
         Err(ApiError::BadRequest(_)) => Vec::new(),
         Err(e) => return Err(e),
@@ -1289,7 +1291,7 @@ pub(crate) async fn backfill(st: &AppState, id: i64) -> Result<(), ApiError> {
     let now = now_ms();
     let from = now - DAY_MS;
     let range = TimeRange { from: from - opts.lookback_ms(), to: now };
-    let series = match monitor_series(st, &row.org_id, MonitorType::parse(&row.kind), &row.query, range, 1000).await {
+    let series = match monitor_series(st, &row.org_id, &LogAccess::org_background(), MonitorType::parse(&row.kind), &row.query, range, 1000).await {
         Ok(s) => s,
         Err(ApiError::BadRequest(_)) => return Ok(()),
         Err(e) => return Err(e),

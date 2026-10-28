@@ -491,7 +491,7 @@ const newestLogFirst = (a: GenSpan, b: GenSpan) => b.start + b.durationMs - (a.s
 export function serviceLogs(range: TimeRange, service: string): S['LogSearchPage'] {
   const { spans, weight } = scan(range);
   const matched = spans.filter((s) => s.service === service && logged(s)).sort(newestLogFirst);
-  return { logs: matched.slice(0, 25).map(logOf), total: matched.length * weight, nextCursor: null };
+  return { logs: matched.slice(0, 25).map(logOf), total: matched.length * weight, nextCursor: null, restricted: false };
 }
 
 export function traceLogs(range: TimeRange, traceId: string): S['LogSearchPage'] {
@@ -501,7 +501,7 @@ export function traceLogs(range: TimeRange, traceId: string): S['LogSearchPage']
     .sort(newestLogFirst)
     .map(logOf)
     .filter((l) => l.timestamp >= range.from && l.timestamp <= range.to);
-  return { logs: logs.slice(0, 200), total: logs.length, nextCursor: null };
+  return { logs: logs.slice(0, 200), total: logs.length, nextCursor: null, restricted: false };
 }
 
 // ================================================================ recommendations & anomalies

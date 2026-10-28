@@ -3,6 +3,7 @@
 import { API_MODE, post } from './http';
 import type { components } from './generated/schema';
 import { mockHistogram, mockLiveTail, mockLogFields, mockLogPatterns, mockTopLogValues, mockMetric, mockSearchLogs, mockSuggest } from './mock';
+import { mockViewRestricted } from './mock/logRestrictions';
 import type { Facet, FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogStatus, MetricSeries, QuerySuggestion, TimeRange } from './types';
 
 /** The UI loads at most this many rows per search; aggregate views work on this sample. */
@@ -14,14 +15,14 @@ function toLogEvent(e: WireEvent): LogEvent {
   return { ...e, status: e.status as LogStatus, attributes: (e.attributes ?? {}) as Record<string, JsonValue> };
 }
 
-/** A page of matching logs, newest first, and how many match in all. */
-export async function searchLogPage(q: LogQuery, limit = LIVE_PAGE): Promise<{ logs: LogEvent[]; total: number }> {
+/** A page of matching logs, newest first, how many match in all, and whether the viewer's data access restricts them. */
+export async function searchLogPage(q: LogQuery, limit = LIVE_PAGE): Promise<{ logs: LogEvent[]; total: number; restricted: boolean }> {
   if (API_MODE !== 'live') {
     const r = mockSearchLogs(q);
-    return { logs: r.logs.slice(0, limit), total: r.total };
+    return { logs: r.logs.slice(0, limit), total: r.total, restricted: await mockViewRestricted() };
   }
   const page = await post('/api/v1/logs/search', { range: q.range, query: q.query, limit });
-  return { logs: page.logs.map(toLogEvent), total: page.total };
+  return { logs: page.logs.map(toLogEvent), total: page.total, restricted: page.restricted };
 }
 
 /** Top values per facet (the built-in ones and `q.facets`). */

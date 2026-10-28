@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::auth::Writer;
+use crate::log_access::LogAccess;
 use crate::error::{ApiError, ApiResult};
 use crate::routes::apm::ENTRY;
 use crate::routes::logs::{bind, scope, Facet, FacetValue, TimeRange};
@@ -526,12 +527,12 @@ pub struct IssueSearchPage {
 
 /// The organization's issues from error logs in `range` (matching `query`), `buckets` per sparkline;
 /// with `only`, just that issue's logs.
-async fn load_issues(st: &AppState, org: &str, range: TimeRange, query: &str, buckets: usize, only: Option<&IssueGroup>) -> Result<Vec<IssueGroup>, ApiError> {
+async fn load_issues(st: &AppState, org: &str, access: &LogAccess, range: TimeRange, query: &str, buckets: usize, only: Option<&IssueGroup>) -> Result<Vec<IssueGroup>, ApiError> {
     let mut terms = parse_query(query);
     if let Some(g) = only {
         terms.push(oc_query::Term::Tag { key: "service".into(), values: vec![g.service.clone()], negate: false });
     }
-    let s = scope(org, range, &terms, None);
+    let s = scope(org, access, range, &terms, None);
     let width = ((range.to - range.from) / buckets as i64).max(1);
     // Bucket parameters first (they come first in the SQL), then the scope.
     let mut params = vec![Param::Int(range.from), Param::Int(width)];
@@ -596,17 +597,18 @@ async fn load_span_issues(st: &AppState, org: &str, range: TimeRange, query: &st
 }
 
 /// The issues of one source.
-async fn load_source(st: &AppState, org: &str, source: Source, range: TimeRange, query: &str, buckets: usize, only: Option<&IssueGroup>) -> Result<Vec<IssueGroup>, ApiError> {
+#[allow(clippy::too_many_arguments)]
+async fn load_source(st: &AppState, org: &str, access: &LogAccess, source: Source, range: TimeRange, query: &str, buckets: usize, only: Option<&IssueGroup>) -> Result<Vec<IssueGroup>, ApiError> {
     match source {
-        Source::Logs => load_issues(st, org, range, query, buckets, only).await,
+        Source::Logs => load_issues(st, org, access, range, query, buckets, only).await,
         Source::Apm => load_span_issues(st, org, range, query, buckets, only).await,
     }
 }
 
 /// The issue `id` in range, from whichever source has it.
-async fn find_issue(st: &AppState, org: &str, range: TimeRange, query: &str, id: &str) -> Result<Option<IssueGroup>, ApiError> {
+async fn find_issue(st: &AppState, org: &str, access: &LogAccess, range: TimeRange, query: &str, id: &str) -> Result<Option<IssueGroup>, ApiError> {
     for source in [Source::Logs, Source::Apm] {
-        if let Some(g) = load_source(st, org, source, range, query, 1, None).await?.into_iter().find(|g| g.id == id) {
+        if let Some(g) = load_source(st, org, access, source, range, query, 1, None).await?.into_iter().find(|g| g.id == id) {
             return Ok(Some(g));
         }
     }
@@ -657,11 +659,11 @@ fn issue_out(i: StatedIssue) -> IssueOut {
 /// Issues from the organization's error logs and APM error spans in the range (first and last seen within it).
 #[utoipa::path(post, path = "/api/v1/error-tracking/issues/search", request_body = IssueSearchRequest,
     responses((status = 200, body = IssueSearchPage)), tag = "error-tracking")]
-pub async fn search_issues(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<IssueSearchRequest>) -> ApiResult<IssueSearchPage> {
+pub async fn search_issues(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<IssueSearchRequest>) -> ApiResult<IssueSearchPage> {
     req.range.validate()?;
     let mut issues = Vec::new();
     for source in sources_of(&req.source) {
-        issues.extend(load_source(&st, &org, source, req.range, &req.query, SPARK_BUCKETS, None).await?);
+        issues.extend(load_source(&st, &org, &access, source, req.range, &req.query, SPARK_BUCKETS, None).await?);
     }
     let issues = order_issues(issues, req.sort.as_deref());
     let saved = saved_states(&st, &org).await?;
@@ -716,10 +718,10 @@ struct LogRow {
 }
 
 /// The newest (or oldest) error logs in range that belong to the issue (its service and message shape).
-async fn issue_logs(st: &AppState, org: &str, range: TimeRange, query: &str, group: &IssueGroup, oldest: bool) -> Result<Vec<LogRow>, ApiError> {
+async fn issue_logs(st: &AppState, org: &str, access: &LogAccess, range: TimeRange, query: &str, group: &IssueGroup, oldest: bool) -> Result<Vec<LogRow>, ApiError> {
     let mut terms = parse_query(query);
     terms.push(oc_query::Term::Tag { key: "service".into(), values: vec![group.service.clone()], negate: false });
-    let s = scope(org, range, &terms, None);
+    let s = scope(org, access, range, &terms, None);
     let mut params = s.params;
     params.push(Param::Str(group.kind.clone()));
     params.push(Param::Str(group.key.clone()));
@@ -772,17 +774,17 @@ fn valid_issue_id(id: &str) -> Result<(), ApiError> {
 
 /// One issue in the range: its histogram, the tags of its logs (or spans) and its saved state.
 #[utoipa::path(post, path = "/api/v1/error-tracking/issues/{id}", params(("id" = String, Path)), request_body = IssueDetailRequest, responses((status = 200, body = IssueDetailOut)), tag = "error-tracking")]
-pub async fn issue_detail(State(st): State<AppState>, OrgId(org): OrgId, Path(id): Path<String>, Json(req): Json<IssueDetailRequest>) -> ApiResult<IssueDetailOut> {
+pub async fn issue_detail(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Path(id): Path<String>, Json(req): Json<IssueDetailRequest>) -> ApiResult<IssueDetailOut> {
     valid_issue_id(&id)?;
     req.range.validate()?;
-    let found = find_issue(&st, &org, req.range, &req.query, &id).await?.ok_or_else(|| ApiError::NotFound("no such issue in this time range".into()))?;
+    let found = find_issue(&st, &org, &access, req.range, &req.query, &id).await?.ok_or_else(|| ApiError::NotFound("no such issue in this time range".into()))?;
     // Its own errors only, for exact counts and a finer histogram.
-    let group = load_source(&st, &org, found.source, req.range, &req.query, DETAIL_BUCKETS, Some(&found)).await?.into_iter().find(|g| g.id == id).unwrap_or(found);
+    let group = load_source(&st, &org, &access, found.source, req.range, &req.query, DETAIL_BUCKETS, Some(&found)).await?.into_iter().find(|g| g.id == id).unwrap_or(found);
     let width = ((req.range.to - req.range.from) / DETAIL_BUCKETS as i64).max(1);
     let histogram = group.sparkline.iter().enumerate().map(|(i, n)| HistogramPoint { t: req.range.from + i as i64 * width, count: *n }).collect();
     let tags = match group.source {
         Source::Logs => {
-            let logs = issue_logs(&st, &org, req.range, &req.query, &group, false).await?;
+            let logs = issue_logs(&st, &org, &access, req.range, &req.query, &group, false).await?;
             let tag_maps: Vec<HashMap<String, String>> = logs.iter().map(|l| serde_json::from_str(&l.tags_json).unwrap_or_default()).collect();
             tag_distribution(&tag_maps, &TAG_KEYS)
         }
@@ -844,10 +846,10 @@ pub struct SamplePage {
 
 /// One log (or span) of the issue (the `index`-th newest or oldest in range), and how many there are.
 #[utoipa::path(post, path = "/api/v1/error-tracking/issues/{id}/samples", params(("id" = String, Path)), request_body = SampleRequest, responses((status = 200, body = SamplePage)), tag = "error-tracking")]
-pub async fn issue_samples(State(st): State<AppState>, OrgId(org): OrgId, Path(id): Path<String>, Json(req): Json<SampleRequest>) -> ApiResult<SamplePage> {
+pub async fn issue_samples(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Path(id): Path<String>, Json(req): Json<SampleRequest>) -> ApiResult<SamplePage> {
     valid_issue_id(&id)?;
     req.range.validate()?;
-    let Some(group) = find_issue(&st, &org, req.range, &req.query, &id).await? else {
+    let Some(group) = find_issue(&st, &org, &access, req.range, &req.query, &id).await? else {
         return Ok(Json(SamplePage { sample: None, index: 0, total: 0, available: 0 }));
     };
     let oldest = req.order.as_deref() == Some("oldest");
@@ -858,7 +860,7 @@ pub async fn issue_samples(State(st): State<AppState>, OrgId(org): OrgId, Path(i
         let sample = spans.into_iter().nth(index).map(|s| span_sample(s, &group.error_type));
         return Ok(Json(SamplePage { sample, index, total: group.count, available }));
     }
-    let logs = issue_logs(&st, &org, req.range, &req.query, &group, oldest).await?;
+    let logs = issue_logs(&st, &org, &access, req.range, &req.query, &group, oldest).await?;
     let available = logs.len();
     let index = req.index.min(available.saturating_sub(1));
     let sample = logs.into_iter().nth(index).map(|l| {
@@ -935,8 +937,8 @@ pub struct IssueFacetsOut {
 const FACET_VALUES: i64 = 20;
 
 /// Log issues per service, env and version.
-async fn log_facet_rows(st: &AppState, org: &str, range: TimeRange, query: &str) -> Result<Vec<FacetRow>, ApiError> {
-    let s = scope(org, range, &parse_query(query), None);
+async fn log_facet_rows(st: &AppState, org: &str, access: &LogAccess, range: TimeRange, query: &str) -> Result<Vec<FacetRow>, ApiError> {
+    let s = scope(org, access, range, &parse_query(query), None);
     let mut params = s.params;
     params.push(Param::Int(FACET_VALUES));
     Ok(bind(
@@ -972,12 +974,12 @@ async fn span_facet_rows(st: &AppState, org: &str, range: TimeRange, query: &str
 
 /// How many issues have logs (or spans) with each service, env and version.
 #[utoipa::path(post, path = "/api/v1/error-tracking/issues/facets", request_body = IssueFacetsRequest, responses((status = 200, body = IssueFacetsOut)), tag = "error-tracking")]
-pub async fn issue_facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<IssueFacetsRequest>) -> ApiResult<IssueFacetsOut> {
+pub async fn issue_facets(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<IssueFacetsRequest>) -> ApiResult<IssueFacetsOut> {
     req.range.validate()?;
     let mut rows = Vec::new();
     for source in sources_of(&req.source) {
         rows.extend(match source {
-            Source::Logs => log_facet_rows(&st, &org, req.range, &req.query).await?,
+            Source::Logs => log_facet_rows(&st, &org, &access, req.range, &req.query).await?,
             Source::Apm => span_facet_rows(&st, &org, req.range, &req.query).await?,
         });
     }

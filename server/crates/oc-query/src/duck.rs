@@ -4,7 +4,7 @@
 //! Differences from ClickHouse handled here: map lookups go through `map_extract` (a missing key
 //! reads as '' like ClickHouse), LIKE needs an explicit escape character, and "no filter" is `true`.
 
-use crate::sql::{build_where, Param, Schema, SqlFilter};
+use crate::sql::{any_of, build_where, Param, Schema, SqlFilter};
 use crate::Term;
 
 /// Archived `oc.logs` rows read by DuckDB.
@@ -37,6 +37,11 @@ pub fn build_where_duckdb(terms: &[Term]) -> SqlFilter {
     SqlFilter { clause, params: f.params }
 }
 
+/// Rows matching at least one of `searches`, for DuckDB; no searches match nothing (`false`).
+pub fn build_any_duckdb(searches: &[Vec<Term>]) -> SqlFilter {
+    any_of(searches.iter().map(|s| build_where_duckdb(s)).collect(), "false")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -51,6 +56,14 @@ mod tests {
         );
         assert_eq!(f.params.len(), 7);
         assert_eq!(build_where_duckdb(&[]).clause, "true");
+    }
+
+    #[test]
+    fn any_of_several_searches_in_duckdb() {
+        let f = build_any_duckdb(&[parse_query("service:bill*"), parse_query("env:prod")]);
+        assert_eq!(f.clause, "((service ILIKE ? ESCAPE '\\')) OR ((coalesce(map_extract(tags, ?)[1], '') = ?))");
+        assert_eq!(f.params.len(), 3);
+        assert_eq!(build_any_duckdb(&[]).clause, "false");
     }
 
     #[test]

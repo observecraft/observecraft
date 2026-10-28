@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::error::{ApiError, ApiResult};
+use crate::log_access::LogAccess;
 use crate::routes::standard_attributes::org_paths;
 use crate::state::{AppState, OrgId};
 
@@ -116,8 +117,8 @@ impl From<LogRow> for LogEvent {
     }
 }
 
-/// WHERE clause scoping a query to the org and range, plus the search terms, and the table they
-/// run against.
+/// WHERE clause scoping a query to the org, the reader's log access (restriction queries) and the
+/// range, plus the search terms, and the table they run against.
 pub(crate) struct Scope {
     pub(crate) clause: String,
     pub(crate) params: Vec<Param>,
@@ -134,18 +135,21 @@ fn index_table(terms: &[Term]) -> &'static str {
     }
 }
 
-pub(crate) fn scope(org: &str, range: TimeRange, terms: &[Term], skip_key: Option<&str>) -> Scope {
+/// Every read of the log tables builds its WHERE clause here, so none can skip the restriction.
+pub(crate) fn scope(org: &str, access: &LogAccess, range: TimeRange, terms: &[Term], skip_key: Option<&str>) -> Scope {
     let table = index_table(terms);
     // `index:rehydrated` picks the table; it isn't an index_name filter.
     let filtered: Vec<Term> = terms.iter().filter(|t| !(table == "logs_rehydrated" && matches!(t, Term::Tag { key, .. } if key == "index"))).cloned().collect();
     let f = build_where(&LogsSchema, &filtered, skip_key);
     let mut params = vec![Param::Str(org.to_string()), Param::Int(range.from), Param::Int(range.to)];
     params.extend(f.params);
-    Scope {
-        clause: format!("org_id = ? AND timestamp >= fromUnixTimestamp64Milli(?) AND timestamp <= fromUnixTimestamp64Milli(?) AND ({})", f.clause),
-        params,
-        table,
+    let mut clause = format!("org_id = ? AND timestamp >= fromUnixTimestamp64Milli(?) AND timestamp <= fromUnixTimestamp64Milli(?) AND ({})", f.clause);
+    // The restriction is built apart from the search: `skip_key` never drops it.
+    if let Some(r) = access.clickhouse_filter() {
+        clause.push_str(&format!(" AND ({})", r.clause));
+        params.extend(r.params);
     }
+    Scope { clause, params, table }
 }
 
 /// Binds params in order onto a query built with `?` placeholders.
@@ -180,6 +184,8 @@ pub struct LogSearchPage {
     /// Matching logs in the range (not just this page).
     pub total: u64,
     pub next_cursor: Option<String>,
+    /// The reader sees only the logs their restriction queries allow (Logs → Configuration → Data Access).
+    pub restricted: bool,
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -190,11 +196,11 @@ struct Count {
 /// Newest-first page of logs matching the query.
 #[utoipa::path(post, path = "/api/v1/logs/search", request_body = LogSearchRequest,
     responses((status = 200, body = LogSearchPage), (status = 400, body = crate::error::ErrorBody)), tag = "logs")]
-pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogSearchRequest>) -> ApiResult<LogSearchPage> {
+pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<LogSearchRequest>) -> ApiResult<LogSearchPage> {
     req.range.validate()?;
     let terms = parse_query(&req.query);
     let limit = req.limit.unwrap_or(100).clamp(1, MAX_LIMIT);
-    let s = scope(&org, req.range, &terms, None);
+    let s = scope(&org, &access, req.range, &terms, None);
     let table = s.table;
 
     // Keyset pagination on (timestamp, id): cursor = "<ts_ms>:<uuid>".
@@ -220,7 +226,7 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
 
     let (rows, count) = tokio::try_join!(rows_q.fetch_all::<LogRow>(), count_q.fetch_one::<Count>())?;
     let next_cursor = if rows.len() as u64 == limit { rows.last().map(|r| format!("{}:{}", r.ts, r.id)) } else { None };
-    Ok(Json(LogSearchPage { logs: rows.into_iter().map(Into::into).collect(), total: count.n, next_cursor }))
+    Ok(Json(LogSearchPage { logs: rows.into_iter().map(Into::into).collect(), total: count.n, next_cursor, restricted: access.restricted() }))
 }
 
 // ---------------------------------------------------------------- histogram
@@ -266,10 +272,10 @@ fn bucket_ms(range: TimeRange) -> i64 {
 /// Status-stacked log counts over time.
 #[utoipa::path(post, path = "/api/v1/logs/histogram", request_body = LogQueryRequest,
     responses((status = 200, body = Vec<HistogramBucket>)), tag = "logs")]
-pub async fn histogram(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogQueryRequest>) -> ApiResult<Vec<HistogramBucket>> {
+pub async fn histogram(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<LogQueryRequest>) -> ApiResult<Vec<HistogramBucket>> {
     req.range.validate()?;
     let size = bucket_ms(req.range);
-    let s = scope(&org, req.range, &parse_query(&req.query), None);
+    let s = scope(&org, &access, req.range, &parse_query(&req.query), None);
     let table = s.table;
     let mut params = vec![Param::Int(size / 1000)];
     params.extend(s.params);
@@ -341,9 +347,9 @@ const FACETS: &[(&str, &str, &str)] = &[
 
 /// Top values of `key`; `skip_own` drops the key's own filter (facets keep showing unchecked values).
 #[allow(clippy::too_many_arguments)]
-async fn values_for(st: &AppState, org: &str, range: TimeRange, terms: &[Term], key: &str, filter: Option<&str>, limit: i64, skip_own: bool) -> Result<Vec<ValueRow>, ApiError> {
+async fn values_for(st: &AppState, org: &str, access: &LogAccess, range: TimeRange, terms: &[Term], key: &str, filter: Option<&str>, limit: i64, skip_own: bool) -> Result<Vec<ValueRow>, ApiError> {
     let (expr, key_param) = LogsSchema.field(key);
-    let s = if skip_own { scope(org, range, terms, Some(key)) } else { top_scope(org, range, terms) };
+    let s = if skip_own { scope(org, access, range, terms, Some(key)) } else { top_scope(org, access, range, terms) };
     let table = s.table;
     let mut params = Vec::new();
     params.extend(key_param.clone()); // SELECT expr
@@ -442,7 +448,7 @@ fn shared_facets_query(keys: &[&str], s: Scope, limit: i64) -> (String, Vec<Para
 /// Top values per facet. Each facet ignores its own filter so unchecked values keep their counts.
 #[utoipa::path(post, path = "/api/v1/logs/facets", request_body = LogFacetsRequest,
     responses((status = 200, body = Vec<Facet>)), tag = "logs")]
-pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogFacetsRequest>) -> ApiResult<Vec<Facet>> {
+pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<LogFacetsRequest>) -> ApiResult<Vec<Facet>> {
     req.range.validate()?;
     let terms = parse_query(&req.query);
     let extra = extra_facets(&req.extra);
@@ -453,14 +459,14 @@ pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
         if shared.is_empty() {
             return Ok(Vec::new());
         }
-        let (sql, params) = shared_facets_query(&shared, scope(&org, req.range, &terms, None), 10);
+        let (sql, params) = shared_facets_query(&shared, scope(&org, &access, req.range, &terms, None), 10);
         Ok::<_, ApiError>(bind(st.ch(&org).query(&sql), &params).fetch_all::<KeyValueRow>().await?)
     };
     let standard = async { Ok::<_, ApiError>(if extra.is_empty() { HashSet::new() } else { org_paths(&st, &org).await? }) };
     let (shared_rows, own_rows, indexes, standard) = tokio::try_join!(
         shared_rows,
-        try_join_all(own.iter().map(|key| values_for(&st, &org, req.range, &terms, key, None, 10, true))),
-        values_for(&st, &org, req.range, &terms, "index", None, 50, true),
+        try_join_all(own.iter().map(|key| values_for(&st, &org, &access, req.range, &terms, key, None, 10, true))),
+        values_for(&st, &org, &access, req.range, &terms, "index", None, 50, true),
         standard,
     )?;
     let mut by_key: HashMap<String, Vec<ValueRow>> = HashMap::new();
@@ -511,10 +517,10 @@ struct FieldRow {
 /// The tags and attributes of the matching logs (from the newest 10,000), to add as facets.
 #[utoipa::path(post, path = "/api/v1/logs/fields", request_body = LogQueryRequest,
     responses((status = 200, body = Vec<LogField>)), tag = "logs")]
-pub async fn fields(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogQueryRequest>) -> ApiResult<Vec<LogField>> {
+pub async fn fields(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<LogQueryRequest>) -> ApiResult<Vec<LogField>> {
     req.range.validate()?;
     let terms = parse_query(&req.query);
-    let s = scope(&org, req.range, &terms, None);
+    let s = scope(&org, &access, req.range, &terms, None);
     let mut params = s.params;
     params.push(Param::Int(PATTERN_SAMPLE));
     let rows = bind(
@@ -545,8 +551,8 @@ pub struct LogTopRequest {
 }
 
 /// The scope of top values: every filter applies, the counted key's own included.
-fn top_scope(org: &str, range: TimeRange, terms: &[Term]) -> Scope {
-    scope(org, range, terms, None)
+fn top_scope(org: &str, access: &LogAccess, range: TimeRange, terms: &[Term]) -> Scope {
+    scope(org, access, range, terms, None)
 }
 
 fn top_limit(limit: Option<i64>) -> i64 {
@@ -556,10 +562,10 @@ fn top_limit(limit: Option<i64>) -> i64 {
 /// The most frequent values of a key among the matching logs (dashboard toplists and sunbursts).
 #[utoipa::path(post, path = "/api/v1/logs/top", request_body = LogTopRequest,
     responses((status = 200, body = Vec<FacetValue>)), tag = "logs")]
-pub async fn top(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogTopRequest>) -> ApiResult<Vec<FacetValue>> {
+pub async fn top(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<LogTopRequest>) -> ApiResult<Vec<FacetValue>> {
     req.range.validate()?;
     let terms = parse_query(&req.query);
-    let rows = values_for(&st, &org, req.range, &terms, &req.key, None, top_limit(req.limit), false).await?;
+    let rows = values_for(&st, &org, &access, req.range, &terms, &req.key, None, top_limit(req.limit), false).await?;
     Ok(Json(rows.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect()))
 }
 
@@ -687,10 +693,10 @@ pub struct LogPatternsRequest {
 /// The matching logs grouped by pattern (Group into Patterns), from the newest 10,000 of them.
 #[utoipa::path(post, path = "/api/v1/logs/patterns", request_body = LogPatternsRequest,
     responses((status = 200, body = Vec<LogPattern>)), tag = "logs")]
-pub async fn patterns(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogPatternsRequest>) -> ApiResult<Vec<LogPattern>> {
+pub async fn patterns(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<LogPatternsRequest>) -> ApiResult<Vec<LogPattern>> {
     req.range.validate()?;
     let terms = parse_query(&req.query);
-    let s = scope(&org, req.range, &terms, None);
+    let s = scope(&org, &access, req.range, &terms, None);
     let mut params = s.params;
     params.push(Param::Int(PATTERN_SAMPLE));
     let rows = bind(
@@ -726,7 +732,7 @@ const SUGGEST_KEYS: &[&str] = &["service", "status", "host", "source", "env", "k
 /// Autocomplete for the query bar: keys (`service:`) and `key:value` pairs with counts.
 #[utoipa::path(post, path = "/api/v1/logs/suggest", request_body = SuggestRequest,
     responses((status = 200, body = Vec<QuerySuggestion>)), tag = "logs")]
-pub async fn suggest(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<SuggestRequest>) -> ApiResult<Vec<QuerySuggestion>> {
+pub async fn suggest(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<SuggestRequest>) -> ApiResult<Vec<QuerySuggestion>> {
     req.range.validate()?;
     let (neg, p) = match req.partial.strip_prefix('-') {
         Some(rest) => ("-", rest),
@@ -736,7 +742,7 @@ pub async fn suggest(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
         if key.is_empty() || !key.chars().all(|c| c.is_ascii_alphanumeric() || "_.-@".contains(c)) {
             return Ok(Json(vec![]));
         }
-        let rows = values_for(&st, &org, req.range, &[], key, (!value.is_empty()).then_some(value), 6, true).await?;
+        let rows = values_for(&st, &org, &access, req.range, &[], key, (!value.is_empty()).then_some(value), 6, true).await?;
         return Ok(Json(rows.into_iter().map(|r| QuerySuggestion { text: format!("{neg}{key}:{}", r.v), count: r.n }).collect()));
     }
     let lower = p.to_lowercase();
@@ -750,7 +756,7 @@ pub async fn suggest(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
         return Ok(Json(keys));
     }
     // Values containing the text, across the common keys.
-    let per_key = try_join_all(["service", "host", "env", "kube_namespace"].iter().map(|k| values_for(&st, &org, req.range, &[], k, Some(&lower), 3, true))).await?;
+    let per_key = try_join_all(["service", "host", "env", "kube_namespace"].iter().map(|k| values_for(&st, &org, &access, req.range, &[], k, Some(&lower), 3, true))).await?;
     let mut pairs: Vec<QuerySuggestion> = ["service", "host", "env", "kube_namespace"]
         .iter()
         .zip(per_key)
@@ -784,9 +790,9 @@ struct ServiceErrors {
 /// Error outliers: services whose share of errors far exceeds their share of traffic.
 #[utoipa::path(post, path = "/api/v1/logs/insights", request_body = LogQueryRequest,
     responses((status = 200, body = Vec<LogInsight>)), tag = "logs")]
-pub async fn insights(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<LogQueryRequest>) -> ApiResult<Vec<LogInsight>> {
+pub async fn insights(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<LogQueryRequest>) -> ApiResult<Vec<LogInsight>> {
     req.range.validate()?;
-    let s = scope(&org, req.range, &[], None);
+    let s = scope(&org, &access, req.range, &[], None);
     let table = s.table;
     let rows = bind(
         st.ch(&org).query(&format!(
@@ -865,9 +871,9 @@ struct CountRow {
 
 /// Matching logs per `step_ms`, per group (log monitors). Intervals without logs count as 0, so
 /// "fewer than N logs" monitors work and a quiet service reads 0 rather than no data.
-pub(crate) async fn log_counts(st: &AppState, org: &str, search: &str, by: &[String], range: TimeRange, step_ms: i64) -> Result<Vec<super::metrics::Group>, ApiError> {
+pub(crate) async fn log_counts(st: &AppState, org: &str, access: &LogAccess, search: &str, by: &[String], range: TimeRange, step_ms: i64) -> Result<Vec<super::metrics::Group>, ApiError> {
     let terms = parse_query(search);
-    let s = scope(org, range, &terms, None);
+    let s = scope(org, access, range, &terms, None);
     let table = s.table;
     let mut params = Vec::new();
     let mut exprs = Vec::new();
@@ -961,7 +967,7 @@ mod tests {
         let keys = ["source", "service", "kube_namespace", "@http.method"];
         // `service` filters itself, so it keeps its own query; the others share one.
         assert_eq!(shared_facet_keys(&keys, &terms), vec!["source", "kube_namespace", "@http.method"]);
-        let scope = scope("o", TimeRange { from: 0, to: 1 }, &terms, None);
+        let scope = scope("o", &LogAccess::org_background(), TimeRange { from: 0, to: 1 }, &terms, None);
         let scope_params = scope.params.len();
         let (sql, params) = shared_facets_query(&["source", "kube_namespace", "@http.method"], scope, 10);
         assert!(sql.contains("ARRAY JOIN") && sql.contains("LIMIT ? BY k"), "{sql}");
@@ -974,10 +980,35 @@ mod tests {
         let range = TimeRange { from: 0, to: 1 };
         let terms = parse_query("source:(etcd OR coredns) env:prod");
         // Facets drop their own key's filter; top values keep it.
-        assert!(top_scope("o", range, &terms).params.len() > scope("o", range, &terms, Some("source")).params.len());
+        let all = LogAccess::org_background();
+        assert!(top_scope("o", &all, range, &terms).params.len() > scope("o", &all, range, &terms, Some("source")).params.len());
         assert_eq!(top_limit(None), 10);
         assert_eq!(top_limit(Some(0)), 1);
         assert_eq!(top_limit(Some(5000)), 100);
+    }
+
+    fn restricted_to(query: &str) -> LogAccess {
+        let rule = crate::log_access::Restriction { terms: parse_query(query), roles: ["r-finance".to_string()].into(), teams: HashSet::new() };
+        LogAccess::resolve(&[rule], false, &["r-finance".to_string()], &[])
+    }
+
+    #[test]
+    fn the_scope_always_applies_the_readers_restriction() {
+        let range = TimeRange { from: 0, to: 1 };
+        let all = scope("o", &LogAccess::org_background(), range, &parse_query("env:prod"), None);
+        let only = scope("o", &restricted_to("service:billing"), range, &parse_query("env:prod"), None);
+        assert!(only.clause.ends_with(" AND (((service = ?)))"), "{}", only.clause);
+        assert_eq!(only.params.len(), all.params.len() + 1);
+        assert_eq!(only.params.last(), Some(&Param::Str("billing".into())));
+        // Facets drop the search's own filter on a key, never the restriction's.
+        let facet = scope("o", &restricted_to("service:billing"), range, &parse_query("service:order-service"), Some("service"));
+        assert_eq!(facet.params.last(), Some(&Param::Str("billing".into())));
+        // Rehydrated logs too.
+        let rehydrated = scope("o", &restricted_to("service:billing"), range, &parse_query("index:rehydrated"), None);
+        assert_eq!((rehydrated.table, rehydrated.params.last()), ("logs_rehydrated", Some(&Param::Str("billing".into()))));
+        // Nothing assigned: nothing matches.
+        let none = LogAccess::resolve(&[crate::log_access::Restriction { terms: parse_query("service:billing"), roles: HashSet::new(), teams: HashSet::new() }], false, &[], &[]);
+        assert!(scope("o", &none, range, &[], None).clause.ends_with(" AND (0)"));
     }
 
     #[test]
