@@ -55,6 +55,8 @@ import { LinkPage } from './pages/auth/LinkPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { DashboardListPage, SharedDashboardsPage } from './pages/dashboards/list/DashboardListPage';
 import { DashboardPage } from './pages/dashboards/view/DashboardPage';
+import { NotebookListPage, NotebookReportsPage, NotebookTemplatesPage } from './pages/notebooks/NotebookListPage';
+import { NotebookPage } from './pages/notebooks/NotebookPage';
 import { ErrorTrackingLayout } from './pages/errors/ErrorTrackingLayout';
 import { IssuesPage } from './pages/errors/IssuesPage';
 import { HostsPage } from './pages/infrastructure/HostsPage';
@@ -77,7 +79,7 @@ import { ReferenceTablesPage } from './pages/integrations/ReferenceTablesPage';
 import { LiveTail } from './pages/logs/LiveTail';
 import { LogExplorer } from './pages/logs/LogExplorer';
 import { LOGS_CONFIG_SLUGS, LogsConfigComingSoon, LogsConfigLayout } from './pages/logs/LogsConfigLayout';
-import { LogsComingSoon, LogsLayout } from './pages/logs/LogsLayout';
+import { LogsLayout } from './pages/logs/LogsLayout';
 import { EventExplorer } from './pages/events/EventExplorer';
 import { EventsLayout, EventsSummary } from './pages/events/EventsLayout';
 import { TriageInbox } from './pages/events/TriageInbox';
@@ -108,9 +110,9 @@ function Shell() {
             <Route path="/logs" element={<LogsLayout />}>
               <Route index element={<LogExplorer />} />
               <Route path="livetail" element={<LiveTail />} />
-              <Route path="notebooks" element={<LogsComingSoon title="Notebooks" />} />
               <Route path="archive-search" element={<ArchiveSearchPage />} />
             </Route>
+            <Route path="/logs/notebooks" element={<Navigate to="/notebooks" replace />} />
             <Route element={<LogsConfigLayout />}>
               <Route path="/logs/archives" element={<ArchivesPage />} />
               <Route path="/logs/indexes" element={<IndexesPage />} />
@@ -167,6 +169,10 @@ function Shell() {
             <Route path="/dashboards" element={<DashboardListPage />} />
             <Route path="/dashboards/shared" element={<SharedDashboardsPage />} />
             <Route path="/dashboards/:id" element={<DashboardPage />} />
+            <Route path="/notebooks" element={<NotebookListPage />} />
+            <Route path="/notebooks/templates" element={<NotebookTemplatesPage />} />
+            <Route path="/notebooks/reports" element={<NotebookReportsPage />} />
+            <Route path="/notebooks/:id" element={<NotebookPage />} />
             <Route path="/ci" element={<CiLayout />}>
               <Route index element={<CiOverviewPage />} />
               <Route path="explorer" element={<CiExplorerPage />} />

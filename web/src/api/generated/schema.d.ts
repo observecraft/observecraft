@@ -2561,6 +2561,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notebooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_notebook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notebooks/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Notebooks of a list (mine, team, recents, favorites, all, recently deleted), filtered by text, author and team. */
+        post: operations["search_notebooks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notebooks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Opens a notebook and records the visit (Recents). A deleted notebook still opens, to be restored. */
+        get: operations["get_notebook"];
+        put?: never;
+        post?: never;
+        /** Moves a notebook to Recently Deleted (restorable). */
+        delete: operations["delete_notebook"];
+        options?: never;
+        head?: never;
+        /** Saves changes (the editor autosaves). A deleted notebook must be restored first. */
+        patch: operations["update_notebook"];
+        trace?: never;
+    };
+    "/api/v1/notebooks/{id}/clone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A copy owned by the current user, titled "Clone of …". */
+        post: operations["clone_notebook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notebooks/{id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Stars or unstars a notebook for the current user (any role: it changes only their own list). */
+        put: operations["set_notebook_favorite"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notebooks/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["restore_notebook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notification-channels": {
         parameters: {
             query?: never;
@@ -3518,6 +3620,16 @@ export interface components {
             attributeValue: string;
             kind: components["schemas"]["MappingKind"];
             target: string;
+        };
+        CreateNotebookRequest: {
+            /** @description The first cells (e.g. from a template). */
+            cells?: Record<string, never>[];
+            status?: null | components["schemas"]["NotebookStatus"];
+            tags?: string[];
+            teams?: string[];
+            /** @description Relative time range, `1h` by default. */
+            time?: string | null;
+            title: string;
         };
         CreateNotification: {
             body?: string;
@@ -5722,6 +5834,85 @@ export interface components {
         };
         NoteRequest: {
             body: string;
+        };
+        Notebook: components["schemas"]["NotebookSummary"] & {
+            /** @description `{ id, definition, time? }` documents (schema owned by the web app). */
+            cells: Record<string, never>[];
+        };
+        NotebookAuthor: {
+            id: string;
+            name: string;
+        };
+        NotebookFavoriteRequest: {
+            favorite: boolean;
+        };
+        /**
+         * @description The lists of the notebook list's left navigation.
+         * @enum {string}
+         */
+        NotebookListView: "all" | "mine" | "team" | "recents" | "favorites" | "deleted";
+        NotebookPatch: {
+            /** @description Replaces every cell (order included). */
+            cells?: Record<string, never>[] | null;
+            status?: null | components["schemas"]["NotebookStatus"];
+            tags?: string[] | null;
+            teams?: string[] | null;
+            time?: string | null;
+            title?: string | null;
+        };
+        NotebookSearchPage: {
+            /** @description Everyone who wrote one of the org's notebooks (the author filter). */
+            authors: components["schemas"]["NotebookAuthor"][];
+            notebooks: components["schemas"]["NotebookSummary"][];
+            /** @description The teams the org's notebooks are tagged with (the team filter). */
+            teams: string[];
+            /** Format: int64 */
+            total: number;
+        };
+        NotebookSearchRequest: {
+            /** @description An author's user id. */
+            author?: string | null;
+            dir: components["schemas"]["SortDir"];
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            offset: number;
+            /** @description Matched against titles, authors, tags and the text of the cells. */
+            query?: string;
+            /** @description Ignored by Recents, which is ordered by the last visit. */
+            sort: components["schemas"]["NotebookSortField"];
+            /** @description A team handle. */
+            team?: string | null;
+            view: components["schemas"]["NotebookListView"];
+        };
+        /** @enum {string} */
+        NotebookSortField: "title" | "modified" | "created";
+        /** @enum {string} */
+        NotebookStatus: "published" | "draft";
+        NotebookSummary: {
+            author?: null | components["schemas"]["NotebookAuthor"];
+            /** Format: int64 */
+            cellCount: number;
+            /** Format: int64 */
+            createdAt: number;
+            /** Format: int64 */
+            deletedAt?: number | null;
+            /** @description The current user's favorite. */
+            favorite: boolean;
+            id: string;
+            /** Format: int64 */
+            modifiedAt: number;
+            status: components["schemas"]["NotebookStatus"];
+            tags: string[];
+            teams: string[];
+            /** @description The notebook's relative time range (`1h`); cells may override it. */
+            time: string;
+            title: string;
+            /**
+             * Format: int64
+             * @description When the current user last opened it.
+             */
+            viewedAt?: number | null;
         };
         Notification: {
             author: string;
@@ -11569,6 +11760,230 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FlowPage"];
+                };
+            };
+        };
+    };
+    create_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateNotebookRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+        };
+    };
+    search_notebooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotebookSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotebookSearchPage"];
+                };
+            };
+        };
+    };
+    get_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotebookPatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    clone_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_notebook_favorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotebookFavoriteRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    restore_notebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

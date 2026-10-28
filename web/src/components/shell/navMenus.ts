@@ -79,6 +79,16 @@ export const NAV_SECTIONS: NavItem[][] = [
             [{ label: 'New Dashboard', to: '/dashboards?new=1' }],
           ],
         },
+        {
+          title: 'Notebooks',
+          columns: [
+            [
+              { label: 'Notebook List', to: '/notebooks' },
+              { label: 'Templates', to: '/notebooks/templates' },
+            ],
+            [{ label: 'New Notebook', to: '/notebooks?new=1' }],
+          ],
+        },
       ],
     },
     {
@@ -447,7 +457,7 @@ export const NAV_SECTIONS: NavItem[][] = [
             [
               { label: 'Explorer', to: '/logs' },
               { label: 'Live Tail', to: '/logs/livetail' },
-              { label: 'Notebooks', to: '/logs/notebooks' },
+              { label: 'Notebooks', to: '/notebooks' },
             ],
             [{ label: 'Archive Search', to: '/logs/archive-search', isNew: true }],
           ],
@@ -513,6 +523,7 @@ export const NAV_FOOTER: NavItem[] = [
 /** "+" quick-create entries. */
 export const QUICK_CREATE: MenuLink[] = [
   { label: 'New Dashboard', to: '/dashboards?new=1' },
+  { label: 'New Notebook', to: '/notebooks?new=1' },
   { label: 'Declare Incident', to: '/incidents?declare=1' },
   { label: 'New Monitor', to: '/monitors/create' },
   { label: 'New Log Pipeline', to: '/logs/pipelines' },

@@ -340,6 +340,16 @@ export function mockTeam(handle: string): { handle: string; notifications: strin
   return db().teams.find((t) => t.handle === handle);
 }
 export const mockMe = () => ({ id: ME_ID, name: me().name });
+/** The handles of the teams the current user belongs to. */
+export const mockMyTeams = (): string[] =>
+  db()
+    .teams.filter((t) => t.members.some((m) => m.userId === ME_ID))
+    .map((t) => t.handle);
+/** A person of the directory by name (seeds of other mocks). */
+export function mockUserNamed(name: string): { id: string; name: string } | undefined {
+  const u = db().users.find((x) => x.name === name);
+  return u && { id: u.id, name: u.name };
+}
 
 // ================================================================ profile, users, roles
 

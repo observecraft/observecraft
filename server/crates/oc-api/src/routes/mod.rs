@@ -25,6 +25,7 @@ pub mod monitor_engine;
 pub mod monitor_formula;
 pub mod monitors;
 pub mod network;
+pub mod notebooks;
 pub mod notifications;
 pub mod profiles;
 pub mod reference_tables;
@@ -91,6 +92,14 @@ use crate::state::AppState;
         dashboards::create_list,
         dashboards::add_to_list,
         dashboards::monitor_summary,
+        notebooks::search,
+        notebooks::get_one,
+        notebooks::create,
+        notebooks::update,
+        notebooks::clone,
+        notebooks::delete,
+        notebooks::restore,
+        notebooks::set_favorite,
         events::search,
         events::fields,
         events::work_items,
@@ -277,6 +286,7 @@ use crate::state::AppState;
         (name = "apm", description = "Services, endpoints, dependencies and traces computed from spans"),
         (name = "metrics", description = "Metric queries for dashboards (OTel metrics and span-derived trace.* metrics)"),
         (name = "dashboards", description = "Dashboards, dashboard lists and the monitor summary widget"),
+        (name = "notebooks", description = "Notebooks: documents of Markdown and live query cells"),
         (name = "infrastructure", description = "Hosts, built from host metrics, spans and logs"),
         (name = "events", description = "Events from the Datadog Agent and the events API"),
         (name = "network", description = "Network flows from the Datadog Agent's system-probe"),
@@ -343,6 +353,15 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/tags/:key/values", get(metrics::tag_values))
         .route("/api/v1/dashboards", post(dashboards::create))
         .route("/api/v1/dashboards/search", post(dashboards::search))
+        .route("/api/v1/notebooks", post(notebooks::create))
+        .route("/api/v1/notebooks/search", post(notebooks::search))
+        .route(
+            "/api/v1/notebooks/:id",
+            get(notebooks::get_one).patch(notebooks::update).delete(notebooks::delete),
+        )
+        .route("/api/v1/notebooks/:id/clone", post(notebooks::clone))
+        .route("/api/v1/notebooks/:id/restore", post(notebooks::restore))
+        .route("/api/v1/notebooks/:id/favorite", axum::routing::put(notebooks::set_favorite))
         .route("/api/v1/dashboards/recent", get(dashboards::recent))
         .route("/api/v1/dashboards/delete", post(dashboards::delete))
         .route(
@@ -726,6 +745,7 @@ mod tests {
             include_str!("hosts.rs"),
             include_str!("events.rs"),
             include_str!("network.rs"),
+            include_str!("notebooks.rs"),
             include_str!("profiles.rs"),
             include_str!("reference_tables.rs"),
             include_str!("identity.rs"),
@@ -884,6 +904,7 @@ mod tests {
             ("monitor_formula.rs", include_str!("monitor_formula.rs")),
             ("monitors.rs", include_str!("monitors.rs")),
             ("network.rs", include_str!("network.rs")),
+            ("notebooks.rs", include_str!("notebooks.rs")),
             ("notifications.rs", include_str!("notifications.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),

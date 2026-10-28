@@ -6307,6 +6307,314 @@
         }
       }
     },
+    "/api/v1/notebooks": {
+      "post": {
+        "tags": [
+          "notebooks"
+        ],
+        "operationId": "create_notebook",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNotebookRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notebook"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notebooks/search": {
+      "post": {
+        "tags": [
+          "notebooks"
+        ],
+        "summary": "Notebooks of a list (mine, team, recents, favorites, all, recently deleted), filtered by text, author and team.",
+        "operationId": "search_notebooks",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotebookSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotebookSearchPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notebooks/{id}": {
+      "get": {
+        "tags": [
+          "notebooks"
+        ],
+        "summary": "Opens a notebook and records the visit (Recents). A deleted notebook still opens, to be restored.",
+        "operationId": "get_notebook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notebook"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "notebooks"
+        ],
+        "summary": "Moves a notebook to Recently Deleted (restorable).",
+        "operationId": "delete_notebook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "notebooks"
+        ],
+        "summary": "Saves changes (the editor autosaves). A deleted notebook must be restored first.",
+        "operationId": "update_notebook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotebookPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notebook"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notebooks/{id}/clone": {
+      "post": {
+        "tags": [
+          "notebooks"
+        ],
+        "summary": "A copy owned by the current user, titled \"Clone of …\".",
+        "operationId": "clone_notebook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notebook"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notebooks/{id}/favorite": {
+      "put": {
+        "tags": [
+          "notebooks"
+        ],
+        "summary": "Stars or unstars a notebook for the current user (any role: it changes only their own list).",
+        "operationId": "set_notebook_favorite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotebookFavoriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notebooks/{id}/restore": {
+      "post": {
+        "tags": [
+          "notebooks"
+        ],
+        "operationId": "restore_notebook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notebook"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notification-channels": {
       "get": {
         "tags": [
@@ -9067,6 +9375,53 @@
             "$ref": "#/components/schemas/MappingKind"
           },
           "target": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateNotebookRequest": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "cells": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "The first cells (e.g. from a template)."
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NotebookStatus"
+              }
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "time": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Relative time range, `1h` by default."
+          },
+          "title": {
             "type": "string"
           }
         }
@@ -16504,6 +16859,302 @@
           }
         }
       },
+      "Notebook": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/NotebookSummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "cells"
+            ],
+            "properties": {
+              "cells": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                },
+                "description": "`{ id, definition, time? }` documents (schema owned by the web app)."
+              }
+            }
+          }
+        ]
+      },
+      "NotebookAuthor": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "NotebookFavoriteRequest": {
+        "type": "object",
+        "required": [
+          "favorite"
+        ],
+        "properties": {
+          "favorite": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NotebookListView": {
+        "type": "string",
+        "description": "The lists of the notebook list's left navigation.",
+        "enum": [
+          "all",
+          "mine",
+          "team",
+          "recents",
+          "favorites",
+          "deleted"
+        ]
+      },
+      "NotebookPatch": {
+        "type": "object",
+        "properties": {
+          "cells": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object"
+            },
+            "description": "Replaces every cell (order included)."
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NotebookStatus"
+              }
+            ]
+          },
+          "tags": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "teams": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "time": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "NotebookSearchPage": {
+        "type": "object",
+        "required": [
+          "notebooks",
+          "total",
+          "authors",
+          "teams"
+        ],
+        "properties": {
+          "authors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotebookAuthor"
+            },
+            "description": "Everyone who wrote one of the org's notebooks (the author filter)."
+          },
+          "notebooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotebookSummary"
+            }
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The teams the org's notebooks are tagged with (the team filter)."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "NotebookSearchRequest": {
+        "type": "object",
+        "required": [
+          "view",
+          "sort",
+          "dir",
+          "offset",
+          "limit"
+        ],
+        "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "An author's user id."
+          },
+          "dir": {
+            "$ref": "#/components/schemas/SortDir"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "query": {
+            "type": "string",
+            "description": "Matched against titles, authors, tags and the text of the cells."
+          },
+          "sort": {
+            "$ref": "#/components/schemas/NotebookSortField",
+            "description": "Ignored by Recents, which is ordered by the last visit."
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A team handle."
+          },
+          "view": {
+            "$ref": "#/components/schemas/NotebookListView"
+          }
+        }
+      },
+      "NotebookSortField": {
+        "type": "string",
+        "enum": [
+          "title",
+          "modified",
+          "created"
+        ]
+      },
+      "NotebookStatus": {
+        "type": "string",
+        "enum": [
+          "published",
+          "draft"
+        ]
+      },
+      "NotebookSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "teams",
+          "tags",
+          "status",
+          "time",
+          "cellCount",
+          "createdAt",
+          "modifiedAt",
+          "favorite"
+        ],
+        "properties": {
+          "author": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NotebookAuthor"
+              }
+            ]
+          },
+          "cellCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "deletedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "favorite": {
+            "type": "boolean",
+            "description": "The current user's favorite."
+          },
+          "id": {
+            "type": "string"
+          },
+          "modifiedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "$ref": "#/components/schemas/NotebookStatus"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "time": {
+            "type": "string",
+            "description": "The notebook's relative time range (`1h`); cells may override it."
+          },
+          "title": {
+            "type": "string"
+          },
+          "viewedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "When the current user last opened it."
+          }
+        }
+      },
       "Notification": {
         "type": "object",
         "required": [
@@ -20772,6 +21423,10 @@
     {
       "name": "dashboards",
       "description": "Dashboards, dashboard lists and the monitor summary widget"
+    },
+    {
+      "name": "notebooks",
+      "description": "Notebooks: documents of Markdown and live query cells"
     },
     {
       "name": "infrastructure",

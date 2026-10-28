@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Copy, Expand, EllipsisVertical, Pencil, Trash2, Braces } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronRight, Copy, Expand, EllipsisVertical, Pencil, Trash2, Braces } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import type { Widget, WidgetDefinition } from '../../../api/dashboards/types';
 import { Menu } from '../../../components/ui/Dropdown';
@@ -7,6 +7,8 @@ import { BarChartWidget, ChangeWidget, HeatmapWidget, PieWidget, QueryValueWidge
 import { ImageWidget, LogStreamWidget, MonitorSummaryWidget, NoteWidget } from './OtherWidgets';
 import { IntegrationWidget } from './IntegrationWidget';
 import { IntegrationLogo } from '../../integrations/IntegrationLogo';
+import { AddToNotebookModal } from '../../notebooks/AddToNotebookModal';
+import { cellFromWidget } from '../../notebooks/cells';
 
 /** Renders a widget's content (no frame). Groups are handled by the canvas. */
 export function WidgetContent({ def }: { def: WidgetDefinition }) {
@@ -48,6 +50,9 @@ const HEADERLESS = new Set(['note', 'image']);
 
 export function WidgetMenu({ widget }: { widget: Widget }) {
   const ctx = useDashboardContext();
+  // Add to notebook: the widget as a notebook cell, its template variables resolved.
+  const [notebookCell, setNotebookCell] = useState<ReturnType<typeof cellFromWidget>>(null);
+  const asCell = () => cellFromWidget(widget.definition, (q) => ctx.resolve(q));
   const items = [
     { label: 'View in full screen', icon: <Expand size={14} />, onClick: () => ctx.onFullscreen(widget) },
     ...(ctx.canEdit
@@ -57,9 +62,15 @@ export function WidgetMenu({ widget }: { widget: Widget }) {
         ]
       : []),
     { label: 'Copy JSON', icon: <Braces size={14} />, onClick: () => navigator.clipboard?.writeText(JSON.stringify(widget.definition, null, 2)) },
+    ...(asCell() ? [{ label: 'Add to notebook', icon: <BookOpen size={14} />, onClick: () => setNotebookCell(asCell()) }] : []),
     ...(ctx.canEdit ? [{ label: 'Delete', icon: <Trash2 size={14} />, onClick: () => ctx.onDelete(widget.id) }] : []),
   ];
-  return <Menu trigger={<EllipsisVertical size={15} />} items={items} triggerClassName="wf-menu-btn" />;
+  return (
+    <>
+      <Menu trigger={<EllipsisVertical size={15} />} items={items} triggerClassName="wf-menu-btn" />
+      {notebookCell && <AddToNotebookModal cells={[notebookCell]} newTitle={widget.definition.title || 'Notes from a dashboard'} onClose={() => setNotebookCell(null)} />}
+    </>
+  );
 }
 
 /** Card around a widget: draggable title bar + hover menu. */

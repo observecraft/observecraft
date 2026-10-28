@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Download, LayoutDashboard, Lock, PanelLeft, Settings } from 'lucide-react';
+import { BookOpen, Download, LayoutDashboard, Lock, PanelLeft, Settings } from 'lucide-react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { logFacets, logFields, logHistogram, logInsights, searchLogPage, suggestLogQuery } from '../../api/client';
 import type { LogEvent, LogInsight } from '../../api/types';
@@ -21,6 +21,8 @@ import { updateDashboard } from '../../api/dashboards/client';
 import { VizPicker } from './VizPicker';
 import { PatternsTable } from './PatternsTable';
 import { patternQuery } from './patterns';
+import { AddToNotebookModal } from '../notebooks/AddToNotebookModal';
+import { newCellId } from '../../api/notebooks/templates';
 
 const MAX_ROWS = 500;
 
@@ -55,6 +57,8 @@ export function LogExplorer() {
     await updateDashboard(d.id, { widgets: logStreamWidgets(query) });
     navigate(`/dashboards/${d.id}`);
   };
+  // Add to Notebook: this search as a log stream cell of a new or existing notebook.
+  const [addingToNotebook, setAddingToNotebook] = useState(false);
   const [showFacets, setShowFacets] = useState(true);
   const [selectedLog, setSelectedLog] = useState<LogEvent | null>(null);
 
@@ -148,6 +152,9 @@ export function LogExplorer() {
                   <button className="btn" onClick={openInDashboard} disabled={createDashboard.isPending}>
                     <LayoutDashboard size={14} /> Open in Dashboards
                   </button>
+                  <button className="btn" onClick={() => setAddingToNotebook(true)}>
+                    <BookOpen size={14} /> Add to Notebook
+                  </button>
                   <button className="btn" onClick={() => downloadCsv(logs)}>
                     <Download size={14} /> CSV
                   </button>
@@ -194,6 +201,13 @@ export function LogExplorer() {
             focus(selectedLog.timestamp);
             setQuery([selectedLog.host && `host:${selectedLog.host}`, selectedLog.service && `service:${selectedLog.service}`].filter(Boolean).join(' '));
           }}
+        />
+      )}
+      {addingToNotebook && (
+        <AddToNotebookModal
+          newTitle={`Logs: ${query.trim() || 'all logs'}`}
+          cells={[{ id: newCellId(), definition: { type: 'log_stream', title: query.trim() || 'All logs', query, limit: 50 } }]}
+          onClose={() => setAddingToNotebook(false)}
         />
       )}
     </div>
