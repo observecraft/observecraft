@@ -963,6 +963,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/data-streams/kafka": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Kafka clusters, topics, brokers, consumer groups and connectors that reported in the range. */
+        post: operations["kafka_console"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data-streams/map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Services and the topics between them, with throughput, latency, lag and end-to-end pathways. */
+        post: operations["data_streams_map"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data-streams/measure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Latency between two services over time, along the hops that carry messages from one to the other. */
+        post: operations["data_streams_measure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data-streams/node": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One node's messages over time and the lag of the consumer groups behind it. */
+        post: operations["data_streams_node"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/databases/instance": {
         parameters: {
             query?: never;
@@ -8887,6 +8955,200 @@ export interface components {
         };
         /** @enum {string} */
         JobStatus: "failed" | "running" | "succeeded" | "unknown";
+        KafkaBroker: {
+            /** Format: double */
+            bytesIn?: number | null;
+            /** Format: double */
+            bytesOut?: number | null;
+            cluster: string;
+            controller: boolean;
+            host?: string | null;
+            /** @description The broker id, else its host. */
+            id: string;
+            /** Format: int64 */
+            leaders?: number | null;
+            /** Format: double */
+            messagesIn?: number | null;
+            /** Format: int64 */
+            partitions?: number | null;
+            /** Format: double */
+            underReplicated?: number | null;
+        };
+        KafkaChange: {
+            cluster?: string | null;
+            /** @description The event's alert type (error, warning, info, success). */
+            status: string;
+            title: string;
+            /** Format: int64 */
+            ts: number;
+        };
+        /** @enum {string} */
+        KafkaCheckStatus: "passing" | "failing" | "no_data";
+        KafkaCluster: {
+            /** Format: int64 */
+            brokers?: number | null;
+            /** Format: int64 */
+            checksFailing: number;
+            /** Format: int64 */
+            checksPassing: number;
+            /** Format: int64 */
+            connectors: number;
+            /** Format: int64 */
+            consumerGroups: number;
+            /**
+             * Format: double
+             * @description Messages per second produced to the cluster, averaged over the range.
+             */
+            messagesIn?: number | null;
+            /**
+             * Format: int64
+             * @description Monitors whose query names Kafka and this cluster.
+             */
+            monitors: number;
+            name: string;
+            /** Format: double */
+            offline?: number | null;
+            /** Format: int64 */
+            partitions?: number | null;
+            /** Format: int64 */
+            topics: number;
+            /** Format: double */
+            underReplicated?: number | null;
+        };
+        KafkaClusterChart: {
+            cluster: string;
+            /** @description `[timestamp ms, messages/s]`. */
+            messagesIn: [
+                number,
+                number
+            ][];
+            offline: [
+                number,
+                number
+            ][];
+            underReplicated: [
+                number,
+                number
+            ][];
+        };
+        KafkaConnector: {
+            class?: string | null;
+            cluster: string;
+            connectorType?: string | null;
+            /** Format: int64 */
+            failed: number;
+            name: string;
+            /** Format: int64 */
+            running: number;
+            state?: string | null;
+            /** Format: int64 */
+            tasks: number;
+        };
+        KafkaConsole: {
+            brokers: components["schemas"]["KafkaBroker"][];
+            changes: components["schemas"]["KafkaChange"][];
+            charts: components["schemas"]["KafkaClusterChart"][];
+            clusters: components["schemas"]["KafkaCluster"][];
+            connectors: components["schemas"]["KafkaConnector"][];
+            consumerGroups: components["schemas"]["KafkaConsumerGroup"][];
+            /** @description False when no Kafka metrics arrived in the range (show the setup guide). */
+            enabled: boolean;
+            health: components["schemas"]["KafkaHealthCheck"][];
+            topics: components["schemas"]["KafkaTopic"][];
+        };
+        KafkaConsoleRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
+        KafkaConsumerGroup: {
+            cluster: string;
+            /**
+             * Format: double
+             * @description Messages per second committed (average).
+             */
+            consumeRate?: number | null;
+            /**
+             * Format: double
+             * @description Messages behind, all topics and partitions together.
+             */
+            lag: number;
+            lagHigh: boolean;
+            /** Format: double */
+            lagMax: number;
+            /** Format: double */
+            lagSeconds?: number | null;
+            /** Format: int64 */
+            members?: number | null;
+            name: string;
+            partitions: components["schemas"]["KafkaGroupPartition"][];
+            state?: string | null;
+            topics: components["schemas"]["KafkaGroupTopic"][];
+        };
+        KafkaGroupPartition: {
+            /** Format: double */
+            brokerOffset?: number | null;
+            /** Format: double */
+            consumerOffset?: number | null;
+            /** Format: double */
+            lag?: number | null;
+            /** Format: double */
+            lagSeconds?: number | null;
+            partition: string;
+            topic: string;
+        };
+        KafkaGroupTopic: {
+            /**
+             * Format: double
+             * @description Messages behind, all partitions together.
+             */
+            lag: number;
+            /**
+             * Format: double
+             * @description The largest estimated lag in time of a partition (s).
+             */
+            lagSeconds?: number | null;
+            topic: string;
+        };
+        KafkaHealthCheck: {
+            cluster: string;
+            detail: string;
+            name: string;
+            status: components["schemas"]["KafkaCheckStatus"];
+        };
+        KafkaTopic: {
+            /** Format: double */
+            bytesIn?: number | null;
+            /** Format: double */
+            bytesOut?: number | null;
+            cluster: string;
+            consumerGroups: string[];
+            /**
+             * Format: double
+             * @description The largest lag of a consumer group on the topic (messages, all partitions).
+             */
+            consumerLagMax?: number | null;
+            /**
+             * Format: double
+             * @description Messages per second produced (average).
+             */
+            messagesIn?: number | null;
+            /**
+             * Format: double
+             * @description Messages per second consumed, all consumer groups together (average).
+             */
+            messagesOut?: number | null;
+            name: string;
+            /** Format: int64 */
+            partitions?: number | null;
+            /** Format: int64 */
+            replicationFactor?: number | null;
+            /**
+             * Format: double
+             * @description Messages in the topic.
+             */
+            size?: number | null;
+            /** Format: int64 */
+            underReplicated?: number | null;
+        };
         KubeContainer: {
             cpu: components["schemas"]["KubeUtilization"];
             image: string;
@@ -13087,6 +13349,162 @@ export interface components {
             /** Format: int64 */
             to: number;
         };
+        StreamEdge: {
+            consumerGroups: string[];
+            /** Format: int64 */
+            errors: number;
+            kind: components["schemas"]["StreamEdgeKind"];
+            /** Format: double */
+            lag?: number | null;
+            lagHigh: boolean;
+            /** Format: double */
+            lagSeconds?: number | null;
+            /**
+             * Format: double
+             * @description Consume edges: time from publish to consume, over the linked messages.
+             */
+            latencyP50Ms?: number | null;
+            /** Format: double */
+            latencyP99Ms?: number | null;
+            source: string;
+            /**
+             * Format: double
+             * @description Duration of the publish / consume spans.
+             */
+            spanP50Ms: number;
+            /** Format: double */
+            spanP99Ms: number;
+            target: string;
+            /**
+             * Format: double
+             * @description Messages per second.
+             */
+            throughput: number;
+        };
+        /** @enum {string} */
+        StreamEdgeKind: "produce" | "consume";
+        StreamLagSeries: {
+            group: string;
+            /** @description `[timestamp ms, messages behind]`. */
+            points: [
+                number,
+                number
+            ][];
+            topic: string;
+        };
+        StreamLatencyPoint: {
+            /** Format: double */
+            p50Ms: number;
+            /** Format: double */
+            p99Ms: number;
+            /** Format: int64 */
+            t: number;
+        };
+        StreamMap: {
+            edges: components["schemas"]["StreamEdge"][];
+            /** @description False when no messaging spans arrived in the range (show the onboarding). */
+            enabled: boolean;
+            nodes: components["schemas"]["StreamNode"][];
+            pathways: components["schemas"]["StreamPathway"][];
+        };
+        StreamMapRequest: {
+            /** @description `deployment.environment`; all when empty. */
+            env?: string | null;
+            range: components["schemas"]["TimeRange"];
+        };
+        StreamMeasure: {
+            /** Format: double */
+            latencyP50Ms?: number | null;
+            /** Format: double */
+            latencyP99Ms?: number | null;
+            /** @description Node ids from start to end; empty when no messages flow from one to the other. */
+            path: string[];
+            series: components["schemas"]["StreamLatencyPoint"][];
+            /**
+             * Format: double
+             * @description Messages per second reaching the end.
+             */
+            throughput?: number | null;
+        };
+        StreamMeasureRequest: {
+            /** @description Node id of the service they reach. */
+            end: string;
+            env?: string | null;
+            range: components["schemas"]["TimeRange"];
+            /** @description Node id of the service messages leave (`service:<name>`). */
+            start: string;
+        };
+        StreamNode: {
+            /**
+             * Format: double
+             * @description Messages per second a service consumes, or a topic delivers.
+             */
+            consumed: number;
+            /** Format: int64 */
+            errors: number;
+            /** @description `service:<name>` or `topic:<system>:<name>`. */
+            id: string;
+            kind: components["schemas"]["StreamNodeKind"];
+            /**
+             * Format: double
+             * @description The largest consumer group lag on a topic, or on what a service consumes (messages).
+             */
+            lag?: number | null;
+            lagHigh: boolean;
+            /** Format: double */
+            lagSeconds?: number | null;
+            name: string;
+            /**
+             * Format: double
+             * @description Messages per second a service publishes, or a topic receives.
+             */
+            produced: number;
+            /** @description The messaging system of a topic (kafka, rabbitmq, …). */
+            system?: string | null;
+        };
+        StreamNodeDetail: {
+            /** @description Consumed by a service or delivered from a topic. */
+            consumed: [
+                number,
+                number
+            ][];
+            lag: components["schemas"]["StreamLagSeries"][];
+            /** @description `[timestamp ms, messages/s]` published by a service or received by a topic. */
+            produced: [
+                number,
+                number
+            ][];
+        };
+        /** @enum {string} */
+        StreamNodeKind: "service" | "topic";
+        StreamNodeRequest: {
+            env?: string | null;
+            /** @description `service:<name>` or `topic:<system>:<name>`. */
+            node: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        StreamPathway: {
+            /** Format: int64 */
+            hops: number;
+            /** @description The node ids joined by `>`. */
+            id: string;
+            /** @description Some consumer on the pathway lags behind. */
+            lagHigh: boolean;
+            /**
+             * Format: double
+             * @description The hops' latencies added up.
+             */
+            latencyP50Ms: number;
+            /** Format: double */
+            latencyP99Ms: number;
+            /** @description Node ids from the first producer to the last consumer. */
+            nodes: string[];
+            /**
+             * Format: double
+             * @description Messages per second reaching the last consumer.
+             */
+            throughput: number;
+        };
         SuggestRequest: {
             /** @description The term being typed, e.g. `serv`, `service:`, `service:pho`, `-env:`. */
             partial?: string;
@@ -16240,6 +16658,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobSearchPage"];
+                };
+            };
+        };
+    };
+    kafka_console: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KafkaConsoleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KafkaConsole"];
+                };
+            };
+        };
+    };
+    data_streams_map: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StreamMapRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreamMap"];
+                };
+            };
+        };
+    };
+    data_streams_measure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StreamMeasureRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreamMeasure"];
+                };
+            };
+        };
+    };
+    data_streams_node: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StreamNodeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreamNodeDetail"];
                 };
             };
         };

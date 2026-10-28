@@ -2367,6 +2367,130 @@
         }
       }
     },
+    "/api/v1/data-streams/kafka": {
+      "post": {
+        "tags": [
+          "data-streams"
+        ],
+        "summary": "Kafka clusters, topics, brokers, consumer groups and connectors that reported in the range.",
+        "operationId": "kafka_console",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KafkaConsoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KafkaConsole"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-streams/map": {
+      "post": {
+        "tags": [
+          "data-streams"
+        ],
+        "summary": "Services and the topics between them, with throughput, latency, lag and end-to-end pathways.",
+        "operationId": "data_streams_map",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StreamMapRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamMap"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-streams/measure": {
+      "post": {
+        "tags": [
+          "data-streams"
+        ],
+        "summary": "Latency between two services over time, along the hops that carry messages from one to the other.",
+        "operationId": "data_streams_measure",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StreamMeasureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamMeasure"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-streams/node": {
+      "post": {
+        "tags": [
+          "data-streams"
+        ],
+        "summary": "One node's messages over time and the lag of the consumer groups behind it.",
+        "operationId": "data_streams_node",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StreamNodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamNodeDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/databases/instance": {
       "post": {
         "tags": [
@@ -26532,6 +26656,649 @@
           "unknown"
         ]
       },
+      "KafkaBroker": {
+        "type": "object",
+        "required": [
+          "cluster",
+          "id",
+          "controller"
+        ],
+        "properties": {
+          "bytesIn": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "bytesOut": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "cluster": {
+            "type": "string"
+          },
+          "controller": {
+            "type": "boolean"
+          },
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "description": "The broker id, else its host."
+          },
+          "leaders": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "messagesIn": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "partitions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "underReplicated": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "KafkaChange": {
+        "type": "object",
+        "required": [
+          "ts",
+          "title",
+          "status"
+        ],
+        "properties": {
+          "cluster": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "The event's alert type (error, warning, info, success)."
+          },
+          "title": {
+            "type": "string"
+          },
+          "ts": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "KafkaCheckStatus": {
+        "type": "string",
+        "enum": [
+          "passing",
+          "failing",
+          "no_data"
+        ]
+      },
+      "KafkaCluster": {
+        "type": "object",
+        "required": [
+          "name",
+          "topics",
+          "consumerGroups",
+          "connectors",
+          "checksPassing",
+          "checksFailing",
+          "monitors"
+        ],
+        "properties": {
+          "brokers": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "checksFailing": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "checksPassing": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "connectors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "consumerGroups": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "messagesIn": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Messages per second produced to the cluster, averaged over the range."
+          },
+          "monitors": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Monitors whose query names Kafka and this cluster.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "offline": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "partitions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "topics": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "underReplicated": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "KafkaClusterChart": {
+        "type": "object",
+        "required": [
+          "cluster",
+          "messagesIn",
+          "underReplicated",
+          "offline"
+        ],
+        "properties": {
+          "cluster": {
+            "type": "string"
+          },
+          "messagesIn": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            },
+            "description": "`[timestamp ms, messages/s]`."
+          },
+          "offline": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            }
+          },
+          "underReplicated": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "KafkaConnector": {
+        "type": "object",
+        "required": [
+          "cluster",
+          "name",
+          "tasks",
+          "running",
+          "failed"
+        ],
+        "properties": {
+          "class": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cluster": {
+            "type": "string"
+          },
+          "connectorType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "running": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tasks": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "KafkaConsole": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "clusters",
+          "topics",
+          "brokers",
+          "consumerGroups",
+          "connectors",
+          "charts",
+          "health",
+          "changes"
+        ],
+        "properties": {
+          "brokers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KafkaBroker"
+            }
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KafkaChange"
+            }
+          },
+          "charts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KafkaClusterChart"
+            }
+          },
+          "clusters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KafkaCluster"
+            }
+          },
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KafkaConnector"
+            }
+          },
+          "consumerGroups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KafkaConsumerGroup"
+            }
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "False when no Kafka metrics arrived in the range (show the setup guide)."
+          },
+          "health": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KafkaHealthCheck"
+            }
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KafkaTopic"
+            }
+          }
+        }
+      },
+      "KafkaConsoleRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "KafkaConsumerGroup": {
+        "type": "object",
+        "required": [
+          "cluster",
+          "name",
+          "lag",
+          "lagMax",
+          "lagHigh",
+          "topics",
+          "partitions"
+        ],
+        "properties": {
+          "cluster": {
+            "type": "string"
+          },
+          "consumeRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Messages per second committed (average)."
+          },
+          "lag": {
+            "type": "number",
+            "format": "double",
+            "description": "Messages behind, all topics and partitions together."
+          },
+          "lagHigh": {
+            "type": "boolean"
+          },
+          "lagMax": {
+            "type": "number",
+            "format": "double"
+          },
+          "lagSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "members": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "partitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KafkaGroupPartition"
+            }
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KafkaGroupTopic"
+            }
+          }
+        }
+      },
+      "KafkaGroupPartition": {
+        "type": "object",
+        "required": [
+          "topic",
+          "partition"
+        ],
+        "properties": {
+          "brokerOffset": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "consumerOffset": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "lag": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "lagSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "partition": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          }
+        }
+      },
+      "KafkaGroupTopic": {
+        "type": "object",
+        "required": [
+          "topic",
+          "lag"
+        ],
+        "properties": {
+          "lag": {
+            "type": "number",
+            "format": "double",
+            "description": "Messages behind, all partitions together."
+          },
+          "lagSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "The largest estimated lag in time of a partition (s)."
+          },
+          "topic": {
+            "type": "string"
+          }
+        }
+      },
+      "KafkaHealthCheck": {
+        "type": "object",
+        "required": [
+          "cluster",
+          "name",
+          "status",
+          "detail"
+        ],
+        "properties": {
+          "cluster": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KafkaCheckStatus"
+          }
+        }
+      },
+      "KafkaTopic": {
+        "type": "object",
+        "required": [
+          "cluster",
+          "name",
+          "consumerGroups"
+        ],
+        "properties": {
+          "bytesIn": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "bytesOut": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "cluster": {
+            "type": "string"
+          },
+          "consumerGroups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "consumerLagMax": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "The largest lag of a consumer group on the topic (messages, all partitions)."
+          },
+          "messagesIn": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Messages per second produced (average)."
+          },
+          "messagesOut": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Messages per second consumed, all consumer groups together (average)."
+          },
+          "name": {
+            "type": "string"
+          },
+          "partitions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "replicationFactor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "size": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Messages in the topic."
+          },
+          "underReplicated": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
       "KubeContainer": {
         "type": "object",
         "required": [
@@ -40306,6 +41073,466 @@
           }
         }
       },
+      "StreamEdge": {
+        "type": "object",
+        "required": [
+          "source",
+          "target",
+          "kind",
+          "throughput",
+          "errors",
+          "spanP50Ms",
+          "spanP99Ms",
+          "consumerGroups",
+          "lagHigh"
+        ],
+        "properties": {
+          "consumerGroups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "errors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "kind": {
+            "$ref": "#/components/schemas/StreamEdgeKind"
+          },
+          "lag": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "lagHigh": {
+            "type": "boolean"
+          },
+          "lagSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "latencyP50Ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Consume edges: time from publish to consume, over the linked messages."
+          },
+          "latencyP99Ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "source": {
+            "type": "string"
+          },
+          "spanP50Ms": {
+            "type": "number",
+            "format": "double",
+            "description": "Duration of the publish / consume spans."
+          },
+          "spanP99Ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "target": {
+            "type": "string"
+          },
+          "throughput": {
+            "type": "number",
+            "format": "double",
+            "description": "Messages per second."
+          }
+        }
+      },
+      "StreamEdgeKind": {
+        "type": "string",
+        "enum": [
+          "produce",
+          "consume"
+        ]
+      },
+      "StreamLagSeries": {
+        "type": "object",
+        "required": [
+          "group",
+          "topic",
+          "points"
+        ],
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            },
+            "description": "`[timestamp ms, messages behind]`."
+          },
+          "topic": {
+            "type": "string"
+          }
+        }
+      },
+      "StreamLatencyPoint": {
+        "type": "object",
+        "required": [
+          "t",
+          "p50Ms",
+          "p99Ms"
+        ],
+        "properties": {
+          "p50Ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "p99Ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "StreamMap": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "nodes",
+          "edges",
+          "pathways"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreamEdge"
+            }
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "False when no messaging spans arrived in the range (show the onboarding)."
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreamNode"
+            }
+          },
+          "pathways": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreamPathway"
+            }
+          }
+        }
+      },
+      "StreamMapRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`deployment.environment`; all when empty."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "StreamMeasure": {
+        "type": "object",
+        "required": [
+          "path",
+          "series"
+        ],
+        "properties": {
+          "latencyP50Ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "latencyP99Ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Node ids from start to end; empty when no messages flow from one to the other."
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreamLatencyPoint"
+            }
+          },
+          "throughput": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Messages per second reaching the end."
+          }
+        }
+      },
+      "StreamMeasureRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "end": {
+            "type": "string",
+            "description": "Node id of the service they reach."
+          },
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "start": {
+            "type": "string",
+            "description": "Node id of the service messages leave (`service:<name>`)."
+          }
+        }
+      },
+      "StreamNode": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "produced",
+          "consumed",
+          "errors",
+          "lagHigh"
+        ],
+        "properties": {
+          "consumed": {
+            "type": "number",
+            "format": "double",
+            "description": "Messages per second a service consumes, or a topic delivers."
+          },
+          "errors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "description": "`service:<name>` or `topic:<system>:<name>`."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/StreamNodeKind"
+          },
+          "lag": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "The largest consumer group lag on a topic, or on what a service consumes (messages)."
+          },
+          "lagHigh": {
+            "type": "boolean"
+          },
+          "lagSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "name": {
+            "type": "string"
+          },
+          "produced": {
+            "type": "number",
+            "format": "double",
+            "description": "Messages per second a service publishes, or a topic receives."
+          },
+          "system": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The messaging system of a topic (kafka, rabbitmq, …)."
+          }
+        }
+      },
+      "StreamNodeDetail": {
+        "type": "object",
+        "required": [
+          "produced",
+          "consumed",
+          "lag"
+        ],
+        "properties": {
+          "consumed": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            },
+            "description": "Consumed by a service or delivered from a topic."
+          },
+          "lag": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreamLagSeries"
+            }
+          },
+          "produced": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            },
+            "description": "`[timestamp ms, messages/s]` published by a service or received by a topic."
+          }
+        }
+      },
+      "StreamNodeKind": {
+        "type": "string",
+        "enum": [
+          "service",
+          "topic"
+        ]
+      },
+      "StreamNodeRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "node"
+        ],
+        "properties": {
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "node": {
+            "type": "string",
+            "description": "`service:<name>` or `topic:<system>:<name>`."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "StreamPathway": {
+        "type": "object",
+        "required": [
+          "id",
+          "nodes",
+          "hops",
+          "latencyP50Ms",
+          "latencyP99Ms",
+          "throughput",
+          "lagHigh"
+        ],
+        "properties": {
+          "hops": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "description": "The node ids joined by `>`."
+          },
+          "lagHigh": {
+            "type": "boolean",
+            "description": "Some consumer on the pathway lags behind."
+          },
+          "latencyP50Ms": {
+            "type": "number",
+            "format": "double",
+            "description": "The hops' latencies added up."
+          },
+          "latencyP99Ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Node ids from the first producer to the last consumer."
+          },
+          "throughput": {
+            "type": "number",
+            "format": "double",
+            "description": "Messages per second reaching the last consumer."
+          }
+        }
+      },
       "SuggestRequest": {
         "type": "object",
         "required": [
@@ -44569,6 +45796,10 @@
     {
       "name": "events",
       "description": "Events from the Datadog Agent and the events API"
+    },
+    {
+      "name": "data-streams",
+      "description": "Data Streams Monitoring: messaging pathways from spans and the Kafka console"
     },
     {
       "name": "network",

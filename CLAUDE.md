@@ -89,7 +89,9 @@ or SDK features.
 - **Still missing:**
   - Cloud Network Monitoring's network paths;
   - the profiler's Thread Timeline and Call Graph views, and Event Management's saved work item states, intelligent (learned) correlation, projects and event pipelines (correlators, maintenance windows and work item attributes exist);
-  - Cloud Security, the live debugger, data streams and remote configuration;
+  - Cloud Security, the live debugger and remote configuration;
+  - Data Streams Monitoring's pathway checkpoints from the tracers (`/api/v0.1/pipeline_stats`, DDSketch in msgpack): its map,
+    pipelines and Kafka Console are built from messaging spans and Kafka metrics (`data_streams.rs`, `kafka_console.rs`);
   - RUM (`browser-sdk`, Apache-2.0), which needs a RUM product first.
 
 ## Repository layout

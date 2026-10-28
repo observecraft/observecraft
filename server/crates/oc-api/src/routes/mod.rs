@@ -11,6 +11,7 @@ pub mod dashboards;
 pub mod derived_metrics;
 pub mod deployment_gates;
 pub mod data_jobs;
+pub mod data_streams;
 pub mod databases;
 pub mod downtimes;
 pub mod error_tracking;
@@ -45,6 +46,7 @@ pub mod metrics;
 pub mod monitor_engine;
 pub mod monitor_formula;
 pub mod monitors;
+pub mod kafka_console;
 pub mod network;
 pub mod notebooks;
 pub mod notifications;
@@ -248,6 +250,10 @@ use crate::state::AppState;
         databases::search,
         databases::instance,
         data_jobs::search,
+        data_streams::map,
+        data_streams::measure,
+        data_streams::node,
+        kafka_console::console,
         kubernetes::search,
         kubernetes::detail,
         identity::me,
@@ -579,6 +585,7 @@ use crate::state::AppState;
         (name = "fleet", description = "Fleet Automation: the Datadog Agents and OpenTelemetry Collectors sending data, their versions, checks and reported configuration (read-only)"),
         (name = "databases", description = "Database Monitoring and Data Jobs, built from database, Spark and Airflow integration metrics"),
         (name = "events", description = "Events from the Datadog Agent and the events API"),
+        (name = "data-streams", description = "Data Streams Monitoring: messaging pathways from spans and the Kafka console"),
         (name = "network", description = "Network flows from the Datadog Agent's system-probe"),
         (name = "profiles", description = "Continuous profiles from Datadog's profilers: explorer, flame graphs and insights"),
         (name = "orchestration", description = "Kubernetes and ECS Explorers: objects, containers, utilization and events sent by the collectors"),
@@ -813,6 +820,10 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/databases/search", post(databases::search))
         .route("/api/v1/databases/instance", post(databases::instance))
         .route("/api/v1/data-jobs/search", post(data_jobs::search))
+        .route("/api/v1/data-streams/map", post(data_streams::map))
+        .route("/api/v1/data-streams/measure", post(data_streams::measure))
+        .route("/api/v1/data-streams/node", post(data_streams::node))
+        .route("/api/v1/data-streams/kafka", post(kafka_console::console))
         .route("/api/v1/orchestration/search", post(kubernetes::search))
         .route(
             "/api/v1/orchestration/resources/*uid",
@@ -1282,6 +1293,8 @@ mod tests {
             include_str!("sql_editor.rs"),
             include_str!("databases.rs"),
             include_str!("data_jobs.rs"),
+            include_str!("data_streams.rs"),
+            include_str!("kafka_console.rs"),
             include_str!("metric_inventory.rs"),
             include_str!("metric_rules.rs"),
             include_str!("derived_metrics.rs"),
@@ -1380,6 +1393,8 @@ mod tests {
             ("sql_editor.rs", include_str!("sql_editor.rs")),
             ("databases.rs", include_str!("databases.rs")),
             ("data_jobs.rs", include_str!("data_jobs.rs")),
+            ("data_streams.rs", include_str!("data_streams.rs")),
+            ("kafka_console.rs", include_str!("kafka_console.rs")),
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
             ("metric_rules.rs", include_str!("metric_rules.rs")),
             ("service_checks.rs", include_str!("service_checks.rs")),
@@ -1505,6 +1520,8 @@ mod tests {
             ("sql_editor.rs", include_str!("sql_editor.rs")),
             ("databases.rs", include_str!("databases.rs")),
             ("data_jobs.rs", include_str!("data_jobs.rs")),
+            ("data_streams.rs", include_str!("data_streams.rs")),
+            ("kafka_console.rs", include_str!("kafka_console.rs")),
             ("metric_inventory.rs", include_str!("metric_inventory.rs")),
             ("metric_rules.rs", include_str!("metric_rules.rs")),
             ("service_checks.rs", include_str!("service_checks.rs")),

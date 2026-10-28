@@ -135,6 +135,12 @@ import { FleetViewPage } from './pages/fleet/FleetViewPage';
 import { UpgradesPage as FleetUpgradesPage } from './pages/fleet/UpgradesPage';
 import { DatabaseMonitoringPage } from './pages/data/DatabaseMonitoringPage';
 import { DataJobsPage } from './pages/data/DataJobsPage';
+import { DataStreamsLayout } from './pages/dataStreams/DataStreamsLayout';
+import { KafkaConsolePage } from './pages/dataStreams/KafkaConsolePage';
+import { MapPage as DataStreamsMap } from './pages/dataStreams/MapPage';
+import { MeasurePage as DataStreamsMeasure } from './pages/dataStreams/MeasurePage';
+import { PipelinesPage as DataStreamsPipelines } from './pages/dataStreams/PipelinesPage';
+import { SetupPage as DataStreamsSetup } from './pages/dataStreams/SetupPage';
 import { KubernetesOverview } from './pages/kubernetes/KubernetesOverview';
 import { KubernetesComingSoon } from './pages/kubernetes/KubernetesComingSoon';
 import { OrchestrationExplorer, ProcessMetrics } from './pages/kubernetes/OrchestrationExplorer';
@@ -287,6 +293,13 @@ function Shell() {
             <Route path="/data" element={<DatabaseMonitoringPage view="overview" />} />
             <Route path="/data/setup" element={<DatabaseMonitoringPage view="setup" />} />
             <Route path="/data/jobs" element={<DataJobsPage />} />
+            <Route path="/data-streams" element={<DataStreamsLayout />}>
+              <Route index element={<DataStreamsMap />} />
+              <Route path="pipelines" element={<DataStreamsPipelines />} />
+              <Route path="measure" element={<DataStreamsMeasure />} />
+              <Route path="kafka" element={<KafkaConsolePage />} />
+              <Route path="setup" element={<DataStreamsSetup />} />
+            </Route>
             <Route path="/databases" element={<Navigate to="/data" replace />} />
             <Route path="/logs/onboarding" element={<SetupGuidePage kind="logs" />} />
             <Route path="/release-notes" element={<ReleaseNotesPage />} />
