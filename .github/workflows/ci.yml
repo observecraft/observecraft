@@ -176,10 +176,10 @@ jobs:
           tags: ghcr.io/observecraft/observecraft:ci
           cache-from: type=gha,scope=amd64
           cache-to: type=gha,mode=max,scope=amd64
-      # Fails on critical vulnerabilities that already have a fix (base image or dependency upgrade).
+      # Match the publishing gate: block fixable high/critical vulnerabilities.
       - if: github.event_name == 'pull_request'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with: { image-ref: "ghcr.io/observecraft/observecraft:ci", severity: CRITICAL, ignore-unfixed: true, exit-code: "1" }
+        with: { image-ref: "ghcr.io/observecraft/observecraft:ci", severity: "CRITICAL,HIGH", ignore-unfixed: true, exit-code: "1" }
       - if: github.event_name == 'pull_request'
         uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
         with: { cluster_name: ci }

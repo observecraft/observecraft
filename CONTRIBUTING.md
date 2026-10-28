@@ -191,8 +191,8 @@ Releases are automated with [release-please](https://github.com/googleapis/relea
 `ci.yml` checks code, real ClickHouse metric storage/query tests, web regression tests and chart lint.
 After successful CI, `release.yml` checks out that exact trusted main commit, builds each architecture once,
 assembles/signs/attests a candidate digest, blocks on fixable HIGH/CRITICAL vulnerabilities, and installs the
-candidate in kind. Only then does it promote that same digest to `:main`, `:sha-<commit>` and, for a tagged
-release commit, version/major.minor/latest tags and signed Helm charts. Older runs cannot roll the `main`
+candidate in kind. The GitHub release remains a draft while this runs. Only then does it promote that same digest to `:main`, `:sha-<commit>` and, for a tagged
+release commit, version/major.minor/latest tags and signed Helm charts, and publish the GitHub release. Older runs cannot roll the `main`
 tag back. PRs still build and test a local image in kind; their artifacts are never promoted into releases.
 Docker dependency layers (including DuckDB) are cached separately from application source with cargo-chef
 and Buildx's GitHub Actions cache. A release still rebuilds when necessary; previous-commit images are not
@@ -204,7 +204,7 @@ Run `actionlint` (CI also runs it with ShellCheck) and use [act](https://github.
 jobs, for example `act push -j web -e /path/to/push-event.json -P ubuntu-24.04=catthehacker/ubuntu:act-24.04`.
 The event must contain `repository.default_branch` so path filtering can compare the committed branch with
 main. Changes must be committed for Git-based path filtering to see them. Use empty `--env-file`,
-`--secret-file` and `--input-file` files to avoid importing local development credentials. The web job runs
+`--secret-file` and `--input-file` files to avoid importing local development credentials. The web regression tests require Node 22.12+ (CI uses 24). The web job runs
 `npm ci`, all `scripts/*.test.mjs` regression tests and the production build (which includes type checking).
 OIDC signing, attestations, GHCR publication, cache permissions and CodeQL also need validation on GitHub;
 local execution does not certify these integrations.
