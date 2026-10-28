@@ -407,7 +407,6 @@
   padding-left: 50px;
 }
 
-
 .ev-inbox-main {
   flex: 1;
   min-width: 0;
@@ -464,12 +463,6 @@
 .ev-inbox-empty p {
   color: var(--text-muted);
 }
-
-
-
-
-
-
 
 /* ---------- Triage Inbox work items ---------- */
 .ev-wi-list {
@@ -562,4 +555,49 @@
 .ev-wi-body p {
   margin: 4px 0;
   word-break: break-word;
+}
+
+.ev-wi-correlator,
+.ev-wi-maintenance {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-md);
+}
+
+.ev-wi-correlator {
+  background: var(--primary-subtle);
+  color: var(--brand-strong);
+}
+
+.ev-wi-maintenance {
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+}
+
+.ev-wi-attrs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 8px;
+}
+
+.ev-wi-attr {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--fs-sm);
+}
+
+.ev-wi-attr select,
+.ev-wi-attr input {
+  height: 28px;
+  min-width: 160px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: var(--fs-md);
 }

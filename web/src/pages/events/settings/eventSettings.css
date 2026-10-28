@@ -1,0 +1,28 @@
+/* Event Management → Settings */
+.es-preview {
+  margin: -4px 0 4px;
+  font-size: var(--fs-sm);
+}
+
+.es-window {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.es-window-active {
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+}
+
+.es-window-scheduled {
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
+}
+
+.es-window-ended {
+  background: var(--badge-debug-bg);
+  color: var(--badge-debug-fg);
+}

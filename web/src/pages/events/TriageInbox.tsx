@@ -1,18 +1,22 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Inbox, ListChecks, PanelLeft, PanelLeftClose, Search } from 'lucide-react';
-import { workItems, type WorkItem } from '../../api/events/client';
+import { Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Inbox, ListChecks, PanelLeft, PanelLeftClose, Search, Wrench } from 'lucide-react';
+import { listWorkItemAttributes, setWorkItemAttribute, workItems, type WorkItem, type WorkItemAttribute } from '../../api/events/client';
 import { TimePicker } from '../../components/shell/PageHeader';
 import { useTime } from '../../components/shell/TimeContext';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { timeAgo } from '../../lib/format';
 import { SourceIcon } from './eventVisuals';
+import { useAccess } from '../settings/queries';
+import { ATTRIBUTES_KEY } from './settings/WorkItemAttributesPage';
 
-type View = 'all' | 'open' | 'closed';
+import { inView, type InboxView as View } from '../../lib/eventCorrelation';
 
 /**
- * Event Management → Triage Inbox: the range's warning and error events correlated into work items,
- * one per affected object (Kubernetes object, host…). Open while its events keep coming.
+ * Event Management → Triage Inbox: the range's warning and error events correlated into work items, by
+ * the correlators of Event Management settings, else one per affected object (Kubernetes object,
+ * host…). Open while its events keep coming; suppressed when a maintenance window covers them.
  */
 export function TriageInbox() {
   const { range } = useTime();
@@ -21,12 +25,14 @@ export function TriageInbox() {
   const [view, setView] = useState<View>('open');
   const [expanded, setExpanded] = useState<string | null>(null);
   const q = useQuery({ queryKey: ['events', 'work-items', range, query], queryFn: () => workItems({ range, query }) });
+  const attributes = useQuery({ queryKey: ATTRIBUTES_KEY, queryFn: listWorkItemAttributes });
   const page = q.data;
-  const shown = (page?.items ?? []).filter((i) => view === 'all' || i.state === view);
+  const shown = (page?.items ?? []).filter((i) => inView(i, view));
   const views: { key: View; label: string; count: number | undefined }[] = [
     { key: 'all', label: 'All Work Items', count: page?.items.length },
     { key: 'open', label: 'Open', count: page?.open },
     { key: 'closed', label: 'Closed', count: page?.closed },
+    { key: 'suppressed', label: 'Suppressed', count: page?.suppressed },
   ];
 
   return (
@@ -65,12 +71,14 @@ export function TriageInbox() {
           <div className="ev-inbox-empty">
             <Inbox size={96} strokeWidth={1.5} className="ev-inbox-empty-icon" />
             <h3>No {view === 'all' ? '' : view} work items</h3>
-            <p>Warning and error events in the time range become work items, one per affected object.</p>
+            <p>
+              Warning and error events in the time range become work items: grouped by your <Link to="/event/settings/correlators">correlators</Link>, else one per affected object.
+            </p>
           </div>
         ) : (
           <div className="ev-wi-list">
             {shown.map((i) => (
-              <WorkItemRow key={i.id} item={i} open={expanded === i.id} onToggle={() => setExpanded((e) => (e === i.id ? null : i.id))} />
+              <WorkItemRow key={i.id} item={i} attributes={attributes.data ?? []} open={expanded === i.id} onToggle={() => setExpanded((e) => (e === i.id ? null : i.id))} />
             ))}
           </div>
         )}
@@ -79,7 +87,7 @@ export function TriageInbox() {
   );
 }
 
-function WorkItemRow({ item, open, onToggle }: { item: WorkItem; open: boolean; onToggle: () => void }) {
+function WorkItemRow({ item, attributes, open, onToggle }: { item: WorkItem; attributes: WorkItemAttribute[]; open: boolean; onToggle: () => void }) {
   return (
     <div className={`ev-wi ev-wi-${item.status}${open ? ' open' : ''}`}>
       <button className="ev-wi-head" onClick={onToggle}>
@@ -89,6 +97,12 @@ function WorkItemRow({ item, open, onToggle }: { item: WorkItem; open: boolean; 
             {item.reason && <span className={`ev-wi-reason ev-wi-${item.status}`}>{item.reason}</span>} {item.title}
           </span>
           <span className="ev-wi-tags">
+            {item.correlator && <span className="ev-wi-correlator">Correlated by {item.correlator}</span>}
+            {item.maintenance && (
+              <span className="ev-wi-maintenance" title="Every event of this work item falls in a maintenance window">
+                <Wrench size={12} /> {item.maintenance}
+              </span>
+            )}
             {item.tags.map((t) => (
               <span key={t} className="tag-chip">
                 {t}
@@ -106,8 +120,50 @@ function WorkItemRow({ item, open, onToggle }: { item: WorkItem; open: boolean; 
           <p className="muted">
             First seen {new Date(item.firstSeen).toLocaleString()} · last seen {new Date(item.lastSeen).toLocaleString()}
           </p>
+          {attributes.length > 0 && <AttributeFields item={item} attributes={attributes} />}
         </div>
       )}
+    </div>
+  );
+}
+
+/** The work item's attribute values, editable by Standard users and admins. */
+function AttributeFields({ item, attributes }: { item: WorkItem; attributes: WorkItemAttribute[] }) {
+  const qc = useQueryClient();
+  const { canWrite } = useAccess();
+  const save = useMutation({
+    mutationFn: ({ attributeId, value }: { attributeId: string; value: string }) => setWorkItemAttribute(item.id, attributeId, value),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['events', 'work-items'] }),
+  });
+  return (
+    <div className="ev-wi-attrs">
+      {attributes.map((a) => {
+        const value = item.attributes[a.id] ?? '';
+        return (
+          <label key={a.id} className="ev-wi-attr">
+            <span className="muted">{a.name}</span>
+            {a.kind === 'select' ? (
+              <select value={value} disabled={!canWrite || save.isPending} onChange={(e) => save.mutate({ attributeId: a.id, value: e.target.value })}>
+                <option value="">—</option>
+                {a.options.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                defaultValue={value}
+                disabled={!canWrite || save.isPending}
+                placeholder="—"
+                onBlur={(e) => e.target.value.trim() !== value && save.mutate({ attributeId: a.id, value: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              />
+            )}
+          </label>
+        );
+      })}
+      {save.error && <p className="form-error">{(save.error as Error).message}</p>}
     </div>
   );
 }

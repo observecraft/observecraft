@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ListChecks, Plus, Settings } from 'lucide-react';
 import './events.css';
 
@@ -26,13 +26,13 @@ export function EventsLayout() {
           ))}
         </nav>
         <div className="ev-header-right">
-          <button className="btn" disabled title="Event Management settings">
+          <Link className="btn" to="/event/settings" title="Event Management settings">
             <Settings size={14} /> Settings
-          </button>
+          </Link>
           {pathname.startsWith('/event/inbox') && (
-            <button className="btn btn-primary" disabled title="Correlators group related events into work items">
+            <Link className="btn btn-primary" to="/event/settings/correlators?new=1" title="Correlators group related events into work items">
               <Plus size={14} /> New Correlator
-            </button>
+            </Link>
           )}
         </div>
       </header>

@@ -1,6 +1,8 @@
 // In-browser events for mock mode: deployments, Kubernetes events, monitor alerts and agent events of
 // the e-commerce demo, with the same query semantics as the API (free text, key:value, -key:value).
 import type { EventItem, EventPage, EventSearchRequest } from '../events/client';
+import { correlateEvents, groupTitle } from '../../lib/eventCorrelation';
+import { activeCorrelators, valuesOf, windowsBetween } from './eventSettings';
 
 const SOURCES = [
   {
@@ -51,7 +53,7 @@ const SOURCES = [
 function demo(now: number): EventItem[] {
   const out: EventItem[] = [];
   for (let i = 0; i < 320; i++) {
-    const s = SOURCES[(i * 7) % SOURCES.length];
+    const s = SOURCES[(i * 3) % SOURCES.length];
     const ts = now - i * 47_000 - (i % 5) * 3_100;
     out.push({
       id: `ev-${i}`,
@@ -132,28 +134,43 @@ export async function eventFields(req: { range: EventSearchRequest['range']; que
   return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([key, count]) => ({ key, count }));
 }
 
-/** Warning and error events grouped by title (the demo events have no aggregation keys). */
+/**
+ * Warning and error events correlated into work items: by the correlators of Event Management →
+ * Settings (mock/eventSettings.ts) when they match, else per source and title (the demo events have
+ * no aggregation keys); maintenance windows suppress the work items they cover.
+ */
 export async function workItems(req: { range: EventSearchRequest['range']; query?: string }) {
   const { items } = await searchEvents({ range: req.range, query: req.query ?? '', limit: 10_000, offset: 0 });
-  const groups = new Map<string, EventItem[]>();
-  for (const e of items.filter((e) => e.alertType === 'error' || e.alertType === 'warning')) groups.set(`${e.source}:${e.title}`, [...(groups.get(`${e.source}:${e.title}`) ?? []), e]);
-  const list = [...groups].map(([key, es]) => {
-    const last = Math.max(...es.map((e) => e.timestamp));
+  const correlators = activeCorrelators().map((c) => ({ id: c.id, name: c.name, query: c.query, groupBy: c.groupBy, windowMinutes: c.windowMinutes }));
+  const windows = windowsBetween(req.range.from, req.range.to);
+  const groups = correlateEvents(
+    items.filter((e) => e.alertType === 'error' || e.alertType === 'warning'),
+    correlators,
+    windows,
+  );
+  const list = groups.map((g) => {
+    const es = g.events;
+    const newest = es[es.length - 1];
+    const last = newest.timestamp;
     return {
-      id: key,
-      title: es[0].title,
-      source: es[0].source,
+      id: g.key,
+      title: groupTitle(g),
+      source: newest.source,
       status: es.some((e) => e.alertType === 'error') ? 'error' : 'warning',
       reason: '',
-      summary: es[0].text.split('\n')[0],
+      summary: newest.text.split('\n')[0],
       count: es.length,
-      firstSeen: Math.min(...es.map((e) => e.timestamp)),
+      firstSeen: es[0].timestamp,
       lastSeen: last,
       state: req.range.to - last <= 30 * 60_000 ? 'open' : 'closed',
-      tags: es[0].tags.filter((t) => /^(kube_cluster_name|kube_namespace|service|env):/.test(t)),
+      tags: newest.tags.filter((t) => /^(kube_cluster_name|kube_namespace|service|env):/.test(t)),
+      correlator: g.correlator?.name ?? null,
+      maintenance: g.maintenance,
+      attributes: valuesOf(g.key),
     };
   });
   list.sort((a, b) => b.lastSeen - a.lastSeen);
-  const open = list.filter((i) => i.state === 'open').length;
-  return { items: list, open, closed: list.length - open };
+  const suppressed = list.filter((i) => i.maintenance).length;
+  const open = list.filter((i) => !i.maintenance && i.state === 'open').length;
+  return { items: list, open, closed: list.length - suppressed - open, suppressed };
 }

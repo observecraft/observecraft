@@ -26,6 +26,15 @@ export const idKeys = {
 };
 
 export const useProfile = () => useQuery({ queryKey: idKeys.profile(), queryFn: getProfile, staleTime: 60_000, retry: 1 });
+
+/** What the signed-in user's role allows: Standard and Admin edit content; only Admin org-wide controls. */
+export function useAccess(): { canWrite: boolean; isAdmin: boolean } {
+  const me = useProfile();
+  const org = me.data?.org.id;
+  const has = (role: string) => me.data?.roles.some((r) => r.id === `${org}-${role}`) ?? false;
+  const isAdmin = has('admin');
+  return { canWrite: isAdmin || has('standard'), isAdmin };
+}
 export const useUsers = (req: UserSearchRequest) => useQuery({ queryKey: idKeys.users(req), queryFn: () => searchUsers(req), placeholderData: keepPreviousData, retry: 1 });
 export const useRoles = () => useQuery({ queryKey: idKeys.roles(), queryFn: listRoles, staleTime: 60_000, retry: 1 });
 export const useTeams = (req: TeamSearchRequest) => useQuery({ queryKey: idKeys.teams(req), queryFn: () => searchTeams(req), placeholderData: keepPreviousData, retry: 1 });
