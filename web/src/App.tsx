@@ -145,6 +145,19 @@ import { ReliabilityOverview } from './pages/portal/reports/ReliabilityOverview'
 import { ReportsLayout } from './pages/portal/reports/ReportsLayout';
 import { ScorecardsPerformance } from './pages/portal/reports/ScorecardsPerformance';
 import { TeamsPerformance } from './pages/portal/reports/TeamsPerformance';
+import { AutomationLayout } from './pages/automation/AutomationLayout';
+import { WorkflowsIntro } from './pages/automation/workflows/WorkflowsIntro';
+import { WorkflowsList } from './pages/automation/workflows/WorkflowsList';
+import { WorkflowsBlueprints } from './pages/automation/workflows/WorkflowsBlueprints';
+import { WorkflowsAnalytics } from './pages/automation/workflows/WorkflowsAnalytics';
+import { ActionCatalogPage } from './pages/automation/workflows/ActionCatalogPage';
+import { NewWorkflowPage } from './pages/automation/workflows/NewWorkflowPage';
+import { WorkflowEditorPage } from './pages/automation/workflows/WorkflowEditorPage';
+import { AppsIntro } from './pages/automation/apps/AppsIntro';
+import { AppsList } from './pages/automation/apps/AppsList';
+import { AppsBlueprints } from './pages/automation/apps/AppsBlueprints';
+import { AppBuilderPage } from './pages/automation/apps/AppBuilderPage';
+import { AppViewPage } from './pages/automation/apps/AppViewPage';
 
 function ComingSoon() {
   const { pathname } = useLocation();
@@ -337,6 +350,21 @@ function Shell() {
               <Route path=":page" element={<PortalSettingsSoon />} />
             </Route>
             <Route path="/portal/surveys/:id/respond" element={<SurveyRespondPage />} />
+            <Route path="/automation" element={<AutomationLayout />}>
+              <Route index element={<WorkflowsList />} />
+              <Route path="intro" element={<WorkflowsIntro />} />
+              <Route path="blueprints" element={<WorkflowsBlueprints />} />
+              <Route path="analytics" element={<WorkflowsAnalytics />} />
+              <Route path="actions" element={<ActionCatalogPage />} />
+              <Route path="apps" element={<AppsList />} />
+              <Route path="apps/intro" element={<AppsIntro />} />
+              <Route path="apps/blueprints" element={<AppsBlueprints />} />
+            </Route>
+            <Route path="/automation/workflows/new" element={<NewWorkflowPage />} />
+            <Route path="/automation/workflows/:id" element={<WorkflowEditorPage />} />
+            <Route path="/automation/apps/new" element={<AppBuilderPage />} />
+            <Route path="/automation/apps/:id/edit" element={<AppBuilderPage />} />
+            <Route path="/automation/apps/:id" element={<AppViewPage />} />
             <Route path="/incidents" element={<IncidentsPage />} />
             <Route path="/incidents/:id" element={<IncidentPage />} />
             <Route path="/on-call" element={<OnCallLayout />}>

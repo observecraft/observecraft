@@ -1,0 +1,189 @@
+/* ---------- Automation: frame shared by Workflow Automation and App Builder ---------- */
+.au-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.au-section {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg);
+}
+
+.au-tab {
+  padding: 0 6px 0 16px;
+  gap: 2px;
+}
+
+.au-tab-link {
+  color: inherit;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.au-tab-link:hover {
+  text-decoration: none;
+}
+
+.au-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+}
+
+.au-caret:hover {
+  background: var(--bg-muted);
+  color: var(--text);
+}
+
+.au-menu {
+  position: absolute;
+  top: 100%;
+  left: 8px;
+  z-index: 30;
+  min-width: 170px;
+  padding: 4px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  box-shadow: var(--shadow-pop);
+}
+
+.au-menu-item {
+  display: block;
+  padding: 7px 14px;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-regular);
+  color: var(--text);
+}
+
+.au-menu-item:hover {
+  background: var(--bg-hover);
+  text-decoration: none;
+}
+
+.au-subtabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.au-subtab {
+  padding: 10px 10px 9px;
+  font-size: var(--fs-lg);
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+}
+
+.au-subtab:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.au-subtab.active {
+  color: var(--text);
+  font-weight: var(--fw-medium);
+  border-bottom-color: var(--primary);
+}
+
+/* Big rounded intro hero (Workflow Automation and Apps intros). */
+.au-hero {
+  position: relative;
+  overflow: hidden;
+  margin: 20px 24px 0;
+  padding: 64px 24px 0;
+  border-radius: 16px;
+  background: radial-gradient(1200px 400px at 50% -10%, rgba(255, 181, 71, 0.35), transparent 60%), linear-gradient(135deg, var(--hero-from) 0%, var(--hero-mid) 48%, var(--hero-to) 100%);
+  color: var(--text-inverse);
+  text-align: center;
+}
+
+.au-hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: var(--fw-medium);
+}
+
+.au-hero-kicker-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--brand-accent);
+}
+
+.au-hero h1 {
+  max-width: 760px;
+  margin: 18px auto 0;
+  font-size: 44px;
+  line-height: 1.15;
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+}
+
+.au-hero p {
+  max-width: 620px;
+  margin: 14px auto 0;
+  font-size: 16px;
+  line-height: 1.5;
+  opacity: 0.88;
+}
+
+.au-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  margin-top: 26px;
+  padding: 0 20px;
+  border-radius: 8px;
+  background: var(--brand-accent);
+  color: #1c2333;
+  font-size: 15px;
+  font-weight: var(--fw-semibold);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.au-cta:hover {
+  filter: brightness(1.05);
+  text-decoration: none;
+}
+
+/* Floating tool tiles around the headline. */
+.au-mosaic-tile {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--primary);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.au-mosaic-tile.small {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+}
+
+.au-mosaic-tile.faded {
+  opacity: 0.55;
+}

@@ -28,6 +28,7 @@ export const STEP_LABEL: Record<ActionStepKind, string> = {
   page_on_call: 'Page an on-call team',
   incident_comment: 'Add a note to an incident',
   synthetic_run: 'Run a synthetic test',
+  run_workflow: 'Run a workflow',
 };
 
 /** The fields of an internal step, and whether each is required. */
@@ -51,6 +52,7 @@ export const STEP_FIELDS: Record<ActionStepKind, [string, boolean][]> = {
     ['body', true],
   ],
   synthetic_run: [['test', true]],
+  run_workflow: [['workflow', true]],
 };
 
 const chars = (s: string) => [...s].length;

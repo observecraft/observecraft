@@ -4,6 +4,7 @@
 // the server would, then answer with a fictional response instead of calling GitHub, GitLab or Jira.
 import { checkInputs, checkRunInputs, checkStep, mergeSecrets, redact, renderJson, renderText, renderUrl, resultLink, type RenderContext } from '../portalActions/logic';
 import type { ActionStep, ActionValues, PortalAction, PortalActionInput, PortalActionRun } from '../portalActions/types';
+import { startFromApp } from './workflows';
 
 const ME = { name: 'Alex Morgan', email: 'alex.morgan@example.com' };
 const HOUR = 3_600_000;
@@ -266,6 +267,11 @@ function internalRun(step: ActionStep, ctx: RenderContext): { response: string; 
     }
     case 'synthetic_run':
       return { response: 'The synthetic test passed', link: `/synthetics/tests/${field('test')}` };
+    case 'run_workflow': {
+      const workflow = field('workflow');
+      const run = startFromApp(workflow, 'Self-service action', ctx.inputs);
+      return { response: `Started workflow run #${run}`, link: `/automation/workflows/${workflow}?run=${run}` };
+    }
     default:
       throw new Error('Not an internal step');
   }
