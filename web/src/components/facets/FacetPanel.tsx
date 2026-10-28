@@ -27,15 +27,18 @@ interface Props {
   renderValueIcon?: (key: string, value: string) => ReactNode;
   /** Extra controls above the facet search (e.g. Teams, toggles). */
   header?: ReactNode;
-  /** "+ Add": the fields that can become facets, and what adding one does. No button without it. */
-  addable?: { load: () => Promise<{ key: string; count: number }[]>; onAdd: (key: string) => void };
+  /** "+ Add": the fields that can become facets, and what adding one does. No button without it. Standard attributes are listed first. */
+  addable?: { load: () => Promise<{ key: string; count: number; standard?: boolean }[]>; onAdd: (key: string) => void };
 }
 
 /** The "+ Add" list: fields of the current results, filtered as you type. */
 function AddFacet({ addable, present, onClose }: { addable: NonNullable<Props['addable']>; present: Set<string>; onClose: () => void }) {
   const [filter, setFilter] = useState('');
   const fields = useQuery({ queryKey: ['facets', 'addable', addable.load], queryFn: addable.load });
-  const shown = (fields.data ?? []).filter((f) => !present.has(f.key) && f.key.toLowerCase().includes(filter.toLowerCase())).slice(0, 50);
+  const shown = (fields.data ?? [])
+    .filter((f) => !present.has(f.key) && f.key.toLowerCase().includes(filter.toLowerCase()))
+    .sort((a, b) => Number(Boolean(b.standard)) - Number(Boolean(a.standard)))
+    .slice(0, 50);
   return (
     <div className="facet-add-menu">
       <input autoFocus placeholder="Filter fields, e.g. kube_node or @http.url" value={filter} onChange={(e) => setFilter(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onClose()} />
@@ -52,6 +55,11 @@ function AddFacet({ addable, present, onClose }: { addable: NonNullable<Props['a
             }}
           >
             <span className="mono">{f.key}</span>
+            {f.standard && (
+              <span className="facet-standard" title="A standard attribute of your organization">
+                standard
+              </span>
+            )}
             <span className="muted-text">{f.count.toLocaleString()}</span>
           </button>
         ))}

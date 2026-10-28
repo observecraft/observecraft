@@ -199,6 +199,20 @@
   text-align: left;
 }
 
+.facet-add-list button .mono {
+  margin-right: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.facet-standard {
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
 .facet-add-list button:hover {
   background: var(--bg-hover);
 }

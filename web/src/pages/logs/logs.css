@@ -1058,6 +1058,80 @@
   font-size: var(--fs-sm);
 }
 
+/* ---------- standard attributes ---------- */
+.sa-group {
+  margin-top: 18px;
+}
+
+.sa-group-title {
+  margin: 0 0 6px;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+/* Same columns in every namespace's table. */
+.sa-table {
+  table-layout: fixed;
+}
+
+.sa-table th:nth-child(1) {
+  width: 26%;
+}
+
+.sa-table th:nth-child(2) {
+  width: 9%;
+}
+
+.sa-table th:nth-child(3) {
+  width: 30%;
+}
+
+.sa-table th:nth-child(5) {
+  width: 64px;
+}
+
+.sa-table td:first-child {
+  overflow-wrap: anywhere;
+}
+
+.sa-alias {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 4px 2px 0;
+}
+
+.sa-description {
+  color: var(--text-muted);
+}
+
+.sa-aliases {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.ar-form .sa-alias-input {
+  flex: 1;
+  min-width: 180px;
+  border: 0;
+  outline: 0;
+}
+
+.ar-form textarea {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font: inherit;
+  background: var(--bg);
+  color: inherit;
+  resize: vertical;
+}
+
 /* ---------- log pipelines ---------- */
 .pl-title-actions {
   display: flex;

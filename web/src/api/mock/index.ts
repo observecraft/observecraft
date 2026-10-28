@@ -1,9 +1,10 @@
 // In-browser stand-in for the query service. Implements the same contract (types.ts)
 // so pages don't change when client.ts switches to fetch()/SSE.
 import { parseQuery } from '../../lib/searchQuery';
-import type { Facet, FacetValue, HistogramBucket, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, MetricSeries, QuerySuggestion, TimeRange } from '../types';
+import type { Facet, FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogSearchResult, MetricSeries, QuerySuggestion, TimeRange } from '../types';
 import { generateLog, rng } from './generator';
 import { logField, matchLog } from './match';
+import { standardPaths } from './standardAttributes';
 
 const HOUR = 3600_000;
 const MAX_STORED = 150_000;
@@ -88,6 +89,7 @@ export function mockSearchLogs(q: LogQuery): LogSearchResult {
     return { key, label, group, values };
   });
 
+  const standard = standardPaths();
   for (const key of q.facets ?? []) {
     if (facets.some((f) => f.key === key)) continue;
     const counts = new Map<string, number>();
@@ -99,7 +101,7 @@ export function mockSearchLogs(q: LogQuery): LogSearchResult {
       .map(([value, count]) => ({ value, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
-    facets.push({ key, label: key.replace(/^@/, ''), group: 'ADDED', values });
+    facets.push({ key, label: key.replace(/^@/, ''), group: isStandard(key, standard) ? 'STANDARD ATTRIBUTES' : 'ADDED', values });
   }
   return { logs: hits, total: hits.length, facets, histogram: histogramFor(hits, q.range), insights: insights(scope) };
 }
@@ -140,16 +142,28 @@ export function mockLogPatterns(q: LogQuery): { pattern: string; count: number; 
 }
 
 /** Tags and `@attributes` of the newest 10,000 matching logs, most common first. */
-export function mockLogFields(q: LogQuery): { key: string; count: number }[] {
+/** A facet key that is one of the org's standard attributes (`@http.url`; tags aren't). */
+const isStandard = (key: string, standard: Set<string>) => key.startsWith('@') && standard.has(key.slice(1));
+
+/** Attribute paths of nested attributes, as the server flattens them (`http.method`). */
+function attributePaths(attrs: Record<string, JsonValue>, prefix = ''): string[] {
+  return Object.entries(attrs).flatMap(([k, v]) => {
+    const path = prefix ? `${prefix}.${k}` : k;
+    return v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length ? attributePaths(v, path) : [path];
+  });
+}
+
+export function mockLogFields(q: LogQuery): { key: string; count: number; standard: boolean }[] {
   const terms = parseQuery(q.query);
   const counts = new Map<string, number>();
   for (const l of inRange(q.range)
     .filter((l) => matchLog(l, terms))
     .slice(0, 10_000)) {
-    const keys = [...Object.keys(l.tags ?? {}), ...Object.keys(l.attributes ?? {}).map((k) => `@${k}`)];
+    const keys = [...Object.keys(l.tags ?? {}), ...attributePaths(l.attributes ?? {}).map((k) => `@${k}`)];
     for (const k of keys) counts.set(k, (counts.get(k) ?? 0) + 1);
   }
-  return [...counts].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+  const standard = standardPaths();
+  return [...counts].map(([key, count]) => ({ key, count, standard: isStandard(key, standard) })).sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 }
 
 export function mockHistogram(q: LogQuery): HistogramBucket[] {
