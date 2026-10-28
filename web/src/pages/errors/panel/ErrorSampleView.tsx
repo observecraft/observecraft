@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowDownWideNarrow, ChevronDown, ChevronLeft, ChevronRight, FileText, Fingerprint, MousePointerClick, Network, RotateCw, Search, Star, XCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AlertCircle, ArrowDownWideNarrow, ChevronDown, ChevronLeft, ChevronRight, FileText, Fingerprint, MousePointerClick, Network, RotateCw, Search, Star, Waypoints, XCircle } from 'lucide-react';
 import type { ErrorSample, IssueDetail, TimelineEvent } from '../../../api/errorTracking/types';
 import type { TimeRange } from '../../../api/types';
 import { JsonTree } from '../../../components/json/JsonTree';
@@ -32,6 +32,8 @@ export function ErrorSampleView({ issue, range, query }: Props) {
   const total = sampleQ.data?.total ?? 0;
   const available = sampleQ.data?.available ?? 0;
   const sample = sampleQ.data?.sample;
+  // APM issues come from error spans: their errors are in the trace explorer, not in logs.
+  const allErrors = `${issue.source === 'apm' ? '/apm/traces' : '/logs'}?query=${encodeURIComponent(`service:${issue.service} status:error`)}`;
 
   return (
     <section className="es">
@@ -62,7 +64,7 @@ export function ErrorSampleView({ issue, range, query }: Props) {
               Next <ChevronRight size={14} />
             </button>
           </div>
-          <button className="btn btn-primary" onClick={() => navigate(`/logs?query=${encodeURIComponent(`service:${issue.service} status:error`)}`)}>
+          <button className="btn btn-primary" onClick={() => navigate(allErrors)}>
             View All Errors
           </button>
         </div>
@@ -105,6 +107,11 @@ function SampleCard({ sample, stale }: { sample: ErrorSample; stale: boolean }) 
               {k}:{v}
             </span>
           ))}
+          {sample.traceId && (
+            <Link className="btn btn-sm" to={`/apm/traces?trace=${sample.traceId}${sample.spanId ? `&span=${sample.spanId}` : ''}`}>
+              <Waypoints size={13} /> View Trace
+            </Link>
+          )}
         </div>
       </div>
 

@@ -138,7 +138,7 @@ export function ReviewTab({ issue, range, isRefreshing }: Props) {
             <span className="ip-row-label">Tags</span>
             <div className="ip-tags">
               {issue.tags.map((t) => (
-                <button key={t.key} className="dist-chip" onClick={() => setQuery((q) => addTerm(q, t.key, t.value))} title={`Filter samples by ${t.key}:${t.value}`}>
+                <button key={`${t.key}:${t.value}`} className="dist-chip" onClick={() => setQuery((q) => addTerm(q, t.key, t.value))} title={`Filter samples by ${t.key}:${t.value}`}>
                   {t.key}:{t.value} <strong>({Math.round(t.share * 100)}%)</strong>
                 </button>
               ))}

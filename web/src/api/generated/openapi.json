@@ -1838,7 +1838,7 @@
         "tags": [
           "error-tracking"
         ],
-        "summary": "How many issues have logs with each service, env and version.",
+        "summary": "How many issues have logs (or spans) with each service, env and version.",
         "operationId": "issue_facets",
         "requestBody": {
           "content": {
@@ -1869,7 +1869,7 @@
         "tags": [
           "error-tracking"
         ],
-        "summary": "Issues from the organization's error logs in the range (first and last seen within it).",
+        "summary": "Issues from the organization's error logs and APM error spans in the range (first and last seen within it).",
         "operationId": "search_issues",
         "requestBody": {
           "content": {
@@ -1900,7 +1900,7 @@
         "tags": [
           "error-tracking"
         ],
-        "summary": "One issue in the range: its histogram, the tags of its logs and its saved state.",
+        "summary": "One issue in the range: its histogram, the tags of its logs (or spans) and its saved state.",
         "operationId": "issue_detail",
         "parameters": [
           {
@@ -1941,7 +1941,7 @@
         "tags": [
           "error-tracking"
         ],
-        "summary": "One log of the issue (the `index`-th newest or oldest in range), and how many there are.",
+        "summary": "One log (or span) of the issue (the `index`-th newest or oldest in range), and how many there are.",
         "operationId": "issue_samples",
         "parameters": [
           {
@@ -12020,6 +12020,10 @@
           },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
+          },
+          "source": {
+            "type": "string",
+            "description": "logs | rum | apm | all"
           }
         }
       },
@@ -16472,6 +16476,12 @@
             "type": "string"
           },
           "json": {},
+          "spanId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "stack": {
             "$ref": "#/components/schemas/StackOut"
           },
@@ -16491,6 +16501,13 @@
           "timestamp": {
             "type": "integer",
             "format": "int64"
+          },
+          "traceId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The trace and span of an APM sample, for a link to the trace."
           }
         }
       },
@@ -16504,7 +16521,7 @@
         "properties": {
           "available": {
             "type": "integer",
-            "description": "Logs that can be paged through (the newest or oldest 2,000).",
+            "description": "Logs (or spans) that can be paged through (the newest or oldest 2,000).",
             "minimum": 0
           },
           "index": {
@@ -16524,7 +16541,7 @@
           "total": {
             "type": "integer",
             "format": "int64",
-            "description": "The issue's logs in range.",
+            "description": "The issue's logs (or spans) in range.",
             "minimum": 0
           }
         }

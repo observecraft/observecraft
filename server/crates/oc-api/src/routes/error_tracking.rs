@@ -1,20 +1,22 @@
-//! Error Tracking: error logs grouped into issues by service, error type and message pattern.
+//! Error Tracking: error logs and APM error spans grouped into issues by service, error type and
+//! message pattern.
 
 use std::collections::HashMap;
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
-use oc_query::{parse_query, Param};
+use oc_query::{build_where, parse_query, Param, SpansSchema, Term};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::auth::Writer;
 use crate::error::{ApiError, ApiResult};
+use crate::routes::apm::ENTRY;
 use crate::routes::logs::{bind, scope, Facet, FacetValue, TimeRange};
 use crate::state::{AppState, OrgId};
 
-/// Error logs of one issue key (service, kind, [`shape_key`]), aggregated by ClickHouse.
+/// Error logs (or spans) of one issue key (service, kind, [`shape_key`]), aggregated by ClickHouse.
 #[derive(clickhouse::Row, Deserialize, Debug, Clone)]
 pub(crate) struct ErrorRow {
     pub service: String,
@@ -31,6 +33,34 @@ pub(crate) struct ErrorRow {
     pub last: i64,
     /// Sparkline buckets with logs, and their counts.
     pub spark: (Vec<u32>, Vec<u64>),
+    /// The runtime's language of the newest span (`telemetry.sdk.language`); empty for logs.
+    pub lang: String,
+}
+
+/// Where an issue's errors come from.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Source {
+    Logs,
+    Apm,
+}
+
+impl Source {
+    pub fn name(self) -> &'static str {
+        match self {
+            Source::Logs => "logs",
+            Source::Apm => "apm",
+        }
+    }
+}
+
+/// The sources a search's `source` (logs | rum | apm | all) reads. RUM has none yet.
+pub(crate) fn sources_of(source: &str) -> Vec<Source> {
+    match source {
+        "all" => vec![Source::Logs, Source::Apm],
+        "logs" => vec![Source::Logs],
+        "apm" => vec![Source::Apm],
+        _ => Vec::new(),
+    }
 }
 
 /// The error's type: the log's error kind attribute, else the first `…Error` / `…Exception`
@@ -52,14 +82,25 @@ pub(crate) fn error_type(message: &str, kind: &str) -> String {
         .to_string()
 }
 
-/// A stable issue id (FNV-1a 64, hex): the same group gets the same id across restarts and versions.
-pub(crate) fn issue_id(service: &str, kind: &str, key: &str) -> String {
+/// FNV-1a 64 of the parts, in hex.
+fn fnv_hex(parts: &[&str]) -> String {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in [service, kind, key].join("\u{1f}").bytes() {
+    for b in parts.join("\u{1f}").bytes() {
         h ^= u64::from(b);
         h = h.wrapping_mul(0x0000_0100_0000_01b3);
     }
     format!("{h:016x}")
+}
+
+/// A stable issue id (FNV-1a 64, hex): the same group gets the same id across restarts and versions.
+pub(crate) fn issue_id(service: &str, kind: &str, key: &str) -> String {
+    fnv_hex(&[service, kind, key])
+}
+
+/// An APM issue's id: the source is part of the hashed key, so the same error in logs and in spans
+/// makes two issues, each with its own saved state.
+pub(crate) fn span_issue_id(service: &str, kind: &str, key: &str) -> String {
+    fnv_hex(&["apm", service, kind, key])
 }
 
 #[derive(Debug)]
@@ -75,10 +116,13 @@ pub(crate) struct IssueGroup {
     pub first_seen: i64,
     pub last_seen: i64,
     pub sparkline: Vec<u64>,
+    pub source: Source,
+    /// The runtime's language when the source tells it (spans).
+    pub language: String,
 }
 
-/// ClickHouse's groups as issues, most frequent first.
-pub(crate) fn group_issues(rows: Vec<ErrorRow>, buckets: usize) -> Vec<IssueGroup> {
+/// ClickHouse's groups (of `source`) as issues, most frequent first.
+pub(crate) fn group_issues(rows: Vec<ErrorRow>, buckets: usize, source: Source) -> Vec<IssueGroup> {
     let mut out: Vec<IssueGroup> = rows
         .into_iter()
         .map(|r| {
@@ -88,7 +132,10 @@ pub(crate) fn group_issues(rows: Vec<ErrorRow>, buckets: usize) -> Vec<IssueGrou
                 sparkline[(*b as usize).min(buckets - 1)] += n;
             }
             IssueGroup {
-                id: issue_id(&r.service, &r.kind, &r.key),
+                id: match source {
+                    Source::Logs => issue_id(&r.service, &r.kind, &r.key),
+                    Source::Apm => span_issue_id(&r.service, &r.kind, &r.key),
+                },
                 error_type: error_type(&first_line, &r.kind),
                 service: r.service,
                 kind: r.kind,
@@ -98,11 +145,25 @@ pub(crate) fn group_issues(rows: Vec<ErrorRow>, buckets: usize) -> Vec<IssueGrou
                 first_seen: r.first,
                 last_seen: r.last,
                 sparkline,
+                source,
+                language: r.lang,
             }
         })
         .collect();
     out.sort_by(|a, b| b.count.cmp(&a.count).then(a.id.cmp(&b.id)));
     out
+}
+
+/// Issues (of any sources) in the search's order: most frequent first (ties by id), or the most
+/// recently last or first seen.
+pub(crate) fn order_issues(mut issues: Vec<IssueGroup>, sort: Option<&str>) -> Vec<IssueGroup> {
+    issues.sort_by(|a, b| b.count.cmp(&a.count).then(a.id.cmp(&b.id)));
+    match sort {
+        Some("last_seen") => issues.sort_by(|a, b| b.last_seen.cmp(&a.last_seen)),
+        Some("first_seen") => issues.sort_by(|a, b| b.first_seen.cmp(&a.first_seen)),
+        _ => {}
+    }
+    issues
 }
 
 /// The text without terminal color codes (`ESC [ … m` and other CSI sequences).
@@ -140,6 +201,23 @@ pub(crate) fn platform_of(error_type: &str, message: &str) -> &'static str {
     }
 }
 
+/// The runtime of a span's `telemetry.sdk.language` (or Datadog `language` tag), when the UI knows it.
+fn language_platform(language: &str) -> Option<&'static str> {
+    match language.to_ascii_lowercase().as_str() {
+        "java" | "jvm" => Some("java"),
+        "dotnet" | ".net" | "csharp" => Some("dotnet"),
+        "python" => Some("python"),
+        "go" | "golang" => Some("go"),
+        "nodejs" | "node" | "javascript" => Some("node"),
+        _ => None,
+    }
+}
+
+/// An issue's runtime: its spans' language, else what its error shows ([`platform_of`]).
+pub(crate) fn issue_platform(language: &str, error_type: &str, message: &str) -> &'static str {
+    language_platform(language).unwrap_or_else(|| platform_of(error_type, message))
+}
+
 /// Whether a log (its service, error kind and message) belongs to the issue `id`.
 pub(crate) fn log_matches(id: &str, service: &str, kind: &str, message: &str) -> bool {
     issue_id(service, kind, &shape_key(message)) == id
@@ -170,9 +248,10 @@ pub(crate) fn shape(message: &str) -> String {
     out
 }
 
-/// The SQL of [`shape`].
-#[cfg(test)]
-const SHAPE_SQL: &str = "replaceRegexpAll(substringUTF8(message, 1, 200), '[0-9A-Fa-f]*[0-9][0-9A-Fa-f]*', '0')";
+/// The SQL of [`shape`] of the text `expr`.
+fn shape_sql(expr: &str) -> String {
+    format!("replaceRegexpAll(substringUTF8({expr}, 1, 200), '[0-9A-Fa-f]*[0-9][0-9A-Fa-f]*', '0')")
+}
 
 /// The issue key's message part: the first 80 characters of its shape. Long enough to tell errors
 /// apart, short enough that variable tails (paths, quoted values) don't make one issue per log.
@@ -180,15 +259,136 @@ pub(crate) fn shape_key(message: &str) -> String {
     shape(message).chars().take(80).collect()
 }
 
+/// The SQL of [`shape_key`] of the text `expr`.
+fn key_sql_of(expr: &str) -> String {
+    format!("substringUTF8({}, 1, 80)", shape_sql(expr))
+}
+
 /// The SQL of [`shape_key`] (oc.logs' `error_key` column).
 #[cfg(test)]
 fn key_sql() -> String {
-    format!("substringUTF8({SHAPE_SQL}, 1, 80)")
+    key_sql_of("message")
 }
 
 /// The SQL of the error kind attribute (oc.logs' `error_kind` column).
 #[cfg(test)]
 const KIND_SQL: &str = "multiIf(attr['error.kind'] != '', attr['error.kind'], attr['error.type'] != '', attr['error.type'], attr['exception.type'])";
+
+// ---------------------------------------------------------------- APM error spans
+//
+// Issues from error spans are grouped in ClickHouse like logs, by (service, error type, shape key).
+// Spans have no materialized key columns: WHERE keeps only the error entry spans in range before the
+// key's regex runs, and they are a small share of the spans, so computing the key per query stays
+// cheap and avoids a migration of otel_traces.
+
+/// The span's `exception` event attributes (an empty map when it has none). OpenTelemetry SDKs
+/// record exceptions there; the Datadog intake maps `error.type` / `error.message` / `error.stack` to it.
+const EXCEPTION: &str = "arrayElement(Events.Attributes, indexOf(Events.Name, 'exception'))";
+
+/// The SQL of an error span's type: its exception's type, else its `error.type` attribute.
+fn span_kind_sql() -> String {
+    format!("if({EXCEPTION}['exception.type'] != '', {EXCEPTION}['exception.type'], SpanAttributes['error.type'])")
+}
+
+/// The SQL of an error span's message: its exception's message, else its status message, else its
+/// name (the endpoint that failed).
+fn span_message_sql() -> String {
+    format!("multiIf({EXCEPTION}['exception.message'] != '', {EXCEPTION}['exception.message'], StatusMessage != '', StatusMessage, SpanName)")
+}
+
+/// The SQL of an error span's [`shape_key`].
+fn span_key_sql() -> String {
+    key_sql_of(&span_message_sql())
+}
+
+/// The SQL of the span's runtime language (OpenTelemetry resource, else Datadog's `language` tag).
+const SPAN_LANGUAGE_SQL: &str = "if(ResourceAttributes['telemetry.sdk.language'] != '', ResourceAttributes['telemetry.sdk.language'], SpanAttributes['language'])";
+
+/// The condition (after `OrgId = {oc_org:String}`) on the error spans in range that make issues:
+/// service entry spans with an error status, as for APM's error groups (an error that crosses
+/// services counts once per service, not once more on each caller's client span).
+fn span_scope(range: TimeRange, terms: &[Term]) -> (String, Vec<Param>) {
+    let f = build_where(&SpansSchema, terms, None);
+    let mut params = vec![Param::Int(range.from), Param::Int(range.to)];
+    params.extend(f.params);
+    (format!("Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) AND StatusCode = 'Error' AND {ENTRY} AND ({})", f.clause), params)
+}
+
+/// One error span of an issue.
+#[derive(clickhouse::Row, Deserialize)]
+pub(crate) struct SpanRow {
+    pub trace_id: String,
+    pub span_id: String,
+    pub t: i64,
+    pub service: String,
+    /// The span's name (its resource / endpoint).
+    pub resource: String,
+    pub message: String,
+    /// The exception's stack trace, if recorded.
+    pub stack: String,
+    /// `ResourceAttributes` and `SpanAttributes` as JSON objects.
+    pub resource_json: String,
+    pub attributes_json: String,
+}
+
+/// Span tags by their resource attribute (the names Datadog's container tags map to).
+const SPAN_TAG_ATTRS: [(&str, &str); 6] = [
+    ("host", "host.name"),
+    ("env", "deployment.environment"),
+    ("version", "service.version"),
+    ("kube_namespace", "k8s.namespace.name"),
+    ("pod_name", "k8s.pod.name"),
+    ("container_name", "container.name"),
+];
+const SPAN_TAG_KEYS: [&str; 8] = ["service", "resource_name", "env", "version", "host", "kube_namespace", "pod_name", "container_name"];
+
+fn json_map(json: &str) -> serde_json::Map<String, serde_json::Value> {
+    serde_json::from_str(json).unwrap_or_default()
+}
+
+/// A span's tags: its service, resource and where it ran.
+pub(crate) fn span_tags(s: &SpanRow) -> HashMap<String, String> {
+    let resource = json_map(&s.resource_json);
+    let mut tags: HashMap<String, String> =
+        SPAN_TAG_ATTRS.iter().filter_map(|(tag, attr)| resource.get(*attr).and_then(|v| v.as_str()).filter(|v| !v.is_empty()).map(|v| (tag.to_string(), v.to_string()))).collect();
+    tags.insert("service".into(), s.service.clone());
+    tags.insert("resource_name".into(), s.resource.clone());
+    tags
+}
+
+/// A span as an issue's sample: its stack trace (else its message), tags, trace and attributes.
+pub(crate) fn span_sample(s: SpanRow, error_type: &str) -> SampleOut {
+    let tags = span_tags(&s);
+    let message = strip_ansi(&s.message);
+    let raw = if s.stack.is_empty() { message.clone() } else { strip_ansi(&s.stack) };
+    let mut resource = json_map(&s.resource_json);
+    resource.retain(|k, _| !k.starts_with("oc."));
+    let json = serde_json::json!({
+        "service": s.service,
+        "resource": resource,
+        "resource_name": s.resource,
+        "trace_id": s.trace_id,
+        "span_id": s.span_id,
+        "error": { "type": error_type, "message": message, "stack": s.stack },
+        "attributes": json_map(&s.attributes_json),
+    });
+    let trace = serde_json::json!({ "name": "Trace", "attributes": [
+        { "label": "Trace Id", "value": s.trace_id },
+        { "label": "Span Id", "value": s.span_id },
+        { "label": "Resource", "value": s.resource },
+    ] });
+    SampleOut {
+        id: s.span_id.clone(),
+        timestamp: s.t,
+        tags,
+        stack: StackOut { title: format!("{error_type}: {}", message.lines().next().unwrap_or("")), frames: Vec::new(), raw },
+        timeline: Vec::new(),
+        attribute_groups: vec![trace],
+        json,
+        trace_id: Some(s.trace_id),
+        span_id: Some(s.span_id),
+    }
+}
 
 #[derive(Serialize, ToSchema, Debug)]
 pub struct TagShare {
@@ -350,7 +550,7 @@ async fn load_issues(st: &AppState, org: &str, range: TimeRange, query: &str, bu
             "SELECT toString(service) AS service, toString(error_kind) AS kind, error_key AS key, \
              argMax(substringUTF8(message, 1, 300), timestamp) AS sample, count() AS n, \
              toUnixTimestamp64Milli(min(timestamp)) AS first, toUnixTimestamp64Milli(max(timestamp)) AS last, \
-             sumMap([toUInt32(intDiv(toUnixTimestamp64Milli(timestamp) - ?, ?))], [toUInt64(1)]) AS spark \
+             sumMap([toUInt32(intDiv(toUnixTimestamp64Milli(timestamp) - ?, ?))], [toUInt64(1)]) AS spark, '' AS lang \
              FROM {} WHERE {} AND status = 'error'{narrowing} \
              GROUP BY service, error_kind, error_key ORDER BY n DESC LIMIT ?",
             s.table, s.clause
@@ -359,7 +559,58 @@ async fn load_issues(st: &AppState, org: &str, range: TimeRange, query: &str, bu
     )
     .fetch_all::<ErrorRow>()
     .await?;
-    Ok(group_issues(rows, buckets))
+    Ok(group_issues(rows, buckets, Source::Logs))
+}
+
+/// The organization's issues from APM error spans in `range` (matching `query`), `buckets` per
+/// sparkline; with `only`, just that issue's spans.
+async fn load_span_issues(st: &AppState, org: &str, range: TimeRange, query: &str, buckets: usize, only: Option<&IssueGroup>) -> Result<Vec<IssueGroup>, ApiError> {
+    let (clause, scope_params) = span_scope(range, &parse_query(query));
+    let width = ((range.to - range.from) / buckets as i64).max(1);
+    // Bucket parameters first (they come first in the SQL), then the scope.
+    let mut params = vec![Param::Int(range.from), Param::Int(width)];
+    params.extend(scope_params);
+    let (kind, key, message) = (span_kind_sql(), span_key_sql(), span_message_sql());
+    let narrowing = match only {
+        Some(g) => {
+            params.extend([Param::Str(g.service.clone()), Param::Str(g.kind.clone()), Param::Str(g.key.clone())]);
+            format!(" AND ServiceName = ? AND {kind} = ? AND {key} = ?")
+        }
+        None => String::new(),
+    };
+    params.push(Param::Int(GROUP_LIMIT));
+    let rows = bind(
+        st.ch(org).query(&format!(
+            "SELECT toString(ServiceName) AS service, {kind} AS kind, {key} AS key, \
+             argMax(substringUTF8({message}, 1, 300), Timestamp) AS sample, count() AS n, \
+             toUnixTimestamp64Milli(min(Timestamp)) AS first, toUnixTimestamp64Milli(max(Timestamp)) AS last, \
+             sumMap([toUInt32(intDiv(toUnixTimestamp64Milli(Timestamp) - ?, ?))], [toUInt64(1)]) AS spark, argMax({SPAN_LANGUAGE_SQL}, Timestamp) AS lang \
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause}{narrowing} \
+             GROUP BY service, kind, key ORDER BY n DESC LIMIT ?"
+        )),
+        &params,
+    )
+    .fetch_all::<ErrorRow>()
+    .await?;
+    Ok(group_issues(rows, buckets, Source::Apm))
+}
+
+/// The issues of one source.
+async fn load_source(st: &AppState, org: &str, source: Source, range: TimeRange, query: &str, buckets: usize, only: Option<&IssueGroup>) -> Result<Vec<IssueGroup>, ApiError> {
+    match source {
+        Source::Logs => load_issues(st, org, range, query, buckets, only).await,
+        Source::Apm => load_span_issues(st, org, range, query, buckets, only).await,
+    }
+}
+
+/// The issue `id` in range, from whichever source has it.
+async fn find_issue(st: &AppState, org: &str, range: TimeRange, query: &str, id: &str) -> Result<Option<IssueGroup>, ApiError> {
+    for source in [Source::Logs, Source::Apm] {
+        if let Some(g) = load_source(st, org, source, range, query, 1, None).await?.into_iter().find(|g| g.id == id) {
+            return Ok(Some(g));
+        }
+    }
+    Ok(None)
 }
 
 /// Saved decisions of the organization's issues.
@@ -383,9 +634,9 @@ async fn saved_states(st: &AppState, org: &str) -> Result<HashMap<String, Saved>
 fn issue_out(i: StatedIssue) -> IssueOut {
     let StatedIssue { group: g, status, regression, assignee } = i;
     IssueOut {
-        platform: platform_of(&g.error_type, &g.message).into(),
+        platform: issue_platform(&g.language, &g.error_type, &g.message).into(),
         persona: "backend".into(),
-        source: "logs".into(),
+        source: g.source.name().into(),
         status,
         assignee,
         team: None,
@@ -403,17 +654,16 @@ fn issue_out(i: StatedIssue) -> IssueOut {
     }
 }
 
-/// Issues from the organization's error logs in the range (first and last seen within it).
+/// Issues from the organization's error logs and APM error spans in the range (first and last seen within it).
 #[utoipa::path(post, path = "/api/v1/error-tracking/issues/search", request_body = IssueSearchRequest,
     responses((status = 200, body = IssueSearchPage)), tag = "error-tracking")]
 pub async fn search_issues(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<IssueSearchRequest>) -> ApiResult<IssueSearchPage> {
     req.range.validate()?;
-    let mut issues = if matches!(req.source.as_str(), "logs" | "all") { load_issues(&st, &org, req.range, &req.query, SPARK_BUCKETS, None).await? } else { Vec::new() };
-    match req.sort.as_deref() {
-        Some("last_seen") => issues.sort_by(|a, b| b.last_seen.cmp(&a.last_seen)),
-        Some("first_seen") => issues.sort_by(|a, b| b.first_seen.cmp(&a.first_seen)),
-        _ => {}
+    let mut issues = Vec::new();
+    for source in sources_of(&req.source) {
+        issues.extend(load_source(&st, &org, source, req.range, &req.query, SPARK_BUCKETS, None).await?);
     }
+    let issues = order_issues(issues, req.sort.as_deref());
     let saved = saved_states(&st, &org).await?;
     let (issues, totals) = apply_states(issues, &saved, &req.state);
     let offset = req.cursor.as_deref().and_then(|c| c.parse::<usize>().ok()).unwrap_or(0);
@@ -492,6 +742,27 @@ async fn issue_logs(st: &AppState, org: &str, range: TimeRange, query: &str, gro
     Ok(rows.into_iter().filter(|r| log_matches(&group.id, &r.service, &r.kind, &r.message)).collect())
 }
 
+/// The newest (or oldest) error spans in range that belong to the issue (its service, type and message shape).
+async fn issue_spans(st: &AppState, org: &str, range: TimeRange, query: &str, group: &IssueGroup, oldest: bool) -> Result<Vec<SpanRow>, ApiError> {
+    let (clause, mut params) = span_scope(range, &parse_query(query));
+    params.extend([Param::Str(group.service.clone()), Param::Str(group.kind.clone()), Param::Str(group.key.clone()), Param::Int(ISSUE_LOGS)]);
+    let (kind, key, message) = (span_kind_sql(), span_key_sql(), span_message_sql());
+    Ok(bind(
+        st.ch(org).query(&format!(
+            "SELECT TraceId AS trace_id, SpanId AS span_id, toUnixTimestamp64Milli(Timestamp) AS t, toString(ServiceName) AS service, \
+             toString(SpanName) AS resource, substringUTF8({message}, 1, 5000) AS message, \
+             substringUTF8({EXCEPTION}['exception.stacktrace'], 1, 20000) AS stack, \
+             toJSONString(ResourceAttributes) AS resource_json, toJSONString(SpanAttributes) AS attributes_json \
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND ServiceName = ? AND {kind} = ? AND {key} = ? \
+             ORDER BY Timestamp {} LIMIT ?",
+            if oldest { "ASC" } else { "DESC" }
+        )),
+        &params,
+    )
+    .fetch_all::<SpanRow>()
+    .await?)
+}
+
 fn valid_issue_id(id: &str) -> Result<(), ApiError> {
     if id.len() != 16 || !id.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err(ApiError::BadRequest("invalid issue id".into()));
@@ -499,19 +770,27 @@ fn valid_issue_id(id: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
-/// One issue in the range: its histogram, the tags of its logs and its saved state.
+/// One issue in the range: its histogram, the tags of its logs (or spans) and its saved state.
 #[utoipa::path(post, path = "/api/v1/error-tracking/issues/{id}", params(("id" = String, Path)), request_body = IssueDetailRequest, responses((status = 200, body = IssueDetailOut)), tag = "error-tracking")]
 pub async fn issue_detail(State(st): State<AppState>, OrgId(org): OrgId, Path(id): Path<String>, Json(req): Json<IssueDetailRequest>) -> ApiResult<IssueDetailOut> {
     valid_issue_id(&id)?;
     req.range.validate()?;
-    let found = load_issues(&st, &org, req.range, &req.query, 1, None).await?.into_iter().find(|g| g.id == id).ok_or_else(|| ApiError::NotFound("no such issue in this time range".into()))?;
-    // Its own logs only, for exact counts and a finer histogram.
-    let group = load_issues(&st, &org, req.range, &req.query, DETAIL_BUCKETS, Some(&found)).await?.into_iter().find(|g| g.id == id).unwrap_or(found);
+    let found = find_issue(&st, &org, req.range, &req.query, &id).await?.ok_or_else(|| ApiError::NotFound("no such issue in this time range".into()))?;
+    // Its own errors only, for exact counts and a finer histogram.
+    let group = load_source(&st, &org, found.source, req.range, &req.query, DETAIL_BUCKETS, Some(&found)).await?.into_iter().find(|g| g.id == id).unwrap_or(found);
     let width = ((req.range.to - req.range.from) / DETAIL_BUCKETS as i64).max(1);
     let histogram = group.sparkline.iter().enumerate().map(|(i, n)| HistogramPoint { t: req.range.from + i as i64 * width, count: *n }).collect();
-    let logs = issue_logs(&st, &org, req.range, &req.query, &group, false).await?;
-    let tag_maps: Vec<HashMap<String, String>> = logs.iter().map(|l| serde_json::from_str(&l.tags_json).unwrap_or_default()).collect();
-    let tags = tag_distribution(&tag_maps, &TAG_KEYS);
+    let tags = match group.source {
+        Source::Logs => {
+            let logs = issue_logs(&st, &org, req.range, &req.query, &group, false).await?;
+            let tag_maps: Vec<HashMap<String, String>> = logs.iter().map(|l| serde_json::from_str(&l.tags_json).unwrap_or_default()).collect();
+            tag_distribution(&tag_maps, &TAG_KEYS)
+        }
+        Source::Apm => {
+            let spans = issue_spans(&st, &org, req.range, &req.query, &group, false).await?;
+            tag_distribution(&spans.iter().map(span_tags).collect::<Vec<_>>(), &SPAN_TAG_KEYS)
+        }
+    };
     let saved = saved_states(&st, &org).await?;
     let (mut stated, _) = apply_states(vec![group], &saved, "all");
     let issue = issue_out(stated.remove(0));
@@ -548,27 +827,38 @@ pub struct SampleOut {
     pub timeline: Vec<serde_json::Value>,
     pub attribute_groups: Vec<serde_json::Value>,
     pub json: serde_json::Value,
+    /// The trace and span of an APM sample, for a link to the trace.
+    pub trace_id: Option<String>,
+    pub span_id: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
 pub struct SamplePage {
     pub sample: Option<SampleOut>,
     pub index: usize,
-    /// The issue's logs in range.
+    /// The issue's logs (or spans) in range.
     pub total: u64,
-    /// Logs that can be paged through (the newest or oldest 2,000).
+    /// Logs (or spans) that can be paged through (the newest or oldest 2,000).
     pub available: usize,
 }
 
-/// One log of the issue (the `index`-th newest or oldest in range), and how many there are.
+/// One log (or span) of the issue (the `index`-th newest or oldest in range), and how many there are.
 #[utoipa::path(post, path = "/api/v1/error-tracking/issues/{id}/samples", params(("id" = String, Path)), request_body = SampleRequest, responses((status = 200, body = SamplePage)), tag = "error-tracking")]
 pub async fn issue_samples(State(st): State<AppState>, OrgId(org): OrgId, Path(id): Path<String>, Json(req): Json<SampleRequest>) -> ApiResult<SamplePage> {
     valid_issue_id(&id)?;
     req.range.validate()?;
-    let Some(group) = load_issues(&st, &org, req.range, &req.query, 1, None).await?.into_iter().find(|g| g.id == id) else {
+    let Some(group) = find_issue(&st, &org, req.range, &req.query, &id).await? else {
         return Ok(Json(SamplePage { sample: None, index: 0, total: 0, available: 0 }));
     };
-    let logs = issue_logs(&st, &org, req.range, &req.query, &group, req.order.as_deref() == Some("oldest")).await?;
+    let oldest = req.order.as_deref() == Some("oldest");
+    if group.source == Source::Apm {
+        let spans = issue_spans(&st, &org, req.range, &req.query, &group, oldest).await?;
+        let available = spans.len();
+        let index = req.index.min(available.saturating_sub(1));
+        let sample = spans.into_iter().nth(index).map(|s| span_sample(s, &group.error_type));
+        return Ok(Json(SamplePage { sample, index, total: group.count, available }));
+    }
+    let logs = issue_logs(&st, &org, req.range, &req.query, &group, oldest).await?;
     let available = logs.len();
     let index = req.index.min(available.saturating_sub(1));
     let sample = logs.into_iter().nth(index).map(|l| {
@@ -587,6 +877,8 @@ pub async fn issue_samples(State(st): State<AppState>, OrgId(org): OrgId, Path(i
             timeline: Vec::new(),
             attribute_groups: Vec::new(),
             json,
+            trace_id: None,
+            span_id: None,
         }
     });
     Ok(Json(SamplePage { sample, index, total: group.count, available }))
@@ -603,16 +895,21 @@ pub(crate) struct FacetRow {
     pub n: u64,
 }
 
-/// Facets in [`ISSUE_FACETS`] order, most issues first, without empty values.
+/// Facets in [`ISSUE_FACETS`] order, most issues first, without empty values. Rows of several
+/// sources add up (their issues are distinct).
 pub(crate) fn issue_facets_of(rows: Vec<FacetRow>) -> Vec<Facet> {
     let mut facets: Vec<Facet> = ISSUE_FACETS.iter().map(|(key, label)| Facet { key: key.to_string(), label: label.to_string(), group: String::new(), values: Vec::new() }).collect();
     for r in rows.into_iter().filter(|r| !r.v.is_empty()) {
         if let Some(f) = facets.iter_mut().find(|f| f.key == r.k) {
-            f.values.push(FacetValue { value: r.v, count: r.n });
+            match f.values.iter_mut().find(|v| v.value == r.v) {
+                Some(v) => v.count += r.n,
+                None => f.values.push(FacetValue { value: r.v, count: r.n }),
+            }
         }
     }
     for f in &mut facets {
         f.values.sort_by(|a, b| b.count.cmp(&a.count).then(a.value.cmp(&b.value)));
+        f.values.truncate(FACET_VALUES as usize);
     }
     facets
 }
@@ -622,6 +919,9 @@ pub struct IssueFacetsRequest {
     pub range: TimeRange,
     #[serde(default)]
     pub query: String,
+    /// logs | rum | apm | all
+    #[serde(default = "all_state")]
+    pub source: String,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -634,15 +934,13 @@ pub struct IssueFacetsOut {
 /// Values per facet in range: 20 per facet.
 const FACET_VALUES: i64 = 20;
 
-/// How many issues have logs with each service, env and version.
-#[utoipa::path(post, path = "/api/v1/error-tracking/issues/facets", request_body = IssueFacetsRequest, responses((status = 200, body = IssueFacetsOut)), tag = "error-tracking")]
-pub async fn issue_facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<IssueFacetsRequest>) -> ApiResult<IssueFacetsOut> {
-    req.range.validate()?;
-    let s = scope(&org, req.range, &parse_query(&req.query), None);
+/// Log issues per service, env and version.
+async fn log_facet_rows(st: &AppState, org: &str, range: TimeRange, query: &str) -> Result<Vec<FacetRow>, ApiError> {
+    let s = scope(org, range, &parse_query(query), None);
     let mut params = s.params;
     params.push(Param::Int(FACET_VALUES));
-    let rows = bind(
-        st.ch(&org).query(&format!(
+    Ok(bind(
+        st.ch(org).query(&format!(
             "SELECT kv.1 AS k, kv.2 AS v, uniqExact(service, error_kind, error_key) AS n \
              FROM {} ARRAY JOIN [('service', toString(service)), ('env', tags['env']), ('version', tags['version'])] AS kv \
              WHERE {} AND status = 'error' GROUP BY k, v ORDER BY n DESC LIMIT ? BY k",
@@ -651,7 +949,38 @@ pub async fn issue_facets(State(st): State<AppState>, OrgId(org): OrgId, Json(re
         &params,
     )
     .fetch_all::<FacetRow>()
-    .await?;
+    .await?)
+}
+
+/// APM issues per service, env and version.
+async fn span_facet_rows(st: &AppState, org: &str, range: TimeRange, query: &str) -> Result<Vec<FacetRow>, ApiError> {
+    let (clause, mut params) = span_scope(range, &parse_query(query));
+    params.push(Param::Int(FACET_VALUES));
+    let (kind, key) = (span_kind_sql(), span_key_sql());
+    Ok(bind(
+        st.ch(org).query(&format!(
+            "SELECT kv.1 AS k, kv.2 AS v, uniqExact(ServiceName, {kind}, {key}) AS n \
+             FROM otel.otel_traces ARRAY JOIN [('service', toString(ServiceName)), ('env', ResourceAttributes['deployment.environment']), \
+             ('version', ResourceAttributes['service.version'])] AS kv \
+             WHERE OrgId = {{oc_org:String}} AND {clause} GROUP BY k, v ORDER BY n DESC LIMIT ? BY k"
+        )),
+        &params,
+    )
+    .fetch_all::<FacetRow>()
+    .await?)
+}
+
+/// How many issues have logs (or spans) with each service, env and version.
+#[utoipa::path(post, path = "/api/v1/error-tracking/issues/facets", request_body = IssueFacetsRequest, responses((status = 200, body = IssueFacetsOut)), tag = "error-tracking")]
+pub async fn issue_facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<IssueFacetsRequest>) -> ApiResult<IssueFacetsOut> {
+    req.range.validate()?;
+    let mut rows = Vec::new();
+    for source in sources_of(&req.source) {
+        rows.extend(match source {
+            Source::Logs => log_facet_rows(&st, &org, req.range, &req.query).await?,
+            Source::Apm => span_facet_rows(&st, &org, req.range, &req.query).await?,
+        });
+    }
     Ok(Json(IssueFacetsOut { facets: issue_facets_of(rows), total_available: ISSUE_FACETS.len() }))
 }
 
@@ -714,7 +1043,7 @@ mod tests {
     use super::*;
 
     fn row(service: &str, message: &str, n: u64, first: i64, last: i64, spark: (Vec<u32>, Vec<u64>)) -> ErrorRow {
-        ErrorRow { service: service.into(), kind: String::new(), key: shape_key(message), message: message.into(), n, first, last, spark }
+        ErrorRow { service: service.into(), kind: String::new(), key: shape_key(message), message: message.into(), n, first, last, spark, lang: String::new() }
     }
 
     #[test]
@@ -746,6 +1075,8 @@ mod tests {
             first_seen: 0,
             last_seen,
             sparkline: vec![],
+            source: Source::Logs,
+            language: String::new(),
         }
     }
 
@@ -782,7 +1113,7 @@ mod tests {
         assert_eq!(strip_ansi("Query executed in \u{1b}[92m0.0029s\u{1b}[0m | done"), "Query executed in 0.0029s | done");
         assert_eq!(strip_ansi("\u{1b}[1;31mERROR\u{1b}[0m x"), "ERROR x");
         assert_eq!(strip_ansi("plain [92m text"), "plain [92m text");
-        let issues = group_issues(vec![row("billing", "\u{1b}[31mValueError\u{1b}[0m: bad", 1, 0, 0, (vec![0], vec![1]))], 1);
+        let issues = group_issues(vec![row("billing", "\u{1b}[31mValueError\u{1b}[0m: bad", 1, 0, 0, (vec![0], vec![1]))], 1, Source::Logs);
         assert_eq!(issues[0].message, "ValueError: bad");
     }
 
@@ -849,6 +1180,115 @@ mod tests {
     }
 
     #[test]
+    fn a_search_reads_the_sources_it_names() {
+        assert_eq!(sources_of("all"), vec![Source::Logs, Source::Apm]);
+        assert_eq!(sources_of("logs"), vec![Source::Logs]);
+        assert_eq!(sources_of("apm"), vec![Source::Apm]);
+        // No RUM product yet: no issues rather than other sources' issues.
+        assert!(sources_of("rum").is_empty());
+    }
+
+    #[test]
+    fn span_issue_ids_are_stable_and_apart_from_log_issue_ids() {
+        let key = shape_key("ValueError: order 41 not found");
+        let id = span_issue_id("billing", "ValueError", &key);
+        assert_eq!(id, span_issue_id("billing", "ValueError", &shape_key("ValueError: order 982 not found")));
+        assert_eq!((id.len(), id.chars().all(|c| c.is_ascii_hexdigit())), (16, true));
+        // The same error in logs and in spans makes two issues, with their own saved states.
+        assert_ne!(id, issue_id("billing", "ValueError", &key));
+        assert_ne!(id, span_issue_id("checkout", "ValueError", &key));
+        // Log issue ids don't change (saved states are keyed by them).
+        assert_eq!(issue_id("billing", "", "x"), "fd91b72e354d5ffe");
+        let mut r = row("billing", "ValueError: order 41 not found", 2, 0, 0, (vec![0], vec![2]));
+        r.kind = "ValueError".into();
+        let issues = group_issues(vec![r], 1, Source::Apm);
+        assert_eq!((issues[0].id.as_str(), issues[0].source), (id.as_str(), Source::Apm));
+    }
+
+    #[test]
+    fn the_span_language_names_the_platform() {
+        assert_eq!(issue_platform("java", "Error", "boom"), "java");
+        assert_eq!(issue_platform("nodejs", "Error", "boom"), "node");
+        assert_eq!(issue_platform("dotnet", "Error", "boom"), "dotnet");
+        assert_eq!(issue_platform("python", "Error", "boom"), "python");
+        assert_eq!(issue_platform("go", "Error", "boom"), "go");
+        // Without a known language, the error itself tells (or nothing does).
+        assert_eq!(issue_platform("", "java.lang.IllegalStateException", ""), "java");
+        assert_eq!(issue_platform("ruby", "Error", "boom"), "unknown");
+    }
+
+    #[test]
+    fn spans_compute_the_issue_key_like_logs() {
+        // The span key is the logs' key SQL over the span's message (exception message, status message, span name).
+        assert_eq!(key_sql_of("message"), key_sql());
+        let key = span_key_sql();
+        assert!(key.starts_with("substringUTF8(replaceRegexpAll(substringUTF8(multiIf("));
+        assert!(span_message_sql().contains("['exception.message']") && span_message_sql().contains("StatusMessage"));
+        assert!(span_kind_sql().contains("['exception.type']"));
+    }
+
+    fn span(message: &str, stack: &str) -> SpanRow {
+        SpanRow {
+            trace_id: "4bf92f3577b34da6a3ce929d0e0e4736".into(),
+            span_id: "00f067aa0ba902b7".into(),
+            t: 1_000,
+            service: "billing".into(),
+            resource: "POST /invoices".into(),
+            message: message.into(),
+            stack: stack.into(),
+            resource_json: r#"{"service.name":"billing","deployment.environment":"prod","service.version":"1.4.2","host.name":"i-0a1b2c3d4e5f60003","k8s.pod.name":"billing-7d9f8c6b5-x2x4q","oc.org_id":"default"}"#.into(),
+            attributes_json: r#"{"http.route":"/invoices"}"#.into(),
+        }
+    }
+
+    #[test]
+    fn span_tags_name_the_service_resource_and_where_it_ran() {
+        let tags = span_tags(&span("boom", ""));
+        let get = |k: &str| tags.get(k).map(String::as_str);
+        assert_eq!((get("service"), get("resource_name"), get("env"), get("version")), (Some("billing"), Some("POST /invoices"), Some("prod"), Some("1.4.2")));
+        assert_eq!((get("host"), get("pod_name"), get("kube_namespace")), (Some("i-0a1b2c3d4e5f60003"), Some("billing-7d9f8c6b5-x2x4q"), None));
+    }
+
+    #[test]
+    fn a_span_sample_has_its_stack_and_trace() {
+        let s = span_sample(span("invoice 42 locked\nretry later", "InvoiceLocked: invoice 42 locked\n    at billing.handler"), "InvoiceLocked");
+        assert_eq!((s.trace_id.as_deref(), s.span_id.as_deref()), (Some("4bf92f3577b34da6a3ce929d0e0e4736"), Some("00f067aa0ba902b7")));
+        assert_eq!(s.stack.title, "InvoiceLocked: invoice 42 locked");
+        assert_eq!(s.stack.raw, "InvoiceLocked: invoice 42 locked\n    at billing.handler");
+        assert_eq!((s.id.as_str(), s.timestamp), ("00f067aa0ba902b7", 1_000));
+        assert_eq!(s.tags.get("env").map(String::as_str), Some("prod"));
+        assert_eq!(s.json["trace_id"], "4bf92f3577b34da6a3ce929d0e0e4736");
+        assert_eq!(s.json["attributes"]["http.route"], "/invoices");
+        assert_eq!(s.json["error"]["message"], "invoice 42 locked\nretry later");
+        // Internal attributes stay internal.
+        assert!(s.json["resource"].get("oc.org_id").is_none());
+        // Without a stack trace, the message stands in for it.
+        assert_eq!(span_sample(span("timeout", ""), "Error").stack.raw, "timeout");
+    }
+
+    #[test]
+    fn issues_of_both_sources_merge_in_one_order() {
+        let issue = |id: &str, source: Source, count: u64, first_seen: i64, last_seen: i64| IssueGroup { source, count, first_seen, ..group(id, last_seen) };
+        let issues = || vec![issue("a", Source::Logs, 3, 10, 50), issue("b", Source::Apm, 9, 20, 40), issue("c", Source::Apm, 3, 30, 60)];
+        let ids = |v: Vec<IssueGroup>| v.into_iter().map(|g| g.id).collect::<Vec<_>>();
+        // Most frequent first (ties by id), as for logs alone.
+        assert_eq!(ids(order_issues(issues(), None)), vec!["b", "a", "c"]);
+        assert_eq!(ids(order_issues(issues(), Some("last_seen"))), vec!["c", "a", "b"]);
+        assert_eq!(ids(order_issues(issues(), Some("first_seen"))), vec!["c", "b", "a"]);
+    }
+
+    #[test]
+    fn facet_counts_of_both_sources_add_up() {
+        let rows = vec![
+            FacetRow { k: "service".into(), v: "billing".into(), n: 2 },
+            FacetRow { k: "service".into(), v: "checkout".into(), n: 3 },
+            FacetRow { k: "service".into(), v: "billing".into(), n: 4 },
+        ];
+        let facets = issue_facets_of(rows);
+        assert_eq!(facets[0].values.iter().map(|v| (v.value.as_str(), v.count)).collect::<Vec<_>>(), vec![("billing", 6), ("checkout", 3)]);
+    }
+
+    #[test]
     fn each_clickhouse_key_is_one_issue_with_its_sparkline() {
         // One row per (service, kind, shape key), aggregated by ClickHouse with its buckets.
         let rows = vec![
@@ -856,7 +1296,7 @@ mod tests {
             row("billing", "TimeoutError: upstream timed out after 30s", 1, 3_000, 3_000, (vec![2], vec![1])),
             row("checkout", "ValueError: order 7 not found", 1, 4_000, 4_000, (vec![3], vec![1])),
         ];
-        let issues = group_issues(rows, 12);
+        let issues = group_issues(rows, 12, Source::Logs);
         assert_eq!(issues.len(), 3);
         let top = &issues[0];
         assert_eq!((top.service.as_str(), top.error_type.as_str(), top.count), ("billing", "ValueError", 5));

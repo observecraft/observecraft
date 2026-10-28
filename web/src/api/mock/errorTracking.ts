@@ -934,6 +934,9 @@ function buildSample(s: StoredIssue, ts: number, r: Rand, tags: Record<string, s
         { at: ts - 40, type: 'log', label: 'Log', message: 'request received POST /api/v1/process' },
       ];
 
+  // Backend errors happen in a trace; APM samples link to it.
+  const traceId = frontend ? '' : hexStr(r, 32);
+  const spanId = frontend ? '' : hexStr(r, 16);
   const attributeGroups: AttributeGroup[] = frontend
     ? [
         {
@@ -987,8 +990,8 @@ function buildSample(s: StoredIssue, ts: number, r: Rand, tags: Record<string, s
         {
           name: 'Trace',
           attributes: [
-            { label: 'Trace Id', value: hexStr(r, 32) },
-            { label: 'Span Id', value: hexStr(r, 16) },
+            { label: 'Trace Id', value: traceId },
+            { label: 'Span Id', value: spanId },
           ],
         },
       ];
@@ -1005,7 +1008,7 @@ function buildSample(s: StoredIssue, ts: number, r: Rand, tags: Record<string, s
           }
         : {}),
       error: { type: b.errorType, message: b.message, is_crash: b.isCrash, source: b.source, stack: rawStack(title, list.slice(0, 4)) },
-      ...(frontend ? { view: { id: viewId, name: view }, session: { id: sessionId } } : { host: tags.host, trace_id: hexStr(r, 32) }),
+      ...(frontend ? { view: { id: viewId, name: view }, session: { id: sessionId } } : { host: tags.host, trace_id: traceId }),
       env: s.env,
       service: b.service,
       version: tags.version,
@@ -1013,7 +1016,8 @@ function buildSample(s: StoredIssue, ts: number, r: Rand, tags: Record<string, s
     date: new Date(ts).toISOString(),
   };
 
-  return { id: `${b.id}-${ts}`, timestamp: ts, tags, stack: { title, frames: list, raw: rawStack(title, list) }, timeline, attributeGroups, json };
+  const trace = b.source === 'apm' ? { traceId, spanId } : {};
+  return { id: `${b.id}-${ts}`, timestamp: ts, tags, stack: { title, frames: list, raw: rawStack(title, list) }, timeline, attributeGroups, json, ...trace };
 }
 
 export function getErrorSample(req: ErrorSampleRequest): Promise<ErrorSamplePage> {

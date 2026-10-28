@@ -22,7 +22,7 @@ use super::logs::{bind, TimeRange};
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, OrgId};
 
-const ENTRY: &str = "SpanKind IN ('Server', 'Consumer')";
+pub(crate) const ENTRY: &str = "SpanKind IN ('Server', 'Consumer')";
 const OUTBOUND: &str = "SpanKind IN ('Client', 'Producer')";
 const PEER: &str = "SpanAttributes['peer.service']";
 

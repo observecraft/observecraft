@@ -129,6 +129,9 @@ export interface ErrorSample {
   timeline: TimelineEvent[];
   attributeGroups: AttributeGroup[];
   json: Record<string, JsonValue>;
+  /** The trace and span of an APM sample (absent for logs and RUM). */
+  traceId?: string | null;
+  spanId?: string | null;
 }
 
 export interface ErrorSampleRequest {

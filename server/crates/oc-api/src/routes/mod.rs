@@ -652,6 +652,7 @@ mod tests {
             ("archives.rs", include_str!("archives.rs")),
             ("ci.rs", include_str!("ci.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),
+            ("error_tracking.rs", include_str!("error_tracking.rs")),
             ("hosts.rs", include_str!("hosts.rs")),
             ("events.rs", include_str!("events.rs")),
             ("network.rs", include_str!("network.rs")),

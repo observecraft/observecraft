@@ -855,7 +855,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** How many issues have logs with each service, env and version. */
+        /** How many issues have logs (or spans) with each service, env and version. */
         post: operations["issue_facets"];
         delete?: never;
         options?: never;
@@ -872,7 +872,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Issues from the organization's error logs in the range (first and last seen within it). */
+        /** Issues from the organization's error logs and APM error spans in the range (first and last seen within it). */
         post: operations["search_issues"];
         delete?: never;
         options?: never;
@@ -889,7 +889,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** One issue in the range: its histogram, the tags of its logs and its saved state. */
+        /** One issue in the range: its histogram, the tags of its logs (or spans) and its saved state. */
         post: operations["issue_detail"];
         delete?: never;
         options?: never;
@@ -906,7 +906,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** One log of the issue (the `index`-th newest or oldest in range), and how many there are. */
+        /** One log (or span) of the issue (the `index`-th newest or oldest in range), and how many there are. */
         post: operations["issue_samples"];
         delete?: never;
         options?: never;
@@ -4414,6 +4414,8 @@ export interface components {
         IssueFacetsRequest: {
             query?: string;
             range: components["schemas"]["TimeRange"];
+            /** @description logs | rum | apm | all */
+            source?: string;
         };
         IssueOut: {
             assignee?: null | components["schemas"]["UserRef"];
@@ -5743,6 +5745,7 @@ export interface components {
             attributeGroups: unknown[];
             id: string;
             json: unknown;
+            spanId?: string | null;
             stack: components["schemas"]["StackOut"];
             tags: {
                 [key: string]: string;
@@ -5750,15 +5753,17 @@ export interface components {
             timeline: unknown[];
             /** Format: int64 */
             timestamp: number;
+            /** @description The trace and span of an APM sample, for a link to the trace. */
+            traceId?: string | null;
         };
         SamplePage: {
-            /** @description Logs that can be paged through (the newest or oldest 2,000). */
+            /** @description Logs (or spans) that can be paged through (the newest or oldest 2,000). */
             available: number;
             index: number;
             sample?: null | components["schemas"]["SampleOut"];
             /**
              * Format: int64
-             * @description The issue's logs in range.
+             * @description The issue's logs (or spans) in range.
              */
             total: number;
         };
