@@ -3420,6 +3420,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/portal/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_portal_actions"];
+        put?: never;
+        post: operations["create_portal_action"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/actions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_portal_action"];
+        put: operations["update_portal_action"];
+        post?: never;
+        delete: operations["delete_portal_action"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/actions/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_portal_action_runs"];
+        put?: never;
+        /** Runs the action now with the given inputs, as the signed-in user. */
+        post: operations["run_portal_action"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/portal/apps": {
         parameters: {
             query?: never;
@@ -3601,6 +3650,89 @@ export interface paths {
         };
         /** Which telemetry signals feed the catalog (last 24 hours) and the external source connectors. */
         get: operations["portal_sources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/surveys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_portal_surveys"];
+        put?: never;
+        post: operations["create_portal_survey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/surveys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_portal_survey"];
+        put: operations["update_portal_survey"];
+        post?: never;
+        delete: operations["delete_portal_survey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/surveys/{id}/form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The survey as its respondents see it. */
+        get: operations["get_portal_survey_form"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/surveys/{id}/responses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every response, newest first, for the CSV export. Anonymous surveys name no one and list no teams. */
+        get: operations["list_portal_survey_responses"];
+        put?: never;
+        /** Records the signed-in member's response; each member responds once. */
+        post: operations["submit_portal_survey_response"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/surveys/{id}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_portal_survey_results"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4485,6 +4617,47 @@ export interface components {
             RelayState?: string | null;
             SAMLResponse: string;
         };
+        ActionHeader: {
+            name: string;
+            /** @description Template. */
+            value: string;
+        };
+        /** @description One outbound request; its response must be 2xx for the run to go on. */
+        ActionHttpRequest: {
+            /** @description JSON template sent as `application/json`; empty for no body. */
+            body?: string;
+            headers?: components["schemas"]["ActionHeader"][];
+            /** @description GET, POST, PUT, PATCH or DELETE. */
+            method: string;
+            /** @description Template; scheme and host are literal. */
+            url: string;
+        };
+        /** @description A field of the action's form. */
+        ActionInput: {
+            /** @description Pre-filled value (`true` / `false` for booleans). */
+            default?: string;
+            description?: string;
+            /** @description Name used in templates (`{{inputs.<key>}}`): `[a-z0-9_]`. */
+            key: string;
+            kind: components["schemas"]["ActionInputKind"];
+            label: string;
+            /** @description Select only. */
+            options?: string[];
+            required?: boolean;
+        };
+        /** @enum {string} */
+        ActionInputKind: "text" | "select" | "number" | "boolean";
+        ActionStep: {
+            /** @description Internal steps: a template per field. */
+            fields?: {
+                [key: string]: string;
+            };
+            kind: components["schemas"]["ActionStepKind"];
+            /** @description Http only. */
+            requests?: components["schemas"]["ActionHttpRequest"][];
+        };
+        /** @enum {string} */
+        ActionStepKind: "http" | "create_incident" | "page_on_call" | "incident_comment" | "synthetic_run";
         AddResponder: {
             role: string;
             userId: string;
@@ -8543,6 +8716,82 @@ export interface components {
             repository: string;
             revision: string;
         };
+        PortalAction: {
+            allowedTeams: string[];
+            blueprint: string;
+            /** @description The signed-in user may run it. */
+            canRun: boolean;
+            category: components["schemas"]["PortalActionCategory"];
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            id: string;
+            inputs: components["schemas"]["ActionInput"][];
+            /** Format: int64 */
+            lastRunAt?: number | null;
+            /** @description succeeded | failed, for the latest run. */
+            lastRunStatus?: string | null;
+            name: string;
+            ownerTeam: string;
+            /** Format: int64 */
+            runs: number;
+            /** @description Names of the stored credentials (values are never returned). */
+            secretNames: string[];
+            step: components["schemas"]["ActionStep"];
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        /** @enum {string} */
+        PortalActionCategory: "scaffolding" | "release_management" | "infrastructure_provisioning" | "incident_management" | "infrastructure_management" | "other";
+        PortalActionInput: {
+            /** @description Team handles whose members may run it; empty for every standard user and admin. */
+            allowedTeams?: string[];
+            /** @description Blueprint the action started from; empty when built from scratch. */
+            blueprint?: string;
+            category: components["schemas"]["PortalActionCategory"];
+            description?: string;
+            inputs?: components["schemas"]["ActionInput"][];
+            name: string;
+            /** @description Team handle; empty for none. */
+            ownerTeam?: string;
+            /** @description Credentials by name: a value sets one, null removes it, names left out keep their value. */
+            secrets?: {
+                [key: string]: string | null;
+            };
+            step: components["schemas"]["ActionStep"];
+        };
+        PortalActionRun: {
+            actionId: string;
+            /** Format: int64 */
+            createdAt: number;
+            /** Format: double */
+            durationMs: number;
+            error?: string | null;
+            /** Format: int64 */
+            id: number;
+            inputs: {
+                [key: string]: unknown;
+            };
+            /** @description What the run created (repository, pull request, issue, incident, page); may be empty. */
+            link: string;
+            /** @description Start of the last response (or the step's outcome), credentials redacted. */
+            responseExcerpt: string;
+            /** @description succeeded | failed */
+            status: string;
+            /**
+             * Format: int32
+             * @description HTTP status of the last request sent.
+             */
+            statusCode?: number | null;
+            userName: string;
+        };
+        PortalActionRunInput: {
+            /** @description Value per input key. */
+            inputs?: {
+                [key: string]: unknown;
+            };
+        };
         PortalApp: {
             id: string;
             /** @description Logo registry key (`github`, `tile:servicenow`); empty for a generic icon. */
@@ -10082,6 +10331,195 @@ export interface components {
             /** @description The term being typed, e.g. `serv`, `service:`, `service:pho`, `-env:`. */
             partial?: string;
             range: components["schemas"]["TimeRange"];
+        };
+        Survey: {
+            anonymous: boolean;
+            /**
+             * Format: int64
+             * @description Members in the audience.
+             */
+            audienceSize: number;
+            audienceTeams: string[];
+            /** Format: int64 */
+            closesAt?: number | null;
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            id: string;
+            notify: string[];
+            /** Format: int64 */
+            opensAt?: number | null;
+            questions: components["schemas"]["SurveyQuestion"][];
+            /** @description The signed-in user has responded. */
+            responded: boolean;
+            /** Format: int64 */
+            responses: number;
+            state: components["schemas"]["SurveyState"];
+            status: components["schemas"]["SurveyStatus"];
+            template: string;
+            title: string;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        /** @description What a respondent sees. */
+        SurveyForm: {
+            anonymous: boolean;
+            /** Format: int64 */
+            closesAt?: number | null;
+            description: string;
+            id: string;
+            /** @description The signed-in user is in the audience. */
+            inAudience: boolean;
+            questions: components["schemas"]["SurveyQuestion"][];
+            responded: boolean;
+            state: components["schemas"]["SurveyState"];
+            title: string;
+        };
+        SurveyInput: {
+            /** @default false */
+            anonymous: boolean;
+            /**
+             * @description Team handles asked; empty for every member.
+             * @default []
+             */
+            audienceTeams: string[];
+            /**
+             * Format: int64
+             * @default null
+             */
+            closesAt: number | null;
+            /** @default  */
+            description: string;
+            /**
+             * @description Notified of each response: channel handles (`slack-devex`, `webhook-portal`) or member emails.
+             * @default []
+             */
+            notify: string[];
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             * @default null
+             */
+            opensAt: number | null;
+            /** @default [] */
+            questions: components["schemas"]["SurveyQuestion"][];
+            /** @default draft */
+            status: components["schemas"]["SurveyStatus"];
+            /**
+             * @description Template the survey started from; empty for a custom survey.
+             * @default
+             */
+            template: string;
+            /** @default  */
+            title: string;
+        };
+        SurveyNps: {
+            /** Format: int64 */
+            detractors: number;
+            /** Format: int64 */
+            passives: number;
+            /** Format: int64 */
+            promoters: number;
+            /**
+             * Format: double
+             * @description % promoters (9–10) − % detractors (0–6), −100 … 100.
+             */
+            score: number;
+        };
+        SurveyOptionCount: {
+            /** Format: int64 */
+            count: number;
+            label: string;
+        };
+        SurveyQuestion: {
+            description: string;
+            /** @description Stable key of the question within the survey (`[a-z0-9_-]`). */
+            id: string;
+            kind: components["schemas"]["SurveyQuestionKind"];
+            /** @description Single and multiple choice only. */
+            options: string[];
+            required: boolean;
+            title: string;
+        };
+        /** @enum {string} */
+        SurveyQuestionKind: "likert" | "single" | "multi" | "text" | "nps";
+        SurveyQuestionResult: {
+            /**
+             * Format: int64
+             * @description Responses that answered it.
+             */
+            answered: number;
+            /**
+             * Format: double
+             * @description Likert: mean answer (1–5).
+             */
+            average?: number | null;
+            /** @description Likert labels, 0–10 for NPS, or the options; empty for text. */
+            counts: components["schemas"]["SurveyOptionCount"][];
+            kind: components["schemas"]["SurveyQuestionKind"];
+            nps?: null | components["schemas"]["SurveyNps"];
+            questionId: string;
+            /** @description Text: the answers, newest first. */
+            texts: string[];
+            title: string;
+        };
+        SurveyResponseInput: {
+            /** @description Answer per question id: 1–5 (Likert), 0–10 (NPS), an option (single choice), options (multiple
+             *     choice) or text. */
+            answers: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description One response, for the export. Anonymous surveys never name the respondent. */
+        SurveyResponseRow: {
+            answers: {
+                [key: string]: unknown;
+            };
+            /** Format: int64 */
+            id: number;
+            respondent?: string | null;
+            /** Format: int64 */
+            submittedAt: number;
+            teams: string[];
+        };
+        SurveyResults: {
+            /** Format: int64 */
+            audienceSize: number;
+            questions: components["schemas"]["SurveyQuestionResult"][];
+            /**
+             * Format: double
+             * @description Percent of the audience who responded.
+             */
+            responseRate?: number | null;
+            /** Format: int64 */
+            responses: number;
+            surveyId: string;
+            teams: components["schemas"]["SurveyTeamRate"][];
+        };
+        /**
+         * @description Whether a survey accepts responses now: an open survey before its open date is scheduled, after
+         *     its close date closed.
+         * @enum {string}
+         */
+        SurveyState: "draft" | "scheduled" | "open" | "closed";
+        /**
+         * @description What the author sets: draft, open (accepting responses between the dates) or closed.
+         * @enum {string}
+         */
+        SurveyStatus: "draft" | "open" | "closed";
+        SurveyTeamRate: {
+            /** Format: int64 */
+            members: number;
+            name: string;
+            /**
+             * Format: double
+             * @description Percent of members who responded.
+             */
+            rate?: number | null;
+            /** Format: int64 */
+            responded: number;
+            team: string;
         };
         SwitchOrgRequest: {
             org: string;
@@ -17114,6 +17552,231 @@ export interface operations {
             };
         };
     };
+    list_portal_actions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalAction"][];
+                };
+            };
+        };
+    };
+    create_portal_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalActionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalAction"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_portal_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalAction"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_portal_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalActionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalAction"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_portal_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_portal_action_runs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalActionRun"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_portal_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalActionRunInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalActionRun"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_portal_apps: {
         parameters: {
             query?: never;
@@ -17480,6 +18143,287 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PortalSources"];
+                };
+            };
+        };
+    };
+    list_portal_surveys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Survey"][];
+                };
+            };
+        };
+    };
+    create_portal_survey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Survey"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_portal_survey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Survey"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_portal_survey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Survey"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_portal_survey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_portal_survey_form: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyForm"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_portal_survey_responses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyResponseRow"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    submit_portal_survey_response: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyResponseInput"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_portal_survey_results: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyResults"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

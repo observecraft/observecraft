@@ -8677,6 +8677,308 @@
         }
       }
     },
+    "/api/v1/portal/actions": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "list_portal_actions",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalAction"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "create_portal_action",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalActionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalAction"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/actions/{id}": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "get_portal_action",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalAction"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "update_portal_action",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalActionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalAction"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "delete_portal_action",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/actions/{id}/runs": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "list_portal_action_runs",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalActionRun"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Runs the action now with the given inputs, as the signed-in user.",
+        "operationId": "run_portal_action",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalActionRunInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalActionRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/portal/apps": {
       "get": {
         "tags": [
@@ -9178,6 +9480,383 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PortalSources"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/surveys": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "list_portal_surveys",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Survey"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "create_portal_survey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SurveyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Survey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/surveys/{id}": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "get_portal_survey",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Survey"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "update_portal_survey",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SurveyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Survey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "delete_portal_survey",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/surveys/{id}/form": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "The survey as its respondents see it.",
+        "operationId": "get_portal_survey_form",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SurveyForm"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/surveys/{id}/responses": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Every response, newest first, for the CSV export. Anonymous surveys name no one and list no teams.",
+        "operationId": "list_portal_survey_responses",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SurveyResponseRow"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Records the signed-in member's response; each member responds once.",
+        "operationId": "submit_portal_survey_response",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SurveyResponseInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/surveys/{id}/results": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "get_portal_survey_results",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SurveyResults"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -11694,6 +12373,135 @@
             "type": "string"
           }
         }
+      },
+      "ActionHeader": {
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string",
+            "description": "Template."
+          }
+        }
+      },
+      "ActionHttpRequest": {
+        "type": "object",
+        "description": "One outbound request; its response must be 2xx for the run to go on.",
+        "required": [
+          "method",
+          "url"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "JSON template sent as `application/json`; empty for no body."
+          },
+          "headers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionHeader"
+            }
+          },
+          "method": {
+            "type": "string",
+            "description": "GET, POST, PUT, PATCH or DELETE."
+          },
+          "url": {
+            "type": "string",
+            "description": "Template; scheme and host are literal."
+          }
+        }
+      },
+      "ActionInput": {
+        "type": "object",
+        "description": "A field of the action's form.",
+        "required": [
+          "key",
+          "label",
+          "kind"
+        ],
+        "properties": {
+          "default": {
+            "type": "string",
+            "description": "Pre-filled value (`true` / `false` for booleans)."
+          },
+          "description": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "description": "Name used in templates (`{{inputs.<key>}}`): `[a-z0-9_]`."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ActionInputKind"
+          },
+          "label": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Select only."
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ActionInputKind": {
+        "type": "string",
+        "enum": [
+          "text",
+          "select",
+          "number",
+          "boolean"
+        ]
+      },
+      "ActionStep": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "fields": {
+            "type": "object",
+            "description": "Internal steps: a template per field.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ActionStepKind"
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionHttpRequest"
+            },
+            "description": "Http only."
+          }
+        }
+      },
+      "ActionStepKind": {
+        "type": "string",
+        "enum": [
+          "http",
+          "create_incident",
+          "page_on_call",
+          "incident_comment",
+          "synthetic_run"
+        ]
       },
       "AddResponder": {
         "type": "object",
@@ -25456,6 +26264,248 @@
           }
         }
       },
+      "PortalAction": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "category",
+          "blueprint",
+          "ownerTeam",
+          "inputs",
+          "step",
+          "secretNames",
+          "allowedTeams",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "runs",
+          "canRun"
+        ],
+        "properties": {
+          "allowedTeams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "blueprint": {
+            "type": "string"
+          },
+          "canRun": {
+            "type": "boolean",
+            "description": "The signed-in user may run it."
+          },
+          "category": {
+            "$ref": "#/components/schemas/PortalActionCategory"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionInput"
+            }
+          },
+          "lastRunAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "lastRunStatus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "succeeded | failed, for the latest run."
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerTeam": {
+            "type": "string"
+          },
+          "runs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "secretNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Names of the stored credentials (values are never returned)."
+          },
+          "step": {
+            "$ref": "#/components/schemas/ActionStep"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PortalActionCategory": {
+        "type": "string",
+        "enum": [
+          "scaffolding",
+          "release_management",
+          "infrastructure_provisioning",
+          "incident_management",
+          "infrastructure_management",
+          "other"
+        ]
+      },
+      "PortalActionInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "category",
+          "step"
+        ],
+        "properties": {
+          "allowedTeams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Team handles whose members may run it; empty for every standard user and admin."
+          },
+          "blueprint": {
+            "type": "string",
+            "description": "Blueprint the action started from; empty when built from scratch."
+          },
+          "category": {
+            "$ref": "#/components/schemas/PortalActionCategory"
+          },
+          "description": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionInput"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerTeam": {
+            "type": "string",
+            "description": "Team handle; empty for none."
+          },
+          "secrets": {
+            "type": "object",
+            "description": "Credentials by name: a value sets one, null removes it, names left out keep their value.",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "step": {
+            "$ref": "#/components/schemas/ActionStep"
+          }
+        }
+      },
+      "PortalActionRun": {
+        "type": "object",
+        "required": [
+          "id",
+          "actionId",
+          "userName",
+          "inputs",
+          "status",
+          "durationMs",
+          "responseExcerpt",
+          "link",
+          "createdAt"
+        ],
+        "properties": {
+          "actionId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "durationMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "inputs": {
+            "type": "object",
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "link": {
+            "type": "string",
+            "description": "What the run created (repository, pull request, issue, incident, page); may be empty."
+          },
+          "responseExcerpt": {
+            "type": "string",
+            "description": "Start of the last response (or the step's outcome), credentials redacted."
+          },
+          "status": {
+            "type": "string",
+            "description": "succeeded | failed"
+          },
+          "statusCode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "HTTP status of the last request sent."
+          },
+          "userName": {
+            "type": "string"
+          }
+        }
+      },
+      "PortalActionRunInput": {
+        "type": "object",
+        "properties": {
+          "inputs": {
+            "type": "object",
+            "description": "Value per input key.",
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "PortalApp": {
         "type": "object",
         "required": [
@@ -30343,6 +31393,531 @@
           }
         }
       },
+      "Survey": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "template",
+          "questions",
+          "audienceTeams",
+          "anonymous",
+          "status",
+          "state",
+          "notify",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "responses",
+          "audienceSize",
+          "responded"
+        ],
+        "properties": {
+          "anonymous": {
+            "type": "boolean"
+          },
+          "audienceSize": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Members in the audience."
+          },
+          "audienceTeams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "closesAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "notify": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "opensAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SurveyQuestion"
+            }
+          },
+          "responded": {
+            "type": "boolean",
+            "description": "The signed-in user has responded."
+          },
+          "responses": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SurveyState"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SurveyStatus"
+          },
+          "template": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SurveyForm": {
+        "type": "object",
+        "description": "What a respondent sees.",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "questions",
+          "anonymous",
+          "state",
+          "inAudience",
+          "responded"
+        ],
+        "properties": {
+          "anonymous": {
+            "type": "boolean"
+          },
+          "closesAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "inAudience": {
+            "type": "boolean",
+            "description": "The signed-in user is in the audience."
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SurveyQuestion"
+            }
+          },
+          "responded": {
+            "type": "boolean"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SurveyState"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "SurveyInput": {
+        "type": "object",
+        "properties": {
+          "anonymous": {
+            "type": "boolean",
+            "default": false
+          },
+          "audienceTeams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Team handles asked; empty for every member.",
+            "default": []
+          },
+          "closesAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "default": null
+          },
+          "description": {
+            "type": "string",
+            "default": ""
+          },
+          "notify": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Notified of each response: channel handles (`slack-devex`, `webhook-portal`) or member emails.",
+            "default": []
+          },
+          "opensAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch milliseconds.",
+            "default": null
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SurveyQuestion"
+            },
+            "default": []
+          },
+          "status": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SurveyStatus"
+              }
+            ],
+            "default": "draft"
+          },
+          "template": {
+            "type": "string",
+            "description": "Template the survey started from; empty for a custom survey.",
+            "default": ""
+          },
+          "title": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      },
+      "SurveyNps": {
+        "type": "object",
+        "required": [
+          "score",
+          "promoters",
+          "passives",
+          "detractors"
+        ],
+        "properties": {
+          "detractors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "passives": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "promoters": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "description": "% promoters (9–10) − % detractors (0–6), −100 … 100."
+          }
+        }
+      },
+      "SurveyOptionCount": {
+        "type": "object",
+        "required": [
+          "label",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "SurveyQuestion": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "description",
+          "required",
+          "options"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "description": "Stable key of the question within the survey (`[a-z0-9_-]`)."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SurveyQuestionKind"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Single and multiple choice only."
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "SurveyQuestionKind": {
+        "type": "string",
+        "enum": [
+          "likert",
+          "single",
+          "multi",
+          "text",
+          "nps"
+        ]
+      },
+      "SurveyQuestionResult": {
+        "type": "object",
+        "required": [
+          "questionId",
+          "kind",
+          "title",
+          "answered",
+          "counts",
+          "texts"
+        ],
+        "properties": {
+          "answered": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Responses that answered it.",
+            "minimum": 0
+          },
+          "average": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Likert: mean answer (1–5)."
+          },
+          "counts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SurveyOptionCount"
+            },
+            "description": "Likert labels, 0–10 for NPS, or the options; empty for text."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SurveyQuestionKind"
+          },
+          "nps": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SurveyNps"
+              }
+            ]
+          },
+          "questionId": {
+            "type": "string"
+          },
+          "texts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Text: the answers, newest first."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "SurveyResponseInput": {
+        "type": "object",
+        "required": [
+          "answers"
+        ],
+        "properties": {
+          "answers": {
+            "type": "object",
+            "description": "Answer per question id: 1–5 (Likert), 0–10 (NPS), an option (single choice), options (multiple\nchoice) or text.",
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SurveyResponseRow": {
+        "type": "object",
+        "description": "One response, for the export. Anonymous surveys never name the respondent.",
+        "required": [
+          "id",
+          "submittedAt",
+          "teams",
+          "answers"
+        ],
+        "properties": {
+          "answers": {
+            "type": "object",
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "respondent": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "submittedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SurveyResults": {
+        "type": "object",
+        "required": [
+          "surveyId",
+          "responses",
+          "audienceSize",
+          "questions",
+          "teams"
+        ],
+        "properties": {
+          "audienceSize": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SurveyQuestionResult"
+            }
+          },
+          "responseRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Percent of the audience who responded."
+          },
+          "responses": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "surveyId": {
+            "type": "string"
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SurveyTeamRate"
+            }
+          }
+        }
+      },
+      "SurveyState": {
+        "type": "string",
+        "description": "Whether a survey accepts responses now: an open survey before its open date is scheduled, after\nits close date closed.",
+        "enum": [
+          "draft",
+          "scheduled",
+          "open",
+          "closed"
+        ]
+      },
+      "SurveyStatus": {
+        "type": "string",
+        "description": "What the author sets: draft, open (accepting responses between the dates) or closed.",
+        "enum": [
+          "draft",
+          "open",
+          "closed"
+        ]
+      },
+      "SurveyTeamRate": {
+        "type": "object",
+        "required": [
+          "team",
+          "name",
+          "members",
+          "responded"
+        ],
+        "properties": {
+          "members": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Percent of members who responded."
+          },
+          "responded": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "team": {
+            "type": "string"
+          }
+        }
+      },
       "SwitchOrgRequest": {
         "type": "object",
         "required": [
@@ -32523,7 +34098,7 @@
     },
     {
       "name": "portal",
-      "description": "Developer Portal home and settings: source connectors, identities, pull requests, tickets, entities and apps"
+      "description": "Developer Portal: home (connectors, identities, pull requests, tickets, entities, apps), settings, surveys and self-service actions"
     },
     {
       "name": "auth",

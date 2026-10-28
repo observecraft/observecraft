@@ -42,6 +42,9 @@ pub mod on_call_escalation;
 pub mod on_call_schedule;
 pub mod portal_home;
 pub mod portal_sources;
+pub mod portal_action_steps;
+pub mod portal_actions;
+pub mod portal_surveys;
 pub mod profiles;
 pub mod reference_tables;
 pub mod scorecard_rules;
@@ -349,6 +352,22 @@ use crate::state::AppState;
         portal_home::update_app,
         portal_home::delete_app,
         portal_home::get_sources,
+        portal_surveys::list_surveys,
+        portal_surveys::get_survey,
+        portal_surveys::create_survey,
+        portal_surveys::update_survey,
+        portal_surveys::delete_survey,
+        portal_surveys::survey_form,
+        portal_surveys::submit_response,
+        portal_surveys::survey_results,
+        portal_surveys::list_responses,
+        portal_actions::list_actions,
+        portal_actions::get_action,
+        portal_actions::create_action,
+        portal_actions::update_action,
+        portal_actions::delete_action,
+        portal_actions::run_action,
+        portal_actions::list_runs,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -429,7 +448,7 @@ use crate::state::AppState;
         (name = "synthetics", description = "Synthetic API tests (HTTP, SSL, DNS, TCP) run by the server, their results and uptime"),
         (name = "scorecards", description = "Developer Portal scorecards: rules evaluated per service, their levels and service metadata"),
         (name = "feature_flags", description = "Feature flags, their targeting per environment and history; SDKs evaluate them over OFREP at the intake"),
-        (name = "portal", description = "Developer Portal home and settings: source connectors, identities, pull requests, tickets, entities and apps"),
+        (name = "portal", description = "Developer Portal: home (connectors, identities, pull requests, tickets, entities, apps), settings, surveys and self-service actions"),
         (name = "auth", description = "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"),
         (name = "health")
     )
@@ -798,6 +817,20 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/portal/apps", get(portal_home::get_apps).post(portal_home::create_app))
         .route("/api/v1/portal/apps/:id", axum::routing::put(portal_home::update_app).delete(portal_home::delete_app))
         .route("/api/v1/portal/sources", get(portal_home::get_sources))
+        .route("/api/v1/portal/surveys", get(portal_surveys::list_surveys).post(portal_surveys::create_survey))
+        .route(
+            "/api/v1/portal/surveys/:id",
+            get(portal_surveys::get_survey).put(portal_surveys::update_survey).delete(portal_surveys::delete_survey),
+        )
+        .route("/api/v1/portal/surveys/:id/form", get(portal_surveys::survey_form))
+        .route("/api/v1/portal/surveys/:id/responses", get(portal_surveys::list_responses).post(portal_surveys::submit_response))
+        .route("/api/v1/portal/surveys/:id/results", get(portal_surveys::survey_results))
+        .route("/api/v1/portal/actions", get(portal_actions::list_actions).post(portal_actions::create_action))
+        .route(
+            "/api/v1/portal/actions/:id",
+            get(portal_actions::get_action).put(portal_actions::update_action).delete(portal_actions::delete_action),
+        )
+        .route("/api/v1/portal/actions/:id/runs", get(portal_actions::list_runs).post(portal_actions::run_action))
         // Needs no sign-in (auth::is_public); answers only for public pages or members of the page's org.
         .route("/api/v1/public/status-pages/:slug", get(status_pages::get_public))
         .route(
@@ -992,6 +1025,9 @@ mod tests {
             include_str!("on_call.rs"),
             include_str!("on_call_escalation.rs"),
             include_str!("on_call_schedule.rs"),
+            include_str!("portal_action_steps.rs"),
+            include_str!("portal_actions.rs"),
+            include_str!("portal_surveys.rs"),
             include_str!("health.rs"),
             include_str!("hosts.rs"),
             include_str!("gpu.rs"),
@@ -1203,6 +1239,9 @@ mod tests {
             ("on_call.rs", include_str!("on_call.rs")),
             ("on_call_escalation.rs", include_str!("on_call_escalation.rs")),
             ("on_call_schedule.rs", include_str!("on_call_schedule.rs")),
+            ("portal_action_steps.rs", include_str!("portal_action_steps.rs")),
+            ("portal_actions.rs", include_str!("portal_actions.rs")),
+            ("portal_surveys.rs", include_str!("portal_surveys.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),
             ("scorecard_rules.rs", include_str!("scorecard_rules.rs")),
