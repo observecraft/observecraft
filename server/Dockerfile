@@ -12,11 +12,24 @@ COPY server/seeds/standard_attributes.json /server/seeds/standard_attributes.jso
 COPY CHANGELOG.md /CHANGELOG.md
 RUN VITE_API_MODE=live npm run build
 
-FROM rust:1.89-bookworm AS build
+FROM rust:1.89-bookworm AS chef
 RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libclang-dev libxml2-dev libxmlsec1-dev && rm -rf /var/lib/apt/lists/*
+# cargo-chef is MIT/Apache-2.0. Pin it so cache recipes and install dependencies are reproducible.
+RUN cargo install cargo-chef --version 0.1.73 --locked
 WORKDIR /src
+
+FROM chef AS planner
 COPY server/ .
-RUN cargo build --release --bin observecraft-server --bin oc-intake --bin oc-tracegen
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS build
+# Bound native compiler memory on large-core machines; override locally with --build-arg CARGO_BUILD_JOBS=2.
+ARG CARGO_BUILD_JOBS=4
+COPY --from=planner /src/recipe.json recipe.json
+# Export this dependency layer with Buildx, including DuckDB's expensive native compilation.
+RUN cargo chef cook --release --locked --recipe-path recipe.json --bin observecraft-server --bin oc-intake --bin oc-tracegen
+COPY server/ .
+RUN cargo build --locked --release --bin observecraft-server --bin oc-intake --bin oc-tracegen
 
 FROM debian:bookworm-slim
 # upgrade: security fixes released after the base image was built.

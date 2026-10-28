@@ -1,0 +1,87 @@
+# Enable CODEQL_ADVANCED only when switching off GitHub Default setup (see CONTRIBUTING.md).
+name: codeql
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  languages:
+    if: vars.CODEQL_ADVANCED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.matrix.outputs.languages }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: paths
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            config: &config
+              - .github/workflows/codeql.yml
+            actions:
+              - *config
+              - .github/**
+            javascript:
+              - *config
+              - web/**
+              - scripts/**/*.mjs
+            python:
+              - *config
+              - '**/*.py'
+              - '**/requirements*.txt'
+              - '**/pyproject.toml'
+              - '**/poetry.lock'
+            rust:
+              - *config
+              - server/**
+      - id: matrix
+        env:
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+          ACTIONS: ${{ steps.paths.outputs.actions }}
+          JAVASCRIPT: ${{ steps.paths.outputs.javascript }}
+          PYTHON: ${{ steps.paths.outputs.python }}
+          RUST: ${{ steps.paths.outputs.rust }}
+        run: |
+          if [ "$IS_PR" != true ]; then
+            echo 'languages=["actions","javascript-typescript","python","rust"]' >> "$GITHUB_OUTPUT"
+          else
+            languages=$(jq -cn --arg a "$ACTIONS" --arg j "$JAVASCRIPT" --arg p "$PYTHON" --arg r "$RUST" \
+              '[if $a == "true" then "actions" else empty end, if $j == "true" then "javascript-typescript" else empty end, if $p == "true" then "python" else empty end, if $r == "true" then "rust" else empty end]')
+            echo "languages=$languages" >> "$GITHUB_OUTPUT"
+          fi
+
+  analyze:
+    needs: languages
+    if: needs.languages.outputs.matrix != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(needs.languages.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          category: /language:${{ matrix.language }}

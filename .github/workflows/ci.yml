@@ -1,4 +1,4 @@
-# Each job runs only when its files change (docs-only changes run nothing); a change to the workflows runs everything.
+# Keep ci-ok present even for docs-only PRs; filter jobs rather than the workflow.
 # Branch rules require the `ci-ok` job, which passes when every job that ran passed.
 name: ci
 
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -26,6 +26,7 @@ jobs:
       licenses: ${{ steps.f.outputs.licenses }}
       configs: ${{ steps.f.outputs.configs }}
       charts: ${{ steps.f.outputs.charts }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: f
@@ -33,7 +34,7 @@ jobs:
         with:
           filters: |
             ci: &ci
-              - .github/workflows/**
+              - .github/workflows/ci.yml
             server:
               - *ci
               - server/**
@@ -41,9 +42,8 @@ jobs:
             web:
               - *ci
               - web/**
-              - scripts/*.mjs
-              - server/seeds/integrations/**
-              - server/seeds/standard_attributes.json
+              - scripts/**
+              - server/seeds/**
               - CHANGELOG.md
             licenses:
               - *ci
@@ -60,13 +60,28 @@ jobs:
             charts:
               - *ci
               - deploy/helm/**
+              - deploy/otel/**
+              - deploy/vector/**
               - server/**
               - web/**
+              - .dockerignore
 
   server:
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:26.8
+        env:
+          CLICKHOUSE_SKIP_USER_SETUP: "1"
+        ports: [8123:8123]
+        options: >-
+          --health-cmd "clickhouse-client --query 'SELECT 1'"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      OC_TEST_CLICKHOUSE_URL: http://localhost:8123
     needs: changes
     if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libclang-dev libxml2-dev libxmlsec1-dev
@@ -74,12 +89,12 @@ jobs:
         with: { components: clippy }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with: { workspaces: server }
-      - run: cargo test --workspace
+      - run: cargo test --locked --workspace
         working-directory: server
-      - run: cargo clippy --workspace
+      - run: cargo clippy --locked --workspace --all-targets
         working-directory: server
       - name: OpenAPI document is up to date (run `make openapi`)
-        run: cargo run -q --bin observecraft-server -- openapi > ../web/src/api/generated/openapi.json && git diff --exit-code
+        run: cargo run --locked -q --bin observecraft-server -- openapi > ../web/src/api/generated/openapi.json && git diff --exit-code
         working-directory: server
 
   # Dependencies must be permissive (ObserveCraft is MIT): server/deny.toml, and the allowlist below for the web app.
@@ -87,6 +102,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.licenses == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
@@ -104,36 +120,37 @@ jobs:
     needs: changes
     if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 24, cache: npm, cache-dependency-path: web/package-lock.json }
-      - run: npm ci && npx tsc -p . && npm run build
+      - run: npm ci && npm test && npm run build
         working-directory: web
-      - name: Integration dashboard tests
-        run: node --test scripts/*.test.mjs
 
   pipeline-configs:
     needs: changes
     if: needs.changes.outputs.configs == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Collector config
         run: >-
           docker run --rm -e CLICKHOUSE_USER=x -e CLICKHOUSE_PASSWORD=y -e OC_HOST_NAME=h -e OC_HOST_ORG=default
-          -v $PWD/deploy/otel:/c:ro otel/opentelemetry-collector-contrib:0.163.2
+          -v "$PWD/deploy/otel:/c:ro" otel/opentelemetry-collector-contrib:0.163.2
           validate --config=/c/collector.yaml --config=/c/hostmetrics.yaml
       - name: Vector config and VRL tests
         run: >-
           docker run --rm -e CLICKHOUSE_USER=x -e CLICKHOUSE_PASSWORD=y -e OC_LOGPROC_URL=http://x
-          -v $PWD/deploy/vector:/etc/vector:ro timberio/vector:0.42.0-debian
+          -v "$PWD/deploy/vector:/etc/vector:ro" timberio/vector:0.42.0-debian
           test /etc/vector/aggregator.yaml /etc/vector/tests.yaml
 
   charts:
     needs: changes
     if: needs.changes.outputs.charts == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
@@ -149,14 +166,27 @@ jobs:
             python3 deploy/helm/artifacthub-annotate.py "deploy/helm/$chart" "$(awk '/^version:/ {print $2}' deploy/helm/$chart/Chart.yaml)"
             helm lint "deploy/helm/$chart" -f "deploy/helm/$chart/ci/default-values.yaml"
           done
-      - name: Build the image for the cluster
-        run: docker build -f server/Dockerfile -t ghcr.io/observecraft/observecraft:ci .
-      # Fails on critical vulnerabilities that already have a fix (base image or dependency upgrade).
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with: { image-ref: "ghcr.io/observecraft/observecraft:ci", severity: CRITICAL, ignore-unfixed: true, exit-code: "1" }
-      - uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+      # PRs test an untrusted local image. Main is built once in release.yml after ci-ok.
+      - if: github.event_name == 'pull_request'
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: server/Dockerfile
+          load: true
+          tags: ghcr.io/observecraft/observecraft:ci
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,mode=max,scope=amd64
+      # Match the publishing gate: block fixable high/critical vulnerabilities.
+      - if: github.event_name == 'pull_request'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with: { image-ref: "ghcr.io/observecraft/observecraft:ci", severity: "CRITICAL,HIGH", ignore-unfixed: true, exit-code: "1" }
+      - if: github.event_name == 'pull_request'
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
         with: { cluster_name: ci }
       - name: Install and test
+        if: github.event_name == 'pull_request'
         run: |
           kind load docker-image ghcr.io/observecraft/observecraft:ci --name ci
           helm install observecraft deploy/helm/observecraft -n observecraft --create-namespace \
@@ -165,9 +195,17 @@ jobs:
           helm install observecraft-agent deploy/helm/observecraft-agent -n observecraft \
             -f deploy/helm/observecraft-agent/ci/default-values.yaml --wait --timeout 5m
 
+  workflows:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate workflows and embedded shell scripts
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
+
   ci-ok:
     if: always()
-    needs: [changes, server, licenses, web, pipeline-configs, charts]
+    needs: [changes, server, licenses, web, pipeline-configs, charts, workflows]
     runs-on: ubuntu-24.04
     steps:
       - name: Every job that ran passed

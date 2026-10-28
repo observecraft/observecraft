@@ -186,11 +186,40 @@ characters and explain the *why* in the body when it isn't obvious.
 
 ## Releases
 
-Releases are automated with [release-please](https://github.com/googleapis/release-please). After each merge to `main`
-it updates a release pull request with the next version (from the `feat`/`fix` titles since the last release) and the
-`CHANGELOG.md` entry. Merging that pull request tags `vX.Y.Z`, publishes the multi-arch image and both Helm charts to
-GHCR, signs them, and installs the published chart in a kind cluster as a final check
-(`.github/workflows/release.yml`). Every merge to `main` also publishes `:main` and `:sha-<commit>` images.
+Releases are automated with [release-please](https://github.com/googleapis/release-please). The small
+`release-please.yml` workflow updates the version/changelog PR independently of image builds. On `main`,
+`ci.yml` checks code, real ClickHouse metric storage/query tests, web regression tests and chart lint.
+After successful CI, `release.yml` checks out that exact trusted main commit, builds each architecture once,
+assembles/signs/attests a candidate digest, blocks on fixable HIGH/CRITICAL vulnerabilities, and installs the
+candidate in kind. The GitHub release remains a draft while this runs. Only then does it promote that same digest to `:main`, `:sha-<commit>` and, for a tagged
+release commit, version/major.minor/latest tags and signed Helm charts, and publish the GitHub release. Older runs cannot roll the `main`
+tag back. PRs still build and test a local image in kind; their artifacts are never promoted into releases.
+Docker dependency layers (including DuckDB) are cached separately from application source with cargo-chef
+and Buildx's GitHub Actions cache. A release still rebuilds when necessary; previous-commit images are not
+reused just because a change appears to be version-only.
+
+### Checking workflows locally
+
+Run `actionlint` (CI also runs it with ShellCheck) and use [act](https://github.com/nektos/act) for compatible
+jobs, for example `act push -j web -e /path/to/push-event.json -P ubuntu-24.04=catthehacker/ubuntu:act-24.04`.
+The event must contain `repository.default_branch` so path filtering can compare the committed branch with
+main. Changes must be committed for Git-based path filtering to see them. Use empty `--env-file`,
+`--secret-file` and `--input-file` files to avoid importing local development credentials. The web regression tests require Node 22.12+ (CI uses 24). The web job runs
+`npm ci`, all `scripts/*.test.mjs` regression tests and the production build (which includes type checking).
+OIDC signing, attestations, GHCR publication, cache permissions and CodeQL also need validation on GitHub;
+local execution does not certify these integrations.
+
+### CodeQL setup migration
+
+GitHub Default setup remains enabled while this branch is reviewed. After merging `codeql.yml`, switch
+Code scanning from Default setup to Advanced setup and set repository Actions variable `CODEQL_ADVANCED`
+to `true`. Dispatch `codeql` and confirm all four language analyses finish successfully. Until the variable
+is set, the advanced jobs deliberately skip so they do not duplicate Default setup or attempt rejected
+uploads. Advanced setup retains all four languages on main and weekly runs; PRs select languages from changed files,
+and newer PR commits cancel obsolete runs.
+Do not disable main/weekly analysis: it supplies the default-branch baseline and detects newly published
+security queries. CodeQL findings are gated with a code-scanning ruleset if desired; a successful analysis
+job alone does not mean there are no security findings.
 
 Before 1.0, a breaking change bumps the minor version (`0.1.x` → `0.2.0`). Mark it with `!` (`feat(helm)!: …`) and
 describe the upgrade in the PR.

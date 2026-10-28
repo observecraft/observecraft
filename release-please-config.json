@@ -3,6 +3,8 @@
   "packages": {
     ".": {
       "release-type": "simple",
+      "draft": true,
+      "force-tag-creation": true,
       "package-name": "observecraft",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
