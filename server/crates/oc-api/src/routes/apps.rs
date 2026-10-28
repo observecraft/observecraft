@@ -186,7 +186,7 @@ pub fn check_spec(spec: &AutomationAppSpec) -> Result<AutomationAppSpec, String>
     let buttons: HashSet<&str> = spec.components.iter().filter(|c| c.kind == AppComponentKind::Button).map(|c| c.id.trim()).collect();
     let names = HashSet::new();
     let scope = TemplateScope { inputs: &[], secrets: &names, allow_secrets: false, prior_steps: 0, roots: ROOTS };
-    let mut out = Vec::with_capacity(spec.components.len());
+    let mut out = Vec::with_capacity(MAX_COMPONENTS);
     for c in &spec.components {
         let id = c.id.trim().to_string();
         let at = |e: String| format!("Component {id}: {e}");

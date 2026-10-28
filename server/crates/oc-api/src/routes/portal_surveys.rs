@@ -291,7 +291,7 @@ pub fn check_survey(input: &SurveyInput) -> Result<SurveyInput, String> {
         return Err(format!("A survey has at most {MAX_QUESTIONS} questions"));
     }
     let mut ids = HashSet::new();
-    let mut questions = Vec::with_capacity(input.questions.len());
+    let mut questions = Vec::with_capacity(MAX_QUESTIONS);
     for (i, q) in input.questions.iter().enumerate() {
         let n = i + 1;
         let id = q.id.trim().to_string();

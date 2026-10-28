@@ -621,7 +621,7 @@ export async function generatePostmortem(id: number, template: 'standard' | 'bri
     ['Teams', inc.teams.length ? inc.teams.join(', ') : '—'],
     ['Customer impact', inc.customerImpact ? 'Yes' : 'No'],
   ];
-  for (const [k, v] of rows) md += `| ${k} | ${v.replace(/\|/g, '\\|')} |\n`;
+  for (const [k, v] of rows) md += `| ${k} | ${v.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')} |\n`;
   md += `\n${or(inc.summary)}\n\n## What Happened?\n\n### Impact on Customers\n\n`;
   if (inc.impacts.length === 0) md += inc.customerImpact ? '_Customers were impacted; describe how._\n' : 'No customer impact recorded.\n';
   else for (const x of [...inc.impacts].sort((a, b) => a.startAt - b.startAt)) md += `- ${x.description}\n`;

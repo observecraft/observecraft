@@ -16,6 +16,17 @@ registerHooks({
 const model = await import('../web/src/pages/delivery/gatesModel.ts');
 const mock = await import('../web/src/api/mock/deliveryGates.ts');
 
+/** True when `url` appears in `text` as a whole URL: no URL character right before or after it. */
+function hasUrl(text, url) {
+  const urlChar = /[A-Za-z0-9._~:/?#[\]@!$&'()*+,;=%-]/;
+  for (let at = text.indexOf(url); at !== -1; at = text.indexOf(url, at + 1)) {
+    const before = text[at - 1];
+    const after = text[at + url.length];
+    if ((before === undefined || !urlChar.test(before)) && (after === undefined || !urlChar.test(after))) return true;
+  }
+  return false;
+}
+
 test('monitor rules match tags and name words like the server', () => {
   const tags = ['service:billing', 'env:prod', 'team:payments'];
   assert.ok(model.monitorMatches('service:billing env:prod', 'High latency', tags));
@@ -38,14 +49,13 @@ test('the verdict honours dry runs', () => {
 test('every CI/CD tool gets a snippet that calls the evaluation API with the gate', () => {
   const opts = { apiUrl: 'https://observecraft.example.com', service: 'billing', env: 'prod', identifier: 'pre-deploy' };
   const expectedEvaluateUrl = 'https://observecraft.example.com/api/v1/deployment-gates/evaluate';
-  const expectedEvaluateUrlPattern = new RegExp(`(^|[^A-Za-z0-9._~:/?#[\\]@!$&'()*+,;=%-])${expectedEvaluateUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^A-Za-z0-9._~:/?#[\\]@!$&'()*+,;=%-])`);
   assert.deepEqual(
     model.CI_TOOLS.map((t) => t.id),
     ['argo', 'github', 'gitlab', 'jenkins', 'circleci', 'custom'],
   );
   for (const tool of model.CI_TOOLS) {
     const s = model.ciSnippet(tool.id, opts);
-    assert.ok(expectedEvaluateUrlPattern.test(s), tool.id);
+    assert.ok(hasUrl(s, expectedEvaluateUrl), tool.id);
     assert.ok(s.includes('billing') && s.includes('prod') && s.includes('pre-deploy'), tool.id);
     assert.ok(/OC_APP_KEY/.test(s), `${tool.id} reads the application key from a secret`);
     assert.ok(!/ocak_[a-z0-9]/i.test(s), `${tool.id} never embeds a key`);

@@ -22,6 +22,11 @@ const logic = await import('../web/src/api/featureFlags/logic.ts');
 const mock = await import('../web/src/api/mock/featureFlags.ts');
 const { fill } = await import('../web/src/pages/setup/sources.ts');
 
+/** The origins (scheme + host + port) of the URLs written in `text`. */
+function urlOrigins(text) {
+  return (text.match(/https?:\/\/[^\s'"`)]+/g) ?? []).map((u) => new URL(u).origin);
+}
+
 test('flag keys are derived from names in kebab-case', () => {
   assert.equal(logic.flagKeyFromName('New Payment Flow'), 'new-payment-flow');
   assert.equal(logic.flagKeyFromName('  Catalog search: v2!! '), 'catalog-search-v2');
@@ -194,7 +199,7 @@ test('OpenFeature snippets point at this install', () => {
     ['browser', 'node', 'go', 'python'],
   );
   for (const x of s) {
-    assert.ok(x.code.includes('https://intake.example.com'), x.id);
+    assert.ok(urlOrigins(x.code).includes('https://intake.example.com'), x.id);
     assert.ok(x.code.includes('<API_KEY>'), x.id);
     assert.ok(x.code.includes('checkout-new-payment-flow'), x.id);
   }

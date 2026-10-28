@@ -392,7 +392,7 @@ pub fn check_spec(spec: &WorkflowSpec, secrets: &HashSet<String>) -> Result<Work
     if spec.triggers.len() > MAX_TRIGGERS {
         return Err(format!("A workflow has at most {MAX_TRIGGERS} triggers"));
     }
-    let mut triggers = Vec::with_capacity(spec.triggers.len());
+    let mut triggers = Vec::with_capacity(MAX_TRIGGERS);
     for t in &spec.triggers {
         if t.kind != WorkflowTriggerKind::Schedule && spec.triggers.iter().filter(|x| x.kind == t.kind).count() > 1 {
             return Err(format!("A workflow has one {} trigger at most", t.kind.as_str()));
