@@ -189,8 +189,14 @@ function ProfileView({ p }: { p: Profile }) {
         <AppKeysTab />
       ) : (
         <section className="settings-card settings-empty">
-          <h2>{tab === 'oncall' ? 'Not on call' : 'Agent Console'}</h2>
-          <p className="muted">{tab === 'oncall' ? 'You are not part of an on-call schedule.' : 'Manage the collectors you have access to from Fleet Automation.'}</p>
+          <h2>{tab === 'oncall' ? 'On-Call' : 'Agent Console'}</h2>
+          {tab === 'oncall' ? (
+            <p className="muted">
+              Your shifts and how pages reach you are in <Link to="/on-call/profile">On-Call → My On-Call Profile</Link>.
+            </p>
+          ) : (
+            <p className="muted">Manage the collectors you have access to from Fleet Automation.</p>
+          )}
         </section>
       )}
     </>

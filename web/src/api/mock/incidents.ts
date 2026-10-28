@@ -6,6 +6,7 @@
 // commander changes. People and teams come from the identity mock, so names match Settings.
 import type { components } from '../generated/schema';
 import { mockMe, mockTeam, mockUser, mockUserIds } from './identity';
+import { mockOnCallPageState, mockPageFromIncident, mockSetOnCallPageStatus } from './onCall';
 
 type S = components['schemas'];
 
@@ -485,8 +486,16 @@ export async function removeResponder(id: number, userId: string): Promise<void>
 
 // ================================================================ pages and notifications
 
+/** Incident pages created here are On-Call pages (mock/onCall.ts): their status follows the On-Call page. */
+const oncallOf = new Map<number, number>();
+
 export async function listPages(id: number): Promise<S['Page'][]> {
-  return [...find(id).pages].sort((a, b) => b.createdAt - a.createdAt || b.id - a.id).map((x) => ({ ...x }));
+  return [...find(id).pages]
+    .sort((a, b) => b.createdAt - a.createdAt || b.id - a.id)
+    .map((x) => {
+      const linked = oncallOf.has(x.id) ? mockOnCallPageState(oncallOf.get(x.id)!) : null;
+      return linked ? { ...x, ...linked } : { ...x };
+    });
 }
 
 export async function createPage(id: number, team: string, title: string): Promise<S['Page']> {
@@ -495,6 +504,7 @@ export async function createPage(id: number, team: string, title: string): Promi
   if (!mockTeam(team)) fail(`unknown team '${team}'`);
   const page: S['Page'] = { id: db().seq++, team, title: t, status: 'triggered', createdBy: mockMe().name, createdAt: Date.now(), acknowledgedBy: null, acknowledgedAt: null, resolvedAt: null };
   inc.pages.push(page);
+  oncallOf.set(page.id, mockPageFromIncident(team, t, id, inc.title));
   event(inc, 'notification', `Paged @${team}: ${t}`);
   return { ...page };
 }
@@ -504,6 +514,17 @@ export async function updatePage(id: number, pageId: number, status: 'acknowledg
   const page = inc.pages.find((x) => x.id === pageId);
   const now = Date.now();
   const me = mockMe().name;
+  const linked = page && oncallOf.get(page.id);
+  if (linked) {
+    if (status !== 'acknowledged' && status !== 'resolved') fail('status must be acknowledged or resolved');
+    try {
+      mockSetOnCallPageStatus(linked, status);
+    } catch {
+      fail('Page not found or already in that state');
+    }
+    event(inc, 'note', `Page ${pageId} ${status}`);
+    return;
+  }
   if (status === 'acknowledged' && page?.status === 'triggered') Object.assign(page, { status, acknowledgedBy: me, acknowledgedAt: now });
   else if (status === 'resolved' && page && page.status !== 'resolved')
     Object.assign(page, { status, resolvedAt: now, acknowledgedBy: page.acknowledgedBy ?? me, acknowledgedAt: page.acknowledgedAt ?? now });

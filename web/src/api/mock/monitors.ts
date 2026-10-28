@@ -11,6 +11,7 @@ import type { components } from '../generated/schema';
 import { parseMetricQuery } from '../../lib/metricQuery';
 import { TEMPLATES } from '../../pages/monitors/templates';
 import { USERS } from './errorTracking';
+import { mockTeam } from './identity';
 import { evaluateGroups, type GroupSeries } from './metricsEngine';
 
 type S = components['schemas'];
@@ -1476,6 +1477,12 @@ export function sendTestNotification(req: S['TestNotification']): S['TestDeliver
     if (r.includes('@')) {
       const known = USERS.some((u) => u.email.toLowerCase() === r.toLowerCase());
       return known ? { recipient: r, status: 'sent', error: null } : { recipient: r, status: 'unknown_recipient', error: `${r} isn't an active member of this organization` };
+    }
+    if (r.startsWith('oncall-')) {
+      const team = r.slice('oncall-'.length);
+      return mockTeam(team)
+        ? { recipient: r, status: 'sent', error: null }
+        : { recipient: r, status: 'unknown_recipient', error: `Unknown team @${team}: @oncall-<team> names a team of the organization` };
     }
     return CHANNELS.includes(r)
       ? { recipient: r, status: 'sent', error: null }

@@ -339,6 +339,14 @@ export function mockUserIds(): string[] {
 export function mockTeam(handle: string): { handle: string; notifications: string[] } | undefined {
   return db().teams.find((t) => t.handle === handle);
 }
+/** Name and address of an active person (On-Call responders). */
+export function mockPerson(id: string): { id: string; name: string; email: string } | undefined {
+  const u = db().users.find((x) => x.id === id && x.status === 'active');
+  return u && { id: u.id, name: u.name, email: u.email };
+}
+/** Every team with its active members, in join order (On-Call). */
+export const mockTeamRoster = (): { handle: string; name: string; members: string[] }[] =>
+  db().teams.map((t) => ({ handle: t.handle, name: t.name, members: t.members.map((m) => m.userId).filter((id) => mockPerson(id)) }));
 export const mockMe = () => ({ id: ME_ID, name: me().name });
 /** The handles of the teams the current user belongs to. */
 export const mockMyTeams = (): string[] =>

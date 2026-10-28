@@ -948,7 +948,9 @@ function NotificationsStep({ form, set, byTags }: { form: Form; set: (p: Partial
           </datalist>
         </label>
       </div>
-      <p className="muted mon-hint">Notifications are recorded on the monitor's event timeline. Delivering them to email, chat or on-call needs the matching integration.</p>
+      <p className="muted mon-hint">
+        Notifications are recorded on the monitor's event timeline. Mention <code>{'@oncall-<team>'}</code> to page a team through On-Call; a recovery resolves the page.
+      </p>
     </div>
   );
 }
