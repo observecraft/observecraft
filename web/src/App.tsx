@@ -106,6 +106,8 @@ import { LogsLayout } from './pages/logs/LogsLayout';
 import { EventExplorer } from './pages/events/EventExplorer';
 import { EventsLayout, EventsSummary } from './pages/events/EventsLayout';
 import { TriageInbox } from './pages/events/TriageInbox';
+import { PortalLayout } from './pages/portal/PortalLayout';
+import { ScorecardsPage } from './pages/portal/ScorecardsPage';
 
 function ComingSoon() {
   const { pathname } = useLocation();
@@ -253,6 +255,10 @@ function Shell() {
               <Route path="explorer" element={<EventExplorer />} />
               <Route path="inbox" element={<TriageInbox />} />
               <Route path="summary" element={<EventsSummary />} />
+            </Route>
+            <Route path="/portal" element={<PortalLayout />}>
+              <Route index element={<Navigate to="/portal/scorecards" replace />} />
+              <Route path="scorecards" element={<ScorecardsPage />} />
             </Route>
             <Route path="/incidents" element={<IncidentsPage />} />
             <Route path="/incidents/:id" element={<IncidentPage />} />
