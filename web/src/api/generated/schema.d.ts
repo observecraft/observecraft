@@ -3502,6 +3502,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/portal/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Every entity of the catalog: services, datastores, queues, endpoints and external providers seen
+         *     in telemetry over the range, merged with the org's definitions, service metadata and repositories. */
+        post: operations["portal_catalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/portal/connectors": {
         parameters: {
             query?: never;
@@ -3549,6 +3567,60 @@ export interface paths {
         /** Checks the stored credential against the provider and records the outcome (admins). */
         post: operations["test_portal_connector"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/entities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's entity definitions. */
+        get: operations["list_portal_entities"];
+        put?: never;
+        /** Creates or replaces the definition of an entity (by kind and name), apiVersion v3. */
+        post: operations["upsert_portal_entity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/entities/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Imports entity definition documents (YAML or JSON, apiVersion v3): all are validated first, then
+         *     each creates or replaces the definition of its kind and name. */
+        post: operations["import_portal_entities"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/entities/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_portal_entity"];
+        /** Replaces a definition; its kind and name may change when no other definition has them. */
+        put: operations["update_portal_entity"];
+        post?: never;
+        /** Deletes a definition; telemetry entities stay in the catalog, and a service keeps its metadata. */
+        delete: operations["delete_portal_entity"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3635,6 +3707,59 @@ export interface paths {
         /** Sets the current member's identities; an empty handle goes back to the default. */
         put: operations["put_portal_identities"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/reports/dashboards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Custom Reports: the dashboards added to the Reports tab, in order. */
+        get: operations["list_portal_report_dashboards"];
+        /** Replaces the dashboards of Custom Reports (the org's own, not deleted). */
+        put: operations["set_portal_report_dashboards"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/reports/scorecards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Scorecards Performance: the mean scorecard level of each team's services per day. */
+        post: operations["portal_scorecards_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/reports/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Teams Performance: incidents per team over time, mean time to resolve, and each team's services,
+         *     SLOs, monitors and On-Call schedules. */
+        post: operations["portal_teams_report"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5867,6 +5992,67 @@ export interface components {
         };
         /** @enum {string} */
         DowntimeStatus: "active" | "scheduled" | "ended" | "canceled";
+        EntityContact: {
+            /** @description Address, channel or URL. */
+            contact: string;
+            name?: string | null;
+            /** @description email | slack | microsoft-teams | link */
+            type: string;
+        };
+        /** @description An entity definition document (apiVersion v3). */
+        EntityDefinition: {
+            /** @description Always `v3`. */
+            apiVersion: string;
+            datadog?: Record<string, never> | null;
+            extensions?: Record<string, never> | null;
+            /** @description Kept as sent. */
+            integrations?: Record<string, never> | null;
+            /** @description service | datastore | queue | api | system | frontend */
+            kind: string;
+            metadata: components["schemas"]["EntityDefinitionMetadata"];
+            spec?: components["schemas"]["EntityDefinitionSpec"];
+        };
+        EntityDefinitionMetadata: {
+            additionalOwners?: components["schemas"]["EntityOwnerRef"][];
+            contacts?: components["schemas"]["EntityContact"][];
+            description?: string | null;
+            displayName?: string | null;
+            links?: components["schemas"]["EntityLink"][];
+            /** @description Unique per kind; stored in lower case. */
+            name: string;
+            namespace?: string | null;
+            /** @description Team handle. */
+            owner?: string | null;
+            /** @description `key:value` tags. */
+            tags?: string[];
+        };
+        EntityDefinitionSpec: {
+            /** @description Systems this entity belongs to (`system:name`; a bare name is a system). */
+            componentOf?: string[];
+            /** @description Systems: their components (`kind:name`). */
+            components?: string[];
+            /** @description `kind:name` references (a bare name is a service). */
+            dependsOn?: string[];
+            /** @description APIs: the services implementing them. */
+            implementedBy?: string[];
+            languages?: string[];
+            /** @description production | experimental | deprecated, or the org's own words. */
+            lifecycle?: string | null;
+            tier?: string | null;
+            /** @description web, grpc, postgres, kafka, openapi… */
+            type?: string | null;
+        };
+        EntityLink: {
+            name: string;
+            provider?: string | null;
+            /** @description doc | repo | runbook | dashboard | other */
+            type: string;
+            url: string;
+        };
+        EntityOwnerRef: {
+            name: string;
+            type?: string | null;
+        };
         /** @description JSON error body returned by every endpoint. */
         ErrorBody: {
             error: string;
@@ -8804,6 +8990,18 @@ export interface components {
             name: string;
             url: string;
         };
+        PortalCatalog: {
+            entities: components["schemas"]["PortalEntity"][];
+            envs: string[];
+            /** @description Handles of the teams the signed-in user belongs to ("My Entities"). */
+            myTeams: string[];
+            teams: components["schemas"]["PortalTeam"][];
+        };
+        PortalCatalogRequest: {
+            /** @description `deployment.environment`; empty or `*` for all. */
+            env?: string | null;
+            range: components["schemas"]["TimeRange"];
+        };
         PortalConnectionTest: {
             /** Format: int64 */
             checkedAt: number;
@@ -8834,41 +9032,97 @@ export interface components {
             /** @description Token or API key; left out to keep the stored one. */
             token?: string | null;
         };
-        /** @description A service on the home page, with what exists around it. */
-        PortalEntity: {
-            /** Format: int64 */
-            dashboards: number;
-            favorite: boolean;
-            /**
-             * Format: int64
-             * @description Open Error Tracking issues of the past 7 days.
-             */
-            issues: number;
-            /** @description service */
+        PortalDefinitionItem: {
+            definition: components["schemas"]["EntityDefinition"];
+            id: string;
             kind: string;
-            /**
-             * Format: int64
-             * @description Last CI deployment or first span of the newest version.
-             */
-            lastDeploy?: number | null;
-            /**
-             * Format: int64
-             * @description Last span (epoch ms); null for services only declared in metadata.
-             */
-            lastSeen?: number | null;
-            /** Format: int64 */
-            monitors: number;
             name: string;
-            /** @description Name of the owning team's on-call schedule. */
-            onCall?: string | null;
+            /** @description ui | api | import */
+            source: string;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        /** @description One entity of the catalog, with what telemetry and definitions say about it. */
+        PortalEntity: {
+            /**
+             * Format: int64
+             * @description CI pipeline runs of the repository in the past 30 days.
+             */
+            ciRuns?: number | null;
+            /** Format: double */
+            ciSuccessRate?: number | null;
+            contacts: components["schemas"]["EntityContact"][];
+            /** @description Id of the stored definition, when there is one. */
+            definitionId?: string | null;
+            /** @description `kind:name` references. */
+            dependsOn: string[];
+            description: string;
+            displayName?: string | null;
+            docsUrl: string;
+            /** @description web, worker, or the definition's spec.type. */
+            entityType?: string | null;
+            /**
+             * Format: int64
+             * @description Distinct error types on the service's spans in the range.
+             */
+            errorIssues?: number | null;
+            /** Format: double */
+            errorRate?: number | null;
+            /** @description `kind:name` (endpoints: `endpoint:service/resource`). */
+            id: string;
             /**
              * Format: int32
-             * @description Scorecard level (0–3); null before scorecards are set up.
+             * @description Incidents declared in the range that list the service.
              */
-            scorecardLevel?: number | null;
+            incidents: number;
+            /** @description Known only from other services' spans or from log and metric tags: not instrumented, not defined. */
+            inferred: boolean;
+            kind: components["schemas"]["PortalEntityKind"];
+            languages: string[];
+            /** Format: int64 */
+            lastCiRun?: number | null;
+            /**
+             * Format: int64
+             * @description When the current version was first seen (epoch ms).
+             */
+            lastDeploy?: number | null;
+            lifecycle?: string | null;
+            links: components["schemas"]["EntityLink"][];
+            /** Format: int32 */
+            monitors: number;
+            /** Format: int32 */
+            monitorsAlerting: number;
+            name: string;
+            /** Format: int32 */
+            openIncidents: number;
             /** @description Owning team handle; empty when none. */
-            team: string;
+            owner: string;
+            /** Format: double */
+            p95Ms?: number | null;
+            /** @description Datastores, queues and external providers: the services calling them; systems: their
+             *     components; repositories: the services built from them. */
+            related: string[];
+            repoUrl: string;
+            /** Format: double */
+            reqPerSec?: number | null;
+            /** Format: int64 */
+            requests?: number | null;
+            /** @description Endpoints: their service. */
+            service?: string | null;
+            /** Format: int32 */
+            slos: number;
+            /** @description Where it was seen: apm, spans, logs, metrics, ci, metadata, definition. */
+            sources: string[];
+            /** @description Systems it belongs to (names). */
+            systems: string[];
+            tags: string[];
+            /** @description postgresql, redis, kafka, … for datastores and queues. */
+            technology?: string | null;
+            tier?: string | null;
+            version?: string | null;
         };
+        /** @enum {string} */
+        PortalEntityKind: "service" | "datastore" | "queue" | "api" | "system" | "frontend" | "endpoint" | "external_provider" | "repository";
         PortalIdentitiesInput: {
             identities: components["schemas"]["PortalIdentityInput"][];
         };
@@ -8883,6 +9137,15 @@ export interface components {
             /** @description Empty to remove the mapping (back to the default). */
             handle: string;
             provider: components["schemas"]["PortalProvider"];
+        };
+        PortalImportRequest: {
+            /** @description One or more entity definition documents: YAML (separated by `---`) or JSON (an object or an array). */
+            content: string;
+        };
+        PortalImportResult: {
+            created: number;
+            entities: components["schemas"]["PortalDefinitionItem"][];
+            updated: number;
         };
         /**
          * @description Whether a home page list could be read.
@@ -8930,6 +9193,33 @@ export interface components {
             /** @description The member's username on the provider. */
             user: string;
         };
+        PortalReportDashboard: {
+            description?: string | null;
+            id: string;
+            title: string;
+        };
+        PortalReportDashboardsInput: {
+            /** @description Dashboard ids in display order. */
+            dashboardIds: string[];
+        };
+        PortalReportRequest: {
+            range: components["schemas"]["TimeRange"];
+            /** @description Team handles; empty for every team. */
+            teams?: string[];
+        };
+        PortalScorecardTeam: {
+            /** @description Services at level 0–3 on the last evaluated day. */
+            current: number[];
+            /** @description Mean level of the team's services per day (null on days without an evaluation). */
+            levels: (number | null)[];
+            /** @description Team handle; empty for services without a team. */
+            team: string;
+        };
+        PortalScorecardsReport: {
+            /** @description Day starts (epoch ms, UTC). */
+            days: number[];
+            teams: components["schemas"]["PortalScorecardTeam"][];
+        };
         PortalSignal: {
             /** @description The org sent this signal in the last 24 hours. */
             active: boolean;
@@ -8939,6 +9229,51 @@ export interface components {
         PortalSources: {
             connectors: components["schemas"]["PortalConnector"][];
             signals: components["schemas"]["PortalSignal"][];
+        };
+        PortalTeam: {
+            /**
+             * Format: int32
+             * @description Entities the team owns (endpoints excluded).
+             */
+            entities: number;
+            handle: string;
+            /** Format: int64 */
+            members: number;
+            name: string;
+        };
+        PortalTeamReport: {
+            handle: string;
+            /** Format: int32 */
+            incidentCount: number;
+            /** @description Incidents declared per bucket (see `buckets`). */
+            incidents: number[];
+            /** Format: int64 */
+            members: number;
+            /** Format: int32 */
+            monitors: number;
+            /**
+             * Format: double
+             * @description Mean time from declaration to resolution of the incidents resolved in the range, in minutes.
+             */
+            mttrMinutes?: number | null;
+            name: string;
+            /** Format: int32 */
+            onCallSchedules: number;
+            /** Format: int32 */
+            openIncidents: number;
+            /** Format: int32 */
+            services: number;
+            /** Format: int32 */
+            slos: number;
+        };
+        PortalTeamsReport: {
+            /** Format: int64 */
+            bucketMs: number;
+            /** @description Bucket starts (epoch ms); a bucket is a day, or a week for ranges over 31 days. */
+            buckets: number[];
+            teams: components["schemas"]["PortalTeamReport"][];
+            /** @description Every team of the org, before the filter. */
+            totalTeams: number;
         };
         PortalTicket: {
             /** Format: int64 */
@@ -17879,6 +18214,29 @@ export interface operations {
             };
         };
     };
+    portal_catalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalCatalogRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalCatalog"];
+                };
+            };
+        };
+    };
     list_portal_connectors: {
         parameters: {
             query?: never;
@@ -17970,6 +18328,184 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PortalConnectionTest"];
+                };
+            };
+        };
+    };
+    list_portal_entities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalDefinitionItem"][];
+                };
+            };
+        };
+    };
+    upsert_portal_entity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntityDefinition"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalDefinitionItem"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    import_portal_entities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalImportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalImportResult"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_portal_entity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalDefinitionItem"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_portal_entity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntityDefinition"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalDefinitionItem"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_portal_entity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -18124,6 +18660,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_portal_report_dashboards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalReportDashboard"][];
+                };
+            };
+        };
+    };
+    set_portal_report_dashboards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalReportDashboardsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalReportDashboard"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    portal_scorecards_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalReportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalScorecardsReport"];
+                };
+            };
+        };
+    };
+    portal_teams_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalReportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalTeamsReport"];
                 };
             };
         };

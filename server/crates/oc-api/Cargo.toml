@@ -49,6 +49,8 @@ samael = { version = "0.0.22", features = ["xmlsec"] }
 serde.workspace = true
 serde_bytes = "0.11"
 serde_json.workspace = true
+# Developer Portal: entity definition documents imported as YAML.
+serde_yaml_ng = "0.10"
 sha1 = "0.10"
 sha2 = "0.10"
 sqlx.workspace = true

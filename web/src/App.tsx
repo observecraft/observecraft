@@ -134,6 +134,13 @@ import { SurveyRespondPage } from './pages/portal/surveys/SurveyRespondPage';
 import { ActionsPage } from './pages/portal/actions/ActionsPage';
 import { ActionEditorPage } from './pages/portal/actions/ActionEditorPage';
 import { ActionRunPage } from './pages/portal/actions/ActionRunPage';
+import { SoftwareCatalogPage } from './pages/portal/catalog/CatalogPage';
+import { EntityFormPage } from './pages/portal/catalog/EntityFormPage';
+import { CatalogHealth } from './pages/portal/reports/CatalogHealth';
+import { ReliabilityOverview } from './pages/portal/reports/ReliabilityOverview';
+import { ReportsLayout } from './pages/portal/reports/ReportsLayout';
+import { ScorecardsPerformance } from './pages/portal/reports/ScorecardsPerformance';
+import { TeamsPerformance } from './pages/portal/reports/TeamsPerformance';
 
 function ComingSoon() {
   const { pathname } = useLocation();
@@ -303,6 +310,16 @@ function Shell() {
               <Route path="actions/new" element={<ActionEditorPage />} />
               <Route path="actions/:id/edit" element={<ActionEditorPage />} />
               <Route path="actions/:id" element={<ActionRunPage />} />
+              <Route path="catalog" element={<SoftwareCatalogPage />} />
+              <Route path="catalog/new" element={<EntityFormPage />} />
+              <Route path="catalog/edit/:id" element={<EntityFormPage />} />
+              <Route path="reports" element={<ReportsLayout />}>
+                <Route index element={<Navigate to="teams" replace />} />
+                <Route path="teams" element={<TeamsPerformance />} />
+                <Route path="reliability" element={<ReliabilityOverview />} />
+                <Route path="catalog-health" element={<CatalogHealth />} />
+                <Route path="scorecards" element={<ScorecardsPerformance />} />
+              </Route>
             </Route>
             <Route path="/portal/settings" element={<PortalSettings />}>
               <Route index element={<Navigate to="sources" replace />} />

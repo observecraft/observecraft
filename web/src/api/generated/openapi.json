@@ -9118,6 +9118,37 @@
         }
       }
     },
+    "/api/v1/portal/catalog": {
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Every entity of the catalog: services, datastores, queues, endpoints and external providers seen\nin telemetry over the range, merged with the org's definitions, service metadata and repositories.",
+        "operationId": "portal_catalog",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalCatalogRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalCatalog"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/portal/connectors": {
       "get": {
         "tags": [
@@ -9242,6 +9273,241 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PortalConnectionTest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/entities": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "The org's entity definitions.",
+        "operationId": "list_portal_entities",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalDefinitionItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Creates or replaces the definition of an entity (by kind and name), apiVersion v3.",
+        "operationId": "upsert_portal_entity",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalDefinitionItem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/entities/import": {
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Imports entity definition documents (YAML or JSON, apiVersion v3): all are validated first, then\neach creates or replaces the definition of its kind and name.",
+        "operationId": "import_portal_entities",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/entities/{id}": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "operationId": "get_portal_entity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalDefinitionItem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Replaces a definition; its kind and name may change when no other definition has them.",
+        "operationId": "update_portal_entity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalDefinitionItem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Deletes a definition; telemetry entities stay in the catalog, and a service keeps its metadata.",
+        "operationId": "delete_portal_entity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -9459,6 +9725,134 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/reports/dashboards": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Custom Reports: the dashboards added to the Reports tab, in order.",
+        "operationId": "list_portal_report_dashboards",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalReportDashboard"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Replaces the dashboards of Custom Reports (the org's own, not deleted).",
+        "operationId": "set_portal_report_dashboards",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalReportDashboardsInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortalReportDashboard"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/reports/scorecards": {
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Scorecards Performance: the mean scorecard level of each team's services per day.",
+        "operationId": "portal_scorecards_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalScorecardsReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/reports/teams": {
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Teams Performance: incidents per team over time, mean time to resolve, and each team's services,\nSLOs, monitors and On-Call schedules.",
+        "operationId": "portal_teams_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalTeamsReport"
                 }
               }
             }
@@ -16694,6 +17088,237 @@
           "ended",
           "canceled"
         ]
+      },
+      "EntityContact": {
+        "type": "object",
+        "required": [
+          "type",
+          "contact"
+        ],
+        "properties": {
+          "contact": {
+            "type": "string",
+            "description": "Address, channel or URL."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "email | slack | microsoft-teams | link"
+          }
+        }
+      },
+      "EntityDefinition": {
+        "type": "object",
+        "description": "An entity definition document (apiVersion v3).",
+        "required": [
+          "apiVersion",
+          "kind",
+          "metadata"
+        ],
+        "properties": {
+          "apiVersion": {
+            "type": "string",
+            "description": "Always `v3`."
+          },
+          "datadog": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "extensions": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "integrations": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Kept as sent."
+          },
+          "kind": {
+            "type": "string",
+            "description": "service | datastore | queue | api | system | frontend"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityDefinitionMetadata"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/EntityDefinitionSpec"
+          }
+        }
+      },
+      "EntityDefinitionMetadata": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "additionalOwners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntityOwnerRef"
+            }
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntityContact"
+            }
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntityLink"
+            }
+          },
+          "name": {
+            "type": "string",
+            "description": "Unique per kind; stored in lower case."
+          },
+          "namespace": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Team handle."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`key:value` tags."
+          }
+        }
+      },
+      "EntityDefinitionSpec": {
+        "type": "object",
+        "properties": {
+          "componentOf": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Systems this entity belongs to (`system:name`; a bare name is a system)."
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Systems: their components (`kind:name`)."
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`kind:name` references (a bare name is a service)."
+          },
+          "implementedBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "APIs: the services implementing them."
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lifecycle": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "production | experimental | deprecated, or the org's own words."
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "web, grpc, postgres, kafka, openapi…"
+          }
+        }
+      },
+      "EntityLink": {
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "url"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "doc | repo | runbook | dashboard | other"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "EntityOwnerRef": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
       },
       "ErrorBody": {
         "type": "object",
@@ -26548,6 +27173,60 @@
           }
         }
       },
+      "PortalCatalog": {
+        "type": "object",
+        "required": [
+          "entities",
+          "teams",
+          "myTeams",
+          "envs"
+        ],
+        "properties": {
+          "entities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalEntity"
+            }
+          },
+          "envs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "myTeams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Handles of the teams the signed-in user belongs to (\"My Entities\")."
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalTeam"
+            }
+          }
+        }
+      },
+      "PortalCatalogRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`deployment.environment`; empty or `*` for all."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
       "PortalConnectionTest": {
         "type": "object",
         "required": [
@@ -26639,36 +27318,166 @@
           }
         }
       },
-      "PortalEntity": {
+      "PortalDefinitionItem": {
         "type": "object",
-        "description": "A service on the home page, with what exists around it.",
         "required": [
-          "name",
+          "id",
           "kind",
-          "team",
-          "monitors",
-          "issues",
-          "dashboards",
-          "favorite"
+          "name",
+          "source",
+          "definition",
+          "updatedAt"
         ],
         "properties": {
-          "dashboards": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 0
+          "definition": {
+            "$ref": "#/components/schemas/EntityDefinition"
           },
-          "favorite": {
-            "type": "boolean"
-          },
-          "issues": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Open Error Tracking issues of the past 7 days.",
-            "minimum": 0
+          "id": {
+            "type": "string"
           },
           "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
             "type": "string",
-            "description": "service"
+            "description": "ui | api | import"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PortalEntity": {
+        "type": "object",
+        "description": "One entity of the catalog, with what telemetry and definitions say about it.",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "sources",
+          "inferred",
+          "owner",
+          "description",
+          "languages",
+          "tags",
+          "links",
+          "contacts",
+          "repoUrl",
+          "docsUrl",
+          "systems",
+          "dependsOn",
+          "related",
+          "slos",
+          "monitors",
+          "monitorsAlerting",
+          "incidents",
+          "openIncidents"
+        ],
+        "properties": {
+          "ciRuns": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "CI pipeline runs of the repository in the past 30 days.",
+            "minimum": 0
+          },
+          "ciSuccessRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntityContact"
+            }
+          },
+          "definitionId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Id of the stored definition, when there is one."
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`kind:name` references."
+          },
+          "description": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "docsUrl": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "web, worker, or the definition's spec.type."
+          },
+          "errorIssues": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Distinct error types on the service's spans in the range.",
+            "minimum": 0
+          },
+          "errorRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "id": {
+            "type": "string",
+            "description": "`kind:name` (endpoints: `endpoint:service/resource`)."
+          },
+          "incidents": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Incidents declared in the range that list the service.",
+            "minimum": 0
+          },
+          "inferred": {
+            "type": "boolean",
+            "description": "Known only from other services' spans or from log and metric tags: not instrumented, not defined."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PortalEntityKind"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lastCiRun": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           },
           "lastDeploy": {
             "type": [
@@ -26676,45 +27485,140 @@
               "null"
             ],
             "format": "int64",
-            "description": "Last CI deployment or first span of the newest version."
+            "description": "When the current version was first seen (epoch ms)."
           },
-          "lastSeen": {
+          "lifecycle": {
             "type": [
-              "integer",
+              "string",
               "null"
-            ],
-            "format": "int64",
-            "description": "Last span (epoch ms); null for services only declared in metadata."
+            ]
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntityLink"
+            }
           },
           "monitors": {
             "type": "integer",
-            "format": "int64",
+            "format": "int32",
+            "minimum": 0
+          },
+          "monitorsAlerting": {
+            "type": "integer",
+            "format": "int32",
             "minimum": 0
           },
           "name": {
             "type": "string"
           },
-          "onCall": {
+          "openIncidents": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "owner": {
+            "type": "string",
+            "description": "Owning team handle; empty when none."
+          },
+          "p95Ms": {
             "type": [
-              "string",
+              "number",
               "null"
             ],
-            "description": "Name of the owning team's on-call schedule."
+            "format": "double"
           },
-          "scorecardLevel": {
+          "related": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Datastores, queues and external providers: the services calling them; systems: their\ncomponents; repositories: the services built from them."
+          },
+          "repoUrl": {
+            "type": "string"
+          },
+          "reqPerSec": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "requests": {
             "type": [
               "integer",
               "null"
             ],
-            "format": "int32",
-            "description": "Scorecard level (0–3); null before scorecards are set up.",
+            "format": "int64",
             "minimum": 0
           },
-          "team": {
-            "type": "string",
-            "description": "Owning team handle; empty when none."
+          "service": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Endpoints: their service."
+          },
+          "slos": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Where it was seen: apm, spans, logs, metrics, ci, metadata, definition."
+          },
+          "systems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Systems it belongs to (names)."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "technology": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "postgresql, redis, kafka, … for datastores and queues."
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
+      },
+      "PortalEntityKind": {
+        "type": "string",
+        "enum": [
+          "service",
+          "datastore",
+          "queue",
+          "api",
+          "system",
+          "frontend",
+          "endpoint",
+          "external_provider",
+          "repository"
+        ]
       },
       "PortalIdentitiesInput": {
         "type": "object",
@@ -26764,6 +27668,42 @@
           },
           "provider": {
             "$ref": "#/components/schemas/PortalProvider"
+          }
+        }
+      },
+      "PortalImportRequest": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "One or more entity definition documents: YAML (separated by `---`) or JSON (an object or an array)."
+          }
+        }
+      },
+      "PortalImportResult": {
+        "type": "object",
+        "required": [
+          "created",
+          "updated",
+          "entities"
+        ],
+        "properties": {
+          "created": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "entities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalDefinitionItem"
+            }
+          },
+          "updated": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -26907,6 +27847,117 @@
           }
         }
       },
+      "PortalReportDashboard": {
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "PortalReportDashboardsInput": {
+        "type": "object",
+        "required": [
+          "dashboardIds"
+        ],
+        "properties": {
+          "dashboardIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Dashboard ids in display order."
+          }
+        }
+      },
+      "PortalReportRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Team handles; empty for every team."
+          }
+        }
+      },
+      "PortalScorecardTeam": {
+        "type": "object",
+        "required": [
+          "team",
+          "levels",
+          "current"
+        ],
+        "properties": {
+          "current": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "description": "Services at level 0–3 on the last evaluated day."
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            },
+            "description": "Mean level of the team's services per day (null on days without an evaluation)."
+          },
+          "team": {
+            "type": "string",
+            "description": "Team handle; empty for services without a team."
+          }
+        }
+      },
+      "PortalScorecardsReport": {
+        "type": "object",
+        "required": [
+          "days",
+          "teams"
+        ],
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Day starts (epoch ms, UTC)."
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalScorecardTeam"
+            }
+          }
+        }
+      },
       "PortalSignal": {
         "type": "object",
         "required": [
@@ -26942,6 +27993,141 @@
             "items": {
               "$ref": "#/components/schemas/PortalSignal"
             }
+          }
+        }
+      },
+      "PortalTeam": {
+        "type": "object",
+        "required": [
+          "handle",
+          "name",
+          "members",
+          "entities"
+        ],
+        "properties": {
+          "entities": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Entities the team owns (endpoints excluded).",
+            "minimum": 0
+          },
+          "handle": {
+            "type": "string"
+          },
+          "members": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "PortalTeamReport": {
+        "type": "object",
+        "required": [
+          "handle",
+          "name",
+          "members",
+          "incidents",
+          "incidentCount",
+          "openIncidents",
+          "services",
+          "slos",
+          "monitors",
+          "onCallSchedules"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "incidentCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "incidents": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "description": "Incidents declared per bucket (see `buckets`)."
+          },
+          "members": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "monitors": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "mttrMinutes": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Mean time from declaration to resolution of the incidents resolved in the range, in minutes."
+          },
+          "name": {
+            "type": "string"
+          },
+          "onCallSchedules": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "openIncidents": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "services": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "slos": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "PortalTeamsReport": {
+        "type": "object",
+        "required": [
+          "buckets",
+          "bucketMs",
+          "teams",
+          "totalTeams"
+        ],
+        "properties": {
+          "bucketMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Bucket starts (epoch ms); a bucket is a day, or a week for ranges over 31 days."
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalTeamReport"
+            }
+          },
+          "totalTeams": {
+            "type": "integer",
+            "description": "Every team of the org, before the filter.",
+            "minimum": 0
           }
         }
       },
@@ -34098,7 +35284,7 @@
     },
     {
       "name": "portal",
-      "description": "Developer Portal: home (connectors, identities, pull requests, tickets, entities, apps), settings, surveys and self-service actions"
+      "description": "Developer Portal: home (connectors, identities, pull requests, tickets, entities, apps), the Software Catalog (telemetry and entity definitions v3), reports, settings, surveys and self-service actions"
     },
     {
       "name": "auth",

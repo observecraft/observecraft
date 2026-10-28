@@ -303,6 +303,13 @@ function matches(i: IncidentRow, req: S['IncidentSearchRequest'], skip?: Facet):
 
 const statusOk = (i: IncidentRow, req: S['IncidentSearchRequest']) => !req.statuses?.length || req.statuses.includes(i.status);
 
+/** Declaration, resolution, teams and services of every non-test incident (Developer Portal reports and catalog). */
+export function mockIncidentFacts(): { declaredAt: number; resolvedAt: number | null; open: boolean; teams: string[]; services: string[] }[] {
+  return db()
+    .incidents.filter((i) => !i.test)
+    .map((i) => ({ declaredAt: i.declaredAt, resolvedAt: i.resolvedAt, open: i.status !== 'resolved', teams: [...i.teams], services: [...i.services] }));
+}
+
 export async function searchIncidents(req: S['IncidentSearchRequest']): Promise<S['IncidentSearchPage']> {
   const all = db().incidents;
   const hits = all.filter((i) => matches(i, req) && statusOk(i, req)).sort((a, b) => Number(a.status === 'resolved') - Number(b.status === 'resolved') || b.declaredAt - a.declaredAt);

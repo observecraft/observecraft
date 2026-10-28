@@ -637,6 +637,19 @@ async fn evaluate_org(st: &AppState, org: &str, refresh: bool) -> Result<(), Api
     .bind(rows)
     .execute(&mut *tx)
     .await?;
+    // Reports → Scorecards Performance: today's level per service (the day's last evaluation wins).
+    let scorecards = load_scorecards(st, org).await?;
+    let levels = serde_json::to_value(score_services(&inputs, &scorecards, &outcomes).iter().map(|s| serde_json::json!({"service": s.service, "team": s.team, "level": s.level})).collect::<Vec<_>>())
+        .map_err(anyhow::Error::from)?;
+    sqlx::query("DELETE FROM portal_scorecard_levels WHERE org_id = $1 AND day = current_date").bind(org).execute(&mut *tx).await?;
+    sqlx::query(
+        "INSERT INTO portal_scorecard_levels (org_id, day, service, team, level) \
+         SELECT $1, current_date, e->>'service', e->>'team', (e->>'level')::smallint FROM jsonb_array_elements($2::jsonb) AS e",
+    )
+    .bind(org)
+    .bind(levels)
+    .execute(&mut *tx)
+    .await?;
     if refresh {
         let snapshot = serde_json::to_value(&inputs.telemetry).map_err(anyhow::Error::from)?;
         sqlx::query(
@@ -737,6 +750,30 @@ async fn rule_row(st: &AppState, org: &str, id: &str) -> Result<RuleRow, ApiErro
     let row: Option<(Option<String>, String)> = sqlx::query_as("SELECT builtin, name FROM scorecard_rules WHERE org_id = $1 AND id = $2::uuid").bind(org).bind(id).fetch_optional(&st.postgres).await?;
     let (builtin, name) = row.ok_or_else(missing)?;
     Ok(RuleRow { builtin, name })
+}
+
+/// Checks and stores a service's metadata, then evaluates from the last snapshot (also used by the
+/// Software Catalog's service definitions). Answers the stored service name and metadata.
+pub(crate) async fn save_metadata(st: &AppState, ctx: &AuthContext, service: &str, input: &ServiceMetadataInput) -> Result<(String, ServiceMetadataInput), ApiError> {
+    let service = check_service(service).map_err(ApiError::BadRequest)?;
+    let meta = check_metadata(input).map_err(ApiError::BadRequest)?;
+    let contacts = serde_json::to_value(&meta.contacts).map_err(anyhow::Error::from)?;
+    sqlx::query(
+        "INSERT INTO service_metadata (org_id, service, team, contacts, repo_url, docs_url, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7::uuid) \
+         ON CONFLICT (org_id, service) DO UPDATE SET team = EXCLUDED.team, contacts = EXCLUDED.contacts, repo_url = EXCLUDED.repo_url, docs_url = EXCLUDED.docs_url, \
+         updated_by = EXCLUDED.updated_by, updated_at = now()",
+    )
+    .bind(&ctx.org_id)
+    .bind(&service)
+    .bind(&meta.team)
+    .bind(contacts)
+    .bind(&meta.repo_url)
+    .bind(&meta.docs_url)
+    .bind(&ctx.user_id)
+    .execute(&st.postgres)
+    .await?;
+    evaluate_org(st, &ctx.org_id, false).await?;
+    Ok((service, ServiceMetadataInput { team: meta.team, contacts: meta.contacts, repo_url: meta.repo_url, docs_url: meta.docs_url }))
 }
 
 // ================================================================ scheduler
@@ -965,24 +1002,7 @@ pub async fn set_outcomes(State(st): State<AppState>, Writer(ctx): Writer, Path(
 #[utoipa::path(put, path = "/api/v1/scorecards/services/{service}/metadata", operation_id = "update_service_metadata", params(("service" = String, Path)), request_body = ServiceMetadataInput,
     responses((status = 200, body = ScorecardsOverview), (status = 400, body = crate::error::ErrorBody)), tag = "scorecards")]
 pub async fn update_metadata(State(st): State<AppState>, Writer(ctx): Writer, Path(service): Path<String>, Json(input): Json<ServiceMetadataInput>) -> ApiResult<ScorecardsOverview> {
-    let service = check_service(&service).map_err(ApiError::BadRequest)?;
-    let meta = check_metadata(&input).map_err(ApiError::BadRequest)?;
-    let contacts = serde_json::to_value(&meta.contacts).map_err(anyhow::Error::from)?;
-    sqlx::query(
-        "INSERT INTO service_metadata (org_id, service, team, contacts, repo_url, docs_url, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7::uuid) \
-         ON CONFLICT (org_id, service) DO UPDATE SET team = EXCLUDED.team, contacts = EXCLUDED.contacts, repo_url = EXCLUDED.repo_url, docs_url = EXCLUDED.docs_url, \
-         updated_by = EXCLUDED.updated_by, updated_at = now()",
-    )
-    .bind(&ctx.org_id)
-    .bind(&service)
-    .bind(&meta.team)
-    .bind(contacts)
-    .bind(&meta.repo_url)
-    .bind(&meta.docs_url)
-    .bind(&ctx.user_id)
-    .execute(&st.postgres)
-    .await?;
-    evaluate_org(&st, &ctx.org_id, false).await?;
+    let (service, meta) = save_metadata(&st, &ctx, &service, &input).await?;
     ctx.audit(&st, "scorecards.service_metadata_updated", &service, &format!("team '{}', {} contacts", meta.team, meta.contacts.len())).await;
     Ok(Json(overview(&st, &ctx.org_id).await?))
 }

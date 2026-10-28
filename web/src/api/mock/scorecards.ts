@@ -131,6 +131,17 @@ function db(): Db {
   return state;
 }
 
+/** The services' metadata, shared with the Software Catalog mock like the server's service_metadata table. */
+export function mockServiceMetadata(): ReadonlyMap<string, Metadata> {
+  return db().metadata;
+}
+
+/** Stores a service's metadata from the Software Catalog mock (service definitions) and re-evaluates. */
+export async function setMockServiceMetadata(service: string, meta: Metadata): Promise<void> {
+  db().metadata.set(service, meta);
+  if (db().setUp) await evaluate();
+}
+
 /** Starts the mock over (tests). */
 export function resetScorecardsMock(): void {
   state = null;

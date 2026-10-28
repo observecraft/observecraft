@@ -45,6 +45,9 @@ pub mod portal_sources;
 pub mod portal_action_steps;
 pub mod portal_actions;
 pub mod portal_surveys;
+pub mod portal_catalog;
+pub mod portal_model;
+pub mod portal_reports;
 pub mod profiles;
 pub mod reference_tables;
 pub mod scorecard_rules;
@@ -368,6 +371,17 @@ use crate::state::AppState;
         portal_actions::delete_action,
         portal_actions::run_action,
         portal_actions::list_runs,
+        portal_catalog::catalog,
+        portal_catalog::list_entities,
+        portal_catalog::get_entity,
+        portal_catalog::upsert_entity,
+        portal_catalog::update_entity,
+        portal_catalog::delete_entity,
+        portal_catalog::import_entities,
+        portal_reports::teams,
+        portal_reports::scorecards,
+        portal_reports::list_dashboards,
+        portal_reports::set_dashboards,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -448,7 +462,7 @@ use crate::state::AppState;
         (name = "synthetics", description = "Synthetic API tests (HTTP, SSL, DNS, TCP) run by the server, their results and uptime"),
         (name = "scorecards", description = "Developer Portal scorecards: rules evaluated per service, their levels and service metadata"),
         (name = "feature_flags", description = "Feature flags, their targeting per environment and history; SDKs evaluate them over OFREP at the intake"),
-        (name = "portal", description = "Developer Portal: home (connectors, identities, pull requests, tickets, entities, apps), settings, surveys and self-service actions"),
+        (name = "portal", description = "Developer Portal: home (connectors, identities, pull requests, tickets, entities, apps), the Software Catalog (telemetry and entity definitions v3), reports, settings, surveys and self-service actions"),
         (name = "auth", description = "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"),
         (name = "health")
     )
@@ -831,6 +845,19 @@ pub fn router() -> Router<AppState> {
             get(portal_actions::get_action).put(portal_actions::update_action).delete(portal_actions::delete_action),
         )
         .route("/api/v1/portal/actions/:id/runs", get(portal_actions::list_runs).post(portal_actions::run_action))
+        .route("/api/v1/portal/catalog", post(portal_catalog::catalog))
+        .route("/api/v1/portal/entities", get(portal_catalog::list_entities).post(portal_catalog::upsert_entity))
+        .route("/api/v1/portal/entities/import", post(portal_catalog::import_entities))
+        .route(
+            "/api/v1/portal/entities/:id",
+            get(portal_catalog::get_entity).put(portal_catalog::update_entity).delete(portal_catalog::delete_entity),
+        )
+        .route("/api/v1/portal/reports/teams", post(portal_reports::teams))
+        .route("/api/v1/portal/reports/scorecards", post(portal_reports::scorecards))
+        .route(
+            "/api/v1/portal/reports/dashboards",
+            get(portal_reports::list_dashboards).put(portal_reports::set_dashboards),
+        )
         // Needs no sign-in (auth::is_public); answers only for public pages or members of the page's org.
         .route("/api/v1/public/status-pages/:slug", get(status_pages::get_public))
         .route(
@@ -1048,6 +1075,9 @@ mod tests {
             include_str!("portal_home.rs"),
             include_str!("portal_sources.rs"),
             include_str!("scorecard_rules.rs"),
+            include_str!("portal_catalog.rs"),
+            include_str!("portal_model.rs"),
+            include_str!("portal_reports.rs"),
             include_str!("identity.rs"),
             include_str!("incidents.rs"),
             include_str!("incident_views.rs"),
@@ -1119,6 +1149,8 @@ mod tests {
             ("scorecards.rs", include_str!("scorecards.rs")),
             ("portal_home.rs", include_str!("portal_home.rs")),
             ("portal_sources.rs", include_str!("portal_sources.rs")),
+            ("portal_catalog.rs", include_str!("portal_catalog.rs")),
+            ("portal_reports.rs", include_str!("portal_reports.rs")),
             ("kubernetes.rs", include_str!("kubernetes.rs")),
             ("live.rs", include_str!("live.rs")),
             ("llm.rs", include_str!("llm.rs")),
@@ -1242,6 +1274,9 @@ mod tests {
             ("portal_action_steps.rs", include_str!("portal_action_steps.rs")),
             ("portal_actions.rs", include_str!("portal_actions.rs")),
             ("portal_surveys.rs", include_str!("portal_surveys.rs")),
+            ("portal_catalog.rs", include_str!("portal_catalog.rs")),
+            ("portal_model.rs", include_str!("portal_model.rs")),
+            ("portal_reports.rs", include_str!("portal_reports.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),
             ("scorecard_rules.rs", include_str!("scorecard_rules.rs")),
