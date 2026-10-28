@@ -10,7 +10,7 @@ import {
   Container,
   Download,
   ExternalLink,
-  Filter,
+  Globe,
   FolderTree,
   Layers,
   Network,
@@ -108,6 +108,18 @@ export function TypeIcon({ type, size = 15 }: { type: CatalogType; size?: number
   return <Icon size={size} className="rc-type-icon" aria-hidden />;
 }
 
+/** "1 resource category", "12 regions": the number of groups in the grouped view. */
+function groupCount(groupBy: string, n: number): string {
+  const one = facetLabel(groupBy).toLowerCase();
+  const many = one.endsWith('y') ? `${one.slice(0, -1)}ies` : `${one}s`;
+  return `${n.toLocaleString()} ${n === 1 ? one : many}`;
+}
+
+function CategoryIcon({ category }: { category: string }) {
+  const Icon = category === 'kubernetes' ? Ship : category === 'containers' ? Container : category === 'compute' ? Server : Boxes;
+  return <Icon size={16} className="rc-type-icon" aria-hidden />;
+}
+
 /** A facet value as people read it (type and category labels). */
 function valueLabel(key: string, value: string): string {
   if (key === 'resource_type') return TYPE_LABELS[value as CatalogType] ?? value;
@@ -117,12 +129,21 @@ function valueLabel(key: string, value: string): string {
 }
 
 const chip = (v: string | null | undefined) => (v ? <span className="tag-chip">{v}</span> : <span className="muted-text">—</span>);
-const chips = (values: string[]) =>
+const CHIP_LIMIT = 3;
+const chips = (values: string[], icon?: boolean) =>
   values.length ? (
     <span className="rc-chips">
-      {values.map((v) => (
-        <Fragment key={v}>{chip(v)}</Fragment>
+      {values.slice(0, CHIP_LIMIT).map((v) => (
+        <span key={v} className={`tag-chip${icon ? ' rc-pill' : ''}`}>
+          {icon && <Globe size={13} />}
+          {v}
+        </span>
       ))}
+      {values.length > CHIP_LIMIT && (
+        <span className="rc-more" title={values.slice(CHIP_LIMIT).join(', ')}>
+          +{values.length - CHIP_LIMIT}
+        </span>
+      )}
     </span>
   ) : (
     <span className="muted-text">—</span>
@@ -157,10 +178,11 @@ function FilterDropdown({ facetKey, facet, terms, onChange, onRemove }: { facetK
   const values = (facet?.values ?? []).filter((v) => valueLabel(facetKey, v.value).toLowerCase().includes(filter.toLowerCase()));
   const label = facetLabel(facetKey);
   return (
-    <div className="dd" ref={ref}>
-      <button className={`rc-filter${selected.length ? ' active' : ''}`} onClick={() => setOpen((o) => !o)}>
-        {selected.length === 1 ? `${label}: ${valueLabel(facetKey, selected[0])}` : selected.length > 1 ? `${label} (${selected.length})` : label}
-        <ChevronDown size={13} />
+    <div className="dd dd-labelled rc-filter-dd" ref={ref}>
+      <span className="dd-floating-label">{label}</span>
+      <button className={`dd-trigger rc-filter${selected.length ? ' active' : ''}`} onClick={() => setOpen((o) => !o)}>
+        <span className="dd-trigger-label">{selected.length === 1 ? valueLabel(facetKey, selected[0]) : selected.length > 1 ? `${selected.length} selected` : 'All'}</span>
+        <ChevronDown size={14} className="dd-caret" />
       </button>
       {open && (
         <div className="dd-menu rc-filter-menu">
@@ -211,11 +233,13 @@ function GroupTable({ groups, groupBy, onOpen }: { groups: CatalogGroup[]; group
       <tbody>
         {groups.map((g) => (
           <tr key={g.key} onClick={() => onOpen(g)} title="Show these resources">
-            <td className="rc-name">
-              {groupBy === 'resource_type' && g.key in TYPE_LABELS && <TypeIcon type={g.key as CatalogType} />} {valueLabel(groupBy, g.key)}
+            <td className="rc-group-name">
+              {groupBy === 'resource_type' && g.key in TYPE_LABELS && <TypeIcon type={g.key as CatalogType} size={16} />}
+              {groupBy === 'resource_category' && <CategoryIcon category={g.key} />}
+              {valueLabel(groupBy, g.key)}
             </td>
             <td className="num">{g.count.toLocaleString()}</td>
-            <td>{chips(g.regions)}</td>
+            <td>{chips(g.regions, true)}</td>
             <td>{chips(g.envs)}</td>
             <td>{chips(g.teams)}</td>
             <td>{chips(g.services)}</td>
@@ -420,48 +444,46 @@ export function ResourceCatalogPage() {
     <div className="rc-page">
       <div className="hosts-scroll">
         <h2 className="rc-heading">Infrastructure</h2>
-        <QueryBar value={query} onChange={(v) => setParam({ q: v, offset: null })} placeholder="Search by resource name, tags or filters (e.g. resource_category:kubernetes env:prod)" />
+        <div className="rc-searchbox">
+          <QueryBar value={query} onChange={(v) => setParam({ q: v, offset: null })} placeholder="Search by resource name, tags or filters (e.g. resource_category:kubernetes env:prod)" />
 
-        <div className="rc-filters">
-          <Filter size={14} className="muted-text" />
-          {FILTERS.map((k) => (
-            <FilterDropdown key={k} facetKey={k} facet={facet(k)} terms={terms} onChange={setTerms} />
-          ))}
-          {extra.map((k) => (
-            <FilterDropdown
-              key={k}
-              facetKey={k}
-              facet={facet(k)}
-              terms={terms}
-              onChange={setTerms}
-              onRemove={() => {
-                setAdded((a) => a.filter((x) => x !== k));
-                setTerms(clearKey(terms, k));
-              }}
-            />
-          ))}
-          {MORE_FILTERS.some((k) => !extra.includes(k)) && (
-            <Menu
-              align="left"
-              triggerClassName="rc-filter rc-filter-add"
-              trigger={
-                <>
-                  <Plus size={13} /> Filter
-                </>
-              }
-              items={MORE_FILTERS.filter((k) => !extra.includes(k)).map((k) => ({ label: facetLabel(k), onClick: () => setAdded((a) => [...a, k]) }))}
-            />
-          )}
-          <span className="rc-groupby">
-            <span className="muted-text">Group by</span>
-            <Select value={groupBy} options={GROUP_OPTIONS} onChange={(g) => setParam({ group: g === 'resource_category' ? null : g, offset: null })} align="right" />
-          </span>
+          <div className="rc-filters">
+            {FILTERS.map((k) => (
+              <FilterDropdown key={k} facetKey={k} facet={facet(k)} terms={terms} onChange={setTerms} />
+            ))}
+            {extra.map((k) => (
+              <FilterDropdown
+                key={k}
+                facetKey={k}
+                facet={facet(k)}
+                terms={terms}
+                onChange={setTerms}
+                onRemove={() => {
+                  setAdded((a) => a.filter((x) => x !== k));
+                  setTerms(clearKey(terms, k));
+                }}
+              />
+            ))}
+            {MORE_FILTERS.some((k) => !extra.includes(k)) && (
+              <Menu
+                align="left"
+                triggerClassName="rc-filter rc-filter-add"
+                trigger={
+                  <>
+                    <Plus size={15} /> Filter
+                  </>
+                }
+                items={MORE_FILTERS.filter((k) => !extra.includes(k)).map((k) => ({ label: facetLabel(k), onClick: () => setAdded((a) => [...a, k]) }))}
+              />
+            )}
+          </div>
+        </div>
+        <div className="rc-groupby">
+          <Select label="Group by" value={groupBy} options={GROUP_OPTIONS} onChange={(g) => setParam({ group: g === 'resource_category' ? null : g, offset: null })} />
         </div>
 
         <div className="hosts-toolbar">
-          <span className="rc-count">
-            {total.toLocaleString()} {noun}
-          </span>
+          <span className="rc-count">{grouped && page?.groups ? groupCount(groupBy, page.groups.length) : `${total.toLocaleString()} ${noun}`}</span>
           <span className="hosts-toolbar-right">
             <button className="link-btn ht-tool" onClick={exportCsv} disabled={grouped}>
               <Download size={15} /> Export as CSV

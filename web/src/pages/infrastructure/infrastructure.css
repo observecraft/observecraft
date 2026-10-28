@@ -1281,17 +1281,60 @@
 }
 
 .rc-heading {
-  margin: 0 0 12px;
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-medium);
+  margin: 4px 0 14px;
+  font-size: 20px;
+  font-weight: var(--fw-semibold);
+}
+
+/* the search and its filters, in one panel */
+.rc-searchbox {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+
+.rc-searchbox .query-bar {
+  background: var(--bg);
+}
+
+.rc-filter-dd .dd-trigger {
+  min-width: 120px;
+}
+
+.rc-groupby .dd-trigger {
+  min-width: 200px;
+}
+
+.rc-group-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: var(--fw-semibold);
+}
+
+.rc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.rc-more {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
 }
 
 .rc-filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 0 8px;
+  align-items: flex-end;
+  gap: 14px 10px;
+  margin-top: 18px;
 }
 
 .rc-filter {
@@ -1313,8 +1356,11 @@
 }
 
 .rc-filter-add {
-  border-style: dashed;
-  color: var(--text-muted);
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--link);
+  font-size: var(--fs-lg);
 }
 
 .rc-filter-menu {
@@ -1363,10 +1409,7 @@
 }
 
 .rc-groupby {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  margin: 22px 0 6px;
 }
 
 .rc-count {
@@ -1454,4 +1497,12 @@
 
 .ct-diff-new {
   background: var(--badge-ok-bg, #e7f6ec);
+}
+
+.rc-searchbox .dd-floating-label {
+  background: linear-gradient(var(--bg-subtle) 55%, var(--bg) 55%);
+}
+
+.rc-searchbox .query-input-field::placeholder {
+  font-family: var(--font-sans);
 }
