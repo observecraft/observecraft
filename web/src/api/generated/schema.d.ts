@@ -6509,6 +6509,7 @@ export interface components {
              */
             updatedAt: number;
             visibility: components["schemas"]["StatusPageVisibility"];
+            visualization: components["schemas"]["StatusPageVisualization"];
         };
         QualityIssue: {
             description: string;
@@ -7371,6 +7372,11 @@ export interface components {
             warn: number;
         };
         StatusPageComponent: {
+            /**
+             * Format: int64
+             * @description When the component was added (epoch ms), if known: days before it have no uptime data.
+             */
+            createdAt?: number | null;
             /** @description The worst of `status` and the impacts of the open notices. */
             currentStatus: components["schemas"]["ComponentStatus"];
             group?: string | null;
@@ -7411,6 +7417,7 @@ export interface components {
             updatedAt: number;
             updatedBy?: string | null;
             visibility: components["schemas"]["StatusPageVisibility"];
+            visualization: components["schemas"]["StatusPageVisualization"];
         };
         StatusPageInput: {
             /** @description In display order. */
@@ -7425,6 +7432,7 @@ export interface components {
             /** @description 1–64 lowercase letters, digits and dashes (not first or last); unique across the instance. */
             slug: string;
             visibility: components["schemas"]["StatusPageVisibility"];
+            visualization?: components["schemas"]["StatusPageVisualization"];
         };
         StatusPageNotice: {
             createdBy?: string | null;
@@ -7471,6 +7479,11 @@ export interface components {
         };
         /** @enum {string} */
         StatusPageVisibility: "public" | "internal";
+        /**
+         * @description How the page shows its components.
+         * @enum {string}
+         */
+        StatusPageVisualization: "bars_and_uptime" | "bars" | "names";
         StatusSegment: {
             /** Format: int64 */
             from: number;

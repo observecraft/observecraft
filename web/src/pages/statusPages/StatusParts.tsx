@@ -1,6 +1,7 @@
 // Pieces shared by the status page detail (Incident Response → Status Pages) and the read-only
 // rendering at /status/<slug>: status labels, the components with their uptime bars, and notices.
 import type { ReactNode } from 'react';
+import { AlertTriangle, Check, OctagonAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { groupComponents, uptimeDays, uptimePercent, UPTIME_DAYS, worstStatus, type UptimeDay } from '../../api/statusPages/status';
 import {
@@ -12,6 +13,7 @@ import {
   type NoticeStatus,
   type StatusPageComponent,
   type StatusPageNotice,
+  type StatusPageVisualization,
 } from '../../api/statusPages/types';
 import { Markdown } from '../dashboards/widgets/markdown';
 import './statusPages.css';
@@ -37,6 +39,16 @@ export function OverallBanner({ status }: { status: ComponentStatus }) {
   return <div className={`stp-banner stp-${status}`}>{OVERALL_STATUS_LABEL[status]}</div>;
 }
 
+/** A status as a filled circle with a white mark: a check when operational. */
+export function StatusBadge({ status, size = 16 }: { status: ComponentStatus; size?: number }) {
+  const Icon = status === 'operational' ? Check : status === 'major_outage' ? OctagonAlert : AlertTriangle;
+  return (
+    <span className={`stp-badge stp-${status}`} style={{ width: size, height: size }} title={COMPONENT_STATUS_LABEL[status]}>
+      <Icon size={Math.round(size * 0.6)} strokeWidth={3} />
+    </span>
+  );
+}
+
 /** A notice's date and time in the viewer's locale, to the minute. */
 const when = (t: number) => new Date(t).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -47,50 +59,57 @@ const hours = (ms: number) => {
 
 function dayTitle(d: UptimeDay) {
   const date = new Date(d.start).toLocaleDateString(undefined, { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric' });
+  if (d.noData) return `${date}: no data`;
   if (d.status === 'operational') return `${date}: no incidents`;
   return `${date}: ${COMPONENT_STATUS_LABEL[d.status]}${d.downMs ? `, ${hours(d.downMs)} of outage` : ''}`;
 }
 
-/** One bar per UTC day of the last 60, from the notices' history. */
-export function UptimeBars({ componentId, notices, now }: { componentId: string; notices: StatusPageNotice[]; now: number }) {
-  const days = uptimeDays(componentId, notices, now);
-  const pct = uptimePercent(days, now);
+/** One bar per UTC day of the last 60, from the notices' history; grey before the component existed. */
+export function UptimeBars({ componentId, notices, now, since }: { componentId: string; notices: StatusPageNotice[]; now: number; since?: number | null }) {
+  const days = uptimeDays(componentId, notices, now, UPTIME_DAYS, since);
+  const pct = uptimePercent(days, now, since);
   return (
-    <div className="stp-uptime">
-      <div className="stp-bars" role="img" aria-label={`${pct.toFixed(2)}% uptime over the last ${UPTIME_DAYS} days`}>
-        {days.map((d) => (
-          <span key={d.start} className={`stp-bar stp-${d.status}`} title={dayTitle(d)} />
-        ))}
-      </div>
-      <div className="stp-uptime-legend muted">
-        <span>{UPTIME_DAYS} days ago</span>
-        <span>{pct.toFixed(2)}% uptime</span>
-        <span>Today</span>
-      </div>
+    <div className="stp-bars" role="img" aria-label={`${pct.toFixed(2)}% uptime over the last ${UPTIME_DAYS} days`}>
+      {days.map((d) => (
+        <span key={d.start} className={`stp-bar ${d.noData ? 'stp-bar-nodata' : `stp-${d.status}`}`} title={dayTitle(d)} />
+      ))}
     </div>
   );
 }
 
 /** The components by group, each with its current status and uptime bars. */
-export function ComponentList({ components, notices }: { components: StatusPageComponent[]; notices: StatusPageNotice[] }) {
+export function ComponentList({ components, notices, visualization = 'bars_and_uptime' }: { components: StatusPageComponent[]; notices: StatusPageNotice[]; visualization?: StatusPageVisualization }) {
   const now = Date.now();
   if (!components.length) return <p className="muted">No components yet.</p>;
+  const row = (c: StatusPageComponent) => (
+    <div key={c.id} className="stp-component">
+      <div className="stp-component-head">
+        <span className="stp-component-name">{c.name}</span>
+        <span className="stp-component-state">
+          {visualization === 'bars_and_uptime' && (
+            <span className="stp-component-pct">{uptimePercent(uptimeDays(c.id, notices, now, UPTIME_DAYS, c.createdAt), now, c.createdAt).toFixed(2)}% uptime</span>
+          )}
+          {visualization === 'names' && <span className={`stp-text-${c.currentStatus}`}>{COMPONENT_STATUS_LABEL[c.currentStatus]}</span>}
+          <StatusBadge status={c.currentStatus} />
+        </span>
+      </div>
+      {visualization !== 'names' && <UptimeBars componentId={c.id} notices={notices} now={now} since={c.createdAt} />}
+    </div>
+  );
   return (
     <div className="stp-components">
-      {groupComponents(components).map((g, i) => (
-        <section key={g.group ?? `ungrouped-${i}`} className="stp-group">
-          {g.group && <h3 className="stp-group-title">{g.group}</h3>}
-          {g.components.map((c) => (
-            <div key={c.id} className="stp-component">
-              <div className="stp-component-head">
-                <span className="stp-component-name">{c.name}</span>
-                <ComponentStatusLabel status={c.currentStatus} />
-              </div>
-              <UptimeBars componentId={c.id} notices={notices} now={now} />
-            </div>
-          ))}
-        </section>
-      ))}
+      {groupComponents(components).map((g, i) =>
+        g.group ? (
+          <section key={g.group} className="stp-group">
+            <h3 className="stp-group-title">{g.group}</h3>
+            {g.components.map(row)}
+          </section>
+        ) : (
+          <div key={`ungrouped-${i}`} className="stp-ungrouped">
+            {g.components.map(row)}
+          </div>
+        ),
+      )}
     </div>
   );
 }

@@ -122,7 +122,7 @@ export function StatusPagePage() {
         Components <span className="muted">{page.components.length}</span>
       </h2>
       <p className="muted">One bar per day of the last 60 (UTC), from the notices&apos; history; partial and major outages count as downtime.</p>
-      <ComponentList components={page.components} notices={page.notices} />
+      <ComponentList components={page.components} notices={page.notices} visualization={page.visualization} />
 
       <h2 className="settings-subtitle">Past Notices</h2>
       {past.length ? (

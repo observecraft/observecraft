@@ -54,6 +54,37 @@ pub enum StatusPageVisibility {
     Internal,
 }
 
+/// How the page shows its components.
+#[derive(Serialize, Deserialize, ToSchema, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum StatusPageVisualization {
+    /// Uptime bars and the uptime percentage.
+    #[default]
+    BarsAndUptime,
+    /// Uptime bars only.
+    Bars,
+    /// Component names and statuses only.
+    Names,
+}
+
+impl StatusPageVisualization {
+    fn as_str(self) -> &'static str {
+        match self {
+            StatusPageVisualization::BarsAndUptime => "bars_and_uptime",
+            StatusPageVisualization::Bars => "bars",
+            StatusPageVisualization::Names => "names",
+        }
+    }
+}
+
+fn now_ms() -> i64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64
+}
+
+fn visualization(s: &str) -> StatusPageVisualization {
+    serde_json::from_value(Value::String(s.to_string())).unwrap_or_default()
+}
+
 #[derive(Serialize, Deserialize, ToSchema, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum NoticeStatus {
@@ -91,6 +122,9 @@ struct StoredComponent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     group: Option<String>,
     status: ComponentStatus,
+    /// When the component was added (epoch ms); its uptime bars start there. Absent on older pages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    created_at: Option<i64>,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -121,6 +155,8 @@ pub struct StatusPageComponent {
     pub status: ComponentStatus,
     /// The worst of `status` and the impacts of the open notices.
     pub current_status: ComponentStatus,
+    /// When the component was added (epoch ms), if known: days before it have no uptime data.
+    pub created_at: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug, PartialEq)]
@@ -193,6 +229,7 @@ pub struct StatusPageDetail {
     /// The page offers to subscribe to its updates by email / in Slack.
     pub email_subscriptions: bool,
     pub slack_subscriptions: bool,
+    pub visualization: StatusPageVisualization,
     pub components: Vec<StatusPageComponent>,
     pub overall_status: ComponentStatus,
     /// Open notices and those resolved in the last 60 days, newest first.
@@ -215,6 +252,7 @@ pub struct PublicStatusPage {
     pub logo_url: String,
     pub email_subscriptions: bool,
     pub slack_subscriptions: bool,
+    pub visualization: StatusPageVisualization,
     pub components: Vec<StatusPageComponent>,
     pub overall_status: ComponentStatus,
     /// Open notices and those resolved in the last 60 days, newest first, without authors or incident links.
@@ -240,6 +278,8 @@ pub struct StatusPageInput {
     pub email_subscriptions: bool,
     #[serde(default)]
     pub slack_subscriptions: bool,
+    #[serde(default)]
+    pub visualization: StatusPageVisualization,
     /// In display order.
     #[serde(default)]
     pub components: Vec<StatusPageComponentInput>,
@@ -294,6 +334,7 @@ fn current_components(components: &[StoredComponent], open: &[&[NoticeImpact]]) 
             group: c.group.clone(),
             status: c.status,
             current_status: worst([c.status, impacts.get(c.id.as_str()).copied().unwrap_or(ComponentStatus::Operational)]),
+            created_at: c.created_at,
         })
         .collect()
 }
@@ -332,8 +373,9 @@ fn new_component_id() -> String {
 }
 
 /// Checks the page's fields and turns its components into stored ones: names trimmed and unique,
-/// ids of components in `existing` kept, every other component given a new id.
-fn check_page(input: &mut StatusPageInput, existing: &[StoredComponent]) -> Result<Vec<StoredComponent>, String> {
+/// ids (and creation times) of components in `existing` kept, every other component given a new id
+/// and `now` (epoch ms) as its creation time.
+fn check_page(input: &mut StatusPageInput, existing: &[StoredComponent], now: i64) -> Result<Vec<StoredComponent>, String> {
     input.name = required(&input.name, "The name", MAX_NAME_CHARS)?;
     input.slug = input.slug.trim().to_string();
     check_slug(&input.slug)?;
@@ -353,7 +395,7 @@ fn check_page(input: &mut StatusPageInput, existing: &[StoredComponent]) -> Resu
     if input.components.len() > MAX_COMPONENTS {
         return Err(format!("A status page has at most {MAX_COMPONENTS} components"));
     }
-    let known: HashSet<&str> = existing.iter().map(|c| c.id.as_str()).collect();
+    let known: HashMap<&str, Option<i64>> = existing.iter().map(|c| (c.id.as_str(), c.created_at)).collect();
     let mut names = HashSet::new();
     let mut ids = HashSet::new();
     let mut out = Vec::with_capacity(input.components.len());
@@ -366,12 +408,12 @@ fn check_page(input: &mut StatusPageInput, existing: &[StoredComponent]) -> Resu
         if group.as_ref().is_some_and(|g| g.chars().count() > MAX_NAME_CHARS) {
             return Err(format!("Group names are at most {MAX_NAME_CHARS} characters"));
         }
-        let id = match c.id.as_deref() {
-            Some(id) if known.contains(id) && !ids.contains(id) => id.to_string(),
-            _ => new_component_id(),
+        let (id, created_at) = match c.id.as_deref() {
+            Some(id) if known.contains_key(id) && !ids.contains(id) => (id.to_string(), known[id]),
+            _ => (new_component_id(), Some(now)),
         };
         ids.insert(id.clone());
-        out.push(StoredComponent { id, name, group, status: c.status });
+        out.push(StoredComponent { id, name, group, status: c.status, created_at });
     }
     Ok(out)
 }
@@ -418,6 +460,7 @@ struct PageRow {
     logo_url: String,
     email_subscriptions: bool,
     slack_subscriptions: bool,
+    visualization: String,
     components: Value,
     created_by: Option<String>,
     updated_by: Option<String>,
@@ -479,7 +522,7 @@ fn ms(column: &str) -> String {
 
 fn page_select() -> String {
     format!(
-        "SELECT p.id::text AS id, p.name, p.slug, p.visibility, p.description, p.logo_url, p.email_subscriptions, p.slack_subscriptions, p.components, c.name AS created_by, u.name AS updated_by, \
+        "SELECT p.id::text AS id, p.name, p.slug, p.visibility, p.description, p.logo_url, p.email_subscriptions, p.slack_subscriptions, p.visualization, p.components, c.name AS created_by, u.name AS updated_by, \
          {} AS created_at, {} AS updated_at FROM status_pages p LEFT JOIN users c ON c.id = p.created_by LEFT JOIN users u ON u.id = p.updated_by",
         ms("p.created_at"),
         ms("p.updated_at")
@@ -563,6 +606,7 @@ fn detail(page: PageRow, notices: Vec<StatusPageNotice>) -> StatusPageDetail {
         logo_url: page.logo_url,
         email_subscriptions: page.email_subscriptions,
         slack_subscriptions: page.slack_subscriptions,
+        visualization: visualization(&page.visualization),
         created_by: page.created_by,
         updated_by: page.updated_by,
         created_at: page.created_at,
@@ -591,6 +635,7 @@ fn public(d: StatusPageDetail) -> PublicStatusPage {
         logo_url: d.logo_url,
         email_subscriptions: d.email_subscriptions,
         slack_subscriptions: d.slack_subscriptions,
+        visualization: d.visualization,
         components: d.components,
         overall_status: d.overall_status,
         notices,
@@ -657,14 +702,14 @@ pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec
 #[utoipa::path(post, path = "/api/v1/status-pages", operation_id = "create_status_page", request_body = StatusPageInput,
     responses((status = 200, body = StatusPageDetail), (status = 400, body = crate::error::ErrorBody)), tag = "incidents")]
 pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut input): Json<StatusPageInput>) -> ApiResult<StatusPageDetail> {
-    let components = check_page(&mut input, &[]).map_err(ApiError::BadRequest)?;
+    let components = check_page(&mut input, &[], now_ms()).map_err(ApiError::BadRequest)?;
     let (count,): (i64,) = sqlx::query_as("SELECT count(*) FROM status_pages WHERE org_id = $1").bind(&ctx.org_id).fetch_one(&st.postgres).await?;
     if count >= MAX_PAGES {
         return Err(ApiError::BadRequest(format!("An organization can have at most {MAX_PAGES} status pages")));
     }
     let (id,): (String,) = sqlx::query_as(
-        "INSERT INTO status_pages (org_id, name, slug, visibility, description, components, created_by, updated_by, logo_url, email_subscriptions, slack_subscriptions) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7::uuid, $7::uuid, $8, $9, $10) RETURNING id::text",
+        "INSERT INTO status_pages (org_id, name, slug, visibility, description, components, created_by, updated_by, logo_url, email_subscriptions, slack_subscriptions, visualization) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7::uuid, $7::uuid, $8, $9, $10, $11) RETURNING id::text",
     )
     .bind(&ctx.org_id)
     .bind(&input.name)
@@ -676,6 +721,7 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut in
     .bind(&input.logo_url)
     .bind(input.email_subscriptions)
     .bind(input.slack_subscriptions)
+    .bind(input.visualization.as_str())
     .fetch_one(&st.postgres)
     .await
     .map_err(|e| slug_taken(e, &input.slug))?;
@@ -696,10 +742,10 @@ pub async fn get_one(State(st): State<AppState>, ctx: AuthContext, Path(id): Pat
 pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<String>, Json(mut input): Json<StatusPageInput>) -> ApiResult<StatusPageDetail> {
     let mut tx = st.postgres.begin().await?;
     let existing = lock_components(&mut tx, &ctx.org_id, &id).await?;
-    let components = check_page(&mut input, &existing).map_err(ApiError::BadRequest)?;
+    let components = check_page(&mut input, &existing, now_ms()).map_err(ApiError::BadRequest)?;
     sqlx::query(
         "UPDATE status_pages SET name = $3, slug = $4, visibility = $5, description = $6, components = $7, updated_by = $8::uuid, updated_at = now(), \
-         logo_url = $9, email_subscriptions = $10, slack_subscriptions = $11 WHERE org_id = $1 AND id = $2::uuid",
+         logo_url = $9, email_subscriptions = $10, slack_subscriptions = $11, visualization = $12 WHERE org_id = $1 AND id = $2::uuid",
     )
     .bind(&ctx.org_id)
     .bind(&id)
@@ -712,6 +758,7 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
     .bind(&input.logo_url)
     .bind(input.email_subscriptions)
     .bind(input.slack_subscriptions)
+    .bind(input.visualization.as_str())
     .execute(&mut *tx)
     .await
     .map_err(|e| slug_taken(e, &input.slug))?;
@@ -871,7 +918,7 @@ mod tests {
     use ComponentStatus::*;
 
     fn component(id: &str, status: ComponentStatus) -> StoredComponent {
-        StoredComponent { id: id.into(), name: id.to_uppercase(), group: None, status }
+        StoredComponent { id: id.into(), name: id.to_uppercase(), group: None, status, created_at: Some(1_000) }
     }
 
     fn impact(id: &str, impact: ComponentStatus) -> NoticeImpact {
@@ -887,6 +934,7 @@ mod tests {
             logo_url: "".into(),
             email_subscriptions: false,
             slack_subscriptions: false,
+            visualization: StatusPageVisualization::BarsAndUptime,
             components: components
                 .iter()
                 .map(|(name, group, id)| StatusPageComponentInput { id: id.map(Into::into), name: name.to_string(), group: group.map(Into::into), status: Operational })
@@ -940,9 +988,11 @@ mod tests {
     fn pages_keep_known_component_ids_and_give_new_ones_random_ids() {
         let existing = [component("c_checkout", MajorOutage)];
         let mut page = input(&[(" Checkout ", Some(" Storefront "), Some("c_checkout")), ("Search", Some(" "), Some("c_forged")), ("Cart", None, None)]);
-        let stored = check_page(&mut page, &existing).unwrap();
+        let stored = check_page(&mut page, &existing, 2_000).unwrap();
         assert_eq!(page.name, "Storefront status");
-        assert_eq!(stored[0], StoredComponent { id: "c_checkout".into(), name: "Checkout".into(), group: Some("Storefront".into()), status: Operational });
+        // A kept component keeps the time it was added; new ones are stamped now.
+        assert_eq!(stored[0], StoredComponent { id: "c_checkout".into(), name: "Checkout".into(), group: Some("Storefront".into()), status: Operational, created_at: Some(1_000) });
+        assert_eq!((stored[1].created_at, stored[2].created_at), (Some(2_000), Some(2_000)));
         assert_eq!((stored[1].name.as_str(), stored[1].group.as_deref()), ("Search", None));
         assert!(stored[1].id.starts_with("c_") && stored[1].id != "c_forged");
         assert!(stored[2].id.starts_with("c_") && stored[2].id != stored[1].id);
@@ -950,7 +1000,7 @@ mod tests {
 
     #[test]
     fn pages_are_rejected_with_clear_errors() {
-        let check = |mut page: StatusPageInput| check_page(&mut page, &[]).unwrap_err();
+        let check = |mut page: StatusPageInput| check_page(&mut page, &[], 0).unwrap_err();
         let mut nameless = input(&[]);
         nameless.name = " ".into();
         assert_eq!(check(nameless), "The name is required");
@@ -972,7 +1022,7 @@ mod tests {
         let check = |url: &str| {
             let mut page = input(&[]);
             page.logo_url = url.into();
-            check_page(&mut page, &[]).map(|_| page.logo_url)
+            check_page(&mut page, &[], 0).map(|_| page.logo_url)
         };
         assert_eq!(check(""), Ok("".into()));
         assert_eq!(check(" https://cdn.example.com/logo.png "), Ok("https://cdn.example.com/logo.png".into()));
@@ -980,6 +1030,15 @@ mod tests {
             assert_eq!(check(bad), Err("The logo must be an http or https URL".into()), "{bad}");
         }
         assert_eq!(check(&format!("https://example.com/{}", "x".repeat(MAX_URL_CHARS))), Err("The logo URL is at most 2048 characters".into()));
+    }
+
+    #[test]
+    fn visualization_defaults_to_bars_and_uptime() {
+        let page: StatusPageInput = serde_json::from_value(serde_json::json!({"name": "Shop", "slug": "shop", "visibility": "public"})).unwrap();
+        assert_eq!(page.visualization, StatusPageVisualization::BarsAndUptime);
+        assert_eq!(visualization("bars"), StatusPageVisualization::Bars);
+        assert_eq!(visualization("names"), StatusPageVisualization::Names);
+        assert_eq!(StatusPageVisualization::Names.as_str(), "names");
     }
 
     #[test]

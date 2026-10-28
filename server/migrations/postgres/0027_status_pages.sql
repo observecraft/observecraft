@@ -18,6 +18,8 @@ CREATE TABLE status_pages (
     -- The page shows a subscribe button for these channels. Subscriptions aren't delivered yet.
     email_subscriptions BOOLEAN NOT NULL DEFAULT false,
     slack_subscriptions BOOLEAN NOT NULL DEFAULT false,
+    -- How components show: uptime bars and percentage, bars only, or names only.
+    visualization TEXT NOT NULL DEFAULT 'bars_and_uptime' CHECK (visualization IN ('bars_and_uptime', 'bars', 'names')),
     -- The components in display order: [{"id": "c_…", "name": "Checkout", "group": "Storefront",
     -- "status": "operational"}]. `status` is the one set by hand; open notices can make it worse.
     components  JSONB NOT NULL DEFAULT '[]',

@@ -21,6 +21,7 @@ registerHooks({
 });
 const status = await import('../web/src/api/statusPages/status.ts');
 const mock = await import('../web/src/api/mock/statusPages.ts');
+const types = await import('../web/src/api/statusPages/types.ts');
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -106,9 +107,9 @@ test('uptime replays the updates: each one sets the impacts until the next', () 
   };
   const days = status.uptimeDays('checkout', [notice], NOW);
   // 22:00–24:00 major outage two days ago; 00:00–01:00 major, then degraded until 04:00 yesterday.
-  assert.deepEqual(days[57], { start: TODAY - 2 * DAY, status: 'major_outage', downMs: 2 * HOUR });
-  assert.deepEqual(days[58], { start: TODAY - DAY, status: 'major_outage', downMs: HOUR });
-  assert.deepEqual(days[59], { start: TODAY, status: 'operational', downMs: 0 });
+  assert.deepEqual(days[57], { start: TODAY - 2 * DAY, status: 'major_outage', downMs: 2 * HOUR, noData: false });
+  assert.deepEqual(days[58], { start: TODAY - DAY, status: 'major_outage', downMs: HOUR, noData: false });
+  assert.deepEqual(days[59], { start: TODAY, status: 'operational', downMs: 0, noData: false });
   const total = 59 * DAY + 12 * HOUR;
   assert.equal(status.uptimePercent(days, NOW), 100 * (1 - (3 * HOUR) / total));
   // Search: partial outage for the first 3 hours only.
@@ -126,13 +127,13 @@ test('uptime: open notices last until now, overlapping outages count once, degra
   const b = { startedAt: TODAY + 2 * HOUR, resolvedAt: TODAY + 4 * HOUR, impacts: [], updates: [update(TODAY + 2 * HOUR, 'identified', [impact('checkout', 'major_outage')])] };
   const slow = { startedAt: TODAY - DAY, resolvedAt: TODAY - DAY + 5 * HOUR, impacts: [], updates: [update(TODAY - DAY, 'identified', [impact('checkout', 'degraded_performance')])] };
   const days = status.uptimeDays('checkout', [a, b, slow], NOW);
-  assert.deepEqual(days[59], { start: TODAY, status: 'major_outage', downMs: 11 * HOUR });
-  assert.deepEqual(days[58], { start: TODAY - DAY, status: 'degraded_performance', downMs: 0 });
+  assert.deepEqual(days[59], { start: TODAY, status: 'major_outage', downMs: 11 * HOUR, noData: false });
+  assert.deepEqual(days[58], { start: TODAY - DAY, status: 'degraded_performance', downMs: 0, noData: false });
 });
 
 test('uptime: a notice without updates uses its own impacts over its lifetime', () => {
   const n = { startedAt: TODAY + HOUR, resolvedAt: TODAY + 3 * HOUR, impacts: [impact('checkout', 'major_outage')], updates: [] };
-  assert.deepEqual(status.uptimeDays('checkout', [n], NOW)[59], { start: TODAY, status: 'major_outage', downMs: 2 * HOUR });
+  assert.deepEqual(status.uptimeDays('checkout', [n], NOW)[59], { start: TODAY, status: 'major_outage', downMs: 2 * HOUR, noData: false });
 });
 
 test('mock: create, edit with kept ids, notices, resolve and the public view', async () => {
@@ -182,4 +183,25 @@ test('mock seed uses the demo domain and has history for the uptime bars', async
   assert.ok(detail.notices.some((n) => n.resolvedAt) && detail.notices.some((n) => !n.resolvedAt));
   const text = JSON.stringify(detail).toLowerCase();
   assert.ok(['checkout', 'storefront', 'billing'].some((w) => text.includes(w)));
+});
+
+test('days before a component existed have no data and do not count toward uptime', () => {
+  // Added yesterday at 18:00 UTC; a one-hour outage today.
+  const since = TODAY - 6 * HOUR;
+  const n = { startedAt: TODAY + HOUR, resolvedAt: TODAY + 2 * HOUR, impacts: [], updates: [update(TODAY + HOUR, 'investigating', [impact('checkout', 'major_outage')])] };
+  const days = status.uptimeDays('checkout', [n], NOW, status.UPTIME_DAYS, since);
+  assert.equal(days.filter((d) => d.noData).length, 58);
+  assert.deepEqual(
+    days.slice(58).map((d) => d.noData),
+    [false, false],
+  );
+  // Covered time: 6 h yesterday and 12 h today; one hour down.
+  assert.equal(status.uptimePercent(days, NOW, since), 100 * (1 - HOUR / (18 * HOUR)));
+  // Without a creation time every day counts, as before.
+  assert.equal(status.uptimeDays('checkout', [n], NOW).filter((d) => d.noData).length, 0);
+});
+
+test('visualization labels', () => {
+  
+  assert.deepEqual(Object.keys(types.VISUALIZATION_LABEL), ['bars_and_uptime', 'bars', 'names']);
 });

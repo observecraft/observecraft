@@ -4,6 +4,7 @@ type S = components['schemas'];
 export type ComponentStatus = S['ComponentStatus'];
 export type NoticeStatus = S['NoticeStatus'];
 export type StatusPageVisibility = S['StatusPageVisibility'];
+export type StatusPageVisualization = S['StatusPageVisualization'];
 export type StatusPageSummary = S['StatusPageSummary'];
 export type StatusPageDetail = S['StatusPageDetail'];
 export type StatusPageComponent = S['StatusPageComponent'];
@@ -36,3 +37,5 @@ export const NOTICE_STATUSES: NoticeStatus[] = ['investigating', 'identified', '
 export const NOTICE_STATUS_LABEL: Record<NoticeStatus, string> = { investigating: 'Investigating', identified: 'Identified', monitoring: 'Monitoring', resolved: 'Resolved' };
 
 export const VISIBILITY_LABEL: Record<StatusPageVisibility, string> = { public: 'Public', internal: 'Internal' };
+
+export const VISUALIZATION_LABEL: Record<StatusPageVisualization, string> = { bars_and_uptime: 'Bars and Uptime Percentage', bars: 'Bars Only', names: 'Component Name Only' };

@@ -19132,6 +19132,7 @@
           "logoUrl",
           "emailSubscriptions",
           "slackSubscriptions",
+          "visualization",
           "components",
           "overallStatus",
           "notices",
@@ -19179,6 +19180,9 @@
           },
           "visibility": {
             "$ref": "#/components/schemas/StatusPageVisibility"
+          },
+          "visualization": {
+            "$ref": "#/components/schemas/StatusPageVisualization"
           }
         }
       },
@@ -21945,6 +21949,14 @@
           "currentStatus"
         ],
         "properties": {
+          "createdAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "When the component was added (epoch ms), if known: days before it have no uptime data."
+          },
           "currentStatus": {
             "$ref": "#/components/schemas/ComponentStatus",
             "description": "The worst of `status` and the impacts of the open notices."
@@ -22006,6 +22018,7 @@
           "logoUrl",
           "emailSubscriptions",
           "slackSubscriptions",
+          "visualization",
           "components",
           "overallStatus",
           "notices",
@@ -22075,6 +22088,9 @@
           },
           "visibility": {
             "$ref": "#/components/schemas/StatusPageVisibility"
+          },
+          "visualization": {
+            "$ref": "#/components/schemas/StatusPageVisualization"
           }
         }
       },
@@ -22116,6 +22132,9 @@
           },
           "visibility": {
             "$ref": "#/components/schemas/StatusPageVisibility"
+          },
+          "visualization": {
+            "$ref": "#/components/schemas/StatusPageVisualization"
           }
         }
       },
@@ -22237,6 +22256,15 @@
         "enum": [
           "public",
           "internal"
+        ]
+      },
+      "StatusPageVisualization": {
+        "type": "string",
+        "description": "How the page shows its components.",
+        "enum": [
+          "bars_and_uptime",
+          "bars",
+          "names"
         ]
       },
       "StatusSegment": {

@@ -71,6 +71,8 @@ export interface UptimeDay {
   status: ComponentStatus;
   /** Time under a partial or major outage that day. */
   downMs: number;
+  /** The day ended before the component existed. */
+  noData: boolean;
 }
 
 interface NoticeHistory {
@@ -112,7 +114,7 @@ function unionLength(intervals: [number, number][]): number {
  * impact on the component that day and how long it was under a partial or major outage (overlapping
  * notices count once; degraded performance isn't downtime).
  */
-export function uptimeDays(componentId: string, notices: NoticeHistory[], now: number, days = UPTIME_DAYS): UptimeDay[] {
+export function uptimeDays(componentId: string, notices: NoticeHistory[], now: number, days = UPTIME_DAYS, since?: number | null): UptimeDay[] {
   const today = Math.floor(now / DAY) * DAY;
   const all = notices.flatMap((n) => segments(componentId, n, now));
   return Array.from({ length: days }, (_, i) => {
@@ -120,13 +122,13 @@ export function uptimeDays(componentId: string, notices: NoticeHistory[], now: n
     const end = Math.min(start + DAY, now);
     const day = all.filter((s) => s.from < end && s.to > start);
     const down = day.filter((s) => s.impact === 'partial_outage' || s.impact === 'major_outage').map((s): [number, number] => [Math.max(s.from, start), Math.min(s.to, end)]);
-    return { start, status: worstStatus(day.map((s) => s.impact)), downMs: unionLength(down) };
+    return { start, status: worstStatus(day.map((s) => s.impact)), downMs: unionLength(down), noData: since != null && end <= since };
   });
 }
 
-/** Share of the time covered by the bars (up to now) without a partial or major outage, in percent. */
-export function uptimePercent(days: UptimeDay[], now: number): number {
-  const total = days.reduce((sum, d) => sum + Math.max(0, Math.min(d.start + DAY, now) - d.start), 0);
+/** Share of the time covered by the bars (from `since`, up to now) without a partial or major outage, in percent. */
+export function uptimePercent(days: UptimeDay[], now: number, since?: number | null): number {
+  const total = days.reduce((sum, d) => sum + Math.max(0, Math.min(d.start + DAY, now) - Math.max(d.start, since ?? d.start)), 0);
   const down = days.reduce((sum, d) => sum + d.downMs, 0);
   return total > 0 ? 100 * (1 - down / total) : 100;
 }

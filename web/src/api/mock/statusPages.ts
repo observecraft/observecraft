@@ -14,6 +14,7 @@ import type {
   StatusPageNotice,
   StatusPageSummary,
   StatusPageVisibility,
+  StatusPageVisualization,
 } from '../statusPages/types';
 import { mockMe } from './identity';
 import { getIncident } from './incidents';
@@ -37,6 +38,7 @@ interface Component {
   name: string;
   group: string | null;
   status: ComponentStatus;
+  createdAt: number | null;
 }
 
 interface Page {
@@ -48,6 +50,7 @@ interface Page {
   logoUrl: string;
   emailSubscriptions: boolean;
   slackSubscriptions: boolean;
+  visualization: StatusPageVisualization;
   components: Component[];
   notices: StatusPageNotice[];
   createdBy: string | null;
@@ -65,7 +68,7 @@ function db(): { pages: Page[]; seq: number } {
   if (state) return state;
   const now = Date.now();
   const s = { pages: [] as Page[], seq: 1 };
-  const component = (name: string, group: string | null, status: ComponentStatus = 'operational'): Component => ({ id: componentId(), name, group, status });
+  const component = (name: string, group: string | null, status: ComponentStatus = 'operational'): Component => ({ id: componentId(), name, group, status, createdAt: null });
   const notice = (title: string, incidentId: number | null, steps: [number, NoticeStatus, string, NoticeImpact[]][]): StatusPageNotice => {
     const updates: NoticeUpdate[] = steps.map(([at, status, message, impacts]) => ({ id: s.seq++, status, message, impacts, createdBy: 'Priya Shah', createdAt: at })).reverse();
     const last = updates[0];
@@ -100,6 +103,7 @@ function db(): { pages: Page[]; seq: number } {
     logoUrl: '',
     emailSubscriptions: true,
     slackSubscriptions: true,
+    visualization: 'bars_and_uptime',
     components: [storefront, checkout, search, billing, invoices, api, inventory],
     notices: [
       notice('Inventory counts are updating slowly', null, [
@@ -141,6 +145,7 @@ function db(): { pages: Page[]; seq: number } {
     logoUrl: '',
     emailSubscriptions: false,
     slackSubscriptions: false,
+    visualization: 'bars_and_uptime',
     components: [gateway, orders, catalog, billingSvc, queue],
     notices: [
       notice('Elevated latency on catalog-service', null, [
@@ -199,9 +204,19 @@ function checkPage(input: StatusPageInput, existing: Component[], self?: string)
     names.add(n.toLowerCase());
     const id = c.id && existing.some((e) => e.id === c.id) && !ids.has(c.id) ? c.id : componentId();
     ids.add(id);
-    return { id, name: n, group: c.group?.trim() || null, status: c.status ?? 'operational' };
+    return { id, name: n, group: c.group?.trim() || null, status: c.status ?? 'operational', createdAt: existing.find((e) => e.id === id)?.createdAt ?? Date.now() };
   });
-  return { name, slug, visibility: input.visibility, description, logoUrl, emailSubscriptions: input.emailSubscriptions ?? false, slackSubscriptions: input.slackSubscriptions ?? false, components };
+  return {
+    name,
+    slug,
+    visibility: input.visibility,
+    description,
+    logoUrl,
+    emailSubscriptions: input.emailSubscriptions ?? false,
+    slackSubscriptions: input.slackSubscriptions ?? false,
+    visualization: input.visualization ?? 'bars_and_uptime',
+    components,
+  };
 }
 
 function checkImpacts(impacts: NoticeImpact[], components: Component[]) {
@@ -322,6 +337,7 @@ export async function getPublicStatusPage(slug: string): Promise<PublicStatusPag
     logoUrl: d.logoUrl,
     emailSubscriptions: d.emailSubscriptions,
     slackSubscriptions: d.slackSubscriptions,
+    visualization: d.visualization,
     components: d.components,
     overallStatus: d.overallStatus,
     notices: d.notices.map((n) => ({ ...n, incidentId: null, createdBy: null, updates: n.updates.map((u) => ({ ...u, createdBy: null })) })),
