@@ -398,7 +398,7 @@ fn check_page(input: &mut StatusPageInput, existing: &[StoredComponent], now: i6
     let known: HashMap<&str, Option<i64>> = existing.iter().map(|c| (c.id.as_str(), c.created_at)).collect();
     let mut names = HashSet::new();
     let mut ids = HashSet::new();
-    let mut out = Vec::with_capacity(input.components.len());
+    let mut out = Vec::with_capacity(MAX_COMPONENTS);
     for c in &input.components {
         let name = required(&c.name, "The component name", MAX_NAME_CHARS)?;
         if !names.insert(name.to_lowercase()) {
