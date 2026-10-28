@@ -1576,6 +1576,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/infrastructure/cloud-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The diagram of one provider's resources, grouped, with the requested overlay. */
+        post: operations["cloud_map"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates a policy. */
+        post: operations["create_resource_policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/policies/attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The attributes policies can check, per resource type in the catalog. */
+        get: operations["resource_policy_attributes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/policies/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** What a policy being edited would score on the current catalog. */
+        post: operations["preview_resource_policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/policies/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Policies with their compliance (counting only resources matching the page's filters), the
+         *     templates with a preview score, and the filters' values. */
+        post: operations["search_resource_policies"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/infrastructure/policies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A policy with its score over time and its noncompliant resources. */
+        get: operations["get_resource_policy"];
+        /** Replaces a policy's definition. */
+        put: operations["update_resource_policy"];
+        post?: never;
+        /** Deletes a policy and its history. */
+        delete: operations["delete_resource_policy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ingest-keys": {
         parameters: {
             query?: never;
@@ -5294,6 +5399,77 @@ export interface components {
         };
         /** @enum {string} */
         Cloud: "aws" | "azure" | "gcp" | "oracle" | "alibaba" | "none";
+        CloudMap: {
+            edges: components["schemas"]["CloudMapEdge"][];
+            /** @description The group keys used. */
+            groupBy: string[];
+            providers: components["schemas"]["CloudMapProviderSummary"][];
+            root: components["schemas"]["CloudMapGroup"];
+            /** @description Matching resources, folded ones included. */
+            total: number;
+        };
+        /** @description A service calling another (dependencies overlay). */
+        CloudMapEdge: {
+            /** Format: double */
+            errorRate: number;
+            from: string;
+            /** Format: int64 */
+            requests: number;
+            to: string;
+        };
+        CloudMapGroup: {
+            /** @description Resources under the group, folded ones included. */
+            count: number;
+            groups: components["schemas"]["CloudMapGroup"][];
+            /** @description Worst health of the group's resources. */
+            health: components["schemas"]["CloudMapHealth"];
+            /** @description The group key (`region`), or `root`. */
+            key: string;
+            nodes: components["schemas"]["CloudMapNode"][];
+            /** @description The value (`eu-west-1`); "" when the resources have none; `__other__` for merged small groups. */
+            value: string;
+        };
+        /** @enum {string} */
+        CloudMapHealth: "unknown" | "ok" | "warning" | "error";
+        /** @description One block of the diagram: a resource, or `aggregate` resources folded into one. */
+        CloudMapNode: {
+            /** @description How many resources this block stands for when folded ("+N"); null for one resource. */
+            aggregate?: number | null;
+            /**
+             * Format: int32
+             * @description Monitors alerting (or warning) on the resource; health overlay only.
+             */
+            alerts: number;
+            /**
+             * Format: double
+             * @description APM error rate of the resource's service over the last hour (0–1); health overlay only.
+             */
+            errorRate?: number | null;
+            health: components["schemas"]["CloudMapHealth"];
+            id: string;
+            name: string;
+            resource?: null | components["schemas"]["CatalogResource"];
+            resourceType: components["schemas"]["CatalogType"];
+            service?: string | null;
+        };
+        /** @enum {string} */
+        CloudMapOverlay: "default" | "health" | "dependencies";
+        /** @enum {string} */
+        CloudMapProvider: "kubernetes" | "hosts" | "ecs";
+        /** @description A provider tab with how many resources it has and, for hosts, their clouds. */
+        CloudMapProviderSummary: {
+            clouds: string[];
+            provider: components["schemas"]["CloudMapProvider"];
+            resources: number;
+        };
+        CloudMapRequest: {
+            /** @description Group keys, outermost first; empty for the provider's default. */
+            groupBy?: string[];
+            overlay?: components["schemas"]["CloudMapOverlay"];
+            provider: components["schemas"]["CloudMapProvider"];
+            /** @description Catalog search narrowing the resources (`env:prod team:checkout`, free text on names). */
+            query?: string;
+        };
         CodeRequest: {
             /** @description 6-digit code from the authenticator app. */
             code: string;
@@ -8902,6 +9078,45 @@ export interface components {
             repository: string;
             revision: string;
         };
+        /** @enum {string} */
+        PolicyCategory: "cost_optimization" | "reliability" | "security" | "versioning" | "tagging";
+        /** @description One requirement on an attribute of the resource. */
+        PolicyCondition: {
+            /** @description A field (`env`, `team`, `region`, …), a tag key or an attribute (`replicas`, `image_tags`, `version`, …). */
+            attribute: string;
+            operator: components["schemas"]["PolicyOperator"];
+            /** @description None for exists / not exists, one for comparisons, a list for one of / not one of. */
+            values?: string[];
+        };
+        PolicyEvaluation: {
+            /** @description Resources in the policy's type and scope (and the page's filters). */
+            evaluated: number;
+            noncompliant: number;
+            /**
+             * Format: double
+             * @description Compliant share in percent, one decimal; null when nothing is evaluated.
+             */
+            score?: number | null;
+        };
+        /** @enum {string} */
+        PolicyOperator: "exists" | "not_exists" | "equals" | "not_equals" | "one_of" | "not_one_of" | "matches" | "gt" | "gte" | "lt" | "lte" | "version_gt" | "version_gte" | "version_lt" | "version_lte";
+        /** @description What a policy evaluates: which resources and what they must satisfy. */
+        PolicyTarget: {
+            conditions: components["schemas"]["PolicyCondition"][];
+            resourceType: components["schemas"]["CatalogType"];
+            /** @description Catalog query narrowing the resources (`env:prod cluster:shop-*`); empty for all of the type. */
+            scope?: string;
+        };
+        /** @description A ready-made policy for what the catalog knows about. */
+        PolicyTemplate: {
+            category: components["schemas"]["PolicyCategory"];
+            description: string;
+            key: string;
+            name: string;
+            /** Format: int32 */
+            priority: number;
+            target: components["schemas"]["PolicyTarget"];
+        };
         PortalAction: {
             allowedTeams: string[];
             blueprint: string;
@@ -9724,6 +9939,104 @@ export interface components {
         ReorderPipelines: {
             /** @description Every pipeline id, in processing order. */
             ids: string[];
+        };
+        /** @description A policy as stored, with its compliance on the current catalog. */
+        ResourcePolicy: {
+            category: components["schemas"]["PolicyCategory"];
+            conditions: components["schemas"]["PolicyCondition"][];
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            createdAt: number;
+            /** @description Name of the user who created it. */
+            createdBy?: string | null;
+            description: string;
+            evaluation: components["schemas"]["PolicyEvaluation"];
+            id: string;
+            name: string;
+            /**
+             * Format: int32
+             * @description 0 (P0, most urgent) … 4.
+             */
+            priority: number;
+            resourceType: components["schemas"]["CatalogType"];
+            scope: string;
+            template?: string | null;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        /** @description An attribute a policy can check on a resource type, with how many resources have it. */
+        ResourcePolicyAttribute: {
+            count: number;
+            examples: string[];
+            key: string;
+        };
+        ResourcePolicyDetail: {
+            /** @description Daily snapshots, oldest first (last 90 days). */
+            history: components["schemas"]["ResourcePolicySnapshot"][];
+            policy: components["schemas"]["ResourcePolicy"];
+            /** @description Noncompliant resources (at most 500), by name. */
+            violations: components["schemas"]["ResourcePolicyViolation"][];
+        };
+        ResourcePolicyInput: {
+            category: components["schemas"]["PolicyCategory"];
+            conditions: components["schemas"]["PolicyCondition"][];
+            description?: string;
+            name: string;
+            /** Format: int32 */
+            priority: number;
+            resourceType: components["schemas"]["CatalogType"];
+            scope?: string;
+            /** @description The template it was made from. */
+            template?: string | null;
+        };
+        ResourcePolicyList: {
+            /** @description Values of the header filters with resource counts. */
+            facets: components["schemas"]["CatalogFacet"][];
+            policies: components["schemas"]["ResourcePolicy"][];
+            templates: components["schemas"]["ResourcePolicyTemplateView"][];
+        };
+        ResourcePolicyPreview: {
+            evaluation: components["schemas"]["PolicyEvaluation"];
+            /** @description The first noncompliant resources. */
+            violations: components["schemas"]["ResourcePolicyViolation"][];
+        };
+        ResourcePolicyPreviewRequest: {
+            conditions: components["schemas"]["PolicyCondition"][];
+            resourceType: components["schemas"]["CatalogType"];
+            scope?: string;
+        };
+        ResourcePolicySearchRequest: {
+            /** @description The page's filters as a catalog query (`team:checkout region:eu-west-1 env:prod`): scores count
+             *     only the resources matching it. */
+            query?: string;
+        };
+        ResourcePolicySnapshot: {
+            /** @description `YYYY-MM-DD` (UTC). */
+            day: string;
+            /** Format: int32 */
+            evaluated: number;
+            /** Format: int32 */
+            noncompliant: number;
+            /** Format: double */
+            score?: number | null;
+        };
+        /** @description A template with how the catalog would score today. */
+        ResourcePolicyTemplateView: components["schemas"]["PolicyTemplate"] & {
+            /** @description Resources of the template's type exist in the catalog. */
+            available: boolean;
+            preview: components["schemas"]["PolicyEvaluation"];
+        };
+        ResourcePolicyTypeAttributes: {
+            attributes: components["schemas"]["ResourcePolicyAttribute"][];
+            resourceType: components["schemas"]["CatalogType"];
+            resources: number;
+        };
+        /** @description A noncompliant resource and why. */
+        ResourcePolicyViolation: {
+            reason: string;
+            resource: components["schemas"]["CatalogResource"];
         };
         ResourceStats: {
             /** Format: double */
@@ -14441,6 +14754,249 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangePage"];
+                };
+            };
+        };
+    };
+    cloud_map: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloudMapRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudMap"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_resource_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicy"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    resource_policy_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicyTypeAttributes"][];
+                };
+            };
+        };
+    };
+    preview_resource_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePolicyPreviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicyPreview"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_resource_policies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePolicySearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicyList"];
+                };
+            };
+        };
+    };
+    get_resource_policy: {
+        parameters: {
+            query?: {
+                /** @description The page's filters, as in the list. */
+                query?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicyDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_resource_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePolicy"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_resource_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

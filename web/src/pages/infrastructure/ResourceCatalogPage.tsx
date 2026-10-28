@@ -1,25 +1,6 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  ArrowDownWideNarrow,
-  ArrowUpNarrowWide,
-  Box,
-  Boxes,
-  ChevronDown,
-  Columns3,
-  Container,
-  Download,
-  ExternalLink,
-  Globe,
-  FolderTree,
-  Layers,
-  Network,
-  Plus,
-  Search,
-  Server,
-  Ship,
-  X,
-} from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Boxes, ChevronDown, Columns3, Container, Download, Globe, Plus, Search, Server, Ship } from 'lucide-react';
 import type { CatalogCategory, CatalogFacet, CatalogGroup, CatalogResource, CatalogType } from '../../api/catalog/client';
 import type { Cloud } from '../../api/infrastructure/types';
 import { QueryBar } from '../../components/query/QueryBar';
@@ -28,9 +9,9 @@ import { Menu, Select, usePopover } from '../../components/ui/Dropdown';
 import { Pager } from '../../components/ui/Pager';
 import { formatLongDate, timeAgo } from '../../lib/format';
 import { addTerm, clearKey, formatQuery, parseQuery, selectedValues, toggleValue, type Term } from '../../lib/searchQuery';
-import { StatusPill } from '../kubernetes/columns';
-import { CATEGORY_LABELS, catalogLink, facetLabel, TYPE_LABELS } from './catalogModel';
+import { CATEGORY_LABELS, facetLabel, TYPE_LABELS } from './catalogModel';
 import { CLOUD_LABEL, CloudIcon } from './hostIcons';
+import { CatalogPanel, TypeIcon, valueLabel } from './CatalogPanel';
 import { useCatalog } from './queries';
 import './infrastructure.css';
 import '../kubernetes/kubernetes.css';
@@ -53,30 +34,6 @@ const GROUP_OPTIONS = [
   { value: 'service', label: 'Service' },
   { value: 'team', label: 'Team' },
 ];
-const ATTRIBUTE_LABELS: Record<string, string> = {
-  os: 'OS',
-  distro: 'Distribution',
-  collector: 'Collector',
-  cpu_pct: 'CPU %',
-  mem_pct: 'Memory %',
-  apps: 'Integrations',
-  node: 'Node',
-  ready: 'Ready',
-  owner: 'Owner',
-  images: 'Images',
-  version: 'Version',
-  instance_type: 'Instance type',
-  availability_zone: 'Availability zone',
-  arch: 'Architecture',
-  ip: 'IP',
-  service_type: 'Service type',
-  task_definition: 'Task definition',
-  launch_type: 'Launch type',
-  nodes: 'Nodes',
-  pods: 'Pods',
-  restarts: 'Restarts',
-};
-
 type SortField = 'type' | 'name' | 'cluster' | 'region' | 'last_seen';
 type Column = 'cluster' | 'region' | 'env' | 'service' | 'team' | 'last_seen';
 const COLUMNS: { key: Column; label: string }[] = [
@@ -88,26 +45,6 @@ const COLUMNS: { key: Column; label: string }[] = [
   { key: 'last_seen', label: 'Last seen' },
 ];
 
-export function TypeIcon({ type, size = 15 }: { type: CatalogType; size?: number }) {
-  const Icon =
-    type === 'host' || type === 'kube_node'
-      ? Server
-      : type === 'kube_cluster' || type === 'ecs_cluster'
-        ? Ship
-        : type === 'kube_namespace'
-          ? FolderTree
-          : type === 'kube_pod' || type === 'ecs_task'
-            ? Box
-            : type === 'container'
-              ? Container
-              : type === 'kube_service' || type === 'kube_ingress' || type === 'ecs_service'
-                ? Network
-                : type === 'kube_persistent_volume' || type === 'kube_persistent_volume_claim'
-                  ? Layers
-                  : Boxes;
-  return <Icon size={size} className="rc-type-icon" aria-hidden />;
-}
-
 /** "1 resource category", "12 regions": the number of groups in the grouped view. */
 function groupCount(groupBy: string, n: number): string {
   const one = facetLabel(groupBy).toLowerCase();
@@ -118,14 +55,6 @@ function groupCount(groupBy: string, n: number): string {
 function CategoryIcon({ category }: { category: string }) {
   const Icon = category === 'kubernetes' ? Ship : category === 'containers' ? Container : category === 'compute' ? Server : Boxes;
   return <Icon size={16} className="rc-type-icon" aria-hidden />;
-}
-
-/** A facet value as people read it (type and category labels). */
-function valueLabel(key: string, value: string): string {
-  if (key === 'resource_type') return TYPE_LABELS[value as CatalogType] ?? value;
-  if (key === 'resource_category') return CATEGORY_LABELS[value as CatalogCategory] ?? value;
-  if (key === 'cloud') return CLOUD_LABEL[value as Cloud] ?? value;
-  return value;
 }
 
 const chip = (v: string | null | undefined) => (v ? <span className="tag-chip">{v}</span> : <span className="muted-text">—</span>);
@@ -171,12 +100,27 @@ function toCsv(items: CatalogResource[]): string {
 }
 
 /** One filter of the bar under the search: the facet's values with counts, checked from the query. */
-function FilterDropdown({ facetKey, facet, terms, onChange, onRemove }: { facetKey: string; facet?: CatalogFacet; terms: Term[]; onChange: (t: Term[]) => void; onRemove?: () => void }) {
+export function FilterDropdown({
+  facetKey,
+  facet,
+  terms,
+  onChange,
+  onRemove,
+  label: shownLabel,
+}: {
+  facetKey: string;
+  facet?: CatalogFacet;
+  terms: Term[];
+  onChange: (t: Term[]) => void;
+  onRemove?: () => void;
+  /** Overrides the facet's label. */
+  label?: string;
+}) {
   const { open, setOpen, ref } = usePopover();
   const [filter, setFilter] = useState('');
   const selected = selectedValues(terms)[facetKey] ?? [];
   const values = (facet?.values ?? []).filter((v) => valueLabel(facetKey, v.value).toLowerCase().includes(filter.toLowerCase()));
-  const label = facetLabel(facetKey);
+  const label = shownLabel ?? facetLabel(facetKey);
   return (
     <div className="dd dd-labelled rc-filter-dd" ref={ref}>
       <span className="dd-floating-label">{label}</span>
@@ -278,94 +222,6 @@ function ColumnsMenu({ value, onChange }: { value: Set<Column>; onChange: (v: Se
         </div>
       )}
     </div>
-  );
-}
-
-function CatalogPanel({ resource: r, onClose, onFilter }: { resource: CatalogResource; onClose: () => void; onFilter: (k: string, v: string) => void }) {
-  const navigate = useNavigate();
-  const link = catalogLink(r);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !(e.target as HTMLElement).closest('input, textarea') && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const field = (label: string, key: string, value: string | null | undefined) => (
-    <>
-      <dt>{label}</dt>
-      <dd>{value ? <button onClick={() => onFilter(key, value)}>{valueLabel(key, value)}</button> : '—'}</dd>
-    </>
-  );
-  const attributes = Object.entries(r.attributes);
-  return (
-    <aside className="rc-panel" role="dialog" aria-label={`${TYPE_LABELS[r.resourceType]} ${r.name}`}>
-      <header>
-        <TypeIcon type={r.resourceType} size={18} />
-        <span>
-          {CATEGORY_LABELS[r.resourceCategory]} · {TYPE_LABELS[r.resourceType]}
-        </span>
-        <button className="rc-panel-close" onClick={onClose} title="Close">
-          <X size={16} />
-        </button>
-      </header>
-      <h2>{r.name}</h2>
-      <div className="rc-panel-actions">
-        {r.status && r.health && <StatusPill status={r.status} health={r.health} />}
-        {link && (
-          <button className="btn" onClick={() => navigate(link)}>
-            <ExternalLink size={14} /> {r.resourceType === 'host' ? 'Open host' : r.kubeKind?.startsWith('ecs_') ? 'Open in ECS Explorer' : 'Open in Kubernetes Explorer'}
-          </button>
-        )}
-      </div>
-      <h3>Overview</h3>
-      <dl>
-        {field('Cloud', 'cloud', r.cloud)}
-        {field('Account', 'account', r.account)}
-        {field('Region', 'region', r.region)}
-        {field('Cluster', 'cluster', r.cluster)}
-        {r.namespace && field('Namespace', 'namespace', r.namespace)}
-        {field('Environment', 'env', r.env)}
-        {field('Service', 'service', r.service)}
-        {field('Team', 'team', r.team)}
-        {r.createdAt && (
-          <>
-            <dt>Created</dt>
-            <dd>{formatLongDate(r.createdAt)}</dd>
-          </>
-        )}
-        <dt>Last seen</dt>
-        <dd title={formatLongDate(r.lastSeen)}>{timeAgo(r.lastSeen)}</dd>
-      </dl>
-      {attributes.length > 0 && (
-        <>
-          <h3>Attributes</h3>
-          <dl>
-            {attributes.map(([k, v]) => (
-              <Fragment key={k}>
-                <dt>{ATTRIBUTE_LABELS[k] ?? k}</dt>
-                <dd className="rc-wrap">{v}</dd>
-              </Fragment>
-            ))}
-          </dl>
-        </>
-      )}
-      <h3>Tags</h3>
-      {r.tags.length ? (
-        <div className="rc-tags">
-          {r.tags.map((t) => {
-            const i = t.indexOf(':');
-            return (
-              <button key={t} className="tag-chip" title="Filter by this tag" onClick={() => i > 0 && onFilter(t.slice(0, i), t.slice(i + 1))}>
-                {t}
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="muted-text">No tags.</p>
-      )}
-    </aside>
   );
 }
 

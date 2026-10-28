@@ -10,16 +10,16 @@ const HOUR = 3600e3;
 const DAY = 24 * HOUR;
 const FACETS = ['change_type', 'source', 'resource_type', 'service', 'env', 'cluster', 'namespace', 'author'];
 const SERVICES = [
-  { name: 'api-gateway', ns: 'shop' },
-  { name: 'storefront-api', ns: 'shop' },
-  { name: 'order-service', ns: 'shop' },
-  { name: 'catalog-service', ns: 'shop' },
-  { name: 'inventory-service', ns: 'shop' },
+  { name: 'api-gateway', ns: 'checkout' },
+  { name: 'storefront-api', ns: 'checkout' },
+  { name: 'order-service', ns: 'checkout' },
+  { name: 'catalog-service', ns: 'catalog' },
+  { name: 'inventory-service', ns: 'catalog' },
   { name: 'billing', ns: 'payments' },
 ];
 const CLUSTERS = [
-  { cluster: 'prod-eu', env: 'prod' },
-  { cluster: 'staging-eu', env: 'staging' },
+  { cluster: 'shop-prod-eu', env: 'prod' },
+  { cluster: 'shop-staging', env: 'staging' },
 ];
 const AUTHORS = ['Alex Morgan', 'Priya Shah', 'dev@example.com', 'release-bot@example.com'];
 
@@ -117,7 +117,7 @@ function changes(): Change[] {
         service: 'catalog-service',
         env,
         cluster,
-        namespace: 'shop',
+        namespace: 'catalog',
         kubeKind: 'deployments',
         kubeUid: `${cluster}-dep-catalog-service`,
         details: { generation: '7 → 8' },
@@ -137,7 +137,7 @@ function changes(): Change[] {
             service: 'inventory-service',
             env,
             cluster,
-            namespace: 'shop',
+            namespace: 'catalog',
             details: { reason: 'BackOff' },
           },
         ),

@@ -94,6 +94,9 @@ import { IssuesPage } from './pages/errors/IssuesPage';
 import { ChangesPage } from './pages/infrastructure/ChangesPage';
 import { ResourceCatalogPage } from './pages/infrastructure/ResourceCatalogPage';
 import { ResourcesLayout } from './pages/infrastructure/ResourcesLayout';
+import { PoliciesPage } from './pages/infrastructure/PoliciesPage';
+import { PolicyDetailPage } from './pages/infrastructure/PolicyDetailPage';
+import { PolicyEditorPage } from './pages/infrastructure/PolicyEditorPage';
 import { HostsPage } from './pages/infrastructure/HostsPage';
 import { GpuMonitoringPage } from './pages/gpu/GpuMonitoringPage';
 import { DatabaseMonitoringPage } from './pages/data/DatabaseMonitoringPage';
@@ -215,6 +218,10 @@ function Shell() {
             <Route element={<ResourcesLayout />}>
               <Route path="/infrastructure/catalog" element={<ResourceCatalogPage />} />
               <Route path="/infrastructure/changes" element={<ChangesPage />} />
+              <Route path="/infrastructure/policies" element={<PoliciesPage />} />
+              <Route path="/infrastructure/policies/new" element={<PolicyEditorPage />} />
+              <Route path="/infrastructure/policies/:id" element={<PolicyDetailPage />} />
+              <Route path="/infrastructure/policies/:id/edit" element={<PolicyEditorPage />} />
             </Route>
             <Route path="/gpu-monitoring" element={<GpuMonitoringPage view="summary" />} />
             <Route path="/gpu-monitoring/explorer" element={<GpuMonitoringPage view="explorer" />} />

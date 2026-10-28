@@ -4045,6 +4045,335 @@
         }
       }
     },
+    "/api/v1/infrastructure/cloud-map": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "The diagram of one provider's resources, grouped, with the requested overlay.",
+        "operationId": "cloud_map",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloudMapRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudMap"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/infrastructure/policies": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "Creates a policy.",
+        "operationId": "create_resource_policy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePolicyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourcePolicy"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/infrastructure/policies/attributes": {
+      "get": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "The attributes policies can check, per resource type in the catalog.",
+        "operationId": "resource_policy_attributes",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResourcePolicyTypeAttributes"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/infrastructure/policies/preview": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "What a policy being edited would score on the current catalog.",
+        "operationId": "preview_resource_policy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePolicyPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourcePolicyPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/infrastructure/policies/search": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "Policies with their compliance (counting only resources matching the page's filters), the\ntemplates with a preview score, and the filters' values.",
+        "operationId": "search_resource_policies",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePolicySearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourcePolicyList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/infrastructure/policies/{id}": {
+      "get": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "A policy with its score over time and its noncompliant resources.",
+        "operationId": "get_resource_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "The page's filters, as in the list.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourcePolicyDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "Replaces a policy's definition.",
+        "operationId": "update_resource_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePolicyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourcePolicy"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "infrastructure"
+        ],
+        "summary": "Deletes a policy and its history.",
+        "operationId": "delete_resource_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ingest-keys": {
       "get": {
         "tags": [
@@ -14733,6 +15062,252 @@
           "alibaba",
           "none"
         ]
+      },
+      "CloudMap": {
+        "type": "object",
+        "required": [
+          "providers",
+          "groupBy",
+          "root",
+          "edges",
+          "total"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CloudMapEdge"
+            }
+          },
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The group keys used."
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CloudMapProviderSummary"
+            }
+          },
+          "root": {
+            "$ref": "#/components/schemas/CloudMapGroup"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Matching resources, folded ones included.",
+            "minimum": 0
+          }
+        }
+      },
+      "CloudMapEdge": {
+        "type": "object",
+        "description": "A service calling another (dependencies overlay).",
+        "required": [
+          "from",
+          "to",
+          "requests",
+          "errorRate"
+        ],
+        "properties": {
+          "errorRate": {
+            "type": "number",
+            "format": "double"
+          },
+          "from": {
+            "type": "string"
+          },
+          "requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "to": {
+            "type": "string"
+          }
+        }
+      },
+      "CloudMapGroup": {
+        "type": "object",
+        "required": [
+          "key",
+          "value",
+          "count",
+          "health",
+          "groups",
+          "nodes"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "description": "Resources under the group, folded ones included.",
+            "minimum": 0
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CloudMapGroup"
+            }
+          },
+          "health": {
+            "$ref": "#/components/schemas/CloudMapHealth",
+            "description": "Worst health of the group's resources."
+          },
+          "key": {
+            "type": "string",
+            "description": "The group key (`region`), or `root`."
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CloudMapNode"
+            }
+          },
+          "value": {
+            "type": "string",
+            "description": "The value (`eu-west-1`); \"\" when the resources have none; `__other__` for merged small groups."
+          }
+        }
+      },
+      "CloudMapHealth": {
+        "type": "string",
+        "enum": [
+          "unknown",
+          "ok",
+          "warning",
+          "error"
+        ]
+      },
+      "CloudMapNode": {
+        "type": "object",
+        "description": "One block of the diagram: a resource, or `aggregate` resources folded into one.",
+        "required": [
+          "id",
+          "name",
+          "resourceType",
+          "health",
+          "alerts"
+        ],
+        "properties": {
+          "aggregate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "How many resources this block stands for when folded (\"+N\"); null for one resource.",
+            "minimum": 0
+          },
+          "alerts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Monitors alerting (or warning) on the resource; health overlay only.",
+            "minimum": 0
+          },
+          "errorRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "APM error rate of the resource's service over the last hour (0–1); health overlay only."
+          },
+          "health": {
+            "$ref": "#/components/schemas/CloudMapHealth"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "resource": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CatalogResource",
+                "description": "The catalog row, for the side panel (null for folded blocks)."
+              }
+            ]
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/CatalogType"
+          },
+          "service": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "CloudMapOverlay": {
+        "type": "string",
+        "enum": [
+          "default",
+          "health",
+          "dependencies"
+        ]
+      },
+      "CloudMapProvider": {
+        "type": "string",
+        "enum": [
+          "kubernetes",
+          "hosts",
+          "ecs"
+        ]
+      },
+      "CloudMapProviderSummary": {
+        "type": "object",
+        "description": "A provider tab with how many resources it has and, for hosts, their clouds.",
+        "required": [
+          "provider",
+          "resources",
+          "clouds"
+        ],
+        "properties": {
+          "clouds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "provider": {
+            "$ref": "#/components/schemas/CloudMapProvider"
+          },
+          "resources": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "CloudMapRequest": {
+        "type": "object",
+        "required": [
+          "provider"
+        ],
+        "properties": {
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Group keys, outermost first; empty for the provider's default."
+          },
+          "overlay": {
+            "$ref": "#/components/schemas/CloudMapOverlay"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/CloudMapProvider"
+          },
+          "query": {
+            "type": "string",
+            "description": "Catalog search narrowing the resources (`env:prod team:checkout`, free text on names)."
+          }
+        }
       },
       "CodeRequest": {
         "type": "object",
@@ -26889,6 +27464,143 @@
           }
         }
       },
+      "PolicyCategory": {
+        "type": "string",
+        "enum": [
+          "cost_optimization",
+          "reliability",
+          "security",
+          "versioning",
+          "tagging"
+        ]
+      },
+      "PolicyCondition": {
+        "type": "object",
+        "description": "One requirement on an attribute of the resource.",
+        "required": [
+          "attribute",
+          "operator"
+        ],
+        "properties": {
+          "attribute": {
+            "type": "string",
+            "description": "A field (`env`, `team`, `region`, …), a tag key or an attribute (`replicas`, `image_tags`, `version`, …)."
+          },
+          "operator": {
+            "$ref": "#/components/schemas/PolicyOperator"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "None for exists / not exists, one for comparisons, a list for one of / not one of."
+          }
+        }
+      },
+      "PolicyEvaluation": {
+        "type": "object",
+        "required": [
+          "evaluated",
+          "noncompliant"
+        ],
+        "properties": {
+          "evaluated": {
+            "type": "integer",
+            "description": "Resources in the policy's type and scope (and the page's filters).",
+            "minimum": 0
+          },
+          "noncompliant": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Compliant share in percent, one decimal; null when nothing is evaluated."
+          }
+        }
+      },
+      "PolicyOperator": {
+        "type": "string",
+        "enum": [
+          "exists",
+          "not_exists",
+          "equals",
+          "not_equals",
+          "one_of",
+          "not_one_of",
+          "matches",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "version_gt",
+          "version_gte",
+          "version_lt",
+          "version_lte"
+        ]
+      },
+      "PolicyTarget": {
+        "type": "object",
+        "description": "What a policy evaluates: which resources and what they must satisfy.",
+        "required": [
+          "resourceType",
+          "conditions"
+        ],
+        "properties": {
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PolicyCondition"
+            }
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/CatalogType"
+          },
+          "scope": {
+            "type": "string",
+            "description": "Catalog query narrowing the resources (`env:prod cluster:shop-*`); empty for all of the type."
+          }
+        }
+      },
+      "PolicyTemplate": {
+        "type": "object",
+        "description": "A ready-made policy for what the catalog knows about.",
+        "required": [
+          "key",
+          "name",
+          "description",
+          "category",
+          "priority",
+          "target"
+        ],
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/PolicyCategory"
+          },
+          "description": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "target": {
+            "$ref": "#/components/schemas/PolicyTarget"
+          }
+        }
+      },
       "PortalAction": {
         "type": "object",
         "required": [
@@ -29551,6 +30263,346 @@
               "type": "string"
             },
             "description": "Every pipeline id, in processing order."
+          }
+        }
+      },
+      "ResourcePolicy": {
+        "type": "object",
+        "description": "A policy as stored, with its compliance on the current catalog.",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "priority",
+          "category",
+          "resourceType",
+          "scope",
+          "conditions",
+          "createdAt",
+          "updatedAt",
+          "evaluation"
+        ],
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/PolicyCategory"
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PolicyCondition"
+            }
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of the user who created it."
+          },
+          "description": {
+            "type": "string"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/PolicyEvaluation"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32",
+            "description": "0 (P0, most urgent) … 4.",
+            "minimum": 0
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/CatalogType"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "template": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ResourcePolicyAttribute": {
+        "type": "object",
+        "description": "An attribute a policy can check on a resource type, with how many resources have it.",
+        "required": [
+          "key",
+          "count",
+          "examples"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "key": {
+            "type": "string"
+          }
+        }
+      },
+      "ResourcePolicyDetail": {
+        "type": "object",
+        "required": [
+          "policy",
+          "history",
+          "violations"
+        ],
+        "properties": {
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourcePolicySnapshot"
+            },
+            "description": "Daily snapshots, oldest first (last 90 days)."
+          },
+          "policy": {
+            "$ref": "#/components/schemas/ResourcePolicy"
+          },
+          "violations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourcePolicyViolation"
+            },
+            "description": "Noncompliant resources (at most 500), by name."
+          }
+        }
+      },
+      "ResourcePolicyInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "priority",
+          "category",
+          "resourceType",
+          "conditions"
+        ],
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/PolicyCategory"
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PolicyCondition"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/CatalogType"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "template": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The template it was made from."
+          }
+        }
+      },
+      "ResourcePolicyList": {
+        "type": "object",
+        "required": [
+          "policies",
+          "templates",
+          "facets"
+        ],
+        "properties": {
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogFacet"
+            },
+            "description": "Values of the header filters with resource counts."
+          },
+          "policies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourcePolicy"
+            }
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourcePolicyTemplateView"
+            }
+          }
+        }
+      },
+      "ResourcePolicyPreview": {
+        "type": "object",
+        "required": [
+          "evaluation",
+          "violations"
+        ],
+        "properties": {
+          "evaluation": {
+            "$ref": "#/components/schemas/PolicyEvaluation"
+          },
+          "violations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourcePolicyViolation"
+            },
+            "description": "The first noncompliant resources."
+          }
+        }
+      },
+      "ResourcePolicyPreviewRequest": {
+        "type": "object",
+        "required": [
+          "resourceType",
+          "conditions"
+        ],
+        "properties": {
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PolicyCondition"
+            }
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/CatalogType"
+          },
+          "scope": {
+            "type": "string"
+          }
+        }
+      },
+      "ResourcePolicySearchRequest": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The page's filters as a catalog query (`team:checkout region:eu-west-1 env:prod`): scores count\nonly the resources matching it."
+          }
+        }
+      },
+      "ResourcePolicySnapshot": {
+        "type": "object",
+        "required": [
+          "day",
+          "evaluated",
+          "noncompliant"
+        ],
+        "properties": {
+          "day": {
+            "type": "string",
+            "description": "`YYYY-MM-DD` (UTC)."
+          },
+          "evaluated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "noncompliant": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "ResourcePolicyTemplateView": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PolicyTemplate"
+          },
+          {
+            "type": "object",
+            "required": [
+              "available",
+              "preview"
+            ],
+            "properties": {
+              "available": {
+                "type": "boolean",
+                "description": "Resources of the template's type exist in the catalog."
+              },
+              "preview": {
+                "$ref": "#/components/schemas/PolicyEvaluation"
+              }
+            }
+          }
+        ],
+        "description": "A template with how the catalog would score today."
+      },
+      "ResourcePolicyTypeAttributes": {
+        "type": "object",
+        "required": [
+          "resourceType",
+          "resources",
+          "attributes"
+        ],
+        "properties": {
+          "attributes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourcePolicyAttribute"
+            }
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/CatalogType"
+          },
+          "resources": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ResourcePolicyViolation": {
+        "type": "object",
+        "description": "A noncompliant resource and why.",
+        "required": [
+          "resource",
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/CatalogResource"
           }
         }
       },

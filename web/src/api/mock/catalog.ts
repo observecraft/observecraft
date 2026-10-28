@@ -64,10 +64,29 @@ function fromHost(h: StoredHost): CatalogResource {
     createdAt: null,
     lastSeen: Date.now() - (h.seed % 60) * 1000,
     tags,
-    attributes: { os: h.os, collector: h.collectors.join(', '), cpu_pct: String(h.cpuPct), mem_pct: String(h.memPct), ...(h.distro ? { distro: h.distro } : {}) },
+    attributes: {
+      os: h.os,
+      collector: h.collectors.join(', '),
+      cpu_pct: String(h.cpuPct),
+      mem_pct: String(h.memPct),
+      ...(h.distro ? { distro: h.distro } : {}),
+      // A few on-prem Ubuntu hosts still run 20.04 (the supported-release policy template flags them).
+      ...(h.distro === 'ubuntu' ? { os_release: ['20.04.6', '22.04.4', '24.04.1'][h.seed % 3], os_description: `Ubuntu ${['20.04.6', '22.04.4', '24.04.1'][h.seed % 3]} LTS` } : {}),
+      ...(h.region && h.cloud !== 'none' ? { availability_zone: `${h.region}${'ab'[h.seed % 2]}` } : {}),
+    },
     kubeKind: null,
   };
 }
+
+/** The tag of an image reference, as the server reads it: `…/api:2.4` → `2.4`, `nginx` → `latest`, digests → `digest`. */
+export function imageTag(image: string): string {
+  if (image.includes('@')) return 'digest';
+  const last = image.split('/').pop() ?? image;
+  const i = last.indexOf(':');
+  return i >= 0 && i < last.length - 1 ? last.slice(i + 1) : 'latest';
+}
+
+const quantity = (v: number | null | undefined) => (v != null && Number.isFinite(v) && v > 0 ? String(Math.round(v * 1000) / 1000) : null);
 
 function fromKube(r: KubeResource): CatalogResource | null {
   const type = r.kind ? KUBE_TYPES[r.kind] : undefined;
@@ -84,6 +103,19 @@ function fromKube(r: KubeResource): CatalogResource | null {
   put('version', r.version);
   put('instance_type', r.instanceType);
   put('availability_zone', r.zone);
+  put('image_tags', r.images.map(imageTag).join(', '));
+  put('os_image', r.osImage);
+  put('runtime', r.runtime);
+  put('qos', r.qos);
+  put('service_type', r.serviceType);
+  put('tasks', r.tasks == null ? null : String(r.tasks));
+  if (type === 'kube_deployment' || type === 'kube_statefulset') put('replicas', r.desired == null ? null : String(r.desired));
+  if (['kube_pod', 'container', 'kube_deployment', 'kube_statefulset', 'kube_daemonset'].includes(type)) {
+    put('cpu_requests', quantity(r.cpu?.requests));
+    put('cpu_limits', quantity(r.cpu?.limits));
+    put('memory_requests', quantity(r.memory?.requests));
+    put('memory_limits', quantity(r.memory?.limits));
+  }
   return {
     id: r.uid,
     resourceType: type,
@@ -107,7 +139,10 @@ function fromKube(r: KubeResource): CatalogResource | null {
   };
 }
 
-function values(r: CatalogResource, key: string): string[] {
+const LIST_ATTRIBUTES = ['images', 'image_tags', 'apps', 'collector'];
+
+/** A catalog row's values for a query key: fields, tags, then attributes (like the server). */
+export function values(r: CatalogResource, key: string): string[] {
   const one = (v: string | null | undefined) => (v ? [v] : []);
   switch (key) {
     case 'resource_type':
@@ -133,7 +168,12 @@ function values(r: CatalogResource, key: string): string[] {
     case 'kube_namespace':
       return one(r.namespace);
   }
-  return r.tags.filter((t) => t.startsWith(`${key}:`)).map((t) => t.slice(key.length + 1));
+  const tags = r.tags.filter((t) => t.startsWith(`${key}:`)).map((t) => t.slice(key.length + 1));
+  if (tags.length) return tags;
+  // Keys that are neither fields nor tags fall back to the attributes, as on the server.
+  const attr = r.attributes[key];
+  if (attr == null) return [];
+  return LIST_ATTRIBUTES.includes(key) ? attr.split(', ').filter(Boolean) : [attr];
 }
 
 function glob(p: string, v: string): boolean {
@@ -146,7 +186,7 @@ function glob(p: string, v: string): boolean {
   return re.test(v.toLowerCase());
 }
 
-function matches(r: CatalogResource, terms: Term[], skipKey?: string): boolean {
+export function matches(r: CatalogResource, terms: Term[], skipKey?: string): boolean {
   return terms.every((t) => {
     if (t.kind === 'text') return r.name.toLowerCase().includes(t.text.toLowerCase()) !== t.negate;
     if (t.key === skipKey) return true;

@@ -30,17 +30,23 @@ interface Workload {
   cpu: number;
   mem: number;
   crash?: boolean;
+  /** Owning team (unset: the deployment carries no team tag). */
+  team?: string;
+  /** Containers set requests but no limits. */
+  noLimits?: boolean;
+  /** Runs the `latest` image tag in staging. */
+  floatingTag?: boolean;
 }
 
 const WORKLOADS: Workload[] = [
-  { name: 'api-gateway', ns: 'shop', replicas: 3, cpu: 0.25, mem: 256 * MI },
-  { name: 'storefront-api', ns: 'shop', replicas: 3, cpu: 0.5, mem: 512 * MI },
-  { name: 'order-service', ns: 'shop', replicas: 2, cpu: 0.25, mem: 384 * MI },
-  { name: 'catalog-service', ns: 'shop', replicas: 2, cpu: 0.2, mem: 256 * MI },
-  { name: 'inventory-service', ns: 'shop', replicas: 2, cpu: 0.2, mem: 256 * MI, crash: true },
-  { name: 'billing', ns: 'payments', replicas: 2, cpu: 0.3, mem: 384 * MI },
-  { name: 'workflow-engine', ns: 'payments', replicas: 1, cpu: 0.5, mem: 1024 * MI },
-  { name: 'notification-worker', ns: 'shop', replicas: 1, cpu: 0.1, mem: 128 * MI },
+  { name: 'api-gateway', ns: 'checkout', team: 'checkout', replicas: 3, cpu: 0.25, mem: 256 * MI },
+  { name: 'storefront-api', ns: 'checkout', team: 'checkout', replicas: 3, cpu: 0.5, mem: 512 * MI },
+  { name: 'order-service', ns: 'checkout', team: 'checkout', replicas: 2, cpu: 0.25, mem: 384 * MI },
+  { name: 'catalog-service', ns: 'catalog', team: 'catalog', replicas: 2, cpu: 0.2, mem: 256 * MI },
+  { name: 'inventory-service', ns: 'catalog', team: 'catalog', replicas: 2, cpu: 0.2, mem: 256 * MI, crash: true },
+  { name: 'billing', ns: 'payments', team: 'payments', replicas: 2, cpu: 0.3, mem: 384 * MI },
+  { name: 'workflow-engine', ns: 'payments', team: 'payments', replicas: 1, cpu: 0.5, mem: 1024 * MI, noLimits: true },
+  { name: 'notification-worker', ns: 'checkout', replicas: 1, cpu: 0.1, mem: 128 * MI, floatingTag: true },
 ];
 
 const day = 86400e3;
@@ -91,19 +97,19 @@ export function inventory(): KubeResource[] {
   if (cache) return cache;
   const r = rng(42);
   const out: KubeResource[] = [];
-  for (const [ci, cluster] of ['prod-eu', 'staging-eu'].entries()) {
+  for (const [ci, cluster] of ['shop-prod-eu', 'shop-staging'].entries()) {
     const nodes = Array.from({ length: ci === 0 ? 3 : 2 }, (_, i) => {
       const n = base('nodes', cluster, `i-0a1b2c3d4e5f600${ci}${i}`, null, `${cluster}-node-${i}`, 30 * day);
       Object.assign(n, {
         status: 'Ready',
         roles: '<none>',
-        version: 'v1.31.2',
+        version: ci === 0 ? 'v1.31.2' : 'v1.30.6',
         instanceType: 'm6i.xlarge',
-        zone: `eu-west-1${'abc'[i]}`,
+        zone: `eu-west-1${'ab'[i % 2]}`,
         runtime: 'containerd://1.7.22',
         osImage: 'Amazon Linux 2023',
       });
-      n.tags.push(`kube_node:${n.name}`, 'kubelet_version:v1.31.2', 'kube_node_role:<none>', 'os:linux');
+      n.tags.push(`kube_node:${n.name}`, `kubelet_version:${n.version}`, `availability_zone:${n.zone}`, 'region:eu-west-1', 'kube_node_role:<none>', 'os:linux');
       n.cpu = util(0.4 + r() * 1.5, null, null, 3.92);
       n.memory = util((3 + r() * 6) * 1024 * MI, null, null, 14.8 * 1024 * MI);
       out.push(n);
@@ -122,9 +128,9 @@ export function inventory(): KubeResource[] {
         status: ready === w.replicas ? 'Available' : 'Progressing',
         health: (ready === w.replicas ? 'ok' : 'warning') as KubeHealth,
       });
-      dep.images = [`registry.example.com/${w.name}:2.4.${ci}`];
-      dep.labels = { 'app.kubernetes.io/name': w.name, 'tags.datadoghq.com/service': w.name, 'tags.datadoghq.com/env': cluster.startsWith('prod') ? 'prod' : 'staging' };
-      dep.tags.push(`kube_deployment:${w.name}`, `service:${w.name}`, `env:${dep.labels['tags.datadoghq.com/env']}`, `short_image:${w.name}`);
+      dep.images = [`registry.example.com/${w.name}:${w.floatingTag && ci === 1 ? 'latest' : `2.4.${ci}`}`];
+      dep.labels = { 'app.kubernetes.io/name': w.name, 'tags.datadoghq.com/service': w.name, 'tags.datadoghq.com/env': cluster.includes('prod') ? 'prod' : 'staging' };
+      dep.tags.push(`kube_deployment:${w.name}`, `service:${w.name}`, `env:${dep.labels['tags.datadoghq.com/env']}`, `short_image:${w.name}`, ...(w.team ? [`team:${w.team}`] : []));
       const rs = base('replicasets', cluster, `${w.name}-7d9f8c6b5`, w.ns, `${dep.uid}-rs`, 3 * day);
       Object.assign(rs, { desired: w.replicas, current: w.replicas, ready: dep.ready, status: dep.status, health: dep.health, owner: { kind: 'Deployment', name: w.name, uid: dep.uid } });
       rs.tags.push(`kube_replica_set:${rs.name}`, `kube_deployment:${w.name}`);
@@ -146,8 +152,8 @@ export function inventory(): KubeResource[] {
           owner: { kind: 'ReplicaSet', name: rs.name, uid: rs.uid },
           images: dep.images,
           labels: { ...dep.labels, 'pod-template-hash': '7d9f8c6b5' },
-          cpu: util(usage, w.cpu, w.cpu * 2),
-          memory: util(mem, w.mem, w.mem * 1.5),
+          cpu: util(usage, w.cpu, w.noLimits ? null : w.cpu * 2),
+          memory: util(mem, w.mem, w.noLimits ? null : w.mem * 1.5),
         });
         p.containers = [
           {
@@ -210,12 +216,12 @@ export function inventory(): KubeResource[] {
       memory: sum(agentPods, (p) => p.memory),
     });
     ds.tags.push('kube_daemon_set:observecraft-agent');
-    const cron = base('cronjobs', cluster, 'nightly-report', 'shop', `${cluster}-cron`, 20 * day);
+    const cron = base('cronjobs', cluster, 'nightly-report', 'catalog', `${cluster}-cron`, 20 * day);
     Object.assign(cron, { status: 'Scheduled', schedule: '0 2 * * *', suspend: false, active: 0, lastSchedule: Date.now() - 9 * 3600e3 });
     cron.tags.push('kube_cronjob:nightly-report');
     out.push(ds, cron, ...agentPods);
     pods.push(...agentPods);
-    for (const ns of ['shop', 'payments', 'observecraft', 'kube-system']) {
+    for (const ns of ['checkout', 'catalog', 'payments', 'observecraft', 'kube-system']) {
       const n = base('namespaces', cluster, ns, null, `${cluster}-ns-${ns}`, 40 * day);
       const own = pods.filter((p) => p.namespace === ns);
       Object.assign(n, { status: 'Active', pods: own.length, cpu: sum(own, (p) => p.cpu), memory: sum(own, (p) => p.memory) });

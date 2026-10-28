@@ -154,9 +154,13 @@ pub struct CatalogResource {
 const FACETS: &[&str] = &["resource_category", "resource_type", "cloud", "account", "region", "cluster", "namespace", "env", "service", "team"];
 const MAX_FACET_VALUES: usize = 50;
 
+/// Attributes that hold a comma-separated list (one value per image, integration, …).
+const LIST_ATTRIBUTES: &[&str] = &["images", "image_tags", "apps", "collector"];
+
 impl CatalogResource {
-    /// The resource's values for a query or facet key (a tag key may have several).
-    fn values(&self, key: &str) -> Vec<&str> {
+    /// The resource's values for a query or facet key (a tag key may have several); keys that are
+    /// neither a field nor a tag fall back to the resource's attributes (`distro:ubuntu`, `replicas:3`).
+    pub(crate) fn values(&self, key: &str) -> Vec<&str> {
         fn one(v: &Option<String>) -> Vec<&str> {
             v.as_deref().into_iter().collect()
         }
@@ -175,7 +179,15 @@ impl CatalogResource {
             "status" => one(&self.status),
             _ => {
                 let prefix = format!("{key}:");
-                self.tags.iter().filter_map(|t| t.strip_prefix(&prefix)).collect()
+                let tags: Vec<&str> = self.tags.iter().filter_map(|t| t.strip_prefix(&prefix)).collect();
+                if !tags.is_empty() {
+                    return tags;
+                }
+                match self.attributes.get(key) {
+                    Some(v) if LIST_ATTRIBUTES.contains(&key) => v.split(", ").filter(|x| !x.is_empty()).collect(),
+                    Some(v) => vec![v.as_str()],
+                    None => vec![],
+                }
             }
         }
     }
@@ -237,7 +249,7 @@ pub(crate) fn facets<T: Faceted>(items: &[T], keys: &[&str], terms: &[Term]) -> 
         .collect()
 }
 
-fn enum_str_static(t: CatalogType) -> &'static str {
+pub(crate) fn enum_str_static(t: CatalogType) -> &'static str {
     match t {
         CatalogType::Host => "host",
         CatalogType::KubeCluster => "kube_cluster",
@@ -264,6 +276,29 @@ fn non_empty(v: Option<&String>) -> Option<String> {
     v.filter(|v| !v.is_empty()).cloned()
 }
 
+/// The release in an OS description: `Ubuntu 22.04.4 LTS` → `22.04.4`, `debian 12.5 bookworm` → `12.5`.
+fn os_release(description: &str) -> Option<String> {
+    description.split_whitespace().find(|w| w.starts_with(|c: char| c.is_ascii_digit()) && w.chars().all(|c| c.is_ascii_digit() || c == '.')).map(str::to_string)
+}
+
+/// The tag of an image reference: `registry.example.com/shop/api:2.4` → `2.4`; `nginx` → `latest`;
+/// pinned by digest (`…@sha256:…`) → `digest`.
+pub(crate) fn image_tag(image: &str) -> String {
+    if image.contains('@') {
+        return "digest".into();
+    }
+    let last = image.rsplit('/').next().unwrap_or(image);
+    match last.split_once(':') {
+        Some((_, tag)) if !tag.is_empty() => tag.to_string(),
+        _ => "latest".into(),
+    }
+}
+
+/// Requests and limits as plain numbers (cores, bytes): `0.25`, `268435456`.
+fn quantity(v: Option<f64>) -> Option<String> {
+    v.filter(|x| x.is_finite() && *x > 0.0).map(|x| format!("{}", (x * 1000.0).round() / 1000.0))
+}
+
 /// A host as a catalog row.
 fn from_host(h: &HostRow) -> CatalogResource {
     let s = &h.summary;
@@ -282,10 +317,16 @@ fn from_host(h: &HostRow) -> CatalogResource {
     if !s.apps.is_empty() {
         attributes.insert("apps".into(), s.apps.join(", "));
     }
-    for (key, attr) in [("instance_type", "host.type"), ("availability_zone", "cloud.availability_zone"), ("arch", "host.arch")] {
+    for (key, attr) in [("instance_type", "host.type"), ("availability_zone", "cloud.availability_zone"), ("arch", "host.arch"), ("kernel", "os.version"), ("os_description", "os.description")] {
         if let Some(v) = res(attr) {
             attributes.insert(key.into(), v);
         }
+    }
+    if let Some(release) = res("os.description").as_deref().and_then(os_release) {
+        attributes.insert("os_release".into(), release);
+    }
+    if let Some(v) = res("observecraft.collector.version") {
+        attributes.insert("agent_version".into(), v.rsplit(' ').next().unwrap_or(&v).to_string());
     }
     CatalogResource {
         id: format!("host:{}", s.name),
@@ -340,6 +381,20 @@ fn from_kube(r: &KubeResource) -> Option<CatalogResource> {
     put("nodes", r.nodes.map(|n| n.to_string()));
     put("pods", r.pods.map(|n| n.to_string()));
     put("restarts", r.restarts.map(|n| n.to_string()));
+    put("image_tags", (!r.images.is_empty()).then(|| r.images.iter().map(|i| image_tag(i)).collect::<Vec<_>>().join(", ")));
+    put("os_image", r.os_image.clone());
+    put("runtime", r.runtime.clone());
+    put("qos", r.qos.clone());
+    put("tasks", r.tasks.map(|n| n.to_string()));
+    if matches!(resource_type, CatalogType::KubeDeployment | CatalogType::KubeStatefulSet) {
+        put("replicas", r.desired.map(|n| n.to_string()));
+    }
+    if matches!(resource_type, CatalogType::KubePod | CatalogType::Container | CatalogType::KubeDeployment | CatalogType::KubeStatefulSet | CatalogType::KubeDaemonSet) {
+        put("cpu_requests", quantity(r.cpu.as_ref().and_then(|u| u.requests)));
+        put("cpu_limits", quantity(r.cpu.as_ref().and_then(|u| u.limits)));
+        put("memory_requests", quantity(r.memory.as_ref().and_then(|u| u.requests)));
+        put("memory_limits", quantity(r.memory.as_ref().and_then(|u| u.limits)));
+    }
     Some(CatalogResource {
         id: r.uid.clone(),
         resource_type,
@@ -450,6 +505,14 @@ fn search_page(all: Vec<CatalogResource>, req: &CatalogSearchRequest) -> Catalog
     let groups = req.group_by.as_deref().filter(|g| !g.is_empty()).map(|g| groups(&rows, g));
     let items = rows.into_iter().skip(req.offset).take(req.limit.clamp(1, 500)).collect();
     CatalogPage { items, total, facets, groups }
+}
+
+/// The org's whole catalog: hosts that reported in the last hour and current Kubernetes and ECS resources.
+pub(crate) async fn load_all(st: &AppState, org: &str) -> Result<Vec<CatalogResource>, crate::error::ApiError> {
+    let to = super::metrics::now_ms();
+    let range = TimeRange { from: to - 3_600_000, to };
+    let (hosts, kube) = tokio::try_join!(load_hosts(st, org, range), super::kubernetes::resources(st, org))?;
+    Ok(hosts.iter().map(from_host).chain(kube.iter().filter_map(from_kube)).collect())
 }
 
 #[utoipa::path(post, path = "/api/v1/infrastructure/catalog", operation_id = "search_catalog", request_body = CatalogSearchRequest, responses((status = 200, body = CatalogPage)), tag = "infrastructure")]
@@ -575,6 +638,34 @@ mod tests {
         assert_eq!(groups[0].services, vec!["billing"]);
         // Ungrouped searches have no groups.
         assert!(search_page(vec![], &req("")).groups.is_none());
+    }
+
+    #[test]
+    fn image_tags_and_os_releases_are_read_from_references_and_descriptions() {
+        assert_eq!(image_tag("registry.example.com/shop/order-service:2.4.1"), "2.4.1");
+        assert_eq!(image_tag("registry.example.com:5000/shop/order-service"), "latest");
+        assert_eq!(image_tag("nginx:latest"), "latest");
+        assert_eq!(image_tag("nginx@sha256:abcd"), "digest");
+        assert_eq!(os_release("Ubuntu 22.04.4 LTS").as_deref(), Some("22.04.4"));
+        assert_eq!(os_release("debian 12.5 bookworm").as_deref(), Some("12.5"));
+        assert_eq!(os_release("Amazon Linux"), None);
+    }
+
+    #[test]
+    fn workloads_expose_replicas_requests_limits_and_image_tags_as_attributes() {
+        let mut dep = kube(KubeKind::Deployments, "order-service", &["env:prod"]);
+        dep.desired = Some(3);
+        dep.images = vec!["registry.example.com/order-service:2.4".into(), "envoy".into()];
+        dep.cpu = Some(super::super::kubernetes::KubeUtilization { usage: Some(0.1), requests: Some(0.25), limits: None, capacity: None });
+        let row = from_kube(&dep).unwrap();
+        assert_eq!(row.attributes.get("replicas").map(String::as_str), Some("3"));
+        assert_eq!(row.attributes.get("cpu_requests").map(String::as_str), Some("0.25"));
+        assert!(!row.attributes.contains_key("cpu_limits"));
+        // Attributes answer query keys that are neither fields nor tags; list attributes split.
+        assert_eq!(row.values("image_tags"), vec!["2.4", "latest"]);
+        assert_eq!(row.values("replicas"), vec!["3"]);
+        assert!(row.matches(&parse_query("image_tags:latest")));
+        assert!(row.values("missing").is_empty());
     }
 
     #[test]

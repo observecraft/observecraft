@@ -135,6 +135,7 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(routes::on_call::run_escalations(state.clone()));
     tokio::spawn(routes::synthetics::run_scheduler(state.clone()));
     tokio::spawn(routes::scorecards::run_scheduler(state.clone()));
+    tokio::spawn(routes::resource_policies::run_snapshots(state.clone()));
     logproc::serve(state.clone()).await.context("log indexer")?;
 
     let cors = CorsLayer::new()

@@ -442,7 +442,7 @@ fn check_level(level: u8) -> Result<u8, String> {
     }
 }
 
-fn valid_uuid(id: &str) -> bool {
+pub(crate) fn valid_uuid(id: &str) -> bool {
     id.len() == 36 && id.chars().enumerate().all(|(i, c)| if [8, 13, 18, 23].contains(&i) { c == '-' } else { c.is_ascii_hexdigit() })
 }
 

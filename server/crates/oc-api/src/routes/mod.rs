@@ -4,6 +4,7 @@ pub mod auth;
 pub mod catalog;
 pub mod changes;
 pub mod ci;
+pub mod cloud_map;
 pub mod dashboards;
 pub mod data_jobs;
 pub mod databases;
@@ -50,6 +51,8 @@ pub mod portal_model;
 pub mod portal_reports;
 pub mod profiles;
 pub mod reference_tables;
+pub mod resource_policies;
+pub mod resource_policy_rules;
 pub mod scorecard_rules;
 pub mod scorecards;
 pub mod spans;
@@ -147,6 +150,14 @@ use crate::state::AppState;
         hosts::containers,
         catalog::search,
         changes::search,
+        resource_policies::search,
+        resource_policies::attributes,
+        resource_policies::preview,
+        resource_policies::get,
+        resource_policies::create,
+        resource_policies::update,
+        resource_policies::delete,
+        cloud_map::cloud_map,
         gpu::search,
         gpu::timeseries,
         databases::search,
@@ -622,6 +633,15 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/hosts/:name/containers", post(hosts::containers))
         .route("/api/v1/infrastructure/catalog", post(catalog::search))
         .route("/api/v1/infrastructure/changes", post(changes::search))
+        .route("/api/v1/infrastructure/cloud-map", post(cloud_map::cloud_map))
+        .route("/api/v1/infrastructure/policies", post(resource_policies::create))
+        .route("/api/v1/infrastructure/policies/search", post(resource_policies::search))
+        .route("/api/v1/infrastructure/policies/attributes", get(resource_policies::attributes))
+        .route("/api/v1/infrastructure/policies/preview", post(resource_policies::preview))
+        .route(
+            "/api/v1/infrastructure/policies/:id",
+            get(resource_policies::get).put(resource_policies::update).delete(resource_policies::delete),
+        )
         .route("/api/v1/gpu/search", post(gpu::search))
         .route("/api/v1/gpu/timeseries", post(gpu::timeseries))
         .route("/api/v1/databases/search", post(databases::search))
@@ -1067,6 +1087,9 @@ mod tests {
             include_str!("notebooks.rs"),
             include_str!("profiles.rs"),
             include_str!("reference_tables.rs"),
+            include_str!("resource_policies.rs"),
+            include_str!("cloud_map.rs"),
+            include_str!("resource_policy_rules.rs"),
             include_str!("status_pages.rs"),
             include_str!("synthetics.rs"),
             include_str!("synthetics_exec.rs"),
@@ -1129,6 +1152,7 @@ mod tests {
             ("archives.rs", include_str!("archives.rs")),
             ("catalog.rs", include_str!("catalog.rs")),
             ("changes.rs", include_str!("changes.rs")),
+            ("cloud_map.rs", include_str!("cloud_map.rs")),
             ("ci.rs", include_str!("ci.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),
             ("error_tracking.rs", include_str!("error_tracking.rs")),
@@ -1232,6 +1256,7 @@ mod tests {
             ("auth.rs", include_str!("auth.rs")),
             ("catalog.rs", include_str!("catalog.rs")),
             ("changes.rs", include_str!("changes.rs")),
+            ("cloud_map.rs", include_str!("cloud_map.rs")),
             ("ci.rs", include_str!("ci.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),
             ("downtimes.rs", include_str!("downtimes.rs")),
@@ -1279,6 +1304,8 @@ mod tests {
             ("portal_reports.rs", include_str!("portal_reports.rs")),
             ("profiles.rs", include_str!("profiles.rs")),
             ("reference_tables.rs", include_str!("reference_tables.rs")),
+            ("resource_policies.rs", include_str!("resource_policies.rs")),
+            ("resource_policy_rules.rs", include_str!("resource_policy_rules.rs")),
             ("scorecard_rules.rs", include_str!("scorecard_rules.rs")),
             ("scorecards.rs", include_str!("scorecards.rs")),
             ("portal_home.rs", include_str!("portal_home.rs")),
