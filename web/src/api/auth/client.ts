@@ -44,7 +44,9 @@ export const revokeAppKey = (id: string) => (live ? request('DELETE', `/api/v1/m
 export const getLoginMethods = () => (live ? get('/api/v1/org/login-methods', {}) : mock.getLoginMethods());
 export const updateLoginMethods = (u: AuthSettingsUpdate) => (live ? put('/api/v1/org/login-methods', u) : mock.updateLoginMethods(u));
 export const loginLink = (userId: string) => (live ? postTo('/api/v1/users/{id}/login-link', { id: userId }, undefined) : mock.loginLink(userId));
-export const auditTrail = (query: string, offset: number, limit: number) => (live ? get('/api/v1/audit', {}, undefined, { query, offset, limit }) : mock.auditTrail(query, offset, limit));
+/** Audit events matching the text, of the actors and action categories (empty = all), with the facet counts. */
+export const auditTrail = (query: string, offset: number, limit: number, actors: string[] = [], categories: string[] = []) =>
+  live ? get('/api/v1/audit', {}, undefined, { query, offset, limit, actor: actors.join(','), category: categories.join(',') }) : mock.auditTrail(query, offset, limit, actors, categories);
 export const deleteMapping = (id: number) => (live ? request('DELETE', `/api/v1/saml/mappings/${id}`) : mock.deleteMapping(id));
 
 // DELETE / PUT aren't in the typed helpers; these endpoints have simple bodies.

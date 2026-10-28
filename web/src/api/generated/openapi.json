@@ -587,6 +587,30 @@
             }
           },
           {
+            "name": "actor",
+            "in": "query",
+            "description": "Actors, comma-separated.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "Action categories (`ingest_key` for `ingest_key.revoked`), comma-separated.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -6839,13 +6863,45 @@
           }
         }
       },
+      "AuditFacetValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
       "AuditPage": {
         "type": "object",
         "required": [
           "events",
-          "total"
+          "total",
+          "actors",
+          "categories"
         ],
         "properties": {
+          "actors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditFacetValue"
+            },
+            "description": "Events per actor, ignoring the actor filter."
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditFacetValue"
+            },
+            "description": "Events per action category, ignoring the category filter."
+          },
           "events": {
             "type": "array",
             "items": {

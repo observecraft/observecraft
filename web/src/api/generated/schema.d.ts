@@ -2906,7 +2906,16 @@ export interface components {
             ip?: string | null;
             target: string;
         };
+        AuditFacetValue: {
+            /** Format: int64 */
+            count: number;
+            value: string;
+        };
         AuditPage: {
+            /** @description Events per actor, ignoring the actor filter. */
+            actors: components["schemas"]["AuditFacetValue"][];
+            /** @description Events per action category, ignoring the category filter. */
+            categories: components["schemas"]["AuditFacetValue"][];
             events: components["schemas"]["AuditEvent"][];
             /** Format: int64 */
             total: number;
@@ -6810,6 +6819,10 @@ export interface operations {
             query?: {
                 /** @description Matches actor, action, target or detail. */
                 query?: string | null;
+                /** @description Actors, comma-separated. */
+                actor?: string | null;
+                /** @description Action categories (`ingest_key` for `ingest_key.revoked`), comma-separated. */
+                category?: string | null;
                 offset?: number | null;
                 limit?: number | null;
             };

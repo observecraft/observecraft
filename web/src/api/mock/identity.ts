@@ -587,11 +587,21 @@ export async function updateLoginMethods(u: S['AuthSettingsUpdate']): Promise<S[
   return getLoginMethods();
 }
 
-export async function auditTrail(query: string, offset: number, limit: number): Promise<S['AuditPage']> {
+export async function auditTrail(query: string, offset: number, limit: number, actors: string[] = [], categories: string[] = []): Promise<S['AuditPage']> {
   const q = query.trim();
-  const all = db().audit.filter((e) => !q || [e.actor, e.action, e.target, e.detail].some((v) => ilike(v, q)));
+  const category = (e: S['AuditEvent']) => e.action.split('.')[0];
+  const text = db().audit.filter((e) => !q || [e.actor, e.action, e.target, e.detail].some((v) => ilike(v, q)));
+  const ofActor = (e: S['AuditEvent']) => !actors.length || actors.includes(e.actor);
+  const ofCategory = (e: S['AuditEvent']) => !categories.length || categories.includes(category(e));
+  // Each facet's counts honour every filter but its own.
+  const counts = (events: S['AuditEvent'][], key: (e: S['AuditEvent']) => string) => {
+    const m = new Map<string, number>();
+    for (const e of events) m.set(key(e), (m.get(key(e)) ?? 0) + 1);
+    return [...m].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+  };
+  const all = text.filter((e) => ofActor(e) && ofCategory(e));
   const from = Math.max(0, offset);
-  return { events: all.slice(from, from + clamp(limit)), total: all.length };
+  return { events: all.slice(from, from + clamp(limit)), total: all.length, actors: counts(text.filter(ofCategory), (e) => e.actor), categories: counts(text.filter(ofActor), category) };
 }
 
 export async function securityStatus(): Promise<S['SecurityStatus']> {
