@@ -1472,6 +1472,86 @@ export interface paths {
         patch: operations["instance_update_org_limits"];
         trace?: never;
     };
+    "/api/v1/llm/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["llm_evaluations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/llm/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["llm_facets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/llm/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["llm_overview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/llm/traces/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["llm_search_traces"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/llm/traces/{trace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["llm_trace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/archive-searches": {
         parameters: {
             query?: never;
@@ -3758,6 +3838,11 @@ export interface components {
         ChangeSource: "kubernetes" | "apm" | "ci" | "events" | "audit";
         /** @enum {string} */
         ChangeType: "deployment" | "rollout" | "scale" | "config" | "crash" | "feature_flag";
+        CheckOutcome: {
+            check: string;
+            detail: string;
+            passed: boolean;
+        };
         CiAggregate: {
             /** Format: double */
             avgMs: number;
@@ -5579,6 +5664,246 @@ export interface components {
              */
             matchedPerSec: number;
         };
+        LlmAppUsage: {
+            /** Format: int64 */
+            errors: number;
+            /**
+             * Format: double
+             * @description Estimated USD over the app's priced models.
+             */
+            estimatedCostUsd: number;
+            /** Format: double */
+            inputTokens: number;
+            mlApp: string;
+            models: string[];
+            /** Format: double */
+            outputTokens: number;
+            /** Format: double */
+            p50Ms: number;
+            /** Format: double */
+            p95Ms: number;
+            /** Format: int64 */
+            requests: number;
+        };
+        LlmCheckSummary: {
+            description: string;
+            failSeries: number[];
+            /** Format: int64 */
+            failed: number;
+            /** @description A keyword / pattern heuristic rather than an exact rule. */
+            heuristic: boolean;
+            id: string;
+            name: string;
+            /** @description Pass and fail counts per bucket. */
+            passSeries: number[];
+            /** Format: int64 */
+            passed: number;
+            /** @description built_in | recorded (evaluation results found on the spans) */
+            source: string;
+            /**
+             * Format: int64
+             * @description Recorded results whose label is neither a pass nor a fail word.
+             */
+            unlabeled: number;
+        };
+        LlmEvaluationResult: {
+            check: string;
+            detail: string;
+            inputPreview: string;
+            mlApp: string;
+            model: string;
+            outputPreview: string;
+            passed?: boolean | null;
+            /** Format: double */
+            score?: number | null;
+            spanId: string;
+            spanName: string;
+            /** Format: int64 */
+            timestamp: number;
+            traceId: string;
+        };
+        LlmEvaluations: {
+            checks: components["schemas"]["LlmCheckSummary"][];
+            /**
+             * Format: int64
+             * @description LLM calls evaluated (the newest ones, up to the sample size).
+             */
+            evaluated: number;
+            /** @description Matching results, newest first (at most 200). */
+            results: components["schemas"]["LlmEvaluationResult"][];
+            /** Format: int64 */
+            stepMs: number;
+            times: number[];
+            /**
+             * Format: int64
+             * @description LLM calls matching the query in the range.
+             */
+            totalCalls: number;
+        };
+        LlmEvaluationsRequest: components["schemas"]["LlmQuery"] & {
+            /** @description Only results of this check (a built-in id or a recorded evaluation name). */
+            check?: string | null;
+            /** @description fail (default) | pass | all */
+            outcome?: string | null;
+        };
+        LlmFacets: {
+            /** @description Dimension → top values with the number of LLM spans (each ignoring its own selection). */
+            facets: {
+                [key: string]: components["schemas"]["SpanFacetValue"][];
+            };
+        };
+        LlmFacetsRequest: components["schemas"]["LlmQuery"] & {
+            dimensions?: string[];
+        };
+        LlmMessage: {
+            content: string;
+            /** @description system | user | assistant | tool | document … */
+            role: string;
+        };
+        LlmModelUsage: {
+            /** Format: int64 */
+            errors: number;
+            /**
+             * Format: double
+             * @description Estimated USD from the built-in list prices; null when the model has no price.
+             */
+            estimatedCostUsd?: number | null;
+            /** Format: double */
+            inputTokens: number;
+            model: string;
+            /** Format: double */
+            outputTokens: number;
+            provider: string;
+            /** Format: int64 */
+            requests: number;
+        };
+        LlmOverview: {
+            apps: components["schemas"]["LlmAppUsage"][];
+            /** @description Estimated USD per bucket. */
+            costSeries: components["schemas"]["LlmSeries"][];
+            /** Format: double */
+            errorRate: number;
+            /** Format: int64 */
+            errors: number;
+            /**
+             * Format: double
+             * @description Sum over models with a list price; see `unpricedModels`.
+             */
+            estimatedCostUsd: number;
+            /**
+             * Format: double
+             * @description Tokens of model and embedding calls.
+             */
+            inputTokens: number;
+            /** @description p95 latency of model calls per bucket. */
+            latencySeries: components["schemas"]["LlmSeries"][];
+            models: components["schemas"]["LlmModelUsage"][];
+            /** Format: double */
+            outputTokens: number;
+            /** Format: double */
+            p50Ms: number;
+            /** Format: double */
+            p95Ms: number;
+            requestSeries: components["schemas"]["LlmSeries"][];
+            /**
+             * Format: int64
+             * @description Model calls (kind llm).
+             */
+            requests: number;
+            /** Format: int64 */
+            stepMs: number;
+            times: number[];
+            tokenSeries: components["schemas"]["LlmSeries"][];
+            /** Format: double */
+            totalTokens: number;
+            unpricedModels: string[];
+        };
+        LlmOverviewRequest: components["schemas"]["LlmQuery"] & {
+            /** @description Series grouping: model (default) or ml_app. */
+            groupBy?: string | null;
+        };
+        LlmQuery: {
+            /** @description Facet selections: dimension (ml_app, service, model, provider, kind, operation, env, status) → values. */
+            filters?: {
+                [key: string]: string[];
+            };
+            /** @description Span search syntax (`service:support-assistant @gen_ai.request.model:gpt-4o*`). */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        LlmSeries: {
+            group: string;
+            values: (number | null)[];
+        };
+        LlmSpanDetail: components["schemas"]["LlmSpanInfo"] & {
+            /** @description Built-in checks that need no population (outliers are on the Evaluations page). */
+            checks: components["schemas"]["CheckOutcome"][];
+            /** Format: double */
+            estimatedCostUsd?: number | null;
+        };
+        /** @description What a span says about its LLM work. */
+        LlmSpanInfo: {
+            evaluations: components["schemas"]["RecordedEvaluation"][];
+            input: components["schemas"]["LlmMessage"][];
+            /** Format: double */
+            inputTokens: number;
+            kind: string;
+            mlApp: string;
+            model: string;
+            operation: string;
+            output: components["schemas"]["LlmMessage"][];
+            /** Format: double */
+            outputTokens: number;
+            provider: string;
+        };
+        LlmTraceDetail: {
+            /** @description Span id → LLM details, for the LLM spans of the trace. */
+            llm: {
+                [key: string]: components["schemas"]["LlmSpanDetail"];
+            };
+            trace: components["schemas"]["TraceDetail"];
+        };
+        LlmTracePage: {
+            /** Format: int64 */
+            total: number;
+            traces: components["schemas"]["LlmTraceRow"][];
+        };
+        LlmTraceRow: {
+            /** Format: double */
+            durationMs: number;
+            env: string;
+            /** Format: double */
+            estimatedCostUsd?: number | null;
+            inputPreview: string;
+            /** Format: double */
+            inputTokens: number;
+            kind: string;
+            /** Format: int64 */
+            llmSpans: number;
+            mlApp: string;
+            model: string;
+            name: string;
+            outputPreview: string;
+            /** Format: double */
+            outputTokens: number;
+            service: string;
+            /** @description The top LLM span (earliest, longest on ties). */
+            spanId: string;
+            /** @description ok | error (any LLM span of the trace failed). */
+            status: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            timestamp: number;
+            traceId: string;
+        };
+        LlmTraceSearchRequest: components["schemas"]["LlmQuery"] & {
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            offset: number;
+        };
         LogArchive: {
             accessKey: string;
             bucket: string;
@@ -6732,6 +7057,17 @@ export interface components {
         };
         /** @enum {string} */
         RecommendationKind: "repeated_sequential_calls" | "high_error_rate" | "slow_endpoint";
+        /** @description An evaluation result recorded on the span by the application or an evaluator
+         *     (`gen_ai.evaluation.result` events or `gen_ai.evaluation.*` attributes). */
+        RecordedEvaluation: {
+            explanation: string;
+            label: string;
+            name: string;
+            /** @description From the label: pass / fail words; null when the label says neither. */
+            passed?: boolean | null;
+            /** Format: double */
+            score?: number | null;
+        };
         /** @enum {string} */
         Recurrence: "daily" | "weekly";
         ReferenceTable: {
@@ -10584,6 +10920,120 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    llm_evaluations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmEvaluationsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmEvaluations"];
+                };
+            };
+        };
+    };
+    llm_facets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmFacetsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmFacets"];
+                };
+            };
+        };
+    };
+    llm_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmOverviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmOverview"];
+                };
+            };
+        };
+    };
+    llm_search_traces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmTraceSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmTracePage"];
+                };
+            };
+        };
+    };
+    llm_trace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 32 hex characters */
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmTraceDetail"];
+                };
             };
         };
     };

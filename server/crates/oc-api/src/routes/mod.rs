@@ -17,6 +17,9 @@ pub mod ingest_keys;
 pub mod instance;
 pub mod kubernetes;
 pub mod live;
+pub mod llm;
+pub mod llm_attrs;
+pub mod llm_checks;
 pub mod log_indexes;
 pub mod log_metrics;
 pub mod log_pipelines;
@@ -303,6 +306,11 @@ use crate::state::AppState;
         spans::analytics,
         spans::summary,
         spans::percentile,
+        llm::overview,
+        llm::facets,
+        llm::search_traces,
+        llm::trace,
+        llm::evaluations,
     ),
     // Sent inside the SSE stream rather than as a response body, so it must be listed explicitly.
     components(schemas(live::LiveTailBatch)),
@@ -319,6 +327,7 @@ use crate::state::AppState;
         (name = "orchestration", description = "Kubernetes and ECS Explorers: objects, containers, utilization and events sent by the collectors"),
         (name = "identity", description = "Profile, users, roles, teams and SAML group mappings"),
         (name = "incidents", description = "Incident management and status pages"),
+        (name = "llm", description = "LLM Observability: LLM spans (OpenTelemetry GenAI, OpenLLMetry, dd-trace LLM Observability tags), estimated cost and built-in evaluations"),
         (name = "ci", description = "Software Delivery: CI pipeline executions, flaky tests and DORA metrics from CI/CD traces"),
         (name = "monitors", description = "Monitors, their evaluation history and downtimes"),
         (name = "slos", description = "Service level objectives, their status and error budget, and corrections"),
@@ -442,6 +451,11 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/apm/spans/analytics", post(spans::analytics))
         .route("/api/v1/apm/spans/summary", post(spans::summary))
         .route("/api/v1/apm/spans/percentile", post(spans::percentile))
+        .route("/api/v1/llm/overview", post(llm::overview))
+        .route("/api/v1/llm/facets", post(llm::facets))
+        .route("/api/v1/llm/traces/search", post(llm::search_traces))
+        .route("/api/v1/llm/traces/:trace_id", get(llm::trace))
+        .route("/api/v1/llm/evaluations", post(llm::evaluations))
         .route("/api/v1/ci/executions", post(ci::executions))
         .route("/api/v1/ci/executions/facets", post(ci::facets))
         .route("/api/v1/ci/executions/charts", post(ci::charts))
@@ -818,6 +832,9 @@ mod tests {
             include_str!("instance.rs"),
             include_str!("kubernetes.rs"),
             include_str!("live.rs"),
+            include_str!("llm.rs"),
+            include_str!("llm_attrs.rs"),
+            include_str!("llm_checks.rs"),
             include_str!("log_indexes.rs"),
             include_str!("log_pipelines.rs"),
             include_str!("log_metrics.rs"),
@@ -870,6 +887,8 @@ mod tests {
             ("status_pages.rs", include_str!("status_pages.rs")),
             ("kubernetes.rs", include_str!("kubernetes.rs")),
             ("live.rs", include_str!("live.rs")),
+            ("llm.rs", include_str!("llm.rs")),
+            ("llm_attrs.rs", include_str!("llm_attrs.rs")),
             ("log_indexes.rs", include_str!("log_indexes.rs")),
             ("log_pipelines.rs", include_str!("log_pipelines.rs")),
             ("log_metrics.rs", include_str!("log_metrics.rs")),
@@ -961,6 +980,9 @@ mod tests {
             ("instance.rs", include_str!("instance.rs")),
             ("kubernetes.rs", include_str!("kubernetes.rs")),
             ("live.rs", include_str!("live.rs")),
+            ("llm.rs", include_str!("llm.rs")),
+            ("llm_attrs.rs", include_str!("llm_attrs.rs")),
+            ("llm_checks.rs", include_str!("llm_checks.rs")),
             ("log_indexes.rs", include_str!("log_indexes.rs")),
             ("log_metrics.rs", include_str!("log_metrics.rs")),
             ("log_pipelines.rs", include_str!("log_pipelines.rs")),

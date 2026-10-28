@@ -3649,6 +3649,157 @@
         }
       }
     },
+    "/api/v1/llm/evaluations": {
+      "post": {
+        "tags": [
+          "llm"
+        ],
+        "operationId": "llm_evaluations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmEvaluationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmEvaluations"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/llm/facets": {
+      "post": {
+        "tags": [
+          "llm"
+        ],
+        "operationId": "llm_facets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmFacetsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmFacets"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/llm/overview": {
+      "post": {
+        "tags": [
+          "llm"
+        ],
+        "operationId": "llm_overview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmOverviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmOverview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/llm/traces/search": {
+      "post": {
+        "tags": [
+          "llm"
+        ],
+        "operationId": "llm_search_traces",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmTraceSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmTracePage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/llm/traces/{trace_id}": {
+      "get": {
+        "tags": [
+          "llm"
+        ],
+        "operationId": "llm_trace",
+        "parameters": [
+          {
+            "name": "trace_id",
+            "in": "path",
+            "description": "32 hex characters",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmTraceDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/logs/archive-searches": {
       "get": {
         "tags": [
@@ -9882,6 +10033,25 @@
           "crash",
           "feature_flag"
         ]
+      },
+      "CheckOutcome": {
+        "type": "object",
+        "required": [
+          "check",
+          "passed",
+          "detail"
+        ],
+        "properties": {
+          "check": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          }
+        }
       },
       "CiAggregate": {
         "type": "object",
@@ -16195,6 +16365,796 @@
           }
         }
       },
+      "LlmAppUsage": {
+        "type": "object",
+        "required": [
+          "mlApp",
+          "requests",
+          "errors",
+          "p50Ms",
+          "p95Ms",
+          "inputTokens",
+          "outputTokens",
+          "estimatedCostUsd",
+          "models"
+        ],
+        "properties": {
+          "errors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "estimatedCostUsd": {
+            "type": "number",
+            "format": "double",
+            "description": "Estimated USD over the app's priced models."
+          },
+          "inputTokens": {
+            "type": "number",
+            "format": "double"
+          },
+          "mlApp": {
+            "type": "string"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputTokens": {
+            "type": "number",
+            "format": "double"
+          },
+          "p50Ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "p95Ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "LlmCheckSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "source",
+          "heuristic",
+          "passed",
+          "failed",
+          "unlabeled",
+          "passSeries",
+          "failSeries"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "failSeries": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "heuristic": {
+            "type": "boolean",
+            "description": "A keyword / pattern heuristic rather than an exact rule."
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "passSeries": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "description": "Pass and fail counts per bucket."
+          },
+          "passed": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "source": {
+            "type": "string",
+            "description": "built_in | recorded (evaluation results found on the spans)"
+          },
+          "unlabeled": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Recorded results whose label is neither a pass nor a fail word.",
+            "minimum": 0
+          }
+        }
+      },
+      "LlmEvaluationResult": {
+        "type": "object",
+        "required": [
+          "traceId",
+          "spanId",
+          "timestamp",
+          "mlApp",
+          "model",
+          "spanName",
+          "check",
+          "detail",
+          "inputPreview",
+          "outputPreview"
+        ],
+        "properties": {
+          "check": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "inputPreview": {
+            "type": "string"
+          },
+          "mlApp": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "outputPreview": {
+            "type": "string"
+          },
+          "passed": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "spanId": {
+            "type": "string"
+          },
+          "spanName": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "traceId": {
+            "type": "string"
+          }
+        }
+      },
+      "LlmEvaluations": {
+        "type": "object",
+        "required": [
+          "evaluated",
+          "totalCalls",
+          "stepMs",
+          "times",
+          "checks",
+          "results"
+        ],
+        "properties": {
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmCheckSummary"
+            }
+          },
+          "evaluated": {
+            "type": "integer",
+            "format": "int64",
+            "description": "LLM calls evaluated (the newest ones, up to the sample size).",
+            "minimum": 0
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmEvaluationResult"
+            },
+            "description": "Matching results, newest first (at most 200)."
+          },
+          "stepMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "times": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "totalCalls": {
+            "type": "integer",
+            "format": "int64",
+            "description": "LLM calls matching the query in the range.",
+            "minimum": 0
+          }
+        }
+      },
+      "LlmEvaluationsRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LlmQuery"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "check": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Only results of this check (a built-in id or a recorded evaluation name)."
+              },
+              "outcome": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "fail (default) | pass | all"
+              }
+            }
+          }
+        ]
+      },
+      "LlmFacets": {
+        "type": "object",
+        "required": [
+          "facets"
+        ],
+        "properties": {
+          "facets": {
+            "type": "object",
+            "description": "Dimension → top values with the number of LLM spans (each ignoring its own selection).",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/SpanFacetValue"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "LlmFacetsRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LlmQuery"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "dimensions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "LlmMessage": {
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "description": "system | user | assistant | tool | document …"
+          }
+        }
+      },
+      "LlmModelUsage": {
+        "type": "object",
+        "required": [
+          "model",
+          "provider",
+          "requests",
+          "errors",
+          "inputTokens",
+          "outputTokens"
+        ],
+        "properties": {
+          "errors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "estimatedCostUsd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Estimated USD from the built-in list prices; null when the model has no price."
+          },
+          "inputTokens": {
+            "type": "number",
+            "format": "double"
+          },
+          "model": {
+            "type": "string"
+          },
+          "outputTokens": {
+            "type": "number",
+            "format": "double"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "LlmOverview": {
+        "type": "object",
+        "required": [
+          "requests",
+          "errors",
+          "errorRate",
+          "p50Ms",
+          "p95Ms",
+          "inputTokens",
+          "outputTokens",
+          "totalTokens",
+          "estimatedCostUsd",
+          "unpricedModels",
+          "models",
+          "apps",
+          "stepMs",
+          "times",
+          "requestSeries",
+          "tokenSeries",
+          "latencySeries",
+          "costSeries"
+        ],
+        "properties": {
+          "apps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmAppUsage"
+            }
+          },
+          "costSeries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmSeries"
+            },
+            "description": "Estimated USD per bucket."
+          },
+          "errorRate": {
+            "type": "number",
+            "format": "double"
+          },
+          "errors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "estimatedCostUsd": {
+            "type": "number",
+            "format": "double",
+            "description": "Sum over models with a list price; see `unpricedModels`."
+          },
+          "inputTokens": {
+            "type": "number",
+            "format": "double",
+            "description": "Tokens of model and embedding calls."
+          },
+          "latencySeries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmSeries"
+            },
+            "description": "p95 latency of model calls per bucket."
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmModelUsage"
+            }
+          },
+          "outputTokens": {
+            "type": "number",
+            "format": "double"
+          },
+          "p50Ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "p95Ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "requestSeries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmSeries"
+            }
+          },
+          "requests": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Model calls (kind llm).",
+            "minimum": 0
+          },
+          "stepMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "times": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "tokenSeries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmSeries"
+            }
+          },
+          "totalTokens": {
+            "type": "number",
+            "format": "double"
+          },
+          "unpricedModels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "LlmOverviewRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LlmQuery"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "groupBy": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Series grouping: model (default) or ml_app."
+              }
+            }
+          }
+        ]
+      },
+      "LlmQuery": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "filters": {
+            "type": "object",
+            "description": "Facet selections: dimension (ml_app, service, model, provider, kind, operation, env, status) → values.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "query": {
+            "type": "string",
+            "description": "Span search syntax (`service:support-assistant @gen_ai.request.model:gpt-4o*`)."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "LlmSeries": {
+        "type": "object",
+        "required": [
+          "group",
+          "values"
+        ],
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            }
+          }
+        }
+      },
+      "LlmSpanDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LlmSpanInfo"
+          },
+          {
+            "type": "object",
+            "required": [
+              "checks"
+            ],
+            "properties": {
+              "checks": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CheckOutcome"
+                },
+                "description": "Built-in checks that need no population (outliers are on the Evaluations page)."
+              },
+              "estimatedCostUsd": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "format": "double"
+              }
+            }
+          }
+        ]
+      },
+      "LlmSpanInfo": {
+        "type": "object",
+        "description": "What a span says about its LLM work.",
+        "required": [
+          "kind",
+          "mlApp",
+          "model",
+          "provider",
+          "operation",
+          "inputTokens",
+          "outputTokens",
+          "input",
+          "output",
+          "evaluations"
+        ],
+        "properties": {
+          "evaluations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecordedEvaluation"
+            }
+          },
+          "input": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmMessage"
+            }
+          },
+          "inputTokens": {
+            "type": "number",
+            "format": "double"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "mlApp": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmMessage"
+            }
+          },
+          "outputTokens": {
+            "type": "number",
+            "format": "double"
+          },
+          "provider": {
+            "type": "string"
+          }
+        }
+      },
+      "LlmTraceDetail": {
+        "type": "object",
+        "required": [
+          "trace",
+          "llm"
+        ],
+        "properties": {
+          "llm": {
+            "type": "object",
+            "description": "Span id → LLM details, for the LLM spans of the trace.",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LlmSpanDetail"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "trace": {
+            "$ref": "#/components/schemas/TraceDetail"
+          }
+        }
+      },
+      "LlmTracePage": {
+        "type": "object",
+        "required": [
+          "traces",
+          "total"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "traces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmTraceRow"
+            }
+          }
+        }
+      },
+      "LlmTraceRow": {
+        "type": "object",
+        "required": [
+          "traceId",
+          "spanId",
+          "timestamp",
+          "mlApp",
+          "service",
+          "env",
+          "name",
+          "kind",
+          "model",
+          "inputPreview",
+          "outputPreview",
+          "inputTokens",
+          "outputTokens",
+          "durationMs",
+          "status",
+          "llmSpans"
+        ],
+        "properties": {
+          "durationMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "env": {
+            "type": "string"
+          },
+          "estimatedCostUsd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "inputPreview": {
+            "type": "string"
+          },
+          "inputTokens": {
+            "type": "number",
+            "format": "double"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "llmSpans": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "mlApp": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "outputPreview": {
+            "type": "string"
+          },
+          "outputTokens": {
+            "type": "number",
+            "format": "double"
+          },
+          "service": {
+            "type": "string"
+          },
+          "spanId": {
+            "type": "string",
+            "description": "The top LLM span (earliest, longest on ties)."
+          },
+          "status": {
+            "type": "string",
+            "description": "ok | error (any LLM span of the trace failed)."
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "traceId": {
+            "type": "string"
+          }
+        }
+      },
+      "LlmTraceSearchRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LlmQuery"
+          },
+          {
+            "type": "object",
+            "required": [
+              "offset",
+              "limit"
+            ],
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "offset": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          }
+        ]
+      },
       "LogArchive": {
         "type": "object",
         "required": [
@@ -19940,6 +20900,40 @@
           "high_error_rate",
           "slow_endpoint"
         ]
+      },
+      "RecordedEvaluation": {
+        "type": "object",
+        "description": "An evaluation result recorded on the span by the application or an evaluator\n(`gen_ai.evaluation.result` events or `gen_ai.evaluation.*` attributes).",
+        "required": [
+          "name",
+          "label",
+          "explanation"
+        ],
+        "properties": {
+          "explanation": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "passed": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "From the label: pass / fail words; null when the label says neither."
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
       },
       "Recurrence": {
         "type": "string",
@@ -24104,6 +25098,10 @@
     {
       "name": "incidents",
       "description": "Incident management and status pages"
+    },
+    {
+      "name": "llm",
+      "description": "LLM Observability: LLM spans (OpenTelemetry GenAI, OpenLLMetry, dd-trace LLM Observability tags), estimated cost and built-in evaluations"
     },
     {
       "name": "ci",

@@ -42,6 +42,11 @@ import { NewMonitorPage } from './pages/monitors/NewMonitorPage';
 import { QualityPage } from './pages/monitors/QualityPage';
 import { TemplatesPage } from './pages/monitors/TemplatesPage';
 import { TriggeredPage } from './pages/monitors/TriggeredPage';
+import { ApplicationsPage } from './pages/llm/ApplicationsPage';
+import { CostPage } from './pages/llm/CostPage';
+import { EvaluationsPage } from './pages/llm/EvaluationsPage';
+import { LlmLayout } from './pages/llm/LlmLayout';
+import { LlmTracesPage } from './pages/llm/LlmTracesPage';
 import { CorrectionsPage } from './pages/slo/CorrectionsPage';
 import { SloEditor } from './pages/slo/SloEditor';
 import { SloLayout } from './pages/slo/SloLayout';
@@ -217,6 +222,13 @@ function Shell() {
             </Route>
             <Route path="/slo/create" element={<SloEditor />} />
             <Route path="/slo/:id/edit" element={<SloEditor />} />
+            <Route path="/llm" element={<LlmLayout />}>
+              <Route index element={<ApplicationsPage />} />
+              <Route path="traces" element={<LlmTracesPage />} />
+              <Route path="cost" element={<CostPage />} />
+              <Route path="evaluations" element={<EvaluationsPage />} />
+              <Route path="setup" element={null} />
+            </Route>
             <Route path="/event" element={<EventsLayout />}>
               <Route index element={<Navigate to="explorer" replace />} />
               <Route path="explorer" element={<EventExplorer />} />

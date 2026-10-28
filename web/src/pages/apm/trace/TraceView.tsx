@@ -33,7 +33,7 @@ export function isError(s: TraceSpan): boolean {
   return s.status === 'Error';
 }
 
-function buildTree(spans: TraceSpan[]): Node[] {
+export function buildTree(spans: TraceSpan[]): Node[] {
   const ids = new Set(spans.map((s) => s.spanId));
   const nodes = new Map<string, Node>(spans.map((s) => [s.spanId, { span: s, depth: 0, children: [], size: 0 }]));
   const roots: Node[] = [];
@@ -245,7 +245,7 @@ function ticks(totalUs: number): number[] {
   return out;
 }
 
-interface VizProps {
+export interface VizProps {
   roots: Node[];
   total: number;
   selected?: string;
@@ -254,7 +254,7 @@ interface VizProps {
   color: (s: TraceSpan) => string;
 }
 
-function Waterfall({ roots, total, selected, onSelect, matches, color }: VizProps) {
+export function Waterfall({ roots, total, selected, onSelect, matches, color }: VizProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const rows: Node[] = [];
   const walk = (n: Node) => {

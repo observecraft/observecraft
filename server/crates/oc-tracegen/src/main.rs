@@ -11,6 +11,9 @@
 //! Every minute it also uploads continuous profiles like a Datadog profiler (see `profiles`), and
 //! every 30 s network connections like the Agent's system-probe (see `network`).
 //!
+//! Every other second it also sends an LLM conversation of `support-assistant` with OpenTelemetry
+//! GenAI attributes (see `llm`), for LLM Observability.
+//!
 //! Also writes OTLP logs inside the traces (one per request handled, one per error) for log ↔ trace links.
 //! Env: OTLP_ENDPOINT (default http://localhost:4318, the intake), OC_INGEST_KEY (ingest API key), TRACES_PER_SEC (default 20),
 //! CLICKHOUSE_HTTP (default http://localhost:8123), CLICKHOUSE_USER / CLICKHOUSE_PASSWORD (observecraft).
@@ -19,6 +22,7 @@ mod appmetrics;
 mod ci;
 mod hosts;
 mod kubernetes;
+mod llm;
 mod network;
 mod profiles;
 
@@ -872,7 +876,11 @@ async fn main() -> anyhow::Result<()> {
         }
         seconds += 1;
         let n = rng.range(per_sec * 7 / 10, per_sec * 13 / 10 + 1);
-        let spans: Vec<Span> = (0..n).flat_map(|_| build_trace(&mut rng)).collect();
+        let mut spans: Vec<Span> = (0..n).flat_map(|_| build_trace(&mut rng)).collect();
+        // About one support-assistant conversation every two seconds (LLM Observability).
+        if seconds.is_multiple_of(2) {
+            spans.extend(llm::support_trace(&mut rng, now_ns() - 4_000_000_000));
+        }
         let count = spans.len();
         let logs = otlp_logs(&spans);
         for s in &spans {

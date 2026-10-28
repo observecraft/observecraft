@@ -415,7 +415,9 @@ export const NAV_SECTIONS: NavItem[][] = [
           title: 'AI Observability',
           columns: [
             [
-              { label: 'LLM Traces', to: '/llm' },
+              { label: 'Applications', to: '/llm' },
+              { label: 'LLM Traces', to: '/llm/traces' },
+              { label: 'Cost', to: '/llm/cost' },
               { label: 'Evaluations', to: '/llm/evaluations' },
             ],
           ],
