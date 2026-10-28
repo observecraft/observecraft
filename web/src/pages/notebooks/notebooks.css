@@ -17,8 +17,32 @@
 
 .nb-templates {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px;
+}
+
+.nb-get-started-head {
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+  margin: 8px 0 18px;
+}
+
+.nb-get-started-head h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: var(--fw-semibold);
+}
+
+.nb-side-item {
+  min-height: 36px;
+  font-size: 16px;
+}
+
+.nb-side-sep {
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid var(--border);
 }
 
 .nb-templates-wide {
@@ -28,15 +52,20 @@
 .nb-template {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 14px 16px;
+  align-items: stretch;
+  gap: 4px;
+  overflow: hidden;
+  padding: 0 0 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--text);
   text-align: left;
-  cursor: pointer;
+}
+
+.nb-template > span:not(.nb-template-preview),
+.nb-template > ul {
+  padding: 0 16px;
 }
 
 .nb-template:hover {
@@ -44,14 +73,59 @@
   box-shadow: var(--shadow-pop);
 }
 
-.nb-template-icon {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  background: var(--primary-subtle);
-  color: var(--primary);
+/* the template's first cells, sketched */
+.nb-template-preview {
+  display: block;
+  height: 150px;
+  margin-bottom: 14px;
+  padding: 10px 10px 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--primary-subtle), color-mix(in srgb, var(--primary) 22%, var(--bg)));
+}
+
+.nb-template-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  padding: 14px 24px 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--bg);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+}
+
+.nb-preview-text,
+.nb-preview-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nb-template-preview b {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nb-preview-text i {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-muted);
+}
+
+.nb-preview-chart svg {
+  width: 100%;
+  height: 24px;
+}
+
+.nb-preview-chart polyline {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
 }
 
 .nb-template-name {

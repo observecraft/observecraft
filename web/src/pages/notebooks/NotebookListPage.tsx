@@ -1,6 +1,6 @@
-import { useCallback, useDeferredValue, useEffect, useRef } from 'react';
+import { Fragment, useCallback, useDeferredValue, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
-import { BookOpen, Clock, EllipsisVertical, FileText, LayoutTemplate, Plus, Search, Star, Trash2, User, Users } from 'lucide-react';
+import { BookOpen, Clock, EllipsisVertical, LayoutTemplate, Plus, Search, Star, Trash2, User, Users } from 'lucide-react';
 import type { NotebookListView, NotebookSortField, NotebookSummary } from '../../api/notebooks/types';
 import { NOTEBOOK_TEMPLATES, fromTemplate, type NotebookTemplate } from '../../api/notebooks/templates';
 import { Empty, ErrorState, Loading } from '../../components/ui/AsyncState';
@@ -71,9 +71,7 @@ function useUseTemplate() {
 function TemplateCard({ template, onUse, detailed }: { template: NotebookTemplate; onUse: () => void; detailed?: boolean }) {
   return (
     <button className="nb-template" onClick={onUse}>
-      <span className="nb-template-icon">
-        <FileText size={18} />
-      </span>
+      <TemplatePreview template={template} />
       <span className="nb-template-name">{template.name}</span>
       <span className="nb-template-desc">{template.description}</span>
       {detailed && (
@@ -84,6 +82,32 @@ function TemplateCard({ template, onUse, detailed }: { template: NotebookTemplat
         </ul>
       )}
     </button>
+  );
+}
+
+/** A sketch of the template's first cells: headings and grey lines for text, a small chart for graphs. */
+function TemplatePreview({ template }: { template: NotebookTemplate }) {
+  return (
+    <span className="nb-template-preview" aria-hidden>
+      <span className="nb-template-page">
+        {template.cells.slice(0, 3).map((c, i) =>
+          c.type === 'markdown' ? (
+            <span key={i} className="nb-preview-text">
+              <b>{c.text.split('\n')[0].replace(/^#+\s*/, '') || 'Notes'}</b>
+              <i style={{ width: '88%' }} />
+              <i style={{ width: '64%' }} />
+            </span>
+          ) : (
+            <span key={i} className="nb-preview-chart">
+              <b>{c.title || 'Graph'}</b>
+              <svg viewBox="0 0 100 24" preserveAspectRatio="none">
+                <polyline points="0,18 12,15 24,17 36,9 48,12 60,6 72,10 84,4 100,8" />
+              </svg>
+            </span>
+          ),
+        )}
+      </span>
+    </span>
   );
 }
 
@@ -103,7 +127,7 @@ function FavoriteButton({ nb }: { nb: NotebookSummary }) {
 export function NotebookListPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const view = (params.get('view') as NotebookListView | null) ?? 'all';
+  const view = (params.get('view') as NotebookListView | null) ?? 'mine';
   const query = params.get('q') ?? '';
   const author = params.get('author');
   const team = params.get('team');
@@ -148,28 +172,20 @@ export function NotebookListPage() {
         <div className="dl-body">
           <aside className="dl-side">
             {VIEWS.map(({ key, label, icon: Icon }) => (
-              <button key={key} className={`dl-list${view === key ? ' active' : ''}`} onClick={() => set({ view: key === 'all' ? null : key, offset: null })}>
-                <Icon size={15} /> {label}
-              </button>
+              <Fragment key={key}>
+                {key === 'all' && <hr className="nb-side-sep" />}
+                <button className={`dl-list nb-side-item${view === key ? ' active' : ''}`} onClick={() => set({ view: key === 'mine' ? null : key, offset: null })}>
+                  <Icon size={17} /> {label}
+                </button>
+              </Fragment>
             ))}
-            <Link className="dl-list" to="/notebooks/templates">
+            <hr className="nb-side-sep" />
+            <Link className="dl-list nb-side-item" to="/notebooks/templates">
               <LayoutTemplate size={15} /> Templates
             </Link>
           </aside>
 
           <main className="dl-main">
-            {view === 'all' && !query && (
-              <section className="nb-get-started">
-                <h2 className="nb-h3">Get started fast</h2>
-                <div className="nb-templates">
-                  {NOTEBOOK_TEMPLATES.map((t) => (
-                    <TemplateCard key={t.id} template={t} onUse={() => !template.pending && template.use(t)} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <h2 className="dl-h2">{VIEWS.find((v) => v.key === view)?.label}</h2>
             <div className="nb-filters">
               <label className="nb-search">
                 <Search size={16} />
@@ -188,6 +204,21 @@ export function NotebookListPage() {
                 onChange={(v) => set({ team: v, offset: null })}
               />
             </div>
+            {view === 'mine' && !query && (
+              <section className="nb-get-started">
+                <div className="nb-get-started-head">
+                  <h2>Browse our templates</h2>
+                  <Link to="/notebooks/templates">View All Templates ›</Link>
+                </div>
+                <div className="nb-templates">
+                  {NOTEBOOK_TEMPLATES.slice(0, 3).map((t) => (
+                    <TemplateCard key={t.id} template={t} onUse={() => !template.pending && template.use(t)} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <h2 className="dl-h2">{view === 'mine' ? 'Created by me' : VIEWS.find((v) => v.key === view)?.label}</h2>
             <div className="dl-table-card">
               <div className="dl-table-bar">
                 <strong>{total ? `${offset + 1}–${Math.min(offset + PAGE, total)}` : '0'}</strong> of <strong>{total.toLocaleString()}</strong> notebooks
