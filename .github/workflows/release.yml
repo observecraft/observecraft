@@ -51,6 +51,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version=$(jq -r '."."' .release-please-manifest.json)
+          previous=$(git show HEAD^:.release-please-manifest.json | jq -r '."."')
+          # Release-please is independent and may still be finishing a version-only release.
+          if [ "$version" != "$previous" ]; then
+            for attempt in {1..24}; do
+              if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then break; fi
+              sleep 5
+            done
+            gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null
+            git fetch origin "refs/tags/v$version:refs/tags/v$version"
+          fi
           # Only a release tag on this exact tested commit enables stable publication.
           if [ "$(git rev-parse "v$version^{commit}" 2>/dev/null || true)" = "$SOURCE_SHA" ]; then
             gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null
@@ -68,10 +78,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { ref: "${{ env.SOURCE_SHA }}", fetch-depth: 2 }
+      - id: parent
+        run: echo "sha=$(git rev-parse HEAD^)" >> "$GITHUB_OUTPUT"
       - id: f
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
-          base: ${{ env.SOURCE_SHA }}~1
+          base: ${{ steps.parent.outputs.sha }}
           ref: ${{ env.SOURCE_SHA }}
           filters: |
             image:

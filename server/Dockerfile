@@ -21,6 +21,8 @@ COPY server/ .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS build
+# Bound native compiler memory on large-core machines; override locally with --build-arg CARGO_BUILD_JOBS=2.
+ARG CARGO_BUILD_JOBS=4
 COPY --from=planner /src/recipe.json recipe.json
 # Export this dependency layer with Buildx, including DuckDB's expensive native compilation.
 RUN cargo chef cook --release --locked --recipe-path recipe.json --bin observecraft-server --bin oc-intake --bin oc-tracegen
