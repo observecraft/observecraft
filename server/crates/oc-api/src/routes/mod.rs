@@ -27,6 +27,7 @@ pub mod network;
 pub mod notifications;
 pub mod profiles;
 pub mod spans;
+pub mod standard_attributes;
 pub mod sso;
 
 use axum::routing::{delete, get, patch, post};
@@ -206,6 +207,11 @@ use crate::state::AppState;
         log_metrics::create,
         log_metrics::update,
         log_metrics::delete,
+        standard_attributes::list,
+        standard_attributes::create,
+        standard_attributes::update,
+        standard_attributes::delete,
+        standard_attributes::reset,
         instance::audit,
         auth::app_keys,
         auth::create_app_key,
@@ -491,6 +497,16 @@ pub fn router() -> Router<AppState> {
             axum::routing::put(log_metrics::update).delete(log_metrics::delete),
         )
         .route(
+            "/api/v1/logs/standard-attributes",
+            get(standard_attributes::list)
+                .post(standard_attributes::create)
+                .delete(standard_attributes::reset),
+        )
+        .route(
+            "/api/v1/logs/standard-attributes/:path",
+            axum::routing::put(standard_attributes::update).delete(standard_attributes::delete),
+        )
+        .route(
             "/api/v1/org/data-settings",
             get(log_indexes::get_settings).patch(log_indexes::update_settings),
         )
@@ -664,6 +680,8 @@ mod tests {
             include_str!("log_indexes.rs"),
             include_str!("log_pipelines.rs"),
             include_str!("log_metrics.rs"),
+            include_str!("standard_attributes.rs"),
+            include_str!("../standard_attributes.rs"),
             include_str!("logs.rs"),
             include_str!("metrics.rs"),
             include_str!("metrics/dashboard.rs"),

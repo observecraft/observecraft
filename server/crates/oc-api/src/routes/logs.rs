@@ -1,6 +1,6 @@
 //! Logs endpoints backed by `oc.logs` in ClickHouse. Shapes mirror `web/src/api/types.ts`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use axum::extract::State;
 use axum::Json;
@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::error::{ApiError, ApiResult};
+use crate::routes::standard_attributes::org_paths;
 use crate::state::{AppState, OrgId};
 
 const MAX_RANGE_MS: i64 = 31 * 24 * 3600 * 1000;
@@ -387,6 +388,23 @@ fn extra_facets(extra: &[String]) -> Vec<String> {
     out
 }
 
+/// The group of added facets that are standard attributes of the org.
+const STANDARD_GROUP: &str = "STANDARD ATTRIBUTES";
+
+/// Whether a facet key is one of the org's standard attributes (`@http.url`; tags aren't).
+fn is_standard(key: &str, standard: &HashSet<String>) -> bool {
+    key.strip_prefix('@').is_some_and(|path| standard.contains(path))
+}
+
+/// Added facets are grouped apart when they are standard attributes.
+fn added_group(key: &str, standard: &HashSet<String>) -> &'static str {
+    if is_standard(key, standard) {
+        STANDARD_GROUP
+    } else {
+        "ADDED"
+    }
+}
+
 /// The facets whose key no filter of the search uses: their counts share one scan.
 fn shared_facet_keys<'a>(keys: &[&'a str], terms: &[Term]) -> Vec<&'a str> {
     keys.iter().copied().filter(|k| !terms.iter().any(|t| matches!(t, Term::Tag { key, .. } if key == k))).collect()
@@ -438,10 +456,12 @@ pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
         let (sql, params) = shared_facets_query(&shared, scope(&org, req.range, &terms, None), 10);
         Ok::<_, ApiError>(bind(st.ch(&org).query(&sql), &params).fetch_all::<KeyValueRow>().await?)
     };
-    let (shared_rows, own_rows, indexes) = tokio::try_join!(
+    let standard = async { Ok::<_, ApiError>(if extra.is_empty() { HashSet::new() } else { org_paths(&st, &org).await? }) };
+    let (shared_rows, own_rows, indexes, standard) = tokio::try_join!(
         shared_rows,
         try_join_all(own.iter().map(|key| values_for(&st, &org, req.range, &terms, key, None, 10, true))),
         values_for(&st, &org, req.range, &terms, "index", None, 50, true),
+        standard,
     )?;
     let mut by_key: HashMap<String, Vec<ValueRow>> = HashMap::new();
     for r in shared_rows {
@@ -467,7 +487,7 @@ pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
         out.push(Facet { key: (*key).into(), label: (*label).into(), group: (*group).into(), values });
     }
     for (key, rows) in extra.into_iter().zip(added) {
-        out.push(Facet { label: key.trim_start_matches('@').into(), key, group: "ADDED".into(), values: rows.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect() });
+        out.push(Facet { label: key.trim_start_matches('@').into(), group: added_group(&key, &standard).into(), key, values: rows.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect() });
     }
     Ok(Json(out))
 }
@@ -478,6 +498,8 @@ pub struct LogField {
     pub key: String,
     /// Logs of the sample that have it.
     pub count: u64,
+    /// One of the org's standard attributes (Logs → Configuration → Standard Attributes).
+    pub standard: bool,
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -505,7 +527,8 @@ pub async fn fields(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
     )
     .fetch_all::<FieldRow>()
     .await?;
-    Ok(Json(rows.into_iter().map(|r| LogField { key: r.key, count: r.n }).collect()))
+    let standard = org_paths(&st, &org).await?;
+    Ok(Json(rows.into_iter().map(|r| LogField { standard: is_standard(&r.key, &standard), key: r.key, count: r.n }).collect()))
 }
 
 // ---------------------------------------------------------------- top values
@@ -920,6 +943,16 @@ mod tests {
         let keys = |v: &[&str]| v.iter().map(|k| k.to_string()).collect::<Vec<_>>();
         assert_eq!(extra_facets(&keys(&["kube_node", "service", "@http.url", "kube_node", "", "a b"])), keys(&["kube_node", "@http.url"]));
         assert_eq!(extra_facets(&(0..30).map(|i| format!("k{i}")).collect::<Vec<_>>()).len(), 20);
+    }
+
+    #[test]
+    fn standard_attributes_are_marked() {
+        let standard: HashSet<String> = ["http.url".to_string(), "usr.id".to_string()].into();
+        assert!(is_standard("@http.url", &standard));
+        assert!(!is_standard("http.url", &standard), "a tag isn't an attribute");
+        assert!(!is_standard("@team", &standard));
+        assert_eq!(added_group("@usr.id", &standard), STANDARD_GROUP);
+        assert_eq!(added_group("kube_node", &standard), "ADDED");
     }
 
     #[test]

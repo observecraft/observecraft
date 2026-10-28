@@ -1911,6 +1911,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/standard-attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_standard_attributes"];
+        put?: never;
+        /** Adds an attribute (or brings back a default the org removed, with this definition). */
+        post: operations["create_standard_attribute"];
+        /** Drops the org's changes: the list is the defaults again. */
+        delete: operations["reset_standard_attributes"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/standard-attributes/{path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes the type, description, aliases or source handling; the path stays. */
+        put: operations["update_standard_attribute"];
+        post?: never;
+        /** Removes an attribute; a default is hidden until the list is reset. Logs already stored keep their attributes. */
+        delete: operations["delete_standard_attribute"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/suggest": {
         parameters: {
             query?: never;
@@ -4974,6 +5010,8 @@ export interface components {
             count: number;
             /** @description A tag (`kube_node`) or an attribute (`@http.url`). */
             key: string;
+            /** @description One of the org's standard attributes (Logs → Configuration → Standard Attributes). */
+            standard: boolean;
         };
         LogIndex: {
             /** Format: int64 */
@@ -6330,6 +6368,31 @@ export interface components {
             raw: string;
             title: string;
         };
+        /** @description A standard attribute of the org's list. */
+        StandardAttribute: {
+            aliases: string[];
+            description: string;
+            /** @description Shipped with ObserveCraft (removing it hides it until a reset). */
+            isDefault: boolean;
+            /** @description A default the org edited. */
+            modified: boolean;
+            path: string;
+            preserveSource: boolean;
+            type: components["schemas"]["StandardAttributeType"];
+        };
+        /** @description A standard attribute as an org defines it. */
+        StandardAttributeInput: {
+            /** @description Attribute paths whose value is copied to `path` when a log lacks it; the first one present wins. */
+            aliases?: string[];
+            description?: string;
+            /** @description The attribute's path (`http.status_code`), without `@`. */
+            path: string;
+            /** @description Keep the alias attribute after copying its value (default); otherwise it is moved. */
+            preserveSource?: boolean;
+            type: components["schemas"]["StandardAttributeType"];
+        };
+        /** @enum {string} */
+        StandardAttributeType: "string" | "integer" | "double" | "boolean";
         StatusCounts: {
             /** Format: int64 */
             debug: number;
@@ -10108,6 +10171,111 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
+            };
+        };
+    };
+    list_standard_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardAttribute"][];
+                };
+            };
+        };
+    };
+    create_standard_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StandardAttributeInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardAttribute"];
+                };
+            };
+        };
+    };
+    reset_standard_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardAttribute"][];
+                };
+            };
+        };
+    };
+    update_standard_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                path: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StandardAttributeInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardAttribute"];
+                };
+            };
+        };
+    };
+    delete_standard_attribute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                path: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

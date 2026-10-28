@@ -4786,6 +4786,143 @@
         }
       }
     },
+    "/api/v1/logs/standard-attributes": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "list_standard_attributes",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StandardAttribute"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Adds an attribute (or brings back a default the org removed, with this definition).",
+        "operationId": "create_standard_attribute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StandardAttributeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardAttribute"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Drops the org's changes: the list is the defaults again.",
+        "operationId": "reset_standard_attributes",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StandardAttribute"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/standard-attributes/{path}": {
+      "put": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Changes the type, description, aliases or source handling; the path stays.",
+        "operationId": "update_standard_attribute",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StandardAttributeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardAttribute"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Removes an attribute; a default is hidden until the list is reset. Logs already stored keep their attributes.",
+        "operationId": "delete_standard_attribute",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/logs/suggest": {
       "post": {
         "tags": [
@@ -13890,7 +14027,8 @@
         "type": "object",
         "required": [
           "key",
-          "count"
+          "count",
+          "standard"
         ],
         "properties": {
           "count": {
@@ -13902,6 +14040,10 @@
           "key": {
             "type": "string",
             "description": "A tag (`kube_node`) or an attribute (`@http.url`)."
+          },
+          "standard": {
+            "type": "boolean",
+            "description": "One of the org's standard attributes (Logs → Configuration → Standard Attributes)."
           }
         }
       },
@@ -18344,6 +18486,87 @@
             "type": "string"
           }
         }
+      },
+      "StandardAttribute": {
+        "type": "object",
+        "description": "A standard attribute of the org's list.",
+        "required": [
+          "path",
+          "type",
+          "description",
+          "aliases",
+          "preserveSource",
+          "isDefault",
+          "modified"
+        ],
+        "properties": {
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "Shipped with ObserveCraft (removing it hides it until a reset)."
+          },
+          "modified": {
+            "type": "boolean",
+            "description": "A default the org edited."
+          },
+          "path": {
+            "type": "string"
+          },
+          "preserveSource": {
+            "type": "boolean"
+          },
+          "type": {
+            "$ref": "#/components/schemas/StandardAttributeType"
+          }
+        }
+      },
+      "StandardAttributeInput": {
+        "type": "object",
+        "description": "A standard attribute as an org defines it.",
+        "required": [
+          "path",
+          "type"
+        ],
+        "properties": {
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Attribute paths whose value is copied to `path` when a log lacks it; the first one present wins."
+          },
+          "description": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "The attribute's path (`http.status_code`), without `@`."
+          },
+          "preserveSource": {
+            "type": "boolean",
+            "description": "Keep the alias attribute after copying its value (default); otherwise it is moved."
+          },
+          "type": {
+            "$ref": "#/components/schemas/StandardAttributeType"
+          }
+        }
+      },
+      "StandardAttributeType": {
+        "type": "string",
+        "enum": [
+          "string",
+          "integer",
+          "double",
+          "boolean"
+        ]
       },
       "StatusCounts": {
         "type": "object",

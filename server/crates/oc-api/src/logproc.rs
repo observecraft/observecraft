@@ -12,10 +12,13 @@
 //! Before routing, the org's log pipelines (see `pipelines`) process each log, so index filters,
 //! exclusion filters and the indexed row see the parsed and remapped log.
 //!
+//! After the pipelines, the org's standard attributes (see `standard_attributes`) copy alias values
+//! to their standard names (`status_code` → `http.status_code`), so generated metrics and routing see them.
+//!
 //! After the pipelines and before routing, every log is counted in the org's generated metrics (see
 //! `log_metrics`), so logs an index excludes still count; their buckets are flushed every 10 s.
 //!
-//! Index rules, pipelines and generated metrics are reloaded from Postgres every 10 s; quota counters are local and
+//! Index rules, pipelines, standard attributes and generated metrics are reloaded from Postgres every 10 s; quota counters are local and
 //! re-synced from ClickHouse every 30 s, so several servers sharing the work stay close to the quota.
 
 use std::collections::HashMap;
@@ -34,6 +37,7 @@ use serde_json::Value;
 
 use crate::log_metrics::{self, Aggregator, Definition, OrgMetrics, Retention};
 use crate::pipelines::{self, Pipeline};
+use crate::standard_attributes::{self, Override, Remapper, StoredRow};
 use crate::state::AppState;
 
 const DAY_MS: i64 = 86_400_000;
@@ -73,6 +77,8 @@ pub struct Indexer {
     counters: Mutex<HashMap<(String, String), Counter>>,
     /// Each org's enabled log pipelines, in order.
     pipelines: RwLock<HashMap<String, Arc<Vec<Pipeline>>>>,
+    /// The standard attributes of each org that changed the defaults; others use the defaults.
+    standard: RwLock<HashMap<String, Arc<Remapper>>>,
     /// Each org's generated metrics, and their buckets not flushed yet.
     log_metrics: RwLock<HashMap<String, Arc<OrgMetrics>>>,
     metric_buckets: Mutex<Aggregator>,
@@ -175,7 +181,27 @@ impl Indexer {
             by_org.entry(r.org_id).or_default().push(p);
         }
         *self.pipelines.write().unwrap() = by_org.into_iter().map(|(k, v)| (k, Arc::new(v))).collect();
+        self.reload_standard_attributes(st).await?;
         self.reload_log_metrics(st).await
+    }
+
+    async fn reload_standard_attributes(&self, st: &AppState) -> Result<(), sqlx::Error> {
+        let rows: Vec<StoredRow> = sqlx::query_as(
+            "SELECT a.org_id, a.path, a.hidden, a.type, a.description, a.aliases, a.preserve_source FROM log_standard_attributes a \
+             JOIN orgs o ON o.id = a.org_id WHERE o.status = 'active' ORDER BY a.org_id, a.path",
+        )
+        .fetch_all(&st.postgres)
+        .await?;
+        let mut by_org: HashMap<String, Vec<Override>> = HashMap::new();
+        for r in rows {
+            by_org.entry(r.org_id.clone()).or_default().push(Override::from(r));
+        }
+        *self.standard.write().unwrap() = by_org.into_iter().map(|(org, o)| (org, Arc::new(Remapper::compile(&standard_attributes::merge(&o))))).collect();
+        Ok(())
+    }
+
+    fn standard_for(&self, org: &str) -> Arc<Remapper> {
+        self.standard.read().unwrap().get(org).cloned().unwrap_or_else(standard_attributes::default_remapper)
     }
 
     async fn reload_log_metrics(&self, st: &AppState) -> Result<(), sqlx::Error> {
@@ -291,10 +317,9 @@ fn route_batch(ix: &Indexer, body: &[u8]) -> (Vec<u8>, usize, usize) {
     for line in body.split(|b| *b == b'\n').filter(|l| !l.is_empty()) {
         let Ok(mut ev) = serde_json::from_slice::<Value>(line) else { continue };
         seen += 1;
-        let org_pipelines = ev.get("org_id").and_then(Value::as_str).and_then(|org| ix.pipelines.read().unwrap().get(org).cloned());
-        if let Some(p) = org_pipelines {
-            pipelines::process_row(&p, &mut ev, now);
-        }
+        let org_id = ev.get("org_id").and_then(Value::as_str).unwrap_or("").to_string();
+        let org_pipelines = ix.pipelines.read().unwrap().get(&org_id).cloned().unwrap_or_default();
+        pipelines::process_row(&org_pipelines, &ix.standard_for(&org_id), &mut ev, now);
         let s = |k: &str| ev.get(k).and_then(Value::as_str).unwrap_or("").to_string();
         let (org, id) = (s("org_id"), s("id"));
         let (service, status, host, source, message) = (s("service"), s("status"), s("host"), s("source"), s("message"));
@@ -494,6 +519,40 @@ mod tests {
         got.sort_by(|a, b| a.1.cmp(&b.1));
         let tags = |status: &str| vec![("status".to_string(), status.to_string()), ("team".to_string(), "checkout".to_string())];
         assert_eq!(got, vec![("acme", tags("error"), PointValue::Count(1)), ("acme", tags("info"), PointValue::Count(1))]);
+    }
+
+    #[test]
+    fn standard_attributes_are_remapped_before_routing_and_generated_metrics() {
+        let ix = indexer(vec![rule("server-errors", "@http.status_code:5*", None, vec![]), rule("main", "", None, vec![])]);
+        let definitions = vec![Definition::new("logs.api.codes", "", Aggregation::Count, &[("@http.status_code".to_string(), "code".to_string())])];
+        ix.log_metrics.write().unwrap().insert("acme".into(), Arc::new(OrgMetrics { definitions, retention: Retention::default() }));
+        let access = |id: &str, attrs: &str| {
+            let attr: Value = serde_json::from_str(attrs).unwrap();
+            let flat: serde_json::Map<String, Value> = crate::pipelines::log::flatten(attr.as_object().unwrap()).into_iter().map(|(k, v)| (k, Value::from(v))).collect();
+            format!(
+                "{}\n",
+                serde_json::json!({"org_id": "acme", "id": id, "service": "api", "status": "info", "message": "m", "tags": {}, "attr": flat, "attributes": attrs})
+            )
+        };
+        // The defaults apply to an org that changed nothing; an existing standard value stays.
+        let body = [access("1", r#"{"status_code":"503"}"#), access("2", r#"{"http":{"status_code":200},"status_code":"503"}"#), access("3", r#"{"team":"checkout"}"#)].concat();
+        let (out, seen, kept) = route_batch(&ix, body.as_bytes());
+        assert_eq!((seen, kept), (3, 3));
+        let rows: Vec<Value> = out.split(|b| *b == b'\n').filter(|l| !l.is_empty()).map(|l| serde_json::from_slice(l).unwrap()).collect();
+        assert_eq!((rows[0]["index_name"].as_str(), rows[0]["attr"]["http.status_code"].as_str(), rows[0]["attr"]["status_code"].as_str()), (Some("server-errors"), Some("503"), Some("503")));
+        assert_eq!(serde_json::from_str::<Value>(rows[0]["attributes"].as_str().unwrap()).unwrap()["http"]["status_code"], 503, "cast to the integer type");
+        assert_eq!((rows[1]["index_name"].as_str(), rows[1]["attr"]["http.status_code"].as_str()), (Some("main"), Some("200")));
+        assert_eq!(rows[2]["attributes"], r#"{"team":"checkout"}"#, "a log without aliases isn't rewritten");
+        let (points, _) = ix.metric_buckets.lock().unwrap().drain();
+        let mut codes: Vec<_> = points.iter().map(|p| p.tags.clone()).collect();
+        codes.sort();
+        assert!(codes.contains(&vec![("code".to_string(), "503".to_string())]), "generated metrics see the standard attribute: {codes:?}");
+        // An org's own list replaces the defaults.
+        let own = crate::standard_attributes::merge(&[crate::standard_attributes::Override { path: "http.status_code".into(), definition: None }]);
+        ix.standard.write().unwrap().insert("acme".into(), Arc::new(Remapper::compile(&own)));
+        let (out, _, _) = route_batch(&ix, access("4", r#"{"status_code":"503"}"#).as_bytes());
+        let row: Value = serde_json::from_slice(out.trim_ascii_end()).unwrap();
+        assert_eq!((row["index_name"].as_str(), row["attr"].get("http.status_code")), (Some("main"), None));
     }
 
     #[test]

@@ -16,6 +16,8 @@ pub use filter::Filter;
 pub use log::Log;
 use processors::Step;
 
+use crate::standard_attributes::Remapper;
+
 /// Nested pipelines go one level deep, as in Datadog.
 pub const MAX_NESTING: usize = 1;
 
@@ -59,20 +61,22 @@ impl Pipeline {
     }
 }
 
-/// Runs an org's pipelines, in order, on one indexer row; whether any matched (and the row was rewritten).
-pub fn process_row(pipelines: &[Pipeline], row: &mut Value, now_ms: i64) -> bool {
-    if pipelines.is_empty() {
+/// Runs an org's pipelines, in order, then its standard attribute remapping on one indexer row;
+/// whether the row was rewritten (a pipeline matched or an alias was remapped).
+pub fn process_row(pipelines: &[Pipeline], standard: &Remapper, row: &mut Value, now_ms: i64) -> bool {
+    if pipelines.is_empty() && !standard.may_apply(row) {
         return false;
     }
     let mut log = Log::from_row(row);
-    let mut matched = false;
+    let mut changed = false;
     for p in pipelines {
-        matched |= p.apply(&mut log, now_ms);
+        changed |= p.apply(&mut log, now_ms);
     }
-    if matched {
+    changed |= standard.apply(&mut log);
+    if changed {
         log.write_row(row);
     }
-    matched
+    changed
 }
 
 #[cfg(test)]
@@ -99,14 +103,14 @@ mod tests {
             pipeline("billing", "service:billing", json!([{"type": "string-builder-processor", "template": "x", "target": "never"}])),
         ];
         let mut row = json!({"org_id": "acme", "id": "1", "status": "info", "service": "api-gateway", "source": "nginx", "message": "GET /cart 503", "tags": {}, "attr": {}, "attributes": "{}"});
-        assert!(process_row(&pipelines, &mut row, 0));
+        assert!(process_row(&pipelines, &Remapper::compile(&[]), &mut row, 0));
         assert_eq!(row["status"], "error");
         assert_eq!(row["attr"]["http.status_code"], "503");
         assert!(row["attr"].get("never").is_none());
         // A log no pipeline matches is left as it is.
         let mut other = json!({"org_id": "acme", "id": "2", "status": "info", "service": "billing-worker", "source": "go", "message": "m", "attr": {"a": "1"}});
         let before = other.clone();
-        assert!(!process_row(&pipelines, &mut other, 0));
+        assert!(!process_row(&pipelines, &Remapper::compile(&[]), &mut other, 0));
         assert_eq!(other, before);
     }
 }

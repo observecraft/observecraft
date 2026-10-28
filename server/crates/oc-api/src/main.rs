@@ -14,6 +14,7 @@ mod logproc;
 mod pipelines;
 mod routes;
 mod s3;
+mod standard_attributes;
 mod state;
 
 use std::sync::Arc;

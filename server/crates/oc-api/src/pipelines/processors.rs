@@ -40,11 +40,32 @@ pub struct Remap {
     override_on_conflict: bool,
 }
 
-enum Format {
+/// A remapped value's type. `Boolean` isn't an attribute-remapper format; standard attributes use it.
+pub enum Format {
     Auto,
     Text,
     Integer,
     Double,
+    Boolean,
+}
+
+/// A value converted to `format` (numbers from numeric text, booleans from `true`/`false`/`1`/`0`);
+/// `None` when it doesn't convert.
+pub fn cast(v: Value, format: &Format) -> Option<Value> {
+    match format {
+        Format::Auto => Some(v),
+        Format::Text => Some(Value::from(text(&v))),
+        Format::Integer => as_f64(&v).filter(|f| f.is_finite()).map(|f| Value::from(f.trunc() as i64)),
+        Format::Double => as_f64(&v).and_then(serde_json::Number::from_f64).map(Value::Number),
+        Format::Boolean => match &v {
+            Value::Bool(b) => Some(Value::Bool(*b)),
+            _ => match text(&v).trim().to_ascii_lowercase().as_str() {
+                "true" | "1" => Some(Value::Bool(true)),
+                "false" | "0" => Some(Value::Bool(false)),
+                _ => None,
+            },
+        },
+    }
 }
 
 /// A string builder template: text and `%{attribute}` references.
@@ -361,18 +382,7 @@ impl Remap {
     fn apply(&self, log: &mut Log) {
         let read = |log: &Log, s: &str| if self.from_tag { log.tags.get(s).map(|v| Value::from(v.as_str())) } else { log.get(s) };
         let Some((source, v)) = self.sources.iter().find_map(|s| read(log, s).map(|v| (s, v))) else { return };
-        let v = match self.format {
-            Format::Auto => v,
-            Format::Text => Value::from(text(&v)),
-            Format::Integer => match as_f64(&v).filter(|f| f.is_finite()) {
-                Some(f) => Value::from(f.trunc() as i64),
-                None => return,
-            },
-            Format::Double => match as_f64(&v).and_then(serde_json::Number::from_f64) {
-                Some(n) => Value::Number(n),
-                None => return,
-            },
-        };
+        let Some(v) = cast(v, &self.format) else { return };
         let exists = if self.to_tag { log.tags.contains_key(&self.target) } else { log.get(&self.target).is_some() };
         if exists && !self.override_on_conflict && *source != self.target {
             return;
@@ -732,6 +742,21 @@ mod tests {
         assert_eq!(out.get("deployment.env"), Some(json!("prod")));
         assert_eq!(out.tags.get("client_ip").map(String::as_str), Some("10.0.0.9"));
         assert_eq!(out.tags.get("env").map(String::as_str), Some("prod"));
+    }
+
+    #[test]
+    fn casts_values_to_a_format() {
+        assert_eq!(cast(json!("404"), &Format::Integer), Some(json!(404)));
+        assert_eq!(cast(json!(1.9), &Format::Integer), Some(json!(1)));
+        assert_eq!(cast(json!("1.5"), &Format::Double), Some(json!(1.5)));
+        assert_eq!(cast(json!(404), &Format::Text), Some(json!("404")));
+        assert_eq!(cast(json!("n/a"), &Format::Integer), None);
+        assert_eq!(cast(json!({"a": 1}), &Format::Auto), Some(json!({"a": 1})));
+        for (v, b) in [(json!(true), true), (json!("TRUE"), true), (json!("false"), false), (json!(1), true), (json!(0), false), (json!("1"), true)] {
+            assert_eq!(cast(v, &Format::Boolean), Some(Value::Bool(b)));
+        }
+        assert_eq!(cast(json!("yes please"), &Format::Boolean), None);
+        assert_eq!(cast(json!(2), &Format::Boolean), None);
     }
 
     #[test]
