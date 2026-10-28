@@ -121,14 +121,14 @@ export function SloListPage() {
                 ['no_data', summary?.noData],
               ] as [SloState, number | undefined][]
             ).map(([s, n]) => (
-              <button key={s} className={`slo-card${states.length === 1 && states[0] === s ? ' active' : ''}`} onClick={() => pickState(s)} style={{ borderTopColor: STATE_COLOR[s] }}>
+              <button key={s} className={`slo-card slo-card-${s}${states.length === 1 && states[0] === s ? ' active' : ''}`} onClick={() => pickState(s)}>
                 <span className="slo-card-label">{STATE_LABEL[s]}</span>
-                <span className="slo-card-value">{n ?? '–'}</span>
+                <span className="slo-card-value">{n || '—'}</span>
               </button>
             ))}
             <button className={`slo-card${states.length === 0 ? ' active' : ''}`} onClick={() => pickState(null)}>
               <span className="slo-card-label">Total</span>
-              <span className="slo-card-value">{summary?.total ?? '–'}</span>
+              <span className="slo-card-value">{summary?.total || '—'}</span>
             </button>
           </div>
           <div className="mon-toolbar">
@@ -197,7 +197,12 @@ export function SloListPage() {
                   ))}
                 </tbody>
               </table>
-              {q.data.slos.length === 0 && <p className="mon-empty">{q.data.summary.total === 0 && !deferred ? 'No SLOs yet: create one with New SLO.' : 'No SLOs match these filters.'}</p>}
+              {q.data.slos.length === 0 && (
+                <div className="slo-empty">
+                  <Search size={56} strokeWidth={2.2} />
+                  <p>{q.data.summary.total === 0 && !deferred ? 'No SLOs yet: create one with New SLO' : 'No matching results found'}</p>
+                </div>
+              )}
               <div className="mon-pager">
                 <span>Results per page:</span>
                 <Select value={String(limit)} onChange={(v) => setLimit(Number(v))} options={['25', '50', '100'].map((v) => ({ value: v, label: v }))} />
