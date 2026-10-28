@@ -779,3 +779,27 @@
     display: none;
   }
 }
+
+.dbm-engine {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dj-sources strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* the source logos in white, like the rest of the hero */
+.dj-source-logo {
+  display: inline-flex;
+  filter: brightness(0) invert(1);
+}
+
+.dj-framework {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

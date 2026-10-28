@@ -4,263 +4,229 @@ import type { MonitorTemplate } from './templates';
 
 export const KUBERNETES_TEMPLATES: MonitorTemplate[] = [
   {
-    "id": "kubernetes-kubernetes-deployment-replicas-are-failing",
-    "source": "KUBERNETES",
-    "title": "Kubernetes Deployment Replicas are failing",
-    "description": "Recommended kubernetes monitor from integrations-core.",
-    "type": "metric",
-    "name": "[Kubernetes] Monitor Kubernetes Deployments Replica Pods",
-    "query": "avg:kubernetes_state.deployment.replicas_desired{*} by {kube_cluster_name,kube_namespace,kube_deployment} - avg:kubernetes_state.deployment.replicas_available{*} by {kube_cluster_name,kube_namespace,kube_deployment}",
-    "options": {
-      "detection": "threshold",
-      "timeAggregation": "avg",
-      "windowMinutes": 15,
-      "comparator": "above_or_equal",
-      "thresholds": {
-        "critical": 2,
-        "warning": null,
-        "criticalRecovery": null,
-        "warningRecovery": null
+    id: 'kubernetes-kubernetes-deployment-replicas-are-failing',
+    source: 'KUBERNETES',
+    title: 'Kubernetes Deployment Replicas are failing',
+    description: 'Recommended kubernetes monitor from integrations-core.',
+    type: 'metric',
+    name: '[Kubernetes] Monitor Kubernetes Deployments Replica Pods',
+    query:
+      'avg:kubernetes_state.deployment.replicas_desired{*} by {kube_cluster_name,kube_namespace,kube_deployment} - avg:kubernetes_state.deployment.replicas_available{*} by {kube_cluster_name,kube_namespace,kube_deployment}',
+    options: {
+      detection: 'threshold',
+      timeAggregation: 'avg',
+      windowMinutes: 15,
+      comparator: 'above_or_equal',
+      thresholds: {
+        critical: 2,
+        warning: null,
+        criticalRecovery: null,
+        warningRecovery: null,
       },
-      "notifyNoData": false,
-      "noDataMinutes": 10,
-      "changeMode": null,
-      "changeMinutes": null
+      notifyNoData: false,
+      noDataMinutes: 10,
+      changeMode: null,
+      changeMinutes: null,
     },
-    "message": "{{#is_alert}}\n\n## What's happening?\nThere are at least 2 or more missing replicas for Deployment {{kube_namespace.name}}/{{kube_deployment.name}} over the last 15 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_deployment:{{kube_deployment.name}}+kube_namespace:{{kube_namespace.name}})\n- [Metrics Explorer (kubernetes_state.deployment.replicas_desired)](/metric/explorer?exp_metric=kubernetes_state.deployment.replicas_desired&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_deployment:{{kube_deployment.name}},kube_namespace:{{kube_namespace.name}}&exp_agg=avg&exp_type=line)\n- [Metrics Explorer (kubernetes_state.deployment.replicas_available)](/metric/explorer?exp_metric=kubernetes_state.deployment.replicas_available&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_deployment:{{kube_deployment.name}},kube_namespace:{{kube_namespace.name}}&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}",
-    "keywords": [
-      "kubernetes",
-      "kubernetes",
-      "deployment",
-      "replicas",
-      "are",
-      "failing"
-    ]
+    message:
+      "{{#is_alert}}\n\n## What's happening?\nThere are at least 2 or more missing replicas for Deployment {{kube_namespace.name}}/{{kube_deployment.name}} over the last 15 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_deployment:{{kube_deployment.name}}+kube_namespace:{{kube_namespace.name}})\n- [Metrics Explorer (kubernetes_state.deployment.replicas_desired)](/metric/explorer?exp_metric=kubernetes_state.deployment.replicas_desired&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_deployment:{{kube_deployment.name}},kube_namespace:{{kube_namespace.name}}&exp_agg=avg&exp_type=line)\n- [Metrics Explorer (kubernetes_state.deployment.replicas_available)](/metric/explorer?exp_metric=kubernetes_state.deployment.replicas_available&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_deployment:{{kube_deployment.name}},kube_namespace:{{kube_namespace.name}}&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}",
+    keywords: ['kubernetes', 'kubernetes', 'deployment', 'replicas', 'are', 'failing'],
   },
   {
-    "id": "kubernetes-nodes-are-unavailable",
-    "source": "KUBERNETES",
-    "title": "Nodes are unavailable",
-    "description": "Recommended kubernetes monitor from integrations-core.",
-    "type": "metric",
-    "name": "[Kubernetes] Monitor Unschedulable Kubernetes Nodes",
-    "query": "default_zero(sum:kubernetes_state.node.status{status:schedulable} by {kube_cluster_name} * 100 / sum:kubernetes_state.node.status{*} by {kube_cluster_name})",
-    "options": {
-      "detection": "threshold",
-      "timeAggregation": "max",
-      "windowMinutes": 15,
-      "comparator": "below",
-      "thresholds": {
-        "critical": 80,
-        "warning": 90,
-        "criticalRecovery": null,
-        "warningRecovery": null
+    id: 'kubernetes-nodes-are-unavailable',
+    source: 'KUBERNETES',
+    title: 'Nodes are unavailable',
+    description: 'Recommended kubernetes monitor from integrations-core.',
+    type: 'metric',
+    name: '[Kubernetes] Monitor Unschedulable Kubernetes Nodes',
+    query: 'default_zero(sum:kubernetes_state.node.status{status:schedulable} by {kube_cluster_name} * 100 / sum:kubernetes_state.node.status{*} by {kube_cluster_name})',
+    options: {
+      detection: 'threshold',
+      timeAggregation: 'max',
+      windowMinutes: 15,
+      comparator: 'below',
+      thresholds: {
+        critical: 80,
+        warning: 90,
+        criticalRecovery: null,
+        warningRecovery: null,
       },
-      "notifyNoData": false,
-      "noDataMinutes": 10,
-      "changeMode": null,
-      "changeMinutes": null
+      notifyNoData: false,
+      noDataMinutes: 10,
+      changeMode: null,
+      changeMinutes: null,
     },
-    "message": "{{#is_alert}}\n\n## What's happening?\nThe percentage of schedulable nodes is below 80% for status:schedulable on ({{kube_cluster_name.name}} cluster over the last 15 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+status:schedulable)\n- [Hosts](/infrastructure/hosts?scope=kube_cluster_name:{{kube_cluster_name.name}})\n- [Metrics Explorer (kubernetes_state.node.status)](/metric/explorer?exp_metric=kubernetes_state.node.status&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},status:schedulable&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n Keep in mind that this might be expected based on your infrastructure.",
-    "keywords": [
-      "kubernetes",
-      "nodes",
-      "are",
-      "unavailable"
-    ]
+    message:
+      "{{#is_alert}}\n\n## What's happening?\nThe percentage of schedulable nodes is below 80% for status:schedulable on ({{kube_cluster_name.name}} cluster over the last 15 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+status:schedulable)\n- [Hosts](/infrastructure/hosts?scope=kube_cluster_name:{{kube_cluster_name.name}})\n- [Metrics Explorer (kubernetes_state.node.status)](/metric/explorer?exp_metric=kubernetes_state.node.status&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},status:schedulable&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n Keep in mind that this might be expected based on your infrastructure.",
+    keywords: ['kubernetes', 'nodes', 'are', 'unavailable'],
   },
   {
-    "id": "kubernetes-pod-is-in-a-crashloopbackoff-state",
-    "source": "KUBERNETES",
-    "title": "Pod is in a CrashloopBackOff state",
-    "description": "Recommended kubernetes monitor from integrations-core.",
-    "type": "metric",
-    "name": "[Kubernetes] Pod {{pod_name.name}} is CrashloopBackOff on namespace {{kube_namespace.name}}",
-    "query": "max:kubernetes_state.container.status_report.count.waiting{reason:crashloopbackoff} by {kube_cluster_name,kube_namespace,pod_name}",
-    "options": {
-      "detection": "threshold",
-      "timeAggregation": "max",
-      "windowMinutes": 10,
-      "comparator": "above_or_equal",
-      "thresholds": {
-        "critical": 1,
-        "warning": null,
-        "criticalRecovery": null,
-        "warningRecovery": null
+    id: 'kubernetes-pod-is-in-a-crashloopbackoff-state',
+    source: 'KUBERNETES',
+    title: 'Pod is in a CrashloopBackOff state',
+    description: 'Recommended kubernetes monitor from integrations-core.',
+    type: 'metric',
+    name: '[Kubernetes] Pod {{pod_name.name}} is CrashloopBackOff on namespace {{kube_namespace.name}}',
+    query: 'max:kubernetes_state.container.status_report.count.waiting{reason:crashloopbackoff} by {kube_cluster_name,kube_namespace,pod_name}',
+    options: {
+      detection: 'threshold',
+      timeAggregation: 'max',
+      windowMinutes: 10,
+      comparator: 'above_or_equal',
+      thresholds: {
+        critical: 1,
+        warning: null,
+        criticalRecovery: null,
+        warningRecovery: null,
       },
-      "notifyNoData": false,
-      "noDataMinutes": 10,
-      "changeMode": null,
-      "changeMinutes": null
+      notifyNoData: false,
+      noDataMinutes: 10,
+      changeMode: null,
+      changeMinutes: null,
     },
-    "message": "{{#is_alert}}\n\n## What's happening?\nAt least one container in pod {{pod_name.name}} on {{kube_namespace.name}} is in a waiting state due to reason crashloopbackoff in the last 10 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_namespace:{{kube_namespace.name}}+pod_name:{{pod_name.name}}+reason:crashloopbackoff)\n- [Pod Explorer](/orchestration/explorer/pod?query={{pod_name.name}})\n- [Metrics Explorer (kubernetes_state.container.status_report.count.waiting)](/metric/explorer?exp_metric=kubernetes_state.container.status_report.count.waiting&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},pod_name:{{pod_name.name}},reason:crashloopbackoff&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n This alert could generate several alerts for a bad deployment. Adjust the thresholds of the query to suit your infrastructure.",
-    "keywords": [
-      "kubernetes",
-      "pod",
-      "crashloopbackoff",
-      "state"
-    ]
+    message:
+      "{{#is_alert}}\n\n## What's happening?\nAt least one container in pod {{pod_name.name}} on {{kube_namespace.name}} is in a waiting state due to reason crashloopbackoff in the last 10 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_namespace:{{kube_namespace.name}}+pod_name:{{pod_name.name}}+reason:crashloopbackoff)\n- [Pod Explorer](/orchestration/explorer/pod?query={{pod_name.name}})\n- [Metrics Explorer (kubernetes_state.container.status_report.count.waiting)](/metric/explorer?exp_metric=kubernetes_state.container.status_report.count.waiting&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},pod_name:{{pod_name.name}},reason:crashloopbackoff&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n This alert could generate several alerts for a bad deployment. Adjust the thresholds of the query to suit your infrastructure.",
+    keywords: ['kubernetes', 'pod', 'crashloopbackoff', 'state'],
   },
   {
-    "id": "kubernetes-pod-is-in-an-imagepullbackoff-state",
-    "source": "KUBERNETES",
-    "title": "Pod is in an ImagePullBackOff state",
-    "description": "Recommended kubernetes monitor from integrations-core.",
-    "type": "metric",
-    "name": "[Kubernetes] Pod {{pod_name.name}} is ImagePullBackOff on namespace {{kube_namespace.name}}",
-    "query": "max:kubernetes_state.container.status_report.count.waiting{reason:imagepullbackoff} by {kube_cluster_name,kube_namespace,pod_name}",
-    "options": {
-      "detection": "threshold",
-      "timeAggregation": "max",
-      "windowMinutes": 10,
-      "comparator": "above_or_equal",
-      "thresholds": {
-        "critical": 1,
-        "warning": null,
-        "criticalRecovery": null,
-        "warningRecovery": null
+    id: 'kubernetes-pod-is-in-an-imagepullbackoff-state',
+    source: 'KUBERNETES',
+    title: 'Pod is in an ImagePullBackOff state',
+    description: 'Recommended kubernetes monitor from integrations-core.',
+    type: 'metric',
+    name: '[Kubernetes] Pod {{pod_name.name}} is ImagePullBackOff on namespace {{kube_namespace.name}}',
+    query: 'max:kubernetes_state.container.status_report.count.waiting{reason:imagepullbackoff} by {kube_cluster_name,kube_namespace,pod_name}',
+    options: {
+      detection: 'threshold',
+      timeAggregation: 'max',
+      windowMinutes: 10,
+      comparator: 'above_or_equal',
+      thresholds: {
+        critical: 1,
+        warning: null,
+        criticalRecovery: null,
+        warningRecovery: null,
       },
-      "notifyNoData": false,
-      "noDataMinutes": 10,
-      "changeMode": null,
-      "changeMinutes": null
+      notifyNoData: false,
+      noDataMinutes: 10,
+      changeMode: null,
+      changeMinutes: null,
     },
-    "message": "{{#is_alert}}\n\n## What's happening?\nAt least one container in pod {{pod_name.name}} on namespace {{kube_namespace.name}} is in a waiting state due to an ImagePullBackOff error in the last 10 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_namespace:{{kube_namespace.name}}+pod_name:{{pod_name.name}}+reason:imagepullbackoff)\n- [Pod Explorer](/orchestration/explorer/pod?query={{pod_name.name}})\n- [Metrics Explorer (kubernetes_state.container.status_report.count.waiting)](/metric/explorer?exp_metric=kubernetes_state.container.status_report.count.waiting&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},pod_name:{{pod_name.name}},reason:imagepullbackoff&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n This could happen for several reasons, for example a bad image path or tag or if the credentials for pulling images are not configured properly.",
-    "keywords": [
-      "kubernetes",
-      "pod",
-      "imagepullbackoff",
-      "state"
-    ]
+    message:
+      "{{#is_alert}}\n\n## What's happening?\nAt least one container in pod {{pod_name.name}} on namespace {{kube_namespace.name}} is in a waiting state due to an ImagePullBackOff error in the last 10 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_namespace:{{kube_namespace.name}}+pod_name:{{pod_name.name}}+reason:imagepullbackoff)\n- [Pod Explorer](/orchestration/explorer/pod?query={{pod_name.name}})\n- [Metrics Explorer (kubernetes_state.container.status_report.count.waiting)](/metric/explorer?exp_metric=kubernetes_state.container.status_report.count.waiting&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},pod_name:{{pod_name.name}},reason:imagepullbackoff&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n This could happen for several reasons, for example a bad image path or tag or if the credentials for pulling images are not configured properly.",
+    keywords: ['kubernetes', 'pod', 'imagepullbackoff', 'state'],
   },
   {
-    "id": "kubernetes-pod-is-in-an-oomkilled-state",
-    "source": "KUBERNETES",
-    "title": "Pod is in an OOMKilled state",
-    "description": "Recommended kubernetes monitor from integrations-core.",
-    "type": "metric",
-    "name": "[Kubernetes] Pod {{pod_name.name}} is OOMKilled on namespace {{kube_namespace.name}}",
-    "query": "max:kubernetes.containers.state.terminated{reason:oomkilled} by {kube_cluster_name,kube_namespace,pod_name}",
-    "options": {
-      "detection": "threshold",
-      "timeAggregation": "max",
-      "windowMinutes": 10,
-      "comparator": "above_or_equal",
-      "thresholds": {
-        "critical": 1,
-        "warning": null,
-        "criticalRecovery": null,
-        "warningRecovery": null
+    id: 'kubernetes-pod-is-in-an-oomkilled-state',
+    source: 'KUBERNETES',
+    title: 'Pod is in an OOMKilled state',
+    description: 'Recommended kubernetes monitor from integrations-core.',
+    type: 'metric',
+    name: '[Kubernetes] Pod {{pod_name.name}} is OOMKilled on namespace {{kube_namespace.name}}',
+    query: 'max:kubernetes.containers.state.terminated{reason:oomkilled} by {kube_cluster_name,kube_namespace,pod_name}',
+    options: {
+      detection: 'threshold',
+      timeAggregation: 'max',
+      windowMinutes: 10,
+      comparator: 'above_or_equal',
+      thresholds: {
+        critical: 1,
+        warning: null,
+        criticalRecovery: null,
+        warningRecovery: null,
       },
-      "notifyNoData": false,
-      "noDataMinutes": 10,
-      "changeMode": null,
-      "changeMinutes": null
+      notifyNoData: false,
+      noDataMinutes: 10,
+      changeMode: null,
+      changeMinutes: null,
     },
-    "message": "{{#is_alert}}\n\n## What's happening?\nThere has been at least one container terminated in pod {{pod_name.name}} on namespace {{kube_namespace.name}} with reason oomkilled in the last 10 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_namespace:{{kube_namespace.name}}+pod_name:{{pod_name.name}}+reason:oomkilled)\n- [Pod Explorer](/orchestration/explorer/pod?query={{pod_name.name}})\n- [Metrics Explorer (kubernetes.containers.state.terminated)](/metric/explorer?exp_metric=kubernetes.containers.state.terminated&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},pod_name:{{pod_name.name}},reason:oomkilled&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n This could happen for several reasons, for example insufficient memory limits, memory leaks in the application, or the node running out of available memory.",
-    "keywords": [
-      "kubernetes",
-      "pod",
-      "oomkilled",
-      "state"
-    ]
+    message:
+      "{{#is_alert}}\n\n## What's happening?\nThere has been at least one container terminated in pod {{pod_name.name}} on namespace {{kube_namespace.name}} with reason oomkilled in the last 10 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_namespace:{{kube_namespace.name}}+pod_name:{{pod_name.name}}+reason:oomkilled)\n- [Pod Explorer](/orchestration/explorer/pod?query={{pod_name.name}})\n- [Metrics Explorer (kubernetes.containers.state.terminated)](/metric/explorer?exp_metric=kubernetes.containers.state.terminated&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},pod_name:{{pod_name.name}},reason:oomkilled&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n This could happen for several reasons, for example insufficient memory limits, memory leaks in the application, or the node running out of available memory.",
+    keywords: ['kubernetes', 'pod', 'oomkilled', 'state'],
   },
   {
-    "id": "kubernetes-pods-are-failing",
-    "source": "KUBERNETES",
-    "title": "Pods are failing",
-    "description": "Recommended kubernetes monitor from integrations-core.",
-    "type": "metric",
-    "name": "[Kubernetes] Monitor Kubernetes Failed Pods in Namespaces",
-    "query": "sum:kubernetes_state.pod.status_phase{pod_phase:failed} by {kube_cluster_name,kube_namespace}",
-    "options": {
-      "detection": "change",
-      "timeAggregation": "avg",
-      "windowMinutes": 5,
-      "comparator": "above",
-      "thresholds": {
-        "critical": 10,
-        "warning": 5,
-        "criticalRecovery": null,
-        "warningRecovery": null
+    id: 'kubernetes-pods-are-failing',
+    source: 'KUBERNETES',
+    title: 'Pods are failing',
+    description: 'Recommended kubernetes monitor from integrations-core.',
+    type: 'metric',
+    name: '[Kubernetes] Monitor Kubernetes Failed Pods in Namespaces',
+    query: 'sum:kubernetes_state.pod.status_phase{pod_phase:failed} by {kube_cluster_name,kube_namespace}',
+    options: {
+      detection: 'change',
+      timeAggregation: 'avg',
+      windowMinutes: 5,
+      comparator: 'above',
+      thresholds: {
+        critical: 10,
+        warning: 5,
+        criticalRecovery: null,
+        warningRecovery: null,
       },
-      "notifyNoData": false,
-      "noDataMinutes": 10,
-      "changeMode": "change",
-      "changeMinutes": 5
+      notifyNoData: false,
+      noDataMinutes: 10,
+      changeMode: 'change',
+      changeMinutes: 5,
     },
-    "message": "{{#is_alert}}\n\n## What's happening?\nThe number of failed pods has increased by more than 10 in ({{kube_cluster_name.name}} cluster in the last 5 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_namespace:{{kube_namespace.name}}+pod_phase:failed)\n- [Metrics Explorer (kubernetes_state.pod.status_phase)](/metric/explorer?exp_metric=kubernetes_state.pod.status_phase&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},pod_phase:failed&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n The threshold of ten pods varies depending on your infrastructure. Change the threshold to suit your needs.",
-    "keywords": [
-      "kubernetes",
-      "pods",
-      "are",
-      "failing"
-    ]
+    message:
+      "{{#is_alert}}\n\n## What's happening?\nThe number of failed pods has increased by more than 10 in ({{kube_cluster_name.name}} cluster in the last 5 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_namespace:{{kube_namespace.name}}+pod_phase:failed)\n- [Metrics Explorer (kubernetes_state.pod.status_phase)](/metric/explorer?exp_metric=kubernetes_state.pod.status_phase&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},pod_phase:failed&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n The threshold of ten pods varies depending on your infrastructure. Change the threshold to suit your needs.",
+    keywords: ['kubernetes', 'pods', 'are', 'failing'],
   },
   {
-    "id": "kubernetes-pods-are-restarting",
-    "source": "KUBERNETES",
-    "title": "Pods are restarting",
-    "description": "Recommended kubernetes monitor from integrations-core.",
-    "type": "metric",
-    "name": "[Kubernetes] Monitor Kubernetes Pods Restarting",
-    "query": "sum:kubernetes.containers.restarts{*} by {kube_cluster_name,pod_name}",
-    "options": {
-      "detection": "change",
-      "timeAggregation": "max",
-      "windowMinutes": 5,
-      "comparator": "above",
-      "thresholds": {
-        "critical": 5,
-        "warning": 3,
-        "criticalRecovery": null,
-        "warningRecovery": null
+    id: 'kubernetes-pods-are-restarting',
+    source: 'KUBERNETES',
+    title: 'Pods are restarting',
+    description: 'Recommended kubernetes monitor from integrations-core.',
+    type: 'metric',
+    name: '[Kubernetes] Monitor Kubernetes Pods Restarting',
+    query: 'sum:kubernetes.containers.restarts{*} by {kube_cluster_name,pod_name}',
+    options: {
+      detection: 'change',
+      timeAggregation: 'max',
+      windowMinutes: 5,
+      comparator: 'above',
+      thresholds: {
+        critical: 5,
+        warning: 3,
+        criticalRecovery: null,
+        warningRecovery: null,
       },
-      "notifyNoData": false,
-      "noDataMinutes": 10,
-      "changeMode": "change",
-      "changeMinutes": 5
+      notifyNoData: false,
+      noDataMinutes: 10,
+      changeMode: 'change',
+      changeMinutes: 5,
     },
-    "message": "{{#is_alert}}\n\n## What's happening?\nThere has been an increase of more than 5 container restarts in the pod {{pod_name.name}} in the last 5 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+pod_name:{{pod_name.name}})\n- [Pod Explorer](/orchestration/explorer/pod?query={{pod_name.name}})\n- [Metrics Explorer (kubernetes.containers.restarts)](/metric/explorer?exp_metric=kubernetes.containers.restarts&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},pod_name:{{pod_name.name}}&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}",
-    "keywords": [
-      "kubernetes",
-      "pods",
-      "are",
-      "restarting"
-    ]
+    message:
+      "{{#is_alert}}\n\n## What's happening?\nThere has been an increase of more than 5 container restarts in the pod {{pod_name.name}} in the last 5 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+pod_name:{{pod_name.name}})\n- [Pod Explorer](/orchestration/explorer/pod?query={{pod_name.name}})\n- [Metrics Explorer (kubernetes.containers.restarts)](/metric/explorer?exp_metric=kubernetes.containers.restarts&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},pod_name:{{pod_name.name}}&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}",
+    keywords: ['kubernetes', 'pods', 'are', 'restarting'],
   },
   {
-    "id": "kubernetes-kubernetes-statefulset-replicas-are-failing",
-    "source": "KUBERNETES",
-    "title": "Kubernetes Statefulset Replicas are failing",
-    "description": "Recommended kubernetes monitor from integrations-core.",
-    "type": "metric",
-    "name": "[Kubernetes] Monitor Kubernetes Statefulset Replicas",
-    "query": "sum:kubernetes_state.statefulset.replicas_desired{*} by {kube_cluster_name,kube_namespace,kube_stateful_set} - sum:kubernetes_state.statefulset.replicas_ready{*} by {kube_cluster_name,kube_namespace,kube_stateful_set}",
-    "options": {
-      "detection": "threshold",
-      "timeAggregation": "max",
-      "windowMinutes": 15,
-      "comparator": "above_or_equal",
-      "thresholds": {
-        "critical": 2,
-        "warning": 1,
-        "criticalRecovery": null,
-        "warningRecovery": null
+    id: 'kubernetes-kubernetes-statefulset-replicas-are-failing',
+    source: 'KUBERNETES',
+    title: 'Kubernetes Statefulset Replicas are failing',
+    description: 'Recommended kubernetes monitor from integrations-core.',
+    type: 'metric',
+    name: '[Kubernetes] Monitor Kubernetes Statefulset Replicas',
+    query:
+      'sum:kubernetes_state.statefulset.replicas_desired{*} by {kube_cluster_name,kube_namespace,kube_stateful_set} - sum:kubernetes_state.statefulset.replicas_ready{*} by {kube_cluster_name,kube_namespace,kube_stateful_set}',
+    options: {
+      detection: 'threshold',
+      timeAggregation: 'max',
+      windowMinutes: 15,
+      comparator: 'above_or_equal',
+      thresholds: {
+        critical: 2,
+        warning: 1,
+        criticalRecovery: null,
+        warningRecovery: null,
       },
-      "notifyNoData": false,
-      "noDataMinutes": 10,
-      "changeMode": null,
-      "changeMinutes": null
+      notifyNoData: false,
+      noDataMinutes: 10,
+      changeMode: null,
+      changeMinutes: null,
     },
-    "message": "{{#is_alert}}\n\n## What's happening?\nThere are at least 2 desired replicas that are not ready for {{kube_namespace.name}}/{{kube_stateful_set.name}} StatefulSet over the last 15 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_namespace:{{kube_namespace.name}}+kube_stateful_set:{{kube_stateful_set.name}})\n- [Metrics Explorer (kubernetes_state.statefulset.replicas_desired)](/metric/explorer?exp_metric=kubernetes_state.statefulset.replicas_desired&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},kube_stateful_set:{{kube_stateful_set.name}}&exp_agg=avg&exp_type=line)\n- [Metrics Explorer (kubernetes_state.statefulset.replicas_ready)](/metric/explorer?exp_metric=kubernetes_state.statefulset.replicas_ready&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},kube_stateful_set:{{kube_stateful_set.name}}&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n This might present an unsafe situation for any further manual operations, such as killing other pods.",
-    "keywords": [
-      "kubernetes",
-      "kubernetes",
-      "statefulset",
-      "replicas",
-      "are",
-      "failing"
-    ]
-  }
+    message:
+      "{{#is_alert}}\n\n## What's happening?\nThere are at least 2 desired replicas that are not ready for {{kube_namespace.name}}/{{kube_stateful_set.name}} StatefulSet over the last 15 minutes.\n\n## Related Links\n\n- [Logs](/logs?query=kube_cluster_name:{{kube_cluster_name.name}}+kube_namespace:{{kube_namespace.name}}+kube_stateful_set:{{kube_stateful_set.name}})\n- [Metrics Explorer (kubernetes_state.statefulset.replicas_desired)](/metric/explorer?exp_metric=kubernetes_state.statefulset.replicas_desired&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},kube_stateful_set:{{kube_stateful_set.name}}&exp_agg=avg&exp_type=line)\n- [Metrics Explorer (kubernetes_state.statefulset.replicas_ready)](/metric/explorer?exp_metric=kubernetes_state.statefulset.replicas_ready&exp_scope=kube_cluster_name:{{kube_cluster_name.name}},kube_namespace:{{kube_namespace.name}},kube_stateful_set:{{kube_stateful_set.name}}&exp_agg=avg&exp_type=line)\n\n{{/is_alert}}\n\n This might present an unsafe situation for any further manual operations, such as killing other pods.",
+    keywords: ['kubernetes', 'kubernetes', 'statefulset', 'replicas', 'are', 'failing'],
+  },
 ];

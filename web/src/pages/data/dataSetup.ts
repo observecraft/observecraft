@@ -7,6 +7,8 @@ import type { SetupStep } from '../setup/sources';
 
 export interface EngineSetup {
   engine: DbEngine;
+  /** Brand logo key (scripts/build-logos.mjs), when there is one. */
+  logo?: string;
   name: string;
   /** Unit of the throughput column for this engine. */
   throughput: string;
@@ -27,6 +29,7 @@ const otelFirst: SetupStep = {
 export const ENGINES: EngineSetup[] = [
   {
     engine: 'postgres',
+    logo: 'postgresql',
     name: 'PostgreSQL',
     throughput: 'transactions/s',
     agent: [
@@ -49,6 +52,7 @@ export const ENGINES: EngineSetup[] = [
   },
   {
     engine: 'mysql',
+    logo: 'mysql',
     name: 'MySQL',
     throughput: 'queries/s',
     agent: [
@@ -90,6 +94,7 @@ export const ENGINES: EngineSetup[] = [
   },
   {
     engine: 'mongodb',
+    logo: 'mongodb',
     name: 'MongoDB',
     throughput: 'operations/s',
     agent: [
@@ -111,6 +116,7 @@ export const ENGINES: EngineSetup[] = [
   },
   {
     engine: 'redis',
+    logo: 'redis',
     name: 'Redis',
     throughput: 'commands/s',
     agent: [agentFirst, { title: 'Configure the check (conf.d/redisdb.d/conf.yaml)', code: 'instances:\n  - host: localhost\n    port: 6379\n    # password: <PASSWORD>' }, restart],

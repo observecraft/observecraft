@@ -1,3 +1,4 @@
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { EChartsOption } from 'echarts';
@@ -175,6 +176,7 @@ function DatabaseOverview({ page, query, onQuery }: { page: DbSearchPage; query:
 function EngineBadge({ engine, version }: { engine: DbEngine; version?: string | null }) {
   return (
     <span className={`dbm-engine dbm-engine-${engine}`}>
+      {engineSetup(engine).logo && <BrandLogo name={engineSetup(engine).logo!} size={14} />}
       {engineSetup(engine).name}
       {version ? <span className="muted"> {version}</span> : null}
     </span>
@@ -442,7 +444,7 @@ function DatabaseSetup({ page }: { page: DbSearchPage }) {
                       <div className="dbm-engines">
                         {ENGINES.map((e) => (
                           <button key={e.engine} className="dbm-engine-tile" onClick={() => setEngine(e.engine)}>
-                            <Database size={30} strokeWidth={1.5} className={`dbm-engine-icon dbm-engine-${e.engine}`} />
+                            {e.logo ? <BrandLogo name={e.logo} size={32} /> : <Database size={30} strokeWidth={1.5} className={`dbm-engine-icon dbm-engine-${e.engine}`} />}
                             {e.name}
                           </button>
                         ))}

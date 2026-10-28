@@ -1021,3 +1021,9 @@
 .stp-ungrouped .stp-component {
   padding: 0;
 }
+
+.stp-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

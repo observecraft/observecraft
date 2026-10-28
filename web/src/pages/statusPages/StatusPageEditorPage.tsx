@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, Building2, Check, ChevronRight, Globe, GripVertical, Plus, RadioTower, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Building2, Check, ChevronRight, Globe, GripVertical, Mail, Plus, RadioTower, Trash2, X } from 'lucide-react';
 import { checkLogoUrl, checkSlug, currentComponents, groupComponents, MAX_SLUG_CHARS, overallStatus, slugify } from '../../api/statusPages/status';
 import {
   VISIBILITY_LABEL,
@@ -12,6 +12,7 @@ import {
   type StatusPageVisibility,
   type StatusPageVisualization,
 } from '../../api/statusPages/types';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { useStatusPage, useStatusPageMutations } from './queries';
 import { StatusPageView } from './StatusPageView';
@@ -198,8 +199,8 @@ function Editor({ page }: { page?: StatusPageDetail }) {
                     Visitors see a <strong>Subscribe</strong> button for the selected channels. Updates aren&apos;t delivered to subscribers yet.
                   </span>
                   <div className="stp-toggles">
-                    <Toggle label="Email" checked={email} onChange={setEmail} />
-                    <Toggle label="Slack" checked={slack} onChange={setSlack} />
+                    <Toggle label="Email" icon={<Mail size={16} />} checked={email} onChange={setEmail} />
+                    <Toggle label="Slack" icon={<BrandLogo name="slack" size={16} />} checked={slack} onChange={setSlack} />
                   </div>
                 </div>
                 <label className="stp-field">
@@ -299,10 +300,13 @@ function TypeCard({
   );
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ label, icon, checked, onChange }: { label: string; icon: ReactNode; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="stp-toggle-row">
-      <span>{label}</span>
+      <span className="stp-toggle-label">
+        {icon}
+        {label}
+      </span>
       <input type="checkbox" role="switch" className="stp-switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
     </label>
   );

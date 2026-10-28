@@ -1,3 +1,4 @@
+import { IntegrationLogo } from '../integrations/IntegrationLogo';
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
@@ -18,11 +19,11 @@ import './data.css';
 
 const FACET_LABELS: Record<string, string> = { framework: 'Framework', status: 'Status', env: 'Env', cluster: 'Cluster', host: 'Host' };
 const STATUS_LABELS: Record<JobStatus, string> = { failed: 'Failed', running: 'Running', succeeded: 'Succeeded', unknown: 'Unknown' };
-const SOURCES: { name: string; note: string }[] = [
-  { name: 'Spark', note: 'Spark check' },
-  { name: 'Databricks', note: 'Spark check on the driver' },
-  { name: 'Airflow', note: 'StatsD metrics' },
-  { name: 'dbt', note: 'not supported yet' },
+const SOURCES: { name: string; note: string; logo: string }[] = [
+  { name: 'Spark', note: 'Spark check', logo: 'spark' },
+  { name: 'Databricks', note: 'Spark check on the driver', logo: 'databricks' },
+  { name: 'Airflow', note: 'StatsD metrics', logo: 'apacheairflow' },
+  { name: 'dbt', note: 'not supported yet', logo: 'dbt' },
 ];
 
 /** Data Observability → Data Jobs: Airflow DAGs and Spark applications with their runs. */
@@ -115,7 +116,12 @@ function JobsHero({ onSetup }: { onSetup: () => void }) {
         <ul className="dj-sources">
           {SOURCES.map((x) => (
             <li key={x.name} title={x.note}>
-              <strong>{x.name}</strong>
+              <strong>
+                <span className="dj-source-logo">
+                  <IntegrationLogo logo={x.logo} name={x.name} size={26} />
+                </span>
+                {x.name}
+              </strong>
               <span>{x.note}</span>
             </li>
           ))}
@@ -196,7 +202,12 @@ function JobsList({ page, query, onQuery }: { page: JobSearchPage; query: string
                       <span className={`dbm-status dbm-status-${j.status}`}>{STATUS_LABELS[j.status]}</span>
                     </td>
                     <td className="mono">{j.name}</td>
-                    <td>{j.framework === 'airflow' ? 'Airflow DAG' : 'Spark application'}</td>
+                    <td>
+                      <span className="dj-framework">
+                        <IntegrationLogo logo={j.framework === 'airflow' ? 'apacheairflow' : 'spark'} name={j.framework} size={16} />
+                        {j.framework === 'airflow' ? 'Airflow DAG' : 'Spark application'}
+                      </span>
+                    </td>
                     <td>{j.env ?? '—'}</td>
                     <td>{j.cluster ?? '—'}</td>
                     <td className="num">{j.succeeded.toLocaleString()}</td>
