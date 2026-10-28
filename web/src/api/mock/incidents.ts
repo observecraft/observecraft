@@ -267,7 +267,14 @@ function detailOf(i: IncidentRow): S['IncidentDetail'] {
 
 // ================================================================ search
 
-type Facet = 'severity' | 'team' | 'service' | 'detection' | 'type' | 'impact';
+type Facet = 'severity' | 'team' | 'service' | 'detection' | 'type' | 'impact' | 'resolve';
+
+/** Time from declared to resolved, bucketed as the server does. */
+function resolveBucket(i: IncidentRow): string {
+  if (i.resolvedAt == null) return 'unresolved';
+  const h = (i.resolvedAt - i.declaredAt) / HOUR;
+  return h < 1 ? 'lt1h' : h < 4 ? '1h_4h' : h < 24 ? '4h_1d' : 'gt1d';
+}
 
 function matches(i: IncidentRow, req: S['IncidentSearchRequest'], skip?: Facet): boolean {
   if (i.declaredAt < req.range.from || i.declaredAt > req.range.to) return false;
@@ -285,6 +292,7 @@ function matches(i: IncidentRow, req: S['IncidentSearchRequest'], skip?: Facet):
   if (req.detectionMethods?.length && skip !== 'detection' && !req.detectionMethods.includes(i.detectionMethod)) return false;
   if (req.incidentTypes?.length && skip !== 'type' && !req.incidentTypes.includes(i.incidentType)) return false;
   if (req.customerImpact != null && skip !== 'impact' && i.customerImpact !== req.customerImpact) return false;
+  if (req.resolveTimes?.length && skip !== 'resolve' && !req.resolveTimes.includes(resolveBucket(i))) return false;
   if (req.mine) {
     const me = mockMe().id;
     if (i.commanderId !== me && !i.responders.some((x) => x.userId === me)) return false;
@@ -319,6 +327,7 @@ export async function searchIncidents(req: S['IncidentSearchRequest']): Promise<
     detectionCounts: facetCounts('detection', (i) => [i.detectionMethod]),
     typeCounts: facetCounts('type', (i) => [i.incidentType]),
     impactCounts: facetCounts('impact', (i) => [i.customerImpact ? 'yes' : 'no']),
+    resolveTimeCounts: facetCounts('resolve', (i) => [resolveBucket(i)]),
   };
 }
 

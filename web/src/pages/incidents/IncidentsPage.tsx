@@ -31,6 +31,15 @@ export function StatusBadge({ status }: { status: IncidentStatus }) {
   return <span className={`inc-status inc-${status}`}>{status.toUpperCase()}</span>;
 }
 
+/** Time from declared to resolved, as the server buckets it. */
+const RESOLVE_TIMES: [string, string][] = [
+  ['lt1h', 'Under 1 hour'],
+  ['1h_4h', '1 – 4 hours'],
+  ['4h_1d', '4 – 24 hours'],
+  ['gt1d', 'Over 1 day'],
+  ['unresolved', 'Not resolved'],
+];
+
 function toggle<T>(list: T[], v: T): T[] {
   return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 }
@@ -74,6 +83,7 @@ export function IncidentsPage() {
   const [detectionMethods, setDetectionMethods] = useState<string[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<string[]>([]);
   const [customerImpact, setCustomerImpact] = useState<boolean | null>(null);
+  const [resolveTimes, setResolveTimes] = useState<string[]>([]);
   const [days, setDays] = useState('365');
   const [controls, setControls] = useState(true);
   const [declaring, setDeclaring] = useState(false);
@@ -90,7 +100,21 @@ export function IncidentsPage() {
   const range = useMemo(() => ({ from: to - Number(days) * DAY, to }), [days, to]);
   const allTeams = useTeams({ query: '', sort: 'name', offset: 0, limit: 200 });
 
-  const q = useIncidents({ query, statuses: statuses.length === 3 ? [] : statuses, severities, mine, teams, services, detectionMethods, incidentTypes, customerImpact, range, offset: 0, limit: 200 });
+  const q = useIncidents({
+    query,
+    statuses: statuses.length === 3 ? [] : statuses,
+    severities,
+    mine,
+    teams,
+    services,
+    detectionMethods,
+    incidentTypes,
+    customerImpact,
+    resolveTimes,
+    range,
+    offset: 0,
+    limit: 200,
+  });
   const live = (q.data?.incidents ?? []).filter((i) => i.status !== 'resolved');
   const resolved = (q.data?.incidents ?? []).filter((i) => i.status === 'resolved');
   const rangeOpt = RANGES.find((r) => r.value === days)!;
@@ -174,6 +198,16 @@ export function IncidentsPage() {
             </Accordion>
             <Accordion title="Services">
               <FacetChecks counts={q.data?.serviceCounts} selected={services} onToggle={(v) => setServices(toggle(services, v))} />
+            </Accordion>
+            <div className="inc-group-title">RESPONSE</div>
+            <Accordion title="Time to Resolve">
+              {RESOLVE_TIMES.map(([key, label]) => (
+                <label key={key} className="inc-check">
+                  <input type="checkbox" className="checkbox" checked={resolveTimes.includes(key)} onChange={() => setResolveTimes(toggle(resolveTimes, key))} />
+                  {label}
+                  <span className="inc-count">{q.data?.resolveTimeCounts[key] ?? 0}</span>
+                </label>
+              ))}
             </Accordion>
             <div className="inc-group-title">DETECTION</div>
             <Accordion title="Detection Method">

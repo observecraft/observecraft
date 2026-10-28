@@ -4390,6 +4390,10 @@ export interface components {
                 [key: string]: number;
             };
             incidents: components["schemas"]["IncidentSummary"][];
+            /** @description Per time-to-resolve bucket (lt1h, 1h_4h, 4h_1d, gt1d, unresolved), ignoring that filter. */
+            resolveTimeCounts: {
+                [key: string]: number;
+            };
             /** @description Per service, ignoring the service filter. */
             serviceCounts: {
                 [key: string]: number;
@@ -4424,6 +4428,8 @@ export interface components {
             query?: string;
             /** @description Declared within this range. */
             range: components["schemas"]["TimeRange"];
+            /** @description Time from declared to resolved: lt1h, 1h_4h, 4h_1d, gt1d, unresolved. */
+            resolveTimes?: string[];
             services?: string[];
             severities?: string[];
             statuses?: components["schemas"]["IncidentStatus"][];
