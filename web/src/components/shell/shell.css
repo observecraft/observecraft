@@ -514,6 +514,11 @@
   display: flex;
 }
 
+/* Tabs stretch to the bottom border; everything else (switchers, action buttons) sits in the middle. */
+.product-header > :not(.product-tabs) {
+  align-self: center;
+}
+
 .product-tab {
   position: relative;
   display: flex;
