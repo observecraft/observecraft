@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { Bug, ChevronRight, Database, GitCommitHorizontal, Hexagon, LayoutGrid, ListTree, ScrollText, Server, Settings2, Share2 } from 'lucide-react';
+import { Bug, ChevronRight, Database, GitCommitHorizontal, Hexagon, LayoutGrid, ListTree, ScrollText, Server, Share2 } from 'lucide-react';
 import type { ServiceScope } from '../../../api/apm/client';
 import { TimePicker } from '../../../components/shell/PageHeader';
 import { useTime } from '../../../components/shell/TimeContext';
@@ -111,9 +111,6 @@ export function ServicePage() {
                 {!s!.instrumented && ' · inferred from client spans'}
               </span>
             </div>
-            <button className="btn">
-              <Settings2 size={14} /> Service Config
-            </button>
           </header>
           <div className="svc-monbar">No Monitors</div>
 

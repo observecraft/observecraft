@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
 import { profileInsights } from '../../../api/profiles/client';
 import { TimePicker } from '../../../components/shell/PageHeader';
 import { useTime } from '../../../components/shell/TimeContext';
@@ -34,9 +33,6 @@ export function ProfilesLayout() {
           ))}
         </nav>
         <div className="pf-subbar-right">
-          <button className="pf-learn">
-            Learn More <ChevronDown size={14} />
-          </button>
           {timed && <TimePicker />}
         </div>
       </div>
