@@ -1,15 +1,19 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import { Code2 } from 'lucide-react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Code2, Settings } from 'lucide-react';
 import './portal.css';
 
-// Catalog is APM's Software Catalog; the portal's own pages are only Scorecards so far.
 const TABS = [
-  { to: '/apm', label: 'Catalog' },
+  { to: '/portal/home', label: 'Home' },
+  { to: '/portal/catalog', label: 'Catalog' },
   { to: '/portal/scorecards', label: 'Scorecards' },
+  { to: '/portal/reports', label: 'Reports' },
+  { to: '/portal/surveys', label: 'Surveys' },
+  { to: '/portal/actions', label: 'Actions' },
 ];
 
-/** Developer Portal frame: title and section tabs. */
+/** Developer Portal frame: title, section tabs and the portal's settings. */
 export function PortalLayout() {
+  const navigate = useNavigate();
   return (
     <div className="sc-layout">
       <header className="product-header">
@@ -24,6 +28,11 @@ export function PortalLayout() {
             </NavLink>
           ))}
         </nav>
+        <div className="product-config">
+          <button className="btn" onClick={() => navigate('/portal/settings')}>
+            <Settings size={14} /> Settings
+          </button>
+        </div>
       </header>
       <div className="sc-section">
         <Outlet />

@@ -122,6 +122,10 @@ import { EventExplorer } from './pages/events/EventExplorer';
 import { EventsLayout, EventsSummary } from './pages/events/EventsLayout';
 import { TriageInbox } from './pages/events/TriageInbox';
 import { PortalLayout } from './pages/portal/PortalLayout';
+import { PortalHome } from './pages/portal/PortalHome';
+import { PortalSettings, PortalSettingsSoon } from './pages/portal/PortalSettings';
+import { SettingsConfigurations } from './pages/portal/SettingsConfigurations';
+import { SettingsSources } from './pages/portal/SettingsSources';
 import { ScorecardsPage } from './pages/portal/ScorecardsPage';
 
 function ComingSoon() {
@@ -281,8 +285,15 @@ function Shell() {
               <Route path="summary" element={<EventsSummary />} />
             </Route>
             <Route path="/portal" element={<PortalLayout />}>
-              <Route index element={<Navigate to="/portal/scorecards" replace />} />
+              <Route index element={<Navigate to="/portal/home" replace />} />
+              <Route path="home" element={<PortalHome />} />
               <Route path="scorecards" element={<ScorecardsPage />} />
+            </Route>
+            <Route path="/portal/settings" element={<PortalSettings />}>
+              <Route index element={<Navigate to="sources" replace />} />
+              <Route path="sources" element={<SettingsSources />} />
+              <Route path="configurations" element={<SettingsConfigurations />} />
+              <Route path=":page" element={<PortalSettingsSoon />} />
             </Route>
             <Route path="/incidents" element={<IncidentsPage />} />
             <Route path="/incidents/:id" element={<IncidentPage />} />
