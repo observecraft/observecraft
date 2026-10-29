@@ -1,7 +1,7 @@
 # ObserveCraft monorepo tasks.
 COMPOSE := docker compose -f deploy/docker-compose.yml
 
-.PHONY: up down logs ps server intake tracegen web web-mock test openapi build images charts clean-data
+.PHONY: up down logs ps server intake tracegen load-orgs load storage-report web web-mock test openapi build images charts clean-data
 
 up:            ## Start storage, pipeline and synthetic load (logs are indexed by `make server` on the host)
 	OC_LOGPROC_URL=http://host.docker.internal:8090/ingest/logs $(COMPOSE) up -d
@@ -23,6 +23,15 @@ intake:        ## Run the telemetry intake (OTLP HTTP :4318 / gRPC :4317, Datado
 	cd server && cargo run --bin oc-intake
 tracegen:      ## Send synthetic traces, host metrics and CI runs through the intake
 	cd server && OC_INGEST_KEY=$(DEMO_KEY) cargo run --bin oc-tracegen
+# Storage load profile and report (docs/adr/0002): `make load-orgs`, `make load`, then `make storage-report`.
+LOAD_ORGS ?= 4
+LOAD_POSTGRES_URL ?= postgres://observecraft:observecraft@localhost:5432/observecraft
+load-orgs:     ## Create load-org-1..N and their ingest keys (local only; after the server's migrations)
+	psql "$(LOAD_POSTGRES_URL)" -v orgs=$(LOAD_ORGS) -f scripts/load-orgs.sql
+load:          ## Send the multi-org metrics load profile through the intake (OC_LOAD_* settings)
+	cd server && OC_LOAD_ORGS=$(LOAD_ORGS) cargo run --release --bin oc-tracegen -- load
+storage-report: ## Rows/bytes written, merges, CPU by query kind, top SELECT shapes (WINDOW=1h, CLUSTER=name)
+	node scripts/storage-report.mjs --window $(or $(WINDOW),1h) $(if $(CLUSTER),--cluster $(CLUSTER))
 web:           ## Run the web app on :5173 against the API
 	cd web && VITE_API_MODE=live npm run dev
 web-mock:      ## Run the web app with in-browser mocks (no backend needed)

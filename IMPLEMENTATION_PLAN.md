@@ -22,7 +22,59 @@ Success criteria:
 - Cost of decoding and re-encoding OTLP metrics in the intake (CPU per 100k points), to decide whether OTLP
   senders get series marking in Stage 2 or later.
 
-Status: Not Started
+Built:
+- `oc-tracegen load` (`server/crates/oc-tracegen/src/load.rs`, `make load`): N orgs, each a fictional Kubernetes
+  cluster; the first org has `OC_LOAD_LARGE_SERIES` (100k), the others `OC_LOAD_SMALL_SERIES` (5k); 25 container
+  metrics per pod, `OC_LOAD_LABELS` (20) Kubernetes tags, flush every `OC_LOAD_FLUSH_SECS` (15) spread over the
+  interval, `OC_LOAD_CHURN_FRACTION` (5 %) of the pods replaced every `OC_LOAD_CHURN_MINUTES` (10).
+  `/api/v2/series` JSON (zlib, as the Agent), and `OC_LOAD_OTLP_SHARE` (10 %) of the pods as OTLP/HTTP JSON with
+  OpenTelemetry resource names. Deterministic from `OC_LOAD_SEED`; unit tests cover series counts, flush spread,
+  label shapes, churn and the OTLP share.
+- Orgs and keys: `scripts/load-orgs.sql` (`make load-orgs LOAD_ORGS=4`) creates `load-org-1..N` with the ingest
+  keys `ocik_load_org_<n>_local_only`, the profile's default `OC_LOAD_KEYS`.
+- `scripts/storage-report.sql` + `scripts/storage-report.mjs` (`make storage-report WINDOW=1h CLUSTER=oc`):
+  rows/bytes written per table (`part_log` NewPart, also per hour), merges per table with CPU, CPU by query kind
+  plus merges and mutations, top 10 SELECT shapes by CPU. With a cluster name it reads every replica through
+  `clusterAllReplicas` (checked against the single-node `default` cluster; a 2-shard run comes with Stage 7).
+
+OTLP decode cost (`otlp_metrics_decode_cost` in `oc-intake/src/otlp.rs`, release, one thread, Apple M4 Max,
+the intake's own prost types), per 100k points with 20 labels:
+- labels on the points (as the Datadog conversion builds them; 72.6 MiB body): decode 148 ms, series hash
+  (sorted labels) 36 ms, re-encode 67 ms, **251 ms**;
+- labels on one resource per 25 points (a pod, as OpenTelemetry collectors send them; 7.1 MiB): decode 16 ms,
+  hash 43 ms, re-encode 8 ms, **66 ms**.
+- At dev's 5k points/s that is 0.3–1.3 % of one core, without gzip. Affordable: OTLP senders can get series
+  marking in Stage 2. Caveat: the intake's types hold only the fields the Datadog conversion uses; marking OTLP
+  needs the complete metrics messages, or unknown fields (int values, exemplars, histograms, flags) are dropped.
+
+Baseline, single node (2026-10-29, 20 minutes after warm-up, normalized to one hour): ClickHouse 26.8 in Docker
+with 2 vCPU / 6 GiB and the chart's tuning and ingest profile (async inserts, 1 s); collector 0.163.2 with
+`deploy/otel/collector.yaml`; intake and server from this branch. Load: 4 orgs (80,000 + 3 × 3,300 series),
+flush 18 s → 4,994 points/s, 89,900 active series (98,950 seen in 23 minutes with churn), 22 labels per series
+after the intake and collector.
+
+| Table | Rows/h (load) | Bytes/h (load) | Rows/h (dev) | Bytes/h (dev) |
+|---|---|---|---|---|
+| `metrics_samples` | 18.0 M | 297 MiB | 18.5 M | 214 MiB |
+| `metrics_series` | 18.0 M | 1.01 GiB | 18.2 M | 911 MiB |
+| `metrics_rollup_5m` | 18.0 M | 868 MiB | 18.5 M | 448 MiB |
+| `metrics_rollup_1h` | 18.0 M | 868 MiB | 18.5 M | 448 MiB |
+
+| CPU per hour | Load | Dev |
+|---|---|---|
+| Inserts (Insert 183 s + AsyncInsertFlush 20 s) | 203 s | 496 s |
+| Merges (all tables; metric tables 92 s, series alone 46 s) | 127 s | 601 s |
+| Selects | 0.3 s (no UI, server background jobs only) | 557 s |
+
+- The write amplification is reproduced: one series row and two rollup rows per point (≈1,440 inserts/h, each
+  one part per table).
+- CPU is lower than dev: a fresh database merges only small parts (dev's merges also rewrite a day of series and
+  rollups), and no one reads. Use the load's numbers, not dev's, as the reference for later stages; for merge
+  CPU at steady state run the profile for several hours.
+- Not measured yet: the 2-shard × 2-replica compose cluster (Stage 7 builds it), and selects (the profile only writes;
+  read load needs dashboards opened against it).
+
+Status: Complete (single node; cluster baseline deferred to Stage 7)
 
 ## Stage 2: Write path
 

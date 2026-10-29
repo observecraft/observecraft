@@ -19,6 +19,8 @@
 //! Every other second it also sends an LLM conversation of `support-assistant` with OpenTelemetry
 //! GenAI attributes (see `llm`), for LLM Observability.
 //!
+//! `oc-tracegen load` instead sends only the multi-org metrics load profile (see `load`).
+//!
 //! Also writes OTLP logs inside the traces (one per request handled, one per error) for log ↔ trace links.
 //! Env: OTLP_ENDPOINT (default http://localhost:4318, the intake), OC_INGEST_KEY (ingest API key), TRACES_PER_SEC (default 20),
 //! CLICKHOUSE_HTTP (default http://localhost:8123), CLICKHOUSE_USER / CLICKHOUSE_PASSWORD (observecraft).
@@ -29,6 +31,7 @@ mod hosts;
 mod kafka;
 mod kubernetes;
 mod llm;
+mod load;
 mod network;
 mod profiles;
 mod serverless;
@@ -895,6 +898,10 @@ fn otlp_payload(spans: Vec<Span>) -> Value {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().init();
+    // `oc-tracegen load`: only the multi-org metrics load profile (see `load`).
+    if std::env::args().nth(1).as_deref() == Some("load") {
+        return load::run().await;
+    }
     let endpoint =
         std::env::var("OTLP_ENDPOINT").unwrap_or_else(|_| "http://localhost:4318".into());
     let per_sec: u64 = std::env::var("TRACES_PER_SEC")
