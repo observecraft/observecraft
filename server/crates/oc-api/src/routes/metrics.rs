@@ -1993,6 +1993,8 @@ mod tests {
             }
         }
 
+        // The tag values oracle reads the histogram table too (empty here).
+        oracle_table(&ch, "histogram").await;
         async fn rows(ch: &clickhouse::Client, sql: &str) -> Vec<String> {
             ch.query(&format!(
                 "SELECT toString(tuple(*)) FROM ({sql}) ORDER BY 1"
