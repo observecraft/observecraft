@@ -28,6 +28,12 @@ in `server/crates/oc-api/tests/datadog_api/` (Wave 1 features and cassettes; aut
 `GET /api/v2/current_user` (`datadog_current_user`) because OpenTofu configures a provider only when a resource or
 data source uses it; CI job `tf-compat`; docs in `docs/datadog-api.md`.
 
+## Scope
+
+Only the endpoints Datadog's Terraform provider, Pulumi provider and API clients call for the resources below get
+Datadog's paths and documents. The UI and our own API stay as they are; compat routes translate onto the same tables,
+so a resource created through Terraform shows in the UI and the other way round.
+
 ## Stage 2: Monitors and downtimes
 
 Goal: `datadog_monitor`, `datadog_downtime_schedule`, `datadog_downtime`.
@@ -41,7 +47,22 @@ Success criteria:
 
 Status: Not Started
 
-## Stage 3: Dashboards and dashboard lists
+## Stage 3: Users, roles, teams and keys
+
+Goal: `datadog_user`, `datadog_role` (+ permissions data source), `datadog_team`, `datadog_team_membership`,
+`datadog_team_link` where meaningful, `datadog_api_key`, `datadog_application_key`, and the data sources the
+provider uses with them (`datadog_user`, `datadog_role`, `datadog_permissions`, `datadog_team`).
+
+Success criteria:
+- `/api/v2/users` (+ invitations as the provider sends them), `/api/v2/roles` (+ `/permissions`, role users),
+  `/api/v2/team` (+ memberships), `/api/v2/api_keys`, `/api/v2/application_keys` / current-user keys, onto our
+  users, roles, teams, ingest keys and application keys; our permission names mapped to Datadog's where they exist.
+- Tenancy and roles enforced exactly as in our API (only admins manage users/roles/keys).
+- Cassettes pass; tf-compat passes with no diff.
+
+Status: Not Started
+
+## Stage 4: Dashboards and dashboard lists
 
 Goal: `datadog_dashboard`, `datadog_dashboard_json`, `datadog_dashboard_list`.
 
@@ -54,7 +75,7 @@ Success criteria:
 
 Status: Not Started
 
-## Stage 4: Service level objectives
+## Stage 5: Service level objectives
 
 Goal: `datadog_service_level_objective`, `datadog_slo_correction`.
 
@@ -64,10 +85,6 @@ Success criteria:
 
 Status: Not Started
 
-## Stage 5: Wave 2 (synthetics, logs configuration, metric metadata, span metrics)
-
-Status: Not Started
-
-## Stage 6: Wave 3 (users, roles, teams, keys, notification integrations, on-call, status pages, reference tables, catalog)
+## Stage 6: Synthetics, logs configuration, metric metadata, span metrics, notification integrations
 
 Status: Not Started

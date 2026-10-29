@@ -31,7 +31,8 @@ text may not be copied; tenancy comes only from keys/sessions; OpenTelemetry sta
 ## Decision
 
 Add a **Datadog-compatible management API** to `observecraft-server`, resource by resource, translated onto our
-model, so that Datadog's Terraform provider, Pulumi provider, SDKs and `datadog-sync-cli` work against ObserveCraft by
+model. Only the endpoints Datadog's Terraform/Pulumi providers and API clients call get Datadog's shape; our UI and our
+own API stay as they are (we don't copy Datadog's interface), so that Datadog's Terraform provider, Pulumi provider, SDKs and `datadog-sync-cli` work against ObserveCraft by
 changing only the URL and keys.
 
 1. **Same host, Datadog paths.** The compatibility routes live next to our API on the server (`/api/v1/monitor`,
@@ -67,9 +68,9 @@ changing only the URL and keys.
 
 | Wave | Resources (Terraform name → endpoints) |
 |---|---|
-| 1 | auth (`/api/v1/validate`, `/api/v2/validate_keys`); `datadog_monitor` (`/api/v1/monitor`, `/validate`, search); `datadog_downtime_schedule` (`/api/v2/downtime`) and `datadog_downtime` (`/api/v1/downtime`); `datadog_dashboard` / `datadog_dashboard_json` (`/api/v1/dashboard`); `datadog_dashboard_list` (`/api/v2/dashboard/lists/manual`, `/api/v1/dashboard/lists/manual`); `datadog_service_level_objective` (`/api/v1/slo`), `datadog_slo_correction` |
+| 1 | auth (`/api/v1/validate`, `/api/v2/validate_keys`); `datadog_user`, `datadog_role`, `datadog_team`, `datadog_api_key`, `datadog_application_key`; `datadog_monitor` (`/api/v1/monitor`, `/validate`, search); `datadog_downtime_schedule` (`/api/v2/downtime`) and `datadog_downtime` (`/api/v1/downtime`); `datadog_dashboard` / `datadog_dashboard_json` (`/api/v1/dashboard`); `datadog_dashboard_list` (`/api/v2/dashboard/lists/manual`, `/api/v1/dashboard/lists/manual`); `datadog_service_level_objective` (`/api/v1/slo`), `datadog_slo_correction` |
 | 2 | `datadog_synthetics_test` (API tests) and `datadog_synthetics_global_variable`; `datadog_logs_custom_pipeline`, `datadog_logs_pipeline_order`, `datadog_logs_index`, `datadog_logs_index_order`, `datadog_logs_metric`; `datadog_metric_metadata`; `datadog_spans_metric` |
-| 3 | `datadog_user`, `datadog_role`, `datadog_team` (+ memberships), `datadog_api_key`, `datadog_application_key`; `datadog_webhook` and Slack/PagerDuty integrations as our notification channels; `datadog_on_call_*`; `datadog_status_page*`; `datadog_reference_table`; `datadog_software_catalog` / service definitions |
+| 3 | `datadog_webhook` and Slack/PagerDuty integrations as our notification channels; `datadog_on_call_*`; `datadog_status_page*`; `datadog_reference_table`; `datadog_software_catalog` / service definitions |
 
 Dashboards are the largest piece: widget definitions are numerous. We already render Datadog widget definitions for
 integration dashboards (`scripts/import-integration-dashboards.mjs` and the `integration` widget type), so the compat
