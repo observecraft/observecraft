@@ -97,8 +97,8 @@ helm install observecraft oci://ghcr.io/observecraft/charts/observecraft -n obse
 Give every ClickHouse server (each replica of each shard) **at least 4 vCPU** and 16 GiB of memory: inserts, background
 merges and dashboard queries share them, and with 2 vCPU merges and the metric rollup job compete with the UI as soon as
 ingest grows. Development environments sized at 2 vCPU should move to 4. Add shards for more ingest: on the development
-cluster (2 vCPU per server) ingest capacity grew with the number of shards (`IMPLEMENTATION_PLAN.md`, Stage 7); add
-replicas for more read capacity and availability. Set `clickhouse.bundled.resources` or `clickhouse.operator.resources`
+cluster (2 vCPU per server) one shard sustained about 200k points/s, and a second shard added about 1.4× that
+(`IMPLEMENTATION_PLAN.md`, Stage 7); add replicas for more read capacity and availability. Set `clickhouse.bundled.resources` or `clickhouse.operator.resources`
 (and `clickhouse.bundled.tuning.*` with the bundled server).
 
 Security defaults: every pod runs as non-root with a read-only root filesystem and no capabilities; NetworkPolicies allow

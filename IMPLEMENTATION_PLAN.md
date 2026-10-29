@@ -71,10 +71,10 @@ after the intake and collector.
 - CPU is lower than dev: a fresh database merges only small parts (dev's merges also rewrite a day of series and
   rollups), and no one reads. Use the load's numbers, not dev's, as the reference for later stages; for merge
   CPU at steady state run the profile for several hours.
-- Not measured yet: the 2-shard × 2-replica compose cluster (Stage 7 builds it), and selects (the profile only writes;
+- Cluster: measured in Stage 7 (one against two shards of the compose cluster). Not measured yet: selects (the profile only writes;
   read load needs dashboards opened against it).
 
-Status: Complete (single node; cluster baseline deferred to Stage 7)
+Status: Complete (the cluster numbers are in Stage 7)
 
 ## Stage 2: Write path
 
@@ -281,7 +281,73 @@ Success criteria:
 - Per-org query limits (time, memory, concurrency) applied per request; tests.
 - Dev values: ClickHouse 4 vCPU; dev `otel` database recreated on the new schema.
 
-Status: Not Started
+Built:
+- `deploy/compose/clickhouse-cluster.yml` (`make cluster-up` / `cluster-down`): ClickHouse 26.8, cluster `oc` of
+  2 shards × 2 replicas (`{shard}` / `{replica}` macros, `internal_replication`, the chart's tuning and users, 2 vCPU
+  and 6 GiB per node) on `:18161`–`:18164`, plus `oc_1shard` (the first shard's two replicas) to compare; one Keeper
+  (placement, replication and distributed queries are what is checked, not Keeper's fault tolerance; production uses
+  3). The `pipeline` profile adds the collector, inserting round-robin over the nodes. CONTRIBUTING.md has the usage.
+- Parity: `OC_TEST_CLICKHOUSE_URL=http://localhost:18161 OC_TEST_CLICKHOUSE_CLUSTER=oc cargo test` runs every live
+  test on the cluster (`test_support::live_clickhouse`): rollups against the samples, query parity raw and from
+  rollups, the tag index, direct readers, dashboard widgets against the shared-scan oracle, error groups and log
+  facets against the logs, the Kubernetes inventory against the full objects, the shared caches across two server
+  replicas; 803 tests pass on the cluster and on a single server. `tests/cluster.rs` runs repeatably (its own orgs),
+  also checks the series → samples join and `SeriesId IN` through the server's client, the latest Kubernetes
+  snapshot winning in `FINAL`, and that after `SYSTEM SYNC REPLICA` every replica of a shard holds the same rows of
+  every table, materialized views' targets included.
+- Cluster-only bugs fixed: (1) joins and `IN` subqueries of Distributed tables inside queries of Distributed tables
+  (`points_subquery` of hosts, pods, processes, fleet, watchdog, databases) failed with "Double-distributed IN/JOIN
+  subqueries is denied": the server's client sets `distributed_product_mode = 'global'` on a cluster
+  (`oc_store::clickhouse`), `points_client` keeps `local` for the co-located series tables; (2) the rollup job's
+  shard parts read whichever replica runs them (the local one, whatever its delay), so a lagging replica would roll
+  a bucket up from incomplete samples once and for all: the job waits while a replica of the metric tables lags more
+  than half the lateness window (`system.replicas.absolute_delay` of every replica). No issue found with `FINAL`
+  (every `FINAL` read is on a table whose rows of a key share a shard), MVs on `_local` tables, the rollup
+  `INSERT … SELECT` (`parallel_distributed_insert_select = 2`) or ReplacingMergeTree dedup across replicas. A crawl of
+  the API's 122 parameterless GET and read POST endpoints on the cluster with demo data: no 5xx, no ClickHouse
+  exception in `query_log` (92 query shapes).
+- Per-org query limits (`org_limits.rs`): every query of an org carries `max_execution_time`, `max_memory_usage` and
+  optionally `max_rows_to_read` (+ `read_overflow_mode = 'throw'`), `OC_ORG_QUERY_*` (Helm `query.*`); at most
+  `OC_ORG_QUERY_CONCURRENCY` (16) queries of one org run at once per server replica, more wait
+  `OC_ORG_QUERY_QUEUE_TIMEOUT_MS` (10 s) and then get 429 + `Retry-After: 1`. The limit sits in the HTTP connector of
+  each org's connection pool, so every `AppState::ch` call site (cache loads included) is limited where the query
+  runs. Background jobs (`org_limits::background`: rollups, monitors, schedulers, archiver) are exempt from the
+  concurrency limit, not from time and memory. Queries ClickHouse stops at a limit answer 503 (time, memory, rows,
+  server busy) or 429 (quota) with what to change instead of 502. Tests: settings parsing, the settings on a live
+  query, concurrency and queueing, one org not holding up another, the 429, the background exemption, the error
+  mapping.
+
+Measured (2026-10-29, Apple M4 Max with 16 cores for everything; Docker; ClickHouse nodes capped at 2 vCPU / 6 GiB;
+release intake and server, collector 0.163.2; the Stage 1 profile from 4 `oc-tracegen load` processes, 8 orgs, 20
+labels, flush 10 s, 10 % OTLP; a fresh cluster and database per topology; rates from `part_log`, CPU from
+`make storage-report CLUSTER=…` per server):
+
+| | one shard (`oc_1shard`, 2 replicas) | two shards (`oc`, 2 × 2 replicas) |
+|---|---|---|
+| 202k points/s offered | sustained: 202k landed every minute for 9 min, data 1–2 s old | sustained: 190–209k per minute, 1–4 s old |
+| CPU per node at 202k/s | 4,560–4,900 CPU-s/h (1.3 cores of 2; merges peak at the cap) | 3,250–3,570 CPU-s/h (0.9–1.0 cores) |
+| more offered | 252k: 160–190k landed, data 43 → 183 s old (backlog) | 302k: ~190k landed, data ≤ 13 s old: the host was the limit (load average 18.5 on 16 cores), not ClickHouse |
+| rows/h at 202k/s | samples 0.72 G, tags 1.67 G, series 73 M, tag values 53 M | samples 0.71 G, tags 1.63 G, series 71 M, tag values 62 M |
+| merges (all nodes) / inserts | 5,142 / 4,335 CPU-s/h | 6,676 / 6,719 CPU-s/h |
+| rollup job | lag 15–390 s (lateness 120 s + open bucket), 5m INSERTs 117 ms mean | same; never waited for a replica |
+
+- One shard's ceiling is ≈ 200k points/s. Two shards carry the same load at ~70 % of the per-node CPU, so by CPU per
+  point their ceiling is ≈ 275k/s, **≈ 1.4×, not the 2× targeted**; a direct measurement needs the load generated on
+  other hardware than the cluster's.
+- Why less than 2×: rows cost more on two shards. Each node's Distributed insert splits into one part per shard, so
+  each shard gets twice the parts (samples: 720 against 335 new parts a minute), and merges (+30 %) and inserts
+  (+55 %) of the cluster grow per row. Next: batch the Distributed sends (`distributed_background_insert_batch`),
+  or send each shard's rows to its own nodes, and larger async insert buffers.
+- The tag index dominates ingest: the 10 % OTLP points are not marked (Stage 2), so each is a series row with 20 tag
+  index rows (1.6 G rows/h, 56 % of merge CPU on one shard). Marking OTLP in the intake is the largest saving left.
+- Limits on the cluster (one org with 750k series, heavy grouped queries of 1.4–3.4 s): concurrency 2 with a 1.5 s
+  queue, 12 at once: 2 ran, 10 got 429 after 1.5 s while a quiet org's query still ran (2.4 s, 1.4 s alone);
+  concurrency 4 with the 10 s queue: all 12 queued and completed (8.6–9 s), the quiet org's in 4.3 s.
+- Not done: the dev values live outside this repository; the Helm chart states at least 4 vCPU per ClickHouse
+  server and that dev should move from 2 to 4, and the dev `otel` database is still to be recreated there.
+
+Status: Complete in this repository (cluster, parity, limits, sizing docs); ingest scaling measured at ≈ 1.4× per
+added shard, below the 2× target (see above); dev values pending outside the repository
 
 ## Stage 8: Shared cache
 
