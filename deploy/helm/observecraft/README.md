@@ -113,7 +113,7 @@ only the traffic each component needs; secrets are generated once and kept acros
 | `instanceAdminEmail` | `""` | Account that administers the install and creates organizations. |
 | `defaultOrg` | `default` | Name of the first organization. |
 | `image.tag` | chart `appVersion` | ObserveCraft image version. |
-| `secrets.existingSecret` | `""` | Secret with `secret-key`, `internal-token`, `clickhouse-password`, `clickhouse-ingest-password`, `postgres-password`, `postgres-url`, `cache-password`, `cache-url`, `smtp-url` (missing keys are generated). |
+| `secrets.existingSecret` | `""` | Secret you manage instead of the generated one (the chart then creates no secret): `secret-key`, `internal-token`, `clickhouse-password`, `clickhouse-ingest-password`, `postgres-password` (bundled Postgres), `postgres-url` (external), `cache-url` (external cache), optionally `smtp-url`. With the bundled Valkey, also set `cache.auth`. |
 | `retention.logsDays` / `tracesDays` / `metricsDays` / `ciDays` | `15` / `15` / `30` / `30` | Default retention. `logsMaxDays` / `tracesMaxDays` cap what the instance admin can grant an organization. |
 | `retention.metrics5mDays` / `metrics1hDays` | `90` / `395` | How long metrics are kept as 5-minute and 1-hour rollups, which long ranges read. |
 | `query.timeoutSeconds` / `maxMemoryBytes` / `maxRowsToRead` | `60` / `4 GiB` / `0` (none) | Limits on each ClickHouse query of an organization, so one can't starve the others. |
@@ -128,6 +128,7 @@ only the traffic each component needs; secrets are generated once and kept acros
 | `postgres.mode` | `bundled` | `bundled`, `operator` (CloudNativePG) or `external`. |
 | `nats.enabled` | `true` | `false` to use `nats.external.url`. |
 | `cache.mode` | `bundled` | `bundled` (one Valkey, `cache.bundled.resources`; maxmemory is `maxmemoryPercent` of the memory limit, least recently used keys go first) or `external`: any Valkey/Redis-protocol service (ElastiCache, Memorystore, …) at `cache.external.url` or the secret key `cache-url` (`redis://[user:password@]host:6379/0`, `rediss://` for TLS). |
+| `cache.auth.enabled` / `existingSecret` / `key` | `true` / `""` / `cache-password` | Password of the bundled Valkey: generated in the chart's secret, or read from `existingSecret` under `key` (letters and digits). With `secrets.existingSecret`, rendering fails until you set `cache.auth.existingSecret` (it may be that same secret) or `cache.auth.enabled=false` (no password; the NetworkPolicy still admits only the server). |
 | `cache.maxValueBytes` / `loadTimeoutSeconds` | `8 MiB` / `30` | Largest cached value (after compression); how long replicas wait for another replica's load of the same entry. |
 | `ingress.enabled` | `false` | Hosts `ingress.app.host`, `ingress.intake.host`, optional `ingress.intakeGrpc` for OTLP/gRPC; TLS through cert-manager (`ingress.certManagerClusterIssuer`) or your own secrets. |
 | `networkPolicy.enabled` | `true` | `networkPolicy.ingressFrom` limits who reaches the server and intake (your ingress controller). |
@@ -144,6 +145,29 @@ helm upgrade observecraft oci://ghcr.io/observecraft/charts/observecraft --versi
 
 Database migrations run when the server starts. Before 1.0, a minor version may change chart values: read the
 [changelog](https://github.com/observecraft/observecraft/blob/main/CHANGELOG.md) first.
+
+### Upgrading to 0.4.x
+
+0.4 adds the bundled Valkey (`cache.mode=bundled`), whose password the server and Valkey read from a secret. With
+generated secrets nothing changes: the chart adds `cache-password` to its secret. With `secrets.existingSecret`, the
+chart can't see which keys your secret has when it is rendered without the cluster (`helm template`, Argo CD), and a
+missing key would leave Valkey and the server in `CreateContainerConfigError`. Releases after 0.4.0 fail to render instead,
+until you say where the password is:
+
+```bash
+# 1. Add a password (letters and digits) to your secret, or to the source of your ExternalSecret:
+kubectl -n observecraft patch secret observecraft-secrets --type merge \
+  -p "{\"stringData\":{\"cache-password\":\"$(openssl rand -hex 24)\"}}"
+# 2. Point the chart at it (installs on 0.4.0 that already added the key need this too):
+helm upgrade observecraft oci://ghcr.io/observecraft/charts/observecraft -n observecraft --reuse-values \
+  --set cache.auth.existingSecret=observecraft-secrets   # key: cache.auth.key, default cache-password
+```
+
+The password may also live in a secret of its own (`--set cache.auth.existingSecret=observecraft-valkey --set
+cache.auth.key=password`). Or run Valkey without a password with `--set cache.auth.enabled=false`: with
+`networkPolicy.enabled` (the default) only the server's pods can connect to it.
+
+With `cache.mode=external` the password is part of the secret key `cache-url`, and `cache.auth` is not used.
 
 ## Verify the release
 

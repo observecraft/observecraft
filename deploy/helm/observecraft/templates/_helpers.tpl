@@ -122,13 +122,36 @@ storageClassName: {{ . | quote }}
 {{- if .Values.nats.enabled -}}nats://{{ include "oc.fullname" . }}-nats:4222{{- else -}}{{ required "nats.external.url is required with nats.enabled=false" .Values.nats.external.url }}{{- end -}}
 {{- end -}}
 
+{{/* Secret holding the bundled Valkey's password ("" with cache.auth.enabled=false): cache.auth.existingSecret,
+    else the chart's own secret. With secrets.existingSecret the chart generates nothing and can't see that
+    secret's keys (helm template and Argo CD render without the cluster), so it asks instead of guessing: a
+    missing key would leave Valkey and the server in CreateContainerConfigError. */}}
+{{- define "oc.cacheAuthSecret" -}}
+{{- $auth := .Values.cache.auth -}}
+{{- if not $auth.enabled -}}
+{{- else if $auth.existingSecret -}}{{ $auth.existingSecret }}
+{{- else if .Values.secrets.existingSecret -}}
+{{- fail (printf "secrets.existingSecret is set, so the chart doesn't generate the bundled Valkey's password. Add the key cache-password (letters and digits) to secret %s and set cache.auth.existingSecret=%s, or set cache.auth.existingSecret (and cache.auth.key) to another secret, or set cache.auth.enabled=false to run Valkey without a password (the NetworkPolicy still admits only the server). See \"Upgrading to 0.4.x\" in the chart README." .Values.secrets.existingSecret .Values.secrets.existingSecret) -}}
+{{- else -}}{{ include "oc.secretName" . }}
+{{- end -}}
+{{- end -}}
+
+{{- define "oc.cacheAuthKey" -}}
+{{ .Values.cache.auth.key | default "cache-password" }}
+{{- end -}}
+
 {{/* OC_CACHE_URL and the cache settings for the server. */}}
 {{- define "oc.cacheEnv" -}}
 {{- if eq .Values.cache.mode "bundled" -}}
+{{- with (include "oc.cacheAuthSecret" .) }}
 - name: OC_CACHE_PASSWORD
-  valueFrom: { secretKeyRef: { name: {{ include "oc.secretName" . }}, key: cache-password } }
+  valueFrom: { secretKeyRef: { name: {{ . }}, key: {{ include "oc.cacheAuthKey" $ }} } }
 - name: OC_CACHE_URL
-  value: "redis://:$(OC_CACHE_PASSWORD)@{{ include "oc.fullname" . }}-valkey:6379/0"
+  value: "redis://:$(OC_CACHE_PASSWORD)@{{ include "oc.fullname" $ }}-valkey:6379/0"
+{{- else }}
+- name: OC_CACHE_URL
+  value: "redis://{{ include "oc.fullname" . }}-valkey:6379/0"
+{{- end }}
 {{- else -}}
 - name: OC_CACHE_URL
   valueFrom: { secretKeyRef: { name: {{ include "oc.secretName" . }}, key: cache-url } }

@@ -1,6 +1,7 @@
 {{- if eq .Values.cache.mode "bundled" }}
 {{- $fullname := include "oc.fullname" . -}}
 {{- $v := .Values.cache.bundled -}}
+{{- $authSecret := include "oc.cacheAuthSecret" . -}}
 # Valkey: the shared cache of the server replicas. A cache only: no persistence, one instance
 # (a restart costs cache misses, not data). Recreated on upgrades so two caches never serve at once.
 apiVersion: apps/v1
@@ -48,14 +49,20 @@ spec:
           command: [sh, -ec]
           args:
             - |
+              {{- if $authSecret }}
               printf 'requirepass "%s"\n' "$REDISCLI_AUTH" > /data/valkey.conf
+              {{- else }}
+              : > /data/valkey.conf
+              {{- end }}
               exec valkey-server /data/valkey.conf --port 6379 --protected-mode no \
                 --maxmemory "$((MEMORY_LIMIT / 100 * {{ int $v.maxmemoryPercent }}))" --maxmemory-policy allkeys-lru \
                 --save "" --appendonly no
           env:
+            {{- if $authSecret }}
             # Read by valkey-cli too (probes).
             - name: REDISCLI_AUTH
-              valueFrom: { secretKeyRef: { name: {{ include "oc.secretName" . }}, key: cache-password } }
+              valueFrom: { secretKeyRef: { name: {{ $authSecret }}, key: {{ include "oc.cacheAuthKey" . }} } }
+            {{- end }}
             - name: MEMORY_LIMIT
               valueFrom: { resourceFieldRef: { containerName: valkey, resource: limits.memory } }
           ports:
