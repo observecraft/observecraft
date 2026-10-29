@@ -1066,15 +1066,8 @@ mod tests {
     /// `default`, or OC_TEST_CLICKHOUSE_USER / OC_TEST_CLICKHOUSE_PASSWORD).
     #[tokio::test]
     async fn facet_counts_from_the_aggregate_match_the_logs() {
-        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
-            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
-            return;
-        };
-        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
-        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
-        let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-        crate::test_support::migrate_clickhouse_once(&cfg).await;
-        let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_database("oc");
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
+        let ch = live.client.clone().with_database("oc");
         let org = format!("facet-parity-{}", std::process::id());
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
         let t0 = now / 60_000 * 60_000 - 30 * 60_000;

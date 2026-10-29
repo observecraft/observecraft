@@ -15,6 +15,10 @@ async fn ingested_points_become_series_samples_and_rollups() {
         eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
         return;
     };
+    if std::env::var_os("OC_TEST_CLICKHOUSE_CLUSTER").is_some() {
+        eprintln!("a single-server test (the cluster's are in tests/cluster.rs): skipping");
+        return;
+    }
     let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
     let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
     let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
@@ -107,6 +111,10 @@ async fn points_of_known_series_write_samples_but_no_series_rows() {
         eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
         return;
     };
+    if std::env::var_os("OC_TEST_CLICKHOUSE_CLUSTER").is_some() {
+        eprintln!("a single-server test (the cluster's are in tests/cluster.rs): skipping");
+        return;
+    }
     let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
     let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
     let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
@@ -158,6 +166,10 @@ async fn series_feed_the_tag_index() {
         eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
         return;
     };
+    if std::env::var_os("OC_TEST_CLICKHOUSE_CLUSTER").is_some() {
+        eprintln!("a single-server test (the cluster's are in tests/cluster.rs): skipping");
+        return;
+    }
     let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
     let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
     let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
@@ -211,6 +223,10 @@ async fn retention_changes_reach_existing_parts() {
         eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
         return;
     };
+    if std::env::var_os("OC_TEST_CLICKHOUSE_CLUSTER").is_some() {
+        eprintln!("a single-server test (the cluster's are in tests/cluster.rs): skipping");
+        return;
+    }
     let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
     let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
     let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };

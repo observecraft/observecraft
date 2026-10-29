@@ -1,12 +1,18 @@
 # ObserveCraft monorepo tasks.
 COMPOSE := docker compose -f deploy/docker-compose.yml
 
-.PHONY: up down logs ps server intake tracegen load-orgs load storage-report web web-mock test openapi build images charts clean-data
+.PHONY: up down cluster-up cluster-down logs ps server intake tracegen load-orgs load storage-report web web-mock test openapi build images charts clean-data
 
 up:            ## Start storage, cache, pipeline and synthetic load (logs are indexed by `make server` on the host)
 	OC_LOGPROC_URL=http://host.docker.internal:8090/ingest/logs $(COMPOSE) up -d
 down:          ## Stop the stack (keeps data)
 	$(COMPOSE) down
+# 2-shard x 2-replica ClickHouse cluster `oc` with Keeper on :18161-18164 (deploy/compose/clickhouse-cluster.yml).
+CLUSTER_COMPOSE := docker compose -f deploy/compose/clickhouse-cluster.yml
+cluster-up:    ## Start the ClickHouse cluster (CLUSTER_PROFILE=pipeline adds a collector on :18169)
+	$(CLUSTER_COMPOSE) $(if $(CLUSTER_PROFILE),--profile $(CLUSTER_PROFILE)) up -d --wait
+cluster-down:  ## Stop the ClickHouse cluster and delete its data
+	$(CLUSTER_COMPOSE) --profile pipeline down -v
 clean-data:    ## Stop the stack and delete ClickHouse/Postgres volumes
 	$(COMPOSE) down -v
 logs:          ## Tail stack logs

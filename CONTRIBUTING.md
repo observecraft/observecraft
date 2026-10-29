@@ -112,9 +112,30 @@ No backend handy? `make web-mock` runs the UI against in-browser mocks.
   - partitions by day, plus by retention when rows carry their own.
 - DDL and mutations from code target the table that holds the rows: use `AppState::tables.local(table)` and
   `.on_cluster()`. Reads and inserts use the plain names.
-- `cargo test -p oc-store` checks the rendered schema in both modes. To run it on a real cluster, start one with Keeper
-  (a cluster named `oc` with two shards), then run
-  `OC_TEST_CLICKHOUSE_CLUSTER_URL=http://localhost:18123 cargo test -p oc-store --test cluster`.
+- `cargo test -p oc-store` checks the rendered schema in both modes. To check a change on a real cluster, start the
+  development cluster: `make cluster-up` runs `deploy/compose/clickhouse-cluster.yml`, ClickHouse 26.8 as cluster `oc`
+  with 2 shards × 2 replicas (macros `{shard}` / `{replica}`, `internal_replication`, the Helm chart's tuning, 2 vCPU
+  and 6 GiB per node) and one ClickHouse Keeper, on `http://localhost:18161` to `:18164`. Then:
+  - `OC_TEST_CLICKHOUSE_CLUSTER_URL=http://localhost:18161 cargo test -p oc-store --test cluster`: the schema, where
+    rows land (a series' samples, labels, tag index and rollups on one shard, a Kubernetes object's inventory row with
+    its body), and that every replica holds the same rows once replication caught up;
+  - `OC_TEST_CLICKHOUSE_URL=http://localhost:18161 OC_TEST_CLICKHOUSE_CLUSTER=oc cargo test -p oc-api`: the live tests
+    (metric rollups, the tag index, dashboard widgets, log aggregates, the Kubernetes inventory, …) on the cluster,
+    where they must give the single server's results. Live tests get their client from
+    `test_support::live_clickhouse()`, which reads both variables.
+  - the server on the cluster: `OC_CLICKHOUSE_URL=http://localhost:18161 OC_CLICKHOUSE_CLUSTER=oc`, and
+    `make cluster-up CLUSTER_PROFILE=pipeline` adds an OpenTelemetry Collector writing to the cluster on
+    `http://localhost:18169` (for `oc-intake`: `OC_INTAKE_COLLECTOR_URL`). `make storage-report CLUSTER=oc` reads
+    every replica (`OC_CLICKHOUSE_URL=http://localhost:18161 OC_CLICKHOUSE_USER=default OC_CLICKHOUSE_PASSWORD=`).
+
+  `make cluster-down` deletes the cluster and its data. `OC_CLUSTER_PROJECT` names the Compose project (container
+  prefix), `OC_CLUSTER_NODE_CPUS` / `OC_CLUSTER_NODE_MEMORY` size the nodes. The cluster `oc_1shard` (the first shard's
+  two replicas) is there to compare one shard with two.
+- On a cluster, the server's client runs joins and `IN` subqueries between Distributed tables as `GLOBAL`
+  (`distributed_product_mode = 'global'`, set by `oc_store::clickhouse`); readers of tables that share a shard key
+  (series, tags, samples and rollups by `SeriesId`) use `points_client`, which joins on each shard instead. Reads go to
+  any replica, which may lag the one an insert went to by a moment; tests that read what they just wrote use the
+  first replica (`load_balancing = 'in_order'`).
 
 ### Helm charts and the agent
 

@@ -848,29 +848,14 @@ mod tests {
     /// the median): equal for series with one point per timestamp and a regular cadence, as here.
     #[tokio::test]
     async fn widget_queries_match_the_shared_scan_on_samples_and_rollups() {
-        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
-            return;
-        };
-        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
-        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
-        crate::test_support::migrate_clickhouse_once(&oc_store::ClickHouseConfig {
-            url: url.clone(),
-            user: user.clone(),
-            password: password.clone(),
-            database: "oc".into(),
-            cluster: None,
-        })
-        .await;
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!(
             "dashboard-parity-{}-{}",
             std::process::id(),
             super::super::now_ms()
         );
-        let ch = clickhouse::Client::default()
-            .with_url(url)
-            .with_user(user)
-            .with_password(password)
-            .with_option("param_oc_org", &org);
+        // Widgets run on `points_client` (shard-local joins on a cluster).
+        let ch = live.points(&live.client).with_option("param_oc_org", &org);
         let from = super::super::now_ms().div_euclid(3_600_000) * 3_600_000;
         let range = TimeRange {
             from,
@@ -898,7 +883,7 @@ mod tests {
             ch.query(&format!("INSERT INTO {table} (ResourceAttributes, MetricName, MetricUnit, Attributes, TimeUnix, Value{extra_cols}) SELECT map('oc.org_id', ?, 'host.name', if(number < 6, 'storefront-node', 'checkout-node'), 'deployment.environment', if(number < 6, 'prod', 'staging')), ?, '1', map('state', 'running'), fromUnixTimestamp64Milli(?) + toIntervalSecond((number % 6) * 10), toFloat64(10 + number * 2){extra_values} FROM numbers(12)"))
                 .bind(&org).bind(name).bind(from).execute().await.unwrap();
             for tier in [crate::metric_rollups::Tier::FiveMinutes, crate::metric_rollups::Tier::Hour] {
-                crate::metric_rollups::roll(&ch, false, tier, from, from + 3_600_000).await.unwrap();
+                crate::metric_rollups::roll(&ch, live.cluster(), tier, from, from + 3_600_000).await.unwrap();
             }
             let done = crate::metric_rollups::Progress { five_minutes: i64::MAX, hour: i64::MAX };
             for (source, step) in [

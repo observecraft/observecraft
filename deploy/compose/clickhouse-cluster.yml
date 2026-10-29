@@ -1,0 +1,111 @@
+# ClickHouse cluster for development and tests: 2 shards x 2 replicas (cluster `oc`), coordinated by
+# ClickHouse Keeper. `make cluster-up` / `make cluster-down`; CONTRIBUTING.md ("ClickHouse") shows how
+# to run the tests and the server on it.
+#
+#   ch-s1r1  http://localhost:18161   shard 1, replica 1
+#   ch-s1r2  http://localhost:18162   shard 1, replica 2
+#   ch-s2r1  http://localhost:18163   shard 2, replica 1
+#   ch-s2r2  http://localhost:18164   shard 2, replica 2
+#
+# Keeper runs as one node: the cluster checks data placement, replication and distributed queries,
+# not Keeper's fault tolerance, and a 3-node ensemble only adds memory and CPU here. Production uses
+# 3 (clickhouse.operator.keeper.replicas in the Helm chart).
+#
+# Each node is capped at OC_CLUSTER_NODE_CPUS (2) and OC_CLUSTER_NODE_MEMORY (6g), like the single
+# server the baseline of docs/adr/0002 was measured on. The `pipeline` profile adds an OpenTelemetry
+# Collector on 127.0.0.1:18169 (OTLP HTTP) writing to the cluster, for `oc-intake` on the host
+# (OC_INTAKE_COLLECTOR_URL=http://localhost:18169) and the load profile.
+name: ${OC_CLUSTER_PROJECT:-oc-cluster}
+
+x-clickhouse: &clickhouse
+  image: clickhouse/clickhouse-server:26.8
+  environment: &clickhouse-env
+    CLICKHOUSE_SKIP_USER_SETUP: "1"
+  cpus: ${OC_CLUSTER_NODE_CPUS:-2}
+  mem_limit: ${OC_CLUSTER_NODE_MEMORY:-6g}
+  ulimits:
+    nofile: { soft: 262144, hard: 262144 }
+  depends_on:
+    keeper: { condition: service_healthy }
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://localhost:8123/ping"]
+    interval: 3s
+    timeout: 3s
+    retries: 40
+
+services:
+  keeper:
+    image: clickhouse/clickhouse-keeper:26.8
+    hostname: keeper
+    volumes:
+      - ./clickhouse-cluster/keeper.xml:/etc/clickhouse-keeper/keeper_config.d/observecraft.xml:ro
+      - keeper-data:/var/lib/clickhouse-keeper
+    healthcheck:
+      test: ["CMD", "clickhouse-keeper-client", "--port", "9181", "-q", "ls /"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  ch-s1r1:
+    <<: *clickhouse
+    hostname: ch-s1r1
+    environment: { <<: *clickhouse-env, OC_HOSTNAME: ch-s1r1, OC_SHARD: "01", OC_REPLICA: ch-s1r1 }
+    volumes:
+      - ./clickhouse-cluster/config.xml:/etc/clickhouse-server/config.d/observecraft-cluster.xml:ro
+      - ./clickhouse-cluster/users.xml:/etc/clickhouse-server/users.d/observecraft-users.xml:ro
+      - ch-s1r1-data:/var/lib/clickhouse
+    ports: ["127.0.0.1:18161:8123"]
+  ch-s1r2:
+    <<: *clickhouse
+    hostname: ch-s1r2
+    environment: { <<: *clickhouse-env, OC_HOSTNAME: ch-s1r2, OC_SHARD: "01", OC_REPLICA: ch-s1r2 }
+    volumes:
+      - ./clickhouse-cluster/config.xml:/etc/clickhouse-server/config.d/observecraft-cluster.xml:ro
+      - ./clickhouse-cluster/users.xml:/etc/clickhouse-server/users.d/observecraft-users.xml:ro
+      - ch-s1r2-data:/var/lib/clickhouse
+    ports: ["127.0.0.1:18162:8123"]
+  ch-s2r1:
+    <<: *clickhouse
+    hostname: ch-s2r1
+    environment: { <<: *clickhouse-env, OC_HOSTNAME: ch-s2r1, OC_SHARD: "02", OC_REPLICA: ch-s2r1 }
+    volumes:
+      - ./clickhouse-cluster/config.xml:/etc/clickhouse-server/config.d/observecraft-cluster.xml:ro
+      - ./clickhouse-cluster/users.xml:/etc/clickhouse-server/users.d/observecraft-users.xml:ro
+      - ch-s2r1-data:/var/lib/clickhouse
+    ports: ["127.0.0.1:18163:8123"]
+  ch-s2r2:
+    <<: *clickhouse
+    hostname: ch-s2r2
+    environment: { <<: *clickhouse-env, OC_HOSTNAME: ch-s2r2, OC_SHARD: "02", OC_REPLICA: ch-s2r2 }
+    volumes:
+      - ./clickhouse-cluster/config.xml:/etc/clickhouse-server/config.d/observecraft-cluster.xml:ro
+      - ./clickhouse-cluster/users.xml:/etc/clickhouse-server/users.d/observecraft-users.xml:ro
+      - ch-s2r2-data:/var/lib/clickhouse
+    ports: ["127.0.0.1:18164:8123"]
+
+  # The collector of deploy/docker-compose.yml, writing to the cluster: inserts are spread over the
+  # nodes listed in OC_CLUSTER_COLLECTOR_NODES, whose Distributed tables send each row to its shard.
+  collector:
+    profiles: ["pipeline"]
+    image: otel/opentelemetry-collector-contrib:0.163.2
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    environment:
+      CLICKHOUSE_USER: observecraft_ingest
+      CLICKHOUSE_PASSWORD: observecraft
+      OC_CLICKHOUSE_TCP_ENDPOINT: tcp://${OC_CLUSTER_COLLECTOR_NODES:-ch-s1r1:9000,ch-s1r2:9000,ch-s2r1:9000,ch-s2r2:9000}?dial_timeout=10s&connection_open_strategy=round_robin
+      OC_COLLECTOR_MEMORY_LIMIT_MIB: ${OC_CLUSTER_COLLECTOR_MEMORY_MIB:-2048}
+    user: "0:0"
+    volumes:
+      - ../otel/collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - collector-queue:/var/lib/otelcol/queue
+    ports: ["127.0.0.1:18169:4318"]
+    depends_on:
+      ch-s1r1: { condition: service_healthy }
+
+volumes:
+  keeper-data:
+  ch-s1r1-data:
+  ch-s1r2-data:
+  ch-s2r1-data:
+  ch-s2r2-data:
+  collector-queue:

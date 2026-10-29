@@ -96,3 +96,29 @@ WHERE type = 'QueryFinish'
 GROUP BY shape
 ORDER BY sum(ProfileEvents['UserTimeMicroseconds'] + ProfileEvents['SystemTimeMicroseconds']) DESC
 LIMIT 10;
+
+-- CPU per server (each replica of a cluster)
+SELECT
+    host,
+    round(sumIf(cpu_us, kind = 'Insert') / 1e6 * 3600 / {window:UInt32}, 1) AS insert_cpu_per_hour,
+    round(sumIf(cpu_us, kind = 'Merge') / 1e6 * 3600 / {window:UInt32}, 1) AS merge_cpu_per_hour,
+    round(sumIf(cpu_us, kind = 'Select') / 1e6 * 3600 / {window:UInt32}, 1) AS select_cpu_per_hour,
+    round(sumIf(cpu_us, kind NOT IN ('Insert', 'Merge', 'Select')) / 1e6 * 3600 / {window:UInt32}, 1) AS other_cpu_per_hour,
+    countIf(kind = 'Merge') AS merges,
+    countIf(kind = 'Fetch') AS parts_fetched
+FROM
+(
+    SELECT hostName() AS host, toString(query_kind) AS kind, ProfileEvents['UserTimeMicroseconds'] + ProfileEvents['SystemTimeMicroseconds'] AS cpu_us
+    FROM system.query_log
+    WHERE type IN ('QueryFinish', 'ExceptionWhileProcessing')
+      AND event_time >= now() - toIntervalSecond({window:UInt32})
+      AND log_comment != 'storage-report'
+    UNION ALL
+    SELECT hostName() AS host, multiIf(event_type = 'MergeParts', 'Merge', event_type = 'DownloadPart', 'Fetch', 'Mutation') AS kind,
+           ProfileEvents['UserTimeMicroseconds'] + ProfileEvents['SystemTimeMicroseconds'] AS cpu_us
+    FROM system.part_log
+    WHERE event_type IN ('MergeParts', 'MutatePart', 'DownloadPart')
+      AND event_time >= now() - toIntervalSecond({window:UInt32})
+)
+GROUP BY host
+ORDER BY host;

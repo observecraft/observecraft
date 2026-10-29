@@ -9,6 +9,7 @@ use clickhouse::Client;
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::time::Duration;
 
+#[derive(Clone, Debug)]
 pub struct ClickHouseConfig {
     pub url: String,
     pub user: String,
@@ -125,12 +126,23 @@ const LEGACY_OBJECTS: &[&str] = &[
     "otel.k8s_events",
 ];
 
+/// The server's client for reads and inserts. In a cluster, a join or `IN` subquery over a
+/// Distributed table inside a query of another one runs as `GLOBAL` (the subquery once, its result
+/// sent to every shard), which is right whatever the two tables are sharded by. Readers whose
+/// tables share a shard key (series, tags, samples and rollups by SeriesId) set
+/// `distributed_product_mode = 'local'` to join on each shard instead.
 pub fn clickhouse(cfg: &ClickHouseConfig) -> Client {
-    Client::default()
-        .with_url(&cfg.url)
-        .with_user(&cfg.user)
-        .with_password(&cfg.password)
-        .with_database(&cfg.database)
+    configure(Client::default(), cfg)
+}
+
+/// Sets up `client` as [`clickhouse`] does, e.g. one made with its own HTTP client
+/// (`Client::with_http_client`).
+pub fn configure(client: Client, cfg: &ClickHouseConfig) -> Client {
+    let client = client.with_url(&cfg.url).with_user(&cfg.user).with_password(&cfg.password).with_database(&cfg.database);
+    match cfg.cluster {
+        Some(_) => client.with_option("distributed_product_mode", "global"),
+        None => client,
+    }
 }
 
 #[derive(clickhouse::Row, serde::Deserialize)]

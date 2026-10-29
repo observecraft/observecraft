@@ -20,7 +20,7 @@ test('the report has one titled statement per section', () => {
   const parts = statements(sql);
   assert.deepEqual(
     parts.map((s) => s.title),
-    ['Rows and bytes written (new parts) per table', 'Merges per table', 'CPU by query kind and merges', 'Top 10 SELECT shapes by CPU'],
+    ['Rows and bytes written (new parts) per table', 'Merges per table', 'CPU by query kind and merges', 'Top 10 SELECT shapes by CPU', 'CPU per server (each replica of a cluster)'],
   );
   for (const s of parts) {
     assert.ok(!s.sql.trimEnd().endsWith(';'), 'sent without the terminator');

@@ -866,10 +866,15 @@ async fn inner_query_at_step(
 /// series share a shard (all sharded by SeriesId), so the series → points joins and `SeriesId IN`
 /// subqueries run on each shard against its local tables.
 pub(crate) fn points_client(st: &AppState, org: &str) -> clickhouse::Client {
-    let ch = st.ch(org);
-    match st.tables.cluster {
-        Some(_) => ch.with_option("distributed_product_mode", "local"),
-        None => ch,
+    points_settings(st.ch(org), st.tables.cluster.is_some())
+}
+
+/// The settings of [`points_client`] on `ch`.
+pub(crate) fn points_settings(ch: clickhouse::Client, cluster: bool) -> clickhouse::Client {
+    if cluster {
+        ch.with_option("distributed_product_mode", "local")
+    } else {
+        ch
     }
 }
 
@@ -1722,12 +1727,12 @@ mod tests {
     }
 
     /// Fills the rollups of the client's org for `[from, to)` as the rollup job does.
-    async fn roll_up(ch: &clickhouse::Client, from: i64, to: i64) {
+    async fn roll_up(ch: &clickhouse::Client, cluster: bool, from: i64, to: i64) {
         use crate::metric_rollups::{roll, Tier, HOUR_MS};
         for hour in (from..to).step_by(HOUR_MS as usize) {
-            roll(ch, false, Tier::FiveMinutes, hour, hour + HOUR_MS).await.expect("5m rollup");
+            roll(ch, cluster, Tier::FiveMinutes, hour, hour + HOUR_MS).await.expect("5m rollup");
         }
-        roll(ch, false, Tier::Hour, from, to).await.expect("1h rollup");
+        roll(ch, cluster, Tier::Hour, from, to).await.expect("1h rollup");
     }
 
     /// The rollup job's progress the rollup sources are checked at: everything rolled up, part of
@@ -1827,25 +1832,9 @@ mod tests {
     /// server (user `default`, or OC_TEST_CLICKHOUSE_USER / OC_TEST_CLICKHOUSE_PASSWORD).
     #[tokio::test]
     async fn new_storage_matches_the_exporter_tables() {
-        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
-            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
-            return;
-        };
-        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
-        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
-        let cfg = oc_store::ClickHouseConfig {
-            url: url.clone(),
-            user: user.clone(),
-            password: password.clone(),
-            database: "oc".into(),
-            cluster: None,
-        };
-        crate::test_support::migrate_clickhouse_once(&cfg).await;
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("parity-{}", std::process::id());
-        let ch = clickhouse::Client::default()
-            .with_url(&url)
-            .with_user(&user)
-            .with_password(&password)
+        let ch = live.client.clone()
             .with_option("param_oc_org", &org);
 
         // Two hours from an hour boundary, a point every 10s: 3 gauge series, a cumulative counter
@@ -1889,7 +1878,7 @@ mod tests {
             from: start * 1000,
             to: (start + 7200) * 1000 - 1,
         };
-        roll_up(&ch, start * 1000, (start + 7200) * 1000).await;
+        roll_up(&ch, live.cluster(), start * 1000, (start + 7200) * 1000).await;
         let cases = [
             ("avg:system.cpu.utilization{*}", Kind::Gauge),
             ("max:system.cpu.utilization{*} by {host}", Kind::Gauge),
@@ -1918,7 +1907,8 @@ mod tests {
                         "SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64({agg}(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t",
                         agg = q.agg.sql()
                     );
-                    let ch = ch.clone();
+                    // The storage's queries run as `points_client` runs them (shard-local on a cluster).
+                    let ch = if source.is_some() { live.points(&ch) } else { ch.clone() };
                     async move {
                         bind(ch.query(&sql), &params)
                             .fetch_all::<Row>()
@@ -1953,18 +1943,17 @@ mod tests {
 
     /// On a cluster: the rollup job rolls each shard's series up on that shard, and point queries
     /// (series → points joins and `SeriesId IN` through the tag index, shard-local as
-    /// `points_client` runs them) give the oracle's results. Skipped unless
-    /// OC_TEST_CLICKHOUSE_CLUSTER_URL points at a node of a cluster named `oc` with Keeper.
+    /// `points_client` runs them) give the oracle's results. Runs when OC_TEST_CLICKHOUSE_URL is a
+    /// node of the cluster OC_TEST_CLICKHOUSE_CLUSTER (two shards, e.g. `make cluster-up`).
     #[tokio::test]
     async fn rollups_and_point_queries_on_a_cluster() {
-        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_CLUSTER_URL") else {
-            eprintln!("OC_TEST_CLICKHOUSE_CLUSTER_URL unset: skipping");
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
+        if !live.cluster() {
+            eprintln!("OC_TEST_CLICKHOUSE_CLUSTER unset: skipping");
             return;
-        };
-        let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: "default".into(), password: String::new(), database: "oc".into(), cluster: Some("oc".into()) };
-        crate::test_support::migrate_clickhouse_once(&cfg).await;
+        }
         let org = format!("cluster-{}-{}", std::process::id(), now_ms());
-        let ch = clickhouse::Client::default().with_url(&url).with_user("default").with_option("param_oc_org", &org).with_option("insert_distributed_sync", "1");
+        let ch = live.client.clone().with_option("param_oc_org", &org);
         let start = 1_793_095_200_i64;
         let select = format!(
             "SELECT map('oc.org_id', '{org}', 'host.name', concat('i-0a1b2c3d4e5f6', toString(number % 40))) AS ResourceAttributes, 'storefront-api' AS ServiceName, \
@@ -1981,7 +1970,7 @@ mod tests {
         metric_rollups::roll(&ch, true, metric_rollups::Tier::Hour, start * 1000, start * 1000 + 7_200_000).await.expect("1h on the shards");
         let shards: u64 = ch.query("SELECT uniqExact(_shard_num) FROM otel.metrics_rollup_5m WHERE OrgId = {oc_org:String}").fetch_one().await.expect("shards");
         assert_eq!(shards, 2, "each shard rolled up its own series");
-        let local = ch.clone().with_option("distributed_product_mode", "local");
+        let local = live.points(&ch);
         let range = TimeRange { from: start * 1000, to: (start + 7200) * 1000 - 1 };
         for query in ["avg:system.cpu.utilization{*}", "max:system.cpu.utilization{state:user} by {host}", "sum:system.cpu.utilization{!state:user,host:i-0a1b2c3d4e5f61*} by {state}"] {
             let q = parse(query).unwrap();
@@ -2010,29 +1999,13 @@ mod tests {
     /// OC_TEST_CLICKHOUSE_URL is set (see above).
     #[tokio::test]
     async fn direct_readers_match_the_exporter_tables() {
-        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
-            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
-            return;
-        };
-        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
-        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
-        let cfg = oc_store::ClickHouseConfig {
-            url: url.clone(),
-            user: user.clone(),
-            password: password.clone(),
-            database: "oc".into(),
-            cluster: None,
-        };
-        crate::test_support::migrate_clickhouse_once(&cfg).await;
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("readers-{}", std::process::id());
         let now = now_ms();
         // Open-ended like the `now() - INTERVAL` readers: points written after `now` count too.
         let (from, to) = (now - 15 * 60_000, now + OPEN_END_MS);
         let ch = with_window(
-            clickhouse::Client::default()
-                .with_url(&url)
-                .with_user(&user)
-                .with_password(&password)
+            live.client.clone()
                 .with_option("param_oc_org", &org),
             from,
             to,
@@ -2155,16 +2128,9 @@ mod tests {
     /// is set (see above).
     #[tokio::test]
     async fn the_tag_index_resolves_series_like_the_label_maps() {
-        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
-            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
-            return;
-        };
-        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
-        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
-        let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-        crate::test_support::migrate_clickhouse_once(&cfg).await;
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("index-{}-{}", std::process::id(), now_ms());
-        let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_option("param_oc_org", &org);
+        let ch = live.client.clone().with_option("param_oc_org", &org);
         // 24 series: namespaces, services (one without), a resource `env` some points override,
         // `deployment.environment` as both a resource and a point attribute, a point-only `state`
         // on some, `zone` in both with the same value.
@@ -2218,11 +2184,8 @@ mod tests {
             );
             map_params.extend([Param::Str(q.metric.clone()), Param::Int(from)]);
             map_params.extend(f.params);
-            let run = |sql: String, p: Vec<Param>| {
-                let ch = ch.clone();
-                async move { bind(ch.query(&sql), &p).fetch_all::<String>().await.unwrap_or_else(|e| panic!("{sql}: {e}")) }
-            };
-            let (old_rows, new_rows) = (run(old, map_params).await, run(new, std::mem::take(&mut params)).await);
+            let run = |ch: clickhouse::Client, sql: String, p: Vec<Param>| async move { bind(ch.query(&sql), &p).fetch_all::<String>().await.unwrap_or_else(|e| panic!("{sql}: {e}")) };
+            let (old_rows, new_rows) = (run(ch.clone(), old, map_params).await, run(live.points(&ch), new, std::mem::take(&mut params)).await);
             assert_eq!(new_rows, old_rows, "{text}");
             if text.ends_with("{*}") {
                 assert_eq!(old_rows.len(), 24);
@@ -2270,25 +2233,9 @@ mod tests {
     /// unless OC_TEST_CLICKHOUSE_URL is set (see above).
     #[tokio::test]
     async fn distributions_match_the_exporter_tables() {
-        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
-            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
-            return;
-        };
-        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
-        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
-        let cfg = oc_store::ClickHouseConfig {
-            url: url.clone(),
-            user: user.clone(),
-            password: password.clone(),
-            database: "oc".into(),
-            cluster: None,
-        };
-        crate::test_support::migrate_clickhouse_once(&cfg).await;
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("dists-{}", std::process::id());
-        let ch = clickhouse::Client::default()
-            .with_url(&url)
-            .with_user(&user)
-            .with_password(&password)
+        let ch = live.client.clone()
             .with_option("param_oc_org", &org);
 
         // Two hours from an hour boundary, a point every 10s per series (two hosts).
@@ -2349,7 +2296,7 @@ mod tests {
             from: start * 1000,
             to: (start + 7200) * 1000 - 1,
         };
-        roll_up(&ch, start * 1000, (start + 7200) * 1000).await;
+        roll_up(&ch, live.cluster(), start * 1000, (start + 7200) * 1000).await;
         let metrics = [
             ("http.server.duration", Dist::Histogram),
             ("queue.wait", Dist::Histogram),
@@ -2373,7 +2320,7 @@ mod tests {
                                 None => exporter_dist_query(dist, stat, &q, range, step_s),
                             };
                             let sql = format!("SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64(avg(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t");
-                            let ch = ch.clone();
+                            let ch = if source.is_some() { live.points(&ch) } else { ch.clone() };
                             async move {
                                 bind(ch.query(&sql), &params)
                                     .fetch_all::<Row>()

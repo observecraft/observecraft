@@ -1343,15 +1343,8 @@ mod tests {
     /// points at a ClickHouse server (user `default`, or OC_TEST_CLICKHOUSE_USER / OC_TEST_CLICKHOUSE_PASSWORD).
     #[tokio::test]
     async fn error_groups_from_the_aggregate_match_the_logs() {
-        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
-            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
-            return;
-        };
-        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
-        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
-        let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-        crate::test_support::migrate_clickhouse_once(&cfg).await;
-        let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_database("oc");
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
+        let ch = live.client.clone().with_database("oc");
         let org = format!("error-parity-{}", std::process::id());
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
         let t0 = now / 60_000 * 60_000 - 30 * 60_000;
@@ -1462,7 +1455,13 @@ mod tests {
         // The aggregate answers the searches and restrictions it can express (4 of 6).
         assert_eq!(check(since).await, 4);
         // Logs from before the aggregate (here: its first minutes dropped) come from the logs.
-        ch.query("ALTER TABLE oc.error_groups_1m DELETE WHERE org_id = ? AND minute < fromUnixTimestamp64Milli(?) SETTINGS mutations_sync = 2").bind(&org).bind(t0 + 4 * 60_000).execute().await.unwrap();
+        let (table, on) = (live.cfg.local("oc.error_groups_1m"), live.cfg.on_cluster());
+        ch.query(&format!("ALTER TABLE {table}{on} DELETE WHERE org_id = ? AND minute < fromUnixTimestamp64Milli(?) SETTINGS mutations_sync = 2"))
+            .bind(&org)
+            .bind(t0 + 4 * 60_000)
+            .execute()
+            .await
+            .unwrap();
         assert_eq!(check(Some(t0 + 5 * 60_000)).await, 4);
         // No aggregate yet: the logs alone.
         assert_eq!(check(None).await, 0);

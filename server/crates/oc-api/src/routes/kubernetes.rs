@@ -2219,21 +2219,10 @@ mod tests {
     /// Runs against a ClickHouse server when OC_TEST_CLICKHOUSE_URL is set (migrations are applied).
     #[tokio::test]
     async fn the_typed_inventory_builds_the_rows_of_the_full_objects() {
-        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
-            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
-            return;
-        };
-        let cfg = oc_store::ClickHouseConfig {
-            url,
-            user: std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into()),
-            password: std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default(),
-            database: "oc".into(),
-            cluster: None,
-        };
-        crate::test_support::migrate_clickhouse_once(&cfg).await;
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let bodies: Vec<Value> = serde_json::from_str(include_str!("../../tests/fixtures/k8s_objects.json")).expect("fixture");
         let org = format!("k8s-parity-{}-{}", std::process::id(), now_ms());
-        let admin = oc_store::clickhouse(&cfg);
+        let admin = live.client.clone();
         admin
             .query("INSERT INTO otel.otel_k8s_objects (Timestamp, Body, ResourceAttributes) SELECT now64(9), arrayJoin(?), map('oc.org_id', ?, 'k8s.cluster.name', 'shop-prod', 'oc.signal', 'k8s.objects')")
             .bind(bodies.iter().map(Value::to_string).collect::<Vec<_>>())

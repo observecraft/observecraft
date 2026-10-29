@@ -32,6 +32,10 @@ async fn logs_land_in_the_error_groups_and_facet_aggregates() {
         eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
         return;
     };
+    if std::env::var_os("OC_TEST_CLICKHOUSE_CLUSTER").is_some() {
+        eprintln!("a single-server test (the cluster's are in tests/cluster.rs): skipping");
+        return;
+    }
     let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
     let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
     let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };

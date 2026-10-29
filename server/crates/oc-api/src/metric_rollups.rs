@@ -138,6 +138,25 @@ pub(crate) async fn roll(ch: &clickhouse::Client, cluster: bool, tier: Tier, fro
     Ok(())
 }
 
+/// Whether a cluster's replicas, at most `delay_secs` behind, hold every point of the buckets
+/// closed `lateness_secs` ago. Each shard's part of a rollup reads one replica of the shard (the
+/// server's own when it is one, whatever its delay), so a lagging replica would roll up a bucket
+/// from incomplete samples, and nothing re-rolls it later.
+pub(crate) fn replicas_caught_up(delay_secs: u64, lateness_secs: i64) -> bool {
+    (delay_secs as i64).saturating_mul(2) <= lateness_secs.max(0)
+}
+
+/// Seconds the most behind replica of the metric tables lags (`system.replicas.absolute_delay`).
+pub(crate) async fn replica_delay(ch: &clickhouse::Client, cluster: &str) -> Result<u64, clickhouse::error::Error> {
+    ch.query(
+        "SELECT toUInt64(max(absolute_delay)) FROM clusterAllReplicas({cluster:String}, system.replicas) \
+         WHERE database = 'otel' AND table IN ('metrics_samples_local', 'metrics_dist_samples_local', 'metrics_rollup_5m_local', 'metrics_dist_rollup_5m_local')",
+    )
+    .with_option("param_cluster", cluster)
+    .fetch_one()
+    .await
+}
+
 /// Each org's rollup progress, read by queries (cached briefly: a stale value only means more
 /// raw samples are read).
 pub(crate) async fn progress(st: &AppState, org: &str) -> Result<Progress, ApiError> {
@@ -259,6 +278,19 @@ pub async fn run(st: AppState) {
             tracing::warn!(error = %e, "metric rollups: adding orgs failed");
             continue;
         }
+        if let Some(cluster) = &st.tables.cluster {
+            match replica_delay(&st.clickhouse, cluster).await {
+                Ok(delay) if replicas_caught_up(delay, st.config.metrics_rollup_lateness_secs) => {}
+                Ok(delay) => {
+                    tracing::warn!(delay_seconds = delay, "metric rollups: waiting for lagging replicas");
+                    continue;
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "metric rollups: reading the replicas' delay failed");
+                    continue;
+                }
+            }
+        }
         let claimed = match claim(&st.postgres, 50, st.config.metrics_rollup_lateness_secs * 1000).await {
             Ok(c) => c,
             Err(e) => {
@@ -330,6 +362,27 @@ mod tests {
     }
 
     #[test]
+    fn a_cluster_rolls_up_only_while_every_replica_has_the_closed_buckets() {
+        // Lateness 120 s: a replica 60 s behind has every point of a bucket closed 120 s ago.
+        assert!(replicas_caught_up(0, 120));
+        assert!(replicas_caught_up(60, 120));
+        // One further behind would roll up from incomplete samples (the shard's part of the
+        // INSERT … SELECT may run on it), so the job waits.
+        assert!(!replicas_caught_up(61, 120));
+        assert!(!replicas_caught_up(1, 0));
+    }
+
+    /// The replicas' delay is readable on a cluster. Runs when OC_TEST_CLICKHOUSE_URL is a node of
+    /// the cluster OC_TEST_CLICKHOUSE_CLUSTER.
+    #[tokio::test]
+    async fn the_replicas_delay_is_read_from_every_replica() {
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
+        let Some(cluster) = live.cfg.cluster.clone() else { return };
+        let delay = replica_delay(&live.client, &cluster).await.expect("delay");
+        assert!(delay < 60, "a replica of the test cluster is {delay} s behind");
+    }
+
+    #[test]
     fn rollup_queries_are_org_scoped_and_bound() {
         for tier in [Tier::FiveMinutes, Tier::Hour] {
             for sql in rollup_sql(tier) {
@@ -361,16 +414,9 @@ mod tests {
     /// OC_TEST_CLICKHOUSE_USER / OC_TEST_CLICKHOUSE_PASSWORD).
     #[tokio::test]
     async fn rollups_match_the_samples_and_reruns_replace_them() {
-        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
-            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
-            return;
-        };
-        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
-        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
-        let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-        crate::test_support::migrate_clickhouse_once(&cfg).await;
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("rollup-job-{}-{}", std::process::id(), crate::routes::metrics::now_ms());
-        let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_option("param_oc_org", &org);
+        let ch = live.client.clone().with_option("param_oc_org", &org);
         // Two series, a point every 10 s for 2 hours; tiers 15 / 180 / 760 days.
         let insert = |from_s: i64, n: u64, value: &str| {
             format!(
@@ -383,9 +429,9 @@ mod tests {
         let start = T / 1000;
         ch.query(&insert(start, 1440, "(number % 17) / 17")).execute().await.expect("insert");
         for (from, to) in [(T, T + HOUR_MS), (T + HOUR_MS, T + 2 * HOUR_MS)] {
-            roll(&ch, false, Tier::FiveMinutes, from, to).await.expect("5m");
+            roll(&ch, live.cluster(), Tier::FiveMinutes, from, to).await.expect("5m");
         }
-        roll(&ch, false, Tier::Hour, T, T + 2 * HOUR_MS).await.expect("1h");
+        roll(&ch, live.cluster(), Tier::Hour, T, T + 2 * HOUR_MS).await.expect("1h");
 
         let raw = |step: i64| {
             format!(
@@ -421,8 +467,8 @@ mod tests {
 
         // A late point in 10:00–10:05, then the bucket and its hour rolled up again: replaced, not added.
         ch.query(&insert(start + 30, 2, "1000")).execute().await.expect("late");
-        roll(&ch, false, Tier::FiveMinutes, T, T + FIVE_MINUTES_MS).await.expect("re-roll 5m");
-        roll(&ch, false, Tier::Hour, T, T + HOUR_MS).await.expect("re-roll 1h");
+        roll(&ch, live.cluster(), Tier::FiveMinutes, T, T + FIVE_MINUTES_MS).await.expect("re-roll 5m");
+        roll(&ch, live.cluster(), Tier::Hour, T, T + HOUR_MS).await.expect("re-roll 1h");
         let five = fetch(rolled("metrics_rollup_5m")).await;
         assert_eq!(five.len(), 2 * 24);
         close(&five, &fetch(raw(300)).await, "5m after a re-roll");
@@ -439,16 +485,9 @@ mod tests {
     /// views did (the query parity tests in routes/metrics.rs check the statistics).
     #[tokio::test]
     async fn distribution_rollups_keep_first_last_and_totals() {
-        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
-            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
-            return;
-        };
-        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
-        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
-        let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-        crate::test_support::migrate_clickhouse_once(&cfg).await;
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("rollup-dist-{}-{}", std::process::id(), crate::routes::metrics::now_ms());
-        let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_option("param_oc_org", &org);
+        let ch = live.client.clone().with_option("param_oc_org", &org);
         // A cumulative histogram: 3 points in 10:00–10:05, one at 10:07.
         ch.query(&format!(
             "INSERT INTO otel.metrics_ingest_histogram (ResourceAttributes, MetricName, Attributes, TimeUnix, Count, Sum, BucketCounts, ExplicitBounds, Min, Max, AggregationTemporality) VALUES \
@@ -460,8 +499,8 @@ mod tests {
         .execute()
         .await
         .expect("insert");
-        roll(&ch, false, Tier::FiveMinutes, T, T + 10 * MIN).await.expect("5m");
-        roll(&ch, false, Tier::Hour, T, T + HOUR_MS).await.expect("1h");
+        roll(&ch, live.cluster(), Tier::FiveMinutes, T, T + 10 * MIN).await.expect("5m");
+        roll(&ch, live.cluster(), Tier::Hour, T, T + HOUR_MS).await.expect("1h");
         #[derive(clickhouse::Row, serde::Deserialize, Debug, PartialEq)]
         struct Dist {
             count_first: u64,
