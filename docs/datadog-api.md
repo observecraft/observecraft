@@ -87,7 +87,48 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 | `datadog_downtime_schedule`, `datadog_downtime` | `/api/v2/downtime`, `/api/v1/downtime` | Planned |
 | `datadog_dashboard`, `datadog_dashboard_json` | `/api/v1/dashboard` | Planned |
 | `datadog_dashboard_list` | `/api/v1/dashboard/lists/manual`, `/api/v2/dashboard/lists/manual/{id}/dashboards` | Planned |
-| `datadog_service_level_objective`, `datadog_slo_correction` | `/api/v1/slo`, `/api/v1/slo/correction` | Planned |
+| `datadog_service_level_objective`, data sources `datadog_service_level_objective(s)` | `/api/v1/slo` (create, get, update, delete, list), `/api/v1/slo/search` | ✅ [details](#service-level-objectives) |
+| `datadog_slo_correction` | `/api/v1/slo/correction`, `/api/v1/slo/{id}/corrections` | ✅ one-off corrections ([details](#slo-corrections)) |
+
+## Service level objectives
+
+SLOs created through `/api/v1/slo` are ObserveCraft SLOs (Monitoring → Service Level Objectives) and the other way
+round. The document a client sends is kept and read back as sent, with the fields the server owns added (`id`,
+`type_id`, `created_at`, `modified_at`, `creator`). An SLO's id is its ObserveCraft id written as 32 hex characters.
+When an SLO is changed in the UI, reads show the change, so `terraform plan` reports it as drift.
+
+| Datadog field | ObserveCraft |
+|---|---|
+| `type`: `metric`, `monitor`, `time_slice` | the SLO type; it can't change after creation |
+| `query.numerator` / `query.denominator` | good and total events |
+| `sli_specification.count` (`queries`, `good_events_formula`, `total_events_formula` or `bad_events_formula`) | good and total events, the named queries put into the formulas; with a bad-events formula the total is good + bad |
+| `monitor_ids` | the monitors (of the same organization) whose alerts count as downtime |
+| `sli_specification.time_slice` (`query`, `comparator`, `threshold`, `query_interval_seconds` 60 or 300) | time-slice SLO with 1- or 5-minute slices |
+| `thresholds` (`7d`, `30d`, `90d`), `timeframe`, `target_threshold`, `warning_threshold` | targets per window and the primary window (the first threshold's when `timeframe` is absent) |
+| `name`, `description`, `tags` | the same |
+
+Metric queries keep their `.as_count()`, which is how ObserveCraft's metric SLOs count events anyway; a query without
+an aggregator is averaged. Rejected with 400 and a message naming the field: `custom` timeframes, unknown types,
+data sources other than `metrics`, `.as_rate()`, a `target_threshold` or `warning_threshold` that doesn't match the
+primary threshold. Stored and returned but not acted on: `groups` of monitor SLOs (the SLO counts every group of its
+monitors). SLOs made in the UI with a 1-day target show only their 7d/30d/90d thresholds, since Datadog has no
+1-day timeframe. `force` on delete is accepted; nothing blocks deleting an SLO. Not available: SLO history,
+`can_delete` and bulk timeframe deletion (no Terraform resource uses them).
+
+The provider checks the monitors of a monitor SLO with `GET /api/v1/monitor/{id}`, which comes with
+`datadog_monitor`; until then set `validate = false` on monitor SLOs.
+
+The `datadog_service_level_objective(s)` data sources filter by `id`/`ids`, `name_query`, `tags_query` and
+`metrics_query` (`GET /api/v1/slo`) or by `query` (`GET /api/v1/slo/search`, words matching the name, description or
+tags, `key:value` matching a tag).
+
+## SLO corrections
+
+Corrections created through `/api/v1/slo/correction` are ObserveCraft SLO corrections: `slo_id`, `category`
+(`Scheduled Maintenance`, `Outside Business Hours`, `Deployment`, `Other`), `description`, and `start` / `end` in
+epoch seconds (at most 90 days). `timezone` is stored and returned. Updates (`PATCH`) replace the attributes sent;
+the SLO of a correction can't change. Rejected with 400: recurring corrections (`rrule`, `duration`) and corrections
+of the SLOs matching a query (`slo_query`), which ObserveCraft corrections can't express yet.
 
 ## How compatibility is tested
 

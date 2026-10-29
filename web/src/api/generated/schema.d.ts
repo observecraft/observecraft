@@ -5065,6 +5065,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/slo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List SLOs (Datadog-compatible), as the data sources filter them. */
+        get: operations["datadog_list_slos"];
+        put?: never;
+        /** Create an SLO (Datadog-compatible). */
+        post: operations["datadog_create_slo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/slo-corrections": {
         parameters: {
             query?: never;
@@ -5093,6 +5111,96 @@ export interface paths {
         put: operations["update_slo_correction"];
         post?: never;
         delete: operations["delete_slo_correction"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slo/correction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List SLO corrections, newest first (Datadog-compatible). */
+        get: operations["datadog_list_slo_corrections"];
+        put?: never;
+        /** Create an SLO correction (Datadog-compatible). */
+        post: operations["datadog_create_slo_correction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slo/correction/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an SLO correction (Datadog-compatible). */
+        get: operations["datadog_get_slo_correction"];
+        put?: never;
+        post?: never;
+        /** Delete an SLO correction (Datadog-compatible). */
+        delete: operations["datadog_delete_slo_correction"];
+        options?: never;
+        head?: never;
+        /** Update an SLO correction (Datadog-compatible): the attributes sent replace the stored ones; its SLO can't change. */
+        patch: operations["datadog_update_slo_correction"];
+        trace?: never;
+    };
+    "/api/v1/slo/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search SLOs (Datadog-compatible), as the `datadog_service_level_objectives` data source does with `query`. */
+        get: operations["datadog_search_slos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slo/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an SLO (Datadog-compatible). */
+        get: operations["datadog_get_slo"];
+        /** Replace an SLO (Datadog-compatible). Its type can't change, as in Datadog. */
+        put: operations["datadog_update_slo"];
+        post?: never;
+        /** Delete an SLO and its corrections (Datadog-compatible). */
+        delete: operations["datadog_delete_slo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slo/{id}/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The corrections that apply to an SLO: its own and the organization-wide ones (Datadog-compatible). */
+        get: operations["datadog_get_slo_corrections"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -7093,6 +7201,24 @@ export interface components {
         /** @description Answer of `GET /api/v2/validate_keys`: always `ok`. */
         DatadogKeysStatus: {
             status: string;
+        };
+        /** @description `{"data": correction}` or `{"data": [corrections], "meta": …}`. */
+        DatadogSloCorrectionResponse: {
+            data: unknown;
+            links?: unknown;
+            meta?: unknown;
+        };
+        /** @description `{"data": [SLO], "error": null}` (create, update, list) or `{"data": SLO, "error": null}` (get). */
+        DatadogSloResponse: {
+            data: unknown;
+            error?: string | null;
+            metadata?: unknown;
+        };
+        /** @description `{"data": {"type": "service_level_objective_search_results", "attributes": {"slos": […]}}, "meta": {"pagination": …}, "links": …}`. */
+        DatadogSloSearchResponse: {
+            data: unknown;
+            links: unknown;
+            meta: unknown;
         };
         /** @description A Datadog v2 user response: `data` (type `users`) and the user's organization in `included`. */
         DatadogUserResponse: {
@@ -24995,6 +25121,75 @@ export interface operations {
             };
         };
     };
+    datadog_list_slos: {
+        parameters: {
+            query?: {
+                /** @description Comma-separated SLO ids. */
+                ids?: string | null;
+                /** @description Part of the name. */
+                query?: string | null;
+                /** @description A tag the SLO has (`env:prod`). */
+                tags_query?: string | null;
+                /** @description Part of a metric SLO's numerator or denominator. */
+                metrics_query?: string | null;
+                limit?: number | null;
+                offset?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogSloResponse"];
+                };
+            };
+        };
+    };
+    datadog_create_slo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogSloResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
     list_slo_corrections: {
         parameters: {
             query?: {
@@ -25081,6 +25276,326 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    datadog_list_slo_corrections: {
+        parameters: {
+            query?: {
+                offset?: number | null;
+                /** @description Default 25, at most 1,000. */
+                limit?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogSloCorrectionResponse"];
+                };
+            };
+        };
+    };
+    datadog_create_slo_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogSloCorrectionResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_slo_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogSloCorrectionResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_slo_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_update_slo_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogSloCorrectionResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_search_slos: {
+        parameters: {
+            query?: {
+                /** @description Words match name, description and tags; `key:value` words match tags. */
+                query?: string | null;
+                "page[size]"?: number | null;
+                "page[number]"?: number | null;
+                /** @description Accepted; facets are not returned. */
+                include_facets?: boolean | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogSloSearchResponse"];
+                };
+            };
+        };
+    };
+    datadog_get_slo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogSloResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_update_slo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogSloResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_slo: {
+        parameters: {
+            query?: {
+                /** @description Accepted for compatibility: nothing here blocks deleting an SLO. */
+                force?: string | null;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogSloResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_slo_corrections: {
+        parameters: {
+            query?: {
+                "page[offset]"?: number | null;
+                /** @description Default 10, at most 1,000. */
+                "page[limit]"?: number | null;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogSloCorrectionResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
             };
         };
     };

@@ -13622,6 +13622,148 @@
         }
       }
     },
+    "/api/v1/slo": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "List SLOs (Datadog-compatible), as the data sources filter them.",
+        "operationId": "datadog_list_slos",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "description": "Comma-separated SLO ids.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Part of the name.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "tags_query",
+            "in": "query",
+            "description": "A tag the SLO has (`env:prod`).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "metrics_query",
+            "in": "query",
+            "description": "Part of a metric SLO's numerator or denominator.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogSloResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Create an SLO (Datadog-compatible).",
+        "operationId": "datadog_create_slo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogSloResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/slo-corrections": {
       "get": {
         "tags": [
@@ -13745,6 +13887,517 @@
         "responses": {
           "204": {
             "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/slo/correction": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "List SLO corrections, newest first (Datadog-compatible).",
+        "operationId": "datadog_list_slo_corrections",
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Default 25, at most 1,000.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogSloCorrectionResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Create an SLO correction (Datadog-compatible).",
+        "operationId": "datadog_create_slo_correction",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogSloCorrectionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/slo/correction/{id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Get an SLO correction (Datadog-compatible).",
+        "operationId": "datadog_get_slo_correction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogSloCorrectionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Delete an SLO correction (Datadog-compatible).",
+        "operationId": "datadog_delete_slo_correction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Update an SLO correction (Datadog-compatible): the attributes sent replace the stored ones; its SLO can't change.",
+        "operationId": "datadog_update_slo_correction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogSloCorrectionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/slo/search": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Search SLOs (Datadog-compatible), as the `datadog_service_level_objectives` data source does with `query`.",
+        "operationId": "datadog_search_slos",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Words match name, description and tags; `key:value` words match tags.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "page[size]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "page[number]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "include_facets",
+            "in": "query",
+            "description": "Accepted; facets are not returned.",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogSloSearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/slo/{id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Get an SLO (Datadog-compatible).",
+        "operationId": "datadog_get_slo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogSloResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Replace an SLO (Datadog-compatible). Its type can't change, as in Datadog.",
+        "operationId": "datadog_update_slo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogSloResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Delete an SLO and its corrections (Datadog-compatible).",
+        "operationId": "datadog_delete_slo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "description": "Accepted for compatibility: nothing here blocks deleting an SLO.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogSloResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/slo/{id}/corrections": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "The corrections that apply to an SLO: its own and the organization-wide ones (Datadog-compatible).",
+        "operationId": "datadog_get_slo_corrections",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page[offset]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "page[limit]",
+            "in": "query",
+            "description": "Default 10, at most 1,000.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogSloCorrectionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
           }
         }
       }
@@ -20476,6 +21129,49 @@
           "status": {
             "type": "string"
           }
+        }
+      },
+      "DatadogSloCorrectionResponse": {
+        "type": "object",
+        "description": "`{\"data\": correction}` or `{\"data\": [corrections], \"meta\": …}`.",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {},
+          "links": {},
+          "meta": {}
+        }
+      },
+      "DatadogSloResponse": {
+        "type": "object",
+        "description": "`{\"data\": [SLO], \"error\": null}` (create, update, list) or `{\"data\": SLO, \"error\": null}` (get).",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {},
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metadata": {}
+        }
+      },
+      "DatadogSloSearchResponse": {
+        "type": "object",
+        "description": "`{\"data\": {\"type\": \"service_level_objective_search_results\", \"attributes\": {\"slos\": […]}}, \"meta\": {\"pagination\": …}, \"links\": …}`.",
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "properties": {
+          "data": {},
+          "links": {},
+          "meta": {}
         }
       },
       "DatadogUserResponse": {

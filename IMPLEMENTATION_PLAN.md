@@ -83,7 +83,15 @@ Success criteria:
 - `/api/v1/slo` (metric and monitor SLOs, thresholds, timeframes), `/api/v1/slo/correction`.
 - Cassettes pass; tf-compat passes with no diff.
 
-Status: Not Started
+Status: Complete. `routes/datadog_api/slos.rs` (create, get, update, delete, list with the data sources' filters,
+search) and `slo_corrections.rs` (CRUD, list, an SLO's corrections) onto the `slos` and `slo_corrections` tables;
+documents stored as received in `datadog_slo_documents` / `datadog_slo_correction_documents` (Postgres 0051) and
+reconciled with UI edits on read. Metric (query or `sli_specification.count`), monitor and time-slice SLOs; `custom`
+timeframes, recurring (`rrule`) and query-based (`slo_query`) corrections rejected with 400. Cassettes: 14 SLO
+scenarios replayed (history left out), 5 correction scenarios replayed, the rrule and slo_query ones checked to be
+rejected. tf-compat fixtures `service_level_objective` (metric 7d+30d, count, monitor, time-slice SLOs and both data
+sources; the monitor comes from a fixture `setup.sh` through our API, `validate = false` until `datadog_monitor`)
+and `slo_correction`, both with update overlays.
 
 ## Stage 6: Synthetics, logs configuration, metric metadata, span metrics, notification integrations
 

@@ -17,6 +17,8 @@
 //! Errors are Datadog's `{"errors": ["…"]}` with Datadog's status codes ([`DdError`]).
 
 pub mod current_user;
+pub mod slo_corrections;
+pub mod slos;
 pub mod validate;
 
 #[cfg(test)]
@@ -45,7 +47,12 @@ const INGEST_KEY_PREFIX: &str = "ocik_";
 /// The Datadog-compatible routes. They authenticate themselves ([`DdAuth`]), so they are merged
 /// outside the session middleware.
 pub fn router() -> Router<AppState> {
-    Router::new().route("/api/v1/validate", get(validate::validate)).route("/api/v2/validate_keys", get(validate::validate_keys)).route("/api/v2/current_user", get(current_user::current_user))
+    Router::new()
+        .route("/api/v1/validate", get(validate::validate))
+        .route("/api/v2/validate_keys", get(validate::validate_keys))
+        .route("/api/v2/current_user", get(current_user::current_user))
+        .merge(slos::router())
+        .merge(slo_corrections::router())
 }
 
 // ================================================================ errors

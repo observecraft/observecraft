@@ -6,6 +6,10 @@
 # provider authenticates (api_key + app_key, and bearer_token), it runs:
 #   init → apply → plan (must show no changes) → [apply + plan of the update/ overlay] → destroy
 #
+# A fixture may have a setup.sh, run with the run's working directory before init (it can create
+# what the fixture needs through our own API and write *.auto.tfvars there; TF_VAR_oc_api_url and
+# TF_VAR_oc_app_key are set), and a teardown.sh, run with the same directory after destroy.
+#
 # Usage:
 #   scripts/tf-compat/run.sh [--local] [fixture ...]
 #
@@ -46,7 +50,7 @@ fixtures=()
 for arg in "$@"; do
   case "$arg" in
     --local) local_server=true ;;
-    -h | --help) sed -n '2,25p' "$0"; exit 0 ;;
+    -h | --help) sed -n '2,29p' "$0"; exit 0 ;;
     *) fixtures+=("$arg") ;;
   esac
 done
@@ -190,6 +194,7 @@ run_fixture() {
   provider_tf "$auth" >"$dir/provider.tf"
   cd "$dir"
   log "$fixture ($auth)"
+  if [ -f "$here/fixtures/$fixture/setup.sh" ]; then step setup bash "$here/fixtures/$fixture/setup.sh" "$dir" || return 1; fi
   step init "$tofu" init -input=false -no-color || return 1
   step apply "$tofu" apply -auto-approve -input=false -no-color || return 1
   step "plan shows no changes" "$tofu" plan -detailed-exitcode -input=false -no-color || return 1
@@ -199,6 +204,11 @@ run_fixture() {
     step "plan after update shows no changes" "$tofu" plan -detailed-exitcode -input=false -no-color || return 1
   fi
   step destroy "$tofu" destroy -auto-approve -input=false -no-color || return 1
+  teardown_fixture "$fixture"
+}
+
+teardown_fixture() {
+  if [ -f "$here/fixtures/$1/teardown.sh" ]; then step teardown bash "$here/fixtures/$1/teardown.sh" "$dir"; fi
 }
 
 # The provider must refuse to start with a wrong application key (validation really happens).
@@ -245,6 +255,7 @@ for fixture in "${fixtures[@]}"; do
       log "FAILED: $fixture ($auth), see $work/$fixture-$auth/run.log:"
       tail -n 30 "$work/$fixture-$auth/run.log" >&2 || true
       (cd "$work/$fixture-$auth" && "$tofu" destroy -auto-approve -input=false -no-color >>run.log 2>&1) || true
+      (dir="$work/$fixture-$auth" && teardown_fixture "$fixture") || true
     fi
   done
 done
