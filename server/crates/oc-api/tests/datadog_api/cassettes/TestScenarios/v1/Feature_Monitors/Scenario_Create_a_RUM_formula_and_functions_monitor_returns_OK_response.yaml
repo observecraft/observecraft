@@ -1,0 +1,46 @@
+interactions:
+- request:
+    body: |
+      {"message":"some message Notify: @hipchat-channel","name":"Test-Create_a_RUM_formula_and_functions_monitor_returns_OK_response-1747261633","options":{"thresholds":{"critical":0.8},"variables":[{"compute":{"aggregation":"count"},"data_source":"rum","group_by":[],"indexes":["*"],"name":"query2","search":{"query":""}},{"compute":{"aggregation":"count"},"data_source":"rum","group_by":[],"indexes":["*"],"name":"query1","search":{"query":"status:error"}}]},"priority":3,"query":"formula(\"query2 / query1 * 100\").last(\"15m\") \u003e= 0.8","tags":["test:testcreatearumformulaandfunctionsmonitorreturnsokresponse1747261633","env:ci"],"type":"rum alert"}
+    form: {}
+    headers:
+      Accept:
+      - application/json
+      Content-Type:
+      - application/json
+    id: 0
+    method: POST
+    url: https://api.datadoghq.com/api/v1/monitor
+  response:
+    body: '{"id":172140181,"org_id":2,"type":"rum alert","name":"Test-Create_a_RUM_formula_and_functions_monitor_returns_OK_response-1747261633","message":"some
+      message Notify: @hipchat-channel","tags":["test:testcreatearumformulaandfunctionsmonitorreturnsokresponse1747261633","env:ci"],"query":"formula(\"query2
+      / query1 * 100\").last(\"15m\") >= 0.8","options":{"thresholds":{"critical":0.8},"variables":[{"compute":{"aggregation":"count"},"data_source":"rum","group_by":[],"indexes":["*"],"name":"query2","search":{"query":""}},{"compute":{"aggregation":"count"},"data_source":"rum","group_by":[],"indexes":["*"],"name":"query1","search":{"query":"status:error"}}],"notify_no_data":false,"notify_audit":false,"new_host_delay":300,"include_tags":true,"groupby_simple_monitor":false,"silenced":{},"avalanche_window":20},"multi":false,"created_at":1747261634000,"created":"2025-05-14T22:27:14.329045+00:00","modified":"2025-05-14T22:27:14.329045+00:00","deleted":null,"priority":3,"draft_status":"published","restricted_roles":null,"restriction_policy":null,"overall_state_modified":null,"overall_state":"No
+      Data","creator":{"name":"Example User","handle":"user3@example.com","email":"user3@example.com","id":638339},"run_as":null,"restricted":true}
+
+      '
+    code: 200
+    duration: 0ms
+    headers:
+      Content-Type:
+      - application/json
+    status: 200 OK
+- request:
+    body: ''
+    form: {}
+    headers:
+      Accept:
+      - application/json
+    id: 1
+    method: DELETE
+    url: https://api.datadoghq.com/api/v1/monitor/172140181
+  response:
+    body: '{"deleted_monitor_id":172140181}
+
+      '
+    code: 200
+    duration: 0ms
+    headers:
+      Content-Type:
+      - application/json
+    status: 200 OK
+version: 2

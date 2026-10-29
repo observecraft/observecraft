@@ -67,6 +67,11 @@ or SDK features.
   - feature flag evaluation over OpenFeature's OFREP (`/ofrep/v1/evaluate/flags[/{key}]`, `oc-intake/src/ofrep.rs`,
     model in `oc-flags`), for any OpenFeature SDK with the OFREP provider; also takes the key as `X-API-Key`;
   - `/api/v1/validate`. The API key is also accepted as `?api_key=`.
+- **Management API (server, `server/crates/oc-api/src/routes/datadog_api`):** Datadog's configuration endpoints for
+  its Terraform provider and API clients (ADR-0003, `docs/datadog-api.md`), with Datadog's `{"errors": [...]}` shape
+  and key headers (`DD-APPLICATION-KEY` / Bearer `ocak_…`, `DD-API-KEY` = ingest key). Contract fixtures from
+  `datadog-api-client-go` are in `oc-api/tests/datadog_api/` (replayed by `datadog_api::replay`); `make tf-compat`
+  runs the real provider. Add a cassette replay test and a `scripts/tf-compat/fixtures/<resource>/` per resource.
 - **Deployment:** use the official Datadog Helm chart and Datadog Operator unchanged; examples are in
   `deploy/examples/datadog`.
 - **No agent or SDK of our own:** senders are Datadog's agents and libraries, or OpenTelemetry. The

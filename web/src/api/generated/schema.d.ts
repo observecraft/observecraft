@@ -5747,6 +5747,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Datadog-compatible API key check (`DD-API-KEY: ocik_…`). */
+        get: operations["datadog_validate_api_key"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/watchdog/alerts": {
         parameters: {
             query?: never;
@@ -5908,6 +5925,40 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["unpublish_workflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/current_user": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The authenticated application key's user (Datadog-compatible). */
+        get: operations["datadog_current_user"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/validate_keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Datadog-compatible check of the application key (and the API key, when sent). */
+        get: operations["datadog_validate_keys"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7030,6 +7081,23 @@ export interface components {
             statement: string;
             /** Format: double */
             timeShare: number;
+        };
+        /** @description Datadog's error body. */
+        DatadogErrors: {
+            errors: string[];
+        };
+        /** @description Answer of `GET /api/v1/validate`. */
+        DatadogKeyValidation: {
+            valid: boolean;
+        };
+        /** @description Answer of `GET /api/v2/validate_keys`: always `ok`. */
+        DatadogKeysStatus: {
+            status: string;
+        };
+        /** @description A Datadog v2 user response: `data` (type `users`) and the user's organization in `included`. */
+        DatadogUserResponse: {
+            data: unknown;
+            included: unknown[];
         };
         /** @enum {string} */
         DbEngine: "postgres" | "mysql" | "redis" | "mongodb" | "sqlserver";
@@ -26554,6 +26622,36 @@ export interface operations {
             };
         };
     };
+    datadog_validate_api_key: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Ingest key (ocik_…) */
+                "DD-API-KEY"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogKeyValidation"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
     watchdog_alerts: {
         parameters: {
             query?: never;
@@ -26990,6 +27088,63 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    datadog_current_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogUserResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_validate_keys: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Application key (ocak_…); or send it as Authorization: Bearer */
+                "DD-APPLICATION-KEY"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogKeysStatus"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
                 };
             };
         };

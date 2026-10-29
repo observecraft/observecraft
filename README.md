@@ -189,6 +189,10 @@ an OpenTelemetry-only setup, the `observecraft-agent` Helm chart (the official O
 OpenTelemetry, Fluent Bit, Fluentd, Vector,
 Logstash, Filebeat, Prometheus and syslog.
 
+Configuration can be managed as code with **Datadog's Terraform provider** and API clients pointed at the server
+(`api_url`, an application key `ocak_…`, optionally an API key `ocik_…`); support grows resource by resource, see
+**[docs/datadog-api.md](docs/datadog-api.md)**.
+
 Logs written inside a trace (OTLP logs carry `trace_id`/`span_id`) link to it both ways: the span's **Logs** tab and the
 log's **Trace** tab.
 

@@ -1,7 +1,7 @@
 # ObserveCraft monorepo tasks.
 COMPOSE := docker compose -f deploy/docker-compose.yml
 
-.PHONY: up down cluster-up cluster-down logs ps server intake tracegen load-orgs load storage-report web web-mock test openapi build images charts clean-data
+.PHONY: up down cluster-up cluster-down logs ps server intake tracegen load-orgs load storage-report web web-mock test openapi tf-compat build images charts clean-data
 
 up:            ## Start storage, cache, pipeline and synthetic load (logs are indexed by `make server` on the host)
 	OC_LOGPROC_URL=http://host.docker.internal:8090/ingest/logs $(COMPOSE) up -d
@@ -51,6 +51,11 @@ test:          ## Rust tests, web typecheck, integration dashboard tests
 openapi:       ## Regenerate web/src/api/generated/* from the Rust API definition
 	cd server && cargo run -q --bin observecraft-server -- openapi > ../web/src/api/generated/openapi.json
 	cd web && npx openapi-typescript src/api/generated/openapi.json -o src/api/generated/schema.d.ts
+
+# Datadog's Terraform provider (OpenTofu) against the Datadog-compatible API (docs/datadog-api.md):
+# OC_TF_API_URL + OC_TF_APP_KEY [+ OC_TF_API_KEY], or TF_COMPAT_ARGS=--local to start a server.
+tf-compat:     ## Datadog Terraform provider apply → no-diff plan → destroy per fixture (scripts/tf-compat)
+	scripts/tf-compat/run.sh $(TF_COMPAT_ARGS)
 
 build:         ## Production builds
 	cd server && cargo build --release

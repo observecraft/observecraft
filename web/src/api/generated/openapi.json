@@ -15822,6 +15822,51 @@
         }
       }
     },
+    "/api/v1/validate": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Datadog-compatible API key check (`DD-API-KEY: ocik_…`).",
+        "operationId": "datadog_validate_api_key",
+        "parameters": [
+          {
+            "name": "DD-API-KEY",
+            "in": "header",
+            "description": "Ingest key (ocik_…)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogKeyValidation"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/watchdog/alerts": {
       "get": {
         "tags": [
@@ -16429,6 +16474,82 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/current_user": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "The authenticated application key's user (Datadog-compatible).",
+        "operationId": "datadog_current_user",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogUserResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/validate_keys": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Datadog-compatible check of the application key (and the API key, when sent).",
+        "operationId": "datadog_validate_keys",
+        "parameters": [
+          {
+            "name": "DD-APPLICATION-KEY",
+            "in": "header",
+            "description": "Application key (ocak_…); or send it as Authorization: Bearer",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogKeysStatus"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
                 }
               }
             }
@@ -20315,6 +20436,60 @@
           "timeShare": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "DatadogErrors": {
+        "type": "object",
+        "description": "Datadog's error body.",
+        "required": [
+          "errors"
+        ],
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DatadogKeyValidation": {
+        "type": "object",
+        "description": "Answer of `GET /api/v1/validate`.",
+        "required": [
+          "valid"
+        ],
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DatadogKeysStatus": {
+        "type": "object",
+        "description": "Answer of `GET /api/v2/validate_keys`: always `ok`.",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "DatadogUserResponse": {
+        "type": "object",
+        "description": "A Datadog v2 user response: `data` (type `users`) and the user's organization in `included`.",
+        "required": [
+          "data",
+          "included"
+        ],
+        "properties": {
+          "data": {},
+          "included": {
+            "type": "array",
+            "items": {}
           }
         }
       },
@@ -45868,6 +46043,10 @@
     {
       "name": "auth",
       "description": "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"
+    },
+    {
+      "name": "datadog-api",
+      "description": "Datadog-compatible management API for Datadog's Terraform provider and API clients: DD-API-KEY / DD-APPLICATION-KEY headers, Datadog's paths and error shape"
     },
     {
       "name": "health"

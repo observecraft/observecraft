@@ -1,0 +1,39 @@
+interactions:
+- request:
+    body: |
+      {"layout_type":"ordered","title":"Test-Create_a_new_dashboard_with_a_formulas_and_functions_treemap_widget-1772451071","widgets":[{"definition":{"requests":[{"formulas":[{"formula":"hour_before(query1)"},{"formula":"query1"}],"queries":[{"compute":{"aggregation":"count"},"data_source":"logs","indexes":["*"],"name":"query1","search":{"query":""}}],"response_format":"scalar"}],"title":"","type":"treemap"},"layout":{"height":4,"width":4,"x":0,"y":0}}]}
+    form: {}
+    headers:
+      Accept:
+      - application/json
+      Content-Type:
+      - application/json
+    id: 0
+    method: POST
+    url: https://api.datadoghq.com/api/v1/dashboard
+  response:
+    body: '{"id":"ci5-4gc-khj","title":"Test-Create_a_new_dashboard_with_a_formulas_and_functions_treemap_widget-1772451071","description":null,"author_handle":"user1@example.com","author_name":"Example User","layout_type":"ordered","url":"/dashboard/ci5-4gc-khj/test-createanewdashboardwithaformulasandfunctionstreemapwidget-1772451071","template_variables":null,"widgets":[{"definition":{"requests":[{"formulas":[{"formula":"hour_before(query1)"},{"formula":"query1"}],"queries":[{"compute":{"aggregation":"count"},"data_source":"logs","indexes":["*"],"name":"query1","search":{"query":""}}],"response_format":"scalar"}],"title":"","type":"treemap"},"layout":{"height":4,"width":4,"x":0,"y":0},"id":3482978988980758}],"notify_list":null,"created_at":"2026-03-02T11:31:12.018143+00:00","modified_at":"2026-03-02T11:31:12.018143+00:00","restricted_roles":[]}'
+    code: 200
+    duration: 0ms
+    headers:
+      Content-Type:
+      - application/json
+    status: 200 OK
+- request:
+    body: ''
+    form: {}
+    headers:
+      Accept:
+      - application/json
+    id: 1
+    method: DELETE
+    url: https://api.datadoghq.com/api/v1/dashboard/ci5-4gc-khj
+  response:
+    body: '{"deleted_dashboard_id":"ci5-4gc-khj"}'
+    code: 200
+    duration: 0ms
+    headers:
+      Content-Type:
+      - application/json
+    status: 200 OK
+version: 2

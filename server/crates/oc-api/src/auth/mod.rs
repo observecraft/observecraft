@@ -200,6 +200,25 @@ impl Principal {
     }
 }
 
+/// The user an application key acts as (active key, user and org), or None.
+pub async fn app_key_context(st: &AppState, key: &str, ip: Option<String>) -> Result<Option<AuthContext>, ApiError> {
+    let hash = crypto::sha256(key.trim());
+    let p: Option<Principal> = sqlx::query_as(&format!(
+        "{PRINCIPAL_SELECT}, false AS mfa_pending, (k.last_used_at IS NULL OR k.last_used_at < now() - interval '1 minute') AS stale \
+         FROM app_keys k JOIN users u ON u.id = k.user_id {PRINCIPAL_JOIN} WHERE k.key_hash = $1 AND k.revoked_at IS NULL"
+    ))
+    .bind(&hash)
+    .fetch_optional(&st.postgres)
+    .await?;
+    let Some(p) = p.filter(|p| p.status == "active" && p.org_active) else {
+        return Ok(None);
+    };
+    if p.stale {
+        sqlx::query("UPDATE app_keys SET last_used_at = now() WHERE key_hash = $1").bind(&hash).execute(&st.postgres).await?;
+    }
+    Ok(Some(p.context(Credential::AppKey, None, ip)))
+}
+
 /// Resolves the request's credential (if any) to an [`AuthContext`].
 pub async fn authenticate(
     st: &AppState,
@@ -212,26 +231,10 @@ pub async fn authenticate(
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
     {
-        let hash = crypto::sha256(key.trim());
-        let p: Option<Principal> = sqlx::query_as(&format!(
-            "{PRINCIPAL_SELECT}, false AS mfa_pending, (k.last_used_at IS NULL OR k.last_used_at < now() - interval '1 minute') AS stale \
-             FROM app_keys k JOIN users u ON u.id = k.user_id {PRINCIPAL_JOIN} WHERE k.key_hash = $1 AND k.revoked_at IS NULL"
-        ))
-        .bind(&hash)
-        .fetch_optional(&st.postgres)
-        .await?;
-        let Some(p) = p.filter(|p| p.status == "active" && p.org_active) else {
-            return Err(ApiError::Unauthorized(
-                "invalid or revoked application key".into(),
-            ));
+        return match app_key_context(st, key, ip).await? {
+            Some(ctx) => Ok(Some(ctx)),
+            None => Err(ApiError::Unauthorized("invalid or revoked application key".into())),
         };
-        if p.stale {
-            sqlx::query("UPDATE app_keys SET last_used_at = now() WHERE key_hash = $1")
-                .bind(&hash)
-                .execute(&st.postgres)
-                .await?;
-        }
-        return Ok(Some(p.context(Credential::AppKey, None, ip)));
     }
     let Some(token) = cookie(headers, SESSION_COOKIE) else {
         return Ok(None);

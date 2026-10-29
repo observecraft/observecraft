@@ -1,0 +1,46 @@
+interactions:
+- request:
+    body: |
+      {"message":"some message Notify: @hipchat-channel","name":"Test-Create_a_metric_monitor_returns_OK_response-1673258836","options":{"scheduling_options":{"evaluation_window":{"day_starts":"04:00","month_starts":1}},"thresholds":{"critical":0.5}},"query":"avg(current_1mo):avg:system.load.5{*} \u003e 0.5","type":"metric alert"}
+    form: {}
+    headers:
+      Accept:
+      - application/json
+      Content-Type:
+      - application/json
+    id: 0
+    method: POST
+    url: https://api.datadoghq.com/api/v1/monitor
+  response:
+    body: '{"id":107235710,"org_id":321813,"type":"query alert","name":"Test-Create_a_metric_monitor_returns_OK_response-1673258836","message":"some
+      message Notify: @hipchat-channel","tags":[],"query":"avg(current_1mo):avg:system.load.5{*}
+      > 0.5","options":{"scheduling_options":{"evaluation_window":{"day_starts":"04:00","month_starts":1}},"thresholds":{"critical":0.5},"notify_no_data":false,"notify_audit":false,"new_host_delay":300,"include_tags":true,"silenced":{}},"multi":false,"created_at":1673258836000,"created":"2023-01-09T10:07:16.513455+00:00","modified":"2023-01-09T10:07:16.513455+00:00","deleted":null,"restricted_roles":null,"priority":null,"overall_state_modified":null,"overall_state":"No
+      Data","creator":{"name":null,"handle":"user5@example.com","email":"user5@example.com","id":1445416}}
+
+      '
+    code: 200
+    duration: 0ms
+    headers:
+      Content-Type:
+      - application/json
+    status: 200 OK
+- request:
+    body: ''
+    form: {}
+    headers:
+      Accept:
+      - application/json
+    id: 1
+    method: DELETE
+    url: https://api.datadoghq.com/api/v1/monitor/107235710
+  response:
+    body: '{"deleted_monitor_id":107235710}
+
+      '
+    code: 200
+    duration: 0ms
+    headers:
+      Content-Type:
+      - application/json
+    status: 200 OK
+version: 2

@@ -21,7 +21,12 @@ Success criteria:
 - `make tf-compat`: OpenTofu + `DataDog/datadog` pinned, local server, a per-resource fixture directory, no-diff
   check after apply.
 
-Status: Not Started
+Status: Complete. `routes/datadog_api/` (errors, `DdAuth`, `validate.rs`, `current_user.rs`, the `replay.rs` test
+helper), compat routes merged outside the session middleware (`routes::app`); fixtures from `datadog-api-client-go`
+in `server/crates/oc-api/tests/datadog_api/` (Wave 1 features and cassettes; authentication replayed);
+`scripts/tf-compat/run.sh` (OpenTofu 1.13.2, provider 4.27.0) with the `provider` fixture, which needs
+`GET /api/v2/current_user` (`datadog_current_user`) because OpenTofu configures a provider only when a resource or
+data source uses it; CI job `tf-compat`; docs in `docs/datadog-api.md`.
 
 ## Stage 2: Monitors and downtimes
 

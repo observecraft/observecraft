@@ -26,6 +26,7 @@ jobs:
       licenses: ${{ steps.f.outputs.licenses }}
       configs: ${{ steps.f.outputs.configs }}
       charts: ${{ steps.f.outputs.charts }}
+      tf_compat: ${{ steps.f.outputs.tf_compat }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -65,6 +66,12 @@ jobs:
               - server/**
               - web/**
               - .dockerignore
+            tf_compat:
+              - *ci
+              - server/crates/oc-api/src/routes/datadog_api/**
+              - server/crates/oc-api/src/auth/**
+              - server/crates/oc-api/tests/datadog_api/**
+              - scripts/tf-compat/**
 
   server:
     services:
@@ -96,6 +103,55 @@ jobs:
       - name: OpenAPI document is up to date (run `make openapi`)
         run: cargo run --locked -q --bin observecraft-server -- openapi > ../web/src/api/generated/openapi.json && git diff --exit-code
         working-directory: server
+
+  # The Datadog-compatible management API (docs/adr/0003): Datadog's recorded API scenarios replayed
+  # against the server, then Datadog's Terraform provider run by OpenTofu against a local server.
+  tf-compat:
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:26.8
+        env:
+          CLICKHOUSE_SKIP_USER_SETUP: "1"
+        ports: [8123:8123]
+        options: >-
+          --health-cmd "clickhouse-client --query 'SELECT 1'"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: observecraft
+          POSTGRES_PASSWORD: observecraft
+          POSTGRES_DB: observecraft
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U observecraft"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      valkey:
+        image: valkey/valkey:8.1.11-alpine
+        ports: [6379:6379]
+    env:
+      OC_TEST_CLICKHOUSE_URL: http://localhost:8123
+      OC_TEST_POSTGRES_URL: postgres://observecraft:observecraft@localhost:5432/observecraft
+      OC_CLICKHOUSE_URL: http://localhost:8123
+      OC_CLICKHOUSE_USER: default
+      OC_CLICKHOUSE_PASSWORD: ""
+      OC_POSTGRES_URL: postgres://observecraft:observecraft@localhost:5432/observecraft
+      OC_CACHE_URL: redis://localhost:6379/0
+    needs: changes
+    if: needs.changes.outputs.tf_compat == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libclang-dev libxml2-dev libxmlsec1-dev postgresql-client
+      - uses: dtolnay/rust-toolchain@599c45df1a24c1c63ae1129a7e59f46654b8fb66 # 1.89.0
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with: { workspaces: server }
+      - name: Datadog API contract fixtures
+        run: cargo test --locked -p oc-api datadog_api
+        working-directory: server
+      - name: Datadog Terraform provider against a local server
+        run: make tf-compat TF_COMPAT_ARGS=--local
 
   # Dependencies must be permissive (ObserveCraft is MIT): server/deny.toml, and the allowlist below for the web app.
   licenses:
@@ -205,7 +261,7 @@ jobs:
 
   ci-ok:
     if: always()
-    needs: [changes, server, licenses, web, pipeline-configs, charts, workflows]
+    needs: [changes, server, tf-compat, licenses, web, pipeline-configs, charts, workflows]
     runs-on: ubuntu-24.04
     steps:
       - name: Every job that ran passed

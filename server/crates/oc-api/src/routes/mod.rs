@@ -13,6 +13,7 @@ pub mod deployment_gates;
 pub mod data_jobs;
 pub mod data_streams;
 pub mod databases;
+pub mod datadog_api;
 pub mod downtimes;
 pub mod error_tracking;
 pub mod event_correlation;
@@ -101,6 +102,9 @@ use crate::state::AppState;
     paths(
         health::healthz,
         health::readyz,
+        datadog_api::validate::validate,
+        datadog_api::validate::validate_keys,
+        datadog_api::current_user::current_user,
         logs::search,
         logs::histogram,
         logs::facets,
@@ -603,10 +607,17 @@ use crate::state::AppState;
         (name = "portal", description = "Developer Portal: home (connectors, identities, pull requests, tickets, entities, apps), the Software Catalog (telemetry and entity definitions v3), reports, settings, surveys and self-service actions"),
         (name = "automation", description = "Workflow Automation (workflows, triggers, runs) and App Builder"),
         (name = "auth", description = "Sign-in (password, MFA, SAML, OIDC), sessions, application keys and login methods"),
+        (name = "datadog-api", description = "Datadog-compatible management API for Datadog's Terraform provider and API clients: DD-API-KEY / DD-APPLICATION-KEY headers, Datadog's paths and error shape"),
         (name = "health")
     )
 )]
 pub struct ApiDoc;
+
+/// Every route: the API behind the session / application-key middleware, and the Datadog-compatible
+/// routes, which authenticate with Datadog's key headers themselves ([`datadog_api`]).
+pub fn app(state: AppState) -> Router<AppState> {
+    router().layer(axum::middleware::from_fn_with_state(state, crate::auth::require)).merge(datadog_api::router())
+}
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -1293,6 +1304,9 @@ mod tests {
             include_str!("serverless.rs"),
             include_str!("sql_editor.rs"),
             include_str!("databases.rs"),
+            include_str!("datadog_api/mod.rs"),
+            include_str!("datadog_api/validate.rs"),
+            include_str!("datadog_api/current_user.rs"),
             include_str!("data_jobs.rs"),
             include_str!("data_streams.rs"),
             include_str!("kafka_console.rs"),
@@ -1522,6 +1536,10 @@ mod tests {
             ("serverless.rs", include_str!("serverless.rs")),
             ("sql_editor.rs", include_str!("sql_editor.rs")),
             ("databases.rs", include_str!("databases.rs")),
+            ("datadog_api/mod.rs", include_str!("datadog_api/mod.rs")),
+            ("datadog_api/validate.rs", include_str!("datadog_api/validate.rs")),
+            ("datadog_api/current_user.rs", include_str!("datadog_api/current_user.rs")),
+            ("datadog_api/replay.rs", include_str!("datadog_api/replay.rs")),
             ("data_jobs.rs", include_str!("data_jobs.rs")),
             ("data_streams.rs", include_str!("data_streams.rs")),
             ("kafka_console.rs", include_str!("kafka_console.rs")),

@@ -1,0 +1,44 @@
+interactions:
+- request:
+    body: |
+      {"layout_type":"ordered","title":"Test-Create_a_distribution_widget_using_a_histogram_request_containing_a_formulas_and_functions_metrics_q-1731699147","widgets":[{"definition":{"custom_links":[{"label":"Example","link":"https://example.org/"}],"requests":[{"query":{"data_source":"metrics","name":"query1","query":"histogram:trace.Load{*}"},"request_type":"histogram","style":{"palette":"dog_classic"}}],"show_legend":false,"title":"Metrics HOP","title_align":"left","title_size":"16","type":"distribution","xaxis":{"include_zero":true,"max":"auto","min":"auto","scale":"linear"},"yaxis":{"include_zero":true,"max":"auto","min":"auto","scale":"linear"}},"layout":{"height":2,"width":4,"x":0,"y":0}}]}
+    form: {}
+    headers:
+      Accept:
+      - application/json
+      Content-Type:
+      - application/json
+    id: 0
+    method: POST
+    url: https://api.datadoghq.com/api/v1/dashboard
+  response:
+    body: '{"id":"ydy-5hn-vib","title":"Test-Create_a_distribution_widget_using_a_histogram_request_containing_a_formulas_and_functions_metrics_q-1731699147","description":null,"author_handle":"user5@example.com","author_name":null,"layout_type":"ordered","url":"/dashboard/ydy-5hn-vib/test-createadistributionwidgetusingahistogramrequestcontainingaformulasandfuncti","is_read_only":false,"template_variables":null,"widgets":[{"definition":{"custom_links":[{"label":"Example","link":"https://example.org/"}],"requests":[{"query":{"data_source":"metrics","name":"query1","query":"histogram:trace.Load{*}"},"request_type":"histogram","style":{"palette":"dog_classic"}}],"show_legend":false,"title":"Metrics
+      HOP","title_align":"left","title_size":"16","type":"distribution","xaxis":{"include_zero":true,"max":"auto","min":"auto","scale":"linear"},"yaxis":{"include_zero":true,"max":"auto","min":"auto","scale":"linear"}},"layout":{"height":2,"width":4,"x":0,"y":0},"id":4914950205969851}],"notify_list":null,"created_at":"2024-11-15T19:32:28.073069+00:00","modified_at":"2024-11-15T19:32:28.073069+00:00","restricted_roles":[]}
+
+      '
+    code: 200
+    duration: 0ms
+    headers:
+      Content-Type:
+      - application/json
+    status: 200 OK
+- request:
+    body: ''
+    form: {}
+    headers:
+      Accept:
+      - application/json
+    id: 1
+    method: DELETE
+    url: https://api.datadoghq.com/api/v1/dashboard/ydy-5hn-vib
+  response:
+    body: '{"deleted_dashboard_id":"ydy-5hn-vib"}
+
+      '
+    code: 200
+    duration: 0ms
+    headers:
+      Content-Type:
+      - application/json
+    status: 200 OK
+version: 2
