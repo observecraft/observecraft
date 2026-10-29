@@ -70,7 +70,8 @@ or SDK features.
 - **Management API (server, `server/crates/oc-api/src/routes/datadog_api`):** Datadog's configuration endpoints for
   its Terraform provider and API clients (ADR-0003, `docs/datadog-api.md`), with Datadog's `{"errors": [...]}` shape
   and key headers (`DD-APPLICATION-KEY` / Bearer `ocak_…`, `DD-API-KEY` = ingest key). Contract fixtures from
-  `datadog-api-client-go` are in `oc-api/tests/datadog_api/` (replayed by `datadog_api::replay`); `make tf-compat`
+  `datadog-api-client-go` are downloaded at test time by `make datadog-fixtures`, never vendored (replayed by
+  `datadog_api::replay`; `oc-api/tests/datadog_api/README.md`); `make tf-compat`
   runs the real provider. Add a cassette replay test and a `scripts/tf-compat/fixtures/<resource>/` per resource.
 - **Deployment:** use the official Datadog Helm chart and Datadog Operator unchanged; examples are in
   `deploy/examples/datadog`.

@@ -17,13 +17,14 @@ Success criteria:
 - `routes/datadog_api/` with Datadog's error shape and auth: `DD-APPLICATION-KEY` / `Authorization: Bearer` with an
   `ocak_` key act as its user; `DD-API-KEY` alone only passes `/api/v1/validate`.
 - `GET /api/v1/validate` and `GET /api/v2/validate_keys` on the server, as the provider calls them.
-- Vendored cassettes (subset, with LICENSE/NOTICE) and a replay test helper.
+- Datadog's cassettes (the subset we support, fetched at test time) and a replay test helper.
 - `make tf-compat`: OpenTofu + `DataDog/datadog` pinned, local server, a per-resource fixture directory, no-diff
   check after apply.
 
 Status: Complete. `routes/datadog_api/` (errors, `DdAuth`, `validate.rs`, `current_user.rs`, the `replay.rs` test
 helper), compat routes merged outside the session middleware (`routes::app`); fixtures from `datadog-api-client-go`
-in `server/crates/oc-api/tests/datadog_api/` (Wave 1 features and cassettes; authentication replayed);
+(Wave 1 features and cassettes; authentication replayed), since downloaded at test time by `make datadog-fixtures`
+instead of vendored;
 `scripts/tf-compat/run.sh` (OpenTofu 1.13.2, provider 4.27.0) with the `provider` fixture, which needs
 `GET /api/v2/current_user` (`datadog_current_user`) because OpenTofu configures a provider only when a resource or
 data source uses it; CI job `tf-compat`; docs in `docs/datadog-api.md`.
@@ -75,7 +76,7 @@ email), `/api/v2/roles` (+ `/permissions`, `/users`, `/clone`), `/api/v2/permiss
 names per access level, UUIDv8 ids from the name; custom roles store theirs in `role_permissions`, migration 0049;
 access still from the built-in roles), `/api/v2/team` (+ `/memberships`; stable `teams.id`, handle immutable, links
 listed as none and rejected), `/api/v2/api_keys` (ingest keys), `/api/v2/current_user/application_keys` and
-`/api/v2/application_keys` (secrets on create only; scopes and remote config rejected). Cassettes vendored and replayed
+`/api/v2/application_keys` (secrets on create only; scopes and remote config rejected). Cassettes replayed
 for Users, Roles, Teams (teams and memberships) and Key Management (no personal access tokens); tf-compat fixtures
 `role`, `user`, `team`, `api_key`, `application_key` with update overlays. Docs: resources and permission mapping in
 `docs/datadog-api.md`.
@@ -98,7 +99,7 @@ the integration-dashboard importer does, and our widgets back to Datadog's), `da
 items). Migration `0050_datadog_dashboards.sql`: `dashboards.datadog_document` (the document as written; UI edits
 are folded back in on read) and integer ids, author and timestamps for `dashboard_lists`. Cassettes: 42 dashboard
 scenarios replayed as recorded, 15 about the dashboard itself replayed with their fixture widget (a
-`profile_metrics_query` timeseries or a `hostmap`) replaced, 62 refused with the widget's path as expected; all 14
+`profile_metrics_query` timeseries or a `hostmap`) replaced, 63 refused with the widget's path as expected; all 14
 dashboard list scenarios. tf-compat fixtures `dashboard`, `dashboard_json`, `dashboard_list` (each with an update).
 
 ## Stage 5: Service level objectives

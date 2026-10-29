@@ -70,7 +70,7 @@ jobs:
               - *ci
               - server/crates/oc-api/src/routes/datadog_api/**
               - server/crates/oc-api/src/auth/**
-              - server/crates/oc-api/tests/datadog_api/**
+              - scripts/datadog-fixtures/**
               - scripts/tf-compat/**
 
   server:
@@ -147,9 +147,21 @@ jobs:
       - uses: dtolnay/rust-toolchain@599c45df1a24c1c63ae1129a7e59f46654b8fb66 # 1.89.0
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with: { workspaces: server }
+      # Datadog's recordings are fetched at test time, not vendored: scripts/datadog-fixtures/fetch.sh pins
+      # the datadog-api-client-go commit and its archive's SHA-256, and the cache is keyed on that commit.
+      - id: dd-fixtures
+        run: echo "commit=$(sed -n 's/^COMMIT=//p' scripts/datadog-fixtures/fetch.sh)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/observecraft/datadog-api-client-go/${{ steps.dd-fixtures.outputs.commit }}
+          key: datadog-api-client-go-${{ steps.dd-fixtures.outputs.commit }}
+      - name: Fetch Datadog API contract fixtures
+        run: make datadog-fixtures
       - name: Datadog API contract fixtures
         run: cargo test --locked -p oc-api datadog_api
         working-directory: server
+        env:
+          OC_REQUIRE_DATADOG_FIXTURES: "1"
       - name: Datadog Terraform provider against a local server
         run: make tf-compat TF_COMPAT_ARGS=--local
 

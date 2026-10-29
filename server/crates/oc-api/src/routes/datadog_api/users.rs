@@ -636,8 +636,8 @@ pub(super) mod tests {
 
     #[tokio::test]
     async fn replays_datadogs_users_scenarios() {
+        let Some(f) = Feature::load("v2/users") else { return };
         let Some(s) = TestServer::start("dd-users-replay").await else { return };
-        let f = Feature::load("v2/users");
         let mut problems = vec![];
         let mut replayed = 0;
         for scenario in &f.scenarios {

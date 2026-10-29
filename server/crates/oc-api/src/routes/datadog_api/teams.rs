@@ -530,8 +530,8 @@ mod tests {
 
     #[tokio::test]
     async fn replays_datadogs_teams_scenarios() {
+        let Some(f) = Feature::load("v2/teams") else { return };
         let Some(s) = TestServer::start("dd-teams-replay").await else { return };
-        let f = Feature::load("v2/teams");
         let mut problems = vec![];
         let mut replayed = 0;
         for scenario in &f.scenarios {

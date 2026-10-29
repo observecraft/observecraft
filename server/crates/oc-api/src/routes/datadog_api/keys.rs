@@ -521,8 +521,8 @@ mod tests {
 
     #[tokio::test]
     async fn replays_datadogs_key_management_scenarios() {
+        let Some(f) = Feature::load("v2/key_management") else { return };
         let Some(s) = TestServer::start_with("dd-keys-replay", |c| c.datadog_api_allow_app_key_creation = true).await else { return };
-        let f = Feature::load("v2/key_management");
         let mut problems = vec![];
         let mut replayed = 0;
         for scenario in &f.scenarios {

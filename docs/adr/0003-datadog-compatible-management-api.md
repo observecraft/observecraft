@@ -58,8 +58,10 @@ changing only the URL and keys.
    (`abc-def-ghi`), UUIDs for v2 resources.
 6. **Contract fixtures from Datadog's own client.** `datadog-api-client-go` (Apache-2.0) records real request/response
    pairs per feature (`tests/scenarios/cassettes/TestScenarios/v1/Feature_Monitors`, …) and describes the scenarios in
-   `tests/scenarios/features`. We vendor the subset we support under `server/crates/oc-api/tests/datadog_api/` with its
-   LICENSE and NOTICE, and replay them against our endpoints (status, required fields, shapes).
+   `tests/scenarios/features`. We replay the scenarios we support against our endpoints (status, required fields,
+   shapes). The recordings are not vendored: they hold Datadog's text, URLs and test-org data, so
+   `scripts/datadog-fixtures/fetch.sh` (`make datadog-fixtures`) downloads them at test time from a pinned commit
+   (archive checked against its SHA-256), unchanged, into a local cache; CI caches them and requires them.
 7. **End-to-end with the real provider.** An opt-in test (`make tf-compat`) runs OpenTofu (MPL-2.0; Terraform itself
    is BSL since 1.6) with the `DataDog/datadog` provider against a local server: `apply` a set of resources, `plan`
    must show no changes, `apply` an update, `destroy`. It runs in CI when the compatibility code changes.

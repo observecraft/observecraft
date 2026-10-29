@@ -148,8 +148,8 @@ mod tests {
     /// Datadog's recorded Authentication scenarios.
     #[tokio::test]
     async fn authentication_cassettes_replay() {
+        let Some(feature) = Feature::load("v1/authentication") else { return };
         let Some(s) = TestServer::start("dd-auth-cassettes").await else { return };
-        let feature = Feature::load("v1/authentication");
         assert_eq!(feature.scenarios.len(), 2);
         for scenario in &feature.scenarios {
             let (exchanges, problems) = s.replayer().replay(&feature, scenario).await;

@@ -1190,8 +1190,8 @@ pub(crate) mod tests {
     /// Datadog's recorded Service Level Objectives scenarios.
     #[tokio::test]
     async fn service_level_objective_cassettes_replay() {
+        let Some(feature) = Feature::load("v1/service_level_objectives") else { return };
         let Some(s) = TestServer::start("dd-slo-cassettes").await else { return };
-        let feature = Feature::load("v1/service_level_objectives");
         // Scenario → why it isn't replayed.
         let unsupported: HashMap<&str, &str> =
             HashMap::from([("Get an SLO's history returns \"OK\" response", "SLO history (the computed SLI series) is not part of the compat API: no client in scope reads it")]);

@@ -581,8 +581,8 @@ mod tests {
     /// Datadog's recorded SLO correction scenarios.
     #[tokio::test]
     async fn slo_correction_cassettes_replay() {
+        let Some(feature) = Feature::load("v1/service_level_objective_corrections") else { return };
         let Some(s) = TestServer::start("dd-correction-cassettes").await else { return };
-        let feature = Feature::load("v1/service_level_objective_corrections");
         // Scenario → why it isn't replayed.
         let unsupported: HashMap<&str, &str> = HashMap::from([
             ("Create an SLO correction with rrule returns \"OK\" response", "recurring corrections (rrule) are rejected with 400: ours are one-off"),

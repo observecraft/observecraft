@@ -500,8 +500,8 @@ mod tests {
 
     #[tokio::test]
     async fn replays_datadogs_roles_scenarios() {
+        let Some(f) = Feature::load("v2/roles") else { return };
         let Some(s) = TestServer::start("dd-roles-replay").await else { return };
-        let f = Feature::load("v2/roles");
         let mut problems = vec![];
         let mut replayed = 0;
         for scenario in &f.scenarios {

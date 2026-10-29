@@ -318,10 +318,20 @@ nothing.
 
 ## How compatibility is tested
 
-- **Contract fixtures.** `server/crates/oc-api/tests/datadog_api/` holds the request/response recordings that
-  Datadog's Go API client is tested with (Apache-2.0). Each supported resource replays its recordings against the
-  server and checks status codes and response shapes (`cargo test -p oc-api datadog_api`, with the live test
-  databases `OC_TEST_POSTGRES_URL` and `OC_TEST_CLICKHOUSE_URL`). For dashboards, every recorded scenario whose
+- **Contract fixtures.** The tests replay the request/response recordings that Datadog's Go API client
+  (`datadog-api-client-go`, Apache-2.0) is tested with. They are not in this repository: `make datadog-fixtures`
+  (`scripts/datadog-fixtures/fetch.sh`) downloads them from a pinned commit, checks the archive's SHA-256 and
+  extracts the features we replay, unchanged, into `~/.cache/observecraft/datadog-api-client-go/<commit>`
+  (`OC_DATADOG_FIXTURES` sets another directory). Each supported resource replays its recordings against the
+  server and checks status codes and response shapes:
+
+  ```bash
+  make datadog-fixtures
+  cd server && OC_TEST_POSTGRES_URL=… OC_TEST_CLICKHOUSE_URL=… cargo test -p oc-api datadog_api
+  ```
+
+  Without the fixtures the replay tests are skipped with a message saying how to fetch them; with
+  `OC_REQUIRE_DATADOG_FIXTURES=1`, as in CI, they fail instead. For dashboards, every recorded scenario whose
   widgets we draw is replayed as recorded; scenarios about the dashboard itself (get, update, delete, list,
   restore, template variables, dashboard lists) whose fixture dashboards Datadog's client builds with a widget we
   don't draw (a `profile_metrics_query` timeseries, a `hostmap`) are replayed with that widget replaced by a metric

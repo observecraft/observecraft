@@ -66,6 +66,7 @@ No backend handy? `make web-mock` runs the UI against in-browser mocks.
 | `make test` | Rust tests (`cargo test`) + web typecheck (`tsc`) |
 | `OC_TEST_API_URL=http://localhost:8080 OC_TEST_ADMIN_PASSWORD=… cargo test -p oc-api --test tenancy` | Organization-isolation test against a running server (instance admin account) |
 | `OC_TEST_VALKEY_URL=redis://localhost:6379/15 cargo test -p oc-api cache::` | Shared cache tests against a real Valkey (two replicas coalescing, TTLs, org isolation, oversized values, a dead lock holder) |
+| `make datadog-fixtures`, then `OC_TEST_POSTGRES_URL=… OC_TEST_CLICKHOUSE_URL=… cargo test -p oc-api datadog_api` | Datadog-compatible API contract tests: downloads Datadog's recorded API scenarios (`datadog-api-client-go`, pinned commit, not vendored) into `~/.cache/observecraft`, then replays them against the server. Without the download they are skipped; `OC_REQUIRE_DATADOG_FIXTURES=1` makes that an error (CI) |
 | `make openapi` | Regenerate the OpenAPI document and the web's TypeScript API types |
 | `make logs` / `make ps` | Tail / list the Docker stack |
 | `make down` | Stop the stack, keeping data |

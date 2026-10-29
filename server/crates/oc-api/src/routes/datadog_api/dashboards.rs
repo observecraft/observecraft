@@ -601,8 +601,8 @@ pub(super) mod tests {
 
     #[tokio::test]
     async fn replays_the_dashboards_feature() {
+        let Some(feature) = Feature::load("v1/dashboards") else { return };
         let Some(s) = TestServer::start("dd-dashboards").await else { return };
-        let feature = Feature::load("v1/dashboards");
         for name in AS_RECORDED.iter().chain(ADAPTED) {
             assert!(feature.cassette(feature.scenario(name)).is_some(), "{name}: no cassette");
         }

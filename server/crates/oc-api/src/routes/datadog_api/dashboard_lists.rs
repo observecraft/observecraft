@@ -359,10 +359,10 @@ mod tests {
 
     #[tokio::test]
     async fn replays_the_dashboard_lists_features() {
+        let (Some(v1), Some(v2)) = (Feature::load("v1/dashboard_lists"), Feature::load("v2/dashboard_lists")) else { return };
         let Some(s) = TestServer::start("dd-dash-lists").await else { return };
         let (mut failures, mut replayed) = (vec![], 0);
-        for path in ["v1/dashboard_lists", "v2/dashboard_lists"] {
-            let feature = Feature::load(path);
+        for (path, feature) in [("v1/dashboard_lists", v1), ("v2/dashboard_lists", v2)] {
             for scenario in &feature.scenarios {
                 let Some(interactions) = feature.cassette(scenario) else { continue };
                 let mut r = s.replayer();
@@ -375,7 +375,7 @@ mod tests {
             }
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
-        assert_eq!(replayed, 14, "every vendored cassette");
+        assert_eq!(replayed, 14, "every recorded scenario");
     }
 
     #[tokio::test]

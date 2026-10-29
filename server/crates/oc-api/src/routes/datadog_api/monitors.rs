@@ -1084,13 +1084,13 @@ fn search_terms(query: &str) -> Result<Vec<SearchTerm>, DdError> {
     Ok(terms)
 }
 
-/// Replays a vendored feature's recorded scenarios against a test server, except `unsupported`
-/// (scenario → why); returns the scenarios replayed, or None without the live test databases.
+/// Replays a feature's recorded scenarios against a test server, except `unsupported`
+/// (scenario → why); returns the scenarios replayed, or None without the fixtures or the live test databases.
 #[cfg(test)]
 pub(crate) async fn replay_feature(prefix: &str, path: &str, unsupported: &[(&str, &str)]) -> Option<Vec<String>> {
     use super::replay::{Feature, TestServer};
+    let feature = Feature::load(path)?;
     let s = TestServer::start(prefix).await?;
-    let feature = Feature::load(path);
     for (name, _) in unsupported {
         feature.scenario(name);
     }

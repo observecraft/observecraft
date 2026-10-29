@@ -1,14 +1,18 @@
 //! Contract tests against Datadog's own recordings.
 //!
-//! `tests/datadog_api/` holds scenarios (`features/`) and their recorded request/response pairs
-//! (`cassettes/`) from `datadog-api-client-go` (Apache-2.0, see the README there). [`Replayer`] sends
-//! each recorded request to an in-process server ([`TestServer`]) with an `ocak_` test key and checks
-//! the answer has the recorded status class and the recorded fields with the same JSON types. Ids,
-//! timestamps and names the server generates differ from the recording, so values are not compared;
-//! ids from earlier answers are mapped onto later requests instead (create → get → delete).
+//! The scenarios (`features/`) and their recorded request/response pairs (`cassettes/`) are
+//! `datadog-api-client-go`'s (Apache-2.0) at a pinned commit. They are not part of this repository:
+//! `scripts/datadog-fixtures/fetch.sh` (`make datadog-fixtures`) downloads them into [`fixtures_dir`],
+//! and the tests read them there as they are upstream. [`Replayer`] sends each recorded request to an
+//! in-process server ([`TestServer`]) with an `ocak_` test key and checks the answer has the recorded
+//! status class and the recorded fields with the same JSON types. Ids, timestamps and names the server
+//! generates differ from the recording, so values are not compared; ids from earlier answers are
+//! mapped onto later requests instead (create → get → delete).
 //!
-//! Live: needs `OC_TEST_POSTGRES_URL` and `OC_TEST_CLICKHOUSE_URL` (skipped otherwise), like the other
-//! live tests (`crate::test_support`).
+//! Without the fixtures, [`Feature::load`] returns None and the replay tests are skipped, unless
+//! `OC_REQUIRE_DATADOG_FIXTURES=1` (CI), which makes them fail. Live: they also need
+//! `OC_TEST_POSTGRES_URL` and `OC_TEST_CLICKHOUSE_URL` (skipped otherwise), like the other live tests
+//! (`crate::test_support`).
 
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
@@ -20,9 +24,70 @@ use serde_json::Value;
 use crate::auth::crypto;
 use crate::state::AppState;
 
-/// The vendored fixtures.
-pub fn fixtures() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/datadog_api")
+/// The `datadog-api-client-go` commit the fixtures come from (pinned in `scripts/datadog-fixtures/fetch.sh`).
+pub const FIXTURES_COMMIT: &str = "1a5c98969c6a269710149bfa7ca7e39320a1e644";
+
+fn env(name: &str) -> Option<String> {
+    std::env::var(name).ok().filter(|v| !v.is_empty())
+}
+
+/// Where `fetch.sh` puts the fixtures: `$OC_DATADOG_FIXTURES`, or
+/// `${XDG_CACHE_HOME:-$HOME/.cache}/observecraft/datadog-api-client-go/<commit>`.
+pub fn fixtures_dir() -> PathBuf {
+    if let Some(dir) = env("OC_DATADOG_FIXTURES") {
+        return dir.into();
+    }
+    let cache = env("XDG_CACHE_HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(env("HOME").unwrap_or_default()).join(".cache"));
+    cache.join("observecraft/datadog-api-client-go").join(FIXTURES_COMMIT)
+}
+
+/// The fetched scenario tree (upstream's `tests/scenarios`), or None (the test is skipped) when the
+/// fixtures haven't been fetched. With `OC_REQUIRE_DATADOG_FIXTURES=1` it panics instead, so CI can't
+/// skip them silently.
+pub fn fixtures() -> Option<PathBuf> {
+    let dir = fixtures_dir();
+    if dir.join(".complete").is_file() {
+        return Some(dir.join("tests/scenarios"));
+    }
+    let hint = format!("Datadog API fixtures not found in {} (fetch them with `make datadog-fixtures`)", dir.display());
+    assert!(env("OC_REQUIRE_DATADOG_FIXTURES").as_deref() != Some("1"), "{hint}; OC_REQUIRE_DATADOG_FIXTURES=1 requires them");
+    eprintln!("{hint}: skipping");
+    None
+}
+
+/// Upstream scenarios whose cassettes we don't replay, by feature.
+enum NotReplayed {
+    /// Scenarios whose name contains one of these.
+    Containing(&'static [&'static str]),
+    /// Every scenario but these.
+    AllBut(&'static [&'static str]),
+}
+
+fn not_replayed(version: &str, feature: &str) -> Option<NotReplayed> {
+    match (version, feature) {
+        // Shared (public) dashboards are a separate API, out of scope (and their recordings carry share tokens).
+        ("v1", "Dashboards") => Some(NotReplayed::Containing(&["shared dashboard"])),
+        // Personal access tokens and scoped application keys are not supported.
+        ("v2", "Key Management") => Some(NotReplayed::Containing(&["personal access token", "with scopes"])),
+        // Teams and memberships only: not links, hierarchy, connections, notification rules, sync or
+        // permission settings, nor the scenarios that set avatars, banners or modules.
+        ("v2", "Teams") => Some(NotReplayed::AllBut(&[
+            "Add a user to a team returns \"Represents a user's association to a team\" response",
+            "Create a team returns \"CREATED\" response",
+            "Get a team returns \"OK\" response",
+            "Get all teams returns \"OK\" response",
+            "Get all teams returns \"OK\" response with pagination",
+            "Get all teams with fields_team parameter returns \"OK\" response",
+            "Get links for a team returns \"OK\" response",
+            "Get team memberships returns \"Represents a user's association to a team\" response",
+            "Get user memberships returns \"Represents a user's association to a team\" response",
+            "Remove a team returns \"No Content\" response",
+            "Remove a user from a team returns \"No Content\" response",
+            "Update a team with partial update returns \"OK\" response",
+            "Update a user's membership attributes on a team returns \"OK\" response",
+        ])),
+        _ => None,
+    }
 }
 
 // ================================================================ features
@@ -50,11 +115,12 @@ pub struct Sends {
 }
 
 impl Feature {
-    /// `version/name`, e.g. `v1/authentication` for `features/v1/authentication.feature`.
-    pub fn load(path: &str) -> Feature {
-        let file = fixtures().join("features").join(format!("{path}.feature"));
+    /// `version/name`, e.g. `v1/authentication` for `features/v1/authentication.feature`; None (the
+    /// test is skipped) when the fixtures haven't been fetched ([`fixtures`]).
+    pub fn load(path: &str) -> Option<Feature> {
+        let file = fixtures()?.join("features").join(format!("{path}.feature"));
         let text = std::fs::read_to_string(&file).unwrap_or_else(|e| panic!("{}: {e}", file.display()));
-        Self::parse(path.split('/').next().unwrap_or("v1"), &text)
+        Some(Self::parse(path.split('/').next().unwrap_or("v1"), &text))
     }
 
     pub fn parse(version: &str, text: &str) -> Feature {
@@ -80,7 +146,7 @@ impl Feature {
 
     /// The cassette directory, e.g. `v1/Feature_Service_Level_Objective_Corrections`.
     pub fn cassette_dir(&self) -> PathBuf {
-        fixtures().join("cassettes/TestScenarios").join(&self.version).join(format!("Feature_{}", self.name.replace(' ', "_")))
+        fixtures_dir().join("tests/scenarios/cassettes/TestScenarios").join(&self.version).join(format!("Feature_{}", self.name.replace(' ', "_")))
     }
 
     pub fn scenario(&self, name: &str) -> &Scenario {
@@ -95,8 +161,21 @@ impl Feature {
         Sends { api_key: has("apiKeyAuth"), app_key: has("appKeyAuth") }
     }
 
-    /// The recorded interactions of a scenario, or None when it has no cassette (not recorded upstream).
+    /// Whether we replay a scenario's cassette (see [`not_replayed`]).
+    pub fn replayed(&self, scenario: &Scenario) -> bool {
+        match not_replayed(&self.version, &self.name) {
+            None => true,
+            Some(NotReplayed::Containing(parts)) => !parts.iter().any(|p| scenario.name.contains(p)),
+            Some(NotReplayed::AllBut(names)) => names.contains(&scenario.name.as_str()),
+        }
+    }
+
+    /// The recorded interactions of a scenario, or None when it has no cassette (not recorded upstream)
+    /// or one we don't replay.
     pub fn cassette(&self, scenario: &Scenario) -> Option<Vec<Interaction>> {
+        if !self.replayed(scenario) {
+            return None;
+        }
         let file = self.cassette_dir().join(format!("{}.yaml", cassette_name(&scenario.name)));
         let text = std::fs::read_to_string(file).ok()?;
         let c: CassetteFile = serde_yaml_ng::from_str(&text).unwrap_or_else(|e| panic!("cassette of {:?}: {e}", scenario.name));
@@ -377,7 +456,12 @@ impl TestServer {
 
     /// [`TestServer::start`] with the server configuration adjusted by `configure`.
     pub async fn start_with(prefix: &str, configure: impl Fn(&mut crate::config::Config)) -> Option<TestServer> {
-        let (_, mut states) = crate::test_support::replicas_with(1, configure).await?;
+        // The recordings carry their test org's addresses: never mail anyone, whatever OC_SMTP_URL says.
+        let (_, mut states) = crate::test_support::replicas_with(1, |c| {
+            configure(c);
+            c.smtp_url = None;
+        })
+        .await?;
         let st = states.remove(0);
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().expect("addr");
@@ -450,44 +534,86 @@ mod tests {
         assert_eq!(cassette_name("Create a ci-pipelines monitor returns \"OK\""), "Scenario_Create_a_ci-pipelines_monitor_returns_OK_");
     }
 
+    /// The features the tests replay (what `scripts/datadog-fixtures/fetch.sh` downloads).
+    const FEATURES: [&str; 13] = [
+        "v1/authentication",
+        "v1/monitors",
+        "v1/downtimes",
+        "v1/dashboards",
+        "v1/dashboard_lists",
+        "v1/service_level_objectives",
+        "v1/service_level_objective_corrections",
+        "v2/downtimes",
+        "v2/dashboard_lists",
+        "v2/users",
+        "v2/roles",
+        "v2/teams",
+        "v2/key_management",
+    ];
+
     #[test]
-    fn every_vendored_cassette_belongs_to_a_scenario() {
-        for path in [
-            "v1/authentication",
-            "v1/monitors",
-            "v1/downtimes",
-            "v1/dashboards",
-            "v1/dashboard_lists",
-            "v1/service_level_objectives",
-            "v1/service_level_objective_corrections",
-            "v2/downtimes",
-            "v2/dashboard_lists",
-            "v2/users",
-            "v2/roles",
-            "v2/teams",
-            "v2/key_management",
-        ] {
-            let f = Feature::load(path);
-            let names: std::collections::HashSet<String> = f.scenarios.iter().map(|s| cassette_name(&s.name)).collect();
-            let dir = f.cassette_dir();
-            let files = std::fs::read_dir(&dir).unwrap_or_else(|e| panic!("{}: {e}", dir.display()));
-            for file in files {
-                let name = file.unwrap().file_name().to_string_lossy().to_string();
-                let Some(stem) = name.strip_suffix(".yaml") else { continue };
-                assert!(names.contains(stem), "{path}: cassette {stem} has no scenario");
+    fn the_fetch_script_downloads_the_replayed_features_at_the_pinned_commit() {
+        let script = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../scripts/datadog-fixtures/fetch.sh")).unwrap();
+        assert!(script.contains(&format!("\nCOMMIT={FIXTURES_COMMIT}\n")), "fetch.sh pins another commit than FIXTURES_COMMIT");
+        let listed = script.split("FEATURES=\"").nth(1).and_then(|s| s.split('"').next()).unwrap();
+        let mut listed: Vec<&str> = listed.split_whitespace().collect();
+        let mut ours = FEATURES.to_vec();
+        listed.sort();
+        ours.sort();
+        assert_eq!(listed, ours);
+    }
+
+    #[test]
+    fn scenarios_not_replayed_exist_upstream() {
+        for path in FEATURES {
+            let Some(f) = Feature::load(path) else { return };
+            let recorded = |s: &&Scenario| f.cassette_dir().join(format!("{}.yaml", cassette_name(&s.name))).is_file();
+            assert!(f.scenarios.iter().filter(recorded).any(|s| f.replayed(s)), "{path}: no cassette found");
+            match not_replayed(&f.version, &f.name) {
+                None => {}
+                Some(NotReplayed::Containing(parts)) => {
+                    for part in parts {
+                        assert!(f.scenarios.iter().filter(recorded).any(|s| s.name.contains(part)), "{path}: no recorded scenario contains {part:?}");
+                    }
+                }
+                Some(NotReplayed::AllBut(names)) => {
+                    for name in names {
+                        assert!(recorded(&f.scenario(name)), "{path}: {name:?} has no cassette");
+                    }
+                }
             }
         }
     }
 
     #[test]
+    fn without_fixtures_replays_skip_unless_required() {
+        // Not through the environment of this process: other tests read it concurrently.
+        let missing = std::env::temp_dir().join("oc-no-datadog-fixtures");
+        let run = |required: &str| {
+            std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "routes::datadog_api::replay::tests::features_tell_which_keys_are_sent", "--nocapture"])
+                .env("OC_DATADOG_FIXTURES", &missing)
+                .env("OC_REQUIRE_DATADOG_FIXTURES", required)
+                .output()
+                .unwrap()
+        };
+        let skipped = run("");
+        let stderr = String::from_utf8_lossy(&skipped.stderr);
+        assert!(skipped.status.success() && stderr.contains("make datadog-fixtures") && stderr.contains("skipping"), "{stderr}");
+        let required = run("1");
+        let out = String::from_utf8_lossy(&required.stdout).to_string() + &String::from_utf8_lossy(&required.stderr);
+        assert!(!required.status.success() && out.contains("OC_REQUIRE_DATADOG_FIXTURES=1 requires them"), "{out}");
+    }
+
+    #[test]
     fn features_tell_which_keys_are_sent() {
-        let f = Feature::load("v1/authentication");
+        let Some(f) = Feature::load("v1/authentication") else { return };
         assert_eq!(f.name, "Authentication");
         let ok = f.scenario("Validate API key returns \"OK\" response");
         assert_eq!(f.sends(ok), Sends { api_key: true, app_key: false });
         let forbidden = f.scenario("Validate API key returns \"Forbidden\" response");
         assert_eq!(f.sends(forbidden), Sends { api_key: false, app_key: false });
-        let m = Feature::load("v1/monitors");
+        let m = Feature::load("v1/monitors").unwrap();
         assert_eq!(m.sends(&m.scenarios[0]), Sends { api_key: true, app_key: true });
     }
 
