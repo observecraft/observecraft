@@ -1,7 +1,7 @@
 //! Dashboard-wide execution: one query per widget query, run concurrently (at most
-//! [`CONCURRENT_QUERIES`] per request), each through a short result cache with request coalescing
-//! ([`results_cache`]: viewers of the same dashboard, and its live feed, share executions); isolated query
-//! errors and incremental SSE.
+//! [`CONCURRENT_QUERIES`] per request), each through the shared cache ([`widget_rows`]: viewers of
+//! the same dashboard on any replica, and its live feed, share executions); isolated query errors
+//! and incremental SSE.
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::Infallible;
 use std::sync::{Arc, OnceLock, Weak};
@@ -19,7 +19,6 @@ use utoipa::ToSchema;
 use super::super::logs::TimeRange;
 use super::{bind, group_label, inner_query_at_step, parse, round, step_ms, Kind, Row, Source, SPAN_METRICS};
 use crate::error::{ApiError, ApiResult};
-use crate::ttl_cache::TtlCache;
 use crate::state::{AppState, OrgId};
 
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
@@ -313,18 +312,9 @@ impl Plan {
             Ok(b) => b,
             Err(e) => return (Err(e), false),
         };
-        // The SQL and its values say everything about the result (metric, filters, groups, range,
-        // step, rollup progress); the org keeps orgs apart.
-        let key = format!("{org}\0{sql}\0{params:?}");
         let ch = super::points_client(st, org);
-        let ran = std::sync::atomic::AtomicBool::new(false);
-        let rows = results_cache(p.step)
-            .get_or_load(&key, || async {
-                ran.store(true, std::sync::atomic::Ordering::Relaxed);
-                bind(ch.query(&sql), &params).fetch_all::<Row>().await.map_err(ApiError::from)
-            })
-            .await;
-        (rows.map(Fetched::Rows), ran.into_inner())
+        let (rows, ran) = widget_rows(&st.cache, org, &sql, &params, p.step, || async { bind(ch.query(&sql), &params).fetch_all::<Row>().await.map_err(ApiError::from) }).await;
+        (rows.map(Fetched::Rows), ran)
     }
 
     async fn execute(
@@ -425,12 +415,33 @@ fn query_range(range: TimeRange, previous_to: Option<i64>, step: i64) -> TimeRan
     }
 }
 
-/// Widget query results, kept about min(step, 30 s) (`crate::ttl_cache`: concurrent identical
-/// queries wait for one execution; keys start with the org).
-fn results_cache(step_ms: i64) -> &'static TtlCache<Vec<Row>> {
-    static CACHES: OnceLock<[TtlCache<Vec<Row>>; 3]> = OnceLock::new();
-    let caches = CACHES.get_or_init(|| [10, 20, 30].map(|s| TtlCache::new(Duration::from_secs(s))));
-    &caches[if step_ms <= 10_000 { 0 } else if step_ms <= 20_000 { 1 } else { 2 }]
+/// Shared cache namespace of widget query results.
+const WIDGETS: &str = "widgets";
+
+/// How long a widget result is reused: a step (a later query in the same step is the same query),
+/// at most 30 s.
+fn widget_ttl(step_ms: i64) -> Duration {
+    Duration::from_millis(step_ms.clamp(1_000, 30_000) as u64)
+}
+
+/// One widget query's rows through the shared cache (every replica, and concurrent identical
+/// queries on one, share one execution), and whether this call ran it. The SQL and its values say
+/// everything about the result (metric, filters, groups, range, step, rollup progress); the cache
+/// keeps orgs apart.
+async fn widget_rows<F, Fut>(cache: &crate::cache::SharedCache, org: &str, sql: &str, params: &[Param], step_ms: i64, load: F) -> (Result<Arc<Vec<Row>>, ApiError>, bool)
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<Vec<Row>, ApiError>>,
+{
+    let key = format!("{sql}\0{params:?}");
+    let ran = std::sync::atomic::AtomicBool::new(false);
+    let rows = cache
+        .get_or_load(WIDGETS, org, &key, widget_ttl(step_ms), || {
+            ran.store(true, std::sync::atomic::Ordering::Relaxed);
+            load()
+        })
+        .await;
+    (rows, ran.into_inner())
 }
 
 /// What one query returned: rows (shared through the cache), or a derived metric's series.
@@ -1082,6 +1093,90 @@ mod tests {
             snapshot.results[0].series[0].points,
             vec![(0, 1.0), (10_000, 2.0), (20_000, 8.0), (30_000, 9.0)]
         );
+    }
+
+    #[test]
+    fn widget_results_live_for_a_step_and_at_most_thirty_seconds() {
+        assert_eq!(widget_ttl(10_000), Duration::from_secs(10));
+        assert_eq!(widget_ttl(20_000), Duration::from_secs(20));
+        assert_eq!(widget_ttl(60_000), Duration::from_secs(30));
+        assert_eq!(widget_ttl(3_600_000), Duration::from_secs(30));
+        assert_eq!(widget_ttl(0), Duration::from_secs(1));
+    }
+
+    /// Widget rows are kept in the shared cache under the org, the SQL and its bound values: a
+    /// second replica gets the first one's rows without running the query, other orgs and other
+    /// values run their own.
+    #[tokio::test]
+    async fn replicas_share_one_execution_of_a_widget_query_per_org() {
+        let (_, a, b) = crate::cache::testing::pair();
+        let runs = std::sync::atomic::AtomicUsize::new(0);
+        let rows = |value: f64| {
+            let runs = &runs;
+            move || async move {
+                runs.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok::<_, ApiError>(vec![Row { g: vec!["storefront-api".into()], ts: 60_000, value }])
+            }
+        };
+        let sql = "SELECT g, ts, value FROM t WHERE OrgId = {oc_org:String} AND MetricName = ?";
+        let metric = [Param::Str("system.cpu.user".into())];
+        let (first, ran) = widget_rows(&a, "acme", sql, &metric, 60_000, rows(1.0)).await;
+        assert!(ran);
+        assert_eq!(first.unwrap()[0].value, 1.0);
+        let (second, ran) = widget_rows(&b, "acme", sql, &metric, 60_000, rows(2.0)).await;
+        assert!(!ran, "served from the other replica's execution");
+        assert_eq!(second.unwrap()[0].value, 1.0);
+        assert_eq!(runs.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        let (other_org, ran) = widget_rows(&b, "globex", sql, &metric, 60_000, rows(3.0)).await;
+        assert!(ran);
+        assert_eq!(other_org.unwrap()[0].value, 3.0);
+        let other_metric = [Param::Str("system.cpu.idle".into())];
+        let (other_values, ran) = widget_rows(&b, "acme", sql, &other_metric, 60_000, rows(4.0)).await;
+        assert!(ran);
+        assert_eq!(other_values.unwrap()[0].value, 4.0);
+        assert_eq!(runs.load(std::sync::atomic::Ordering::SeqCst), 3);
+    }
+
+    /// End to end: replica B answers a dashboard replica A just ran from the shared cache (no data
+    /// scans, A's rows although newer points exist), another org gets its own results. Skipped
+    /// unless OC_TEST_CLICKHOUSE_URL and OC_TEST_POSTGRES_URL are set.
+    #[tokio::test]
+    async fn a_second_replica_answers_a_dashboard_from_the_shared_cache() {
+        let Some((_, states)) = crate::test_support::replicas(2).await else { return };
+        let (a, b) = (states[0].clone(), states[1].clone());
+        let org = crate::test_support::new_org(&a, "dashboard-shared").await;
+        let other = crate::test_support::new_org(&a, "dashboard-shared-other").await;
+        let now = super::super::now_ms();
+        let insert = |org: String, host: &'static str, value: f64| {
+            let ch = a.clickhouse.clone();
+            async move {
+                ch.query("INSERT INTO otel.metrics_ingest_gauge (ResourceAttributes, MetricName, MetricUnit, Attributes, TimeUnix, Value) VALUES (map('oc.org_id', ?, 'host.name', ?), 'shared.dashboard.load', '1', map(), fromUnixTimestamp64Milli(?), ?)")
+                    .bind(org)
+                    .bind(host)
+                    .bind(now - 120_000)
+                    .bind(value)
+                    .execute()
+                    .await
+                    .expect("insert");
+            }
+        };
+        insert(org.clone(), "i-0a1b2c3d4e5f60001", 1.0).await;
+        insert(other.clone(), "i-0a1b2c3d4e5f60009", 9.0).await;
+        let request = || DashboardQueryRequest {
+            queries: vec![DashboardMetricQuery { id: "load".into(), query: "sum:shared.dashboard.load{*} by {host}".into(), points: None }],
+            range: TimeRange { from: now - 3_600_000, to: now },
+        };
+        let run = |st: AppState, org: String| async move { dashboard_query(State(st), OrgId(org), Json(request())).await.unwrap_or_else(|e| panic!("{e:?}")).0 };
+        let hosts = |frame: &DashboardQueryFrame| frame.results[0].series.iter().map(|s| s.tags["host"].clone()).collect::<Vec<_>>();
+
+        let first = run(a.clone(), org.clone()).await;
+        assert_eq!((first.data_scans, hosts(&first)), (1, vec!["i-0a1b2c3d4e5f60001".to_string()]));
+        insert(org.clone(), "i-0a1b2c3d4e5f60002", 2.0).await;
+        let second = run(b.clone(), org.clone()).await;
+        assert_eq!((second.data_scans, hosts(&second)), (0, vec!["i-0a1b2c3d4e5f60001".to_string()]), "replica B reads A's result");
+        let others = run(b.clone(), other.clone()).await;
+        assert_eq!((others.data_scans, hosts(&others)), (1, vec!["i-0a1b2c3d4e5f60009".to_string()]));
     }
 
     #[test]

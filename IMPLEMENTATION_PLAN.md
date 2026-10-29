@@ -330,9 +330,47 @@ no in-process layer in front of Valkey. Coalescing (live tests): three concurren
 load (one waiter shares the replica's load, one waits for the other replica's); a lock left by a dead replica
 delays the next load by its lock TTL only.
 
-Follow-up: switch call sites after Stages 2–4: dashboard widget results, template variable / tag values and the
-metric catalog through `cache.get_or_load`, dashboard edits through `cache.invalidate`; the Kubernetes inventory's
-`ttl_cache` load through the shared cache (one replica builds, the others decode its copy); `/metrics` reachable
-by a scraper (NetworkPolicy) when we monitor ObserveCraft with itself.
+Call sites (after Stages 2–4), each namespace scoped by org:
+- `widgets`: dashboard widget rows (`metrics/dashboard.rs`, `widget_rows`), keyed by SQL + bound values (step-rounded
+  range, rollup progress), TTL min(step, 30 s). The in-process `results_cache` is gone; the cache module coalesces
+  concurrent identical queries on a replica. Dashboard edits need no invalidation: a changed query is another key.
+- `tag_values` (`/api/v1/tags/{key}/values`) and `metric_catalog` (`/api/v1/metrics`), 60 s. The catalog lists
+  derived metrics, so derived metric writes invalidate `metric_catalog`.
+- `metric_index_rules`: the indexing controls (`metric_rules.rs`) moved off a per-process map, 30 s; rule writes
+  invalidate them, so a rule written on one replica applies to the next query on all. Widget results need no
+  invalidation on rule changes: the allowlist is checked before the cache, and ingestion controls only affect
+  points stored later.
+- `kube_inventory`: the bounded in-process `ttl_cache` stays the first layer (15 s); its load goes through the
+  shared cache (`shared_inventory`), so one replica builds and the others decode its copy. A decoded copy can be
+  up to two TTLs (30 s) old; collectors refresh objects every minute.
 
-Status: Complete (infrastructure and module; call sites pending)
+Inventory size: 137 copies of the test fixture (10,001 objects, 13,306 rows, 25.5 MB as JSON) store as 134 KB, as
+the copies repeat each other; at one copy's compression ratio (0.071) unrepeated objects would take ~1.8 MB, well
+under the 8 MiB cap (test `a_dev_sized_inventory_fits_in_the_shared_cache`; release: encode 17 ms, encode +
+decode 50 ms). The same 10,001 objects written through `otel_k8s_objects` stored 283 KB per build.
+
+Measured (release, two `observecraft-server` processes on one Valkey 8.1, ClickHouse 26.8 in Docker; org with 48
+Kubernetes metrics × 600 series × 1 h at 20 s; the Kubernetes - Overview dashboard's 51 queries in one
+`/api/v1/query/dashboard`, three rounds):
+
+| | Replica A, first | Replica B, after A | B again | B alone (entries expired) |
+|---|---|---|---|---|
+| Kubernetes - Overview (51 queries) | 227–251 ms, 50 scans | 13–14 ms, 0 scans | 11 ms | 206 ms, 50 scans |
+| Kubernetes Explorer, pods (10k-object inventory) | 136–152 ms (build) | 46–55 ms (decode) | 12–14 ms (memory) | 142 ms (build) |
+| Metric catalog / tag values | 75 ms / 10 ms | 1.9 ms / 2.0 ms | | |
+
+`/metrics` on both internal listeners showed the split per namespace, e.g. replica B: `widgets` 440 hits / 50
+misses, `kube_inventory` 3 / 1, `metric_catalog` 1 / 0, `tag_values` 1 / 0; replica A did the loads.
+
+Tests: fake-backend unit tests (two replicas share one widget execution per org and per bound values; one
+inventory build decoded by the other replica, which then serves it from memory; widget TTL), live tests on two
+`AppState`s sharing one fake Valkey (`test_support::replicas`, `OC_TEST_CLICKHOUSE_URL` + `OC_TEST_POSTGRES_URL`):
+a dashboard answered by B from A's execution, tag values and catalog shared per org with derived metric
+invalidation, indexing rules written on A applied on B.
+
+Not switched (per replica, listed for later): SLO measures (`slos.rs`, dropped only on the writing server), the
+derived metric map (`derived_metrics.rs`, 30 s, read several times per query), the metric kind / distribution /
+retention probes in `metrics.rs` (tiny, per process), and the portal home's provider answers (per user). Open:
+`/metrics` reachable by a scraper (NetworkPolicy) when we monitor ObserveCraft with itself.
+
+Status: Complete

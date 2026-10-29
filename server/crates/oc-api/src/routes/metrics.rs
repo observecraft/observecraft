@@ -1434,7 +1434,7 @@ pub async fn distribution(
     }))
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
 pub struct MetricCatalogEntry {
     pub name: String,
     pub tags: Vec<String>,
@@ -1473,12 +1473,24 @@ fn tag_values_sql(key: &str) -> (String, Vec<Param>) {
     (sql, vec![Param::Str(tag)])
 }
 
+/// Shared cache namespace of the metric catalog; derived metric writes invalidate it.
+pub(crate) const CATALOG: &str = "metric_catalog";
+/// Shared cache namespace of tag values.
+const TAG_VALUES: &str = "tag_values";
+/// How long the catalog and tag values are reused (they cover the last day).
+const CATALOG_TTL: Duration = Duration::from_secs(60);
+
 /// Metrics reported in the last day plus the span-derived `trace.*` metrics.
 #[utoipa::path(get, path = "/api/v1/metrics", responses((status = 200, body = Vec<MetricCatalogEntry>)), tag = "metrics")]
 pub async fn catalog(
     State(st): State<AppState>,
     OrgId(org): OrgId,
 ) -> ApiResult<Vec<MetricCatalogEntry>> {
+    let entries = st.cache.get_or_load(CATALOG, &org, "", CATALOG_TTL, || build_catalog(&st, &org)).await?;
+    Ok(Json(std::sync::Arc::unwrap_or_clone(entries)))
+}
+
+async fn build_catalog(st: &AppState, org: &str) -> Result<Vec<MetricCatalogEntry>, ApiError> {
     #[derive(clickhouse::Row, Deserialize)]
     struct Entry {
         name: String,
@@ -1489,7 +1501,7 @@ pub async fn catalog(
         res_keys: Vec<String>,
     }
     let sql = catalog_sql();
-    let rows = st.ch(&org).query(&sql).fetch_all::<Entry>().await?;
+    let rows = st.ch(org).query(&sql).fetch_all::<Entry>().await?;
     let mut out: Vec<MetricCatalogEntry> = Vec::new();
     for e in rows {
         let mut tags: BTreeSet<String> = e.attr_keys.into_iter().collect();
@@ -1563,14 +1575,14 @@ pub async fn catalog(
             }),
     );
     // Derived metrics, with the tags of the metrics their formula reads.
-    let derived: Vec<(String, String, String)> = sqlx::query_as("SELECT name, description, formula FROM derived_metrics WHERE org_id = $1").bind(&org).fetch_all(&st.postgres).await?;
+    let derived: Vec<(String, String, String)> = sqlx::query_as("SELECT name, description, formula FROM derived_metrics WHERE org_id = $1").bind(org).fetch_all(&st.postgres).await?;
     for (name, description, formula) in derived {
         let reads: BTreeSet<String> = super::monitor_formula::parse_formula(&formula).map(|f| f.queries.iter().filter_map(|q| parse_metric_query(q).ok()).map(|q| q.metric).collect()).unwrap_or_default();
         let tags: BTreeSet<String> = out.iter().filter(|e| reads.contains(&e.name)).flat_map(|e| e.tags.iter().cloned()).collect();
         out.push(MetricCatalogEntry { name, tags: tags.into_iter().collect(), unit: None, description: if description.is_empty() { format!("Derived: {formula}") } else { description }, kind: "derived".into() });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(Json(out))
+    Ok(out)
 }
 
 /// Values seen for a tag in the last day, across metrics and spans (template variable pickers).
@@ -1596,10 +1608,8 @@ pub async fn tag_values(
         params.extend(s_params);
     }
     sql.push_str(") WHERE v != '' ORDER BY v LIMIT 500");
-    let values = bind(st.ch(&org).query(&sql), &params)
-        .fetch_all::<String>()
-        .await?;
-    Ok(Json(values))
+    let values = st.cache.get_or_load(TAG_VALUES, &org, &key, CATALOG_TTL, || async { bind(st.ch(&org).query(&sql), &params).fetch_all::<String>().await.map_err(ApiError::from) }).await?;
+    Ok(Json(std::sync::Arc::unwrap_or_clone(values)))
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -2458,6 +2468,51 @@ mod tests {
         assert_eq!(split_stat("system.cpu.utilization"), None);
         assert_eq!(quantile_of("p99"), Some(0.99));
         assert_eq!(quantile_of("avg"), None);
+    }
+
+    /// Tag values and the metric catalog come from the shared cache: replica B gets replica A's
+    /// answer (not points written since), other orgs their own, and a derived metric written on
+    /// either replica is in the catalog at once. Skipped unless OC_TEST_CLICKHOUSE_URL and
+    /// OC_TEST_POSTGRES_URL are set.
+    #[tokio::test]
+    async fn tag_values_and_the_catalog_are_shared_by_replicas_per_org() {
+        let Some((_, states)) = crate::test_support::replicas(2).await else { return };
+        let (a, b) = (states[0].clone(), states[1].clone());
+        let ctx = crate::test_support::admin_of_new_org(&a, "catalog-shared").await;
+        let org = ctx.org_id.clone();
+        let other = format!("{org}-other");
+        let insert = |org: String, host: &'static str, metric: &'static str| {
+            let ch = a.clickhouse.clone();
+            async move {
+                ch.query("INSERT INTO otel.metrics_ingest_gauge (ResourceAttributes, MetricName, MetricUnit, Attributes, TimeUnix, Value) VALUES (map('oc.org_id', ?, 'host.name', ?), ?, '1', map(), now64(9), 1)")
+                    .bind(org)
+                    .bind(host)
+                    .bind(metric)
+                    .execute()
+                    .await
+                    .expect("insert");
+            }
+        };
+        insert(org.clone(), "i-0a1b2c3d4e5f60001", "shared.catalog.cpu").await;
+        insert(other.clone(), "i-0a1b2c3d4e5f60009", "shared.catalog.other").await;
+        let values = |st: AppState, org: String| async move { tag_values(State(st), OrgId(org), Path("host".into())).await.expect("tag values").0 };
+        let names = |st: AppState, org: String| async move {
+            catalog(State(st), OrgId(org)).await.expect("catalog").0.into_iter().map(|e| e.name).filter(|n| n.starts_with("shared.") || n.starts_with("derived_")).collect::<Vec<_>>()
+        };
+
+        assert_eq!(values(a.clone(), org.clone()).await, ["i-0a1b2c3d4e5f60001"]);
+        assert_eq!(names(a.clone(), org.clone()).await, ["shared.catalog.cpu"]);
+        insert(org.clone(), "i-0a1b2c3d4e5f60002", "shared.catalog.memory").await;
+        assert_eq!(values(b.clone(), org.clone()).await, ["i-0a1b2c3d4e5f60001"], "replica B reads A's tag values");
+        assert_eq!(names(b.clone(), org.clone()).await, ["shared.catalog.cpu"], "replica B reads A's catalog");
+        assert_eq!(values(b.clone(), other.clone()).await, ["i-0a1b2c3d4e5f60009"]);
+        assert_eq!(names(b.clone(), other.clone()).await, ["shared.catalog.other"]);
+
+        // A derived metric is part of the catalog: writing one drops the org's catalog everywhere.
+        let input = super::super::derived_metrics::DerivedMetricInput { name: "derived_load".into(), description: String::new(), queries: vec!["sum:shared.catalog.cpu{*}".into()], expression: "a".into() };
+        let _ = super::super::derived_metrics::create(State(a.clone()), crate::auth::Writer(ctx.clone()), Json(input)).await.expect("create derived metric");
+        assert_eq!(names(b.clone(), org.clone()).await, ["derived_load", "shared.catalog.cpu", "shared.catalog.memory"]);
+        assert_eq!(names(b.clone(), other.clone()).await, ["shared.catalog.other"]);
     }
 
     #[test]

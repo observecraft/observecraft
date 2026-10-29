@@ -241,7 +241,6 @@ impl SharedCache {
 
     /// The cached value of (`namespace`, `org`, `key`), or the result of `load`, stored for `ttl`.
     /// Valkey problems never fail the call: the value is then loaded from the source.
-    #[allow(dead_code)] // First call sites: dashboard widgets and tag values (after ADR-0002 Stages 2–4).
     pub async fn get_or_load<T, E, F, Fut>(&self, namespace: &'static str, org: &str, key: &str, ttl: Duration, load: F) -> Result<Arc<T>, E>
     where
         T: Serialize + DeserializeOwned + Send + Sync + 'static,
@@ -278,7 +277,6 @@ impl SharedCache {
     }
 
     /// Drops every entry of `namespace` for `org`, on every replica.
-    #[allow(dead_code)] // First call sites: dashboard edits (after ADR-0002 Stage 4).
     pub async fn invalidate(&self, namespace: &'static str, org: &str) {
         let stats = self.stats(namespace);
         if let Err(e) = self.backend.set(&generation_key(namespace, org), new_token().as_bytes(), GENERATION_TTL).await {
@@ -533,10 +531,10 @@ fn redacted(url: &str) -> String {
     }
 }
 
+/// Test doubles shared by the cache's own tests and its call sites' tests.
 #[cfg(test)]
-mod tests {
+pub(crate) mod testing {
     use super::*;
-    use std::collections::HashMap;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::Mutex;
     use std::time::Instant;
@@ -544,27 +542,27 @@ mod tests {
     /// In-memory stand-in for Valkey: values with expiry, `SET NX`, compare-and-delete. Shared by
     /// several caches, it plays one Valkey behind several replicas.
     #[derive(Default)]
-    struct FakeBackend {
-        data: Mutex<HashMap<String, (Vec<u8>, Instant)>>,
-        down: AtomicBool,
-        ops: AtomicUsize,
+    pub struct FakeBackend {
+        pub data: Mutex<HashMap<String, (Vec<u8>, Instant)>>,
+        pub down: AtomicBool,
+        pub ops: AtomicUsize,
     }
 
     impl FakeBackend {
-        fn check(&self) -> Result<(), BackendError> {
+        pub fn check(&self) -> Result<(), BackendError> {
             self.ops.fetch_add(1, Ordering::SeqCst);
             if self.down.load(Ordering::SeqCst) {
                 return Err(BackendError("connection refused".into()));
             }
             Ok(())
         }
-        fn keys(&self) -> Vec<String> {
+        pub fn keys(&self) -> Vec<String> {
             let now = Instant::now();
             let mut k: Vec<String> = self.data.lock().unwrap().iter().filter(|(_, (_, exp))| *exp > now).map(|(k, _)| k.clone()).collect();
             k.sort();
             k
         }
-        fn live(&self, key: &str) -> Option<Vec<u8>> {
+        pub fn live(&self, key: &str) -> Option<Vec<u8>> {
             let d = self.data.lock().unwrap();
             d.get(key).filter(|(_, exp)| *exp > Instant::now()).map(|(v, _)| v.clone())
         }
@@ -599,32 +597,40 @@ mod tests {
         }
     }
 
-    fn options() -> CacheOptions {
+    pub fn options() -> CacheOptions {
         CacheOptions { max_value_bytes: 1 << 20, load_timeout: Duration::from_millis(500) }
     }
 
-    fn pair() -> (Arc<FakeBackend>, SharedCache, SharedCache) {
+    pub fn pair() -> (Arc<FakeBackend>, SharedCache, SharedCache) {
         let backend = Arc::new(FakeBackend::default());
         let a = SharedCache::with_backend(backend.clone(), options());
         let b = SharedCache::with_backend(backend.clone(), options());
         (backend, a, b)
     }
 
-    const TTL: Duration = Duration::from_secs(30);
+    /// The bytes `value` takes in Valkey (compared with `OC_CACHE_MAX_VALUE_BYTES`).
+    pub fn stored_size<T: Serialize>(value: &T) -> usize {
+        encode(value).expect("encode").len()
+    }
+
+    /// `value` after a round trip through the stored format.
+    pub fn round_trip<T: Serialize + DeserializeOwned>(value: &T) -> T {
+        decode(&encode(value).expect("encode")).expect("decode").expect("a value")
+    }
 
     #[derive(Debug)]
-    struct Snapshot {
-        hits: u64,
-        misses: u64,
-        loads: u64,
-        coalesced_local: u64,
-        coalesced_remote: u64,
-        oversized: u64,
-        errors: u64,
+    pub struct Snapshot {
+        pub hits: u64,
+        pub misses: u64,
+        pub loads: u64,
+        pub coalesced_local: u64,
+        pub coalesced_remote: u64,
+        pub oversized: u64,
+        pub errors: u64,
     }
 
     impl SharedCache {
-        fn stats_for(&self, namespace: &'static str) -> Snapshot {
+        pub fn stats_for(&self, namespace: &'static str) -> Snapshot {
             let c = self.stats(namespace);
             let get = |c: &AtomicU64| c.load(Ordering::Relaxed);
             Snapshot {
@@ -638,6 +644,16 @@ mod tests {
             }
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::testing::*;
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::Instant;
+
+    const TTL: Duration = Duration::from_secs(30);
 
     fn counting<'a>(loads: &'a AtomicUsize, value: Vec<u64>, delay_ms: u64) -> impl FnOnce() -> futures::future::BoxFuture<'a, Result<Vec<u64>, String>> {
         move || {

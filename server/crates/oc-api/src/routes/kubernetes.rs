@@ -237,7 +237,7 @@ impl KubeKind {
 }
 
 /// Status colour, as in Datadog's status pills.
-#[derive(Serialize, ToSchema, Clone, Copy, PartialEq, Eq, Debug, Default)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Copy, PartialEq, Eq, Debug, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum KubeHealth {
     Ok,
@@ -248,7 +248,7 @@ pub enum KubeHealth {
 }
 
 /// CPU in cores or memory in bytes. `usage` is the 15-minute average.
-#[derive(Serialize, ToSchema, Clone, Default, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Default, Debug)]
 pub struct KubeUtilization {
     pub usage: Option<f64>,
     pub requests: Option<f64>,
@@ -270,14 +270,14 @@ impl KubeUtilization {
     }
 }
 
-#[derive(Serialize, ToSchema, Clone, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct KubeObjectRef {
     pub kind: String,
     pub name: String,
     pub uid: String,
 }
 
-#[derive(Serialize, ToSchema, Clone, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct KubeContainer {
     pub name: String,
@@ -295,7 +295,7 @@ pub struct KubeContainer {
 }
 
 /// One row of the explorer. Kind-specific columns are null for other kinds.
-#[derive(Serialize, ToSchema, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct KubeResource {
     pub uid: String,
@@ -532,9 +532,23 @@ async fn load_objects(ch: &clickhouse::Client, kinds: &[&str]) -> Result<Vec<Kub
 }
 
 /// The org's current objects with ownership, rollups, usage and tags, built at most once per
-/// [`INVENTORY_TTL`] however many explorers, widgets and panels ask meanwhile.
+/// [`INVENTORY_TTL`] however many explorers, widgets and panels ask meanwhile, on any replica.
 async fn inventory(st: &AppState, org: &str) -> Result<Arc<Vec<KubeResource>>, ApiError> {
-    st.kube_inventory.get_or_load(org, || async { Ok(build(&load(st, org).await?)) }).await
+    shared_inventory(&st.kube_inventory, &st.cache, org, || async { Ok(build(&load(st, org).await?)) }).await
+}
+
+/// Shared cache namespace of built inventories.
+const INVENTORY: &str = "kube_inventory";
+
+/// Two layers: requests read the replica's in-process copy (`local`, used as Rust objects); when
+/// it expires, its one load goes through the shared cache, so one replica builds the inventory
+/// (holding the lock) and the others decode its stored copy instead of building their own.
+async fn shared_inventory<F, Fut>(local: &crate::ttl_cache::TtlCache<Vec<KubeResource>>, shared: &crate::cache::SharedCache, org: &str, build: F) -> Result<Arc<Vec<KubeResource>>, ApiError>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<Vec<KubeResource>, ApiError>>,
+{
+    local.get_or_load(org, || async { shared.get_or_load(INVENTORY, org, "", INVENTORY_TTL, build).await.map(Arc::unwrap_or_clone) }).await
 }
 
 async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
@@ -2275,6 +2289,84 @@ mod tests {
             assert_eq!(row["owner"]["name"].as_str().unwrap_or_default(), p.owner);
             assert!(row["tags"].as_array().unwrap().iter().any(|t| t == &format!("pod_phase:{}", p.phase.to_lowercase())), "{}", p.uid);
         }
+    }
+
+    /// `copies` × the fixture's objects, each copy in its own cluster with its own uids.
+    fn fixture_inventory(copies: usize) -> Inventory {
+        let text = include_str!("../../tests/fixtures/k8s_objects.json");
+        let bodies: Vec<Value> = serde_json::from_str(text).expect("fixture");
+        let uids: Vec<String> = bodies.iter().filter_map(|b| s(b, &["metadata", "uid"]).map(str::to_string)).collect();
+        let mut objects = Vec::new();
+        for copy in 0..copies {
+            let mut text = text.to_string();
+            for uid in &uids {
+                text = text.replace(uid.as_str(), &format!("{uid}-{copy}"));
+            }
+            let bodies: Vec<Value> = serde_json::from_str(&text).expect("fixture copy");
+            objects.extend(bodies.iter().map(|b| full_object(&format!("shop-prod-{copy}"), 1_792_953_998_000, b)));
+        }
+        inventory_of(objects)
+    }
+
+    /// One replica builds an org's inventory and stores it in the shared cache; another replica's
+    /// in-process cache is filled from that copy (same rows, no second build) and serves it from
+    /// memory until it expires. Other orgs build their own.
+    #[tokio::test]
+    async fn one_replica_builds_the_inventory_and_the_others_decode_its_copy() {
+        let (backend, shared_a, shared_b) = crate::cache::testing::pair();
+        let (local_a, local_b) = (crate::ttl_cache::TtlCache::new(INVENTORY_TTL), crate::ttl_cache::TtlCache::new(INVENTORY_TTL));
+        let builds = std::sync::atomic::AtomicUsize::new(0);
+        let build_of = |copies: usize| {
+            let builds = &builds;
+            move || async move {
+                builds.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok::<_, ApiError>(build(&fixture_inventory(copies)))
+            }
+        };
+        let rows_a = shared_inventory(&local_a, &shared_a, "acme", build_of(1)).await.unwrap();
+        let rows_b = shared_inventory(&local_b, &shared_b, "acme", build_of(2)).await.unwrap();
+        assert_eq!(builds.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(!rows_a.is_empty());
+        assert_eq!(serde_json::to_value(&*rows_b).unwrap(), serde_json::to_value(&*rows_a).unwrap(), "B decodes A's rows");
+
+        // B's next requests are answered from its memory, without Valkey.
+        let ops = backend.ops.load(std::sync::atomic::Ordering::SeqCst);
+        let again = shared_inventory(&local_b, &shared_b, "acme", build_of(2)).await.unwrap();
+        assert!(Arc::ptr_eq(&again, &rows_b));
+        assert_eq!(backend.ops.load(std::sync::atomic::Ordering::SeqCst), ops);
+
+        let other = shared_inventory(&local_b, &shared_b, "globex", build_of(2)).await.unwrap();
+        assert_eq!(builds.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert!(other.len() > rows_a.len());
+    }
+
+    /// A dev-sized inventory (~10k objects) stays far below the shared cache's value limit
+    /// (`OC_CACHE_MAX_VALUE_BYTES`, 8 MiB) and decodes to the same rows.
+    #[test]
+    fn a_dev_sized_inventory_fits_in_the_shared_cache() {
+        let inventory = fixture_inventory(137);
+        assert!(inventory.objects.len() >= 10_000);
+        let rows = build(&inventory);
+        let started = std::time::Instant::now();
+        let size = crate::cache::testing::stored_size(&rows);
+        let encoded = started.elapsed();
+        let started = std::time::Instant::now();
+        let decoded: Vec<KubeResource> = crate::cache::testing::round_trip(&rows);
+        let round_trip = started.elapsed();
+        let json = serde_json::to_vec(&rows).unwrap().len();
+        // The copies repeat each other, which zstd finds; without repeats an inventory compresses
+        // like one copy does, so that ratio bounds the size of real objects.
+        let one = build(&fixture_inventory(1));
+        let ratio = crate::cache::testing::stored_size(&one) as f64 / serde_json::to_vec(&one).unwrap().len() as f64;
+        let unrepeated = (json as f64 * ratio) as usize;
+        eprintln!(
+            "{} objects, {} rows: {json} bytes as JSON, {size} stored ({unrepeated} at one copy's ratio {ratio:.3}); encode {encoded:?}, encode + decode {round_trip:?}",
+            inventory.objects.len(),
+            rows.len()
+        );
+        assert!(size < 8 << 20, "{size} bytes");
+        assert!(unrepeated < 8 << 20, "{unrepeated} bytes without repeats");
+        assert_eq!(serde_json::to_value(&decoded).unwrap(), serde_json::to_value(&rows).unwrap());
     }
 
     fn pod(status: Value) -> Value {
