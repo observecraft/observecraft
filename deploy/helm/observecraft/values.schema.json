@@ -901,6 +901,22 @@
           "minimum": 1,
           "maximum": 600
         },
+        "auth": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "existingSecret": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
         "bundled": {
           "type": "object",
           "properties": {

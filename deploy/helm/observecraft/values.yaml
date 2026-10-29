@@ -37,10 +37,11 @@ image:
 
 # Generated secrets (kept across upgrades) unless set here or provided by existingSecret.
 secrets:
-  # -- Secret with any of these keys (missing ones are generated): secret-key (encrypts stored
-  # secrets: TOTP seeds, SSO and archive credentials; never change it once set), internal-token,
-  # clickhouse-password, clickhouse-ingest-password, postgres-password, cache-password (bundled
-  # Valkey; letters and digits only), cache-url (external cache), smtp-url.
+  # -- Secret you manage (the chart then generates none) with the keys the configuration uses:
+  # secret-key (encrypts stored secrets: TOTP seeds, SSO and archive credentials; never change it
+  # once set), internal-token, clickhouse-password, clickhouse-ingest-password, postgres-password
+  # (bundled Postgres), postgres-url (external), cache-url (external cache), smtp-url. The bundled
+  # Valkey's password is configured in cache.auth (rendering fails until it is).
   existingSecret: ""
   secretKey: ""
   internalToken: ""
@@ -298,6 +299,16 @@ cache:
   maxValueBytes: 8388608
   # -- How long replicas wait for another replica's load of the same entry before loading it too.
   loadTimeoutSeconds: 30
+  # Password of the bundled Valkey (the server and Valkey read it from a secret).
+  auth:
+    # -- false: Valkey without a password (the NetworkPolicy still admits only the server's pods).
+    enabled: true
+    # -- Secret holding the password. Empty: generated in the chart's secret. Required (or
+    # enabled=false) with secrets.existingSecret, which the chart can't inspect when rendered
+    # without a cluster (helm template, Argo CD); set it to that same secret if it has cache-password.
+    existingSecret: ""
+    # -- Key of the password in existingSecret (letters and digits only).
+    key: cache-password
   bundled:
     image:
       repository: valkey/valkey

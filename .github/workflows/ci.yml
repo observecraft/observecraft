@@ -60,6 +60,7 @@ jobs:
             charts:
               - *ci
               - deploy/helm/**
+              - scripts/helm-chart.test.mjs
               - deploy/otel/**
               - deploy/vector/**
               - server/**
@@ -160,6 +161,8 @@ jobs:
           helm lint deploy/helm/observecraft
           helm lint deploy/helm/observecraft -f deploy/helm/observecraft/values-ha.yaml
           helm lint deploy/helm/observecraft-agent -f deploy/helm/observecraft-agent/ci/default-values.yaml
+      - name: Render tests
+        run: node --test scripts/helm-chart.test.mjs
       - name: Artifact Hub annotations
         run: |
           for chart in observecraft observecraft-agent; do

@@ -63,3 +63,4 @@ charts:        ## Lint and render the Helm charts
 	helm lint deploy/helm/observecraft-agent -f deploy/helm/observecraft-agent/ci/default-values.yaml
 	helm template oc deploy/helm/observecraft > /dev/null
 	helm template oc deploy/helm/observecraft-agent -f deploy/helm/observecraft-agent/ci/default-values.yaml > /dev/null
+	node --test scripts/helm-chart.test.mjs

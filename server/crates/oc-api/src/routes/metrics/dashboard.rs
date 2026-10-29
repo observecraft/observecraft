@@ -313,7 +313,7 @@ impl Plan {
             Err(e) => return (Err(e), false),
         };
         let ch = super::points_client(st, org);
-        let (rows, ran) = widget_rows(&st.cache, org, &sql, &params, p.step, || async { bind(ch.query(&sql), &params).fetch_all::<Row>().await.map_err(ApiError::from) }).await;
+        let (rows, ran) = widget_rows(&st.cache, org, &sql, &params, || async { bind(ch.query(&sql), &params).fetch_all::<Row>().await.map_err(ApiError::from) }).await;
         (rows.map(Fetched::Rows), ran)
     }
 
@@ -343,9 +343,7 @@ impl Plan {
         let done = crate::metric_rollups::progress(st, org).await.unwrap_or_default();
         let mut work = stream::iter(jobs.into_iter().map(|i| async move {
             let p = &self.items[i];
-            // Whole steps: a query issued a little later in the same step is the same query.
-            let mut subrange = query_range(range, previous_to, p.step);
-            subrange.to = (subrange.to + p.step - 1).div_euclid(p.step) * p.step;
+            let subrange = widget_range(range, previous_to, p.step);
             let (data, ran) = self.run_item(st, org, i, range, subrange, done).await;
             (i, data, ran)
         }))
@@ -406,6 +404,14 @@ impl Plan {
     }
 }
 
+/// The range a widget query reads, in whole steps: a query issued a little later in the same step
+/// is the same query.
+fn widget_range(range: TimeRange, previous_to: Option<i64>, step: i64) -> TimeRange {
+    let mut subrange = query_range(range, previous_to, step);
+    subrange.to = (subrange.to + step - 1).div_euclid(step) * step;
+    subrange
+}
+
 fn query_range(range: TimeRange, previous_to: Option<i64>, step: i64) -> TimeRange {
     TimeRange {
         from: previous_to
@@ -418,17 +424,19 @@ fn query_range(range: TimeRange, previous_to: Option<i64>, step: i64) -> TimeRan
 /// Shared cache namespace of widget query results.
 const WIDGETS: &str = "widgets";
 
-/// How long a widget result is reused: a step (a later query in the same step is the same query),
-/// at most 30 s.
-fn widget_ttl(step_ms: i64) -> Duration {
-    Duration::from_millis(step_ms.clamp(1_000, 30_000) as u64)
-}
+/// How long a widget result is reused. The web asks for whole minutes ("Past 1 Hour" ends at the
+/// current minute), so every load of a dashboard in a minute asks the same queries, however short
+/// their steps; a step-long TTL (20 s for 180 points over an hour) made a dashboard opened again
+/// half a minute later run every query again. Never longer, so a result is at most a minute old:
+/// a live feed re-reads the last two steps on its first update anyway, and its updates' keys
+/// change with every step.
+const WIDGET_TTL: Duration = Duration::from_secs(60);
 
 /// One widget query's rows through the shared cache (every replica, and concurrent identical
 /// queries on one, share one execution), and whether this call ran it. The SQL and its values say
 /// everything about the result (metric, filters, groups, range, step, rollup progress); the cache
 /// keeps orgs apart.
-async fn widget_rows<F, Fut>(cache: &crate::cache::SharedCache, org: &str, sql: &str, params: &[Param], step_ms: i64, load: F) -> (Result<Arc<Vec<Row>>, ApiError>, bool)
+async fn widget_rows<F, Fut>(cache: &crate::cache::SharedCache, org: &str, sql: &str, params: &[Param], load: F) -> (Result<Arc<Vec<Row>>, ApiError>, bool)
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Result<Vec<Row>, ApiError>>,
@@ -436,7 +444,7 @@ where
     let key = format!("{sql}\0{params:?}");
     let ran = std::sync::atomic::AtomicBool::new(false);
     let rows = cache
-        .get_or_load(WIDGETS, org, &key, widget_ttl(step_ms), || {
+        .get_or_load(WIDGETS, org, &key, WIDGET_TTL, || {
             ran.store(true, std::sync::atomic::Ordering::Relaxed);
             load()
         })
@@ -1081,12 +1089,87 @@ mod tests {
     }
 
     #[test]
-    fn widget_results_live_for_a_step_and_at_most_thirty_seconds() {
-        assert_eq!(widget_ttl(10_000), Duration::from_secs(10));
-        assert_eq!(widget_ttl(20_000), Duration::from_secs(20));
-        assert_eq!(widget_ttl(60_000), Duration::from_secs(30));
-        assert_eq!(widget_ttl(3_600_000), Duration::from_secs(30));
-        assert_eq!(widget_ttl(0), Duration::from_secs(1));
+    fn requests_in_the_same_step_ask_the_same_widget_query() {
+        // Nothing that differs between two requests of a step (the exact end in ms, the previous
+        // end of a live feed) is in a widget query: its SQL and values, the cache key, are the same.
+        let mut p = prepared("sum:kubernetes_state.pod.ready{kube_namespace:billing} by {kube_cluster_name}");
+        p.step = step_ms(TimeRange { from: 0, to: 3_600_000 }, 180, 10_000);
+        assert_eq!(p.step, 20_000);
+        let start = 1_793_000_000_000_i64.div_euclid(60_000) * 60_000;
+        let key = |to: i64, previous_to: Option<i64>| {
+            let range = TimeRange { from: to - 3_600_000, to };
+            assert_eq!(step_ms(range, 180, 10_000), p.step);
+            format!("{:?}", widget_sql(&p, Kind::Gauge, widget_range(range, previous_to, p.step), Default::default()))
+        };
+        for to in [start + 7_000, start + 19_999] {
+            assert_eq!(key(to, None), key(start + 1, None), "{to}");
+        }
+        assert_ne!(key(start + 20_001, None), key(start + 1, None), "the next step");
+        // A live feed's updates in a step.
+        assert_eq!(key(start + 13_000, Some(start - 9_000)), key(start + 18_000, Some(start - 4_000)));
+    }
+
+    /// The web asks for whole minutes ("Past 1 Hour" ends at the current minute), so a dashboard
+    /// opened again in the same minute asks the same widget queries: they must still be cached,
+    /// although the widgets' steps (20 s for 180 points over an hour) are shorter than the gap.
+    #[tokio::test]
+    async fn a_widget_query_asked_again_later_in_the_same_minute_is_served_from_the_shared_cache() {
+        let (backend, a, b) = crate::cache::testing::pair();
+        let rows = |value: f64| move || async move { Ok::<_, ApiError>(vec![Row { g: vec![], ts: 60_000, value }]) };
+        let sql = "SELECT g, ts, value FROM t WHERE OrgId = {oc_org:String} AND MetricName = ?";
+        let metric = [Param::Str("kubernetes_state.pod.ready".into())];
+        let (_, ran) = widget_rows(&a, "acme", sql, &metric, rows(1.0)).await;
+        assert!(ran);
+        // 55 seconds later.
+        for (_, expires) in backend.data.lock().unwrap().values_mut() {
+            *expires -= Duration::from_secs(55);
+        }
+        let (second, ran) = widget_rows(&b, "acme", sql, &metric, rows(2.0)).await;
+        assert!(!ran, "served from the shared cache");
+        assert_eq!(second.unwrap()[0].value, 1.0);
+        // Never longer than a minute: results that include the present are re-read.
+        for (_, expires) in backend.data.lock().unwrap().values_mut() {
+            *expires -= Duration::from_secs(6);
+        }
+        let (third, ran) = widget_rows(&b, "acme", sql, &metric, rows(3.0)).await;
+        assert!(ran);
+        assert_eq!(third.unwrap()[0].value, 3.0);
+    }
+
+    /// The dev report end to end: two loads of a dashboard 45 s apart in the same minute; the
+    /// second runs no data scan. Skipped unless OC_TEST_CLICKHOUSE_URL and OC_TEST_POSTGRES_URL are set.
+    #[tokio::test]
+    async fn a_dashboard_opened_again_in_the_same_minute_is_served_from_the_shared_cache() {
+        let Some((backend, states)) = crate::test_support::replicas(2).await else { return };
+        let (a, b) = (states[0].clone(), states[1].clone());
+        let org = crate::test_support::new_org(&a, "dashboard-again").await;
+        let to = super::super::now_ms().div_euclid(60_000) * 60_000;
+        a.clickhouse
+            .query("INSERT INTO otel.metrics_ingest_gauge (ResourceAttributes, MetricName, MetricUnit, Attributes, TimeUnix, Value) SELECT map('oc.org_id', ?, 'host.name', 'i-0a1b2c3d4e5f60001'), 'dashboard.again.load', '1', map(), fromUnixTimestamp64Milli(? - number * 15000), 1 FROM numbers(240)")
+            .bind(&org)
+            .bind(to - 1_000)
+            .execute()
+            .await
+            .expect("insert");
+        let request = || DashboardQueryRequest {
+            queries: vec![
+                DashboardMetricQuery { id: "q0".into(), query: "sum:dashboard.again.load{*}".into(), points: Some(180) },
+                DashboardMetricQuery { id: "q1".into(), query: "sum:dashboard.again.load{*} by {host}".into(), points: Some(120) },
+            ],
+            range: TimeRange { from: to - 3_600_000, to },
+        };
+        let run = |st: AppState| {
+            let org = org.clone();
+            async move { dashboard_query(State(st), OrgId(org), Json(request())).await.unwrap_or_else(|e| panic!("{e:?}")).0 }
+        };
+        let first = run(a).await;
+        assert_eq!(first.data_scans, 2);
+        for (_, expires) in backend.data.lock().unwrap().values_mut() {
+            *expires -= Duration::from_secs(45);
+        }
+        let second = run(b).await;
+        assert_eq!(second.data_scans, 0, "both widgets from the shared cache");
+        assert_eq!(second.results.iter().map(|r| r.series.len()).collect::<Vec<_>>(), vec![1, 1]);
     }
 
     /// Widget rows are kept in the shared cache under the org, the SQL and its bound values: a
@@ -1105,19 +1188,19 @@ mod tests {
         };
         let sql = "SELECT g, ts, value FROM t WHERE OrgId = {oc_org:String} AND MetricName = ?";
         let metric = [Param::Str("system.cpu.user".into())];
-        let (first, ran) = widget_rows(&a, "acme", sql, &metric, 60_000, rows(1.0)).await;
+        let (first, ran) = widget_rows(&a, "acme", sql, &metric, rows(1.0)).await;
         assert!(ran);
         assert_eq!(first.unwrap()[0].value, 1.0);
-        let (second, ran) = widget_rows(&b, "acme", sql, &metric, 60_000, rows(2.0)).await;
+        let (second, ran) = widget_rows(&b, "acme", sql, &metric, rows(2.0)).await;
         assert!(!ran, "served from the other replica's execution");
         assert_eq!(second.unwrap()[0].value, 1.0);
         assert_eq!(runs.load(std::sync::atomic::Ordering::SeqCst), 1);
 
-        let (other_org, ran) = widget_rows(&b, "globex", sql, &metric, 60_000, rows(3.0)).await;
+        let (other_org, ran) = widget_rows(&b, "globex", sql, &metric, rows(3.0)).await;
         assert!(ran);
         assert_eq!(other_org.unwrap()[0].value, 3.0);
         let other_metric = [Param::Str("system.cpu.idle".into())];
-        let (other_values, ran) = widget_rows(&b, "acme", sql, &other_metric, 60_000, rows(4.0)).await;
+        let (other_values, ran) = widget_rows(&b, "acme", sql, &other_metric, rows(4.0)).await;
         assert!(ran);
         assert_eq!(other_values.unwrap()[0].value, 4.0);
         assert_eq!(runs.load(std::sync::atomic::Ordering::SeqCst), 3);
