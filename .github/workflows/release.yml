@@ -174,9 +174,13 @@ jobs:
         env: { DIGEST: "${{ steps.push.outputs.digest }}" }
       - name: Record the tested source in SLSA provenance
         run: |
+          # The workflow build type requires externalParameters.workflow; GITHUB_WORKFLOW_REF is
+          # "owner/repo/.github/workflows/release.yml@refs/heads/main".
+          workflow_path="${GITHUB_WORKFLOW_REF#"$GITHUB_REPOSITORY"/}"
           jq -n --arg repo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" \
             --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            '{buildDefinition: {buildType: "https://actions.github.io/buildtypes/workflow/v1", externalParameters: {source: {uri: ($repo + ".git"), digest: {gitCommit: $sha}}}, resolvedDependencies: [{uri: ($repo + ".git"), digest: {gitCommit: $sha}}]}, runDetails: {builder: {id: "https://github.com/actions/runner"}, metadata: {invocationId: $run}}}' > provenance.json
+            --arg path "${workflow_path%@*}" --arg ref "${GITHUB_WORKFLOW_REF##*@}" \
+            '{buildDefinition: {buildType: "https://actions.github.io/buildtypes/workflow/v1", externalParameters: {workflow: {ref: $ref, repository: $repo, path: $path}, source: {uri: ($repo + ".git"), digest: {gitCommit: $sha}}}, resolvedDependencies: [{uri: ($repo + ".git"), digest: {gitCommit: $sha}}]}, runDetails: {builder: {id: "https://github.com/actions/runner"}, metadata: {invocationId: $run}}}' > provenance.json
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.IMAGE }}
