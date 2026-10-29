@@ -83,8 +83,9 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 |---|---|---|
 | Provider authentication (`validate`) | `GET /api/v1/validate`, `GET /api/v2/validate_keys` | ✅ |
 | `datadog_current_user` (data source) | `GET /api/v2/current_user` | ✅ |
-| `datadog_monitor` | `/api/v1/monitor` | Planned |
-| `datadog_downtime_schedule`, `datadog_downtime` | `/api/v2/downtime`, `/api/v1/downtime` | Planned |
+| `datadog_monitor`, `datadog_monitor_json`, `datadog_monitor` / `datadog_monitors` (data sources) | `/api/v1/monitor` (create, list, get, update, delete), `/api/v1/monitor/validate`, `/api/v1/monitor/{id}/validate`, `/api/v1/monitor/can_delete`, `/api/v1/monitor/search` | ✅ [details](#monitors) |
+| `datadog_downtime_schedule` | `/api/v2/downtime` (create, list, get, update, cancel), `/api/v2/monitor/{id}/downtime_matches` | ✅ [details](#downtimes) |
+| `datadog_downtime` (deprecated by the provider) | `/api/v1/downtime` (create, list, get, update, cancel), `/api/v1/downtime/cancel/by_scope` | ✅ [details](#downtimes) |
 | `datadog_dashboard`, `datadog_dashboard_json`, `datadog_dashboard` (data source) | `/api/v1/dashboard` (create, get, update, delete, list, bulk delete and restore), `POST /api/unstable/dashboard/widgets/validate` | ✅ [details](#dashboards) |
 | `datadog_dashboard_list`, `datadog_dashboard_list` (data source) | `/api/v1/dashboard/lists/manual`, `/api/v2/dashboard/lists/manual/{id}/dashboards` | ✅ [details](#dashboard-lists) |
 | `datadog_service_level_objective`, data sources `datadog_service_level_objective(s)` | `/api/v1/slo` (create, get, update, delete, list), `/api/v1/slo/search` | ✅ [details](#service-level-objectives) |
@@ -190,6 +191,81 @@ here. List ids are integers. An item's `type` comes from the dashboard: `custom_
 for dashboards made here or in the UI, `integration_timeboard` / `integration_screenboard` for integration
 dashboards (a `free` layout is a screenboard). `is_favorite` is always `false`; deleting a list keeps its
 dashboards.
+
+## Monitors
+
+A monitor written through `/api/v1/monitor` is an ordinary ObserveCraft monitor: it shows in Monitors, is
+evaluated every minute and notifies its `@handles`, and a monitor made in the UI can be read, imported and managed
+with Terraform. Monitor ids are the same integers in both APIs.
+
+The document you send is kept and returned as you sent it, with the fields the server owns filled in (`id`,
+`org_id`, `created`, `created_at`, `modified`, `creator`, `deleted`, `multi`, `overall_state`,
+`overall_state_modified`, `options.silenced`, and `matching_downtimes` with `with_downtimes`). Fields left out get
+Datadog's defaults (`options.notify_no_data`, `notify_audit`, `new_host_delay`, `include_tags`, and for log alerts
+`groupby_simple_monitor`; `tags`, `priority`, `restricted_roles`, `draft_status`). An update (`PUT`) replaces the
+fields it sends, `options` as a whole. When a monitor is changed in the UI, the next read shows the change in the
+document (name, message, priority, tags, draft, query, thresholds, no-data settings), so `terraform plan` reports
+it as drift.
+
+| Datadog | ObserveCraft |
+|---|---|
+| `type: metric alert`, `query alert` | metric monitor; an APM monitor when every metric is `trace.*` |
+| `type: log alert` | log monitor |
+| `query`: `avg\|sum\|min\|max\|last(last_<n><m\|h\|d\|w>):<metric query> <op> <threshold>`, `change(…,last_…)`, `pct_change(…,last_…)`, arithmetic between metric queries | time aggregation, evaluation window, change detection, comparator (`>`, `>=`, `<`, `<=`) and alert threshold |
+| `query`: `logs("<search>").index(…).rollup("count").by("<facets>").last("<window>") <op> <threshold>` | log search, group-by facets, window (counts summed over it), comparator, threshold |
+| `options.thresholds.critical`, `warning`, `critical_recovery`, `warning_recovery` | thresholds and recovery thresholds (`critical` must match the query) |
+| `options.notify_no_data`, `on_missing_data: show_and_notify_no_data` | notify on no data |
+| `options.no_data_timeframe` | no-data timeframe (default twice the window) |
+| `name`, `message` (its `@handles` are the recipients), `priority`, `tags`, `draft_status` | the same |
+
+**Accepted, stored and returned, not enforced yet:** `options.evaluation_delay`, `new_group_delay`,
+`new_host_delay`, `renotify_interval`, `renotify_occurrences`, `renotify_statuses`, `escalation_message`,
+`include_tags`, `require_full_window`, `notify_by`, `notify_audit`, `timeout_h`, `on_missing_data` (other than
+notifying on no data), `group_retention_duration`, `threshold_windows`, `scheduling_options`,
+`notification_preset_name`, `groupby_simple_monitor`, `enable_logs_sample`, `enable_samples`, `locked`,
+`thresholds.ok` and `thresholds.unknown`; `restricted_roles` (editing follows our roles), `assets`, the log
+query's `.index(…)` (every index is searched). These are listed here only; the UI doesn't flag them.
+
+**Rejected with a 400** naming what isn't supported: monitor types other than the three above (`composite`,
+`service check`, `event alert`, `event-v2 alert`, `process alert`, `rum alert`, `trace-analytics alert`,
+`slo alert`, `audit alert`, `ci-pipelines alert`, `ci-tests alert`, `error-tracking alert`,
+`database-monitoring alert`, `network-performance alert`, `cost alert`, `data-quality alert`, `data-jobs alert`,
+`llm-observability alert`, …); formula and function queries (`options.variables`); calendar-aligned windows
+(`current_1d`, `current_1mo`); time aggregations other than avg, sum, min, max and last; metric functions our
+query language doesn't have (e.g. `anomalies()`, `forecast()`, `.as_count()`); log rollups other than `count`;
+changing a monitor's type between metric and log. `synthetics alert` monitors (our synthetic tests' own monitors)
+can be read but are managed with their test.
+
+`DELETE` refuses a monitor that an SLO uses unless `force=true`; `can_delete` reports those. `GET /api/v1/monitor`
+filters by `name` (substring), `tags` (in the query's scope), `monitor_tags` (on the monitor), `id_offset`, `page`
+and `page_size`, as the `datadog_monitor(s)` data sources call it; `/api/v1/monitor/search` takes `status:`,
+`type:`, `muted:`, `tag:`, `priority:` terms and free text. `/api/v1/monitor/groups/search` isn't available.
+
+Writes need the Standard or Admin role, as in the UI.
+
+## Downtimes
+
+Downtimes from either API are our downtimes (Monitors → Downtimes): v2 ids are UUIDs, v1 ids integers, and each
+downtime has both, so one written through one version can be read through the other. Documents are returned as
+written, with `status`, `canceled`, `created`, `modified` (and v1's `active`, `disabled`, `creator_id`,
+`updater_id`) from the server. Deleting cancels; canceling twice is fine.
+
+| Datadog | ObserveCraft |
+|---|---|
+| v2 `monitor_identifier.monitor_id`, v1 `monitor_id` | the monitor it silences |
+| v2 `monitor_identifier.monitor_tags`, v1 `monitor_tags` (`["*"]` = all monitors) | monitors carrying all those tags |
+| v2 `scope` (`*`, or `key:value` terms joined with `AND`, values may be quoted), v1 `scope` (tag list) | groups covered |
+| v2 `schedule.start` / `end`, v1 `start` / `end` | one-time window (no end = until canceled) |
+| v2 `recurrences[0]` with `rrule` `FREQ=DAILY` or `FREQ=WEEKLY` (+ `BYDAY`, `UNTIL`, `COUNT`), `duration`, `start` in `schedule.timezone`; v1 `recurrence` `days` / `weeks` with `period` 1 (+ `week_days`, `until_date`, `until_occurrences`) in `timezone` | a daily or weekly repetition, limited to weekdays, until a date |
+| `message` | the same |
+
+**Accepted, stored and returned, not enforced yet:** `display_timezone`, `mute_first_recovery_notification`,
+`notify_end_states`, `notify_end_types`. Recurrences follow the timezone's offset at their start (they don't move
+with daylight-saving changes).
+
+**Rejected with a 400:** monthly and yearly recurrences, repeating every N > 1 days or weeks, v1 `rrule`
+recurrences, more than one v2 recurrence, other RRULE parts (`BYMONTHDAY`, `BYHOUR`, …), and v2 scopes with `OR`,
+`NOT`, `-`, parentheses or wildcards. Monitors in another organization are not found.
 
 ## How compatibility is tested
 

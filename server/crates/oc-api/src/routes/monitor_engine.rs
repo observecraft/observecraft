@@ -370,6 +370,9 @@ pub struct DowntimeWindow {
     pub period: Option<i64>,
     pub until: Option<i64>,
     pub canceled: Option<i64>,
+    /// A daily recurring downtime only on these days of the week (0 = Monday … 6 = Sunday, UTC);
+    /// empty = every occurrence.
+    pub weekdays: Vec<i16>,
 }
 
 pub const DAY_MS: i64 = 86_400_000;
@@ -388,10 +391,15 @@ impl DowntimeWindow {
         };
         let k = (now - self.start) / period;
         let (s, e) = (self.start + k * period, end + k * period);
-        if self.until.is_some_and(|u| s > u) || now >= e {
+        if self.until.is_some_and(|u| s > u) || now >= e || !self.on_weekday(s) {
             return None;
         }
         Some((s, Some(e)))
+    }
+
+    fn on_weekday(&self, at: i64) -> bool {
+        // 1970-01-01 was a Thursday.
+        self.weekdays.is_empty() || self.weekdays.contains(&(((at.div_euclid(DAY_MS) + 3) % 7) as i16))
     }
 
     /// Whether the downtime has ended for good (one-off past its end, recurring past its last occurrence).
@@ -586,13 +594,24 @@ mod tests {
 
     #[test]
     fn recurring_downtime_windows() {
-        let d = DowntimeWindow { start: 0, end: Some(3_600_000), period: Some(DAY_MS), until: Some(2 * DAY_MS), canceled: None };
+        let d = DowntimeWindow { start: 0, end: Some(3_600_000), period: Some(DAY_MS), until: Some(2 * DAY_MS), canceled: None, weekdays: vec![] };
         assert_eq!(d.active_at(DAY_MS + 60_000), Some((DAY_MS, Some(DAY_MS + 3_600_000))));
         assert_eq!(d.active_at(DAY_MS + 7_200_000), None);
         assert!(d.active_at(3 * DAY_MS + 60_000).is_none(), "past recur_until");
         assert!(d.finished_at(2 * DAY_MS + 3_600_000));
-        let forever = DowntimeWindow { start: 0, end: None, period: None, until: None, canceled: None };
+        let forever = DowntimeWindow { start: 0, end: None, period: None, until: None, canceled: None, weekdays: vec![] };
         assert_eq!(forever.active_at(10 * DAY_MS), Some((0, None)));
+    }
+
+    #[test]
+    fn daily_downtimes_limited_to_weekdays() {
+        // 1970-01-01 was a Thursday (3); Monday to Friday, one hour from midnight UTC.
+        let d = DowntimeWindow { start: 0, end: Some(3_600_000), period: Some(DAY_MS), until: None, canceled: None, weekdays: vec![0, 1, 2, 3, 4] };
+        assert_eq!(d.active_at(60_000), Some((0, Some(3_600_000))), "Thursday");
+        assert_eq!(d.active_at(DAY_MS + 60_000), Some((DAY_MS, Some(DAY_MS + 3_600_000))), "Friday");
+        assert_eq!(d.active_at(2 * DAY_MS + 60_000), None, "Saturday");
+        assert_eq!(d.active_at(3 * DAY_MS + 60_000), None, "Sunday");
+        assert!(d.active_at(4 * DAY_MS + 60_000).is_some(), "Monday");
     }
 
     #[test]

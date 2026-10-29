@@ -22,6 +22,8 @@ pub mod slos;
 pub mod dashboard_lists;
 pub mod dashboard_widgets;
 pub mod dashboards;
+pub mod downtimes;
+pub mod monitors;
 pub mod validate;
 
 #[cfg(test)]
@@ -33,7 +35,7 @@ use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Serialize;
 use utoipa::ToSchema;
@@ -58,6 +60,24 @@ pub fn router() -> Router<AppState> {
         .merge(slo_corrections::router())
         .merge(dashboards::router())
         .merge(dashboard_lists::router())
+        .merge(monitors_and_downtimes())
+}
+
+/// `datadog_monitor`, `datadog_downtime_schedule` and `datadog_downtime` ([`monitors`], [`downtimes`]).
+fn monitors_and_downtimes() -> Router<AppState> {
+    Router::new()
+        .route("/api/v1/monitor", get(monitors::list).post(monitors::create))
+        .route("/api/v1/monitor/validate", post(monitors::validate))
+        .route("/api/v1/monitor/can_delete", get(monitors::can_delete))
+        .route("/api/v1/monitor/search", get(monitors::search))
+        .route("/api/v1/monitor/:monitor_id", get(monitors::get_one).put(monitors::update).delete(monitors::delete))
+        .route("/api/v1/monitor/:monitor_id/validate", post(monitors::validate_existing))
+        .route("/api/v1/downtime", get(downtimes::v1_list).post(downtimes::v1_create))
+        .route("/api/v1/downtime/cancel/by_scope", post(downtimes::v1_cancel_by_scope))
+        .route("/api/v1/downtime/:downtime_id", get(downtimes::v1_get).put(downtimes::v1_update).delete(downtimes::v1_cancel))
+        .route("/api/v2/downtime", get(downtimes::v2_list).post(downtimes::v2_create))
+        .route("/api/v2/downtime/:downtime_id", get(downtimes::v2_get).patch(downtimes::v2_update).delete(downtimes::v2_cancel))
+        .route("/api/v2/monitor/:monitor_id/downtime_matches", get(downtimes::v2_monitor_matches))
 }
 
 // ================================================================ errors

@@ -30,6 +30,7 @@ pub(crate) struct Downtime {
     pub creator_name: Option<String>,
     pub created_at: i64,
     pub canceled_at: Option<i64>,
+    pub weekdays: Vec<i16>,
 }
 
 impl Downtime {
@@ -44,6 +45,7 @@ impl Downtime {
             },
             until: self.recur_until,
             canceled: self.canceled_at,
+            weekdays: self.weekdays.clone(),
         }
     }
 
@@ -58,7 +60,7 @@ impl Downtime {
 const SELECT: &str = "SELECT d.id, d.monitor_id, m.name AS monitor_name, d.monitor_tags, d.scope, d.message, \
     (extract(epoch FROM d.start_at) * 1000)::bigint AS start_at, (extract(epoch FROM d.end_at) * 1000)::bigint AS end_at, d.recurrence, \
     (extract(epoch FROM d.recur_until) * 1000)::bigint AS recur_until, d.created_by::text AS creator_id, u.name AS creator_name, \
-    (extract(epoch FROM d.created_at) * 1000)::bigint AS created_at, (extract(epoch FROM d.canceled_at) * 1000)::bigint AS canceled_at \
+    (extract(epoch FROM d.created_at) * 1000)::bigint AS created_at, (extract(epoch FROM d.canceled_at) * 1000)::bigint AS canceled_at, d.weekdays \
     FROM downtimes d LEFT JOIN monitors m ON m.id = d.monitor_id LEFT JOIN users u ON u.id = d.created_by";
 
 /// The org's downtimes that are, or may still become, active.

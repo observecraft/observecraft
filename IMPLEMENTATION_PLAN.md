@@ -45,7 +45,16 @@ Success criteria:
 - `/api/v2/downtime` and `/api/v1/downtime` onto our downtimes.
 - Cassettes for the supported scenarios pass; tf-compat for both resources passes with no diff.
 
-Status: Not Started
+Status: Complete. `routes/datadog_api/monitors.rs` (`/api/v1/monitor` CRUD, list with the data sources'
+filters, `validate`, `{id}/validate`, `can_delete`, `search`) and `downtimes.rs` (`/api/v2/downtime`,
+`/api/v2/monitor/{id}/downtime_matches`, `/api/v1/downtime`, `cancel/by_scope`); migration `0048` stores the
+Datadog document next to each monitor and downtime (plus v2 UUIDs and weekday-limited daily recurrences in
+the downtime model). Metric/query and log alerts map onto our monitors; other types, formula queries and
+calendar windows are rejected; unmapped options are stored, returned and listed in `docs/datadog-api.md`.
+UI edits show in the document on the next read. Cassettes: 17 Monitors, 16 v1 and 13 v2 Downtimes scenarios
+replayed, the rest listed with reasons in the tests. tf-compat fixtures `monitor` (metric, APM, log,
+`datadog_monitor_json`, both data sources), `downtime_schedule` and `downtime`. Not done: composite, service
+check and the other monitor types; `/api/v1/monitor/groups/search`; flagging not-enforced options in the UI.
 
 ## Stage 3: Users, roles, teams and keys
 
