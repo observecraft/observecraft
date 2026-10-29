@@ -1434,6 +1434,7 @@ mod tests {
             ("slos.rs", include_str!("slos.rs")),
             ("spans.rs", include_str!("spans.rs")),
             ("../logproc.rs", include_str!("../logproc.rs")),
+            ("../metric_rollups.rs", include_str!("../metric_rollups.rs")),
         ];
         let mut missing = Vec::new();
         for (file, src) in sources {
@@ -1599,6 +1600,7 @@ mod tests {
             ("../log_metrics.rs", include_str!("../log_metrics.rs")),
             ("../logproc.rs", include_str!("../logproc.rs")),
             ("../main.rs", include_str!("../main.rs")),
+            ("../metric_rollups.rs", include_str!("../metric_rollups.rs")),
             ("../pipelines/dates.rs", include_str!("../pipelines/dates.rs")),
             ("../pipelines/filter.rs", include_str!("../pipelines/filter.rs")),
             ("../pipelines/grok.rs", include_str!("../pipelines/grok.rs")),

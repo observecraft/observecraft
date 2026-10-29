@@ -9,18 +9,6 @@ struct Count {
     n: u64,
 }
 
-#[derive(clickhouse::Row, serde::Deserialize, Debug, PartialEq)]
-struct Rollup {
-    min: f64,
-    max: f64,
-    sum: f64,
-    count: u64,
-    first: f64,
-    last: f64,
-    start: i64,
-    end: i64,
-}
-
 #[tokio::test]
 async fn ingested_points_become_series_samples_and_rollups() {
     let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
@@ -105,21 +93,114 @@ async fn ingested_points_become_series_samples_and_rollups() {
     // The org comes from the resource, as for every other telemetry table.
     assert_eq!(count(format!("SELECT count() AS n FROM otel.metrics_samples WHERE {o} AND MetricName = 'http.server.requests'")).await, 2);
 
-    // Rollups hold the same aggregates as the samples, at 5 minutes and 1 hour.
-    for table in ["metrics_rollup_5m", "metrics_rollup_1h"] {
-        let r = ch
-            .query(&format!(
-                "SELECT min(Min) AS min, max(Max) AS max, sum(Sum) AS sum, sum(Count) AS count, argMinMerge(First) AS first, argMaxMerge(Last) AS last, \
-                 toInt64(toUnixTimestamp(min(Start))) AS start, toInt64(toUnixTimestamp(max(End))) AS end \
-                 FROM otel.{table} WHERE {o} AND MetricName = 'system.cpu.utilization' AND SeriesId = \
-                 (SELECT any(SeriesId) FROM otel.metrics_series WHERE {o} AND ServiceName = 'storefront-api')"
-            ))
-            .fetch_one::<Rollup>()
-            .await
-            .unwrap_or_else(|e| panic!("{table}: {e}"));
-        // Start and End are the first and last sample's time: rates divide by the time samples span.
-        assert_eq!(r, Rollup { min: 0.25, max: 0.75, sum: 1.5, count: 3, first: 0.25, last: 0.5, start: 1793095210, end: 1793095330 }, "{table}");
+    // Rollups are the rollup job's (observecraft-server), not written per insert.
+    for table in ["metrics_rollup_5m", "metrics_rollup_1h", "metrics_dist_rollup_5m", "metrics_dist_rollup_1h"] {
+        assert_eq!(count(format!("SELECT count() AS n FROM otel.{table} WHERE {o}")).await, 0, "{table}");
     }
+}
+
+/// Points the intake marked as of known series (`oc.series_known = 1`) are samples like any other,
+/// but write no series row; samples carry every retention tier (the rollup job reads them).
+#[tokio::test]
+async fn points_of_known_series_write_samples_but_no_series_rows() {
+    let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
+        eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
+        return;
+    };
+    let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+    let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+    let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
+    migrate_clickhouse(&cfg, false).await.expect("migrate");
+    let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password);
+    let org = format!("known-test-{}", std::process::id());
+    let count = |sql: String| {
+        let ch = ch.clone();
+        async move { ch.query(&sql).fetch_one::<Count>().await.unwrap_or_else(|e| panic!("{sql}: {e}")).n }
+    };
+    let insert = |table: &str, known: bool, t: &str| {
+        let mark = if known { ", 'oc.series_known', '1'" } else { "" };
+        let (cols, values) = match table {
+            "gauge" => ("Value", "1"),
+            _ => ("Count, Sum, BucketCounts, ExplicitBounds, AggregationTemporality", "3, 4.5, [1, 2], [10.], 1"),
+        };
+        format!(
+            "INSERT INTO otel.metrics_ingest_{table} (ResourceAttributes, MetricName, Attributes, TimeUnix, {cols}) VALUES \
+             (map('oc.org_id', '{org}', 'host.name', 'i-0a1b2c3d4e5f60001', 'oc.metrics_retention_days', '15', 'oc.metrics_retention_5m_days', '180', 'oc.metrics_retention_1h_days', '760'{mark}), \
+              'm.{table}', map('state', 'user'), '{t}', {values})"
+        )
+    };
+    for table in ["gauge", "histogram"] {
+        ch.query(&insert(table, false, "2026-10-27 10:00:10")).execute().await.expect("unmarked");
+        ch.query(&insert(table, true, "2026-10-27 10:00:20")).execute().await.expect("marked");
+        ch.query(&insert(table, true, "2026-10-27 10:00:30")).execute().await.expect("marked");
+    }
+    let o = format!("OrgId = '{org}'");
+    for (table, samples) in [("gauge", "metrics_samples"), ("histogram", "metrics_dist_samples")] {
+        let name = format!("MetricName = 'm.{table}'");
+        assert_eq!(count(format!("SELECT count() AS n FROM otel.{samples} WHERE {o} AND {name}")).await, 3, "{table}: every point is a sample");
+        assert_eq!(count(format!("SELECT count() AS n FROM otel.metrics_series WHERE {o} AND {name}")).await, 1, "{table}: one series row, from the unmarked point");
+        // The mark is not a label: one series id for all three points.
+        assert_eq!(count(format!("SELECT uniqExact(SeriesId) AS n FROM otel.{samples} WHERE {o} AND {name}")).await, 1);
+        assert_eq!(
+            count(format!("SELECT count() AS n FROM otel.{samples} WHERE {o} AND {name} AND RetentionDays = 15 AND Retention5mDays = 180 AND Retention1hDays = 760")).await,
+            3,
+            "{table}: samples carry the org's tiers"
+        );
+    }
+}
+
+/// Series rows feed the tag index: a row per label with where its value comes from (Scope bits:
+/// 1 point attribute, 2 resource attribute, 4 service, 8 what a plain key reads), and the values
+/// per key.
+#[tokio::test]
+async fn series_feed_the_tag_index() {
+    let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
+        eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
+        return;
+    };
+    let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+    let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+    let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
+    migrate_clickhouse(&cfg, false).await.expect("migrate");
+    let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password);
+    let org = format!("tags-test-{}", std::process::id());
+    // `env` is both a resource and a point attribute with other values (the point's wins for a
+    // plain key); `zone` both, with the same value; `oc.*` stamps are no labels.
+    ch.query(&format!(
+        "INSERT INTO otel.metrics_ingest_gauge (ResourceAttributes, ServiceName, MetricName, Attributes, TimeUnix, Value) VALUES \
+         (map('oc.org_id', '{org}', 'k8s.namespace.name', 'shop', 'env', 'prod', 'zone', 'a', 'oc.series_known', ''), 'storefront-api', 'kubernetes.cpu.usage.total', \
+          map('env', 'canary', 'zone', 'a', 'state', 'user'), '2026-10-27 10:00:10', 1)"
+    ))
+    .execute()
+    .await
+    .expect("insert");
+    #[derive(clickhouse::Row, serde::Deserialize, Debug, PartialEq)]
+    struct Tag {
+        key: String,
+        value: String,
+        scope: u8,
+    }
+    let tags: Vec<Tag> = ch
+        .query(&format!(
+            "SELECT toString(Key) AS key, Value AS value, Scope AS scope FROM otel.metrics_tags FINAL WHERE OrgId = '{org}' AND MetricName = 'kubernetes.cpu.usage.total' ORDER BY key, value"
+        ))
+        .fetch_all()
+        .await
+        .expect("tags");
+    let tag = |key: &str, value: &str, scope: u8| Tag { key: key.into(), value: value.into(), scope };
+    assert_eq!(
+        tags,
+        vec![tag("env", "canary", 1 | 8), tag("env", "prod", 2), tag("k8s.namespace.name", "shop", 2 | 8), tag("service", "storefront-api", 4), tag("state", "user", 1 | 8), tag("zone", "a", 1 | 2 | 8)]
+    );
+    // Every row is the series' (one series), with its type.
+    let n: u64 = ch.query(&format!("SELECT uniqExact(SeriesId) FROM otel.metrics_tags WHERE OrgId = '{org}' AND MetricType = 'gauge'")).fetch_one().await.expect("count");
+    assert_eq!(n, 1);
+    let values: Vec<String> = ch
+        .query(&format!("SELECT concat(toString(Key), '=', Value, ':', toString(Scope)) FROM otel.metrics_tag_values FINAL WHERE OrgId = '{org}' ORDER BY 1"))
+        .fetch_all()
+        .await
+        .expect("values");
+    assert_eq!(values, ["env=canary:9", "env=prod:2", "k8s.namespace.name=shop:10", "service=storefront-api:4", "state=user:9", "zone=a:11"]);
 }
 
 /// Changing an install-wide retention reaches parts already written: lowering it drops their

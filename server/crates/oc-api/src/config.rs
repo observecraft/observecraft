@@ -67,6 +67,10 @@ pub struct Config {
     /// Kubernetes objects kept in the in-process inventory cache over all orgs
     /// (`OC_INVENTORY_CACHE_MAX_OBJECTS`; least recently used orgs go first).
     pub inventory_cache_max_objects: usize,
+    /// Seconds after a 5-minute bucket ends before the rollup job rolls it up (late points still count).
+    pub metrics_rollup_lateness_secs: i64,
+    /// Hours of samples a new org's rollups start from (`metric_rollups`).
+    pub metrics_rollup_backfill_hours: i64,
 }
 
 #[derive(Clone, Debug)]
@@ -178,6 +182,8 @@ impl Config {
                 load_timeout_secs: var("OC_CACHE_LOAD_TIMEOUT_SECONDS", "30").parse().unwrap_or(30).clamp(1, 600),
             },
             inventory_cache_max_objects: var("OC_INVENTORY_CACHE_MAX_OBJECTS", "500000").parse().unwrap_or(500_000),
+            metrics_rollup_lateness_secs: var("OC_METRICS_ROLLUP_LATENESS_SECONDS", "120").parse().unwrap_or(120).clamp(0, 3600),
+            metrics_rollup_backfill_hours: var("OC_METRICS_ROLLUP_BACKFILL_HOURS", "24").parse().unwrap_or(24).clamp(0, 24 * 400),
             retention: Retention {
                 logs_days: days("OC_RETENTION_LOGS_DAYS", 15),
                 traces_days: days("OC_RETENTION_TRACES_DAYS", 15),

@@ -589,6 +589,8 @@ struct ServiceCheckRow {
     host: String,
     check: String,
     status: f64,
+    /// The check's last point (epoch ms).
+    at: i64,
 }
 
 #[derive(sqlx::FromRow)]
@@ -626,7 +628,7 @@ async fn load_fleet(st: &AppState, org: &str, range: TimeRange) -> Result<(Vec<A
              toUInt8(countIf(startsWith(MetricName, 'system.')) > 0) AS host_metrics, \
              toUInt8(countIf(startsWith(MetricName, 'aws.ec2.') OR startsWith(MetricName, 'gcp.gce.') OR startsWith(MetricName, 'azure.vm.')) > 0) AS cloud_metrics \
              FROM otel.metrics_series \
-             WHERE OrgId = {oc_org:String} AND LastSeen >= toDateTime(intDiv(?, 1000)) AND LastSeen <= toDateTime(intDiv(?, 1000) + 60) AND host != '' \
+             WHERE OrgId = {oc_org:String} AND LastSeen >= toStartOfHour(toDateTime(intDiv(?, 1000))) AND LastSeen <= toDateTime(intDiv(?, 1000) + 60) AND host != '' \
              GROUP BY host, collector LIMIT ?",
         )
         .bind(range.from)
@@ -638,7 +640,7 @@ async fn load_fleet(st: &AppState, org: &str, range: TimeRange) -> Result<(Vec<A
     let src = points_subquery("gauge", &["service_check.status"]);
     let service_checks = with_window(st.ch(org), checks_from, range.to)
         .query(&format!(
-            "SELECT ResourceAttributes['host.name'] AS host, Attributes['check'] AS check, argMax(Value, TimeUnix) AS status \
+            "SELECT ResourceAttributes['host.name'] AS host, Attributes['check'] AS check, argMax(Value, TimeUnix) AS status, toInt64(toUnixTimestamp64Milli(max(TimeUnix))) AS at \
              FROM {src} WHERE OrgId = {{oc_org:String}} AND MetricName = 'service_check.status' AND host != '' AND check != '' GROUP BY host, check"
         ))
         .fetch_all::<ServiceCheckRow>();
@@ -652,6 +654,14 @@ async fn load_fleet(st: &AppState, org: &str, range: TimeRange) -> Result<(Vec<A
     let (series, service_checks, dd_hosts) =
         tokio::try_join!(async { series.await.map_err(ApiError::from) }, async { service_checks.await.map_err(ApiError::from) }, async { dd_hosts.await.map_err(ApiError::from) })?;
 
+    // A series row is written about once an hour for the Datadog Agent's metrics (the intake marks
+    // the rest), so its LastSeen can be an hour old: the Agent's service checks (datadog.agent.up
+    // every run) say when it last reported.
+    let mut checks_at: HashMap<String, i64> = HashMap::new();
+    for r in &service_checks {
+        let at = checks_at.entry(r.host.clone()).or_insert(r.at);
+        *at = (*at).max(r.at);
+    }
     let mut svc: HashMap<String, Vec<FleetServiceCheck>> = HashMap::new();
     for r in service_checks {
         svc.entry(r.host).or_default().push(FleetServiceCheck { name: r.check, status: service_check_status(r.status.clamp(0.0, 3.0) as u8).into() });
@@ -660,7 +670,7 @@ async fn load_fleet(st: &AppState, org: &str, range: TimeRange) -> Result<(Vec<A
         v.sort_by(|a, b| a.name.cmp(&b.name));
     }
     let metric_hosts: BTreeSet<String> = series.iter().filter(|s| s.collector != "otelcol" && (s.host_metrics == 1 || s.cloud_metrics == 1)).map(|s| s.host.clone()).collect();
-    let dd_seen: HashMap<&str, i64> = series.iter().filter(|s| s.collector == "datadog-agent").map(|s| (s.host.as_str(), s.seen)).collect();
+    let dd_seen: HashMap<&str, i64> = series.iter().filter(|s| s.collector == "datadog-agent").map(|s| (s.host.as_str(), s.seen.max(checks_at.get(&s.host).copied().unwrap_or(0)))).collect();
     let otelcol: HashMap<&str, &SeriesHost> = series.iter().filter(|s| s.collector == "otelcol").map(|s| (s.host.as_str(), s)).collect();
 
     let mut rows = Vec::new();

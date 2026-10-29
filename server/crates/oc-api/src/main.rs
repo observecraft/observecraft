@@ -13,6 +13,7 @@ mod error;
 mod log_access;
 mod log_metrics;
 mod logproc;
+mod metric_rollups;
 mod pipelines;
 mod routes;
 mod s3;
@@ -149,6 +150,7 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(routes::scorecards::run_scheduler(state.clone()));
     tokio::spawn(routes::resource_policies::run_snapshots(state.clone()));
     tokio::spawn(routes::workflows::run_executor(state.clone()));
+    tokio::spawn(metric_rollups::run(state.clone()));
     logproc::serve(state.clone()).await.context("log indexer")?;
 
     let cors = CorsLayer::new()

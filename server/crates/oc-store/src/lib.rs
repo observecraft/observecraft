@@ -82,6 +82,14 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
         include_str!("../../../migrations/clickhouse/0008_k8s_generations.sql"),
     ),
     (
+        "0009_metrics_write_path",
+        include_str!("../../../migrations/clickhouse/0009_metrics_write_path.sql"),
+    ),
+    (
+        "0010_metric_tags",
+        include_str!("../../../migrations/clickhouse/0010_metric_tags.sql"),
+    ),
+    (
         "0011_k8s_inventory",
         include_str!("../../../migrations/clickhouse/0011_k8s_inventory.sql"),
     ),
@@ -350,11 +358,6 @@ fn delete_ttls(r: RetentionDays) -> Vec<(&'static str, String)> {
         ("otel.otel_traces_trace_id_ts", format!("toDate(Start) + INTERVAL {} DAY", r.traces_max)),
         ("otel.otel_ci_traces", format!("toDate(Timestamp) + INTERVAL {} DAY", r.ci)),
         ("otel.otel_ci_traces_trace_id_ts", format!("toDate(Start) + INTERVAL {} DAY", r.ci)),
-        ("otel.otel_metrics_gauge", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
-        ("otel.otel_metrics_sum", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
-        ("otel.otel_metrics_histogram", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
-        ("otel.otel_metrics_exponential_histogram", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
-        ("otel.otel_metrics_summary", format!("toDateTime(TimeUnix) + INTERVAL {} DAY", r.metrics)),
         ("otel.metrics_samples", format!("toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics)),
         ("otel.metrics_rollup_5m", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_5m)),
         ("otel.metrics_rollup_1h", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_1h)),
@@ -362,6 +365,9 @@ fn delete_ttls(r: RetentionDays) -> Vec<(&'static str, String)> {
         ("otel.metrics_dist_rollup_5m", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_5m)),
         ("otel.metrics_dist_rollup_1h", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_1h)),
         ("otel.metrics_series", format!("LastSeen + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics.max(r.metrics_5m).max(r.metrics_1h))),
+        // The tag index lives as long as its series.
+        ("otel.metrics_tags", format!("LastSeen + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics.max(r.metrics_5m).max(r.metrics_1h))),
+        ("otel.metrics_tag_values", format!("LastSeen + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics.max(r.metrics_5m).max(r.metrics_1h))),
     ]
 }
 
@@ -491,6 +497,111 @@ mod tests {
                 "{mv}"
             );
         }
+    }
+
+    /// The tables and views that exist after every migration ran, as (name, statement), replaying
+    /// CREATE and DROP statements in order.
+    fn final_objects(cluster: Option<&str>) -> Vec<(String, String)> {
+        let mut objects: Vec<(String, String)> = Vec::new();
+        for s in all(cluster) {
+            let words: Vec<&str> = s.split_whitespace().collect();
+            let name = match words.as_slice() {
+                ["CREATE", "TABLE", "IF", "NOT", "EXISTS", name, ..] | ["CREATE", "MATERIALIZED", "VIEW", "IF", "NOT", "EXISTS", name, ..] => name.to_string(),
+                ["DROP", "TABLE" | "VIEW", "IF", "EXISTS", name, ..] => {
+                    objects.retain(|(n, _)| n != name);
+                    continue;
+                }
+                _ => continue,
+            };
+            if !objects.iter().any(|(n, _)| *n == name) {
+                objects.push((name, s.clone()));
+            }
+        }
+        objects
+    }
+
+    #[test]
+    fn rollups_are_written_by_the_rollup_job_not_by_views() {
+        for cluster in [None, Some("oc")] {
+            let objects = final_objects(cluster);
+            let local = if cluster.is_some() { "_local" } else { "" };
+            for table in ["metrics_rollup_5m", "metrics_rollup_1h", "metrics_dist_rollup_5m", "metrics_dist_rollup_1h"] {
+                let name = format!("otel.{table}{local}");
+                let (_, create) = objects.iter().find(|(n, _)| *n == name).unwrap_or_else(|| panic!("no {name}"));
+                // Plain values; re-running a bucket replaces its rows.
+                assert!(create.contains("ReplacingMergeTree"), "{create}");
+                assert!(!create.contains("AggregateFunction"), "{create}");
+                assert!(create.contains("ORDER BY (OrgId, MetricName, SeriesId, Bucket)"), "{create}");
+                assert!(
+                    !objects.iter().any(|(_, s)| s.contains("MATERIALIZED VIEW") && s.contains(&format!(" TO {name} "))),
+                    "a view still writes {name}"
+                );
+            }
+            // The 5-minute rollups keep the 1-hour tier their hours are rolled up with.
+            let (_, five) = objects.iter().find(|(n, _)| *n == format!("otel.metrics_rollup_5m{local}")).unwrap();
+            assert!(five.contains("`Retention1hDays` UInt16"), "{five}");
+            // Samples carry every tier, for the rollup job.
+            assert!(all(cluster).iter().any(|s| s.contains(&format!("ALTER TABLE otel.metrics_samples{local}")) && s.contains("Retention5mDays")));
+        }
+    }
+
+    #[test]
+    fn series_views_skip_points_of_series_the_intake_marked_known() {
+        for cluster in [None, Some("oc")] {
+            let objects = final_objects(cluster);
+            for view in ["otel.metrics_series_mv", "otel.metrics_dist_series_mv"] {
+                let (_, mv) = objects.iter().find(|(n, _)| n == view).unwrap_or_else(|| panic!("no {view}"));
+                assert!(mv.contains("WHERE NOT SeriesKnown"), "{mv}");
+            }
+            for view in ["otel.metrics_points_gauge_mv", "otel.metrics_points_sum_mv", "otel.metrics_dist_points_histogram_mv"] {
+                let (_, mv) = objects.iter().find(|(n, _)| n == view).unwrap_or_else(|| panic!("no {view}"));
+                assert!(mv.contains("src.ResourceAttributes['oc.series_known'] = '1' AS SeriesKnown"), "{mv}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_tag_index_is_fed_from_the_series_and_sharded_with_them() {
+        for cluster in [None, Some("oc")] {
+            let objects = final_objects(cluster);
+            let local = if cluster.is_some() { "_local" } else { "" };
+            let get = |name: &str| objects.iter().find(|(n, _)| n == name).map(|(_, s)| s.clone()).unwrap_or_else(|| panic!("no {name}"));
+            let tags = get(&format!("otel.metrics_tags{local}"));
+            assert!(tags.contains("ReplacingMergeTree(LastSeen)") && tags.contains("ORDER BY (OrgId, MetricName, Key, Value, SeriesId)"), "{tags}");
+            let values = get(&format!("otel.metrics_tag_values{local}"));
+            assert!(values.contains("ReplacingMergeTree(LastSeen)") && values.contains("ORDER BY (OrgId, Key, Value, Scope)"), "{values}");
+            // Rows come from the series rows (both label maps and the service), and values from the rows.
+            let mv = get("otel.metrics_tags_mv");
+            assert!(mv.contains(&format!("TO otel.metrics_tags{local} ")) && mv.contains(&format!("FROM otel.metrics_series{local}")), "{mv}");
+            assert!(mv.contains("mapKeys(ResourceAttributes)") && mv.contains("mapKeys(Attributes)") && mv.contains("ServiceName"), "{mv}");
+            let mv = get("otel.metrics_tag_values_mv");
+            assert!(mv.contains(&format!("FROM otel.metrics_tags{local}")), "{mv}");
+            // Existing series get their index rows once.
+            assert!(all(cluster).iter().any(|s| s.starts_with("INSERT INTO otel.metrics_tags ") && s.contains("FROM otel.metrics_series")));
+        }
+        // A series' index rows live on its shard (series → samples joins stay shard-local); a key's
+        // values on one shard.
+        let stmts = all(Some("oc"));
+        assert!(stmts.iter().any(|s| s.contains("Distributed('oc', 'otel', 'metrics_tags_local', SeriesId)")));
+        assert!(stmts.iter().any(|s| s.contains("Distributed('oc', 'otel', 'metrics_tag_values_local', cityHash64(OrgId, Key))")));
+        let r = RetentionDays { traces: 15, traces_max: 90, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 0 };
+        let ttls = retention_ttls(r);
+        for t in ["otel.metrics_tags", "otel.metrics_tag_values"] {
+            assert_eq!(ttls.iter().find(|(n, _)| *n == t).map(|(_, ttl)| ttl.as_str()), Some("LastSeen + toIntervalDay(if(RetentionDays = 0, 395, RetentionDays))"), "{t}");
+        }
+    }
+
+    #[test]
+    fn the_exporters_metric_tables_are_gone() {
+        for cluster in [None, Some("oc")] {
+            let objects = final_objects(cluster);
+            assert!(objects.iter().all(|(n, _)| !n.starts_with("otel.otel_metrics_")), "{:?}", objects.iter().map(|o| &o.0).filter(|n| n.contains("otel_metrics")).collect::<Vec<_>>());
+            // The ingest tables (their copies) stay.
+            assert!(objects.iter().any(|(n, _)| n.starts_with("otel.metrics_ingest_gauge")));
+        }
+        assert!(delete_ttls(RetentionDays { traces: 15, traces_max: 90, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 0 })
+            .iter()
+            .all(|(t, _)| !t.starts_with("otel.otel_metrics_")));
     }
 
     #[test]

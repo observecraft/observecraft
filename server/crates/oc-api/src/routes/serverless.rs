@@ -26,7 +26,7 @@ use utoipa::ToSchema;
 
 use super::logs::{bind, scope, TimeRange};
 use super::metric_inventory::{chart_step, series_values, SeriesValue};
-use super::metrics::{name_list, with_window};
+use super::metrics::{exp_histogram_subquery, name_list, with_window};
 use crate::error::{ApiError, ApiResult};
 use crate::log_access::LogAccess;
 use crate::state::{AppState, OrgId};
@@ -859,11 +859,13 @@ pub(crate) fn dist_sql(step_ms: Option<i64>) -> String {
            SELECT MetricName AS metric, toJSONString(ResourceAttributes) AS res, toJSONString(Attributes) AS attrs, {t} AS t, Scale AS scale, \
                   sum(Count) AS count, sum(Sum) AS sum, max(Max) AS max, \
                   sumMap(arrayMap(i -> toInt32(PositiveOffset + i - 1), arrayEnumerate(PositiveBucketCounts)), PositiveBucketCounts) AS b \
-           FROM otel.otel_metrics_exponential_histogram WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) AND AggregationTemporality = 1 \
+           FROM {src} WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) AND AggregationTemporality = 1 \
              AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) \
            GROUP BY metric, res, attrs, t, scale) ORDER BY t LIMIT ?",
         t = interval_expr("TimeUnix", step_ms),
         names = name_list(&dist_names()),
+        // Series + distribution samples (the client sets the window: `with_window`).
+        src = exp_histogram_subquery(&dist_names()),
     )
 }
 
@@ -1388,5 +1390,7 @@ mod tests {
             assert_eq!(sql.matches('?').count(), 3, "from, to and the row limit are bound: {sql}");
         }
         assert!(dist_sql(None).contains("'aws.lambda.enhanced.duration'"));
+        // The metrics storage, not the exporter's tables (dropped).
+        assert!(dist_sql(None).contains("otel.metrics_dist_samples AS x") && !dist_sql(None).contains("otel_metrics_"));
     }
 }

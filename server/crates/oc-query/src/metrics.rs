@@ -234,6 +234,53 @@ pub fn metric_field(key: &str) -> (String, Vec<Param>) {
     }
 }
 
+/// Bits of `otel.metrics_tags.Scope`: where a series' tag value comes from (0010_metric_tags.sql).
+pub const TAG_POINT: u8 = 1;
+pub const TAG_RESOURCE: u8 = 2;
+pub const TAG_SERVICE: u8 = 4;
+/// The value `metric_field` reads for a plain key: the point attribute, else the resource attribute.
+pub const TAG_EFFECTIVE: u8 = 8;
+
+/// The tag index row (`Key`, a `Scope` bit) holding what [`metric_field`] reads for `key`.
+pub fn metric_tag(key: &str) -> (String, u8) {
+    match key {
+        "service" => ("service".into(), TAG_SERVICE),
+        k => match resource_alias(k) {
+            Some(r) => (r.into(), TAG_RESOURCE),
+            None => (k.into(), TAG_EFFECTIVE),
+        },
+    }
+}
+
+/// One filter on the tag index: series with (`negate`: without) a row of `key` and `scope` whose
+/// value matches `cmp` (on `Value`, with `params`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct IndexFilter {
+    pub key: String,
+    pub scope: u8,
+    pub negate: bool,
+    pub cmp: String,
+    pub params: Vec<Param>,
+}
+
+/// [`metric_filter`]'s filters on the tag index: equal, like (`*` wildcards) or present (`*`).
+pub fn metric_index_filter(filters: &[TagFilter]) -> Vec<IndexFilter> {
+    filters
+        .iter()
+        .map(|f| {
+            let (key, scope) = metric_tag(&f.key);
+            let (cmp, params) = if f.value.chars().all(|c| c == '*') {
+                ("Value != ''".to_string(), vec![])
+            } else if f.value.contains('*') {
+                ("Value ILIKE ?".to_string(), vec![Param::Str(like_pattern(&f.value))])
+            } else {
+                ("Value = ?".to_string(), vec![Param::Str(f.value.clone())])
+            };
+            IndexFilter { key, scope, negate: f.negate, cmp, params }
+        })
+        .collect()
+}
+
 /// SQL expression for `key` on `otel.otel_traces` (span-derived `trace.*` metrics).
 pub fn span_field(key: &str) -> (String, Vec<Param>) {
     match key {
@@ -324,6 +371,38 @@ mod tests {
         );
         assert_eq!(f.params.len(), 8);
         assert_eq!(f.params[7], Param::Str("qa%".into()));
+    }
+
+    #[test]
+    fn index_tags_mirror_the_label_map_fields() {
+        // `service` is the ServiceName column; short names are resource attributes only; other
+        // keys take the point attribute, else the resource attribute (as `metric_field`).
+        assert_eq!(metric_tag("service"), ("service".to_string(), TAG_SERVICE));
+        assert_eq!(metric_tag("kube_namespace"), ("k8s.namespace.name".to_string(), TAG_RESOURCE));
+        assert_eq!(metric_tag("host"), ("host.name".to_string(), TAG_RESOURCE));
+        assert_eq!(metric_tag("k8s.namespace.name"), ("k8s.namespace.name".to_string(), TAG_EFFECTIVE));
+        assert_eq!(metric_tag("pod_phase"), ("pod_phase".to_string(), TAG_EFFECTIVE));
+        for key in ["service", "env", "kube_deployment", "state", "container.id"] {
+            let (expr, params) = metric_field(key);
+            let (tag, scope) = metric_tag(key);
+            match scope {
+                TAG_SERVICE => assert_eq!(expr, "ServiceName"),
+                TAG_RESOURCE => assert_eq!((expr.as_str(), params), ("ResourceAttributes[?]", vec![Param::Str(tag)])),
+                _ => assert_eq!(params, vec![Param::Str(tag); 3]),
+            }
+        }
+    }
+
+    #[test]
+    fn index_filters_bind_keys_and_values() {
+        let q = parse_metric_query("avg:m{kube_namespace:shop,!state:idle,pod_phase:run*,team:*}").unwrap();
+        let f = metric_index_filter(&q.filters);
+        assert_eq!(f.len(), 4);
+        assert_eq!((f[0].key.as_str(), f[0].scope, f[0].negate, f[0].cmp.as_str()), ("k8s.namespace.name", TAG_RESOURCE, false, "Value = ?"));
+        assert_eq!(f[0].params, vec![Param::Str("shop".into())]);
+        assert!(f[1].negate);
+        assert_eq!((f[2].cmp.as_str(), &f[2].params), ("Value ILIKE ?", &vec![Param::Str("run%".into())]));
+        assert_eq!((f[3].cmp.as_str(), f[3].params.len()), ("Value != ''", 0));
     }
 
     #[test]

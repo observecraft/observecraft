@@ -14,7 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::body::Bytes;
 use axum::extract::State;
-use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
+use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::json;
@@ -22,7 +22,7 @@ use serde_json::json;
 use crate::datadog::{inflate, TAG_ATTRS};
 use crate::datadog_orch::message_body;
 use crate::otlp::{self, KeyValue};
-use crate::{admit, send, Rejection, Shared};
+use crate::{admit, Rejection, Shared};
 
 const TYPE_COLLECTOR_PROC: u8 = 12;
 const TYPE_COLLECTOR_CONTAINER: u8 = 39;
@@ -248,14 +248,10 @@ pub async fn collector(State(st): State<Shared>, headers: HeaderMap, body: Bytes
     drop(body);
     match converted {
         Ok(Some((req, n))) if n > 0 => {
-            let target = format!("{}/v1/metrics", st.cfg.collector_url);
-            match send(&st, &org, &target, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&req)).await {
-                Ok(up) if up.status.is_success() => {}
-                Ok(up) => {
-                    tracing::warn!(status = %up.status, "collector refused converted Datadog processes");
-                    return Rejection { status: StatusCode::SERVICE_UNAVAILABLE, message: "processes were not accepted" }.into_response();
-                }
-                Err(r) => return r.into_response(),
+            // Known series' points are sent marked, like Datadog series (see `series_cache`).
+            if let Err(r) = crate::datadog::deliver_metrics(&st, &org, req).await {
+                tracing::warn!(status = %r.status, "collector refused converted Datadog processes");
+                return Rejection { status: StatusCode::SERVICE_UNAVAILABLE, message: "processes were not accepted" }.into_response();
             }
         }
         Ok(_) => {}

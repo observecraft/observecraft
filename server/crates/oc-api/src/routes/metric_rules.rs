@@ -388,7 +388,7 @@ pub async fn overview(State(st): State<AppState>, ctx: AuthContext, Json(req): J
     let org = &ctx.org_id;
     let ch = st.ch(org);
     let counts = ch
-        .query("SELECT MetricName AS name, uniqExact(SeriesId) AS series FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND LastSeen >= toDateTime(intDiv(?, 1000)) GROUP BY MetricName ORDER BY series DESC, name")
+        .query("SELECT MetricName AS name, uniqExact(SeriesId) AS series FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND LastSeen >= toStartOfHour(toDateTime(intDiv(?, 1000))) GROUP BY MetricName ORDER BY series DESC, name")
         .bind(req.range.from)
         .fetch_all::<SeriesCount>();
     let (counts, rules) = tokio::try_join!(async { counts.await.map_err(ApiError::from) }, rows(&st, org))?;
@@ -447,7 +447,7 @@ fn indexed_sql(metrics: &[(String, Vec<String>)], from: i64) -> (String, Vec<Par
             format!("uniqExact(tuple({}))", exprs.join(", "))
         };
         params.extend([Param::Str(name.clone()), Param::Int(from)]);
-        parts.push(format!("SELECT ? AS name, {value} AS series FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND MetricName = ? AND LastSeen >= toDateTime(intDiv(?, 1000))"));
+        parts.push(format!("SELECT ? AS name, {value} AS series FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND MetricName = ? AND LastSeen >= toStartOfHour(toDateTime(intDiv(?, 1000)))"));
     }
     (parts.join(" UNION ALL "), params)
 }

@@ -33,7 +33,8 @@
 //! OC_INTAKE_COLLECTOR_URL (http://localhost:14318), OC_INTAKE_LOGS_URL (http://localhost:8687),
 //! OC_INTAKE_PROFILES_URL (http://localhost:8090/ingest/profiles),
 //! OC_INTAKE_FLAG_EVALUATIONS_URL (http://localhost:8090/ingest/feature-flag-evaluations), OC_INTERNAL_TOKEN,
-//! OC_INTAKE_MAX_BODY_MB (16), OC_INTAKE_ORG_RPS (500), OC_INTAKE_ORG_MBPS (50).
+//! OC_INTAKE_MAX_BODY_MB (16), OC_INTAKE_ORG_RPS (500), OC_INTAKE_ORG_MBPS (50),
+//! OC_INTAKE_SERIES_CACHE (2000000 series × hour entries; 0 = no series marking, see `series_cache`).
 
 mod check_messages;
 mod datadog;
@@ -49,6 +50,7 @@ mod host_tags;
 mod metric_rules;
 mod ofrep;
 mod otlp;
+mod series_cache;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -90,6 +92,8 @@ struct Config {
     max_body: usize,
     org_rps: f64,
     org_bytes_per_sec: f64,
+    /// Series remembered as forwarded in their hour (see `series_cache`); 0 turns marking off.
+    series_cache: usize,
 }
 
 fn env(key: &str, default: &str) -> String {
@@ -126,6 +130,7 @@ impl Config {
                 * 1024,
             org_rps: env("OC_INTAKE_ORG_RPS", "500").parse().unwrap_or(500.0),
             org_bytes_per_sec: env("OC_INTAKE_ORG_MBPS", "50").parse::<f64>().unwrap_or(50.0) * 1024.0 * 1024.0,
+            series_cache: env("OC_INTAKE_SERIES_CACHE", "2000000").parse().unwrap_or(2_000_000),
         }
     }
 }
@@ -200,6 +205,8 @@ struct Inner {
     metric_rules: metric_rules::MetricRules,
     /// The last service check messages written per org, check and host.
     check_messages: check_messages::CheckMessages,
+    /// Series forwarded per hour, so points of known series are sent marked.
+    series: series_cache::SeriesCache,
 }
 
 type Shared = Arc<Inner>;
@@ -342,9 +349,25 @@ async fn send(
     content_encoding: Option<&HeaderValue>,
     body: Bytes,
 ) -> Result<Upstream, Rejection> {
+    send_with(st, org, target, content_type, content_encoding, body, &[]).await
+}
+
+/// [`send`] with `extra` headers for the pipeline (e.g. the series-known mark).
+async fn send_with(
+    st: &Shared,
+    org: &KeyOrg,
+    target: &str,
+    content_type: Option<&HeaderValue>,
+    content_encoding: Option<&HeaderValue>,
+    body: Bytes,
+    extra: &[(&str, &str)],
+) -> Result<Upstream, Rejection> {
     let mut req = st.http.post(target).body(body);
     for (name, value) in org_headers(org) {
         req = req.header(name, value);
+    }
+    for (name, value) in extra {
+        req = req.header(*name, *value);
     }
     if let Some(v) = content_type {
         req = req.header(header::CONTENT_TYPE, v);
@@ -517,6 +540,18 @@ async fn log_requests(req: axum::extract::Request, next: axum::middleware::Next)
     res
 }
 
+fn state(cfg: Config, pg: PgPool, http: reqwest::Client) -> Shared {
+    let series = series_cache::SeriesCache::new(cfg.series_cache);
+    Arc::new(Inner { cfg, pg, http, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default(), flags: ofrep::FlagState::default(), metric_rules: metric_rules::MetricRules::default(), check_messages: check_messages::CheckMessages::default(), series })
+}
+
+/// An intake for tests: `cfg`, a Postgres pool that never connects unless used.
+#[cfg(test)]
+fn test_state(cfg: Config) -> Shared {
+    let pg = PgPoolOptions::new().connect_lazy("postgres://localhost/unused").expect("lazy pool");
+    state(cfg, pg, reqwest::Client::new())
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))).init();
@@ -533,7 +568,7 @@ async fn main() -> anyhow::Result<()> {
     let addr = cfg.addr.clone();
     let grpc_addr = cfg.grpc_addr.clone();
     let max_body = cfg.max_body;
-    let st: Shared = Arc::new(Inner { cfg, pg, http, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default(), flags: ofrep::FlagState::default(), metric_rules: metric_rules::MetricRules::default(), check_messages: check_messages::CheckMessages::default() });
+    let st = state(cfg, pg, http);
     let flusher = st.clone();
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(ofrep::FLUSH_EVERY);

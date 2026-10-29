@@ -20,7 +20,7 @@ use serde_json::{json, Value};
 
 use crate::check_messages::CheckMessage;
 use crate::otlp::{self, KeyValue};
-use crate::{admit, send, Rejection, Shared};
+use crate::{admit, send_with, Rejection, Shared};
 
 /// Most bytes a body may inflate to (compressed payloads are capped by the request limit).
 const MAX_INFLATED: u64 = 64 * 1024 * 1024;
@@ -547,15 +547,28 @@ async fn deliver_series(st: &Shared, org: &crate::KeyOrg, headers: &HeaderMap, m
     crate::metric_rules::apply(&mut series, &st.metric_rules.rules(&st.pg, &org.org_id).await);
     let collector = sender(headers);
     for chunk in series.chunks(CHUNK) {
-        deliver_metrics(st, org, otlp::encode(&to_otlp(chunk, collector))).await?;
+        deliver_metrics(st, org, to_otlp(chunk, collector)).await?;
     }
     Ok(())
 }
 
-/// Sends converted OTLP metrics (protobuf) to the collector.
-async fn deliver_metrics(st: &Shared, org: &crate::KeyOrg, body: Bytes) -> Result<(), Rejection> {
+/// Sends converted OTLP metrics (protobuf) to the collector: points of series not yet forwarded in
+/// their hour first, then the others marked as known series (see `series_cache`).
+pub(crate) async fn deliver_metrics(st: &Shared, org: &crate::KeyOrg, req: otlp::ExportMetricsServiceRequest) -> Result<(), Rejection> {
+    let split = st.series.split(&org.org_id, req);
+    if let Some(new) = split.new {
+        post_metrics(st, org, otlp::encode(&new), &[]).await?;
+        st.series.commit(&split.pending);
+    }
+    if let Some(known) = split.known {
+        post_metrics(st, org, otlp::encode(&known), &[(crate::series_cache::SERIES_KNOWN_HEADER, "1")]).await?;
+    }
+    Ok(())
+}
+
+async fn post_metrics(st: &Shared, org: &crate::KeyOrg, body: Bytes, extra: &[(&str, &str)]) -> Result<(), Rejection> {
     let target = format!("{}/v1/metrics", st.cfg.collector_url);
-    let up = send(st, org, &target, Some(&HeaderValue::from_static("application/x-protobuf")), None, body).await?;
+    let up = send_with(st, org, &target, Some(&HeaderValue::from_static("application/x-protobuf")), None, body, extra).await?;
     if up.status.is_success() {
         return Ok(());
     }
@@ -610,7 +623,7 @@ pub async fn sketches(State(st): State<Shared>, headers: HeaderMap, body: Bytes)
     crate::metric_rules::apply_sketches(&mut payload.sketches, &st.metric_rules.rules(&st.pg, &org.org_id).await);
     let collector = sender(&headers);
     for chunk in payload.sketches.chunks(CHUNK) {
-        if let Err(r) = deliver_metrics(&st, &org, otlp::encode(&sketches_to_otlp(chunk, collector))).await {
+        if let Err(r) = deliver_metrics(&st, &org, sketches_to_otlp(chunk, collector)).await {
             return r.into_response();
         }
     }
@@ -1097,5 +1110,56 @@ mod tests {
         assert_eq!(inflate(&h, &zstd::encode_all(&raw[..], 3).unwrap()).unwrap(), raw);
         h.insert(header::CONTENT_ENCODING, HeaderValue::from_static("br"));
         assert!(inflate(&h, &raw).is_err());
+    }
+
+    type Recorded = std::sync::Arc<std::sync::Mutex<Vec<(bool, usize)>>>;
+
+    /// An intake whose collector is a local server recording each request's points and whether
+    /// it was marked as known series.
+    async fn intake_with_fake_collector() -> (crate::Shared, Recorded) {
+        let seen: Recorded = Default::default();
+        let record = seen.clone();
+        let app = axum::Router::new().route(
+            "/v1/metrics",
+            axum::routing::post(move |h: HeaderMap, body: Bytes| {
+                let record = record.clone();
+                async move {
+                    let req = otlp::ExportMetricsServiceRequest::decode(body).unwrap();
+                    let points = req.resource_metrics.iter().flat_map(|r| &r.scope_metrics).flat_map(|s| &s.metrics).map(|m| match &m.data {
+                        Some(otlp::metric::Data::Gauge(g)) => g.data_points.len(),
+                        Some(otlp::metric::Data::Sum(s)) => s.data_points.len(),
+                        Some(otlp::metric::Data::ExponentialHistogram(e)) => e.data_points.len(),
+                        None => 0,
+                    });
+                    let known = h.get(crate::series_cache::SERIES_KNOWN_HEADER).is_some_and(|v| v == "1");
+                    record.lock().unwrap().push((known, points.sum()));
+                    StatusCode::OK
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let mut cfg = crate::Config::from_env();
+        cfg.collector_url = format!("http://{addr}");
+        (crate::test_state(cfg), seen)
+    }
+
+    #[tokio::test]
+    async fn converted_metrics_of_known_series_are_sent_marked() {
+        let (st, seen) = intake_with_fake_collector().await;
+        let org = crate::KeyOrg { org_id: "acme".into(), span_retention_days: 0, metrics_retention_days: 0, metrics_5m_days: 0, metrics_1h_days: 0, flag_environment_id: None };
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+        let series = |t: i64, pods: &[&str]| -> Vec<Series> {
+            pods.iter()
+                .map(|p| Series { metric: "kubernetes.cpu.usage.total".into(), kind: Kind::Gauge, host: "i-0a1b2c3d4e5f60001".into(), tags: vec![format!("pod_name:{p}")], unit: String::new(), interval: 0, points: vec![(t, 1.0)] })
+                .collect()
+        };
+        // Both points in the same hour.
+        let t = now - now % 3600;
+        assert!(deliver_metrics(&st, &org, to_otlp(&series(t, &["storefront-1", "storefront-2"]), None)).await.is_ok());
+        assert!(deliver_metrics(&st, &org, to_otlp(&series(t + 1, &["storefront-1", "storefront-3"]), None)).await.is_ok());
+        // First both new; then storefront-3 new and storefront-1 in a marked request.
+        assert_eq!(*seen.lock().unwrap(), vec![(false, 2), (false, 1), (true, 1)]);
     }
 }

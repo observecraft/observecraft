@@ -49,6 +49,10 @@ processors:
       - { key: oc.metrics_retention_5m_days, from_context: metadata.x-oc-metrics-retention-5m-days, action: upsert }
       - { key: oc.metrics_retention_1h_days, action: delete }
       - { key: oc.metrics_retention_1h_days, from_context: metadata.x-oc-metrics-retention-1h-days, action: upsert }
+      # Metrics whose series the intake already forwarded in their hour (x-oc-series-known: 1): the
+      # series table skips them (docs/adr/0002-storage-at-saas-scale.md).
+      - { key: oc.series_known, action: delete }
+      - { key: oc.series_known, from_context: metadata.x-oc-series-known, action: upsert }
 connectors:
   # Kubernetes object snapshots and events (the cluster collector marks them oc.signal = k8s.objects)
   # are inventory for the Kubernetes Explorer, not log lines.
@@ -91,8 +95,8 @@ exporters:
     sending_queue:
       queue_size: 1000
       storage: file_storage/queue
-  # Metrics: the ingest tables of the metrics storage (series, samples, rollups; built by
-  # materialized views, docs/adr/0001-metrics-storage.md).
+  # Metrics: the ingest tables of the metrics storage (series and samples, built by materialized
+  # views; rollups by the server's rollup job, docs/adr/0001-metrics-storage.md and 0002).
   clickhouse/metrics:
     endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
     database: otel

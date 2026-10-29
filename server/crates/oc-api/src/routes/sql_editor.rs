@@ -383,7 +383,7 @@ static TABLES: LazyLock<Vec<VirtualTable>> = LazyLock::new(|| {
             cols: METRIC_COLS,
             source: Source::ClickHouse {
                 rest: "FROM (SELECT SeriesId, MetricName, toString(MetricType) AS MetricType, MetricUnit, ServiceName, ResourceAttributes, Attributes FROM otel.metrics_series FINAL \
-                       WHERE OrgId = {oc_org:String} AND LastSeen >= fromUnixTimestamp64Milli(?)) AS s \
+                       WHERE OrgId = {oc_org:String} AND LastSeen >= toStartOfHour(fromUnixTimestamp64Milli(?))) AS s \
                        INNER JOIN (SELECT SeriesId, argMax(Value, TimeUnix) AS value, max(TimeUnix) AS ts FROM otel.metrics_samples \
                        WHERE OrgId = {oc_org:String} AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) GROUP BY SeriesId) AS l ON l.SeriesId = s.SeriesId",
                 binds: METRIC_RANGE,

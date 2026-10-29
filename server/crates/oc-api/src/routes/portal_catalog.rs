@@ -223,7 +223,7 @@ async fn metric_services(st: &AppState, org: &str, range: TimeRange) -> Result<B
         .ch(org)
         .query(
             "SELECT DISTINCT if(toString(ServiceName) != '', toString(ServiceName), Attributes['service']) AS service FROM otel.metrics_series \
-             WHERE OrgId = {oc_org:String} AND LastSeen >= toDateTime(intDiv(?, 1000)) AND (ServiceName != '' OR Attributes['service'] != '') LIMIT 2000",
+             WHERE OrgId = {oc_org:String} AND LastSeen >= toStartOfHour(toDateTime(intDiv(?, 1000))) AND (ServiceName != '' OR Attributes['service'] != '') LIMIT 2000",
         )
         .bind(range.from)
         .fetch_all::<Name>()
