@@ -531,7 +531,7 @@ pub(super) mod tests {
     }
 
     fn email(tag: &str) -> String {
-        format!("{tag}-{}@example.com", crypto::random_token("").to_lowercase().replace(['-', '_'], "")[..10].to_string())
+        format!("{tag}-{}@example.com", crypto::random_token("").to_lowercase().replace(['-', '_'], "")[..10])
     }
 
     #[tokio::test]
