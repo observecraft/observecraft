@@ -440,3 +440,142 @@ retention probes in `metrics.rs` (tiny, per process), and the portal home's prov
 `/metrics` reachable by a scraper (NetworkPolicy) when we monitor ObserveCraft with itself.
 
 Status: Complete
+
+## Final test: before/after
+
+Old = 83d6fe6 (release 0.3.2, what dev runs), new = 2f753e9 (this branch), measured 2026-10-29 side by side on one
+Apple M4 Max (16 cores, shared with other local workloads: a k3s cluster and other containers), fed identical
+metrics and Kubernetes objects. Scripts, ports and the exact request list: `scripts/final-test/README.md`.
+
+Setup, per version, isolated (own Docker network, containers `ocfin-old-*` / `ocfin-new-*`):
+- ClickHouse 26.8, `--cpus 2 --memory 6g`, the chart's tuning (mark caches 512 MiB, background pool 4, 100
+  queries) and ingest profile (async inserts, 1 s); that version's collector 0.163.2 config, its Vector config + NATS;
+  release intake and server of that version; Postgres DB `oc_final_old` / `oc_final_new`; new: Valkey 8.1 (`OC_CACHE_URL`).
+- Orgs and keys from `scripts/load-orgs.sql` (`load-org-1..4`), plus the catch-all log index that org provisioning
+  creates and a local test user in `load-org-1` (the server installs the integration dashboards for orgs with users).
+- Load, the same to both (new's `oc-tracegen`, one process per intake): the Stage 1 profile, seed 1, 4 orgs
+  (80,000 + 3 × 3,300 series), 20 labels, flush 18 s (4,994 points/s, 89,900 active series), churn 5 % / 10 min,
+  10 % OTLP; `oc-tracegen` demo traces at 200 traces/s into `load-org-1` (6.5 M spans/h and 2.6 M logs/h, 4 %
+  errors, plus its host, Kubernetes, Lambda, Kafka and application metrics, CI runs, events, profiles, network);
+  `scripts/final-test/k8s-objects.mjs`: 9,566 Kubernetes objects of one cluster (`shop-prod-eks`: 107 nodes,
+  3,714 pods — the load profile's 3,200 pods of org 1 with their churn, plus DaemonSet and Job pods — 400
+  deployments, 1,200 replica sets, services, HPAs, PVCs/PVs, CronJobs/Jobs, RBAC, …), built from the test
+  fixture's objects with fictional names and sent through the intake like the Cluster Agent's manifests (OTLP logs
+  marked `oc.signal = k8s.objects`), each object once a minute, a sixth every 10 s, churned pods at once.
+  `oc-tracegen`'s traces seed from the clock, so the stacks got statistically equal, not identical, spans and logs.
+- Warm-up 52 minutes (load from 13:53 UTC), then measurements alternating old and new (odd runs old first, even
+  runs new first).
+
+### Writes and ClickHouse CPU per hour
+
+From `system.part_log` / `system.query_log` over 14:05–14:45 UTC (40 minutes after warm-up, before the page
+measurements; `scripts/final-test/writes-window.sql`, the measures of `make storage-report`), scaled to an hour;
+new's `metrics_rollup_1h` from `make storage-report WINDOW=1h` (written at the hour boundary).
+
+| Table | Old rows/h | Old MiB/h | New rows/h | New MiB/h |
+|---|---|---|---|---|
+| `metrics_samples` | 18.61 M | 305 | 18.61 M | 307 |
+| `metrics_series` | 18.40 M | 1,056 | 2.28 M | 100 |
+| `metrics_rollup_5m` | 18.39 M | 880 | 1.10 M | 52 |
+| `metrics_rollup_1h` | 18.39 M | 880 | 0.09 M | 4 |
+| `metrics_tags` | — | — | 47.74 M | 242 |
+| `metrics_tag_values` | — | — | 1.55 M | 22 |
+| **metric tables** | **73.8 M** | **3,121** | **71.4 M** | **728** |
+| `otel_k8s_objects` / `k8s_resources` | 0.57 M / 0.57 M | 58 / 80 | 0.57 M / 0.57 M | 58 / 80 |
+| `k8s_inventory` | — | — | 0.57 M | 75 |
+| `oc.logs` / `logs_raw` | 2.62 M / 2.62 M | 168 / 169 | 2.63 M / 2.63 M | 169 / 169 |
+| `log_facets_1m` / `error_groups_1m` | — | — | 12 k / 9 k | 3 / 4 |
+| `otel_traces` | 6.46 M | 237 | 6.49 M | 237 |
+
+| ClickHouse CPU-s per hour | Old | New |
+|---|---|---|
+| Inserts (Insert + AsyncInsertFlush) | 258 (185 + 73) | 182 (82 + 100) |
+| Merges, all tables | 236 | 203 |
+| — of the metric tables | 107 (series 59, 5m 18, 1h 17, samples 14) | 77 (tags 39, series 19, samples 15, tag values 2, 5m 1) |
+| Selects (server jobs only, no UI; new includes the rollup job) | 4.0 | 4.4 |
+| **Total** | **498** | **390 (−22 %)** |
+
+- Bytes written by the metric tables: **4.3× lower** (3.1 GiB → 0.7 GiB per hour); series 10.5×, rollups 17–200×.
+- Rows are not lower: 3.97 → 3.84 rows per point. The tag index writes 47.7 M rows/h (21 per series row), and the
+  series table still gets 2.28 M rows/h (25× the 90k active series): OTLP points (the load's 10 %, ≈ 1.9 M/h, plus
+  `oc-tracegen`'s OTLP host and application metrics) are not marked (Stage 2, "not done"), so each is a series row
+  with ~20 index rows. Stage 2's targets (series rows ≤ 2 × active series, metric merge CPU ≥ 3× lower) were met
+  on a Datadog-only load; with 10 % OTLP they are **not met** (series 25× active series, metric merges 1.4×
+  lower). Marking OTLP in the intake remains the largest saving left, as Stage 7 found.
+
+### Page timings
+
+Requests as the web app sends them (6 connections, session cookie). Cold: server restarted, Valkey `FLUSHALL`
+(new), ClickHouse mark / index mark / uncompressed / query caches dropped, 10 s to settle. Warm: the same load
+right after. ClickHouse columns: SELECTs of the server's user started within the load, medians.
+
+Kubernetes - Overview (53 metric queries over the live stream, 5 template variables, events, 6 inventory widgets;
+total until the last answered), 5 cold + 5 warm runs each:
+
+| | Old median / p90 | New median / p90 | Old ClickHouse per load | New ClickHouse per load |
+|---|---|---|---|---|
+| Cold | 2,370 / 2,524 ms | **1,125 / 1,161 ms** | 42 queries, 16.3 M rows, 886 MiB, 3.9 CPU-s | 68 queries, 10.9 M rows, 290 MiB, 1.8 CPU-s |
+| Warm | 2,165 / 2,283 ms | **84 / 567 ms** | 42 queries, 15.3 M rows, 770 MiB, 3.7 CPU-s | 6 queries, 0.11 M rows, 0.9 MiB, 0.02 CPU-s |
+| 3 users at once, cold (1 round) | 6,067 ms (each 6.0–6.1 s) | **1,279 ms** (each 1.23–1.28 s) | 120 queries, 40 M rows, 2.3 GiB, 10.2 CPU-s | 78 queries, 12.7 M rows, 328 MiB, 2.0 CPU-s |
+| 3 users at once, warm | 6,232 ms | **144 ms** (97–144 ms) | 120 queries, 41 M rows, 2.6 GiB, 10.6 CPU-s | 16 queries, 0.1 M rows, 1 MiB, 0.06 CPU-s |
+
+- Where the time goes (medians): old — metric stream 2.28 s, inventory widgets 1.5–2.3 s, tag values 120–220 ms;
+  new cold — metric stream 1.09 s (the long pole), inventory widgets 680–700 ms (one shared inventory build), tag
+  values 12–13 ms, events 19 ms; new warm — stream 66 ms, inventory 21–22 ms.
+- New's warm p90 (567 ms; one run 888 ms) is a load that crossed a minute boundary: the page's range moved by a
+  minute and part of the widgets missed their entries (TTL min(step, 30 s)). Old's warm load is no faster than its
+  cold one: it has no result cache.
+- Three users at once cost old 2.6× one user (queries queue on 2 vCPU); new shares one execution (coalescing), so
+  three cold users take 1.1× one.
+- New sends 68 queries cold against old's 42 (one per widget instead of shared scans) but reads 33 % fewer rows
+  and 3× fewer bytes at half the CPU.
+
+Other pages (3 cold + 3 warm runs each, medians, p90 in brackets):
+
+| Page / request | Old cold | Old warm | New cold | New warm | Target |
+|---|---|---|---|---|---|
+| Template variable values (each of 9 keys) | 44–69 ms (≤ 81), 109–135 k rows | 31–46 ms | **8–12 ms** (≤ 12), 5–9 k rows | 2–4 ms | < 100 ms: met |
+| Kubernetes Explorer, pods (50, by name) | 321 (322) ms, 1.7 M rows, 136 MiB | 331 (362) ms | **316 (342) ms**, 1.1 M rows, 68 MiB | 26 (27) ms, no query | < 300 ms: met warm, **missed cold** |
+| Errors (issues + facets + users, 1 day) | 612 (733) ms, 15 M rows, 1.08 CPU-s | 601 (620) ms | **424 (470) ms**, 11 M rows, 0.77 CPU-s | 418 (485) ms | < 500 ms: met, narrowly |
+| Log Explorer facets (1 h) | 608 (612) ms, 4.4 M rows, 0.77 CPU-s | 382 (436) ms | **130 (149) ms**, 1.3 M rows, 0.18 CPU-s | 167 (170) ms | < 300 ms: met |
+| Metrics Explorer `avg:kubernetes.cpu.usage.total{*} by {host}`, 1 h | 140 (186) ms | 106 (153) ms | 90 (90) ms | 92 (99) ms | |
+| same, 24 h | 50 (60) ms | 39 (51) ms | 43 (47) ms | 32 (34) ms | |
+| Metrics Explorer `avg:system.cpu.user{*} by {host}`, 1 h | 62 (66) ms | 42 (82) ms | **121 (130) ms** | 38 (40) ms | |
+| same, 24 h | 52 (52) ms | 38 (50) ms | 53 (56) ms | 50 (54) ms | |
+
+(Metrics Explorer = the metric catalog `GET /api/v1/metrics` and `POST /api/v1/query/timeseries` together; the
+first Metrics Explorer row of a cold run pays the catalog.)
+
+Regressions and open points:
+- **Metric catalog, cold** (`GET /api/v1/metrics`): 121 ms on new against 62 ms on old. Its query
+  (`SELECT MetricName, toString(MetricType), any(MetricUnit), any(MetricDescription) FROM otel.metrics_series WHERE
+  OrgId = … GROUP BY …`, joined with the attribute keys) reads 4.47 M rows of `metrics_series` (106 ms, 147 ms CPU)
+  against ~0.45 M rows for old's whole page: the series table holds the unmarked OTLP rows (2.3 M/h). Warm: 4 ms
+  (Valkey, 60 s).
+- **`POST /api/v1/query/timeseries` for `avg:system.cpu.user{*} by {host}`** (`oc-tracegen`'s OTLP host metrics,
+  6 hosts): 38–55 ms on new against 21–47 ms on old in every mode (24 h warm 50 against 27 ms). Small in absolute
+  terms; `kubernetes.cpu.usage.total` (3,200 pods, Datadog + OTLP) is faster on new.
+- **Errors page**: both versions spend ~340 ms in the APM half: `source: all` reads span errors from
+  `otel_traces` (~2.8 M rows, ~330 ms CPU, issues and facets each), while the log half (Stage 6's aggregates) takes
+  15–16 ms. With one hour of spans the page is at 424 ms; the span scan grows with the range, so with dev's day of
+  spans the < 500 ms target will not hold. Span error groups need the same aggregate as the logs.
+- **Pods explorer, cold**: 316 ms (p90 342), just over the 300 ms target; the inventory build (5 queries, 1.1 M
+  rows, 68 MiB) is paid once per 15 s per org, after which the page answers in 26 ms.
+
+Targets: Kubernetes Overview < 2 s at 2 vCPU **met** (1.13 s cold, 0.08 s warm; old 2.4 s here, dev 15–20 s); tag
+values < 100 ms **met** (8–12 ms cold); pods explorer < 300 ms met warm (26 ms), **missed cold by 16 ms**; Errors
+< 500 ms **met** (424 ms) with the span-errors caveat; log facets < 300 ms **met** (130–167 ms); write
+amplification: bytes 4.3× lower and ClickHouse CPU −22 %, but **rows per point unchanged** (3.97 → 3.84) under 10 %
+OTLP, because of the unmarked OTLP points and the tag index.
+
+Limitations:
+- 52 minutes of warm-up against dev's days of data: series, rollups and tag tables are an hour old, merges see small
+  parts only (dev's merges rewrite a day of series and rollups), and the 24 h queries cover one hour of data. Old's
+  per-point series and rollup rows make its reads grow with history, so the gap should widen on dev; the span
+  scan of the Errors page grows on both.
+- One laptop for both stacks, the senders and the measuring client, with other local workloads running. ClickHouse is
+  capped at 2 vCPU each; servers and intakes are not.
+- `oc-tracegen`'s spans and logs are random per process (statistically equal across the stacks).
+- One concurrent round, three runs per page (five for the dashboard): a p90 of three runs is close to the maximum.
+- No browser: the requests are replayed with the web app's own query planning (`collectDashboardQueries`,
+  `resolveQuery`); rendering is not included.
