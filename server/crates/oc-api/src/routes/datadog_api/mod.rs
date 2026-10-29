@@ -24,6 +24,11 @@ pub mod dashboard_widgets;
 pub mod dashboards;
 pub mod downtimes;
 pub mod monitors;
+pub mod keys;
+pub mod permissions;
+pub mod roles;
+pub mod teams;
+pub mod users;
 pub mod validate;
 
 #[cfg(test)]
@@ -61,6 +66,7 @@ pub fn router() -> Router<AppState> {
         .merge(dashboards::router())
         .merge(dashboard_lists::router())
         .merge(monitors_and_downtimes())
+        .merge(iam_router())
 }
 
 /// `datadog_monitor`, `datadog_downtime_schedule` and `datadog_downtime` ([`monitors`], [`downtimes`]).
@@ -78,6 +84,36 @@ fn monitors_and_downtimes() -> Router<AppState> {
         .route("/api/v2/downtime", get(downtimes::v2_list).post(downtimes::v2_create))
         .route("/api/v2/downtime/:downtime_id", get(downtimes::v2_get).patch(downtimes::v2_update).delete(downtimes::v2_cancel))
         .route("/api/v2/monitor/:monitor_id/downtime_matches", get(downtimes::v2_monitor_matches))
+}
+
+/// Users, roles, permissions, teams and keys ([`users`], [`roles`], [`teams`], [`keys`]).
+fn iam_router() -> Router<AppState> {
+    use axum::routing::post;
+    Router::new()
+        .route("/api/v2/users", get(users::list).post(users::create))
+        .route("/api/v2/users/:id", get(users::get).patch(users::update).delete(users::disable))
+        .route("/api/v2/users/:id/permissions", get(users::permissions))
+        .route("/api/v2/users/:id/memberships", get(teams::user_memberships))
+        .route("/api/v2/user_invitations", post(users::send_invitations))
+        .route("/api/v2/user_invitations/:id", get(users::get_invitation))
+        .route("/api/v2/permissions", get(roles::list_permissions))
+        .route("/api/v2/roles", get(roles::list).post(roles::create))
+        .route("/api/v2/roles/:id", get(roles::get).patch(roles::update).delete(roles::delete))
+        .route("/api/v2/roles/:id/clone", post(roles::clone))
+        .route("/api/v2/roles/:id/permissions", get(roles::list_role_permissions).post(roles::add_permission).delete(roles::remove_permission))
+        .route("/api/v2/roles/:id/users", get(roles::list_users).post(roles::add_user).delete(roles::remove_user))
+        .route("/api/v2/team", get(teams::list).post(teams::create))
+        .route("/api/v2/team/:id", get(teams::get).patch(teams::update).delete(teams::delete))
+        .route("/api/v2/team/:id/links", get(teams::links).post(teams::create_link))
+        .route("/api/v2/team/:id/links/:link", get(teams::link).patch(teams::update_link).delete(teams::link))
+        .route("/api/v2/team/:id/memberships", get(teams::memberships).post(teams::add_member))
+        .route("/api/v2/team/:id/memberships/:user", axum::routing::patch(teams::update_member).delete(teams::remove_member))
+        .route("/api/v2/api_keys", get(keys::list_api_keys).post(keys::create_api_key))
+        .route("/api/v2/api_keys/:id", get(keys::get_api_key).patch(keys::update_api_key).delete(keys::delete_api_key))
+        .route("/api/v2/current_user/application_keys", get(keys::list_my_app_keys).post(keys::create_my_app_key))
+        .route("/api/v2/current_user/application_keys/:id", get(keys::get_my_app_key).patch(keys::update_my_app_key).delete(keys::delete_my_app_key))
+        .route("/api/v2/application_keys", get(keys::list_org_app_keys))
+        .route("/api/v2/application_keys/:id", get(keys::get_org_app_key).patch(keys::update_org_app_key).delete(keys::delete_org_app_key))
 }
 
 // ================================================================ errors

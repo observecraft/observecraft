@@ -69,7 +69,16 @@ Success criteria:
 - Tenancy and roles enforced exactly as in our API (only admins manage users/roles/keys).
 - Cassettes pass; tf-compat passes with no diff.
 
-Status: Not Started
+Status: Complete. `datadog_api/{users,roles,permissions,teams,keys}.rs`: `/api/v2/users` (create = invitation,
+`disabled`, delete = deactivate, `/permissions`, `/memberships`), `/api/v2/user_invitations` (invitation link issued, no
+email), `/api/v2/roles` (+ `/permissions`, `/users`, `/clone`), `/api/v2/permissions` (our catalog of Datadog permission
+names per access level, UUIDv8 ids from the name; custom roles store theirs in `role_permissions`, migration 0049;
+access still from the built-in roles), `/api/v2/team` (+ `/memberships`; stable `teams.id`, handle immutable, links
+listed as none and rejected), `/api/v2/api_keys` (ingest keys), `/api/v2/current_user/application_keys` and
+`/api/v2/application_keys` (secrets on create only; scopes and remote config rejected). Cassettes vendored and replayed
+for Users, Roles, Teams (teams and memberships) and Key Management (no personal access tokens); tf-compat fixtures
+`role`, `user`, `team`, `api_key`, `application_key` with update overlays. Docs: resources and permission mapping in
+`docs/datadog-api.md`.
 
 ## Stage 4: Dashboards and dashboard lists
 

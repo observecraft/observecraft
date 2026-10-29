@@ -457,6 +457,10 @@ mod tests {
             "v1/service_level_objective_corrections",
             "v2/downtimes",
             "v2/dashboard_lists",
+            "v2/users",
+            "v2/roles",
+            "v2/teams",
+            "v2/key_management",
         ] {
             let f = Feature::load(path);
             let names: std::collections::HashSet<String> = f.scenarios.iter().map(|s| cassette_name(&s.name)).collect();

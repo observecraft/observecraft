@@ -1,0 +1,57 @@
+interactions:
+- request:
+    body: '{"data":{"attributes":{"handle":"test-handle-a9d07353f71937c2","name":"test-name-a9d07353f71937c2"},"type":"team"}}
+
+      '
+    form: {}
+    headers:
+      Accept:
+      - application/json
+      Content-Type:
+      - application/json
+    id: 0
+    method: POST
+    url: https://api.datadoghq.com/api/v2/team
+  response:
+    body: '{"data":{"type":"team","id":"320db0de-405b-11ee-bb10-da7ad0900002","attributes":{"name":"test-name-a9d07353f71937c2","handle":"test-handle-a9d07353f71937c2","summary":null,"description":null,"avatar":null,"banner":null,"visible_modules":[],"hidden_modules":[],"created_at":"2023-08-21T19:44:52.101073+00:00","modified_at":"2023-08-21T19:44:52.101079+00:00","user_count":0,"link_count":0},"relationships":{"team_links":{"links":{"related":"/api/v2/team/320db0de-405b-11ee-bb10-da7ad0900002/links"}},"user_team_permissions":{"links":{"related":"/api/v2/team/320db0de-405b-11ee-bb10-da7ad0900002/permission-settings"}}}}}
+
+      '
+    code: 201
+    duration: 0ms
+    headers:
+      Content-Type:
+      - application/json
+    status: 201 Created
+- request:
+    body: ''
+    form: {}
+    headers:
+      Accept:
+      - '*/*'
+    id: 1
+    method: DELETE
+    url: https://api.datadoghq.com/api/v2/team/320db0de-405b-11ee-bb10-da7ad0900002
+  response:
+    body: ''
+    code: 204
+    duration: 0ms
+    headers: {}
+    status: 204 No Content
+- request:
+    body: ''
+    form: {}
+    headers:
+      Accept:
+      - '*/*'
+    id: 2
+    method: DELETE
+    url: https://api.datadoghq.com/api/v2/team/320db0de-405b-11ee-bb10-da7ad0900002
+  response:
+    body: '{"errors":["Team for ID 320db0de-405b-11ee-bb10-da7ad0900002 not found"]}'
+    code: 404
+    duration: 0ms
+    headers:
+      Content-Type:
+      - application/json
+    status: 404 Not Found
+version: 2

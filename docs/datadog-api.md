@@ -83,6 +83,12 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 |---|---|---|
 | Provider authentication (`validate`) | `GET /api/v1/validate`, `GET /api/v2/validate_keys` | ✅ |
 | `datadog_current_user` (data source) | `GET /api/v2/current_user` | ✅ |
+| `datadog_user`, `datadog_user` / `datadog_users` (data sources) | `/api/v2/users`, `/api/v2/user_invitations` | ✅ |
+| `datadog_role`, `datadog_user_role`, `datadog_role` / `datadog_roles` / `datadog_permissions` (data sources) | `/api/v2/roles` (+ `/permissions`, `/users`, `/clone`), `/api/v2/permissions` | ✅ |
+| `datadog_team`, `datadog_team_membership`, `datadog_team` / `datadog_team_memberships` (data sources) | `/api/v2/team` (+ `/memberships`), `/api/v2/users/{id}/memberships` | ✅ |
+| `datadog_team_link` | `/api/v2/team/{id}/links` | Not supported (teams have no links; listed as none) |
+| `datadog_api_key` | `/api/v2/api_keys` | ✅ |
+| `datadog_application_key` | `/api/v2/current_user/application_keys`, `/api/v2/application_keys` | ✅ |
 | `datadog_monitor`, `datadog_monitor_json`, `datadog_monitor` / `datadog_monitors` (data sources) | `/api/v1/monitor` (create, list, get, update, delete), `/api/v1/monitor/validate`, `/api/v1/monitor/{id}/validate`, `/api/v1/monitor/can_delete`, `/api/v1/monitor/search` | ✅ [details](#monitors) |
 | `datadog_downtime_schedule` | `/api/v2/downtime` (create, list, get, update, cancel), `/api/v2/monitor/{id}/downtime_matches` | ✅ [details](#downtimes) |
 | `datadog_downtime` (deprecated by the provider) | `/api/v1/downtime` (create, list, get, update, cancel), `/api/v1/downtime/cancel/by_scope` | ✅ [details](#downtimes) |
@@ -266,6 +272,49 @@ with daylight-saving changes).
 **Rejected with a 400:** monthly and yearly recurrences, repeating every N > 1 days or weeks, v1 `rrule`
 recurrences, more than one v2 recurrence, other RRULE parts (`BYMONTHDAY`, `BYHOUR`, …), and v2 scopes with `OR`,
 `NOT`, `-`, parentheses or wildcards. Monitors in another organization are not found.
+
+## Users, roles, teams and keys
+
+These routes work on the same users, roles, teams and keys as Organization Settings, so what Terraform creates shows
+there and the other way round. Only organization admins manage users, roles, role assignments, team memberships and
+API keys, as in our own API; every member can read them. Standard users create and edit teams.
+
+- **Users.** Creating a user invites them: a pending member with the given roles. `send_user_invitation` issues the
+  one-time invitation link; ObserveCraft doesn't send it by email, an admin shares it from Organization Settings →
+  Users. `disabled = true` deactivates the user (signed out everywhere, their application keys stop working), and
+  destroying a `datadog_user` deactivates it too; creating it again re-enables it. A user's email can't change, and
+  admins can't disable themselves.
+- **Roles.** The built-in roles (ObserveCraft Admin, Standard and Read Only, also found as "Datadog Admin Role",
+  "Datadog Standard Role" and "Datadog Read Only Role") report the permissions of their access level and can't be
+  changed or deleted. A custom role keeps exactly the permissions it was given and reads them back, but access in
+  ObserveCraft still comes from the built-in role a user has: give users one of those for what they may do, and use
+  custom roles to group them (for example in log restriction queries). Permissions ObserveCraft doesn't know are
+  rejected with a 400 that names them, and nobody can give a role a permission they don't have. Permission ids are
+  ObserveCraft's own (stable on every install); look them up with `datadog_permissions` rather than copying Datadog's.
+  Admins can't remove their own admin role.
+- **Teams.** A team's handle can't change once created (incidents, on-call and log restrictions refer to it); create a
+  new team instead. Team links and the display settings avatar, banner and visible or hidden modules aren't
+  supported and are rejected. A membership's role is `admin` or unset.
+- **API keys** are ingest keys (`ocik_…`), **application keys** ours (`ocak_…`). The secret is returned once, when the
+  key is created, and stored hashed; Terraform keeps it in its state. Later reads don't include it, so the
+  deprecated `datadog_api_key` data source, which needs it, reports that it can't read the key. Destroying a key
+  revokes it. `datadog_application_key` creates a key for the provider's own user, with that user's role; scoped keys
+  (`scopes`) and `remote_config_read_enabled = true` are rejected because ObserveCraft doesn't enforce scopes and has no
+  remote configuration.
+
+### Permissions
+
+`GET /api/v2/permissions` lists the Datadog permission names ObserveCraft supports. Each is granted from one of our
+access levels up (Read Only < Standard < Admin):
+
+| Access level | Permissions |
+|---|---|
+| Read Only (every role) | `dashboards_read`, `monitors_read`, `slos_read`, `logs_read_data`, `logs_read_index_data`, `logs_live_tail`, `logs_read_archives`, `apm_read`, `apm_service_catalog_read`, `continuous_profiler_read`, `error_tracking_read`, `incident_read`, `notebooks_read`, `synthetics_read`, `synthetics_global_variable_read`, `ci_visibility_read`, `deployment_gates_read`, `on_call_read`, `status_pages_settings_read`, `reference_tables_read`, `sheets_read`, `feature_flag_config_read`, `workflows_read`, `dbm_read`, `network_connections_read`, `llm_observability_read`, `watchdog_insights_read`, `event_correlation_config_read`, `api_keys_read`, `user_app_keys` |
+| Standard | `dashboards_write`, `dashboards_public_share`, `generate_dashboard_reports`, `monitors_write`, `monitors_downtime`, `slos_write`, `slos_corrections`, `logs_write_pipelines`, `logs_write_processors`, `logs_generate_metrics`, `apm_service_catalog_write`, `apm_generate_metrics`, `error_tracking_write`, `incident_write`, `notebooks_write`, `synthetics_write`, `synthetics_global_variable_write`, `deployment_gates_write`, `on_call_write`, `status_pages_settings_write`, `status_pages_incident_write`, `reference_tables_write`, `sheets_write`, `feature_flag_config_write`, `workflows_write`, `workflows_run`, `llm_observability_write`, `event_correlation_config_write` |
+| Admin | `logs_modify_indexes`, `logs_write_exclusion_filters`, `logs_write_archives`, `api_keys_write`, `api_keys_delete`, `org_app_keys_read`, `org_app_keys_write`, `user_access_invite`, `user_access_manage`, `teams_manage`, `org_management`, `audit_logs_read` |
+
+None of them is "restricted" in Datadog's sense, so `default_permissions_opt_out` and `include_restricted` change
+nothing.
 
 ## How compatibility is tested
 
