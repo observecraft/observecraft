@@ -25,6 +25,11 @@ pub async fn migrate_clickhouse_once(cfg: &oc_store::ClickHouseConfig) {
 /// Valkey; None (the test is skipped) unless both `OC_TEST_CLICKHOUSE_URL` and
 /// `OC_TEST_POSTGRES_URL` are set.
 pub async fn replicas(count: usize) -> Option<(Arc<FakeBackend>, Vec<AppState>)> {
+    replicas_with(count, |_| {}).await
+}
+
+/// [`replicas`] with the server configuration adjusted by `configure`.
+pub async fn replicas_with(count: usize, configure: impl Fn(&mut crate::config::Config)) -> Option<(Arc<FakeBackend>, Vec<AppState>)> {
     let (Ok(ch_url), Ok(pg_url)) = (std::env::var("OC_TEST_CLICKHOUSE_URL"), std::env::var("OC_TEST_POSTGRES_URL")) else {
         eprintln!("OC_TEST_CLICKHOUSE_URL or OC_TEST_POSTGRES_URL unset: skipping");
         return None;
@@ -45,7 +50,11 @@ pub async fn replicas(count: usize) -> Option<(Arc<FakeBackend>, Vec<AppState>)>
     let states = (0..count)
         .map(|_| {
             AppState(Arc::new(Inner {
-                config: crate::config::Config::from_env(),
+                config: {
+                    let mut config = crate::config::Config::from_env();
+                    configure(&mut config);
+                    config
+                },
                 clickhouse: oc_store::clickhouse(&tables()),
                 org_clients: crate::org_limits::OrgClients::new(&tables(), crate::org_limits::OrgQueryLimits::from_env()),
                 tables: tables(),

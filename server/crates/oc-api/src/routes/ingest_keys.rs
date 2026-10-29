@@ -13,7 +13,7 @@ use crate::error::{ApiError, ApiResult};
 use crate::state::AppState;
 
 /// Active keys an org may hold at once.
-const MAX_KEYS: i64 = 50;
+pub(crate) const MAX_KEYS: i64 = 50;
 
 #[derive(Serialize, ToSchema, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]

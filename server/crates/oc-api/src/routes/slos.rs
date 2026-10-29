@@ -66,14 +66,14 @@ pub enum SloType {
 }
 
 impl SloType {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             SloType::Metric => "metric",
             SloType::Monitor => "monitor",
             SloType::TimeSlice => "time_slice",
         }
     }
-    fn parse(s: &str) -> Self {
+    pub(crate) fn parse(s: &str) -> Self {
         match s {
             "monitor" => SloType::Monitor,
             "time_slice" => SloType::TimeSlice,
@@ -105,7 +105,7 @@ impl SloWindow {
                 SloWindow::NinetyDays => 90,
             }
     }
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             SloWindow::OneDay => "1d",
             SloWindow::SevenDays => "7d",
@@ -113,7 +113,7 @@ impl SloWindow {
             SloWindow::NinetyDays => "90d",
         }
     }
-    fn parse(s: &str) -> Option<Self> {
+    pub(crate) fn parse(s: &str) -> Option<Self> {
         [SloWindow::OneDay, SloWindow::SevenDays, SloWindow::ThirtyDays, SloWindow::NinetyDays].into_iter().find(|w| w.as_str() == s)
     }
     /// Bucket of the SLI and error budget charts: a multiple of the metric points' interval.
@@ -140,7 +140,7 @@ pub enum SloComparator {
 }
 
 impl SloComparator {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             SloComparator::Lt => "<",
             SloComparator::Le => "<=",
@@ -148,7 +148,7 @@ impl SloComparator {
             SloComparator::Ge => ">=",
         }
     }
-    fn parse(s: &str) -> Option<Self> {
+    pub(crate) fn parse(s: &str) -> Option<Self> {
         [SloComparator::Lt, SloComparator::Le, SloComparator::Gt, SloComparator::Ge].into_iter().find(|c| c.as_str() == s)
     }
     fn math(self) -> math::Cmp {
@@ -302,7 +302,7 @@ pub struct SloItem {
     pub status: SloStatus,
 }
 
-#[derive(Deserialize, ToSchema, Clone)]
+#[derive(Deserialize, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SloInput {
     pub name: String,
@@ -350,7 +350,7 @@ fn check_query(label: &str, q: &mut Option<String>) -> Result<(), String> {
 }
 
 /// Trims and checks an input, keeping only the fields of its type.
-fn validate(input: &mut SloInput) -> Result<(), String> {
+pub(crate) fn validate(input: &mut SloInput) -> Result<(), String> {
     input.name = input.name.trim().to_string();
     input.description = input.description.trim().to_string();
     if input.name.is_empty() || input.name.chars().count() > MAX_NAME_CHARS {
@@ -546,7 +546,7 @@ fn cache() -> &'static Mutex<HashMap<CacheKey, (Measured, Instant)>> {
 }
 
 /// Drops the org's cached measures (after any SLO or correction change on this server).
-fn forget(org: &str) {
+pub(crate) fn forget(org: &str) {
     cache().lock().unwrap().retain(|k, _| k.0 != org);
 }
 
@@ -787,12 +787,17 @@ fn other_tags(tags: &[String]) -> Vec<String> {
 }
 
 fn text_matches(query: &str, item: &SloItem) -> bool {
+    query_matches(query, &item.name, &item.description, &item.tags)
+}
+
+/// Words match name, description and tags; `key:value` words match a tag exactly.
+pub(crate) fn query_matches(query: &str, name: &str, description: &str, tags: &[String]) -> bool {
     query.split_whitespace().all(|w| {
         let w = w.to_lowercase();
         if w.contains(':') && !w.starts_with(':') {
-            return item.tags.iter().any(|t| t.to_lowercase() == w);
+            return tags.iter().any(|t| t.to_lowercase() == w);
         }
-        item.name.to_lowercase().contains(&w) || item.description.to_lowercase().contains(&w) || item.tags.iter().any(|t| t.to_lowercase().contains(&w))
+        name.to_lowercase().contains(&w) || description.to_lowercase().contains(&w) || tags.iter().any(|t| t.to_lowercase().contains(&w))
     })
 }
 
@@ -875,6 +880,22 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
     Ok(Json(search_page(items, &req)))
 }
 
+/// The status of each of the org's SLOs (by id) over its primary window, for the
+/// Datadog-compatible search ([`super::datadog_api::slos`]).
+pub(crate) async fn primary_statuses(st: &AppState, org: &str) -> Result<HashMap<String, SloStatus>, ApiError> {
+    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE s.org_id = $1")).bind(org).fetch_all(&st.postgres).await?;
+    let corrections = load_corrections(st, org, now_ms() - SloWindow::NinetyDays.ms()).await?;
+    let corrections = &corrections;
+    Ok(futures::stream::iter(rows)
+        .map(|row| async move {
+            let (status, _) = status_over(st, org, &row, row.primary(), &correction_spans(corrections, &row.id)).await;
+            (row.id, status)
+        })
+        .buffered(8)
+        .collect()
+        .await)
+}
+
 // ================================================================ detail
 
 #[derive(Serialize, ToSchema)]
@@ -915,7 +936,7 @@ impl CorrectionCategory {
             CorrectionCategory::Other => "other",
         }
     }
-    fn parse(s: &str) -> Self {
+    pub(crate) fn parse(s: &str) -> Self {
         match s {
             "scheduled_maintenance" => CorrectionCategory::ScheduledMaintenance,
             "outside_business_hours" => CorrectionCategory::OutsideBusinessHours,
@@ -1021,7 +1042,7 @@ async fn check_monitors(st: &AppState, org: &str, ids: &[i64]) -> Result<(), Api
     }
 }
 
-async fn checked(st: &AppState, org: &str, mut input: SloInput) -> Result<SloInput, ApiError> {
+pub(crate) async fn checked(st: &AppState, org: &str, mut input: SloInput) -> Result<SloInput, ApiError> {
     validate(&mut input).map_err(ApiError::BadRequest)?;
     check_monitors(st, org, &input.monitor_ids).await?;
     Ok(input)
@@ -1037,7 +1058,17 @@ async fn detail_for(st: &AppState, org: &str, id: &str) -> Result<SloItem, ApiEr
 #[utoipa::path(post, path = "/api/v1/slos", operation_id = "create_slo", request_body = SloInput, responses((status = 200, body = SloItem)), tag = "slos")]
 pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(input): Json<SloInput>) -> ApiResult<SloItem> {
     let input = checked(&st, &ctx.org_id, input).await?;
-    let (count,): (i64,) = sqlx::query_as("SELECT count(*) FROM slos WHERE org_id = $1").bind(&ctx.org_id).fetch_one(&st.postgres).await?;
+    let mut conn = st.postgres.acquire().await?;
+    let id = insert_slo(&mut conn, &ctx.org_id, &ctx.user_id, &input).await?;
+    drop(conn);
+    forget(&ctx.org_id);
+    ctx.audit(&st, "slo.create", &format!("slo:{id}"), &input.name).await;
+    Ok(Json(detail_for(&st, &ctx.org_id, &id).await?))
+}
+
+/// Stores a checked SLO of `org` created by `user`; returns its id.
+pub(crate) async fn insert_slo(conn: &mut sqlx::PgConnection, org: &str, user: &str, input: &SloInput) -> Result<String, ApiError> {
+    let (count,): (i64,) = sqlx::query_as("SELECT count(*) FROM slos WHERE org_id = $1").bind(org).fetch_one(&mut *conn).await?;
     if count >= MAX_SLOS {
         return Err(ApiError::BadRequest(format!("An organization has at most {MAX_SLOS} SLOs")));
     }
@@ -1045,7 +1076,7 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(input)
         "INSERT INTO slos (org_id, name, description, type, good_query, total_query, monitor_ids, slice_query, comparator, threshold, slice_minutes, targets, primary_window, tags, teams, created_by) \
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::uuid) RETURNING id::text",
     )
-    .bind(&ctx.org_id)
+    .bind(org)
     .bind(&input.name)
     .bind(&input.description)
     .bind(input.r#type.as_str())
@@ -1060,23 +1091,34 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(input)
     .bind(input.primary_window.map(SloWindow::as_str))
     .bind(&input.tags)
     .bind(&input.teams)
-    .bind(&ctx.user_id)
-    .fetch_one(&st.postgres)
+    .bind(user)
+    .fetch_one(&mut *conn)
     .await?;
-    forget(&ctx.org_id);
-    ctx.audit(&st, "slo.create", &format!("slo:{id}"), &input.name).await;
-    Ok(Json(detail_for(&st, &ctx.org_id, &id).await?))
+    Ok(id)
 }
 
 #[utoipa::path(put, path = "/api/v1/slos/{id}", operation_id = "update_slo", params(("id" = String, Path)), request_body = SloInput, responses((status = 200, body = SloItem)), tag = "slos")]
 pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<String>, Json(input): Json<SloInput>) -> ApiResult<SloItem> {
     let input = checked(&st, &ctx.org_id, input).await?;
+    let mut conn = st.postgres.acquire().await?;
+    let updated = update_slo(&mut conn, &ctx.org_id, &id, &input).await?;
+    drop(conn);
+    if !updated {
+        return Err(ApiError::NotFound(format!("SLO {id} not found")));
+    }
+    forget(&ctx.org_id);
+    ctx.audit(&st, "slo.update", &format!("slo:{id}"), &input.name).await;
+    Ok(Json(detail_for(&st, &ctx.org_id, &id).await?))
+}
+
+/// Replaces a checked SLO of `org`; false when there is no such SLO.
+pub(crate) async fn update_slo(conn: &mut sqlx::PgConnection, org: &str, id: &str, input: &SloInput) -> Result<bool, ApiError> {
     let r = sqlx::query(
         "UPDATE slos SET name = $3, description = $4, type = $5, good_query = $6, total_query = $7, monitor_ids = $8, slice_query = $9, comparator = $10, \
          threshold = $11, slice_minutes = $12, targets = $13, primary_window = $14, tags = $15, teams = $16, updated_at = now() WHERE org_id = $1 AND id::text = $2",
     )
-    .bind(&ctx.org_id)
-    .bind(&id)
+    .bind(org)
+    .bind(id)
     .bind(&input.name)
     .bind(&input.description)
     .bind(input.r#type.as_str())
@@ -1091,14 +1133,9 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
     .bind(input.primary_window.map(SloWindow::as_str))
     .bind(&input.tags)
     .bind(&input.teams)
-    .execute(&st.postgres)
+    .execute(&mut *conn)
     .await?;
-    if r.rows_affected() == 0 {
-        return Err(ApiError::NotFound(format!("SLO {id} not found")));
-    }
-    forget(&ctx.org_id);
-    ctx.audit(&st, "slo.update", &format!("slo:{id}"), &input.name).await;
-    Ok(Json(detail_for(&st, &ctx.org_id, &id).await?))
+    Ok(r.rows_affected() > 0)
 }
 
 #[utoipa::path(delete, path = "/api/v1/slos/{id}", operation_id = "delete_slo", params(("id" = String, Path)), responses((status = 204)), tag = "slos")]
@@ -1112,7 +1149,7 @@ pub async fn delete(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
 
 // ================================================================ corrections
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, ToSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SloCorrectionInput {
     /// Absent = every SLO of the organization.
@@ -1140,7 +1177,7 @@ fn validate_correction(input: &mut SloCorrectionInput) -> Result<(), String> {
     Ok(())
 }
 
-async fn checked_correction(st: &AppState, org: &str, mut input: SloCorrectionInput) -> Result<SloCorrectionInput, ApiError> {
+pub(crate) async fn checked_correction(st: &AppState, org: &str, mut input: SloCorrectionInput) -> Result<SloCorrectionInput, ApiError> {
     validate_correction(&mut input).map_err(ApiError::BadRequest)?;
     if let Some(slo) = &input.slo_id {
         load_one(st, org, slo).await?;
@@ -1175,46 +1212,62 @@ pub async fn list_corrections(State(st): State<AppState>, OrgId(org): OrgId, Que
 #[utoipa::path(post, path = "/api/v1/slo-corrections", operation_id = "create_slo_correction", request_body = SloCorrectionInput, responses((status = 200, body = SloCorrection)), tag = "slos")]
 pub async fn create_correction(State(st): State<AppState>, Writer(ctx): Writer, Json(input): Json<SloCorrectionInput>) -> ApiResult<SloCorrection> {
     let input = checked_correction(&st, &ctx.org_id, input).await?;
-    let (id,): (String,) = sqlx::query_as(
-        "INSERT INTO slo_corrections (org_id, slo_id, category, description, start_at, end_at, created_by) \
-         VALUES ($1, $2::uuid, $3, $4, to_timestamp($5), to_timestamp($6), $7::uuid) RETURNING id::text",
-    )
-    .bind(&ctx.org_id)
-    .bind(&input.slo_id)
-    .bind(input.category.as_str())
-    .bind(&input.description)
-    .bind(input.start as f64 / 1000.0)
-    .bind(input.end as f64 / 1000.0)
-    .bind(&ctx.user_id)
-    .fetch_one(&st.postgres)
-    .await?;
+    let mut conn = st.postgres.acquire().await?;
+    let id = insert_correction(&mut conn, &ctx.org_id, &ctx.user_id, &input).await?;
+    drop(conn);
     forget(&ctx.org_id);
     ctx.audit(&st, "slo_correction.create", &format!("slo_correction:{id}"), &input.description).await;
     Ok(Json(correction(&st, &ctx.org_id, &id).await?))
 }
 
-#[utoipa::path(put, path = "/api/v1/slo-corrections/{id}", operation_id = "update_slo_correction", params(("id" = String, Path)), request_body = SloCorrectionInput, responses((status = 200, body = SloCorrection)), tag = "slos")]
-pub async fn update_correction(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<String>, Json(input): Json<SloCorrectionInput>) -> ApiResult<SloCorrection> {
-    let input = checked_correction(&st, &ctx.org_id, input).await?;
-    let r = sqlx::query(
-        "UPDATE slo_corrections SET slo_id = $3::uuid, category = $4, description = $5, start_at = to_timestamp($6), end_at = to_timestamp($7) \
-         WHERE org_id = $1 AND id::text = $2",
+/// Stores a checked correction of `org` created by `user`; returns its id.
+pub(crate) async fn insert_correction(conn: &mut sqlx::PgConnection, org: &str, user: &str, input: &SloCorrectionInput) -> Result<String, ApiError> {
+    let (id,): (String,) = sqlx::query_as(
+        "INSERT INTO slo_corrections (org_id, slo_id, category, description, start_at, end_at, created_by) \
+         VALUES ($1, $2::uuid, $3, $4, to_timestamp($5), to_timestamp($6), $7::uuid) RETURNING id::text",
     )
-    .bind(&ctx.org_id)
-    .bind(&id)
+    .bind(org)
     .bind(&input.slo_id)
     .bind(input.category.as_str())
     .bind(&input.description)
     .bind(input.start as f64 / 1000.0)
     .bind(input.end as f64 / 1000.0)
-    .execute(&st.postgres)
+    .bind(user)
+    .fetch_one(&mut *conn)
     .await?;
-    if r.rows_affected() == 0 {
+    Ok(id)
+}
+
+#[utoipa::path(put, path = "/api/v1/slo-corrections/{id}", operation_id = "update_slo_correction", params(("id" = String, Path)), request_body = SloCorrectionInput, responses((status = 200, body = SloCorrection)), tag = "slos")]
+pub async fn update_correction(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<String>, Json(input): Json<SloCorrectionInput>) -> ApiResult<SloCorrection> {
+    let input = checked_correction(&st, &ctx.org_id, input).await?;
+    let mut conn = st.postgres.acquire().await?;
+    let updated = update_correction_row(&mut conn, &ctx.org_id, &id, &input).await?;
+    drop(conn);
+    if !updated {
         return Err(ApiError::NotFound(format!("correction {id} not found")));
     }
     forget(&ctx.org_id);
     ctx.audit(&st, "slo_correction.update", &format!("slo_correction:{id}"), &input.description).await;
     Ok(Json(correction(&st, &ctx.org_id, &id).await?))
+}
+
+/// Replaces a checked correction of `org`; false when there is no such correction.
+pub(crate) async fn update_correction_row(conn: &mut sqlx::PgConnection, org: &str, id: &str, input: &SloCorrectionInput) -> Result<bool, ApiError> {
+    let r = sqlx::query(
+        "UPDATE slo_corrections SET slo_id = $3::uuid, category = $4, description = $5, start_at = to_timestamp($6), end_at = to_timestamp($7) \
+         WHERE org_id = $1 AND id::text = $2",
+    )
+    .bind(org)
+    .bind(id)
+    .bind(&input.slo_id)
+    .bind(input.category.as_str())
+    .bind(&input.description)
+    .bind(input.start as f64 / 1000.0)
+    .bind(input.end as f64 / 1000.0)
+    .execute(&mut *conn)
+    .await?;
+    Ok(r.rows_affected() > 0)
 }
 
 #[utoipa::path(delete, path = "/api/v1/slo-corrections/{id}", operation_id = "delete_slo_correction", params(("id" = String, Path)), responses((status = 204)), tag = "slos")]

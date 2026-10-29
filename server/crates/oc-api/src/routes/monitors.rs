@@ -25,7 +25,7 @@ use super::monitor_formula::{combine, parse_formula, Expr};
 use super::monitor_engine::{
     backtest, group_key, parse_group_key, recipients, render_message, worst, MessageContext, MonitorOptions, MonitorStatus, DAY_MS,
 };
-use crate::auth::Writer;
+use crate::auth::{AuthContext, Writer};
 use crate::error::{ApiError, ApiResult};
 use crate::log_access::LogAccess;
 use crate::state::{AppState, OrgId};
@@ -49,7 +49,7 @@ pub enum MonitorType {
 }
 
 impl MonitorType {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             MonitorType::Metric => "metric",
             MonitorType::Apm => "apm",
@@ -57,7 +57,7 @@ impl MonitorType {
             MonitorType::Synthetics => "synthetics",
         }
     }
-    fn parse(s: &str) -> Self {
+    pub(crate) fn parse(s: &str) -> Self {
         match s {
             "apm" => MonitorType::Apm,
             "log" => MonitorType::Log,
@@ -234,7 +234,7 @@ pub(crate) async fn load_all(st: &AppState, org: &str) -> Result<(Vec<Loaded>, V
     Ok((loaded, downtimes))
 }
 
-async fn load_one(st: &AppState, org: &str, id: i64) -> Result<(Loaded, Vec<Downtime>), ApiError> {
+pub(crate) async fn load_one(st: &AppState, org: &str, id: i64) -> Result<(Loaded, Vec<Downtime>), ApiError> {
     let row: Row = sqlx::query_as(&format!("{SELECT} WHERE m.org_id = $1 AND m.id = $2"))
         .bind(org)
         .bind(id)
@@ -609,9 +609,9 @@ pub struct MonitorInput {
     pub draft: bool,
 }
 
-const SYNTHETICS_MANAGED: &str = "synthetic test monitors are created and edited with their test (Digital Experience → Synthetic Tests)";
+pub(crate) const SYNTHETICS_MANAGED: &str = "synthetic test monitors are created and edited with their test (Digital Experience → Synthetic Tests)";
 
-fn validate(input: &mut MonitorInput) -> Result<(), ApiError> {
+pub(crate) fn validate(input: &mut MonitorInput) -> Result<(), ApiError> {
     input.name = input.name.trim().to_string();
     if input.name.is_empty() || input.name.len() > 500 {
         return Err(ApiError::BadRequest("the monitor name must be 1–500 characters".into()));
@@ -646,9 +646,17 @@ fn validate(input: &mut MonitorInput) -> Result<(), ApiError> {
 #[utoipa::path(post, path = "/api/v1/monitors", operation_id = "create_monitor", request_body = MonitorInput, responses((status = 200, body = MonitorDetail)), tag = "monitors")]
 pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut input): Json<MonitorInput>) -> ApiResult<MonitorDetail> {
     validate(&mut input)?;
+    let id = store_new(&st, &ctx, &input, None).await?;
+    let (m, downtimes) = load_one(&st, &ctx.org_id, id).await?;
+    Ok(Json(detail(&m, &downtimes)))
+}
+
+/// Inserts a validated monitor and evaluates it once. `datadog_document`: the Datadog document it
+/// was written from ([`super::datadog_api::monitors`]).
+pub(crate) async fn store_new(st: &AppState, ctx: &AuthContext, input: &MonitorInput, datadog_document: Option<&Value>) -> Result<i64, ApiError> {
     let (id,): (i64,) = sqlx::query_as(
-        "INSERT INTO monitors (org_id, name, type, query, definition, status, message, priority, tags, teams, draft, created_by) \
-         VALUES ($1, $2, $3, $4, $5, 'nodata', $6, $7, $8, $9, $10, $11::uuid) RETURNING id",
+        "INSERT INTO monitors (org_id, name, type, query, definition, status, message, priority, tags, teams, draft, created_by, datadog_document) \
+         VALUES ($1, $2, $3, $4, $5, 'nodata', $6, $7, $8, $9, $10, $11::uuid, $12) RETURNING id",
     )
     .bind(&ctx.org_id)
     .bind(&input.name)
@@ -661,18 +669,27 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut in
     .bind(&input.teams)
     .bind(input.draft)
     .bind(&ctx.user_id)
+    .bind(datadog_document)
     .fetch_one(&st.postgres)
     .await?;
-    ctx.audit(&st, "monitor.create", &format!("monitor:{id}"), &input.name).await;
-    evaluate_one(&st, id).await;
-    let (m, downtimes) = load_one(&st, &ctx.org_id, id).await?;
-    Ok(Json(detail(&m, &downtimes)))
+    ctx.audit(st, "monitor.create", &format!("monitor:{id}"), &input.name).await;
+    evaluate_one(st, id).await;
+    Ok(id)
 }
 
 #[utoipa::path(put, path = "/api/v1/monitors/{id}", operation_id = "update_monitor", params(("id" = i64, Path)), request_body = MonitorInput, responses((status = 200, body = MonitorDetail)), tag = "monitors")]
 pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<i64>, Json(mut input): Json<MonitorInput>) -> ApiResult<MonitorDetail> {
     validate(&mut input)?;
-    let (before, _) = load_one(&st, &ctx.org_id, id).await?;
+    store_update(&st, &ctx, id, &input, None).await?;
+    let (m, downtimes) = load_one(&st, &ctx.org_id, id).await?;
+    Ok(Json(detail(&m, &downtimes)))
+}
+
+/// Updates a monitor with a validated definition; a new query or thresholds re-evaluate its groups
+/// from scratch. `datadog_document`: the Datadog document it was written from, or None to keep the
+/// stored one.
+pub(crate) async fn store_update(st: &AppState, ctx: &AuthContext, id: i64, input: &MonitorInput, datadog_document: Option<&Value>) -> Result<(), ApiError> {
+    let (before, _) = load_one(st, &ctx.org_id, id).await?;
     if MonitorType::parse(&before.row.kind) == MonitorType::Synthetics {
         return Err(ApiError::BadRequest(SYNTHETICS_MANAGED.into()));
     }
@@ -680,8 +697,8 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
     let reset = before.row.query != input.query.trim() || before.row.definition != definition;
     let mut tx = st.postgres.begin().await?;
     sqlx::query(
-        "UPDATE monitors SET name = $3, type = $4, query = $5, definition = $6, message = $7, priority = $8, tags = $9, teams = $10, draft = $11, modified_at = now() \
-         WHERE org_id = $1 AND id = $2",
+        "UPDATE monitors SET name = $3, type = $4, query = $5, definition = $6, message = $7, priority = $8, tags = $9, teams = $10, draft = $11, modified_at = now(), \
+         datadog_document = COALESCE($12, datadog_document) WHERE org_id = $1 AND id = $2",
     )
     .bind(&ctx.org_id)
     .bind(id)
@@ -694,6 +711,7 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
     .bind(&input.tags)
     .bind(&input.teams)
     .bind(input.draft)
+    .bind(datadog_document)
     .execute(&mut *tx)
     .await?;
     if reset {
@@ -702,12 +720,11 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
         sqlx::query("UPDATE monitors SET status = 'nodata', state_changed_at = now() WHERE id = $1").bind(id).execute(&mut *tx).await?;
     }
     tx.commit().await?;
-    ctx.audit(&st, "monitor.update", &format!("monitor:{id}"), &input.name).await;
+    ctx.audit(st, "monitor.update", &format!("monitor:{id}"), &input.name).await;
     if reset {
-        evaluate_one(&st, id).await;
+        evaluate_one(st, id).await;
     }
-    let (m, downtimes) = load_one(&st, &ctx.org_id, id).await?;
-    Ok(Json(detail(&m, &downtimes)))
+    Ok(())
 }
 
 #[utoipa::path(post, path = "/api/v1/monitors/{id}/clone", operation_id = "clone_monitor", params(("id" = i64, Path)), responses((status = 200, body = MonitorDetail)), tag = "monitors")]

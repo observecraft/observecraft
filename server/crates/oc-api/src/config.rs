@@ -61,6 +61,11 @@ pub struct Config {
     /// addresses, over http too (`OC_PORTAL_ALLOW_PRIVATE`; off by default, for self-hosted
     /// instances inside the network).
     pub portal_allow_private: bool,
+    /// The Datadog-compatible API may create application keys when the caller is itself an
+    /// application key (`OC_DATADOG_API_ALLOW_APP_KEY_CREATION`, off by default): Terraform's
+    /// `datadog_application_key` needs it, but a leaked key could then mint keys that outlive its
+    /// revocation. Our own API only creates keys from a signed-in browser session.
+    pub datadog_api_allow_app_key_creation: bool,
     /// The shared cache (Valkey) every replica uses; required by the server.
     pub cache: CacheSettings,
     /// Kubernetes objects kept in the in-process inventory cache over all orgs
@@ -174,6 +179,7 @@ impl Config {
             smtp_from: var("OC_SMTP_FROM", "ObserveCraft <alerts@observecraft.local>"),
             synthetics_allow_private: var("OC_SYNTHETICS_ALLOW_PRIVATE", "false") == "true",
             portal_allow_private: var("OC_PORTAL_ALLOW_PRIVATE", "false") == "true",
+            datadog_api_allow_app_key_creation: var("OC_DATADOG_API_ALLOW_APP_KEY_CREATION", "false") == "true",
             cache: CacheSettings {
                 url: env::var("OC_CACHE_URL").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
                 max_value_bytes: var("OC_CACHE_MAX_VALUE_BYTES", "8388608").parse().unwrap_or(8 << 20),

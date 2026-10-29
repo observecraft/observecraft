@@ -175,12 +175,7 @@ async fn main() -> anyhow::Result<()> {
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
         .allow_credentials(true);
 
-    let mut app = routes::router()
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth::require,
-        ))
-        .with_state(state);
+    let mut app = routes::app(state.clone()).with_state(state);
     if let Some(dist) = &cfg.web_dist {
         // Serve the built SPA; unknown paths fall back to index.html for client-side routing.
         let index = format!("{dist}/index.html");
