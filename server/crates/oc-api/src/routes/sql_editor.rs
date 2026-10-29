@@ -383,7 +383,7 @@ static TABLES: LazyLock<Vec<VirtualTable>> = LazyLock::new(|| {
             cols: METRIC_COLS,
             source: Source::ClickHouse {
                 rest: "FROM (SELECT SeriesId, MetricName, toString(MetricType) AS MetricType, MetricUnit, ServiceName, ResourceAttributes, Attributes FROM otel.metrics_series FINAL \
-                       WHERE OrgId = {oc_org:String} AND LastSeen >= fromUnixTimestamp64Milli(?)) AS s \
+                       WHERE OrgId = {oc_org:String} AND LastSeen >= toStartOfHour(fromUnixTimestamp64Milli(?))) AS s \
                        INNER JOIN (SELECT SeriesId, argMax(Value, TimeUnix) AS value, max(TimeUnix) AS ts FROM otel.metrics_samples \
                        WHERE OrgId = {oc_org:String} AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix <= fromUnixTimestamp64Milli(?) GROUP BY SeriesId) AS l ON l.SeriesId = s.SeriesId",
                 binds: METRIC_RANGE,
@@ -642,7 +642,7 @@ fn resource_row(r: &CatalogResource) -> Vec<Value> {
 #[derive(Default)]
 struct Loaded {
     hosts: Option<Vec<HostRow>>,
-    kube: Option<Vec<KubeResource>>,
+    kube: Option<std::sync::Arc<Vec<KubeResource>>>,
     catalog: Option<Vec<CatalogResource>>,
 }
 
@@ -663,7 +663,7 @@ impl Loaded {
                     Inventory::Kube(k) => k,
                     _ => KubeKind::Containers,
                 };
-                let rows = self.kube.iter().flatten().filter(|r| r.kind == Some(kind));
+                let rows = self.kube.iter().flat_map(|k| k.iter()).filter(|r| r.kind == Some(kind));
                 if inv == Inventory::Containers {
                     rows.map(container_row).collect()
                 } else {
@@ -838,8 +838,8 @@ pub async fn run(State(st): State<AppState>, ctx: AuthContext, access: LogAccess
     let ch = st
         .ch(org)
         .with_option("readonly", "2")
-        .with_option("max_execution_time", st.config.query_timeout_secs.min(MAX_EXECUTION_SECS).to_string())
-        .with_option("max_memory_usage", st.config.query_max_memory_bytes.min(MAX_MEMORY_BYTES).to_string())
+        .with_option("max_execution_time", st.config.org_query.timeout_secs.min(MAX_EXECUTION_SECS).to_string())
+        .with_option("max_memory_usage", st.config.org_query.max_memory_bytes.min(MAX_MEMORY_BYTES).to_string())
         .with_option("max_query_size", (64u64 << 20).to_string())
         .with_option("output_format_json_quote_64bit_integers", "0")
         .with_option("output_format_json_quote_64bit_floats", "0");

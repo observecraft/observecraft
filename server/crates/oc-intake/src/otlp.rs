@@ -295,3 +295,98 @@ pub struct LogRecord {
 pub fn encode(m: &impl Message) -> bytes::Bytes {
     bytes::Bytes::from(m.encode_to_vec())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::hash::{Hash, Hasher};
+    use std::time::{Duration, Instant};
+
+    const POINTS: usize = 100_000;
+    const LABELS: usize = 20;
+    const METRICS_PER_RESOURCE: usize = 25;
+
+    /// 100k gauge points with ~20 labels: on the points (as the Datadog conversion builds them) or
+    /// on one resource per 25 points (a Kubernetes pod, as OpenTelemetry collectors send them).
+    fn request(labels_on_points: bool) -> ExportMetricsServiceRequest {
+        let labels = |pod: usize| -> Vec<KeyValue> {
+            (0..LABELS).map(|l| kv(format!("kube_label_key_{l}"), if l == 0 { format!("order-service-7d4f9c-{pod:05}") } else { format!("value-{}-{}", l, pod % 40) })).collect()
+        };
+        let resource_metrics = (0..POINTS / METRICS_PER_RESOURCE)
+            .map(|pod| {
+                let (resource_attrs, point_attrs) = if labels_on_points { (vec![kv("host.name", format!("i-0a1b2c3d4e5f{pod:05x}"))], labels(pod)) } else { (labels(pod), Vec::new()) };
+                let metrics = (0..METRICS_PER_RESOURCE)
+                    .map(|m| Metric {
+                        name: format!("kubernetes.metric_{m}"),
+                        unit: String::new(),
+                        data: Some(metric::Data::Gauge(Gauge {
+                            data_points: vec![NumberDataPoint { start_time_unix_nano: 0, time_unix_nano: 1_800_000_000_000_000_000, as_double: (pod * m) as f64, attributes: point_attrs.clone() }],
+                        })),
+                    })
+                    .collect();
+                ResourceMetrics { resource: Some(Resource { attributes: resource_attrs }), scope_metrics: vec![ScopeMetrics { scope: scope("datadog"), metrics }] }
+            })
+            .collect();
+        ExportMetricsServiceRequest { resource_metrics }
+    }
+
+    /// The series identity of every point (metric name, type and sorted resource + point labels),
+    /// as an intake cache of known series would compute it (docs/adr/0002, stage 2).
+    fn series_hashes(req: &ExportMetricsServiceRequest) -> Vec<u64> {
+        let mut out = Vec::new();
+        for rm in &req.resource_metrics {
+            let resource = rm.resource.as_ref().map(|r| r.attributes.as_slice()).unwrap_or_default();
+            for sm in &rm.scope_metrics {
+                for m in &sm.metrics {
+                    let Some(metric::Data::Gauge(g)) = &m.data else { continue };
+                    for p in &g.data_points {
+                        let mut labels: Vec<(&str, &str)> = resource.iter().chain(&p.attributes).map(|a| (a.key.as_str(), text(a))).collect();
+                        labels.sort_unstable();
+                        let mut h = std::collections::hash_map::DefaultHasher::new();
+                        (m.name.as_str(), "gauge", labels).hash(&mut h);
+                        out.push(h.finish());
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    fn best_of<T>(runs: usize, mut f: impl FnMut() -> T) -> (Duration, T) {
+        let mut best = Duration::MAX;
+        let mut last = None;
+        for _ in 0..runs {
+            let start = Instant::now();
+            let out = f();
+            best = best.min(start.elapsed());
+            last = Some(out);
+        }
+        (best, last.expect("at least one run"))
+    }
+
+    /// What marking OTLP series in the intake would cost: decoding the body, hashing each point's
+    /// series and re-encoding it. One thread, best of 5 runs:
+    /// `cargo test --release -p oc-intake otlp_metrics_decode_cost -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "timing benchmark, run by hand in release mode"]
+    fn otlp_metrics_decode_cost() {
+        for labels_on_points in [true, false] {
+            let body = encode(&request(labels_on_points));
+            let (decode, req) = best_of(5, || ExportMetricsServiceRequest::decode(body.as_ref()).expect("valid OTLP"));
+            let (hash, hashes) = best_of(5, || series_hashes(&req));
+            let (reencode, out) = best_of(5, || encode(&req));
+            assert_eq!(hashes.len(), POINTS);
+            assert_eq!(out, body, "re-encoding these fields is lossless");
+            let ms = |d: Duration| d.as_secs_f64() * 1e3;
+            println!(
+                "labels on {}: body {:.1} MiB; per 100k points: decode {:.1} ms, series hashes {:.1} ms, re-encode {:.1} ms, total {:.1} ms",
+                if labels_on_points { "points" } else { "resources" },
+                body.len() as f64 / 1_048_576.0,
+                ms(decode),
+                ms(hash),
+                ms(reencode),
+                ms(decode + hash + reencode)
+            );
+        }
+    }
+}

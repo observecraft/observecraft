@@ -9,9 +9,16 @@
 //! - ECS tasks and containers: the awsecscontainermetrics receiver's task metadata metrics;
 //!   containers and container images are derived from pod specs and ECS containers.
 //!
-//! Like hosts, an org's inventory is small enough to filter, facet, group and sort in memory.
+//! Objects are read from `otel.k8s_inventory`: typed metadata columns plus a trimmed document of the
+//! spec and status fields the columns are built from; the full object (`k8s_resources.Body`) is only
+//! read for the detail panel. Rows depend on each other (owner chains, rollups, the clusters,
+//! containers and images derived from pods) and on usage metrics, so an org's inventory is built
+//! whole, at most once per [`INVENTORY_TTL`] (concurrent requests share one build), and explorers
+//! filter, facet, group and sort it in memory.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::Arc;
+use std::time::Duration;
 
 use axum::extract::{Path, State};
 use axum::Json;
@@ -51,6 +58,8 @@ const ECS_USAGE: &[&str] = &[
     "container.memory.usage",
 ];
 const MAX_OBJECTS: u64 = 50_000;
+/// How long an org's built inventory is reused (objects are refreshed every minute).
+pub const INVENTORY_TTL: Duration = Duration::from_secs(15);
 
 /// The resource types of the explorer's "Select Resources" menu.
 #[derive(Serialize, Deserialize, ToSchema, Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -228,7 +237,7 @@ impl KubeKind {
 }
 
 /// Status colour, as in Datadog's status pills.
-#[derive(Serialize, ToSchema, Clone, Copy, PartialEq, Eq, Debug, Default)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Copy, PartialEq, Eq, Debug, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum KubeHealth {
     Ok,
@@ -239,7 +248,7 @@ pub enum KubeHealth {
 }
 
 /// CPU in cores or memory in bytes. `usage` is the 15-minute average.
-#[derive(Serialize, ToSchema, Clone, Default, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Default, Debug)]
 pub struct KubeUtilization {
     pub usage: Option<f64>,
     pub requests: Option<f64>,
@@ -261,14 +270,14 @@ impl KubeUtilization {
     }
 }
 
-#[derive(Serialize, ToSchema, Clone, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct KubeObjectRef {
     pub kind: String,
     pub name: String,
     pub uid: String,
 }
 
-#[derive(Serialize, ToSchema, Clone, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct KubeContainer {
     pub name: String,
@@ -286,7 +295,7 @@ pub struct KubeContainer {
 }
 
 /// One row of the explorer. Kind-specific columns are null for other kinds.
-#[derive(Serialize, ToSchema, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct KubeResource {
     pub uid: String,
@@ -392,9 +401,36 @@ impl KubeResource {
 
 // ================================================================ loading
 
-/// Raw objects plus usage, loaded once per request.
+/// An object's metadata, from the inventory's typed columns.
+#[derive(Clone, Debug, Default)]
+struct ObjectMeta {
+    uid: String,
+    name: String,
+    namespace: Option<String>,
+    /// Epoch ms.
+    created: Option<i64>,
+    /// Has a deletion timestamp.
+    deleting: bool,
+    labels: BTreeMap<String, String>,
+    /// Without `kubectl.kubernetes.io/last-applied-configuration`.
+    annotations: BTreeMap<String, String>,
+    /// The controller, else the first owner.
+    owner: Option<KubeObjectRef>,
+}
+
+/// One current object: its metadata and `doc`, the parts of its spec and status rows are built from
+/// (`k8s_inventory.Doc`; the full object is only read for the detail panel).
+struct KubeObject {
+    kind: KubeKind,
+    cluster: String,
+    seen: i64,
+    meta: ObjectMeta,
+    doc: Value,
+}
+
+/// Current objects plus usage.
 struct Inventory {
-    objects: Vec<(KubeKind, String, i64, Value)>,
+    objects: Vec<KubeObject>,
     /// pod uid → (cpu cores, memory bytes)
     pod_usage: HashMap<String, (f64, f64)>,
     /// (pod uid, container) → (cpu cores, memory bytes)
@@ -439,32 +475,80 @@ struct EcsRow {
     mem: Option<f64>,
 }
 
-/// The org's current objects, only of the API `kinds` when given.
-async fn load_objects(st: &AppState, org: &str, kinds: &[&str]) -> Result<Vec<(KubeKind, String, i64, Value)>, ApiError> {
+/// The org's current objects (`ch` is the org's client), only of the API `kinds` when given. Rows
+/// with equal sort keys keep this order (by cluster, kind, namespace, name).
+async fn load_objects(ch: &clickhouse::Client, kinds: &[&str]) -> Result<Vec<KubeObject>, ApiError> {
     #[derive(clickhouse::Row, Deserialize)]
     struct Obj {
         cluster: String,
         kind: String,
         seen: i64,
-        body: String,
+        uid: String,
+        name: String,
+        namespace: String,
+        created: Option<i64>,
+        deleting: bool,
+        label_keys: Vec<String>,
+        label_values: Vec<String>,
+        annotation_keys: Vec<String>,
+        annotation_values: Vec<String>,
+        owner_kind: String,
+        owner_name: String,
+        owner_uid: String,
+        doc: String,
     }
     let query = format!(
-        "SELECT Cluster AS cluster, Kind AS kind, toUnixTimestamp64Milli(LastSeen) AS seen, Body AS body FROM otel.k8s_resources FINAL \
-         WHERE OrgId = {{oc_org:String}} AND LastSeen > now64(3) - INTERVAL {STALE_MINUTES} MINUTE{filter} LIMIT {MAX_OBJECTS}",
+        "SELECT Cluster AS cluster, Kind AS kind, toUnixTimestamp64Milli(LastSeen) AS seen, Uid AS uid, Name AS name, Namespace AS namespace, \
+         toInt64(toUnixTimestamp(Created)) * 1000 AS created, Deleting AS deleting, mapKeys(Labels) AS label_keys, mapValues(Labels) AS label_values, \
+         mapKeys(Annotations) AS annotation_keys, mapValues(Annotations) AS annotation_values, OwnerKind AS owner_kind, OwnerName AS owner_name, OwnerUid AS owner_uid, Doc AS doc \
+         FROM otel.k8s_inventory FINAL WHERE OrgId = {{oc_org:String}} AND LastSeen > now64(3) - INTERVAL {STALE_MINUTES} MINUTE{filter} \
+         ORDER BY Cluster, Kind, Namespace, Name, Uid LIMIT {MAX_OBJECTS}",
         filter = if kinds.is_empty() { "" } else { " AND Kind IN ?" }
     );
-    let mut q = st.ch(org).query(&query);
+    let mut q = ch.query(&query);
     if !kinds.is_empty() {
         q = q.bind(kinds);
     }
     let objects = q.fetch_all::<Obj>().await?;
     Ok(objects
         .into_iter()
-        .filter_map(|o| match (KubeKind::from_api(&o.kind), serde_json::from_str::<Value>(&o.body)) {
-            (Some(kind), Ok(body)) => Some((kind, o.cluster, o.seen, body)),
-            _ => None,
+        .filter_map(|o| {
+            let kind = KubeKind::from_api(&o.kind)?;
+            let doc = serde_json::from_str::<Value>(&o.doc).ok()?;
+            let owner = (!o.owner_kind.is_empty() && !o.owner_name.is_empty()).then_some(KubeObjectRef { kind: o.owner_kind, name: o.owner_name, uid: o.owner_uid });
+            let meta = ObjectMeta {
+                uid: o.uid,
+                name: o.name,
+                namespace: Some(o.namespace).filter(|n| !n.is_empty()),
+                created: o.created,
+                deleting: o.deleting,
+                labels: o.label_keys.into_iter().zip(o.label_values).collect(),
+                annotations: o.annotation_keys.into_iter().zip(o.annotation_values).collect(),
+                owner,
+            };
+            Some(KubeObject { kind, cluster: o.cluster, seen: o.seen, meta, doc })
         })
         .collect())
+}
+
+/// The org's current objects with ownership, rollups, usage and tags, built at most once per
+/// [`INVENTORY_TTL`] however many explorers, widgets and panels ask meanwhile, on any replica.
+async fn inventory(st: &AppState, org: &str) -> Result<Arc<Vec<KubeResource>>, ApiError> {
+    shared_inventory(&st.kube_inventory, &st.cache, org, || async { Ok(build(&load(st, org).await?)) }).await
+}
+
+/// Shared cache namespace of built inventories.
+const INVENTORY: &str = "kube_inventory";
+
+/// Two layers: requests read the replica's in-process copy (`local`, used as Rust objects); when
+/// it expires, its one load goes through the shared cache, so one replica builds the inventory
+/// (holding the lock) and the others decode its stored copy instead of building their own.
+async fn shared_inventory<F, Fut>(local: &crate::ttl_cache::TtlCache<Vec<KubeResource>>, shared: &crate::cache::SharedCache, org: &str, build: F) -> Result<Arc<Vec<KubeResource>>, ApiError>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<Vec<KubeResource>, ApiError>>,
+{
+    local.get_or_load(org, || async { shared.get_or_load(INVENTORY, org, "", INVENTORY_TTL, build).await.map(Arc::unwrap_or_clone) }).await
 }
 
 async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
@@ -477,7 +561,8 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         cpu: f64,
         mem: f64,
     }
-    let objects = load_objects(st, org, &[]);
+    let ch = st.ch(org);
+    let objects = load_objects(&ch, &[]);
     // Points of the last 15 minutes (5 for processes), from the new storage once it has them.
     let now = now_ms();
     let (recent, procs_from, end) = (now - 15 * 60_000, now - 5 * 60_000, now + OPEN_END_MS);
@@ -591,13 +676,11 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         }
     }
     if !dd_usage.is_empty() {
-        let pods = PodIndex::new(inv.objects.iter().filter(|(k, ..)| *k == KubeKind::Pods).filter_map(|(_, cluster, _, b)| {
-            let m = &b["metadata"];
-            Some((cluster.as_str(), m["namespace"].as_str()?, m["name"].as_str()?, m["uid"].as_str()?))
-        }));
+        let pods = PodIndex::new(
+            inv.objects.iter().filter(|o| o.kind == KubeKind::Pods).filter_map(|o| Some((o.cluster.as_str(), o.meta.namespace.as_deref()?, o.meta.name.as_str(), o.meta.uid.as_str()))),
+        );
         // Node name → cluster, to find the node a Datadog host is.
-        let node_clusters: HashMap<&str, &str> =
-            inv.objects.iter().filter(|(k, ..)| *k == KubeKind::Nodes).filter_map(|(_, cluster, _, b)| Some((b["metadata"]["name"].as_str()?, cluster.as_str()))).collect();
+        let node_clusters: HashMap<&str, &str> = inv.objects.iter().filter(|o| o.kind == KubeKind::Nodes).map(|o| (o.meta.name.as_str(), o.cluster.as_str())).collect();
         let mut container_usage = Vec::new();
         let mut node_usage = Vec::new();
         let mut container_on_node = Vec::new();
@@ -765,15 +848,9 @@ pub(crate) fn image_parts(image: &str) -> (String, String, String) {
     (name.to_string(), short.to_string(), tag.to_string())
 }
 
-fn controller(meta: &Value) -> Option<KubeObjectRef> {
-    let refs = arr(meta, &["ownerReferences"]);
-    let r = refs.iter().find(|r| r.get("controller").and_then(Value::as_bool) == Some(true)).or(refs.first())?;
-    Some(KubeObjectRef { kind: s(r, &["kind"])?.to_string(), name: s(r, &["name"])?.to_string(), uid: s(r, &["uid"]).unwrap_or_default().to_string() })
-}
-
-/// Pod status as `kubectl get pods` prints it, with its colour.
-fn pod_status(body: &Value) -> (String, KubeHealth) {
-    if s(body, &["metadata", "deletionTimestamp"]).is_some() {
+/// Pod status as `kubectl get pods` prints it, with its colour (`deleting`: it has a deletion timestamp).
+fn pod_status(body: &Value, deleting: bool) -> (String, KubeHealth) {
+    if deleting {
         return ("Terminating".into(), KubeHealth::Warning);
     }
     let phase = s(body, &["status", "phase"]).unwrap_or("Unknown");
@@ -878,24 +955,20 @@ fn pod_tags(status: &Value) -> Vec<String> {
     phase.into_iter().chain(ready).collect()
 }
 
-fn to_row(kind: KubeKind, cluster: &str, seen: i64, body: &Value, inv: &Inventory) -> KubeResource {
-    let meta = body.get("metadata").cloned().unwrap_or(Value::Null);
-    let uid = s(&meta, &["uid"]).unwrap_or_default().to_string();
-    let name = s(&meta, &["name"]).unwrap_or_default().to_string();
-    let namespace = s(&meta, &["namespace"]).map(str::to_string);
-    let mut annotations = map(&meta, &["annotations"]);
-    annotations.remove("kubectl.kubernetes.io/last-applied-configuration");
+fn to_row(o: &KubeObject, inv: &Inventory) -> KubeResource {
+    let (kind, cluster, seen, body) = (o.kind, o.cluster.as_str(), o.seen, &o.doc);
+    let m = &o.meta;
     let mut r = KubeResource {
         kind: Some(kind),
         cluster: cluster.to_string(),
-        created_at: ts(&meta, &["creationTimestamp"]),
+        created_at: m.created,
         last_seen: seen,
-        labels: map(&meta, &["labels"]),
-        annotations,
-        owner: controller(&meta),
-        namespace,
-        name,
-        uid,
+        labels: m.labels.clone(),
+        annotations: m.annotations.clone(),
+        owner: m.owner.clone(),
+        namespace: m.namespace.clone(),
+        name: m.name.clone(),
+        uid: m.uid.clone(),
         ..Default::default()
     };
     let spec = body.get("spec").cloned().unwrap_or(Value::Null);
@@ -903,7 +976,7 @@ fn to_row(kind: KubeKind, cluster: &str, seen: i64, body: &Value, inv: &Inventor
     let pod_template_images = |path: &[&str]| -> Vec<String> { arr(&spec, path).iter().filter_map(|c| s(c, &["image"]).map(str::to_string)).collect() };
     match kind {
         KubeKind::Pods => {
-            (r.status, r.health) = pod_status(body);
+            (r.status, r.health) = pod_status(body, m.deleting);
             r.containers = container_infos(body, &r.uid, inv);
             let regular: Vec<&KubeContainer> = r.containers.iter().filter(|c| !c.init).collect();
             r.ready = Some(format!("{}/{}", regular.iter().filter(|c| c.ready).count(), regular.len()));
@@ -1113,7 +1186,7 @@ fn workload_tag(api_kind: &str) -> Option<&'static str> {
 
 /// Every row of the org, with ownership, rollups and tags resolved.
 fn build(inv: &Inventory) -> Vec<KubeResource> {
-    let mut rows: Vec<KubeResource> = inv.objects.iter().map(|(k, c, seen, b)| to_row(*k, c, *seen, b, inv)).collect();
+    let mut rows: Vec<KubeResource> = inv.objects.iter().map(|o| to_row(o, inv)).collect();
     let by_uid: HashMap<String, usize> = rows.iter().enumerate().map(|(i, r)| (r.uid.clone(), i)).collect();
 
     // Owner chain of each object (pod → replicaset → deployment, job → cronjob).
@@ -1742,11 +1815,17 @@ fn complete(r: &KubeResource, memory: bool) -> bool {
 
 #[utoipa::path(post, path = "/api/v1/orchestration/search", operation_id = "search_orchestration", request_body = KubeSearchRequest, responses((status = 200, body = KubeSearchPage)), tag = "orchestration")]
 pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<KubeSearchRequest>) -> ApiResult<KubeSearchPage> {
-    let all = build(&load(&st, &org).await?);
+    let all = inventory(&st, &org).await?;
     let terms = parse_query(&req.query);
     // Counts of every kind under the same filter (the Overview's cluster / namespace cards).
-    let kinds = KubeKind::ALL.into_iter().map(|k| KubeKindCount { kind: k, count: all.iter().filter(|r| r.kind == Some(k) && r.matches(&terms)).count() }).collect();
-    let of_kind: Vec<KubeResource> = all.into_iter().filter(|r| r.kind == Some(req.kind)).collect();
+    let mut matching: HashMap<KubeKind, usize> = HashMap::new();
+    for r in all.iter().filter(|r| r.matches(&terms)) {
+        if let Some(k) = r.kind {
+            *matching.entry(k).or_default() += 1;
+        }
+    }
+    let kinds = KubeKind::ALL.into_iter().map(|k| KubeKindCount { kind: k, count: matching.get(&k).copied().unwrap_or(0) }).collect();
+    let of_kind: Vec<&KubeResource> = all.iter().filter(|r| r.kind == Some(req.kind)).collect();
 
     let mut key_counts: BTreeMap<String, usize> = BTreeMap::new();
     for r in &of_kind {
@@ -1778,9 +1857,9 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
         .filter(|f| !f.values.is_empty())
         .collect();
 
-    let mut rows: Vec<KubeResource> = of_kind.into_iter().filter(|r| r.matches(&terms)).collect();
+    let mut rows: Vec<&KubeResource> = of_kind.into_iter().filter(|r| r.matches(&terms)).collect();
     let field = req.sort.as_deref().unwrap_or("name");
-    let cmp = |a: &KubeResource, b: &KubeResource| {
+    let cmp = |a: &&KubeResource, b: &&KubeResource| {
         let o = sort_key(a, field).partial_cmp(&sort_key(b, field)).unwrap_or(std::cmp::Ordering::Equal).then_with(|| a.name.cmp(&b.name));
         if req.desc {
             o.reverse()
@@ -1823,7 +1902,7 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
             None
         }
     };
-    let items = rows.into_iter().skip(req.offset).take(limit).collect();
+    let items = rows.into_iter().skip(req.offset).take(limit).cloned().collect();
     Ok(Json(KubeSearchPage { items, total, groups, facets, kinds, tag_keys, tag_key_counts }))
 }
 
@@ -1856,10 +1935,12 @@ pub struct KubeDetail {
 
 #[utoipa::path(get, path = "/api/v1/orchestration/resources/{uid}", operation_id = "get_orchestration_resource", params(("uid" = String, Path)), responses((status = 200, body = KubeDetail), (status = 404, body = crate::error::ErrorBody)), tag = "orchestration")]
 pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, Path(uid): Path<String>) -> ApiResult<KubeDetail> {
-    let inv = load(&st, &org).await?;
-    let rows = build(&inv);
+    let rows = inventory(&st, &org).await?;
     let r = rows.iter().find(|r| r.uid == uid).cloned().ok_or_else(|| ApiError::NotFound("Kubernetes resource not found".into()))?;
-    let mut manifest = inv.objects.iter().find(|o| o.3.pointer("/metadata/uid").and_then(Value::as_str) == Some(uid.as_str())).map(|o| o.3.clone()).unwrap_or(Value::Null);
+    let mut manifest = match r.kind.and_then(KubeKind::api_kind) {
+        Some(_) => manifest(&st.ch(&org), &uid).await?,
+        None => Value::Null,
+    };
     if let Some(m) = manifest.get_mut("metadata").and_then(Value::as_object_mut) {
         m.remove("managedFields");
     }
@@ -1909,6 +1990,12 @@ pub async fn detail(State(st): State<AppState>, OrgId(org): OrgId, Path(uid): Pa
         .map(|e| KubeEvent { timestamp: e.ts, event_type: e.typ, reason: e.reason, message: e.note, object_kind: e.kind, object_name: e.name, count: e.count })
         .collect();
     Ok(Json(KubeDetail { resource: r, manifest, related, events }))
+}
+
+/// The object as last received (Null when it is gone).
+async fn manifest(ch: &clickhouse::Client, uid: &str) -> Result<Value, ApiError> {
+    let body = ch.query("SELECT Body FROM otel.k8s_resources WHERE OrgId = {oc_org:String} AND Uid = ? ORDER BY LastSeen DESC LIMIT 1").bind(uid).fetch_optional::<String>().await?;
+    Ok(body.and_then(|b| serde_json::from_str(&b).ok()).unwrap_or(Value::Null))
 }
 
 /// Datadog's "Related Resources": the owner chain, owned objects and pods, and services that select them.
@@ -1998,22 +2085,22 @@ fn related(rows: &[KubeResource], r: &KubeResource) -> Vec<KubeResource> {
 
 /// Every current object of the org with ownership, rollups and tags resolved (the resource catalog
 /// and change tracking read them).
-pub(crate) async fn resources(st: &AppState, org: &str) -> Result<Vec<KubeResource>, ApiError> {
-    Ok(build(&load(st, org).await?))
+pub(crate) async fn resources(st: &AppState, org: &str) -> Result<Arc<Vec<KubeResource>>, ApiError> {
+    inventory(st, org).await
 }
 
 /// The org's current deployments and their replica sets, without usage (change tracking's rollouts).
 pub(crate) async fn replica_sets(st: &AppState, org: &str) -> Result<Vec<KubeResource>, ApiError> {
-    let objects = load_objects(st, org, &["Deployment", "ReplicaSet"]).await?;
+    let objects = load_objects(&st.ch(org), &["Deployment", "ReplicaSet"]).await?;
     let inv = Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), host_cpus: HashMap::new() };
     Ok(build(&inv).into_iter().filter(|r| r.kind == Some(KubeKind::ReplicaSets)).collect())
 }
 
 /// The node named like a host and the pods running on it, for the host panel.
 pub async fn host_inventory(st: &AppState, org: &str, host: &str) -> Result<(Option<KubeResource>, Vec<KubeResource>), ApiError> {
-    let rows = build(&load(st, org).await?);
+    let rows = inventory(st, org).await?;
     let node = rows.iter().find(|r| r.kind == Some(KubeKind::Nodes) && r.name == host).cloned();
-    Ok((node, rows.into_iter().filter(|r| r.kind == Some(KubeKind::Pods) && r.node.as_deref() == Some(host)).collect()))
+    Ok((node, rows.iter().filter(|r| r.kind == Some(KubeKind::Pods) && r.node.as_deref() == Some(host)).cloned().collect()))
 }
 
 #[cfg(test)]
@@ -2094,6 +2181,183 @@ mod tests {
         assert_eq!(image_parts("nginx@sha256:abc"), ("nginx".into(), "nginx".into(), "latest".into()));
     }
 
+    /// An object as its full body describes it (the explorer before the typed inventory).
+    fn full_object(cluster: &str, seen: i64, body: &Value) -> KubeObject {
+        let m = &body["metadata"];
+        let refs = arr(m, &["ownerReferences"]);
+        let owner = refs
+            .iter()
+            .find(|r| r.get("controller").and_then(Value::as_bool) == Some(true))
+            .or(refs.first())
+            .and_then(|r| Some(KubeObjectRef { kind: s(r, &["kind"])?.to_string(), name: s(r, &["name"])?.to_string(), uid: s(r, &["uid"]).unwrap_or_default().to_string() }));
+        let mut annotations = map(m, &["annotations"]);
+        annotations.remove("kubectl.kubernetes.io/last-applied-configuration");
+        KubeObject {
+            kind: KubeKind::from_api(s(body, &["kind"]).unwrap_or_default()).expect("known kind"),
+            cluster: cluster.to_string(),
+            seen,
+            meta: ObjectMeta {
+                uid: s(m, &["uid"]).unwrap_or_default().to_string(),
+                name: s(m, &["name"]).unwrap_or_default().to_string(),
+                namespace: s(m, &["namespace"]).map(str::to_string),
+                created: ts(m, &["creationTimestamp"]),
+                deleting: s(m, &["deletionTimestamp"]).is_some(),
+                labels: map(m, &["labels"]),
+                annotations,
+                owner,
+            },
+            doc: body.clone(),
+        }
+    }
+
+    fn inventory_of(objects: Vec<KubeObject>) -> Inventory {
+        Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), host_cpus: HashMap::new() }
+    }
+
+    /// Objects written through the ingest path (otel_k8s_objects → k8s_inventory) build the same
+    /// explorer rows as their full bodies did, and the typed pod columns agree with the rows.
+    /// Runs against a ClickHouse server when OC_TEST_CLICKHOUSE_URL is set (migrations are applied).
+    #[tokio::test]
+    async fn the_typed_inventory_builds_the_rows_of_the_full_objects() {
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
+        let bodies: Vec<Value> = serde_json::from_str(include_str!("../../tests/fixtures/k8s_objects.json")).expect("fixture");
+        let org = format!("k8s-parity-{}-{}", std::process::id(), now_ms());
+        let admin = live.client.clone();
+        admin
+            .query("INSERT INTO otel.otel_k8s_objects (Timestamp, Body, ResourceAttributes) SELECT now64(9), arrayJoin(?), map('oc.org_id', ?, 'k8s.cluster.name', 'shop-prod', 'oc.signal', 'k8s.objects')")
+            .bind(bodies.iter().map(Value::to_string).collect::<Vec<_>>())
+            .bind(&org)
+            .execute()
+            .await
+            .expect("insert objects");
+        let ch = admin.clone().with_option("param_oc_org", &org);
+
+        let objects = load_objects(&ch, &[]).await.expect("load");
+        assert_eq!(objects.len(), bodies.len(), "every fixture object is in the inventory");
+        let seen: HashMap<String, i64> = objects.iter().map(|o| (o.meta.uid.clone(), o.seen)).collect();
+        let expected: Vec<KubeObject> = bodies.iter().map(|b| full_object("shop-prod", seen[s(b, &["metadata", "uid"]).unwrap()], b)).collect();
+        let rows = |objects: Vec<KubeObject>| -> BTreeMap<String, Value> { build(&inventory_of(objects)).into_iter().map(|r| (r.uid.clone(), serde_json::to_value(&r).unwrap())).collect() };
+        let (got, want) = (rows(objects), rows(expected));
+        assert_eq!(got.keys().collect::<Vec<_>>(), want.keys().collect::<Vec<_>>());
+        for (uid, row) in &want {
+            assert_eq!(&got[uid], row, "row {uid}");
+        }
+
+        // The pod columns SQL consumers read are the explorer's values.
+        #[derive(clickhouse::Row, Deserialize)]
+        struct PodCols {
+            uid: String,
+            ready: u16,
+            containers: u16,
+            restarts: u32,
+            cpu_requests: Option<f64>,
+            cpu_limits: Option<f64>,
+            memory_requests: Option<f64>,
+            memory_limits: Option<f64>,
+            node: String,
+            phase: String,
+            owner: String,
+        }
+        let pods = ch
+            .query(
+                "SELECT Uid AS uid, ReadyContainers AS ready, Containers AS containers, Restarts AS restarts, CpuRequests AS cpu_requests, CpuLimits AS cpu_limits, \
+                 MemoryRequests AS memory_requests, MemoryLimits AS memory_limits, Node AS node, Phase AS phase, OwnerName AS owner \
+                 FROM otel.k8s_inventory FINAL WHERE OrgId = {oc_org:String} AND Kind = 'Pod'",
+            )
+            .fetch_all::<PodCols>()
+            .await
+            .expect("pod columns");
+        assert_eq!(pods.len(), bodies.iter().filter(|b| b["kind"] == "Pod").count());
+        for p in pods {
+            let row = &want[&p.uid];
+            assert_eq!(row["ready"], format!("{}/{}", p.ready, p.containers), "{}", p.uid);
+            assert_eq!(row["restarts"], p.restarts, "{}", p.uid);
+            assert_eq!((row["cpu"]["requests"].as_f64(), row["cpu"]["limits"].as_f64()), (p.cpu_requests, p.cpu_limits), "{}", p.uid);
+            assert_eq!((row["memory"]["requests"].as_f64(), row["memory"]["limits"].as_f64()), (p.memory_requests, p.memory_limits), "{}", p.uid);
+            assert_eq!(row["node"].as_str().unwrap_or_default(), p.node);
+            assert_eq!(row["owner"]["name"].as_str().unwrap_or_default(), p.owner);
+            assert!(row["tags"].as_array().unwrap().iter().any(|t| t == &format!("pod_phase:{}", p.phase.to_lowercase())), "{}", p.uid);
+        }
+    }
+
+    /// `copies` × the fixture's objects, each copy in its own cluster with its own uids.
+    fn fixture_inventory(copies: usize) -> Inventory {
+        let text = include_str!("../../tests/fixtures/k8s_objects.json");
+        let bodies: Vec<Value> = serde_json::from_str(text).expect("fixture");
+        let uids: Vec<String> = bodies.iter().filter_map(|b| s(b, &["metadata", "uid"]).map(str::to_string)).collect();
+        let mut objects = Vec::new();
+        for copy in 0..copies {
+            let mut text = text.to_string();
+            for uid in &uids {
+                text = text.replace(uid.as_str(), &format!("{uid}-{copy}"));
+            }
+            let bodies: Vec<Value> = serde_json::from_str(&text).expect("fixture copy");
+            objects.extend(bodies.iter().map(|b| full_object(&format!("shop-prod-{copy}"), 1_792_953_998_000, b)));
+        }
+        inventory_of(objects)
+    }
+
+    /// One replica builds an org's inventory and stores it in the shared cache; another replica's
+    /// in-process cache is filled from that copy (same rows, no second build) and serves it from
+    /// memory until it expires. Other orgs build their own.
+    #[tokio::test]
+    async fn one_replica_builds_the_inventory_and_the_others_decode_its_copy() {
+        let (backend, shared_a, shared_b) = crate::cache::testing::pair();
+        let (local_a, local_b) = (crate::ttl_cache::TtlCache::new(INVENTORY_TTL), crate::ttl_cache::TtlCache::new(INVENTORY_TTL));
+        let builds = std::sync::atomic::AtomicUsize::new(0);
+        let build_of = |copies: usize| {
+            let builds = &builds;
+            move || async move {
+                builds.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok::<_, ApiError>(build(&fixture_inventory(copies)))
+            }
+        };
+        let rows_a = shared_inventory(&local_a, &shared_a, "acme", build_of(1)).await.unwrap();
+        let rows_b = shared_inventory(&local_b, &shared_b, "acme", build_of(2)).await.unwrap();
+        assert_eq!(builds.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(!rows_a.is_empty());
+        assert_eq!(serde_json::to_value(&*rows_b).unwrap(), serde_json::to_value(&*rows_a).unwrap(), "B decodes A's rows");
+
+        // B's next requests are answered from its memory, without Valkey.
+        let ops = backend.ops.load(std::sync::atomic::Ordering::SeqCst);
+        let again = shared_inventory(&local_b, &shared_b, "acme", build_of(2)).await.unwrap();
+        assert!(Arc::ptr_eq(&again, &rows_b));
+        assert_eq!(backend.ops.load(std::sync::atomic::Ordering::SeqCst), ops);
+
+        let other = shared_inventory(&local_b, &shared_b, "globex", build_of(2)).await.unwrap();
+        assert_eq!(builds.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert!(other.len() > rows_a.len());
+    }
+
+    /// A dev-sized inventory (~10k objects) stays far below the shared cache's value limit
+    /// (`OC_CACHE_MAX_VALUE_BYTES`, 8 MiB) and decodes to the same rows.
+    #[test]
+    fn a_dev_sized_inventory_fits_in_the_shared_cache() {
+        let inventory = fixture_inventory(137);
+        assert!(inventory.objects.len() >= 10_000);
+        let rows = build(&inventory);
+        let started = std::time::Instant::now();
+        let size = crate::cache::testing::stored_size(&rows);
+        let encoded = started.elapsed();
+        let started = std::time::Instant::now();
+        let decoded: Vec<KubeResource> = crate::cache::testing::round_trip(&rows);
+        let round_trip = started.elapsed();
+        let json = serde_json::to_vec(&rows).unwrap().len();
+        // The copies repeat each other, which zstd finds; without repeats an inventory compresses
+        // like one copy does, so that ratio bounds the size of real objects.
+        let one = build(&fixture_inventory(1));
+        let ratio = crate::cache::testing::stored_size(&one) as f64 / serde_json::to_vec(&one).unwrap().len() as f64;
+        let unrepeated = (json as f64 * ratio) as usize;
+        eprintln!(
+            "{} objects, {} rows: {json} bytes as JSON, {size} stored ({unrepeated} at one copy's ratio {ratio:.3}); encode {encoded:?}, encode + decode {round_trip:?}",
+            inventory.objects.len(),
+            rows.len()
+        );
+        assert!(size < 8 << 20, "{size} bytes");
+        assert!(unrepeated < 8 << 20, "{unrepeated} bytes without repeats");
+        assert_eq!(serde_json::to_value(&decoded).unwrap(), serde_json::to_value(&rows).unwrap());
+    }
+
     fn pod(status: Value) -> Value {
         serde_json::json!({ "kind": "Pod", "metadata": { "name": "p", "uid": "u" }, "spec": { "containers": [{ "name": "c" }] }, "status": status })
     }
@@ -2101,12 +2365,12 @@ mod tests {
     #[test]
     fn pod_statuses_like_kubectl() {
         let crash = pod(serde_json::json!({ "phase": "Running", "containerStatuses": [{ "name": "c", "ready": false, "state": { "waiting": { "reason": "CrashLoopBackOff" } } }] }));
-        assert_eq!(pod_status(&crash), ("CrashLoopBackOff".into(), KubeHealth::Error));
+        assert_eq!(pod_status(&crash, false), ("CrashLoopBackOff".into(), KubeHealth::Error));
         let ok = pod(serde_json::json!({ "phase": "Running", "containerStatuses": [{ "name": "c", "ready": true, "state": { "running": {} } }] }));
-        assert_eq!(pod_status(&ok), ("Running".into(), KubeHealth::Ok));
+        assert_eq!(pod_status(&ok, false), ("Running".into(), KubeHealth::Ok));
         let done = pod(serde_json::json!({ "phase": "Succeeded", "containerStatuses": [{ "name": "c", "ready": false, "state": { "terminated": { "reason": "Completed" } } }] }));
-        assert_eq!(pod_status(&done), ("Completed".into(), KubeHealth::Info));
+        assert_eq!(pod_status(&done, false), ("Completed".into(), KubeHealth::Info));
         let oom = pod(serde_json::json!({ "phase": "Running", "containerStatuses": [{ "name": "c", "ready": false, "state": { "terminated": { "reason": "OOMKilled" } } }] }));
-        assert_eq!(pod_status(&oom), ("OOMKilled".into(), KubeHealth::Error));
+        assert_eq!(pod_status(&oom, false), ("OOMKilled".into(), KubeHealth::Error));
     }
 }

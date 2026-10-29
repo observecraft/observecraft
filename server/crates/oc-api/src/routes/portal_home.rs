@@ -13,8 +13,8 @@
 //! - **Sources** (Settings → Entities Sources): which telemetry signals the org sent in the last day.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::sync::OnceLock;
+use std::time::Duration;
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -29,6 +29,7 @@ use crate::auth::{Admin, AuthContext, Writer};
 use crate::error::{ApiError, ApiResult};
 use crate::log_access::LogAccess;
 use crate::state::AppState;
+use crate::ttl_cache::TtlCache;
 
 pub const CACHE_SECONDS: u64 = 60;
 const CACHE_MAX_ENTRIES: usize = 2_000;
@@ -216,35 +217,8 @@ pub struct PortalSources {
 // ================================================================ cache
 
 /// Short-lived answers per (org, member, list), so the home page doesn't hit providers' rate limits.
-struct TtlCache<T> {
-    ttl: Duration,
-    entries: HashMap<String, (Instant, T)>,
-}
-
-impl<T: Clone> TtlCache<T> {
-    fn new(ttl: Duration) -> Self {
-        TtlCache { ttl, entries: HashMap::new() }
-    }
-
-    fn get(&self, key: &str, now: Instant) -> Option<T> {
-        self.entries.get(key).filter(|(at, _)| now.duration_since(*at) < self.ttl).map(|(_, v)| v.clone())
-    }
-
-    fn put(&mut self, key: String, value: T, now: Instant) {
-        if self.entries.len() >= CACHE_MAX_ENTRIES {
-            let ttl = self.ttl;
-            self.entries.retain(|_, (at, _)| now.duration_since(*at) < ttl);
-            if self.entries.len() >= CACHE_MAX_ENTRIES {
-                self.entries.clear();
-            }
-        }
-        self.entries.insert(key, (now, value));
-    }
-
-    /// Drops every answer of an org (its connectors changed), or of one member.
-    fn forget(&mut self, prefix: &str) {
-        self.entries.retain(|k, _| !k.starts_with(prefix));
-    }
+fn answer_cache<T>(ttl: Duration) -> TtlCache<T> {
+    TtlCache::new(ttl).with_max_entries(CACHE_MAX_ENTRIES)
 }
 
 fn cache_key(org: &str, user: &str, list: &str) -> String {
@@ -255,23 +229,19 @@ fn org_prefix(org: &str) -> String {
     format!("{org}\u{1f}")
 }
 
-fn pr_cache() -> &'static Mutex<TtlCache<PortalPullRequests>> {
-    static CACHE: OnceLock<Mutex<TtlCache<PortalPullRequests>>> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(TtlCache::new(Duration::from_secs(CACHE_SECONDS))))
+fn pr_cache() -> &'static TtlCache<PortalPullRequests> {
+    static CACHE: OnceLock<TtlCache<PortalPullRequests>> = OnceLock::new();
+    CACHE.get_or_init(|| answer_cache(Duration::from_secs(CACHE_SECONDS)))
 }
 
-fn ticket_cache() -> &'static Mutex<TtlCache<PortalTickets>> {
-    static CACHE: OnceLock<Mutex<TtlCache<PortalTickets>>> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(TtlCache::new(Duration::from_secs(CACHE_SECONDS))))
+fn ticket_cache() -> &'static TtlCache<PortalTickets> {
+    static CACHE: OnceLock<TtlCache<PortalTickets>> = OnceLock::new();
+    CACHE.get_or_init(|| answer_cache(Duration::from_secs(CACHE_SECONDS)))
 }
 
 fn forget_cached(prefix: &str) {
-    if let Ok(mut c) = pr_cache().lock() {
-        c.forget(prefix);
-    }
-    if let Ok(mut c) = ticket_cache().lock() {
-        c.forget(prefix);
-    }
+    pr_cache().remove_prefix(prefix);
+    ticket_cache().remove_prefix(prefix);
 }
 
 // ================================================================ pure helpers
@@ -772,8 +742,8 @@ pub async fn pull_requests(State(st): State<AppState>, ctx: AuthContext, Query(p
     }
     let key = cache_key(&ctx.org_id, &ctx.user_id, provider.as_str());
     if !p.refresh {
-        if let Some(hit) = pr_cache().lock().ok().and_then(|c| c.get(&key, Instant::now())) {
-            return Ok(Json(hit));
+        if let Some(hit) = pr_cache().get(&key) {
+            return Ok(Json((*hit).clone()));
         }
     }
     let user = identity_of(&st, &ctx.org_id, &ctx.user_id, provider).await?;
@@ -788,9 +758,7 @@ pub async fn pull_requests(State(st): State<AppState>, ctx: AuthContext, Query(p
         Ok(prs) => out(PortalListStatus::Ok, String::new(), prs),
         Err(e) => out(PortalListStatus::Error, e, vec![]),
     };
-    if let Ok(mut cache) = pr_cache().lock() {
-        cache.put(key, answer.clone(), Instant::now());
-    }
+    pr_cache().insert(key, answer.clone());
     Ok(Json(answer))
 }
 
@@ -807,8 +775,8 @@ pub async fn tickets(State(st): State<AppState>, ctx: AuthContext, Query(p): Que
     }
     let key = cache_key(&ctx.org_id, &ctx.user_id, provider.as_str());
     if !p.refresh {
-        if let Some(hit) = ticket_cache().lock().ok().and_then(|c| c.get(&key, Instant::now())) {
-            return Ok(Json(hit));
+        if let Some(hit) = ticket_cache().get(&key) {
+            return Ok(Json((*hit).clone()));
         }
     }
     let user = identity_of(&st, &ctx.org_id, &ctx.user_id, provider).await?;
@@ -823,9 +791,7 @@ pub async fn tickets(State(st): State<AppState>, ctx: AuthContext, Query(p): Que
         Ok(t) => out(PortalListStatus::Ok, String::new(), t),
         Err(e) => out(PortalListStatus::Error, e, vec![]),
     };
-    if let Ok(mut cache) = ticket_cache().lock() {
-        cache.put(key, answer.clone(), Instant::now());
-    }
+    ticket_cache().insert(key, answer.clone());
     Ok(Json(answer))
 }
 
@@ -943,20 +909,20 @@ mod tests {
 
     #[test]
     fn cache_expires_and_forgets_by_org() {
-        let mut c: TtlCache<u32> = TtlCache::new(Duration::from_secs(60));
-        let t0 = Instant::now();
-        c.put(cache_key("org-a", "u1", "github"), 1, t0);
-        c.put(cache_key("org-ab", "u1", "github"), 2, t0);
-        c.put(cache_key("org-a", "u2", "jira"), 3, t0);
-        assert_eq!(c.get(&cache_key("org-a", "u1", "github"), t0 + Duration::from_secs(59)), Some(1));
-        assert_eq!(c.get(&cache_key("org-a", "u1", "github"), t0 + Duration::from_secs(60)), None);
-        c.forget(&cache_key("org-a", "u2", ""));
-        assert_eq!(c.get(&cache_key("org-a", "u2", "jira"), t0), None);
-        assert_eq!(c.get(&cache_key("org-a", "u1", "github"), t0), Some(1));
+        let c: TtlCache<u32> = answer_cache(Duration::from_millis(40));
+        c.insert(cache_key("org-a", "u1", "github"), 1);
+        c.insert(cache_key("org-ab", "u1", "github"), 2);
+        c.insert(cache_key("org-a", "u2", "jira"), 3);
+        assert_eq!(c.get(&cache_key("org-a", "u1", "github")).as_deref(), Some(&1));
+        c.remove_prefix(&cache_key("org-a", "u2", ""));
+        assert_eq!(c.get(&cache_key("org-a", "u2", "jira")), None);
+        assert_eq!(c.get(&cache_key("org-a", "u1", "github")).as_deref(), Some(&1));
         // "org-a" must not clear "org-ab".
-        c.forget(&org_prefix("org-a"));
-        assert_eq!(c.get(&cache_key("org-a", "u1", "github"), t0), None);
-        assert_eq!(c.get(&cache_key("org-ab", "u1", "github"), t0), Some(2));
+        c.remove_prefix(&org_prefix("org-a"));
+        assert_eq!(c.get(&cache_key("org-a", "u1", "github")), None);
+        assert_eq!(c.get(&cache_key("org-ab", "u1", "github")).as_deref(), Some(&2));
+        std::thread::sleep(Duration::from_millis(50));
+        assert_eq!(c.get(&cache_key("org-ab", "u1", "github")), None);
     }
 
     #[test]

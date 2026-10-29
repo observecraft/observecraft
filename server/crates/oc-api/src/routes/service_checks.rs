@@ -188,7 +188,7 @@ struct LatestRow {
 /// The series of the check: host and its other tags, joined to the points in the window.
 const SERIES: &str = "SELECT SeriesId, any(ResourceAttributes['host.name']) AS host, \
      any(arraySort(arrayMap((k, v) -> concat(k, ':', v), mapKeys(mapFilter((k, v) -> k != 'check', Attributes)), mapValues(mapFilter((k, v) -> k != 'check', Attributes))))) AS tags \
-     FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND MetricName = ? AND Attributes['check'] = ? AND LastSeen >= toDateTime(intDiv(?, 1000)) GROUP BY SeriesId";
+     FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND MetricName = ? AND Attributes['check'] = ? AND LastSeen >= toStartOfHour(toDateTime(intDiv(?, 1000))) GROUP BY SeriesId";
 
 /// One check's status per host and tag set over the range.
 #[utoipa::path(post, path = "/api/v1/service-checks/detail", operation_id = "service_check_detail", request_body = ServiceCheckRequest, responses((status = 200, body = ServiceCheckDetail)), tag = "monitors")]

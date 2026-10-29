@@ -1,0 +1,19 @@
+<!-- Single ClickHouse server for the before/after test (README.md here): the Helm chart's bundled
+     tuning (clickhouse.bundled.tuning defaults in deploy/helm/observecraft), like the cluster nodes of
+     deploy/compose/clickhouse-cluster/config.xml without the cluster parts. -->
+<clickhouse>
+  <logger><level>warning</level><console>1</console><log remove="1"/><errorlog remove="1"/></logger>
+  <listen_host>0.0.0.0</listen_host>
+  <mark_cache_size>536870912</mark_cache_size>
+  <index_mark_cache_size>536870912</index_mark_cache_size>
+  <max_concurrent_queries>100</max_concurrent_queries>
+  <background_pool_size>4</background_pool_size>
+  <merge_tree>
+    <number_of_free_entries_in_pool_to_lower_max_size_of_merge>4</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
+    <number_of_free_entries_in_pool_to_execute_mutation>4</number_of_free_entries_in_pool_to_execute_mutation>
+    <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>4</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
+  </merge_tree>
+  <trace_log remove="1"/>
+  <processors_profile_log remove="1"/>
+  <query_views_log remove="1"/>
+</clickhouse>

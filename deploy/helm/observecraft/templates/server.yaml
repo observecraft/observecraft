@@ -1,7 +1,8 @@
 {{- $fullname := include "oc.fullname" . -}}
 {{- $secret := include "oc.secretName" . -}}
-# The API server: REST API and web app (:8080), log indexer for Vector (:8090, internal), monitor
-# evaluation, archiving and notifications (one replica at a time, coordinated through Postgres).
+# The API server: REST API and web app (:8080), log indexer for Vector and its own metrics
+# (:8090, internal: /metrics), monitor evaluation, archiving and notifications (one replica at a
+# time, coordinated through Postgres). Replicas share cached results through Valkey (required).
 # Each replica applies pending migrations at startup under a Postgres lock; the others wait.
 apiVersion: apps/v1
 kind: Deployment
@@ -46,6 +47,7 @@ spec:
           env:
             {{- include "oc.serverEnv" . | nindent 12 }}
             - { name: OC_NATS_URL, value: {{ include "oc.natsUrl" . | quote }} }
+            {{- include "oc.cacheEnv" . | nindent 12 }}
             - { name: OC_PUBLIC_URL, value: {{ include "oc.publicUrl" . | quote }} }
             - { name: OC_CORS_ORIGINS, value: {{ include "oc.publicUrl" . | quote }} }
             - { name: OC_COOKIE_SECURE, value: {{ hasPrefix "https://" (include "oc.publicUrl" .) | quote }} }
@@ -64,8 +66,11 @@ spec:
             {{- end }}
             - { name: OC_SMTP_FROM, value: {{ .Values.smtp.from | quote }} }
             - { name: OC_SYNTHETICS_ALLOW_PRIVATE, value: {{ .Values.synthetics.allowPrivateTargets | quote }} }
-            - { name: OC_QUERY_TIMEOUT_SECONDS, value: {{ .Values.query.timeoutSeconds | quote }} }
-            - { name: OC_QUERY_MAX_MEMORY_BYTES, value: {{ .Values.query.maxMemoryBytes | int64 | quote }} }
+            - { name: OC_ORG_QUERY_TIMEOUT_SECONDS, value: {{ .Values.query.timeoutSeconds | quote }} }
+            - { name: OC_ORG_QUERY_MAX_MEMORY_BYTES, value: {{ .Values.query.maxMemoryBytes | int64 | quote }} }
+            - { name: OC_ORG_QUERY_MAX_ROWS_TO_READ, value: {{ .Values.query.maxRowsToRead | int64 | quote }} }
+            - { name: OC_ORG_QUERY_CONCURRENCY, value: {{ .Values.query.concurrencyPerOrg | quote }} }
+            - { name: OC_ORG_QUERY_QUEUE_TIMEOUT_MS, value: {{ .Values.query.queueTimeoutMs | quote }} }
             - { name: OC_RETENTION_LOGS_DAYS, value: {{ .Values.retention.logsDays | quote }} }
             - { name: OC_RETENTION_LOGS_MAX_DAYS, value: {{ .Values.retention.logsMaxDays | quote }} }
             - { name: OC_RETENTION_TRACES_DAYS, value: {{ .Values.retention.tracesDays | quote }} }

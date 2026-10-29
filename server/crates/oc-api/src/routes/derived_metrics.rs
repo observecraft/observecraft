@@ -154,8 +154,11 @@ pub(crate) async fn resolve_text(st: &AppState, org: &str, text: &str) -> Result
     expand(text, &derived).map_err(|e| ApiError::BadRequest(format!("invalid query: {e}")))
 }
 
-fn forget(org: &str) {
+/// After a write: drops the org's derived metrics here and its metric catalog (which lists them)
+/// on every replica.
+async fn forget(st: &AppState, org: &str) {
     cache().lock().unwrap().remove(org);
+    st.cache.invalidate(super::metrics::CATALOG, org).await;
 }
 
 // ================================================================ API
@@ -295,7 +298,7 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut in
         .fetch_one(&st.postgres)
         .await
         .map_err(|e| unique(e, &input.name))?;
-    forget(&ctx.org_id);
+    forget(&st, &ctx.org_id).await;
     ctx.audit(&st, "derived_metric.created", &input.name, &formula).await;
     Ok(Json(get_derived(&st, &ctx.org_id, &id).await?))
 }
@@ -317,7 +320,7 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
         .bind(&formula)
         .execute(&st.postgres)
         .await?;
-    forget(&ctx.org_id);
+    forget(&st, &ctx.org_id).await;
     ctx.audit(&st, "derived_metric.updated", &input.name, &formula).await;
     Ok(Json(get_derived(&st, &ctx.org_id, &id).await?))
 }
@@ -326,7 +329,7 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
 pub async fn delete(State(st): State<AppState>, Writer(ctx): Writer, Path(id): Path<String>) -> Result<StatusCode, ApiError> {
     let row: Option<(String,)> = sqlx::query_as("DELETE FROM derived_metrics WHERE org_id = $1 AND id::text = $2 RETURNING name").bind(&ctx.org_id).bind(&id).fetch_optional(&st.postgres).await?;
     let Some((name,)) = row else { return Err(ApiError::NotFound("Derived metric not found".into())) };
-    forget(&ctx.org_id);
+    forget(&st, &ctx.org_id).await;
     ctx.audit(&st, "derived_metric.deleted", &name, "").await;
     Ok(StatusCode::NO_CONTENT)
 }

@@ -39,6 +39,7 @@ pub mod log_indexes;
 pub mod log_metrics;
 pub mod log_pipelines;
 pub mod log_restrictions;
+pub mod log_aggregates;
 pub mod logs;
 pub mod metric_inventory;
 pub mod metric_rules;
@@ -1424,6 +1425,7 @@ mod tests {
             ("log_indexes.rs", include_str!("log_indexes.rs")),
             ("log_pipelines.rs", include_str!("log_pipelines.rs")),
             ("log_metrics.rs", include_str!("log_metrics.rs")),
+            ("log_aggregates.rs", include_str!("log_aggregates.rs")),
             ("logs.rs", include_str!("logs.rs")),
             ("metrics.rs", include_str!("metrics.rs")),
             ("metrics/dashboard.rs", include_str!("metrics/dashboard.rs")),
@@ -1432,6 +1434,7 @@ mod tests {
             ("slos.rs", include_str!("slos.rs")),
             ("spans.rs", include_str!("spans.rs")),
             ("../logproc.rs", include_str!("../logproc.rs")),
+            ("../metric_rollups.rs", include_str!("../metric_rollups.rs")),
         ];
         let mut missing = Vec::new();
         for (file, src) in sources {
@@ -1445,7 +1448,7 @@ mod tests {
                     end += if bytes[end] == b'\\' { 2 } else { 1 };
                 }
                 let lit = &body[..end.min(body.len())];
-                let names_table = ["FROM otel.", "FROM oc.logs", "JOIN otel.", "JOIN oc.logs"]
+                let names_table = ["FROM otel.", "FROM oc.logs", "JOIN otel.", "JOIN oc.logs", "FROM oc.error_groups", "FROM oc.log_facets"]
                     .iter()
                     .any(|t| lit.contains(t));
                 if names_table && !lit.contains("OrgId") && !lit.contains("org_id") {
@@ -1538,6 +1541,7 @@ mod tests {
             ("llm_checks.rs", include_str!("llm_checks.rs")),
             ("log_indexes.rs", include_str!("log_indexes.rs")),
             ("log_metrics.rs", include_str!("log_metrics.rs")),
+            ("log_aggregates.rs", include_str!("log_aggregates.rs")),
             ("log_pipelines.rs", include_str!("log_pipelines.rs")),
             ("log_restrictions.rs", include_str!("log_restrictions.rs")),
             ("logs.rs", include_str!("logs.rs")),
@@ -1589,12 +1593,15 @@ mod tests {
             ("../auth/password.rs", include_str!("../auth/password.rs")),
             ("../auth/totp.rs", include_str!("../auth/totp.rs")),
             ("../config.rs", include_str!("../config.rs")),
+            ("../cache.rs", include_str!("../cache.rs")),
             ("../demo.rs", include_str!("../demo.rs")),
             ("../error.rs", include_str!("../error.rs")),
             ("../log_access.rs", include_str!("../log_access.rs")),
             ("../log_metrics.rs", include_str!("../log_metrics.rs")),
             ("../logproc.rs", include_str!("../logproc.rs")),
             ("../main.rs", include_str!("../main.rs")),
+            ("../metric_rollups.rs", include_str!("../metric_rollups.rs")),
+            ("../org_limits.rs", include_str!("../org_limits.rs")),
             ("../pipelines/dates.rs", include_str!("../pipelines/dates.rs")),
             ("../pipelines/filter.rs", include_str!("../pipelines/filter.rs")),
             ("../pipelines/grok.rs", include_str!("../pipelines/grok.rs")),
@@ -1605,6 +1612,8 @@ mod tests {
             ("../s3.rs", include_str!("../s3.rs")),
             ("../standard_attributes.rs", include_str!("../standard_attributes.rs")),
             ("../state.rs", include_str!("../state.rs")),
+            ("../ttl_cache.rs", include_str!("../ttl_cache.rs")),
+            ("../test_support.rs", include_str!("../test_support.rs")),
         ]
     }
 

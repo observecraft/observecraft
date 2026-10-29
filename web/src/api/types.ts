@@ -45,6 +45,8 @@ export interface Facet {
   label: string; // display name, e.g. "Service"
   group: string; // e.g. "CORE", "KUBERNETES"
   values: FacetValue[];
+  /** Counts estimated from the newest logs of the range (too many logs to count them all). */
+  approximate?: boolean;
 }
 
 export interface HistogramBucket {

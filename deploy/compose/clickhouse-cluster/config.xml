@@ -1,0 +1,55 @@
+<!-- Every node of the development cluster (../clickhouse-cluster.yml). A node's shard and replica
+     come from its environment (OC_SHARD, OC_REPLICA). Tuning as the Helm chart's bundled server
+     (clickhouse.bundled.tuning defaults in deploy/helm/observecraft). -->
+<clickhouse>
+  <logger><level>warning</level><console>1</console><log remove="1"/><errorlog remove="1"/></logger>
+  <listen_host>0.0.0.0</listen_host>
+  <interserver_http_host from_env="OC_HOSTNAME"/>
+  <macros>
+    <shard from_env="OC_SHARD"/>
+    <replica from_env="OC_REPLICA"/>
+  </macros>
+  <zookeeper>
+    <node><host>keeper</host><port>9181</port></node>
+  </zookeeper>
+  <remote_servers>
+    <!-- OC_CLICKHOUSE_CLUSTER=oc: 2 shards x 2 replicas. An insert goes to one replica of a shard
+         and the other replica fetches it (internal_replication). The secret makes remote nodes run
+         a query as the user who sent it. -->
+    <oc>
+      <secret>oc-dev-cluster</secret>
+      <shard>
+        <internal_replication>true</internal_replication>
+        <replica><host>ch-s1r1</host><port>9000</port></replica>
+        <replica><host>ch-s1r2</host><port>9000</port></replica>
+      </shard>
+      <shard>
+        <internal_replication>true</internal_replication>
+        <replica><host>ch-s2r1</host><port>9000</port></replica>
+        <replica><host>ch-s2r2</host><port>9000</port></replica>
+      </shard>
+    </oc>
+    <!-- The first shard alone (1 shard x 2 replicas): ingest with one shard against two. -->
+    <oc_1shard>
+      <secret>oc-dev-cluster</secret>
+      <shard>
+        <internal_replication>true</internal_replication>
+        <replica><host>ch-s1r1</host><port>9000</port></replica>
+        <replica><host>ch-s1r2</host><port>9000</port></replica>
+      </shard>
+    </oc_1shard>
+  </remote_servers>
+  <distributed_ddl><path>/clickhouse/task_queue/ddl</path></distributed_ddl>
+  <mark_cache_size>536870912</mark_cache_size>
+  <index_mark_cache_size>536870912</index_mark_cache_size>
+  <max_concurrent_queries>100</max_concurrent_queries>
+  <background_pool_size>4</background_pool_size>
+  <merge_tree>
+    <number_of_free_entries_in_pool_to_lower_max_size_of_merge>4</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
+    <number_of_free_entries_in_pool_to_execute_mutation>4</number_of_free_entries_in_pool_to_execute_mutation>
+    <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>4</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
+  </merge_tree>
+  <trace_log remove="1"/>
+  <processors_profile_log remove="1"/>
+  <query_views_log remove="1"/>
+</clickhouse>

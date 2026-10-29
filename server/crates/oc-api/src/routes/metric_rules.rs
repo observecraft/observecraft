@@ -9,9 +9,9 @@
 //! series table (as Metrics → Volume): "ingested" is the distinct series stored, "indexed" the
 //! distinct combinations of the queryable tags.
 
-use std::collections::{BTreeMap, HashMap};
-use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::collections::BTreeMap;
+use std::sync::Arc;
+use std::time::Duration;
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -32,7 +32,7 @@ const MAX_ESTIMATES: usize = 25;
 const TTL: Duration = Duration::from_secs(30);
 
 /// One indexing control: the tags queries may use on the metrics `pattern` matches.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct IndexRule {
     pub name: String,
     pub pattern: String,
@@ -71,26 +71,19 @@ pub(crate) fn check_indexed(q: &MetricQuery, rules: &[IndexRule]) -> Result<(), 
     Ok(())
 }
 
-/// Org → its indexing controls and when they were loaded.
-type Cache = Mutex<HashMap<String, (Arc<Vec<IndexRule>>, Instant)>>;
+/// Shared cache namespace of the indexing controls; every rule write invalidates it.
+const INDEX_RULES: &str = "metric_index_rules";
 
-fn cache() -> &'static Cache {
-    static CACHE: OnceLock<Cache> = OnceLock::new();
-    CACHE.get_or_init(Default::default)
-}
-
-/// The org's enabled indexing controls, cached for [`TTL`].
+/// The org's enabled indexing controls, through the shared cache for [`TTL`] (a write on any
+/// replica applies to the next query everywhere).
 pub(crate) async fn index_rules(st: &AppState, org: &str) -> Result<Arc<Vec<IndexRule>>, ApiError> {
-    if let Some((r, at)) = cache().lock().unwrap().get(org) {
-        if at.elapsed() < TTL {
-            return Ok(r.clone());
-        }
-    }
-    let rows: Vec<(String, String, Vec<String>)> =
-        sqlx::query_as("SELECT name, metric_pattern, tags FROM metric_rules WHERE org_id = $1 AND kind = 'indexing' AND enabled ORDER BY name").bind(org).fetch_all(&st.postgres).await?;
-    let rules = Arc::new(rows.into_iter().map(|(name, pattern, tags)| IndexRule { name, pattern, tags }).collect::<Vec<_>>());
-    cache().lock().unwrap().insert(org.to_string(), (rules.clone(), Instant::now()));
-    Ok(rules)
+    st.cache
+        .get_or_load(INDEX_RULES, org, "", TTL, || async {
+            let rows: Vec<(String, String, Vec<String>)> =
+                sqlx::query_as("SELECT name, metric_pattern, tags FROM metric_rules WHERE org_id = $1 AND kind = 'indexing' AND enabled ORDER BY name").bind(org).fetch_all(&st.postgres).await?;
+            Ok(rows.into_iter().map(|(name, pattern, tags)| IndexRule { name, pattern, tags }).collect())
+        })
+        .await
 }
 
 /// [`check_indexed`] with the org's controls; a refused query is a bad request.
@@ -99,8 +92,10 @@ pub(crate) async fn check_query(st: &AppState, org: &str, q: &MetricQuery) -> Re
     check_indexed(q, &rules).map_err(ApiError::BadRequest)
 }
 
-fn forget(org: &str) {
-    cache().lock().unwrap().remove(org);
+/// After a write: the org's indexing controls are reloaded on every replica. (Ingestion controls
+/// apply at the intake to new points; cached results only hold points stored before.)
+async fn forget(st: &AppState, org: &str) {
+    st.cache.invalidate(INDEX_RULES, org).await;
 }
 
 // ================================================================ API
@@ -310,7 +305,7 @@ pub async fn create(State(st): State<AppState>, Admin(ctx): Admin, Json(mut inpu
             .fetch_one(&st.postgres)
             .await
             .map_err(|e| unique(e, &input.name))?;
-    forget(&ctx.org_id);
+    forget(&st, &ctx.org_id).await;
     ctx.audit(&st, "metric_rule.created", &input.name, &describe(&input)).await;
     Ok(Json(get_rule(&st, &ctx.org_id, &id).await?))
 }
@@ -335,7 +330,7 @@ pub async fn update(State(st): State<AppState>, Admin(ctx): Admin, Path(id): Pat
     if done.rows_affected() == 0 {
         return Err(ApiError::NotFound("Rule not found".into()));
     }
-    forget(&ctx.org_id);
+    forget(&st, &ctx.org_id).await;
     ctx.audit(&st, "metric_rule.updated", &input.name, &describe(&input)).await;
     Ok(Json(get_rule(&st, &ctx.org_id, &id).await?))
 }
@@ -344,7 +339,7 @@ pub async fn update(State(st): State<AppState>, Admin(ctx): Admin, Path(id): Pat
 pub async fn delete(State(st): State<AppState>, Admin(ctx): Admin, Path(id): Path<String>) -> Result<StatusCode, ApiError> {
     let row: Option<(String,)> = sqlx::query_as("DELETE FROM metric_rules WHERE org_id = $1 AND id::text = $2 RETURNING name").bind(&ctx.org_id).bind(&id).fetch_optional(&st.postgres).await?;
     let Some((name,)) = row else { return Err(ApiError::NotFound("Rule not found".into())) };
-    forget(&ctx.org_id);
+    forget(&st, &ctx.org_id).await;
     ctx.audit(&st, "metric_rule.deleted", &name, "").await;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -388,7 +383,7 @@ pub async fn overview(State(st): State<AppState>, ctx: AuthContext, Json(req): J
     let org = &ctx.org_id;
     let ch = st.ch(org);
     let counts = ch
-        .query("SELECT MetricName AS name, uniqExact(SeriesId) AS series FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND LastSeen >= toDateTime(intDiv(?, 1000)) GROUP BY MetricName ORDER BY series DESC, name")
+        .query("SELECT MetricName AS name, uniqExact(SeriesId) AS series FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND LastSeen >= toStartOfHour(toDateTime(intDiv(?, 1000))) GROUP BY MetricName ORDER BY series DESC, name")
         .bind(req.range.from)
         .fetch_all::<SeriesCount>();
     let (counts, rules) = tokio::try_join!(async { counts.await.map_err(ApiError::from) }, rows(&st, org))?;
@@ -447,7 +442,7 @@ fn indexed_sql(metrics: &[(String, Vec<String>)], from: i64) -> (String, Vec<Par
             format!("uniqExact(tuple({}))", exprs.join(", "))
         };
         params.extend([Param::Str(name.clone()), Param::Int(from)]);
-        parts.push(format!("SELECT ? AS name, {value} AS series FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND MetricName = ? AND LastSeen >= toDateTime(intDiv(?, 1000))"));
+        parts.push(format!("SELECT ? AS name, {value} AS series FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND MetricName = ? AND LastSeen >= toStartOfHour(toDateTime(intDiv(?, 1000)))"));
     }
     (parts.join(" UNION ALL "), params)
 }
@@ -513,5 +508,35 @@ mod tests {
         assert!(sql.contains("uniqExact(tuple(ResourceAttributes[?]))") && sql.contains("toUInt64(count() > 0)"));
         assert!(!sql.contains("kubernetes.cpu"), "names are bound");
         assert_eq!(params.len(), 7);
+    }
+
+    /// Indexing controls are read through the shared cache and a write drops them on every
+    /// replica: a rule created or disabled on A applies to B's next query. Skipped unless
+    /// OC_TEST_CLICKHOUSE_URL and OC_TEST_POSTGRES_URL are set.
+    #[tokio::test]
+    async fn indexing_rules_written_on_one_replica_apply_on_the_others_at_once() {
+        let Some((_, states)) = crate::test_support::replicas(2).await else { return };
+        let (a, b) = (states[0].clone(), states[1].clone());
+        let ctx = crate::test_support::admin_of_new_org(&a, "rules-shared").await;
+        let org = ctx.org_id.clone();
+        assert!(index_rules(&b, &org).await.unwrap().is_empty());
+        let input = |enabled: bool| MetricRuleInput {
+            name: "kubernetes".into(),
+            kind: MetricRuleKind::Indexing,
+            metric_pattern: "kubernetes.*".into(),
+            action: MetricRuleAction::AllowTags,
+            tags: vec!["kube_namespace".into()],
+            enabled,
+        };
+        let created = create(State(a.clone()), Admin(ctx.clone()), Json(input(true))).await.expect("create").0;
+        let names = |rules: Arc<Vec<IndexRule>>| rules.iter().map(|r| r.name.clone()).collect::<Vec<_>>();
+        assert_eq!(names(index_rules(&b, &org).await.unwrap()), ["kubernetes"]);
+
+        // Served from the shared copy: a row changed behind the server's back isn't seen…
+        sqlx::query("UPDATE metric_rules SET name = 'renamed' WHERE org_id = $1").bind(&org).execute(&a.postgres).await.unwrap();
+        assert_eq!(names(index_rules(&a, &org).await.unwrap()), ["kubernetes"]);
+        // …while a write through the API is, on the other replica too.
+        let _ = update(State(a.clone()), Admin(ctx.clone()), Path(created.id.clone()), Json(input(false))).await.expect("update");
+        assert!(index_rules(&b, &org).await.unwrap().is_empty());
     }
 }

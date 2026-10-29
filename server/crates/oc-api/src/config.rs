@@ -13,9 +13,8 @@ pub struct Config {
     pub clickhouse_drop_legacy: bool,
     /// Apply migrations at startup (off when a deploy step runs `observecraft-server migrate`).
     pub run_migrations: bool,
-    /// Limits on each query an org runs, so one org can't starve the others.
-    pub query_timeout_secs: u32,
-    pub query_max_memory_bytes: u64,
+    /// Limits on the queries an org runs, so one org can't starve the others (`OC_ORG_QUERY_*`).
+    pub org_query: crate::org_limits::OrgQueryLimits,
     pub postgres_url: String,
     pub nats_url: String,
     /// Built web app to serve (e.g. `../web/dist`); unset in development (Vite serves it).
@@ -62,6 +61,37 @@ pub struct Config {
     /// addresses, over http too (`OC_PORTAL_ALLOW_PRIVATE`; off by default, for self-hosted
     /// instances inside the network).
     pub portal_allow_private: bool,
+    /// The shared cache (Valkey) every replica uses; required by the server.
+    pub cache: CacheSettings,
+    /// Kubernetes objects kept in the in-process inventory cache over all orgs
+    /// (`OC_INVENTORY_CACHE_MAX_OBJECTS`; least recently used orgs go first).
+    pub inventory_cache_max_objects: usize,
+    /// Seconds after a 5-minute bucket ends before the rollup job rolls it up (late points still count).
+    pub metrics_rollup_lateness_secs: i64,
+    /// Hours of samples a new org's rollups start from (`metric_rollups`).
+    pub metrics_rollup_backfill_hours: i64,
+}
+
+#[derive(Clone, Debug)]
+pub struct CacheSettings {
+    /// `OC_CACHE_URL`: `redis://[user:password@]host:6379/0`, or `rediss://…` for TLS.
+    pub url: Option<String>,
+    /// `OC_CACHE_MAX_VALUE_BYTES`: larger values (after compression) are served but not stored.
+    pub max_value_bytes: usize,
+    /// `OC_CACHE_LOAD_TIMEOUT_SECONDS`: how long other replicas wait for one replica's load.
+    pub load_timeout_secs: u64,
+}
+
+impl CacheSettings {
+    pub fn require_url(&self) -> anyhow::Result<&str> {
+        self.url
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("OC_CACHE_URL is required: the URL of the shared cache (Valkey) every server replica uses, e.g. redis://localhost:6379/0 (`make up` starts one)"))
+    }
+
+    pub fn options(&self) -> crate::cache::CacheOptions {
+        crate::cache::CacheOptions { max_value_bytes: self.max_value_bytes, load_timeout: std::time::Duration::from_secs(self.load_timeout_secs) }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -110,8 +140,7 @@ impl Config {
             clickhouse_cluster: env::var("OC_CLICKHOUSE_CLUSTER").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
             clickhouse_drop_legacy: var("OC_CLICKHOUSE_DROP_LEGACY_SCHEMA", "false") == "true",
             run_migrations: var("OC_RUN_MIGRATIONS", "true") != "false",
-            query_timeout_secs: var("OC_QUERY_TIMEOUT_SECONDS", "60").parse().unwrap_or(60).max(1),
-            query_max_memory_bytes: var("OC_QUERY_MAX_MEMORY_BYTES", "4294967296").parse().unwrap_or(4 << 30),
+            org_query: crate::org_limits::OrgQueryLimits::from_env(),
             postgres_url: var("OC_POSTGRES_URL", "postgres://observecraft:observecraft@localhost:5432/observecraft"),
             nats_url: var("OC_NATS_URL", "nats://localhost:4222"),
             web_dist: env::var("OC_WEB_DIST").ok().filter(|s| !s.is_empty()),
@@ -145,6 +174,14 @@ impl Config {
             smtp_from: var("OC_SMTP_FROM", "ObserveCraft <alerts@observecraft.local>"),
             synthetics_allow_private: var("OC_SYNTHETICS_ALLOW_PRIVATE", "false") == "true",
             portal_allow_private: var("OC_PORTAL_ALLOW_PRIVATE", "false") == "true",
+            cache: CacheSettings {
+                url: env::var("OC_CACHE_URL").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+                max_value_bytes: var("OC_CACHE_MAX_VALUE_BYTES", "8388608").parse().unwrap_or(8 << 20),
+                load_timeout_secs: var("OC_CACHE_LOAD_TIMEOUT_SECONDS", "30").parse().unwrap_or(30).clamp(1, 600),
+            },
+            inventory_cache_max_objects: var("OC_INVENTORY_CACHE_MAX_OBJECTS", "500000").parse().unwrap_or(500_000),
+            metrics_rollup_lateness_secs: var("OC_METRICS_ROLLUP_LATENESS_SECONDS", "120").parse().unwrap_or(120).clamp(0, 3600),
+            metrics_rollup_backfill_hours: var("OC_METRICS_ROLLUP_BACKFILL_HOURS", "24").parse().unwrap_or(24).clamp(0, 24 * 400),
             retention: Retention {
                 logs_days: days("OC_RETENTION_LOGS_DAYS", 15),
                 traces_days: days("OC_RETENTION_TRACES_DAYS", 15),
@@ -159,5 +196,20 @@ impl Config {
             },
             demo_ingest_key: env::var("OC_DEMO_INGEST_KEY").ok().filter(|k| k.starts_with("ocik_") && k.len() >= 20 && var("OC_SEED_DEMO", "true") == "true"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_shared_cache_url_is_required_with_a_clear_message() {
+        let missing = CacheSettings { url: None, max_value_bytes: 8 << 20, load_timeout_secs: 30 };
+        let msg = missing.require_url().unwrap_err().to_string();
+        assert!(msg.contains("OC_CACHE_URL") && msg.contains("Valkey") && msg.contains("redis://"), "{msg}");
+        let set = CacheSettings { url: Some("redis://observecraft-valkey:6379/0".into()), ..missing };
+        assert_eq!(set.require_url().unwrap(), "redis://observecraft-valkey:6379/0");
+        assert_eq!(set.options().load_timeout, std::time::Duration::from_secs(30));
     }
 }

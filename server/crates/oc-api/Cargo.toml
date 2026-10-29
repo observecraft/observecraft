@@ -30,6 +30,11 @@ duckdb = { version = "=1.10506.0", features = ["bundled", "parquet"] }
 flate2 = "1"
 futures.workspace = true
 hmac = "0.12"
+# Per-org ClickHouse query limits: the clickhouse client's HTTP client with a connector that
+# hands out an org's connections only with one of its permits (org_limits.rs).
+hyper = "1"
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
+tower-service = "0.3"
 # Synthetic DNS tests: record lookups (A, AAAA, CNAME, MX, TXT, NS) with the system's or a chosen server.
 hickory-resolver = { version = "0.25", default-features = false, features = ["system-config", "tokio"] }
 # Monitor notification email (SMTP over rustls).
@@ -40,7 +45,11 @@ oc-store.workspace = true
 openidconnect = "4"
 prost = "0.13"
 rand = "0.8"
+# Shared result cache on Valkey (BSD-3-Clause): async connection manager, TLS (rediss://) over rustls.
+redis = { version = "1.8", default-features = false, features = ["tokio-comp", "connection-manager", "tokio-rustls-comp", "tls-rustls-webpki-roots", "script"] }
 reqwest = { workspace = true, features = ["rustls-tls"] }
+# Shared cache values: MessagePack (self-describing like JSON, but smaller and faster).
+rmp-serde = "1.3"
 # Synthetic SSL tests: the handshake and the server's certificate chain (the rustls reqwest uses).
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 # S3 request signing (sans-IO; requests are sent with reqwest).
@@ -66,3 +75,5 @@ utoipa.workspace = true
 webpki-roots = "1"
 # Synthetic SSL tests: the certificate's subject, issuer and validity.
 x509-cert = { version = "0.2", default-features = false, features = ["std"] }
+# Shared cache values, zstd-compressed.
+zstd = "0.13"

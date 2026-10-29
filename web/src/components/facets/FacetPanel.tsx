@@ -128,6 +128,11 @@ export function FacetPanel({
             {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             {f.label}
             {verifiedSet.has(f.key) && <BadgeCheck size={15} className="facet-verified" />}
+            {f.approximate && (
+              <span className="facet-approximate" title="Approximate: counted from the newest logs of the time range">
+                ≈
+              </span>
+            )}
           </button>
           {isOpen && mode === 'include' && (
             <span className="facet-actions">

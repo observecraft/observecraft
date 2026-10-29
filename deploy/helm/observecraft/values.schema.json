@@ -126,6 +126,18 @@
         "maxMemoryBytes": {
           "type": "integer",
           "minimum": 0
+        },
+        "maxRowsToRead": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "concurrencyPerOrg": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "queueTimeoutMs": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     },
@@ -866,6 +878,79 @@
             "url": {
               "type": "string",
               "pattern": "^(postgres(ql)?://.+)?$"
+            }
+          }
+        }
+      }
+    },
+    "cache": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "bundled",
+            "external"
+          ]
+        },
+        "maxValueBytes": {
+          "type": "integer",
+          "minimum": 1024
+        },
+        "loadTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600
+        },
+        "bundled": {
+          "type": "object",
+          "properties": {
+            "image": {
+              "type": "object",
+              "required": [
+                "repository",
+                "tag"
+              ],
+              "properties": {
+                "repository": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tag": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "maxmemoryPercent": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 95
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object"
+                },
+                "limits": {
+                  "type": "object"
+                }
+              }
+            },
+            "nodeSelector": {
+              "type": "object"
+            },
+            "tolerations": {
+              "type": "array"
+            }
+          }
+        },
+        "external": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "pattern": "^(rediss?://.+)?$"
             }
           }
         }

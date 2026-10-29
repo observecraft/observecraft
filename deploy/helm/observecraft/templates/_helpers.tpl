@@ -122,6 +122,21 @@ storageClassName: {{ . | quote }}
 {{- if .Values.nats.enabled -}}nats://{{ include "oc.fullname" . }}-nats:4222{{- else -}}{{ required "nats.external.url is required with nats.enabled=false" .Values.nats.external.url }}{{- end -}}
 {{- end -}}
 
+{{/* OC_CACHE_URL and the cache settings for the server. */}}
+{{- define "oc.cacheEnv" -}}
+{{- if eq .Values.cache.mode "bundled" -}}
+- name: OC_CACHE_PASSWORD
+  valueFrom: { secretKeyRef: { name: {{ include "oc.secretName" . }}, key: cache-password } }
+- name: OC_CACHE_URL
+  value: "redis://:$(OC_CACHE_PASSWORD)@{{ include "oc.fullname" . }}-valkey:6379/0"
+{{- else -}}
+- name: OC_CACHE_URL
+  valueFrom: { secretKeyRef: { name: {{ include "oc.secretName" . }}, key: cache-url } }
+{{- end }}
+- { name: OC_CACHE_MAX_VALUE_BYTES, value: {{ .Values.cache.maxValueBytes | int64 | quote }} }
+- { name: OC_CACHE_LOAD_TIMEOUT_SECONDS, value: {{ .Values.cache.loadTimeoutSeconds | quote }} }
+{{- end -}}
+
 {{/* Env shared by the server (and the migration step): databases and secrets. */}}
 {{- define "oc.serverEnv" -}}
 - name: OC_CLICKHOUSE_URL

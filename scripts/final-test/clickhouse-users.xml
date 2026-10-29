@@ -1,0 +1,48 @@
+<!-- Users as in the Helm chart: `observecraft` for the server (per-org quota keyed by the org it
+     sends as quota_key), `observecraft_ingest` (async inserts, 1 s) for the collector and Vector.
+     `default` has no password, for the measurement queries: ports are published on loopback only. -->
+<clickhouse>
+  <users>
+    <default>
+      <networks replace="replace"><ip>::/0</ip></networks>
+      <access_management>1</access_management>
+    </default>
+    <observecraft>
+      <password>observecraft</password>
+      <networks><ip>::/0</ip></networks>
+      <profile>default</profile>
+      <quota>per_org</quota>
+      <access_management>1</access_management>
+    </observecraft>
+    <observecraft_ingest>
+      <password>observecraft</password>
+      <networks><ip>::/0</ip></networks>
+      <profile>ingest</profile>
+      <quota>default</quota>
+      <grants>
+        <query>GRANT INSERT, SELECT, SHOW ON oc.*</query>
+        <query>GRANT INSERT, SELECT, SHOW ON otel.*</query>
+      </grants>
+    </observecraft_ingest>
+  </users>
+  <profiles>
+    <ingest>
+      <profile>default</profile>
+      <async_insert>1</async_insert>
+      <wait_for_async_insert>1</wait_for_async_insert>
+      <async_insert_use_adaptive_busy_timeout>0</async_insert_use_adaptive_busy_timeout>
+      <async_insert_busy_timeout_ms>1000</async_insert_busy_timeout_ms>
+    </ingest>
+  </profiles>
+  <quotas>
+    <per_org>
+      <keyed/>
+      <interval>
+        <duration>60</duration>
+        <query_selects>3000</query_selects>
+        <execution_time>900</execution_time>
+        <read_rows>0</read_rows>
+      </interval>
+    </per_org>
+  </quotas>
+</clickhouse>

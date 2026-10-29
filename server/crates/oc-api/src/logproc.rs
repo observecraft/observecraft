@@ -1,6 +1,7 @@
 //! The internal listener (`OC_LOGPROC_ADDR`): the log indexer, and profile uploads from the intake
 //! (`/ingest/profiles`, see `routes::profiles`) and feature flag evaluation counts
-//! (`/ingest/feature-flag-evaluations`, see `routes::feature_flags`).
+//! (`/ingest/feature-flag-evaluations`, see `routes::feature_flags`), and the server's own metrics
+//! (`/metrics`, Prometheus text; see `cache`).
 //!
 //! The log indexer: Vector sends every normalized log here (NDJSON, internal listener on
 //! `OC_LOGPROC_ADDR`) after writing it to `oc.logs_raw`. Each log goes to the first of its org's
@@ -29,8 +30,9 @@ use std::time::Duration;
 
 use axum::body::Bytes;
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode};
-use axum::routing::post;
+use axum::http::{header, HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
 use axum::Router;
 use oc_query::{matches, parse_query, Fields, Term};
 use serde::Deserialize;
@@ -345,11 +347,8 @@ fn route_batch(ix: &Indexer, body: &[u8]) -> (Vec<u8>, usize, usize) {
 }
 
 async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: HeaderMap, body: Bytes) -> StatusCode {
-    if let Some(token) = &st.config.internal_token {
-        let ok = headers.get("authorization").and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")) == Some(token.as_str());
-        if !ok {
-            return StatusCode::UNAUTHORIZED;
-        }
+    if !internal_authorized(st.config.internal_token.as_deref(), &headers) {
+        return StatusCode::UNAUTHORIZED;
     }
     let (rows, _seen, kept) = route_batch(&ix, &body);
     if kept == 0 {
@@ -382,6 +381,20 @@ pub(crate) async fn insert_rows(st: &AppState, table: &str, rows: Vec<u8>) -> Re
     let status = res.status();
     let body: String = res.text().await.unwrap_or_default().chars().take(300).collect();
     Err(format!("{status}: {body}"))
+}
+
+/// Requests to the internal listener carry `Authorization: Bearer <OC_INTERNAL_TOKEN>` when it is set.
+fn internal_authorized(token: Option<&str>, headers: &HeaderMap) -> bool {
+    token.is_none_or(|token| headers.get("authorization").and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")) == Some(token))
+}
+
+/// The server's own counters (shared cache: `oc_cache_*`) in Prometheus text format, for the
+/// Datadog Agent's OpenMetrics check or a Collector's `prometheus` receiver.
+async fn internal_metrics(State(st): State<AppState>, headers: HeaderMap) -> Response {
+    if !internal_authorized(st.config.internal_token.as_deref(), &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    ([(header::CONTENT_TYPE, "text/plain; version=0.0.4")], st.cache.render_metrics()).into_response()
 }
 
 /// Starts the internal indexer listener and its refresh loops.
@@ -417,6 +430,7 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
     let profiles = Router::new()
         .route("/ingest/profiles", post(crate::routes::profiles::ingest))
         .route("/ingest/feature-flag-evaluations", post(crate::routes::feature_flags::ingest_evaluations))
+        .route("/metrics", get(internal_metrics))
         .with_state(st.clone());
     let app = Router::new()
         .route("/ingest/logs", post(ingest))
@@ -450,6 +464,17 @@ mod tests {
 
     fn line(org: &str, id: &str, service: &str, status: &str) -> String {
         format!("{{\"org_id\":\"{org}\",\"id\":\"{id}\",\"service\":\"{service}\",\"status\":\"{status}\",\"message\":\"m\",\"tags\":{{\"env\":\"prod\"}},\"attr\":{{}}}}\n")
+    }
+
+    #[test]
+    fn internal_requests_need_the_token_when_one_is_set() {
+        let mut h = HeaderMap::new();
+        assert!(internal_authorized(None, &h));
+        assert!(!internal_authorized(Some("s3cret"), &h));
+        h.insert("authorization", "Bearer wrong".parse().unwrap());
+        assert!(!internal_authorized(Some("s3cret"), &h));
+        h.insert("authorization", "Bearer s3cret".parse().unwrap());
+        assert!(internal_authorized(Some("s3cret"), &h));
     }
 
     #[test]

@@ -99,7 +99,7 @@ git clone https://github.com/observecraft/observecraft.git
 cd observecraft
 (cd web && npm install)
 
-make up        # ClickHouse, Postgres, NATS, Vector, OTel Collector, RustFS (S3), synthetic logs
+make up        # ClickHouse, Postgres, NATS, Valkey, Vector, OTel Collector, RustFS (S3), synthetic logs
 make server    # API on :8080 (applies migrations on startup)
 make intake    # telemetry intake on :4318 (OTLP/HTTP + JSON logs, API-key authenticated)
 make tracegen  # demo traces, logs, metrics and CI pipelines, sent through the intake
@@ -199,7 +199,7 @@ The platform is one Helm chart, published with every release as an OCI artifact 
 [releases](https://github.com/observecraft/observecraft/releases):
 
 ```bash
-# Server (API + web app), intake, collector, Vector, and by default single-node ClickHouse, Postgres, NATS.
+# Server (API + web app), intake, collector, Vector, and by default single-node ClickHouse, Postgres, NATS, Valkey.
 helm install observecraft oci://ghcr.io/observecraft/charts/observecraft --version 0.1.0 -n observecraft --create-namespace \
   --set publicUrl=https://observecraft.example.com --set instanceAdminEmail=admin@example.com \
   --set ingress.enabled=true --set ingress.app.host=observecraft.example.com \
@@ -220,7 +220,8 @@ Collector as a node agent and a cluster agent.
 For production, [`values-ha.yaml`](deploy/helm/observecraft/values-ha.yaml) runs ClickHouse sharded and replicated with
 Keeper (Altinity operator), Postgres as a CloudNativePG cluster with failover, three NATS nodes, and autoscaled,
 disruption-budgeted services. Or point the chart at your own databases (`clickhouse.mode=external`,
-`postgres.mode=external`).
+`postgres.mode=external`) and cache (`cache.mode=external`: ElastiCache, Memorystore or any Valkey/Redis-protocol
+server).
 
 The chart generates and keeps its secrets (or uses `secrets.existingSecret`), runs everything as non-root with
 read-only root filesystems, and restricts traffic between components with NetworkPolicies. Every server replica can
@@ -253,6 +254,7 @@ flowchart LR
   API[observecraft-server<br/>Rust · axum] --> CH
   API --> PG[(Postgres<br/>orgs · accounts · dashboards<br/>monitors · incidents)]
   API --> NATS
+  API <-->|shared results| VK[(Valkey<br/>cache)]
   API <-->|hourly Parquet| S3[(S3-compatible bucket<br/>log archives)]
   API -.->|DuckDB| S3
   API -->|webhook · Slack · email| OUT((Notifications))
@@ -287,9 +289,13 @@ most important ones:
 | `OC_CLICKHOUSE_CLUSTER` | — | ClickHouse cluster name (from `remote_servers`, with Keeper): tables are created replicated and sharded on it. Unset for a single server |
 | `OC_RUN_MIGRATIONS` | `true` | Apply migrations at startup (under a Postgres lock, so replicas can start together). `false` when a deploy step runs `observecraft-server migrate` |
 | `OC_CLICKHOUSE_DROP_LEGACY_SCHEMA` | `false` | Allow replacing a ClickHouse schema from before the org-sorted tables (deletes its telemetry) |
-| `OC_QUERY_TIMEOUT_SECONDS` / `OC_QUERY_MAX_MEMORY_BYTES` | `60` / `4294967296` | Limits on each telemetry query; queries also send the org as ClickHouse `quota_key` for per-org quotas |
+| `OC_ORG_QUERY_TIMEOUT_SECONDS` / `OC_ORG_QUERY_MAX_MEMORY_BYTES` / `OC_ORG_QUERY_MAX_ROWS_TO_READ` | `60` / `4294967296` / `0` (none) | Limits on each telemetry query of an organization (`OC_QUERY_TIMEOUT_SECONDS` / `OC_QUERY_MAX_MEMORY_BYTES` still work); queries also send the org as ClickHouse `quota_key` for per-org quotas. A query stopped at a limit gets 503 with what to change |
+| `OC_ORG_QUERY_CONCURRENCY` / `OC_ORG_QUERY_QUEUE_TIMEOUT_MS` | `16` / `10000` | ClickHouse queries of one organization running at once on each server replica (0 = no limit); more wait up to the timeout, then the API answers 429 ("retry shortly"). Background jobs (metric rollups, monitors, schedulers) are exempt |
 | `OC_POSTGRES_URL` | `postgres://observecraft:…@localhost:5432/observecraft` | Postgres connection string |
 | `OC_NATS_URL` | `nats://localhost:4222` | NATS for live tail |
+| `OC_CACHE_URL` | — | **Required.** Shared cache of all server replicas: Valkey (or another Redis-protocol server), `redis://[user:password@]host:6379/0` or `rediss://…` for TLS. The server exits at startup when it is unset or unreachable for 30 s; later outages only cost cache hits |
+| `OC_CACHE_MAX_VALUE_BYTES` / `OC_CACHE_LOAD_TIMEOUT_SECONDS` | `8388608` / `30` | Largest value stored (after compression); how long replicas wait for another replica's load of the same entry |
+| `OC_INVENTORY_CACHE_MAX_OBJECTS` | `500000` | Kubernetes objects the in-process inventory cache keeps over all orgs |
 | `OC_PUBLIC_URL` | `http://localhost:5173` | Origin users open the app on (SSO redirects, login links, notification links) |
 | `OC_SECRET_KEY` | — | **Required in production.** Encrypts MFA seeds, OIDC secrets, archive and channel credentials (`openssl rand -base64 48`) |
 | `OC_INSTANCE_ADMIN_EMAIL` | — | Account that creates and manages organizations (becomes an admin of the install's org) |
@@ -297,7 +303,7 @@ most important ones:
 | `OC_RETENTION_LOGS_MAX_DAYS` / `_TRACES_MAX_DAYS` | `365` / `90` | Most the instance admin can grant an org (*Instance Admin → Retention limits*) |
 | `OC_RETENTION_METRICS_DAYS` / `_CI_DAYS` | `30` / `30` | Install-wide metric and CI retention |
 | `OC_RAW_LOGS_HOURS` | `72` | Every log stays this long unindexed, as the source of archives |
-| `OC_LOGPROC_ADDR` / `OC_INTERNAL_TOKEN` | `0.0.0.0:8090` / — | Internal log indexer Vector posts to (keep it off the public network; the token is optional) |
+| `OC_LOGPROC_ADDR` / `OC_INTERNAL_TOKEN` | `0.0.0.0:8090` / — | Internal listener: the log indexer Vector posts to, and the server's own metrics (`GET /metrics`, Prometheus text: `oc_cache_*`). Keep it off the public network; the token is optional |
 | `OC_SMTP_URL` / `OC_SMTP_FROM` | — | SMTP server for monitor emails (`smtps://user:pass@host:465`) |
 | `OC_SYNTHETICS_ALLOW_PRIVATE` | `false` | Let synthetic tests reach loopback, private, link-local (cloud metadata) and other internal addresses |
 | `OC_DATA_DIR` | `.oc-data` | Local cache for Archive Search and rehydration |

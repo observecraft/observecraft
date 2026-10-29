@@ -1,0 +1,89 @@
+{{- if eq .Values.cache.mode "bundled" }}
+{{- $fullname := include "oc.fullname" . -}}
+{{- $v := .Values.cache.bundled -}}
+# Valkey: the shared cache of the server replicas. A cache only: no persistence, one instance
+# (a restart costs cache misses, not data). Recreated on upgrades so two caches never serve at once.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-valkey
+  labels:
+    {{- include "oc.componentLabels" (list . "valkey") | nindent 4 }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy: { type: Recreate }
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "valkey") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "oc.selector" (list . "valkey") | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      {{- include "oc.pullSecrets" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      {{- with $v.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $v.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: valkey
+          image: {{ include "oc.imageOf" (list . $v.image) }}
+          {{- include "oc.containerSecurity" . | nindent 10 }}
+          # The password goes into a config file rather than the command line; maxmemory is a share
+          # of the container's memory limit, least recently used keys go first.
+          command: [sh, -ec]
+          args:
+            - |
+              printf 'requirepass "%s"\n' "$REDISCLI_AUTH" > /data/valkey.conf
+              exec valkey-server /data/valkey.conf --port 6379 --protected-mode no \
+                --maxmemory "$((MEMORY_LIMIT / 100 * {{ int $v.maxmemoryPercent }}))" --maxmemory-policy allkeys-lru \
+                --save "" --appendonly no
+          env:
+            # Read by valkey-cli too (probes).
+            - name: REDISCLI_AUTH
+              valueFrom: { secretKeyRef: { name: {{ include "oc.secretName" . }}, key: cache-password } }
+            - name: MEMORY_LIMIT
+              valueFrom: { resourceFieldRef: { containerName: valkey, resource: limits.memory } }
+          ports:
+            - { name: valkey, containerPort: 6379 }
+          readinessProbe:
+            exec: { command: [valkey-cli, ping] }
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: [valkey-cli, ping] }
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            {{- toYaml $v.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: data
+          emptyDir: { sizeLimit: 16Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-valkey
+  labels:
+    {{- include "oc.componentLabels" (list . "valkey") | nindent 4 }}
+spec:
+  selector:
+    {{- include "oc.selector" (list . "valkey") | nindent 4 }}
+  ports:
+    - { name: valkey, port: 6379, targetPort: valkey }
+{{- end }}
