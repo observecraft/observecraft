@@ -73,7 +73,15 @@ Success criteria:
 - Cassettes pass; tf-compat with a multi-widget dashboard (timeseries, query value, toplist, group, note, template
   variables) passes with no diff.
 
-Status: Not Started
+Status: Complete. `routes/datadog_api/dashboards.rs` (`/api/v1/dashboard` CRUD, list with `filter[deleted]`,
+`filter[shared]`, `count`/`start`, bulk delete and restore, and `POST /api/unstable/dashboard/widgets/validate`,
+which the provider calls during `plan`), `dashboard_widgets.rs` (which widgets we render, Datadog → our document as
+the integration-dashboard importer does, and our widgets back to Datadog's), `dashboard_lists.rs` (v1 lists, v2
+items). Migration `0050_datadog_dashboards.sql`: `dashboards.datadog_document` (the document as written; UI edits
+are folded back in on read) and integer ids, author and timestamps for `dashboard_lists`. Cassettes: 42 dashboard
+scenarios replayed as recorded, 15 about the dashboard itself replayed with their fixture widget (a
+`profile_metrics_query` timeseries or a `hostmap`) replaced, 62 refused with the widget's path as expected; all 14
+dashboard list scenarios. tf-compat fixtures `dashboard`, `dashboard_json`, `dashboard_list` (each with an update).
 
 ## Stage 5: Service level objectives
 

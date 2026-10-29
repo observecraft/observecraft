@@ -10,6 +10,47 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/unstable/dashboard/widgets/validate": {
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Checks widget definitions the way a dashboard write does, one result per widget (the provider\ncalls it during `plan`; Datadog-compatible).",
+        "operationId": "datadog_validate_dashboard_widgets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatadogWidgetValidation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogWidgetValidationResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apm/anomalies": {
       "post": {
         "tags": [
@@ -1613,6 +1654,186 @@
         }
       }
     },
+    "/api/v1/dashboard": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "The org's dashboards as Datadog summaries (Datadog-compatible). `filter[deleted]=true` lists\ndeleted ones; `filter[shared]=true` lists none (sharing isn't part of this API); `count` and\n`start` page.",
+        "operationId": "datadog_list_dashboards",
+        "parameters": [
+          {
+            "name": "filter[shared]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "filter[deleted]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDashboardSummaries"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Creates a dashboard from a Datadog dashboard document (Datadog-compatible).",
+        "operationId": "datadog_create_dashboard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatadogDashboard"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDashboard"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Deletes several dashboards (Datadog-compatible).",
+        "operationId": "datadog_delete_dashboards",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatadogDashboardBulk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Restores deleted dashboards (Datadog-compatible).",
+        "operationId": "datadog_restore_dashboards",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatadogDashboardBulk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dashboard-lists": {
       "get": {
         "tags": [
@@ -2043,6 +2264,347 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/lists/manual": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "The org's dashboard lists (Datadog-compatible).",
+        "operationId": "datadog_list_dashboard_lists",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDashboardLists"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Creates a dashboard list (Datadog-compatible).",
+        "operationId": "datadog_create_dashboard_list",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatadogDashboardListName"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDashboardList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/lists/manual/{id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "A dashboard list (Datadog-compatible).",
+        "operationId": "datadog_get_dashboard_list",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDashboardList"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Renames a dashboard list (Datadog-compatible).",
+        "operationId": "datadog_update_dashboard_list",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatadogDashboardListName"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDashboardList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Deletes a dashboard list; its dashboards stay (Datadog-compatible).",
+        "operationId": "datadog_delete_dashboard_list",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDeletedDashboardList"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/{id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "A dashboard as a Datadog dashboard document (Datadog-compatible).",
+        "operationId": "datadog_get_dashboard",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDashboard"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Replaces a dashboard with a Datadog dashboard document (Datadog-compatible).",
+        "operationId": "datadog_update_dashboard",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatadogDashboard"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDashboard"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Deletes a dashboard (restorable, as in our dashboard list's Deleted view; Datadog-compatible).",
+        "operationId": "datadog_delete_dashboard",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDeletedDashboard"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
                 }
               }
             }
@@ -17165,6 +17727,228 @@
         }
       }
     },
+    "/api/v2/dashboard/lists/manual/{id}/dashboards": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "The dashboards of a list (Datadog-compatible).",
+        "operationId": "datadog_get_dashboard_list_items",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDashboardListItems"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Replaces the dashboards of a list (Datadog-compatible).",
+        "operationId": "datadog_update_dashboard_list_items",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatadogDashboardListItemsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogUpdatedDashboardListItems"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Adds dashboards to a list (Datadog-compatible).",
+        "operationId": "datadog_add_dashboard_list_items",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatadogDashboardListItemsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogAddedDashboardListItems"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Removes dashboards from a list (Datadog-compatible); returns those that were in it.",
+        "operationId": "datadog_delete_dashboard_list_items",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatadogDashboardListItemsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogDeletedDashboardListItems"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/validate_keys": {
       "get": {
         "tags": [
@@ -21092,6 +21876,256 @@
           }
         }
       },
+      "DatadogAddedDashboardListItems": {
+        "type": "object",
+        "required": [
+          "added_dashboards_to_list"
+        ],
+        "properties": {
+          "added_dashboards_to_list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatadogDashboardListItemRef"
+            }
+          }
+        }
+      },
+      "DatadogDashboard": {
+        "type": "object",
+        "description": "A Datadog dashboard document (Datadog's `Dashboard` schema; other fields are kept as sent).",
+        "required": [
+          "title",
+          "layout_type",
+          "widgets"
+        ],
+        "properties": {
+          "layout_type": {
+            "type": "string",
+            "description": "`ordered` or `free`."
+          },
+          "title": {
+            "type": "string"
+          },
+          "widgets": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "DatadogDashboardBulk": {
+        "type": "object",
+        "description": "Bulk delete / restore: `{\"data\": [{\"id\": \"abc-def-ghi\", \"type\": \"dashboard\"}]}`.",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatadogDashboardRef"
+            }
+          }
+        }
+      },
+      "DatadogDashboardList": {
+        "type": "object",
+        "description": "A Datadog dashboard list (`manual_dashboard_list`).",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "is_favorite",
+          "dashboard_count",
+          "author",
+          "created",
+          "modified"
+        ],
+        "properties": {
+          "author": {
+            "$ref": "#/components/schemas/DatadogListAuthor"
+          },
+          "created": {
+            "type": "string"
+          },
+          "dashboard_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "dashboards": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object"
+            }
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "is_favorite": {
+            "type": "boolean"
+          },
+          "modified": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "DatadogDashboardListItemRef": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "DatadogDashboardListItems": {
+        "type": "object",
+        "description": "`GET …/dashboards`: the list's dashboards.",
+        "required": [
+          "dashboards",
+          "total"
+        ],
+        "properties": {
+          "dashboards": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "DatadogDashboardListItemsRequest": {
+        "type": "object",
+        "description": "`{\"dashboards\": [{\"id\": \"abc-def-ghi\", \"type\": \"custom_timeboard\"}]}`.",
+        "required": [
+          "dashboards"
+        ],
+        "properties": {
+          "dashboards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatadogDashboardListItemRef"
+            }
+          }
+        }
+      },
+      "DatadogDashboardListName": {
+        "type": "object",
+        "description": "`{\"name\": \"…\"}`.",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "DatadogDashboardLists": {
+        "type": "object",
+        "required": [
+          "dashboard_lists"
+        ],
+        "properties": {
+          "dashboard_lists": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatadogDashboardList"
+            }
+          }
+        }
+      },
+      "DatadogDashboardRef": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "DatadogDashboardSummaries": {
+        "type": "object",
+        "description": "`GET /api/v1/dashboard`: Datadog's dashboard summaries.",
+        "required": [
+          "dashboards"
+        ],
+        "properties": {
+          "dashboards": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "DatadogDeletedDashboard": {
+        "type": "object",
+        "description": "`DELETE /api/v1/dashboard/{id}`.",
+        "required": [
+          "deleted_dashboard_id"
+        ],
+        "properties": {
+          "deleted_dashboard_id": {
+            "type": "string"
+          }
+        }
+      },
+      "DatadogDeletedDashboardList": {
+        "type": "object",
+        "required": [
+          "deleted_dashboard_list_id"
+        ],
+        "properties": {
+          "deleted_dashboard_list_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "DatadogDeletedDashboardListItems": {
+        "type": "object",
+        "required": [
+          "deleted_dashboards_from_list"
+        ],
+        "properties": {
+          "deleted_dashboards_from_list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatadogDashboardListItemRef"
+            }
+          }
+        }
+      },
       "DatadogErrors": {
         "type": "object",
         "description": "Datadog's error body.",
@@ -21128,6 +22162,23 @@
         "properties": {
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "DatadogListAuthor": {
+        "type": "object",
+        "required": [
+          "handle"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -21174,6 +22225,20 @@
           "meta": {}
         }
       },
+      "DatadogUpdatedDashboardListItems": {
+        "type": "object",
+        "required": [
+          "dashboards"
+        ],
+        "properties": {
+          "dashboards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatadogDashboardListItemRef"
+            }
+          }
+        }
+      },
       "DatadogUserResponse": {
         "type": "object",
         "description": "A Datadog v2 user response: `data` (type `users`) and the user's organization in `included`.",
@@ -21186,6 +22251,66 @@
           "included": {
             "type": "array",
             "items": {}
+          }
+        }
+      },
+      "DatadogWidgetValidation": {
+        "type": "object",
+        "description": "`POST /api/unstable/dashboard/widgets/validate`: the widgets to check.",
+        "required": [
+          "widgets"
+        ],
+        "properties": {
+          "widgets": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "DatadogWidgetValidationResult": {
+        "type": "object",
+        "required": [
+          "is_valid"
+        ],
+        "properties": {
+          "error_message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Inside the widget's definition, e.g. `requests[0].queries[0].data_source`."
+          },
+          "is_valid": {
+            "type": "boolean"
+          },
+          "widget_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "DatadogWidgetValidationResults": {
+        "type": "object",
+        "description": "One result per widget sent, in order.",
+        "required": [
+          "results"
+        ],
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatadogWidgetValidationResult"
+            }
           }
         }
       },

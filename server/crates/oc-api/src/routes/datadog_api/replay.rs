@@ -174,17 +174,23 @@ pub struct Replayer {
     http: reqwest::Client,
     /// Recorded id → our id, learned from earlier answers.
     ids: HashMap<String, Value>,
+    /// Response fields not compared (paths as [`compare_shape`] names them, e.g. `widgets[].id`).
+    pub ignore: Vec<String>,
 }
 
 impl Replayer {
     pub fn new(base: &str, api_key: &str, app_key: &str) -> Self {
-        Replayer { base: base.trim_end_matches('/').into(), api_key: api_key.into(), app_key: app_key.into(), http: reqwest::Client::new(), ids: HashMap::new() }
+        Replayer { base: base.trim_end_matches('/').into(), api_key: api_key.into(), app_key: app_key.into(), http: reqwest::Client::new(), ids: HashMap::new(), ignore: vec![] }
     }
 
     /// Replays a scenario's cassette; returns the exchanges and every mismatch found.
     pub async fn replay(&mut self, feature: &Feature, scenario: &Scenario) -> (Vec<Exchange>, Vec<String>) {
         let interactions = feature.cassette(scenario).unwrap_or_else(|| panic!("no cassette for {:?}", scenario.name));
-        let sends = feature.sends(scenario);
+        self.replay_interactions(feature.sends(scenario), &scenario.name, &interactions).await
+    }
+
+    /// Replays recorded interactions (a cassette, possibly adapted by the caller).
+    pub async fn replay_interactions(&mut self, sends: Sends, scenario: &str, interactions: &[Interaction]) -> (Vec<Exchange>, Vec<String>) {
         let mut exchanges = vec![];
         let mut problems = vec![];
         for (i, it) in interactions.iter().enumerate() {
@@ -210,12 +216,12 @@ impl Replayer {
             let status = res.status().as_u16();
             let text = res.text().await.unwrap_or_default();
             let body: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
-            let at = format!("{} #{i} {} {path}", scenario.name, it.request.method);
+            let at = format!("{scenario} #{i} {} {path}", it.request.method);
             if status / 100 != it.response.code / 100 {
                 problems.push(format!("{at}: status {status}, recorded {} (body {text})", it.response.code));
             } else if let Ok(recorded) = serde_json::from_str::<Value>(&it.response.body) {
                 if status < 300 {
-                    compare_shape(&recorded, &body, "", &[], &mut problems, &at);
+                    compare_shape(&recorded, &body, "", &self.ignore, &mut problems, &at);
                     self.learn_ids(&recorded, &body);
                 } else if recorded.get("errors").is_some() && !is_error_body(&body) {
                     problems.push(format!("{at}: error body {text} is not Datadog's {{\"errors\": [...]}}"));

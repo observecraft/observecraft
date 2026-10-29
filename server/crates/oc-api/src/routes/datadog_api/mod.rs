@@ -19,6 +19,9 @@
 pub mod current_user;
 pub mod slo_corrections;
 pub mod slos;
+pub mod dashboard_lists;
+pub mod dashboard_widgets;
+pub mod dashboards;
 pub mod validate;
 
 #[cfg(test)]
@@ -53,6 +56,8 @@ pub fn router() -> Router<AppState> {
         .route("/api/v2/current_user", get(current_user::current_user))
         .merge(slos::router())
         .merge(slo_corrections::router())
+        .merge(dashboards::router())
+        .merge(dashboard_lists::router())
 }
 
 // ================================================================ errors

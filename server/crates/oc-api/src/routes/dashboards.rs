@@ -118,7 +118,7 @@ const SELECT: &str = "SELECT d.id, d.title, d.description, d.kind, d.logo, u.id:
 const FROM: &str = " FROM dashboards d LEFT JOIN users u ON u.id = d.author_id \
     LEFT JOIN dashboard_user_state s ON s.dashboard_id = d.id AND s.user_id = ";
 
-fn popularity(views: i32) -> u8 {
+pub(super) fn popularity(views: i32) -> u8 {
     // 0 views → 0, then one step per doubling, capped at 5.
     (32 - (views.max(0) as u32).leading_zeros()).min(5) as u8
 }

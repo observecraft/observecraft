@@ -4,6 +4,24 @@
  */
 
 export interface paths {
+    "/api/unstable/dashboard/widgets/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks widget definitions the way a dashboard write does, one result per widget (the provider
+         *     calls it during `plan`; Datadog-compatible). */
+        post: operations["datadog_validate_dashboard_widgets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apm/anomalies": {
         parameters: {
             query?: never;
@@ -699,6 +717,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's dashboards as Datadog summaries (Datadog-compatible). `filter[deleted]=true` lists
+         *     deleted ones; `filter[shared]=true` lists none (sharing isn't part of this API); `count` and
+         *     `start` page. */
+        get: operations["datadog_list_dashboards"];
+        put?: never;
+        /** Creates a dashboard from a Datadog dashboard document (Datadog-compatible). */
+        post: operations["datadog_create_dashboard"];
+        /** Deletes several dashboards (Datadog-compatible). */
+        delete: operations["datadog_delete_dashboards"];
+        options?: never;
+        head?: never;
+        /** Restores deleted dashboards (Datadog-compatible). */
+        patch: operations["datadog_restore_dashboards"];
+        trace?: never;
+    };
     "/api/v1/dashboard-lists": {
         parameters: {
             query?: never;
@@ -825,6 +865,62 @@ export interface paths {
         put: operations["set_dashboard_report_subscription"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/lists/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's dashboard lists (Datadog-compatible). */
+        get: operations["datadog_list_dashboard_lists"];
+        put?: never;
+        /** Creates a dashboard list (Datadog-compatible). */
+        post: operations["datadog_create_dashboard_list"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/lists/manual/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A dashboard list (Datadog-compatible). */
+        get: operations["datadog_get_dashboard_list"];
+        /** Renames a dashboard list (Datadog-compatible). */
+        put: operations["datadog_update_dashboard_list"];
+        post?: never;
+        /** Deletes a dashboard list; its dashboards stay (Datadog-compatible). */
+        delete: operations["datadog_delete_dashboard_list"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A dashboard as a Datadog dashboard document (Datadog-compatible). */
+        get: operations["datadog_get_dashboard"];
+        /** Replaces a dashboard with a Datadog dashboard document (Datadog-compatible). */
+        put: operations["datadog_update_dashboard"];
+        post?: never;
+        /** Deletes a dashboard (restorable, as in our dashboard list's Deleted view; Datadog-compatible). */
+        delete: operations["datadog_delete_dashboard"];
         options?: never;
         head?: never;
         patch?: never;
@@ -6056,6 +6152,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/dashboard/lists/manual/{id}/dashboards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The dashboards of a list (Datadog-compatible). */
+        get: operations["datadog_get_dashboard_list_items"];
+        /** Replaces the dashboards of a list (Datadog-compatible). */
+        put: operations["datadog_update_dashboard_list_items"];
+        /** Adds dashboards to a list (Datadog-compatible). */
+        post: operations["datadog_add_dashboard_list_items"];
+        /** Removes dashboards from a list (Datadog-compatible); returns those that were in it. */
+        delete: operations["datadog_delete_dashboard_list_items"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/validate_keys": {
         parameters: {
             query?: never;
@@ -7190,6 +7306,74 @@ export interface components {
             /** Format: double */
             timeShare: number;
         };
+        DatadogAddedDashboardListItems: {
+            added_dashboards_to_list: components["schemas"]["DatadogDashboardListItemRef"][];
+        };
+        /** @description A Datadog dashboard document (Datadog's `Dashboard` schema; other fields are kept as sent). */
+        DatadogDashboard: {
+            /** @description `ordered` or `free`. */
+            layout_type: string;
+            title: string;
+            widgets: Record<string, never>[];
+        };
+        /** @description Bulk delete / restore: `{"data": [{"id": "abc-def-ghi", "type": "dashboard"}]}`. */
+        DatadogDashboardBulk: {
+            data: components["schemas"]["DatadogDashboardRef"][];
+        };
+        /** @description A Datadog dashboard list (`manual_dashboard_list`). */
+        DatadogDashboardList: {
+            author: components["schemas"]["DatadogListAuthor"];
+            created: string;
+            /** Format: int64 */
+            dashboard_count: number;
+            dashboards?: Record<string, never>[] | null;
+            /** Format: int64 */
+            id: number;
+            is_favorite: boolean;
+            modified: string;
+            name: string;
+            type: string;
+        };
+        DatadogDashboardListItemRef: {
+            id: string;
+            type: string;
+        };
+        /** @description `GET …/dashboards`: the list's dashboards. */
+        DatadogDashboardListItems: {
+            dashboards: Record<string, never>[];
+            /** Format: int64 */
+            total: number;
+        };
+        /** @description `{"dashboards": [{"id": "abc-def-ghi", "type": "custom_timeboard"}]}`. */
+        DatadogDashboardListItemsRequest: {
+            dashboards: components["schemas"]["DatadogDashboardListItemRef"][];
+        };
+        /** @description `{"name": "…"}`. */
+        DatadogDashboardListName: {
+            name: string;
+        };
+        DatadogDashboardLists: {
+            dashboard_lists: components["schemas"]["DatadogDashboardList"][];
+        };
+        DatadogDashboardRef: {
+            id: string;
+            type?: string | null;
+        };
+        /** @description `GET /api/v1/dashboard`: Datadog's dashboard summaries. */
+        DatadogDashboardSummaries: {
+            dashboards: Record<string, never>[];
+        };
+        /** @description `DELETE /api/v1/dashboard/{id}`. */
+        DatadogDeletedDashboard: {
+            deleted_dashboard_id: string;
+        };
+        DatadogDeletedDashboardList: {
+            /** Format: int64 */
+            deleted_dashboard_list_id: number;
+        };
+        DatadogDeletedDashboardListItems: {
+            deleted_dashboards_from_list: components["schemas"]["DatadogDashboardListItemRef"][];
+        };
         /** @description Datadog's error body. */
         DatadogErrors: {
             errors: string[];
@@ -7201,6 +7385,10 @@ export interface components {
         /** @description Answer of `GET /api/v2/validate_keys`: always `ok`. */
         DatadogKeysStatus: {
             status: string;
+        };
+        DatadogListAuthor: {
+            handle: string;
+            name?: string | null;
         };
         /** @description `{"data": correction}` or `{"data": [corrections], "meta": …}`. */
         DatadogSloCorrectionResponse: {
@@ -7220,10 +7408,28 @@ export interface components {
             links: unknown;
             meta: unknown;
         };
+        DatadogUpdatedDashboardListItems: {
+            dashboards: components["schemas"]["DatadogDashboardListItemRef"][];
+        };
         /** @description A Datadog v2 user response: `data` (type `users`) and the user's organization in `included`. */
         DatadogUserResponse: {
             data: unknown;
             included: unknown[];
+        };
+        /** @description `POST /api/unstable/dashboard/widgets/validate`: the widgets to check. */
+        DatadogWidgetValidation: {
+            widgets: Record<string, never>[];
+        };
+        DatadogWidgetValidationResult: {
+            error_message?: string | null;
+            /** @description Inside the widget's definition, e.g. `requests[0].queries[0].data_source`. */
+            error_path?: string | null;
+            is_valid: boolean;
+            widget_type?: string | null;
+        };
+        /** @description One result per widget sent, in order. */
+        DatadogWidgetValidationResults: {
+            results: components["schemas"]["DatadogWidgetValidationResult"][];
         };
         /** @enum {string} */
         DbEngine: "postgres" | "mysql" | "redis" | "mongodb" | "sqlserver";
@@ -15156,6 +15362,37 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    datadog_validate_dashboard_widgets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogWidgetValidation"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogWidgetValidationResults"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
     anomalies: {
         parameters: {
             query?: never;
@@ -16306,6 +16543,135 @@ export interface operations {
             };
         };
     };
+    datadog_list_dashboards: {
+        parameters: {
+            query?: {
+                "filter[shared]"?: boolean;
+                "filter[deleted]"?: boolean;
+                count?: number;
+                start?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDashboardSummaries"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_create_dashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogDashboard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDashboard"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_dashboards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogDashboardBulk"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_restore_dashboards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogDashboardBulk"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
     lists: {
         parameters: {
             query?: never;
@@ -16626,6 +16992,254 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    datadog_list_dashboard_lists: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDashboardLists"];
+                };
+            };
+        };
+    };
+    datadog_create_dashboard_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogDashboardListName"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDashboardList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_dashboard_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDashboardList"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_update_dashboard_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogDashboardListName"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDashboardList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_dashboard_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDeletedDashboardList"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_dashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDashboard"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_update_dashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogDashboard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDashboard"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_dashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDeletedDashboard"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
                 };
             };
         };
@@ -27625,6 +28239,158 @@ export interface operations {
                 };
             };
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_dashboard_list_items: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDashboardListItems"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_update_dashboard_list_items: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogDashboardListItemsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogUpdatedDashboardListItems"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_add_dashboard_list_items: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogDashboardListItemsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogAddedDashboardListItems"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_dashboard_list_items: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogDashboardListItemsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogDeletedDashboardListItems"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

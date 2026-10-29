@@ -85,8 +85,8 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 | `datadog_current_user` (data source) | `GET /api/v2/current_user` | ✅ |
 | `datadog_monitor` | `/api/v1/monitor` | Planned |
 | `datadog_downtime_schedule`, `datadog_downtime` | `/api/v2/downtime`, `/api/v1/downtime` | Planned |
-| `datadog_dashboard`, `datadog_dashboard_json` | `/api/v1/dashboard` | Planned |
-| `datadog_dashboard_list` | `/api/v1/dashboard/lists/manual`, `/api/v2/dashboard/lists/manual/{id}/dashboards` | Planned |
+| `datadog_dashboard`, `datadog_dashboard_json`, `datadog_dashboard` (data source) | `/api/v1/dashboard` (create, get, update, delete, list, bulk delete and restore), `POST /api/unstable/dashboard/widgets/validate` | ✅ [details](#dashboards) |
+| `datadog_dashboard_list`, `datadog_dashboard_list` (data source) | `/api/v1/dashboard/lists/manual`, `/api/v2/dashboard/lists/manual/{id}/dashboards` | ✅ [details](#dashboard-lists) |
 | `datadog_service_level_objective`, data sources `datadog_service_level_objective(s)` | `/api/v1/slo` (create, get, update, delete, list), `/api/v1/slo/search` | ✅ [details](#service-level-objectives) |
 | `datadog_slo_correction` | `/api/v1/slo/correction`, `/api/v1/slo/{id}/corrections` | ✅ one-off corrections ([details](#slo-corrections)) |
 
@@ -130,12 +130,77 @@ epoch seconds (at most 90 days). `timezone` is stored and returned. Updates (`PA
 the SLO of a correction can't change. Rejected with 400: recurring corrections (`rrule`, `duration`) and corrections
 of the SLOs matching a query (`slo_query`), which ObserveCraft corrections can't express yet.
 
+## Dashboards
+
+Dashboards written through `/api/v1/dashboard` are ordinary ObserveCraft dashboards: they are in the dashboard list
+(Custom), open in the UI and can be edited there.
+
+- **What you write is what you read.** The Datadog document is stored as it was sent (widget ids are assigned when
+  missing) and returned with the fields the server owns: `id` (`abc-def-ghi`), `url` (the dashboard's address in the
+  UI), `author_handle`, `author_name`, `created_at`, `modified_at`. Fields Datadog would add on its own
+  (`restricted_roles: []`, `is_read_only: false`, …) are not added, so `datadog_dashboard_json` plans stay clean.
+- **Edits in the UI show up in Terraform.** Moving, resizing, renaming, removing or adding widgets, the title,
+  the description, the teams and the template variables are folded back into the Datadog document on read; a
+  `terraform plan` then shows the drift as it would against Datadog. Widgets the UI didn't touch keep their exact
+  Datadog definition.
+- **Nothing is dropped.** A dashboard with a widget the UI can't draw is refused as a whole with a 400 whose message
+  starts with the widget's path, e.g. `widgets[3].definition.widgets[1].definition.type: widget type "hostmap" is not
+  supported by ObserveCraft yet`. During `plan`, the provider asks `POST /api/unstable/dashboard/widgets/validate`,
+  which answers the same check per widget, so the error appears before anything is applied.
+- `tags` are teams (`team:<name>`, as in Datadog); they become the dashboard's teams.
+- `filter[shared]=true` lists nothing: shared (public) dashboards are not part of this API.
+
+### Widget types
+
+| Datadog widget | Drawn as | Requests |
+|---|---|---|
+| `timeseries`, `query_value`, `toplist`, `query_table`, `change`, `heatmap`, `sunburst`, `treemap` | the Datadog definition itself (requests, formulas, units, conditional formats, display options) | `q`, or `queries` with `data_source` `metrics`, `logs` or `events`, and `formulas` |
+| `check_status` | the check's status counts | `check`, `grouping`, `tags` |
+| `list_stream` | events, or Kubernetes resources | `data_source` `event_stream` or `infrastructure` |
+| `note`, `free_text` | a note | |
+| `image` | an image (`url`) | |
+| `group` | a group (title, color, banner image, widgets) | |
+| `log_stream` | our log stream (`query`) | |
+| `manage_status` | our monitor summary (`query`, matched against monitor names) | |
+
+Not supported yet, and refused with the widget's path: the widget types `alert_graph`, `alert_value`, `bar_chart`,
+`distribution`, `event_stream`, `event_timeline`, `funnel`, `geomap`, `hostmap`, `iframe`, `point_plot`, `powerpack`,
+`run_workflow`, `sankey`, `scatterplot`, `servicemap`, `slo`, `slo_list`, `split_group`, `topology_map`,
+`trace_service` (and any other); legacy per-product requests (`apm_query`, `log_query`, `rum_query`,
+`process_query`, `profile_metrics_query`, `apm_stats_query`, …) and the single `query` request of histogram widgets;
+`queries` with other data sources (`cloud_cost`, `apm_metrics`, `apm_resource_stats`, `apm_dependency_stats`,
+`ci_pipelines`, `ci_tests`, `audit`, `rum`, `slo`, `product_analytics`, `incident_analytics`, …); `list_stream`
+data sources other than `event_stream` and `infrastructure` (`logs_stream`, `apm_issue_stream`, `trace_stream`, …).
+
+Accepted, stored and returned, but not acted on: `notify_list`, `restricted_roles` (edit permissions follow the
+user's role), `is_read_only`, `template_variable_presets` (the UI has no saved views yet), `available_values` of
+template variables (the UI offers the tag's values), `reflow_type`, and widget options the panels don't draw
+(`live_span` and `time` per widget, custom links, markers, events overlays). A template variable with several
+`defaults` filters on the first.
+
+The check is on widget types and data sources, not on the text of each query: a metric query the panels can't
+evaluate yet (for example a percentile space aggregator such as `p95:…`) is stored, and the widget shows the
+reason in the dashboard.
+
+## Dashboard lists
+
+`/api/v1/dashboard/lists/manual` and `/api/v2/dashboard/lists/manual/{id}/dashboards` work on the lists of the
+dashboard list's sidebar, so a list made in Terraform shows there and one made in the UI can be read and managed
+here. List ids are integers. An item's `type` comes from the dashboard: `custom_timeboard` / `custom_screenboard`
+for dashboards made here or in the UI, `integration_timeboard` / `integration_screenboard` for integration
+dashboards (a `free` layout is a screenboard). `is_favorite` is always `false`; deleting a list keeps its
+dashboards.
+
 ## How compatibility is tested
 
 - **Contract fixtures.** `server/crates/oc-api/tests/datadog_api/` holds the request/response recordings that
   Datadog's Go API client is tested with (Apache-2.0). Each supported resource replays its recordings against the
   server and checks status codes and response shapes (`cargo test -p oc-api datadog_api`, with the live test
-  databases `OC_TEST_POSTGRES_URL` and `OC_TEST_CLICKHOUSE_URL`).
+  databases `OC_TEST_POSTGRES_URL` and `OC_TEST_CLICKHOUSE_URL`). For dashboards, every recorded scenario whose
+  widgets we draw is replayed as recorded; scenarios about the dashboard itself (get, update, delete, list,
+  restore, template variables, dashboard lists) whose fixture dashboards Datadog's client builds with a widget we
+  don't draw (a `profile_metrics_query` timeseries, a `hostmap`) are replayed with that widget replaced by a metric
+  timeseries; every other scenario must be refused with a 400 naming the widget.
 - **The real provider.** `make tf-compat` runs Datadog's Terraform provider (pinned version) with OpenTofu against a
   server, for every fixture in `scripts/tf-compat/fixtures/` and both ways of authenticating (`api_key` + `app_key`,
   `bearer_token`): `apply`, a `plan` that must show no changes, an optional update (`update/` overlay) with another
