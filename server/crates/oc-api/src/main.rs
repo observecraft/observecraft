@@ -14,6 +14,7 @@ mod log_access;
 mod log_metrics;
 mod logproc;
 mod metric_rollups;
+mod org_limits;
 mod pipelines;
 mod routes;
 mod s3;
@@ -102,6 +103,7 @@ async fn main() -> anyhow::Result<()> {
     let secrets = auth::crypto::SecretBox::new(&cfg.secret_key);
     let state = AppState(Arc::new(Inner {
         clickhouse: oc_store::clickhouse(&ch_cfg),
+        org_clients: org_limits::OrgClients::new(&ch_cfg, cfg.org_query.clone()),
         tables: ch_cfg,
         postgres,
         nats,
@@ -136,7 +138,8 @@ async fn main() -> anyhow::Result<()> {
             .await
             .context("install demo monitors")?;
     }
-    tokio::spawn(routes::monitors::run_evaluator(state.clone()));
+    // Background jobs don't take the orgs' query slots (org_limits.rs).
+    tokio::spawn(org_limits::background(routes::monitors::run_evaluator(state.clone())));
     routes::archives::ensure_demo_archive(&state)
         .await
         .context("demo log archive")?;
@@ -144,15 +147,15 @@ async fn main() -> anyhow::Result<()> {
         .execute(&mut *setup_lock)
         .await?;
     drop(setup_lock);
-    tokio::spawn(routes::archives::run_archiver(state.clone()));
-    tokio::spawn(routes::notifications::run_notifier(state.clone()));
-    tokio::spawn(routes::dashboard_reports::run_scheduler(state.clone()));
-    tokio::spawn(routes::on_call::run_escalations(state.clone()));
-    tokio::spawn(routes::synthetics::run_scheduler(state.clone()));
-    tokio::spawn(routes::scorecards::run_scheduler(state.clone()));
-    tokio::spawn(routes::resource_policies::run_snapshots(state.clone()));
-    tokio::spawn(routes::workflows::run_executor(state.clone()));
-    tokio::spawn(metric_rollups::run(state.clone()));
+    tokio::spawn(org_limits::background(routes::archives::run_archiver(state.clone())));
+    tokio::spawn(org_limits::background(routes::notifications::run_notifier(state.clone())));
+    tokio::spawn(org_limits::background(routes::dashboard_reports::run_scheduler(state.clone())));
+    tokio::spawn(org_limits::background(routes::on_call::run_escalations(state.clone())));
+    tokio::spawn(org_limits::background(routes::synthetics::run_scheduler(state.clone())));
+    tokio::spawn(org_limits::background(routes::scorecards::run_scheduler(state.clone())));
+    tokio::spawn(org_limits::background(routes::resource_policies::run_snapshots(state.clone())));
+    tokio::spawn(org_limits::background(routes::workflows::run_executor(state.clone())));
+    tokio::spawn(org_limits::background(metric_rollups::run(state.clone())));
     logproc::serve(state.clone()).await.context("log indexer")?;
 
     let cors = CorsLayer::new()

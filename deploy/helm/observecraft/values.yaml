@@ -59,10 +59,19 @@ retention:
   # -- Hours every ingested log stays in the raw table that archives read.
   rawLogsHours: 72
 
-# Limits on each query an organization runs, so one can't starve the others.
+# Limits on the ClickHouse queries of an organization, so one can't starve the others. Background
+# jobs (metric rollups, monitors, schedulers) are exempt from the concurrency limit, not the others.
 query:
+  # -- Seconds a query may run (max_execution_time).
   timeoutSeconds: 60
+  # -- Memory a query may use (max_memory_usage).
   maxMemoryBytes: 4294967296
+  # -- Rows a query may read (max_rows_to_read; over it the query fails). 0 = no limit.
+  maxRowsToRead: 0
+  # -- Queries of one organization running at once on each server replica. 0 = no limit.
+  concurrencyPerOrg: 16
+  # -- How long a query waits for one of them before the API answers 429 (retry shortly).
+  queueTimeoutMs: 10000
 
 # Monitor notification email. The URL (it holds credentials) is read from the secret key smtp-url.
 smtp:
@@ -191,6 +200,8 @@ clickhouse:
       tag: "26.8"
     persistence:
       size: 50Gi
+    # -- Enough to try it. Beyond a small install give ClickHouse at least 4 vCPU (requests and
+    # limits) and 16 GiB: inserts, merges and dashboard queries share them (README, "Sizing").
     resources:
       requests: { cpu: "1", memory: 4Gi }
       limits: { memory: 8Gi }
@@ -227,6 +238,7 @@ clickhouse:
       tag: "26.8"
     persistence:
       size: 100Gi
+    # -- Per ClickHouse server (each replica of each shard): at least 4 vCPU (README, "Sizing").
     resources:
       requests: { cpu: "2", memory: 8Gi }
       limits: { memory: 16Gi }

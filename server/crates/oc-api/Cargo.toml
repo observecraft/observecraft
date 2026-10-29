@@ -30,6 +30,11 @@ duckdb = { version = "=1.10506.0", features = ["bundled", "parquet"] }
 flate2 = "1"
 futures.workspace = true
 hmac = "0.12"
+# Per-org ClickHouse query limits: the clickhouse client's HTTP client with a connector that
+# hands out an org's connections only with one of its permits (org_limits.rs).
+hyper = "1"
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
+tower-service = "0.3"
 # Synthetic DNS tests: record lookups (A, AAAA, CNAME, MX, TXT, NS) with the system's or a chosen server.
 hickory-resolver = { version = "0.25", default-features = false, features = ["system-config", "tokio"] }
 # Monitor notification email (SMTP over rustls).

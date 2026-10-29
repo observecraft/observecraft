@@ -47,6 +47,7 @@ pub async fn replicas(count: usize) -> Option<(Arc<FakeBackend>, Vec<AppState>)>
             AppState(Arc::new(Inner {
                 config: crate::config::Config::from_env(),
                 clickhouse: oc_store::clickhouse(&tables()),
+                org_clients: crate::org_limits::OrgClients::new(&tables(), crate::org_limits::OrgQueryLimits::from_env()),
                 tables: tables(),
                 postgres: postgres.clone(),
                 nats: nats.clone(),

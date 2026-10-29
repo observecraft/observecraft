@@ -1601,6 +1601,7 @@ mod tests {
             ("../logproc.rs", include_str!("../logproc.rs")),
             ("../main.rs", include_str!("../main.rs")),
             ("../metric_rollups.rs", include_str!("../metric_rollups.rs")),
+            ("../org_limits.rs", include_str!("../org_limits.rs")),
             ("../pipelines/dates.rs", include_str!("../pipelines/dates.rs")),
             ("../pipelines/filter.rs", include_str!("../pipelines/filter.rs")),
             ("../pipelines/grok.rs", include_str!("../pipelines/grok.rs")),

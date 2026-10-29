@@ -289,7 +289,8 @@ most important ones:
 | `OC_CLICKHOUSE_CLUSTER` | — | ClickHouse cluster name (from `remote_servers`, with Keeper): tables are created replicated and sharded on it. Unset for a single server |
 | `OC_RUN_MIGRATIONS` | `true` | Apply migrations at startup (under a Postgres lock, so replicas can start together). `false` when a deploy step runs `observecraft-server migrate` |
 | `OC_CLICKHOUSE_DROP_LEGACY_SCHEMA` | `false` | Allow replacing a ClickHouse schema from before the org-sorted tables (deletes its telemetry) |
-| `OC_QUERY_TIMEOUT_SECONDS` / `OC_QUERY_MAX_MEMORY_BYTES` | `60` / `4294967296` | Limits on each telemetry query; queries also send the org as ClickHouse `quota_key` for per-org quotas |
+| `OC_ORG_QUERY_TIMEOUT_SECONDS` / `OC_ORG_QUERY_MAX_MEMORY_BYTES` / `OC_ORG_QUERY_MAX_ROWS_TO_READ` | `60` / `4294967296` / `0` (none) | Limits on each telemetry query of an organization (`OC_QUERY_TIMEOUT_SECONDS` / `OC_QUERY_MAX_MEMORY_BYTES` still work); queries also send the org as ClickHouse `quota_key` for per-org quotas. A query stopped at a limit gets 503 with what to change |
+| `OC_ORG_QUERY_CONCURRENCY` / `OC_ORG_QUERY_QUEUE_TIMEOUT_MS` | `16` / `10000` | ClickHouse queries of one organization running at once on each server replica (0 = no limit); more wait up to the timeout, then the API answers 429 ("retry shortly"). Background jobs (metric rollups, monitors, schedulers) are exempt |
 | `OC_POSTGRES_URL` | `postgres://observecraft:…@localhost:5432/observecraft` | Postgres connection string |
 | `OC_NATS_URL` | `nats://localhost:4222` | NATS for live tail |
 | `OC_CACHE_URL` | — | **Required.** Shared cache of all server replicas: Valkey (or another Redis-protocol server), `redis://[user:password@]host:6379/0` or `rediss://…` for TLS. The server exits at startup when it is unset or unreachable for 30 s; later outages only cost cache hits |

@@ -126,6 +126,18 @@
         "maxMemoryBytes": {
           "type": "integer",
           "minimum": 0
+        },
+        "maxRowsToRead": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "concurrencyPerOrg": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "queueTimeoutMs": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     },

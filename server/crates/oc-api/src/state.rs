@@ -15,6 +15,8 @@ pub struct AppState(pub Arc<Inner>);
 pub struct Inner {
     pub config: Config,
     pub clickhouse: clickhouse::Client,
+    /// Each org's ClickHouse client, with the org's query limits.
+    pub org_clients: crate::org_limits::OrgClients,
     /// Where tables physically live (single server or cluster), for DDL and mutations.
     pub tables: oc_store::ClickHouseConfig,
     pub postgres: sqlx::PgPool,
@@ -31,21 +33,11 @@ pub struct Inner {
 impl Inner {
     /// ClickHouse client for one organization's telemetry. Queries on the `otel.*` tables filter on
     /// `OrgId = {oc_org:String}`, a server-side query parameter this client always sends.
-    /// Each query is bounded in time and memory and counted against the org (`quota_key`), so a
-    /// ClickHouse quota keyed by client key can cap one org's load.
+    /// Each query is bounded in time and memory, runs in one of the org's query slots on this
+    /// replica (background jobs excepted) and is counted against the org (`quota_key`), so a
+    /// ClickHouse quota keyed by client key can cap one org's load (`crate::org_limits`).
     pub fn ch(&self, org: &str) -> clickhouse::Client {
-        self.clickhouse
-            .clone()
-            .with_option("param_oc_org", org)
-            .with_option("quota_key", org)
-            .with_option(
-                "max_execution_time",
-                self.config.query_timeout_secs.to_string(),
-            )
-            .with_option(
-                "max_memory_usage",
-                self.config.query_max_memory_bytes.to_string(),
-            )
+        self.org_clients.client(org)
     }
 }
 

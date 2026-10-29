@@ -66,8 +66,11 @@ spec:
             {{- end }}
             - { name: OC_SMTP_FROM, value: {{ .Values.smtp.from | quote }} }
             - { name: OC_SYNTHETICS_ALLOW_PRIVATE, value: {{ .Values.synthetics.allowPrivateTargets | quote }} }
-            - { name: OC_QUERY_TIMEOUT_SECONDS, value: {{ .Values.query.timeoutSeconds | quote }} }
-            - { name: OC_QUERY_MAX_MEMORY_BYTES, value: {{ .Values.query.maxMemoryBytes | int64 | quote }} }
+            - { name: OC_ORG_QUERY_TIMEOUT_SECONDS, value: {{ .Values.query.timeoutSeconds | quote }} }
+            - { name: OC_ORG_QUERY_MAX_MEMORY_BYTES, value: {{ .Values.query.maxMemoryBytes | int64 | quote }} }
+            - { name: OC_ORG_QUERY_MAX_ROWS_TO_READ, value: {{ .Values.query.maxRowsToRead | int64 | quote }} }
+            - { name: OC_ORG_QUERY_CONCURRENCY, value: {{ .Values.query.concurrencyPerOrg | quote }} }
+            - { name: OC_ORG_QUERY_QUEUE_TIMEOUT_MS, value: {{ .Values.query.queueTimeoutMs | quote }} }
             - { name: OC_RETENTION_LOGS_DAYS, value: {{ .Values.retention.logsDays | quote }} }
             - { name: OC_RETENTION_LOGS_MAX_DAYS, value: {{ .Values.retention.logsMaxDays | quote }} }
             - { name: OC_RETENTION_TRACES_DAYS, value: {{ .Values.retention.tracesDays | quote }} }
