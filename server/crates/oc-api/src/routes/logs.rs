@@ -11,13 +11,14 @@ use utoipa::ToSchema;
 
 use crate::error::{ApiError, ApiResult};
 use crate::log_access::LogAccess;
+use crate::routes::log_aggregates::{self, Bound, Plan, LOG_FACETS};
 use crate::routes::standard_attributes::org_paths;
 use crate::state::{AppState, OrgId};
 
 const MAX_RANGE_MS: i64 = 31 * 24 * 3600 * 1000;
 const MAX_LIMIT: u64 = 1000;
 
-#[derive(Deserialize, Serialize, ToSchema, Clone, Copy)]
+#[derive(Deserialize, Serialize, ToSchema, Clone, Copy, Debug, PartialEq)]
 pub struct TimeRange {
     /// Epoch milliseconds (inclusive).
     pub from: i64,
@@ -321,6 +322,9 @@ pub struct Facet {
     pub label: String,
     pub group: String,
     pub values: Vec<FacetValue>,
+    /// The counts are estimated from the newest logs of the range (too many logs to count them all).
+    #[serde(default)]
+    pub approximate: bool,
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -345,32 +349,43 @@ const FACETS: &[(&str, &str, &str)] = &[
     ("@http.status_code", "Status Code", "HTTP"),
 ];
 
-/// Top values of `key`; `skip_own` drops the key's own filter (facets keep showing unchecked values).
-#[allow(clippy::too_many_arguments)]
-async fn values_for(st: &AppState, org: &str, access: &LogAccess, range: TimeRange, terms: &[Term], key: &str, filter: Option<&str>, limit: i64, skip_own: bool) -> Result<Vec<ValueRow>, ApiError> {
-    let (expr, key_param) = LogsSchema.field(key);
-    let s = if skip_own { scope(org, access, range, terms, Some(key)) } else { top_scope(org, access, range, terms) };
-    let table = s.table;
+/// A plan to count the logs by `key`: from the facet aggregate when it can, else from the logs.
+/// `skip_own` drops the key's own filter (facets keep showing unchecked values).
+fn key_plan(org: &str, access: &LogAccess, range: TimeRange, terms: &[Term], key: &str, skip_own: bool, since: Option<i64>) -> Plan {
+    log_aggregates::plan(org, access, &LOG_FACETS, range, terms, skip_own.then_some(key), since, &[key])
+}
+
+/// The SQL of the top `limit` values of `key` in `plan` (containing `filter`, when set).
+fn values_query(plan: &Plan, key: &str, filter: Option<&str>, limit: i64) -> (String, Vec<Param>) {
+    let mut parts = Vec::new();
     let mut params = Vec::new();
+    if let (Some(agg), Some(column)) = (&plan.agg, LOG_FACETS.column(key)) {
+        parts.push(format!("SELECT toString({column}) AS v, sum(n) AS c FROM {} WHERE {} GROUP BY v", agg.table, agg.clause));
+        params.extend(agg.params.iter().cloned());
+    }
+    let (expr, key_param) = LogsSchema.field(key);
     params.extend(key_param.clone()); // SELECT expr
-    params.extend(s.params);
+    params.extend(plan.logs.params.iter().cloned());
     params.extend(key_param); // non-empty check
+    parts.push(format!("SELECT toString({expr}) AS v, count() AS c FROM {} WHERE {} AND {expr} != '' GROUP BY v", plan.logs.table, plan.logs.clause));
     let mut extra = String::new();
     if let Some(f) = filter {
         extra = " AND positionCaseInsensitive(v, ?) > 0".to_string();
         params.push(Param::Str(f.to_string()));
     }
     params.push(Param::Int(limit));
-    Ok(bind(
-        st.ch(org).query(&format!(
-            "SELECT toString({expr}) AS v, count() AS n FROM {table} WHERE {} AND {expr} != ''{extra} GROUP BY v ORDER BY n DESC LIMIT ?",
-            s.clause
-        )),
-        &params,
-    )
-    .fetch_all::<ValueRow>()
-    .await?)
+    (format!("SELECT v, sum(c) AS n FROM ({}) WHERE v != ''{extra} GROUP BY v ORDER BY n DESC LIMIT ?", parts.join(" UNION ALL ")), params)
 }
+
+/// Top values of `key` in `plan`.
+async fn values_for(st: &AppState, org: &str, plan: &Plan, key: &str, filter: Option<&str>, limit: i64) -> Result<Vec<ValueRow>, ApiError> {
+    let (sql, params) = values_query(plan, key, filter, limit);
+    Ok(bind(st.ch(org).query(&sql), &params).fetch_all::<ValueRow>().await?)
+}
+
+/// Facet counts read from the logs (not the facet aggregate) read at most about this many: the
+/// newest logs of the range when it has more, with estimated counts.
+const FACET_SCAN_ROWS: u64 = 1_000_000;
 
 #[derive(Deserialize, ToSchema)]
 pub struct LogFacetsRequest {
@@ -424,28 +439,61 @@ struct KeyValueRow {
 }
 
 /// One scan for the top `limit` values of every key: each matching log becomes (key, value) pairs.
-fn shared_facets_query(keys: &[&str], s: Scope, limit: i64) -> (String, Vec<Param>) {
+/// The aggregate's part of `plan` is used when it keeps every key.
+fn shared_facets_query(keys: &[&str], plan: &Plan, limit: i64) -> (String, Vec<Param>) {
+    let mut parts = Vec::new();
     let mut params = Vec::new();
-    let mut pairs = Vec::new();
-    for key in keys {
-        let (expr, key_param) = LogsSchema.field(key);
-        params.push(Param::Str((*key).to_string()));
-        params.extend(key_param);
-        pairs.push(format!("(?, toString({expr}))"));
+    let columns: Option<Vec<&str>> = keys.iter().map(|k| LOG_FACETS.column(k)).collect();
+    if let (Some(agg), Some(columns)) = (&plan.agg, columns) {
+        // The window's minutes collapse first, then each row becomes (key, value) pairs.
+        let pairs: Vec<String> = columns.iter().map(|c| format!("(?, toString({c}))")).collect();
+        params.extend(agg.params.iter().cloned());
+        params.extend(keys.iter().map(|k| Param::Str((*k).to_string())));
+        parts.push(format!(
+            "SELECT kv.1 AS k, kv.2 AS v, sum(c) AS c FROM (SELECT {cols}, sum(n) AS c FROM {} WHERE {} GROUP BY {cols}) ARRAY JOIN [{}] AS kv GROUP BY k, v",
+            agg.table,
+            agg.clause,
+            pairs.join(", "),
+            cols = columns.join(", ")
+        ));
     }
-    params.extend(s.params);
+    // The logs' value combinations are counted first, then each becomes (key, value) pairs.
+    let mut fields = Vec::new();
+    let mut pairs = Vec::new();
+    for (i, key) in keys.iter().enumerate() {
+        let (expr, key_param) = LogsSchema.field(key);
+        params.extend(key_param);
+        fields.push(format!("toString({expr}) AS f{i}"));
+        pairs.push(format!("(?, f{i})"));
+    }
+    params.extend(plan.logs.params.iter().cloned());
+    params.extend(keys.iter().map(|k| Param::Str((*k).to_string())));
+    let names: Vec<String> = (0..keys.len()).map(|i| format!("f{i}")).collect();
+    parts.push(format!(
+        "SELECT kv.1 AS k, kv.2 AS v, sum(c) AS c FROM (SELECT {}, count() AS c FROM {} WHERE {} GROUP BY {}) ARRAY JOIN [{}] AS kv GROUP BY k, v",
+        fields.join(", "),
+        plan.logs.table,
+        plan.logs.clause,
+        names.join(", "),
+        pairs.join(", ")
+    ));
     params.push(Param::Int(limit));
-    let sql = format!(
-        "SELECT kv.1 AS k, kv.2 AS v, count() AS n FROM (SELECT [{}] AS kvs FROM {} WHERE {}) ARRAY JOIN kvs AS kv \
-         WHERE v != '' GROUP BY k, v ORDER BY k, n DESC LIMIT ? BY k",
-        pairs.join(", "),
-        s.table,
-        s.clause
-    );
+    let sql = format!("SELECT k, v, sum(c) AS n FROM ({}) WHERE v != '' GROUP BY k, v ORDER BY k, n DESC LIMIT ? BY k", parts.join(" UNION ALL "));
     (sql, params)
 }
 
+/// Top values of the keys in one scan of `plan`.
+async fn shared_values(st: &AppState, org: &str, keys: &[&str], plan: &Plan, limit: i64) -> Result<Vec<KeyValueRow>, ApiError> {
+    if keys.is_empty() {
+        return Ok(Vec::new());
+    }
+    let (sql, params) = shared_facets_query(keys, plan, limit);
+    Ok(bind(st.ch(org).query(&sql), &params).fetch_all::<KeyValueRow>().await?)
+}
+
 /// Top values per facet. Each facet ignores its own filter so unchecked values keep their counts.
+/// Standard facets are counted from the facet aggregate when the search and the reader's
+/// restriction allow; other counts read the newest logs of the range, about a million at most.
 #[utoipa::path(post, path = "/api/v1/logs/facets", request_body = LogFacetsRequest,
     responses((status = 200, body = Vec<Facet>)), tag = "logs")]
 pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<LogFacetsRequest>) -> ApiResult<Vec<Facet>> {
@@ -454,46 +502,64 @@ pub async fn facets(State(st): State<AppState>, OrgId(org): OrgId, access: LogAc
     let extra = extra_facets(&req.extra);
     let keys: Vec<&str> = FACETS.iter().map(|(k, _, _)| *k).chain(extra.iter().map(String::as_str)).collect();
     let shared = shared_facet_keys(&keys, &terms);
-    let own: Vec<&str> = keys.iter().copied().filter(|k| !shared.contains(k)).collect();
-    let shared_rows = async {
-        if shared.is_empty() {
-            return Ok(Vec::new());
-        }
-        let (sql, params) = shared_facets_query(&shared, scope(&org, &access, req.range, &terms, None), 10);
-        Ok::<_, ApiError>(bind(st.ch(&org).query(&sql), &params).fetch_all::<KeyValueRow>().await?)
+    let own: Vec<&str> = keys.iter().copied().filter(|k| !shared.contains(k)).chain(["index"]).collect();
+    let ch = st.ch(&org);
+    let since = log_aggregates::since(&ch, &org, &LOG_FACETS).await?;
+    // Which counts the aggregate answers: the shared scan's kept keys, and each own-filter facet.
+    let shared_plan = log_aggregates::plan(&org, &access, &LOG_FACETS, req.range, &terms, None, since, &[]);
+    let (exact_shared, scanned_shared): (Vec<&str>, Vec<&str>) = shared.iter().partition(|k| shared_plan.agg.is_some() && LOG_FACETS.column(k).is_some());
+    let own_plans: Vec<Plan> = own.iter().map(|k| key_plan(&org, &access, req.range, &terms, k, true, since)).collect();
+    let bound = if !scanned_shared.is_empty() || own_plans.iter().any(|p| p.agg.is_none()) {
+        log_aggregates::bound_logs(&ch, &org, req.range, since, FACET_SCAN_ROWS).await?
+    } else {
+        Bound { range: req.range, factor: 1.0 }
     };
+    // The scanned counts: the bound's range, from the logs only.
+    let scanned_plan = log_aggregates::plan(&org, &access, &LOG_FACETS, bound.range, &terms, None, None, &[]);
+    let own_plans: Vec<(Plan, bool)> =
+        own.iter().zip(own_plans).map(|(k, p)| if p.agg.is_some() { (p, false) } else { (key_plan(&org, &access, bound.range, &terms, k, true, None), bound.approximate()) }).collect();
     let standard = async { Ok::<_, ApiError>(if extra.is_empty() { HashSet::new() } else { org_paths(&st, &org).await? }) };
-    let (shared_rows, own_rows, indexes, standard) = tokio::try_join!(
-        shared_rows,
-        try_join_all(own.iter().map(|key| values_for(&st, &org, &access, req.range, &terms, key, None, 10, true))),
-        values_for(&st, &org, &access, req.range, &terms, "index", None, 50, true),
+    let (exact_rows, scanned_rows, own_rows, standard) = tokio::try_join!(
+        shared_values(&st, &org, &exact_shared, &shared_plan, 10),
+        shared_values(&st, &org, &scanned_shared, &scanned_plan, 10),
+        try_join_all(own.iter().zip(&own_plans).map(|(key, (p, _))| values_for(&st, &org, p, key, None, if *key == "index" { 50 } else { 10 }))),
         standard,
     )?;
-    let mut by_key: HashMap<String, Vec<ValueRow>> = HashMap::new();
-    for r in shared_rows {
-        by_key.entry(r.k).or_default().push(ValueRow { v: r.v, n: r.n });
+    // Counts per key, and whether they are estimated.
+    let mut by_key: HashMap<String, (Vec<ValueRow>, bool)> = HashMap::new();
+    for r in exact_rows {
+        by_key.entry(r.k).or_default().0.push(ValueRow { v: r.v, n: r.n });
     }
-    for (key, rows) in own.iter().zip(own_rows) {
-        by_key.insert((*key).to_string(), rows);
+    for k in &scanned_shared {
+        by_key.insert((*k).to_string(), (Vec::new(), bound.approximate()));
     }
-    let results: Vec<Vec<ValueRow>> = FACETS.iter().map(|(k, _, _)| by_key.remove(*k).unwrap_or_default()).collect();
-    let added: Vec<Vec<ValueRow>> = extra.iter().map(|k| by_key.remove(k).unwrap_or_default()).collect();
-    let mut out = vec![Facet { key: "index".into(), label: "Index".into(), group: "CORE".into(), values: indexes.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect() }];
-    for ((key, label, group), rows) in FACETS.iter().zip(results) {
-        let mut values: Vec<FacetValue> = rows.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect();
+    for r in scanned_rows {
+        by_key.entry(r.k).or_default().0.push(ValueRow { v: r.v, n: bound.scale(r.n) });
+    }
+    for ((key, (_, estimated)), rows) in own.iter().zip(&own_plans).zip(own_rows) {
+        let rows = if *estimated { rows.into_iter().map(|r| ValueRow { v: r.v, n: bound.scale(r.n) }).collect() } else { rows };
+        by_key.insert((*key).to_string(), (rows, *estimated));
+    }
+    let facet = |key: &str, label: &str, group: &str, by_key: &mut HashMap<String, (Vec<ValueRow>, bool)>| {
+        let (rows, approximate) = by_key.remove(key).unwrap_or_default();
+        Facet { key: key.into(), label: label.into(), group: group.into(), values: rows.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect(), approximate }
+    };
+    let mut out = vec![facet("index", "Index", "CORE", &mut by_key)];
+    for (key, label, group) in FACETS {
+        let mut f = facet(key, label, group, &mut by_key);
         if *key == "status" {
             for s in ["error", "warn", "info", "debug"] {
-                if !values.iter().any(|v| v.value == s) {
-                    values.push(FacetValue { value: s.into(), count: 0 });
+                if !f.values.iter().any(|v| v.value == s) {
+                    f.values.push(FacetValue { value: s.into(), count: 0 });
                 }
             }
             let order = |s: &str| ["error", "warn", "info", "debug"].iter().position(|x| *x == s).unwrap_or(9);
-            values.sort_by_key(|v| order(&v.value));
+            f.values.sort_by_key(|v| order(&v.value));
         }
-        out.push(Facet { key: (*key).into(), label: (*label).into(), group: (*group).into(), values });
+        out.push(f);
     }
-    for (key, rows) in extra.into_iter().zip(added) {
-        out.push(Facet { label: key.trim_start_matches('@').into(), group: added_group(&key, &standard).into(), key, values: rows.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect() });
+    for key in extra {
+        out.push(facet(&key, key.trim_start_matches('@'), added_group(&key, &standard), &mut by_key));
     }
     Ok(Json(out))
 }
@@ -550,11 +616,6 @@ pub struct LogTopRequest {
     pub limit: Option<i64>,
 }
 
-/// The scope of top values: every filter applies, the counted key's own included.
-fn top_scope(org: &str, access: &LogAccess, range: TimeRange, terms: &[Term]) -> Scope {
-    scope(org, access, range, terms, None)
-}
-
 fn top_limit(limit: Option<i64>) -> i64 {
     limit.unwrap_or(10).clamp(1, 100)
 }
@@ -565,7 +626,8 @@ fn top_limit(limit: Option<i64>) -> i64 {
 pub async fn top(State(st): State<AppState>, OrgId(org): OrgId, access: LogAccess, Json(req): Json<LogTopRequest>) -> ApiResult<Vec<FacetValue>> {
     req.range.validate()?;
     let terms = parse_query(&req.query);
-    let rows = values_for(&st, &org, &access, req.range, &terms, &req.key, None, top_limit(req.limit), false).await?;
+    let since = log_aggregates::since(&st.ch(&org), &org, &LOG_FACETS).await?;
+    let rows = values_for(&st, &org, &key_plan(&org, &access, req.range, &terms, &req.key, false, since), &req.key, None, top_limit(req.limit)).await?;
     Ok(Json(rows.into_iter().map(|r| FacetValue { value: r.v, count: r.n }).collect()))
 }
 
@@ -742,7 +804,8 @@ pub async fn suggest(State(st): State<AppState>, OrgId(org): OrgId, access: LogA
         if key.is_empty() || !key.chars().all(|c| c.is_ascii_alphanumeric() || "_.-@".contains(c)) {
             return Ok(Json(vec![]));
         }
-        let rows = values_for(&st, &org, &access, req.range, &[], key, (!value.is_empty()).then_some(value), 6, true).await?;
+        let since = log_aggregates::since(&st.ch(&org), &org, &LOG_FACETS).await?;
+        let rows = values_for(&st, &org, &key_plan(&org, &access, req.range, &[], key, true, since), key, (!value.is_empty()).then_some(value), 6).await?;
         return Ok(Json(rows.into_iter().map(|r| QuerySuggestion { text: format!("{neg}{key}:{}", r.v), count: r.n }).collect()));
     }
     let lower = p.to_lowercase();
@@ -756,7 +819,9 @@ pub async fn suggest(State(st): State<AppState>, OrgId(org): OrgId, access: LogA
         return Ok(Json(keys));
     }
     // Values containing the text, across the common keys.
-    let per_key = try_join_all(["service", "host", "env", "kube_namespace"].iter().map(|k| values_for(&st, &org, &access, req.range, &[], k, Some(&lower), 3, true))).await?;
+    let since = log_aggregates::since(&st.ch(&org), &org, &LOG_FACETS).await?;
+    let plans: Vec<Plan> = ["service", "host", "env", "kube_namespace"].iter().map(|k| key_plan(&org, &access, req.range, &[], k, true, since)).collect();
+    let per_key = try_join_all(["service", "host", "env", "kube_namespace"].iter().zip(&plans).map(|(k, p)| values_for(&st, &org, p, k, Some(&lower), 3))).await?;
     let mut pairs: Vec<QuerySuggestion> = ["service", "host", "env", "kube_namespace"]
         .iter()
         .zip(per_key)
@@ -967,12 +1032,129 @@ mod tests {
         let keys = ["source", "service", "kube_namespace", "@http.method"];
         // `service` filters itself, so it keeps its own query; the others share one.
         assert_eq!(shared_facet_keys(&keys, &terms), vec!["source", "kube_namespace", "@http.method"]);
-        let scope = scope("o", &LogAccess::org_background(), TimeRange { from: 0, to: 1 }, &terms, None);
-        let scope_params = scope.params.len();
-        let (sql, params) = shared_facets_query(&["source", "kube_namespace", "@http.method"], scope, 10);
+        let plan = log_aggregates::plan("o", &LogAccess::org_background(), &LOG_FACETS, TimeRange { from: 0, to: 1 }, &terms, None, None, &[]);
+        let scope_params = plan.logs.params.len();
+        let (sql, params) = shared_facets_query(&["source", "kube_namespace", "@http.method"], &plan, 10);
         assert!(sql.contains("ARRAY JOIN") && sql.contains("LIMIT ? BY k"), "{sql}");
         // A label per key, a field parameter per tag or attribute, the scope, the limit.
         assert_eq!(params.len(), 3 + 2 + scope_params + 1);
+    }
+
+    #[test]
+    fn standard_facets_count_from_the_aggregate_and_the_logs_around_it() {
+        const T0: i64 = 1_793_095_200_000;
+        let range = TimeRange { from: T0 + 5_000, to: T0 + 30 * 60_000 };
+        let all = LogAccess::org_background();
+        let plan = log_aggregates::plan("o", &all, &LOG_FACETS, range, &parse_query("env:prod"), None, Some(T0), &[]);
+        let (agg_params, logs_params) = (plan.agg.as_ref().unwrap().params.len(), plan.logs.params.len());
+        let (sql, params) = shared_facets_query(&["source", "kube_namespace"], &plan, 10);
+        assert!(sql.contains("FROM oc.log_facets_1m WHERE ") && sql.contains(" UNION ALL "), "{sql}");
+        // The aggregate's scope and labels, then labels, a tag parameter and the logs' scope, then the limit.
+        assert_eq!(params.len(), agg_params + 2 + 2 + 1 + logs_params + 1);
+        assert_eq!(params[agg_params], Param::Str("source".into()));
+        // A key it doesn't keep: the logs only.
+        let (sql, _) = shared_facets_query(&["source", "pod_name"], &plan, 10);
+        assert!(!sql.contains("log_facets_1m"), "{sql}");
+        let (sql, params) = values_query(&key_plan("o", &all, range, &parse_query("service:billing"), "service", true, Some(T0)), "service", Some("bill"), 10);
+        assert!(sql.starts_with("SELECT v, sum(c) AS n FROM (SELECT toString(service) AS v, sum(n) AS c FROM oc.log_facets_1m WHERE "), "{sql}");
+        assert_eq!(&params[params.len() - 2..], &[Param::Str("bill".into()), Param::Int(10)]);
+        assert!(!values_query(&key_plan("o", &all, range, &[], "pod_name", true, Some(T0)), "pod_name", None, 10).0.contains("log_facets_1m"));
+    }
+
+    /// Standard facet counts from the facet aggregate (and the logs around it) are those counted from
+    /// the logs alone. Skipped unless OC_TEST_CLICKHOUSE_URL points at a ClickHouse server (user
+    /// `default`, or OC_TEST_CLICKHOUSE_USER / OC_TEST_CLICKHOUSE_PASSWORD).
+    #[tokio::test]
+    async fn facet_counts_from_the_aggregate_match_the_logs() {
+        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
+            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
+            return;
+        };
+        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+        let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
+        oc_store::migrate_clickhouse(&cfg, false).await.expect("migrate");
+        let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_database("oc");
+        let org = format!("facet-parity-{}", std::process::id());
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
+        let t0 = now / 60_000 * 60_000 - 30 * 60_000;
+        ch.query(&format!(
+            "INSERT INTO oc.logs (org_id, timestamp, status, service, host, source, message, tags, attr, retention_days) \
+             SELECT '{org}', fromUnixTimestamp64Milli(toInt64({t0} + number * 89)), ['info', 'warn', 'error', 'debug', 'info'][number % 5 + 1], \
+                    ['billing', 'checkout', 'order-service', 'catalog-service'][number % 4 + 1], concat('i-0a1b2c3d4e5f6000', toString(number % 3)), \
+                    ['python', 'go'][number % 2 + 1], concat('request ', toString(number)), \
+                    map('env', if(number % 6 = 0, 'staging', 'prod'), 'kube_namespace', ['payments', 'storefront'][number % 2 + 1], 'pod_name', concat('pod-', toString(number % 7))), \
+                    map('http.method', ['GET', 'POST'][number % 2 + 1]), [15, 3][number % 2 + 1] \
+             FROM numbers(8000)"
+        ))
+        .execute()
+        .await
+        .expect("insert logs");
+        let rows = |sql: String, params: Vec<Param>| {
+            let ch = ch.clone();
+            async move {
+                let mut rows: Vec<(String, String, u64)> =
+                    bind(ch.query(&sql), &params).fetch_all::<KeyValueRow>().await.unwrap_or_else(|e| panic!("{sql}: {e}")).into_iter().map(|r| (r.k, r.v, r.n)).collect();
+                rows.sort();
+                rows
+            }
+        };
+        let values = |sql: String, params: Vec<Param>| {
+            let ch = ch.clone();
+            async move {
+                let mut rows: Vec<(String, u64)> = bind(ch.query(&sql), &params).fetch_all::<ValueRow>().await.unwrap_or_else(|e| panic!("{sql}: {e}")).into_iter().map(|r| (r.v, r.n)).collect();
+                rows.sort();
+                rows
+            }
+        };
+        let since = log_aggregates::since(&ch, &org, &LOG_FACETS).await.unwrap();
+        assert_eq!(since, Some(t0 + 60_000));
+        let range = TimeRange { from: t0 + 30_250, to: t0 + 11 * 60_000 + 40_500 };
+        let keys = ["source", "host", "service", "status", "env", "kube_namespace"];
+        let mut used = 0;
+        for (query, access) in [
+            ("", LogAccess::org_background()),
+            ("env:prod -status:debug", LogAccess::org_background()),
+            ("service:(billing OR order-*)", LogAccess::org_background()),
+            ("", restricted_to("kube_namespace:payments")),
+            ("pod_name:pod-1", LogAccess::org_background()),
+            ("", restricted_to("@http.method:GET")),
+        ] {
+            let terms = parse_query(query);
+            let plan = log_aggregates::plan(&org, &access, &LOG_FACETS, range, &terms, None, since, &[]);
+            used += usize::from(plan.agg.is_some());
+            // Today's query, over the logs.
+            let mut params = Vec::new();
+            let mut pairs = Vec::new();
+            for key in keys {
+                let (expr, key_param) = LogsSchema.field(key);
+                params.push(Param::Str(key.to_string()));
+                params.extend(key_param);
+                pairs.push(format!("(?, toString({expr}))"));
+            }
+            let s = scope(&org, &access, range, &terms, None);
+            params.extend(s.params.clone());
+            params.push(Param::Int(100));
+            let reference = format!(
+                "SELECT kv.1 AS k, kv.2 AS v, count() AS n FROM (SELECT [{}] AS kvs FROM {} WHERE {}) ARRAY JOIN kvs AS kv \
+                 WHERE v != '' GROUP BY k, v ORDER BY k, n DESC LIMIT ? BY k",
+                pairs.join(", "),
+                s.table,
+                s.clause
+            );
+            let expected = rows(reference, params).await;
+            assert!(!expected.is_empty(), "{query}: no fixtures");
+            let (sql, params) = shared_facets_query(&keys, &plan, 100);
+            assert_eq!(rows(sql, params).await, expected, "facets of {query:?} (aggregate: {})", plan.agg.is_some());
+            // One facet without its own filter.
+            let s = scope(&org, &access, range, &terms, Some("service"));
+            let mut params = s.params.clone();
+            params.push(Param::Int(10));
+            let reference = format!("SELECT toString(service) AS v, count() AS n FROM {} WHERE {} AND service != '' GROUP BY v ORDER BY n DESC LIMIT ?", s.table, s.clause);
+            let (sql, own) = values_query(&key_plan(&org, &access, range, &terms, "service", true, since), "service", None, 10);
+            assert_eq!(values(sql, own).await, values(reference, params).await, "services of {query:?}");
+        }
+        assert_eq!(used, 4);
     }
 
     #[test]
@@ -981,7 +1163,7 @@ mod tests {
         let terms = parse_query("source:(etcd OR coredns) env:prod");
         // Facets drop their own key's filter; top values keep it.
         let all = LogAccess::org_background();
-        assert!(top_scope("o", &all, range, &terms).params.len() > scope("o", &all, range, &terms, Some("source")).params.len());
+        assert!(key_plan("o", &all, range, &terms, "source", false, None).logs.params.len() > key_plan("o", &all, range, &terms, "source", true, None).logs.params.len());
         assert_eq!(top_limit(None), 10);
         assert_eq!(top_limit(Some(0)), 1);
         assert_eq!(top_limit(Some(5000)), 100);

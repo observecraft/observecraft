@@ -81,6 +81,10 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
         "0008_k8s_generations",
         include_str!("../../../migrations/clickhouse/0008_k8s_generations.sql"),
     ),
+    (
+        "0012_log_aggregates",
+        include_str!("../../../migrations/clickhouse/0012_log_aggregates.sql"),
+    ),
 ];
 
 /// Migrations of the schema before 0001_schema (no org-first sort keys, no cluster support).
@@ -497,6 +501,28 @@ mod tests {
                 "not sorted by org first: {}",
                 &s[..80.min(s.len())]
             );
+        }
+    }
+
+    /// The log aggregates (error groups, standard facets): fed by views over the shard-local logs,
+    /// partitioned and expired by the logs' own retention, readable through Distributed tables.
+    #[test]
+    fn log_aggregates_follow_the_logs_on_one_server_and_in_a_cluster() {
+        let migration = CH_MIGRATIONS.iter().find(|(name, _)| *name == "0012_log_aggregates").map(|(_, sql)| *sql).expect("0012_log_aggregates is applied");
+        for table in ["oc.error_groups_1m", "oc.log_facets_1m"] {
+            let single = render(migration, None);
+            let create = single.iter().find(|s| s.starts_with(&format!("CREATE TABLE IF NOT EXISTS {table} "))).unwrap_or_else(|| panic!("no {table}"));
+            assert!(create.contains("PARTITION BY (toDate(minute), retention_days)"), "{create}");
+            assert!(create.contains("TTL minute + toIntervalDay(retention_days)"), "{create}");
+            assert!(create.contains("ORDER BY (org_id, minute"), "{create}");
+            let mv = single.iter().find(|s| s.starts_with(&format!("CREATE MATERIALIZED VIEW IF NOT EXISTS {table}_mv"))).unwrap_or_else(|| panic!("no view for {table}"));
+            assert!(mv.contains(&format!("TO {table} AS")) && mv.contains("FROM oc.logs\n"), "{mv}");
+
+            let cluster = render(migration, Some("oc"));
+            assert!(cluster.iter().any(|s| s.starts_with(&format!("CREATE TABLE IF NOT EXISTS {table}_local ON CLUSTER 'oc'")) && s.contains("ENGINE = Replicated")));
+            assert!(cluster.iter().any(|s| s.starts_with(&format!("CREATE TABLE IF NOT EXISTS {table} ON CLUSTER 'oc' AS {table}_local ENGINE = Distributed("))));
+            let mv = cluster.iter().find(|s| s.starts_with(&format!("CREATE MATERIALIZED VIEW IF NOT EXISTS {table}_mv ON CLUSTER 'oc'"))).unwrap();
+            assert!(mv.contains(&format!("TO {table}_local AS")) && mv.contains("FROM oc.logs_local\n"), "{mv}");
         }
     }
 

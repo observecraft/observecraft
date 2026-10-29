@@ -70,38 +70,51 @@ export function histogramFor(events: LogEvent[], range: TimeRange): HistogramBuc
   return buckets;
 }
 
+/** Facets the server counts exactly from its per-minute aggregate (when the search filters only on them). */
+const AGGREGATED_FACETS = new Set(['service', 'status', 'host', 'source', 'index', 'env', 'kube_cluster_name', 'region', 'kube_namespace', 'kube_deployment', 'container_name']);
+/** Like the server, other facet counts read only the newest logs of the range (scaled, marked approximate). */
+const MOCK_FACET_SCAN = 5000;
+
 export function mockSearchLogs(q: LogQuery): LogSearchResult {
   const terms = parseQuery(q.query);
   const scope = inRange(q.range);
   const hits = scope.filter((l) => matchLog(l, terms));
+  // `scope` is newest first.
+  const scanned = scope.slice(0, MOCK_FACET_SCAN);
+  const factor = scope.length / Math.max(scanned.length, 1);
+  const exact = (key: string) => AGGREGATED_FACETS.has(key) && terms.every((t) => t.kind === 'tag' && (t.key === key || AGGREGATED_FACETS.has(t.key)));
 
   // Facet counts ignore the facet's own filter so unchecked values still show counts.
   const facets: Facet[] = FACET_DEFS.map(({ key, label, group }) => {
+    const approximate = !exact(key) && scanned.length < scope.length;
     const counts = new Map<string, number>();
     if (key === 'status') for (const s of ['error', 'warn', 'info', 'debug']) counts.set(s, 0);
-    for (const l of scope) {
+    for (const l of approximate ? scanned : scope) {
       if (!matchLog(l, terms, key)) continue;
       const v = logField(l, key);
       if (v !== undefined) counts.set(v, (counts.get(v) ?? 0) + 1);
     }
     const order = ['error', 'warn', 'info', 'debug'];
-    const values = [...counts.entries()].map(([v, count]) => ({ value: v, count })).sort((a, b) => (key === 'status' ? order.indexOf(a.value) - order.indexOf(b.value) : b.count - a.count));
-    return { key, label, group, values };
+    const values = [...counts.entries()]
+      .map(([v, count]) => ({ value: v, count: approximate ? Math.round(count * factor) : count }))
+      .sort((a, b) => (key === 'status' ? order.indexOf(a.value) - order.indexOf(b.value) : b.count - a.count));
+    return { key, label, group, values, approximate };
   });
 
   const standard = standardPaths();
   for (const key of q.facets ?? []) {
     if (facets.some((f) => f.key === key)) continue;
+    const approximate = scanned.length < scope.length;
     const counts = new Map<string, number>();
-    for (const l of scope) {
+    for (const l of approximate ? scanned : scope) {
       const v = matchLog(l, terms, key) ? logField(l, key) : undefined;
       if (v !== undefined) counts.set(v, (counts.get(v) ?? 0) + 1);
     }
     const values = [...counts]
-      .map(([value, count]) => ({ value, count }))
+      .map(([value, count]) => ({ value, count: approximate ? Math.round(count * factor) : count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
-    facets.push({ key, label: key.replace(/^@/, ''), group: isStandard(key, standard) ? 'STANDARD ATTRIBUTES' : 'ADDED', values });
+    facets.push({ key, label: key.replace(/^@/, ''), group: isStandard(key, standard) ? 'STANDARD ATTRIBUTES' : 'ADDED', values, approximate });
   }
   return { logs: hits, total: hits.length, facets, histogram: histogramFor(hits, q.range), insights: insights(scope) };
 }

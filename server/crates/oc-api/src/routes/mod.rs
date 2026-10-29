@@ -39,6 +39,7 @@ pub mod log_indexes;
 pub mod log_metrics;
 pub mod log_pipelines;
 pub mod log_restrictions;
+pub mod log_aggregates;
 pub mod logs;
 pub mod metric_inventory;
 pub mod metric_rules;
@@ -1424,6 +1425,7 @@ mod tests {
             ("log_indexes.rs", include_str!("log_indexes.rs")),
             ("log_pipelines.rs", include_str!("log_pipelines.rs")),
             ("log_metrics.rs", include_str!("log_metrics.rs")),
+            ("log_aggregates.rs", include_str!("log_aggregates.rs")),
             ("logs.rs", include_str!("logs.rs")),
             ("metrics.rs", include_str!("metrics.rs")),
             ("metrics/dashboard.rs", include_str!("metrics/dashboard.rs")),
@@ -1445,7 +1447,7 @@ mod tests {
                     end += if bytes[end] == b'\\' { 2 } else { 1 };
                 }
                 let lit = &body[..end.min(body.len())];
-                let names_table = ["FROM otel.", "FROM oc.logs", "JOIN otel.", "JOIN oc.logs"]
+                let names_table = ["FROM otel.", "FROM oc.logs", "JOIN otel.", "JOIN oc.logs", "FROM oc.error_groups", "FROM oc.log_facets"]
                     .iter()
                     .any(|t| lit.contains(t));
                 if names_table && !lit.contains("OrgId") && !lit.contains("org_id") {
@@ -1538,6 +1540,7 @@ mod tests {
             ("llm_checks.rs", include_str!("llm_checks.rs")),
             ("log_indexes.rs", include_str!("log_indexes.rs")),
             ("log_metrics.rs", include_str!("log_metrics.rs")),
+            ("log_aggregates.rs", include_str!("log_aggregates.rs")),
             ("log_pipelines.rs", include_str!("log_pipelines.rs")),
             ("log_restrictions.rs", include_str!("log_restrictions.rs")),
             ("logs.rs", include_str!("logs.rs")),

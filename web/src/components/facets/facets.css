@@ -84,6 +84,11 @@
   color: var(--text-muted);
 }
 
+.facet-approximate {
+  color: var(--text-muted);
+  font-weight: var(--fw-regular);
+}
+
 .facet-actions {
   display: flex;
   gap: 2px;

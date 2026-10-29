@@ -44,6 +44,8 @@ const TELEMETRY_TABLES: &[(&str, &str)] = &[
     ("otel.profiles", "OrgId"),
     ("oc.logs_raw", "org_id"),
     ("oc.logs_rehydrated", "org_id"),
+    ("oc.error_groups_1m", "org_id"),
+    ("oc.log_facets_1m", "org_id"),
 ];
 
 /// Organization ids are also URL path segments and role-id prefixes (`<org>-admin`).

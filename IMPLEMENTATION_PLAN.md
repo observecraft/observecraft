@@ -137,7 +137,35 @@ Success criteria:
 - Per-minute aggregate for standard log facets; free-form facets bounded and marked approximate.
 - Errors page < 500 ms; facet counts < 300 ms on dev-sized logs.
 
-Status: Not Started
+Status: Complete
+
+Built: ClickHouse migration `0012_log_aggregates` adds `oc.error_groups_1m` (AggregatingMergeTree per org, minute,
+service, error_kind, error_key, index, host, source, env, version, kube_namespace: count, first/last seen, argMax
+sample) and `oc.log_facets_1m` (SummingMergeTree per org, minute and the default facets: index, service, status,
+host, source, env, kube_cluster_name, region, kube_namespace, kube_deployment, container_name), both fed by views
+over the shard-local `oc.logs`, partitioned and expired by the logs' `retention_days`. `routes/log_aggregates.rs`
+plans each read: whole minutes from the org's first complete aggregate minute on come from the aggregate, partial
+edge minutes and older logs from `oc.logs`, so results equal a read of the logs. Searches or restriction queries
+on anything else (free text, other tags, attributes, rehydrated logs) read the logs only. Facets the aggregate
+doesn't keep (pod_name, attributes, added facets), and every facet of such searches, scan at most ~1M of the
+newest logs of the range (from the aggregate's per-minute totals), scale the counts and return
+`approximate: true`, shown as "≈" in the facet panel (mocks too).
+
+Measured (local ClickHouse 26.8 limited to 2 vCPU / 6 GiB, synthetic dev-sized logs: 6.5M rows/h, 4% errors,
+40 services, 14 hosts; median of 5, ClickHouse CPU per call):
+
+| Read | Range | Before (raw logs) | After |
+|---|---|---|---|
+| Error groups (issues search) | 1 h / 2 h | 92 ms, 0.19 CPU-s / 84 ms, 0.21 CPU-s | 24 ms, 0.03 CPU-s / 27 ms, 0.03 CPU-s |
+| Errors page facets | 1 h / 2 h | 183 ms, 0.38 CPU-s / 191 ms, 0.43 CPU-s | 24 ms, 0.03 CPU-s / 25 ms, 0.03 CPU-s |
+| Log facets (all 14) | 1 h / 2 h | 2.26 s, 4.4 CPU-s / 3.37 s, 6.6 CPU-s | 174 ms, 0.33 CPU-s / 181 ms, 0.35 CPU-s |
+
+Before = the pre-stage SQL run directly; the endpoints forced onto the logs path (a no-op text term) give the
+same order (error groups 73–112 ms, Errors facets 99–265 ms). Of the log facets' 180 ms, the standard facets'
+query is ~110 ms (mostly the partial edge minutes read from the logs: ~2 granules per service) and runs in
+parallel with the bounded scan of pod_name and attributes (~130 ms). Error reads stay flat with the range; the
+standard facets' aggregate part grows with it (~565 rows per minute here). Parity: live tests compare both
+aggregate-backed queries with today's SQL on fixtures (edges, pre-aggregate logs, filters, restrictions).
 
 ## Stage 7: Cluster and per-org limits
 

@@ -2454,7 +2454,9 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Top values per facet. Each facet ignores its own filter so unchecked values keep their counts. */
+        /** Top values per facet. Each facet ignores its own filter so unchecked values keep their counts.
+         *     Standard facets are counted from the facet aggregate when the search and the reader's
+         *     restriction allow; other counts read the newest logs of the range, about a million at most. */
         post: operations["facets"];
         delete?: never;
         options?: never;
@@ -7715,6 +7717,8 @@ export interface components {
             traceId: string;
         };
         Facet: {
+            /** @description The counts are estimated from the newest logs of the range (too many logs to count them all). */
+            approximate?: boolean;
             group: string;
             key: string;
             label: string;

@@ -74,6 +74,17 @@ async fn schema_on_a_cluster() {
     )
     .await;
     assert_eq!(apart, 0, "a series' samples and its labels are on different shards");
+    // Logs land on both shards; each shard's views fill its error groups and facet counts, read
+    // back whole through the Distributed tables.
+    ch.query(
+        "INSERT INTO oc.logs (org_id, timestamp, status, service, host, message, tags) \
+         SELECT 'acme', now64(3), if(number % 2 = 0, 'error', 'info'), 'billing', 'i-0a1b2c3d4e5f60001', 'ValueError: order 7 not found', map('env', 'prod') FROM numbers(200)",
+    )
+    .execute()
+    .await
+    .expect("insert logs");
+    assert_eq!(count("SELECT toUInt64(sum(n)) AS n FROM oc.error_groups_1m WHERE org_id = 'acme'").await, 100);
+    assert_eq!(count("SELECT toUInt64(sum(n)) AS n FROM oc.log_facets_1m WHERE org_id = 'acme' AND env = 'prod'").await, 200);
     // Retention changes reach every shard's local table.
     oc_store::apply_retention(&cfg, oc_store::RetentionDays { traces: 7, traces_max: 30, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 0 }).await.expect("retention");
 }

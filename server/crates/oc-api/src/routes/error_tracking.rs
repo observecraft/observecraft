@@ -14,6 +14,7 @@ use crate::auth::Writer;
 use crate::log_access::LogAccess;
 use crate::error::{ApiError, ApiResult};
 use crate::routes::apm::ENTRY;
+use crate::routes::log_aggregates::{self, Plan, ERROR_GROUPS};
 use crate::routes::logs::{bind, scope, Facet, FacetValue, TimeRange};
 use crate::state::{AppState, OrgId};
 
@@ -525,6 +526,43 @@ pub struct IssueSearchPage {
     pub totals: HashMap<String, usize>,
 }
 
+/// The SQL of the error groups of `plan` (error logs of the aggregate's window and the rest of the
+/// range from the logs), with `buckets` sparkline buckets of `width` ms from `from`; `only` narrows
+/// to one issue's kind and key.
+pub(crate) fn issues_query(plan: &Plan, from: i64, width: i64, only: Option<(&str, &str)>, limit: i64) -> (String, Vec<Param>) {
+    let narrowing = if only.is_some() { " AND error_kind = ? AND error_key = ?" } else { "" };
+    let only_params = || only.map(|(kind, key)| vec![Param::Str(kind.into()), Param::Str(key.into())]).unwrap_or_default();
+    let mut parts = Vec::new();
+    let mut params = Vec::new();
+    if let Some(agg) = &plan.agg {
+        parts.push(format!(
+            "SELECT toString(service) AS service, toString(error_kind) AS kind, error_key AS key, intDiv(toInt64(toUnixTimestamp(minute)) * 1000 - ?, ?) AS b, \
+             sum(n) AS c, min(first_seen) AS f, max(last_seen) AS l, argMaxMergeState(sample) AS state \
+             FROM {} WHERE {}{narrowing} GROUP BY service, kind, key, b",
+            agg.table, agg.clause
+        ));
+        params.extend([Param::Int(from), Param::Int(width)]);
+        params.extend(agg.params.iter().cloned());
+        params.extend(only_params());
+    }
+    parts.push(format!(
+        "SELECT toString(service) AS service, toString(error_kind) AS kind, error_key AS key, intDiv(toUnixTimestamp64Milli(timestamp) - ?, ?) AS b, \
+         count() AS c, min(timestamp) AS f, max(timestamp) AS l, argMaxState(substringUTF8(message, 1, 300), timestamp) AS state \
+         FROM {} WHERE {} AND status = 'error'{narrowing} GROUP BY service, kind, key, b",
+        plan.logs.table, plan.logs.clause
+    ));
+    params.extend([Param::Int(from), Param::Int(width)]);
+    params.extend(plan.logs.params.iter().cloned());
+    params.extend(only_params());
+    params.push(Param::Int(limit));
+    let sql = format!(
+        "SELECT service, kind, key, argMaxMerge(state) AS sample, sum(c) AS n, toUnixTimestamp64Milli(min(f)) AS first, toUnixTimestamp64Milli(max(l)) AS last, \
+         sumMap([toUInt32(greatest(b, 0))], [c]) AS spark, '' AS lang FROM ({}) GROUP BY service, kind, key ORDER BY n DESC LIMIT ?",
+        parts.join(" UNION ALL ")
+    );
+    (sql, params)
+}
+
 /// The organization's issues from error logs in `range` (matching `query`), `buckets` per sparkline;
 /// with `only`, just that issue's logs.
 async fn load_issues(st: &AppState, org: &str, access: &LogAccess, range: TimeRange, query: &str, buckets: usize, only: Option<&IssueGroup>) -> Result<Vec<IssueGroup>, ApiError> {
@@ -532,34 +570,11 @@ async fn load_issues(st: &AppState, org: &str, access: &LogAccess, range: TimeRa
     if let Some(g) = only {
         terms.push(oc_query::Term::Tag { key: "service".into(), values: vec![g.service.clone()], negate: false });
     }
-    let s = scope(org, access, range, &terms, None);
+    let since = log_aggregates::since(&st.ch(org), org, &ERROR_GROUPS).await?;
+    let plan = log_aggregates::plan(org, access, &ERROR_GROUPS, range, &terms, None, since, &[]);
     let width = ((range.to - range.from) / buckets as i64).max(1);
-    // Bucket parameters first (they come first in the SQL), then the scope.
-    let mut params = vec![Param::Int(range.from), Param::Int(width)];
-    params.extend(s.params);
-    let narrowing = match only {
-        Some(g) => {
-            params.push(Param::Str(g.kind.clone()));
-            params.push(Param::Str(g.key.clone()));
-            " AND error_kind = ? AND error_key = ?".to_string()
-        }
-        None => String::new(),
-    };
-    params.push(Param::Int(GROUP_LIMIT));
-    let rows = bind(
-        st.ch(org).query(&format!(
-            "SELECT toString(service) AS service, toString(error_kind) AS kind, error_key AS key, \
-             argMax(substringUTF8(message, 1, 300), timestamp) AS sample, count() AS n, \
-             toUnixTimestamp64Milli(min(timestamp)) AS first, toUnixTimestamp64Milli(max(timestamp)) AS last, \
-             sumMap([toUInt32(intDiv(toUnixTimestamp64Milli(timestamp) - ?, ?))], [toUInt64(1)]) AS spark, '' AS lang \
-             FROM {} WHERE {} AND status = 'error'{narrowing} \
-             GROUP BY service, error_kind, error_key ORDER BY n DESC LIMIT ?",
-            s.table, s.clause
-        )),
-        &params,
-    )
-    .fetch_all::<ErrorRow>()
-    .await?;
+    let (sql, params) = issues_query(&plan, range.from, width, only.map(|g| (g.kind.as_str(), g.key.as_str())), GROUP_LIMIT);
+    let rows = bind(st.ch(org).query(&sql), &params).fetch_all::<ErrorRow>().await?;
     Ok(group_issues(rows, buckets, Source::Logs))
 }
 
@@ -916,7 +931,7 @@ pub(crate) struct FacetRow {
 /// Facets in [`ISSUE_FACETS`] order, most issues first, without empty values. Rows of several
 /// sources add up (their issues are distinct).
 pub(crate) fn issue_facets_of(rows: Vec<FacetRow>) -> Vec<Facet> {
-    let mut facets: Vec<Facet> = ISSUE_FACETS.iter().map(|(key, label)| Facet { key: key.to_string(), label: label.to_string(), group: String::new(), values: Vec::new() }).collect();
+    let mut facets: Vec<Facet> = ISSUE_FACETS.iter().map(|(key, label)| Facet { key: key.to_string(), label: label.to_string(), group: String::new(), values: Vec::new(), approximate: false }).collect();
     for r in rows.into_iter().filter(|r| !r.v.is_empty()) {
         if let Some(f) = facets.iter_mut().find(|f| f.key == r.k) {
             match f.values.iter_mut().find(|v| v.value == r.v) {
@@ -952,22 +967,39 @@ pub struct IssueFacetsOut {
 /// Values per facet in range: 20 per facet.
 const FACET_VALUES: i64 = 20;
 
+/// The SQL of the log issues per service, env and version of `plan`, `limit` values per facet.
+pub(crate) fn issue_facets_query(plan: &Plan, limit: i64) -> (String, Vec<Param>) {
+    let mut parts = Vec::new();
+    let mut params = Vec::new();
+    if let Some(agg) = &plan.agg {
+        parts.push(format!(
+            "SELECT toString(service) AS service, toString(error_kind) AS kind, error_key AS key, toString(env) AS env, toString(version) AS version \
+             FROM {} WHERE {} GROUP BY service, kind, key, env, version",
+            agg.table, agg.clause
+        ));
+        params.extend(agg.params.iter().cloned());
+    }
+    parts.push(format!(
+        "SELECT toString(service) AS service, toString(error_kind) AS kind, error_key AS key, tags['env'] AS env, tags['version'] AS version \
+         FROM {} WHERE {} AND status = 'error' GROUP BY service, kind, key, env, version",
+        plan.logs.table, plan.logs.clause
+    ));
+    params.extend(plan.logs.params.iter().cloned());
+    params.push(Param::Int(limit));
+    let sql = format!(
+        "SELECT kv.1 AS k, kv.2 AS v, uniqExact(service, kind, key) AS n FROM ({}) \
+         ARRAY JOIN [('service', service), ('env', env), ('version', version)] AS kv GROUP BY k, v ORDER BY n DESC LIMIT ? BY k",
+        parts.join(" UNION ALL ")
+    );
+    (sql, params)
+}
+
 /// Log issues per service, env and version.
 async fn log_facet_rows(st: &AppState, org: &str, access: &LogAccess, range: TimeRange, query: &str) -> Result<Vec<FacetRow>, ApiError> {
-    let s = scope(org, access, range, &parse_query(query), None);
-    let mut params = s.params;
-    params.push(Param::Int(FACET_VALUES));
-    Ok(bind(
-        st.ch(org).query(&format!(
-            "SELECT kv.1 AS k, kv.2 AS v, uniqExact(service, error_kind, error_key) AS n \
-             FROM {} ARRAY JOIN [('service', toString(service)), ('env', tags['env']), ('version', tags['version'])] AS kv \
-             WHERE {} AND status = 'error' GROUP BY k, v ORDER BY n DESC LIMIT ? BY k",
-            s.table, s.clause
-        )),
-        &params,
-    )
-    .fetch_all::<FacetRow>()
-    .await?)
+    let since = log_aggregates::since(&st.ch(org), org, &ERROR_GROUPS).await?;
+    let plan = log_aggregates::plan(org, access, &ERROR_GROUPS, range, &parse_query(query), None, since, &["service", "env", "version"]);
+    let (sql, params) = issue_facets_query(&plan, FACET_VALUES);
+    Ok(bind(st.ch(org).query(&sql), &params).fetch_all::<FacetRow>().await?)
 }
 
 /// APM issues per service, env and version.
@@ -1304,6 +1336,136 @@ mod tests {
         ];
         let facets = issue_facets_of(rows);
         assert_eq!(facets[0].values.iter().map(|v| (v.value.as_str(), v.count)).collect::<Vec<_>>(), vec![("billing", 6), ("checkout", 3)]);
+    }
+
+    /// Error groups and their facets read from the error aggregate (and the logs around it) are
+    /// those read from the logs alone, as before the aggregate. Skipped unless OC_TEST_CLICKHOUSE_URL
+    /// points at a ClickHouse server (user `default`, or OC_TEST_CLICKHOUSE_USER / OC_TEST_CLICKHOUSE_PASSWORD).
+    #[tokio::test]
+    async fn error_groups_from_the_aggregate_match_the_logs() {
+        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
+            eprintln!("OC_TEST_CLICKHOUSE_URL unset: skipping");
+            return;
+        };
+        let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
+        let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
+        let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
+        oc_store::migrate_clickhouse(&cfg, false).await.expect("migrate");
+        let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_database("oc");
+        let org = format!("error-parity-{}", std::process::id());
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
+        let t0 = now / 60_000 * 60_000 - 30 * 60_000;
+        // 12 minutes of logs every 97 ms: errors of 3 services, kinds from attributes and messages, 2 envs and versions.
+        ch.query(&format!(
+            "INSERT INTO oc.logs (org_id, timestamp, status, service, host, source, message, tags, attr, retention_days) \
+             SELECT '{org}', fromUnixTimestamp64Milli(toInt64({t0} + number * 97)), if(number % 3 = 0, 'info', 'error'), \
+                    ['billing', 'checkout', 'order-service'][number % 3 + 1], concat('i-0a1b2c3d4e5f6000', toString(number % 4)), 'python', \
+                    [concat('ValueError: order ', toString(number), ' not found'), concat('upstream timed out after ', toString(number % 30), 's'), \
+                     concat('java.lang.IllegalStateException: invoice ', toString(number % 7), ' locked')][number % 5 % 3 + 1], \
+                    map('env', if(number % 4 = 0, 'staging', 'prod'), 'version', concat('1.0.', toString(number % 2)), 'pod_name', concat('pod-', toString(number % 3))), \
+                    if(number % 5 = 2, map('error.kind', 'java.lang.IllegalStateException'), map()), 15 \
+             FROM numbers(7400)"
+        ))
+        .execute()
+        .await
+        .expect("insert logs");
+
+        #[derive(clickhouse::Row, Deserialize, Debug, PartialEq, PartialOrd)]
+        struct Facet3 {
+            k: String,
+            v: String,
+            n: u64,
+        }
+        let groups = |sql: String, params: Vec<Param>| {
+            let ch = ch.clone();
+            async move {
+                let mut rows: Vec<_> = bind(ch.query(&sql), &params)
+                    .fetch_all::<ErrorRow>()
+                    .await
+                    .unwrap_or_else(|e| panic!("{sql}: {e}"))
+                    .into_iter()
+                    .map(|r| (r.service, r.kind, r.key, r.message, r.n, r.first, r.last, r.spark.1.iter().sum::<u64>()))
+                    .collect();
+                rows.sort();
+                rows
+            }
+        };
+        let facets = |sql: String, params: Vec<Param>| {
+            let ch = ch.clone();
+            async move {
+                let mut rows = bind(ch.query(&sql), &params).fetch_all::<Facet3>().await.unwrap_or_else(|e| panic!("{sql}: {e}"));
+                rows.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                rows
+            }
+        };
+        let restricted = |q: &str| {
+            let rule = crate::log_access::Restriction { terms: parse_query(q), roles: ["r".to_string()].into(), teams: Default::default() };
+            LogAccess::resolve(&[rule], false, &["r".to_string()], &[])
+        };
+        // Partial minutes at both ends.
+        let range = TimeRange { from: t0 + 30_500, to: t0 + 11 * 60_000 + 20_250 };
+        let width = (range.to - range.from) / 12;
+        let check = |since: Option<i64>| {
+            let (groups, facets, org, restricted) = (&groups, &facets, org.clone(), &restricted);
+            async move {
+                let mut used = 0;
+                for (query, access) in [
+                    ("", LogAccess::org_background()),
+                    ("env:prod", LogAccess::org_background()),
+                    ("service:checkout -version:1.0.1", LogAccess::org_background()),
+                    ("service:checkout timed", LogAccess::org_background()),
+                    ("", restricted("env:staging")),
+                    ("", restricted("pod_name:pod-1")),
+                ] {
+                    let terms = parse_query(query);
+                    let p = log_aggregates::plan(&org, &access, &ERROR_GROUPS, range, &terms, None, since, &[]);
+                    used += usize::from(p.agg.is_some());
+                    // Today's queries, over the logs.
+                    let s = scope(&org, &access, range, &terms, None);
+                    let mut reference_params = vec![Param::Int(range.from), Param::Int(width)];
+                    reference_params.extend(s.params.clone());
+                    reference_params.push(Param::Int(GROUP_LIMIT));
+                    let reference = format!(
+                        "SELECT toString(service) AS service, toString(error_kind) AS kind, error_key AS key, \
+                         argMax(substringUTF8(message, 1, 300), timestamp) AS sample, count() AS n, \
+                         toUnixTimestamp64Milli(min(timestamp)) AS first, toUnixTimestamp64Milli(max(timestamp)) AS last, \
+                         sumMap([toUInt32(intDiv(toUnixTimestamp64Milli(timestamp) - ?, ?))], [toUInt64(1)]) AS spark, '' AS lang \
+                         FROM {} WHERE {} AND status = 'error' GROUP BY service, error_kind, error_key ORDER BY n DESC LIMIT ?",
+                        s.table, s.clause
+                    );
+                    let expected = groups(reference, reference_params).await;
+                    assert!(!expected.is_empty() , "{query}: no fixtures");
+                    let (sql, params) = issues_query(&p, range.from, width, None, GROUP_LIMIT);
+                    assert_eq!(groups(sql, params).await, expected, "groups of {query:?} (aggregate: {})", p.agg.is_some());
+                    // One issue's own logs.
+                    if let Some((_, kind, key, ..)) = expected.first() {
+                        let (sql, params) = issues_query(&p, range.from, width, Some((kind, key)), GROUP_LIMIT);
+                        let only: Vec<_> = expected.iter().filter(|g| &g.1 == kind && &g.2 == key).cloned().collect();
+                        assert_eq!(groups(sql, params).await, only, "one issue of {query:?}");
+                    }
+                    let mut reference_params = s.params.clone();
+                    reference_params.push(Param::Int(FACET_VALUES));
+                    let reference = format!(
+                        "SELECT kv.1 AS k, kv.2 AS v, uniqExact(service, error_kind, error_key) AS n \
+                         FROM {} ARRAY JOIN [('service', toString(service)), ('env', tags['env']), ('version', tags['version'])] AS kv \
+                         WHERE {} AND status = 'error' GROUP BY k, v ORDER BY n DESC LIMIT ? BY k",
+                        s.table, s.clause
+                    );
+                    let (sql, params) = issue_facets_query(&p, FACET_VALUES);
+                    assert_eq!(facets(sql, params).await, facets(reference, reference_params).await, "facets of {query:?}");
+                }
+                used
+            }
+        };
+        let since = log_aggregates::since(&ch, &org, &ERROR_GROUPS).await.unwrap();
+        assert_eq!(since, Some(t0 + 60_000), "the first minute may be partial");
+        // The aggregate answers the searches and restrictions it can express (4 of 6).
+        assert_eq!(check(since).await, 4);
+        // Logs from before the aggregate (here: its first minutes dropped) come from the logs.
+        ch.query("ALTER TABLE oc.error_groups_1m DELETE WHERE org_id = ? AND minute < fromUnixTimestamp64Milli(?) SETTINGS mutations_sync = 2").bind(&org).bind(t0 + 4 * 60_000).execute().await.unwrap();
+        assert_eq!(check(Some(t0 + 5 * 60_000)).await, 4);
+        // No aggregate yet: the logs alone.
+        assert_eq!(check(None).await, 0);
     }
 
     #[test]
