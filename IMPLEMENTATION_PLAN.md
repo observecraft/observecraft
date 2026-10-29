@@ -92,7 +92,40 @@ Success criteria:
 - Under the load profile: series rows/h ≤ 2 × active series; rollup rows/h ≈ series × buckets; merge CPU at
   least 3× lower than baseline.
 
-Status: Not Started
+Verified:
+Measured locally (2026-10-29): ClickHouse 26.8 in a 4-vCPU container, collector 0.163.2, server + intake
+(debug builds) against it; a Datadog `/api/v2/series` load of 91,140 series (Kubernetes Overview metrics with
+~20 tags each, plus application metrics; 4,840 names) every 15 s, 6,076 points/s, one org. Baseline = e9bfa94
+for 30 min, then the new binaries on the same data (migrations 0009/0010 and Postgres 0047 applied as an
+upgrade). Rows and CPU from `system.part_log` / `system.query_log` over 25 min, scaled to an hour.
+
+| Table | Before rows/h | After rows/h | Before bytes/h | After bytes/h |
+|---|---|---|---|---|
+| `metrics_samples` | 21.9 M | 21.8 M | 329 MiB | 328 MiB |
+| `metrics_series` | 21.9 M | 0.09 M steady (0.22 M in the window: intake start + the hour boundary) | 734 MiB | 7 MiB |
+| `metrics_rollup_5m` | 21.9 M | 1.1 M steady (2.4 M in the window: 45 min of catch-up) | 963 MiB | 75 MiB |
+| `metrics_rollup_1h` | 21.9 M | 0.09 M | 963 MiB | 9 MiB |
+| `metrics_tags` (stage 3) | — | 1.5 M per hour boundary (3.5 M in the window incl. the backfill) | — | 19 MiB |
+
+- Series rows/h ≈ 1 × active series; 5m rollups = series × 12; 1h = series. Write amplification ~9× → ~1.4×.
+- ClickHouse insert CPU 184 → 45 s/h; merges of the metric tables 47 → 15 s/h (3.1×; all merges incl.
+  system tables 164 → 114 s/h). Select CPU 3 → 31 s/h: the rollup job (~0.5 s per 5-minute bucket of this
+  org) plus the measurement queries in the window.
+- Rollup job: 24 h of empty backfill caught up in two ticks, the 45 min with data in one query (475 ms,
+  11.4 M samples read, 547 k rows written); then lag 196–256 s (2 min lateness + the open bucket).
+- Tests: intake marking, hour rollover, eviction, org separation, nothing remembered before delivery; the
+  wiring marks the second delivery (fake collector); series views skip marked points and samples carry every
+  tier (ClickHouse); rollups equal the samples' aggregates, a re-roll after a late point replaces rows
+  (FINAL), distributions keep first/last/totals; closed-bucket selection, lateness, catch-up in hour steps;
+  Postgres claim (SKIP LOCKED), advance, moved-back progress wins, lag.
+- Parity: `new_storage_matches_the_exporter_tables` and `distributions_match_the_exporter_tables` against a
+  test-owned copy of the exporter tables (ours are dropped), raw and from rollups with the job's progress at
+  everything / partly / nothing rolled up; a mutation of the tail boundary fails both.
+- Not done: OTLP passthrough stays unmarked (Stage 1 measured decoding as affordable, but the intake's OTLP
+  types are partial: marking it needs lossless splitting). Cluster run of the new DDL not done here (the
+  rendered DDL is unit-tested in both modes).
+
+Status: Complete (single node)
 
 ## Stage 3: Tag index and tag values
 
@@ -104,7 +137,22 @@ Success criteria:
 - Template variable values and the metric catalog read the small tables.
 - Tag values < 100 ms and series resolution of a filtered widget < 100 ms on the load profile.
 
-Status: Not Started
+Verified (same setup as Stage 2):
+- Index rows carry where a value comes from (Scope bits: point attribute, resource attribute, service, the
+  value a plain key reads), so `kube_namespace:x` (resource-only alias), `k8s.namespace.name:x` (point
+  attribute wins), `service:x` and missing tags resolve exactly as the label-map expressions:
+  `the_tag_index_resolves_series_like_the_label_maps` (15 filter/group shapes incl. shadowed keys,
+  wildcards, negations, presence; a mutation of the mapping fails it). All parity tests above run through it.
+- Template variable values of the Kubernetes Overview (9 keys): 54–125 ms each, 835 ms together → 4–24 ms
+  each, 66–71 ms together. Catalog and tag values parity with the oracle (`direct_readers_match_the_exporter_tables`).
+- A filtered widget (`sum:kubernetes.cpu.usage.total{kube_namespace:shop-billing,!kube_container_name:sidecar}
+  by {pod_name}`, 1 h): index lookups 8 and 53 ms (16 k and 25 k rows read); the points query reads only the
+  matching series (590 k rows, 163 ms).
+- Backfill of existing series in migration 0010: 1.46 M index rows from 91 k series.
+- Cluster: tags sharded by SeriesId with series and samples, values by (org, key); point queries use
+  `distributed_product_mode = 'local'`. Rendered DDL unit-tested; not run on a real cluster here.
+
+Status: Complete (single node)
 
 ## Stage 4: Dashboard query execution
 
@@ -115,7 +163,30 @@ Success criteria:
 - No per-series per-interval `uniqExact`/`medianExactIf`; parity tests with today's results.
 - Kubernetes Overview dashboard fully rendered < 2 s on dev-sized load, single node, 4 vCPU.
 
-Status: Not Started
+Verified (same setup; the 53 queries the page sends, from the web's own `collectDashboardQueries`; 37 known
+metrics, 16 that the load doesn't send):
+
+| | Before (shared scans) | Stage 3 | Stage 4 |
+|---|---|---|---|
+| Last hour, first run | 633 ms | 435 ms | 563–577 ms (37 queries, uncached) |
+| Last hour, repeated | 577–955 ms | 382–391 ms | 28–30 ms (cached) |
+| Last 6 hours, uncached | — | — | 827 ms |
+| ClickHouse per run | 4.4 M rows, 1.6 s CPU | 7.8 M rows, 1.4 s CPU | 13.0 M rows, 2.1 s CPU uncached (more rows: each widget resolves its own series); 0 cached |
+
+- Widget results equal the previous shared scan (kept as the test oracle) for gauges, counters, deltas and
+  up-down sums, filters, groups and `.weighted()`, raw and from rollups
+  (`widget_queries_match_the_shared_scan_on_samples_and_rollups`).
+- `.weighted()` counts samples with `count()` (rollups: `sum(Count)`) and takes the mean cadence over the
+  group's series instead of `uniqExact` per series and `medianExactIf`: identical for series with one point
+  per timestamp and a regular cadence; series with duplicate timestamps or mixed cadences differ (documented
+  in the code).
+- Cache: `crate::ttl_cache` (shared, swappable for the Valkey cache), entries min(step, 30 s) keyed by org +
+  SQL + values, range in whole steps; concurrent identical queries wait for one execution. The live stream
+  still sends a snapshot, then deltas.
+- Local data is ~1 h old and the series table small, so absolute times are below dev's 15–20 s; dev
+  (2 vCPU, 760 k series rows) should be re-measured after deploying.
+
+Status: Complete (single node)
 
 ## Stage 5: Kubernetes inventory as columns
 
