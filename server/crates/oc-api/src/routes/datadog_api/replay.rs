@@ -372,7 +372,12 @@ pub struct TestServer {
 impl TestServer {
     /// None (the test is skipped) unless the live test databases are configured.
     pub async fn start(prefix: &str) -> Option<TestServer> {
-        let (_, mut states) = crate::test_support::replicas(1).await?;
+        Self::start_with(prefix, |_| {}).await
+    }
+
+    /// [`TestServer::start`] with the server configuration adjusted by `configure`.
+    pub async fn start_with(prefix: &str, configure: impl Fn(&mut crate::config::Config)) -> Option<TestServer> {
+        let (_, mut states) = crate::test_support::replicas_with(1, configure).await?;
         let st = states.remove(0);
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().expect("addr");

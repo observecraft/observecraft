@@ -329,6 +329,12 @@ pub async fn list_my_app_keys(State(st): State<AppState>, DdAuth(ctx): DdAuth, Q
 /// Creates an application key (`ocak_…`) for the caller (Datadog-compatible); the secret is in this answer only.
 #[utoipa::path(post, path = "/api/v2/current_user/application_keys", operation_id = "datadog_create_current_user_application_key", request_body = super::users::DatadogIamDocument, responses((status = 201, body = super::users::DatadogIamDocument), (status = 400, body = super::DatadogErrors)), tag = "datadog-api")]
 pub async fn create_my_app_key(State(st): State<AppState>, DdAuth(ctx): DdAuth, raw: Bytes) -> DocResult {
+    if !st.config.datadog_api_allow_app_key_creation {
+        return Err(DdError::new(
+            StatusCode::FORBIDDEN,
+            "Creating application keys with an application key is turned off on this server. Create the key in ObserveCraft (Organization Settings → Application Keys), or set OC_DATADOG_API_ALLOW_APP_KEY_CREATION=true to let the Datadog-compatible API (e.g. Terraform's datadog_application_key) create them.",
+        ));
+    }
     let doc = body(&raw)?;
     let attrs = data(&doc)?.get("attributes").cloned().unwrap_or(Value::Null);
     let name = key_name(&attrs)?;
@@ -449,8 +455,20 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn application_keys_through_the_api_need_the_setting() {
+        // Off by default: a leaked key must not be able to mint keys that outlive its revocation.
+        let Some(s) = TestServer::start("dd-app-keys-off").await else { return };
+        let (code, err) =
+            send(&s, &s.app_key, Method::POST, "/api/v2/current_user/application_keys", Some(json!({ "data": { "type": "application_keys", "attributes": { "name": "ci" } } }))).await;
+        assert_eq!(code, 403, "{err}");
+        assert!(err["errors"][0].as_str().unwrap_or_default().contains("OC_DATADOG_API_ALLOW_APP_KEY_CREATION"), "{err}");
+        let (count,): (i64,) = sqlx::query_as("SELECT count(*) FROM app_keys WHERE org_id = $1").bind(&s.org).fetch_one(&s.st.postgres).await.unwrap();
+        assert_eq!(count, 1, "only the test's own key exists");
+    }
+
+    #[tokio::test]
     async fn application_keys_belong_to_their_user() {
-        let Some(s) = TestServer::start("dd-app-keys").await else { return };
+        let Some(s) = TestServer::start_with("dd-app-keys", |c| c.datadog_api_allow_app_key_creation = true).await else { return };
         let (member, member_key) = user_with_app_key(&s.st, &s.org, "readonly").await;
         let (code, created) =
             send(&s, &member_key, Method::POST, "/api/v2/current_user/application_keys", Some(json!({ "data": { "type": "application_keys", "attributes": { "name": "ci" } } }))).await;
@@ -503,7 +521,7 @@ mod tests {
 
     #[tokio::test]
     async fn replays_datadogs_key_management_scenarios() {
-        let Some(s) = TestServer::start("dd-keys-replay").await else { return };
+        let Some(s) = TestServer::start_with("dd-keys-replay", |c| c.datadog_api_allow_app_key_creation = true).await else { return };
         let f = Feature::load("v2/key_management");
         let mut problems = vec![];
         let mut replayed = 0;

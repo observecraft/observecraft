@@ -88,7 +88,7 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 | `datadog_team`, `datadog_team_membership`, `datadog_team` / `datadog_team_memberships` (data sources) | `/api/v2/team` (+ `/memberships`), `/api/v2/users/{id}/memberships` | ✅ |
 | `datadog_team_link` | `/api/v2/team/{id}/links` | Not supported (teams have no links; listed as none) |
 | `datadog_api_key` | `/api/v2/api_keys` | ✅ |
-| `datadog_application_key` | `/api/v2/current_user/application_keys`, `/api/v2/application_keys` | ✅ |
+| `datadog_application_key` | `/api/v2/current_user/application_keys`, `/api/v2/application_keys` | ✅ creating keys needs `OC_DATADOG_API_ALLOW_APP_KEY_CREATION=true` ([details](#users-roles-teams-and-keys)) |
 | `datadog_monitor`, `datadog_monitor_json`, `datadog_monitor` / `datadog_monitors` (data sources) | `/api/v1/monitor` (create, list, get, update, delete), `/api/v1/monitor/validate`, `/api/v1/monitor/{id}/validate`, `/api/v1/monitor/can_delete`, `/api/v1/monitor/search` | ✅ [details](#monitors) |
 | `datadog_downtime_schedule` | `/api/v2/downtime` (create, list, get, update, cancel), `/api/v2/monitor/{id}/downtime_matches` | ✅ [details](#downtimes) |
 | `datadog_downtime` (deprecated by the provider) | `/api/v1/downtime` (create, list, get, update, cancel), `/api/v1/downtime/cancel/by_scope` | ✅ [details](#downtimes) |
@@ -298,7 +298,7 @@ API keys, as in our own API; every member can read them. Standard users create a
 - **API keys** are ingest keys (`ocik_…`), **application keys** ours (`ocak_…`). The secret is returned once, when the
   key is created, and stored hashed; Terraform keeps it in its state. Later reads don't include it, so the
   deprecated `datadog_api_key` data source, which needs it, reports that it can't read the key. Destroying a key
-  revokes it. `datadog_application_key` creates a key for the provider's own user, with that user's role; scoped keys
+  revokes it. Creating application keys through this API is off by default (`OC_DATADOG_API_ALLOW_APP_KEY_CREATION=false`): the caller is itself an application key, and a leaked key could otherwise create keys that keep working after it is revoked. With it off, `POST /api/v2/current_user/application_keys` answers 403 and keys are created in ObserveCraft (Organization Settings → Application Keys); listing, renaming and revoking keys work either way. `datadog_application_key` creates a key for the provider's own user, with that user's role; scoped keys
   (`scopes`) and `remote_config_read_enabled = true` are rejected because ObserveCraft doesn't enforce scopes and has no
   remote configuration.
 

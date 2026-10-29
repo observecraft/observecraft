@@ -298,6 +298,7 @@ most important ones:
 | `OC_POSTGRES_URL` | `postgres://observecraft:…@localhost:5432/observecraft` | Postgres connection string |
 | `OC_NATS_URL` | `nats://localhost:4222` | NATS for live tail |
 | `OC_CACHE_URL` | — | **Required.** Shared cache of all server replicas: Valkey (or another Redis-protocol server), `redis://[user:password@]host:6379/0` or `rediss://…` for TLS. The server exits at startup when it is unset or unreachable for 30 s; later outages only cost cache hits |
+| `OC_DATADOG_API_ALLOW_APP_KEY_CREATION` | `false` | Lets the Datadog-compatible API create application keys when the caller is itself an application key (Terraform's `datadog_application_key`). Off by default so a leaked key can't create keys that outlive its revocation; see [docs/datadog-api.md](docs/datadog-api.md) |
 | `OC_CACHE_MAX_VALUE_BYTES` / `OC_CACHE_LOAD_TIMEOUT_SECONDS` | `8388608` / `30` | Largest value stored (after compression); how long replicas wait for another replica's load of the same entry |
 | `OC_INVENTORY_CACHE_MAX_OBJECTS` | `500000` | Kubernetes objects the in-process inventory cache keeps over all orgs |
 | `OC_PUBLIC_URL` | `http://localhost:5173` | Origin users open the app on (SSO redirects, login links, notification links) |
