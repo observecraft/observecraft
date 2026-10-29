@@ -764,7 +764,7 @@ pub(crate) struct Group {
     pub points: Vec<(i64, f64)>,
 }
 
-#[derive(clickhouse::Row, Deserialize)]
+#[derive(clickhouse::Row, Deserialize, Serialize)]
 struct Row {
     g: Vec<String>,
     ts: i64,
@@ -857,7 +857,7 @@ async fn inner_query_at_step(
         None => resolution(range, step, now_ms(), org_tiers(st, org).await?),
     };
     let done = if source == Source::Samples { Default::default() } else { metric_rollups::progress(st, org).await? };
-    let (sql, p) = points_query(kind, source, q, range, step / 1000, scale, done);
+    let (sql, p) = points_query(kind, source, q, range, step / 1000, PointsOptions { scale, done, coverage: false });
     params.extend(p);
     Ok((sql, params, step))
 }
@@ -941,17 +941,25 @@ pub(crate) fn name_list(names: &[&str]) -> String {
         .join(", ")
 }
 
-/// Per-series, per-interval values (g, t, sid, v) of a gauge or sum metric from series + samples
-/// or a rollup (up to the rollup job's progress `done`, see [`rollup_rows`]). Returns the SQL and its params.
-fn points_query(
-    kind: Kind,
-    source: Source,
-    q: &MetricQuery,
-    range: TimeRange,
-    step_s: i64,
+/// How [`points_query`] reads: the value scale (aliases), the rollup job's progress, and whether
+/// to add each series' samples per interval (`samples`, `first_seen`, `last_seen` in epoch ms).
+#[derive(Clone, Copy, Debug)]
+struct PointsOptions {
     scale: f64,
     done: metric_rollups::Progress,
-) -> (String, Vec<Param>) {
+    coverage: bool,
+}
+
+impl Default for PointsOptions {
+    fn default() -> Self {
+        PointsOptions { scale: 1.0, done: Default::default(), coverage: false }
+    }
+}
+
+/// Per-series, per-interval values (g, t, sid, v) of a gauge or sum metric from series + samples
+/// or a rollup (up to the rollup job's progress, see [`rollup_rows`]). Returns the SQL and its params.
+fn points_query(kind: Kind, source: Source, q: &MetricQuery, range: TimeRange, step_s: i64, options: PointsOptions) -> (String, Vec<Param>) {
+    let PointsOptions { scale, done, coverage } = options;
     // Raw points (Value, TimeUnix) or rollup buckets (Sum, Count, Min, Max, Start, End).
     let rolled = source != Source::Samples;
     // A gauge's `.rollup(method)`: the method over raw points, or over the rollup buckets' columns.
@@ -984,6 +992,13 @@ fn points_query(
         (Kind::Counter, true) => " HAVING sum(Count) > 1",
         _ => "",
     };
+    // How many samples each series has in the interval, and their first and last time (a rollup
+    // row stores its count and the times of its first and last sample).
+    let cov = match (coverage, rolled) {
+        (false, _) => "",
+        (true, false) => ", count() AS samples, min(toUnixTimestamp64Milli(x.TimeUnix)) AS first_seen, max(toUnixTimestamp64Milli(x.TimeUnix)) AS last_seen",
+        (true, true) => ", sum(x.Count) AS samples, min(toUnixTimestamp64Milli(x.Start)) AS first_seen, max(toUnixTimestamp64Milli(x.End)) AS last_seen",
+    };
     let mut params = Vec::new();
     // Series are resolved through the tag index (labels filtered and grouped there), then joined
     // to the points by SeriesId. A rollup bucket counts in the interval it starts in.
@@ -1001,7 +1016,7 @@ fn points_query(
             None => String::new(),
         };
         format!(
-            "SELECT s.g AS g, toStartOfInterval(x.TimeUnix, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid, {v} AS v FROM otel.metrics_samples AS x \
+            "SELECT s.g AS g, toStartOfInterval(x.TimeUnix, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid, {v} AS v{cov} FROM otel.metrics_samples AS x \
              INNER JOIN {series} AS s ON x.SeriesId = s.SeriesId \
              WHERE x.OrgId = {{oc_org:String}} AND x.MetricName = ? \
                AND x.TimeUnix >= toStartOfInterval(fromUnixTimestamp64Milli(?), INTERVAL 1 SECOND) AND x.TimeUnix <= fromUnixTimestamp64Milli(?){only_sql} \
@@ -1012,7 +1027,7 @@ fn points_query(
         params.extend(rows_params);
         params.extend(series_params);
         format!(
-            "SELECT s.g AS g, toStartOfInterval(x.Bucket, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid, {v} AS v FROM {rows} AS x \
+            "SELECT s.g AS g, toStartOfInterval(x.Bucket, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid, {v} AS v{cov} FROM {rows} AS x \
              INNER JOIN {series} AS s ON x.SeriesId = s.SeriesId GROUP BY g, t, sid{having}"
         )
     };
@@ -1650,7 +1665,7 @@ mod tests {
     #[test]
     fn a_rollup_method_combines_a_gauges_points_within_the_interval() {
         let range = TimeRange { from: 0, to: 3_600_000 };
-        let sql = |q: &str, source| points_query(Kind::Gauge, source, &parse_metric_query(q).unwrap(), range, 60, 1.0, Default::default()).0;
+        let sql = |q: &str, source| points_query(Kind::Gauge, source, &parse_metric_query(q).unwrap(), range, 60, PointsOptions::default()).0;
         assert!(sql("sum:k.terminated{*}", Source::Samples).contains("avg(Value) AS v"));
         assert!(sql("sum:k.terminated{*}.rollup(max)", Source::Samples).contains("max(Value) AS v"));
         assert!(sql("sum:k.terminated{*}.rollup(max)", Source::Rollup5m).contains("max(Max) AS v"));
@@ -1888,7 +1903,7 @@ mod tests {
             {
                 let run = |source: Option<Source>| {
                     let (inner, params) = match source {
-                        Some(source) => points_query(kind, source, &q, range, step_s, 1.0, done),
+                        Some(source) => points_query(kind, source, &q, range, step_s, PointsOptions { done, ..Default::default() }),
                         None => exporter_points_query(kind, &q, range, step_s),
                     };
                     let sql = format!(

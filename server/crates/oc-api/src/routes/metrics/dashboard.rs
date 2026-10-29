@@ -1,4 +1,7 @@
-//! Dashboard-wide execution: tenant-scoped shared scans, isolated query errors and incremental SSE.
+//! Dashboard-wide execution: one query per widget query, run concurrently (at most
+//! [`CONCURRENT_QUERIES`] per request), each through a short result cache with request coalescing
+//! ([`results_cache`]: viewers of the same dashboard, and its live feed, share executions); isolated query
+//! errors and incremental SSE.
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::Infallible;
 use std::sync::{Arc, OnceLock, Weak};
@@ -8,17 +11,15 @@ use axum::extract::State;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::Json;
 use futures::{stream, Stream, StreamExt};
-use oc_query::{metric_field, metric_filter, MetricQuery, Param};
+use oc_query::{MetricQuery, Param};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{watch, Mutex};
 use utoipa::ToSchema;
 
 use super::super::logs::TimeRange;
-use super::{
-    bind, group_array, group_label, inner_query_at_step, parse, round, step_ms,
-    Kind, Row, Source, SPAN_METRICS,
-};
+use super::{bind, group_label, inner_query_at_step, parse, round, step_ms, Kind, Row, Source, SPAN_METRICS};
 use crate::error::{ApiError, ApiResult};
+use crate::ttl_cache::TtlCache;
 use crate::state::{AppState, OrgId};
 
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
@@ -83,10 +84,11 @@ struct Prepared {
 
 struct Plan {
     items: Vec<Prepared>,
-    groups: Vec<Vec<usize>>,
-    fallback: Vec<usize>,
     duration: i64,
 }
+
+/// Widget queries of one request run at once.
+const CONCURRENT_QUERIES: usize = 8;
 
 #[derive(clickhouse::Row, Deserialize)]
 struct Meta {
@@ -210,15 +212,12 @@ impl Plan {
                 metadata.entry(meta.name).or_insert(meta.kind);
             }
         }
-        let mut groups: Vec<Vec<usize>> = Vec::new();
-        let mut fallback = Vec::new();
-        for (index, p) in items.iter_mut().enumerate() {
+        for p in items.iter_mut() {
             if p.error.is_some() {
                 continue;
             }
             if p.formula.is_some() {
                 p.kind = "derived".into();
-                fallback.push(index);
                 continue;
             }
             let points = req
@@ -287,32 +286,45 @@ impl Plan {
                 p.error = Some(format!("Unknown metric: {}", p.query.metric));
             } else if p.weighted && (p.kind != "gauge" || p.query.agg.sql() != "sum") {
                 p.error = Some("weighted() requires a sum aggregation on a gauge".into());
-            } else if p.scalar_kind.is_none() {
-                fallback.push(index);
-            }
-        }
-        // Group after classification, avoiding mutable borrows while comparing prepared items.
-        for (i, p) in items
-            .iter()
-            .enumerate()
-            .filter(|(_, p)| p.scalar_kind.is_some() && p.error.is_none())
-        {
-            if let Some(g) = groups.iter_mut().find(|g| {
-                items[g[0]].scalar_kind == p.scalar_kind
-                    && items[g[0]].step == p.step
-                    && items[g[0]].source == p.source
-            }) {
-                g.push(i);
-            } else {
-                groups.push(vec![i]);
             }
         }
         Ok(Self {
             items,
-            groups,
-            fallback,
             duration: req.range.to - req.range.from,
         })
+    }
+
+    /// Runs item `i` over `subrange` (cached). Returns what it found and whether it ran a query.
+    async fn run_item(&self, st: &AppState, org: &str, i: usize, range: TimeRange, subrange: TimeRange, done: crate::metric_rollups::Progress) -> (Result<Fetched, ApiError>, bool) {
+        let p = &self.items[i];
+        if let Some(text) = &p.formula {
+            let derived = super::evaluate_formula(st, org, text, range, 120).await.map(|(_, groups)| {
+                groups.into_iter().map(|g| DashboardMetricSeries { name: if g.tags.is_empty() { text.clone() } else { group_label(&g.tags) }, tags: g.tags, points: g.points }).collect::<Vec<_>>()
+            });
+            return (derived.map(Fetched::Series), true);
+        }
+        let built = match p.scalar_kind {
+            Some(kind) => Ok(widget_sql(p, kind, subrange, done)),
+            None => inner_query_at_step(st, org, &p.query, subrange, 120, Some((p.source, p.step)))
+                .await
+                .map(|(inner, params, _)| (format!("SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64({}(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t", p.query.agg.sql()), params)),
+        };
+        let (sql, params) = match built {
+            Ok(b) => b,
+            Err(e) => return (Err(e), false),
+        };
+        // The SQL and its values say everything about the result (metric, filters, groups, range,
+        // step, rollup progress); the org keeps orgs apart.
+        let key = format!("{org}\0{sql}\0{params:?}");
+        let ch = super::points_client(st, org);
+        let ran = std::sync::atomic::AtomicBool::new(false);
+        let rows = results_cache(p.step)
+            .get_or_load(&key, || async {
+                ran.store(true, std::sync::atomic::Ordering::Relaxed);
+                bind(ch.query(&sql), &params).fetch_all::<Row>().await.map_err(ApiError::from)
+            })
+            .await;
+        (rows.map(Fetched::Rows), ran.into_inner())
     }
 
     async fn execute(
@@ -336,81 +348,48 @@ impl Plan {
                 error: p.error.clone(),
             })
             .collect();
-        let jobs: Vec<Vec<usize>> = self
-            .groups
-            .iter()
-            .cloned()
-            .chain(self.fallback.iter().map(|i| vec![*i]))
-            .collect();
-        let scans = jobs.len();
+        let jobs: Vec<usize> = (0..self.items.len()).filter(|i| self.items[*i].error.is_none()).collect();
         // Without the job's progress every rollup is read on the fly from the samples (slower, same values).
         let done = crate::metric_rollups::progress(st, org).await.unwrap_or_default();
-        let mut work = stream::iter(jobs.into_iter().map(|indices| async move {
-            let step = self.items[indices[0]].step;
-            let subrange = query_range(range, previous_to, step);
-            if let Some(text) = &self.items[indices[0]].formula {
-                let derived = super::evaluate_formula(st, org, text, range, 120).await.map(|(_, groups)| {
-                    groups.into_iter().map(|g| DashboardMetricSeries { name: if g.tags.is_empty() { text.clone() } else { group_label(&g.tags) }, tags: g.tags, points: g.points }).collect::<Vec<_>>()
-                });
-                return (indices, derived.map(Fetched::Series));
-            }
-            let data = if self.items[indices[0]].scalar_kind.is_some() {
-                let (sql, params) = shared_sql(&self.items, &indices, subrange, done);
-                bind(super::points_client(st, org).query(&sql), &params).fetch_all::<BatchRow>().await.map_err(ApiError::from)
-            } else {
-                let p = &self.items[indices[0]];
-                match inner_query_at_step(st, org, &p.query, subrange, 120, Some((p.source, step))).await {
-                    Ok((inner, params, _)) => {
-                        let sql = format!("SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64({}(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t", p.query.agg.sql());
-                        bind(super::points_client(st, org).query(&sql), &params).fetch_all::<Row>().await.map(|rows| rows.into_iter().map(|r| BatchRow { qi: indices[0] as u32, g: r.g, ts: r.ts, value: r.value }).collect()).map_err(ApiError::from)
-                    }
-                    Err(e) => Err(e),
-                }
-            };
-            (indices, data.map(Fetched::Rows))
-        })).buffer_unordered(4);
-        while let Some((indices, data)) = work.next().await {
+        let mut work = stream::iter(jobs.into_iter().map(|i| async move {
+            let p = &self.items[i];
+            // Whole steps: a query issued a little later in the same step is the same query.
+            let mut subrange = query_range(range, previous_to, p.step);
+            subrange.to = (subrange.to + p.step - 1).div_euclid(p.step) * p.step;
+            let (data, ran) = self.run_item(st, org, i, range, subrange, done).await;
+            (i, data, ran)
+        }))
+        .buffer_unordered(CONCURRENT_QUERIES);
+        let mut scans = 0;
+        while let Some((i, data, ran)) = work.next().await {
+            scans += usize::from(ran);
             match data {
-                Ok(Fetched::Series(series)) => results[indices[0]].series = series,
+                Ok(Fetched::Series(series)) => results[i].series = series,
                 Ok(Fetched::Rows(rows)) => {
-                    for r in rows {
-                        let p = &self.items[r.qi as usize];
+                    let p = &self.items[i];
+                    let target = &mut results[i].series;
+                    for r in rows.iter() {
                         let tags = p
                             .query
                             .by
                             .iter()
                             .cloned()
-                            .zip(
-                                r.g.into_iter()
-                                    .map(|v| if v.is_empty() { "N/A".into() } else { v }),
-                            )
+                            .zip(r.g.iter().map(|v| if v.is_empty() { "N/A".to_string() } else { v.clone() }))
                             .collect::<BTreeMap<_, _>>();
-                        let name = if p.query.by.is_empty() {
-                            p.text.clone()
-                        } else {
-                            group_label(&tags)
-                        };
-                        let target = &mut results[r.qi as usize].series;
+                        let name = if p.query.by.is_empty() { p.text.clone() } else { group_label(&tags) };
                         if let Some(s) = target.last_mut().filter(|s| s.name == name) {
                             s.points.push((r.ts, round(r.value)));
                         } else {
-                            target.push(DashboardMetricSeries {
-                                name,
-                                tags,
-                                points: vec![(r.ts, round(r.value))],
-                            });
+                            target.push(DashboardMetricSeries { name, tags, points: vec![(r.ts, round(r.value))] });
                         }
                     }
                 }
                 Err(e) => {
-                    tracing::warn!(error = %e, "dashboard scan failed");
-                    let message = match e {
+                    tracing::warn!(error = %e, "dashboard query failed");
+                    results[i].error = Some(match e {
                         ApiError::BadRequest(m) => m,
                         _ => "Query failed".into(),
-                    };
-                    for i in indices {
-                        results[i].error = Some(message.clone());
-                    }
+                    });
                 }
             }
         }
@@ -446,122 +425,33 @@ fn query_range(range: TimeRange, previous_to: Option<i64>, step: i64) -> TimeRan
     }
 }
 
-/// What one scan returned: rows of shared or single queries, or a derived metric's series.
+/// Widget query results, kept about min(step, 30 s) (`crate::ttl_cache`: concurrent identical
+/// queries wait for one execution; keys start with the org).
+fn results_cache(step_ms: i64) -> &'static TtlCache<Vec<Row>> {
+    static CACHES: OnceLock<[TtlCache<Vec<Row>>; 3]> = OnceLock::new();
+    let caches = CACHES.get_or_init(|| [10, 20, 30].map(|s| TtlCache::new(Duration::from_secs(s))));
+    &caches[if step_ms <= 10_000 { 0 } else if step_ms <= 20_000 { 1 } else { 2 }]
+}
+
+/// What one query returned: rows (shared through the cache), or a derived metric's series.
 enum Fetched {
-    Rows(Vec<BatchRow>),
+    Rows(Arc<Vec<Row>>),
     Series(Vec<DashboardMetricSeries>),
 }
 
-#[derive(clickhouse::Row, Deserialize)]
-struct BatchRow {
-    qi: u32,
-    g: Vec<String>,
-    ts: i64,
-    value: f64,
-}
+/// A `.weighted()` sum: each series counts for the share of the interval it reported in. Its
+/// samples per interval (count, first and last time) give its cadence; the interval holds
+/// (span of the group's samples / mean cadence + 1) submission slots.
+const WEIGHTED: &str = "sum(v * samples) / if(countIf(samples > 1) > 0, \
+     greatest(round((max(last_seen) - min(first_seen)) / greatest(sumIf(last_seen - first_seen, samples > 1) / sumIf(samples - 1, samples > 1), 1)) + 1, 1), 1)";
 
-fn shared_sql(items: &[Prepared], indices: &[usize], range: TimeRange, done: crate::metric_rollups::Progress) -> (String, Vec<Param>) {
-    let first = &items[indices[0]];
-    let kind = first
-        .scalar_kind
-        .expect("only scalar kinds form shared scans");
-    let mut params = Vec::new();
-    let mut grouping = Vec::new();
-    let mut eligible = Vec::new();
-    let mut scaling = Vec::new();
-    let mut aggregates = Vec::new();
-    for &i in indices {
-        let p = &items[i];
-        let mut fields = Vec::new();
-        for k in &p.query.by {
-            let (field, bound) = metric_field(k);
-            fields.push(field);
-            params.extend(bound);
-        }
-        grouping.push(format!("qi = {i}, {}", group_array(&fields)));
-        scaling.push(format!("qi = {i}, {:e}", p.scale));
-        // Infer a regular submission cadence from each series with multiple samples.
-        // Count occupied submission slots over the observed bucket, not exact shared
-        // timestamps: independent collectors need not have synchronized clocks.
-        // With no measurable cadence, no time weighting is inferred.
-        let aggregate = if p.weighted {
-            "sum(v * samples) / if(countIf(samples > 1) > 0, greatest(round((max(last_seen) - min(first_seen)) / greatest(medianExactIf((last_seen - first_seen) / greatest(samples - 1, 1), samples > 1), 1)) + 1, 1), 1)".to_string()
-        } else {
-            format!("{}(v)", p.query.agg.sql())
-        };
-        aggregates.push(format!("qi = {i}, {aggregate}"));
-    }
-    for &i in indices {
-        let p = &items[i];
-        let filter = metric_filter(&p.query.filters, metric_field);
-        params.push(Param::Str(p.query.metric.clone()));
-        params.extend(filter.params);
-        eligible.push(format!(
-            "if(MetricName = ? AND ({}), toInt32({i}), toInt32(-1))",
-            filter.clause
-        ));
-    }
-    let metrics: Vec<_> = indices
-        .iter()
-        .map(|i| items[*i].query.metric.clone())
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect();
-    // The series side binds grouping/filter values first, then the point side's names/window.
-    params.extend(metrics.iter().cloned().map(Param::Str));
-    params.push(Param::Int(range.from));
-    let step_s = first.step / 1000;
-    let rollup = first.source != Source::Samples;
-    // Rollups (up to the rollup job's progress, then the rest on the fly) come first in the text.
-    let (points, filter) = if rollup {
-        let (rows, rows_params) = super::rollup_rows(first.source, false, &metrics, range, done, None);
-        params.splice(0..0, rows_params);
-        (format!("{rows} AS x"), String::new())
-    } else {
-        params.extend(metrics.iter().cloned().map(Param::Str));
-        params.extend([Param::Int(range.from), Param::Int(range.to)]);
-        (
-            "otel.metrics_samples AS x".to_string(),
-            format!(
-                "WHERE x.OrgId = {{oc_org:String}} AND x.MetricName IN ({}) AND x.TimeUnix >= toStartOfInterval(fromUnixTimestamp64Milli(?), INTERVAL 1 SECOND) AND x.TimeUnix <= fromUnixTimestamp64Milli(?)",
-                vec!["?"; metrics.len()].join(",")
-            ),
-        )
-    };
-    let value = match (kind, rollup) {
-        (Kind::Gauge | Kind::UpDown, false) => "avg(x.Value)".to_string(),
-        (Kind::Gauge | Kind::UpDown, true) => "sum(x.Sum) / sum(x.Count)".to_string(),
-        (Kind::Counter, false) => "greatest(max(x.Value) - min(x.Value), 0) * 1000 / greatest(dateDiff('millisecond', min(x.TimeUnix), max(x.TimeUnix)), 1)".to_string(),
-        (Kind::Counter, true) => "greatest(max(x.Max) - min(x.Min), 0) * 1000 / greatest(dateDiff('millisecond', min(x.Start), max(x.End)), 1)".to_string(),
-        (Kind::Delta, false) => format!("sum(x.Value) / {step_s}"),
-        (Kind::Delta, true) => format!("sum(x.Sum) / {step_s}"),
-    };
-    let time = if rollup { "Bucket" } else { "TimeUnix" };
-    let samples = if rollup {
-        "sum(x.Count)"
-    } else {
-        "uniqExact(x.TimeUnix)"
-    };
-    let (start, end) = if rollup {
-        ("x.Start", "x.End")
-    } else {
-        ("x.TimeUnix", "x.TimeUnix")
-    };
-    let metric_type = if kind == Kind::Gauge { "gauge" } else { "sum" };
-    let sql = format!(
-        "SELECT toUInt32(qi) AS qi, g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64(multiIf({aggregates}, avg(v))) AS value FROM (\
-         SELECT s.qi AS qi, s.g AS g, toStartOfInterval(x.{time}, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid, \
-         {samples} AS samples, min(toUnixTimestamp64Milli({start})) AS first_seen, max(toUnixTimestamp64Milli({end})) AS last_seen, ({value}) * multiIf({scaling}, 1.0) AS v \
-         FROM {points} INNER JOIN (SELECT SeriesId, qi, any(multiIf({grouping}, CAST([], 'Array(String)'))) AS g \
-         FROM otel.metrics_series ARRAY JOIN arrayFilter(x -> x >= 0, [{eligible}]) AS qi \
-         WHERE OrgId = {{oc_org:String}} AND MetricName IN ({marks}) AND MetricType = '{metric_type}' AND {seen} GROUP BY SeriesId, qi) AS s ON x.SeriesId = s.SeriesId \
-         {filter} \
-         GROUP BY qi, g, t, sid{having}) WHERE isFinite(v) GROUP BY qi, g, t ORDER BY qi, g, t",
-        seen = super::SEEN_SINCE,
-        aggregates=aggregates.join(","), grouping=grouping.join(","), scaling=scaling.join(","), eligible=eligible.join(","),
-        marks=vec!["?"; metrics.len()].join(","), having=if kind == Kind::Counter { format!(" HAVING {samples} > 1") } else { String::new() }
-    );
-    (sql, params)
+/// One widget query of a gauge or sum metric: the per-series values of [`super::points_query`]
+/// combined per group and interval with the query's space aggregator (or [`WEIGHTED`]).
+fn widget_sql(p: &Prepared, kind: Kind, range: TimeRange, done: crate::metric_rollups::Progress) -> (String, Vec<Param>) {
+    let options = super::PointsOptions { scale: p.scale, done, coverage: p.weighted };
+    let (inner, params) = super::points_query(kind, p.source, &p.query, range, p.step / 1000, options);
+    let aggregate = if p.weighted { WEIGHTED.to_string() } else { format!("{}(v)", p.query.agg.sql()) };
+    (format!("SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64({aggregate}) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t"), params)
 }
 
 /// Execute a dashboard in one request, preserving a separate result/error for every query ID.
@@ -801,8 +691,125 @@ pub(super) fn metric_description(metric: &str, reported: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::super::resolve_alias;
+    use super::super::{group_array, resolve_alias};
     use super::*;
+    use oc_query::{metric_field, metric_filter};
+    use std::collections::HashSet;
+
+    // The oracle: the dashboard's previous execution, every widget of a kind, step and source in one
+    // shared scan with per-series uniqExact sample counts and a median cadence for weighted().
+    #[derive(clickhouse::Row, Deserialize)]
+    struct BatchRow {
+        qi: u32,
+        g: Vec<String>,
+        ts: i64,
+        value: f64,
+    }
+
+    fn oracle_shared_sql(items: &[Prepared], indices: &[usize], range: TimeRange, done: crate::metric_rollups::Progress) -> (String, Vec<Param>) {
+        let first = &items[indices[0]];
+        let kind = first
+            .scalar_kind
+            .expect("only scalar kinds form shared scans");
+        let mut params = Vec::new();
+        let mut grouping = Vec::new();
+        let mut eligible = Vec::new();
+        let mut scaling = Vec::new();
+        let mut aggregates = Vec::new();
+        for &i in indices {
+            let p = &items[i];
+            let mut fields = Vec::new();
+            for k in &p.query.by {
+                let (field, bound) = metric_field(k);
+                fields.push(field);
+                params.extend(bound);
+            }
+            grouping.push(format!("qi = {i}, {}", group_array(&fields)));
+            scaling.push(format!("qi = {i}, {:e}", p.scale));
+            // Infer a regular submission cadence from each series with multiple samples.
+            // Count occupied submission slots over the observed bucket, not exact shared
+            // timestamps: independent collectors need not have synchronized clocks.
+            // With no measurable cadence, no time weighting is inferred.
+            let aggregate = if p.weighted {
+                "sum(v * samples) / if(countIf(samples > 1) > 0, greatest(round((max(last_seen) - min(first_seen)) / greatest(medianExactIf((last_seen - first_seen) / greatest(samples - 1, 1), samples > 1), 1)) + 1, 1), 1)".to_string()
+            } else {
+                format!("{}(v)", p.query.agg.sql())
+            };
+            aggregates.push(format!("qi = {i}, {aggregate}"));
+        }
+        for &i in indices {
+            let p = &items[i];
+            let filter = metric_filter(&p.query.filters, metric_field);
+            params.push(Param::Str(p.query.metric.clone()));
+            params.extend(filter.params);
+            eligible.push(format!(
+                "if(MetricName = ? AND ({}), toInt32({i}), toInt32(-1))",
+                filter.clause
+            ));
+        }
+        let metrics: Vec<_> = indices
+            .iter()
+            .map(|i| items[*i].query.metric.clone())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+        // The series side binds grouping/filter values first, then the point side's names/window.
+        params.extend(metrics.iter().cloned().map(Param::Str));
+        params.push(Param::Int(range.from));
+        let step_s = first.step / 1000;
+        let rollup = first.source != Source::Samples;
+        // Rollups (up to the rollup job's progress, then the rest on the fly) come first in the text.
+        let (points, filter) = if rollup {
+            let (rows, rows_params) = super::super::rollup_rows(first.source, false, &metrics, range, done, None);
+            params.splice(0..0, rows_params);
+            (format!("{rows} AS x"), String::new())
+        } else {
+            params.extend(metrics.iter().cloned().map(Param::Str));
+            params.extend([Param::Int(range.from), Param::Int(range.to)]);
+            (
+                "otel.metrics_samples AS x".to_string(),
+                format!(
+                    "WHERE x.OrgId = {{oc_org:String}} AND x.MetricName IN ({}) AND x.TimeUnix >= toStartOfInterval(fromUnixTimestamp64Milli(?), INTERVAL 1 SECOND) AND x.TimeUnix <= fromUnixTimestamp64Milli(?)",
+                    vec!["?"; metrics.len()].join(",")
+                ),
+            )
+        };
+        let value = match (kind, rollup) {
+            (Kind::Gauge | Kind::UpDown, false) => "avg(x.Value)".to_string(),
+            (Kind::Gauge | Kind::UpDown, true) => "sum(x.Sum) / sum(x.Count)".to_string(),
+            (Kind::Counter, false) => "greatest(max(x.Value) - min(x.Value), 0) * 1000 / greatest(dateDiff('millisecond', min(x.TimeUnix), max(x.TimeUnix)), 1)".to_string(),
+            (Kind::Counter, true) => "greatest(max(x.Max) - min(x.Min), 0) * 1000 / greatest(dateDiff('millisecond', min(x.Start), max(x.End)), 1)".to_string(),
+            (Kind::Delta, false) => format!("sum(x.Value) / {step_s}"),
+            (Kind::Delta, true) => format!("sum(x.Sum) / {step_s}"),
+        };
+        let time = if rollup { "Bucket" } else { "TimeUnix" };
+        let samples = if rollup {
+            "sum(x.Count)"
+        } else {
+            "uniqExact(x.TimeUnix)"
+        };
+        let (start, end) = if rollup {
+            ("x.Start", "x.End")
+        } else {
+            ("x.TimeUnix", "x.TimeUnix")
+        };
+        let metric_type = if kind == Kind::Gauge { "gauge" } else { "sum" };
+        let sql = format!(
+            "SELECT toUInt32(qi) AS qi, g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64(multiIf({aggregates}, avg(v))) AS value FROM (\
+             SELECT s.qi AS qi, s.g AS g, toStartOfInterval(x.{time}, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid, \
+             {samples} AS samples, min(toUnixTimestamp64Milli({start})) AS first_seen, max(toUnixTimestamp64Milli({end})) AS last_seen, ({value}) * multiIf({scaling}, 1.0) AS v \
+             FROM {points} INNER JOIN (SELECT SeriesId, qi, any(multiIf({grouping}, CAST([], 'Array(String)'))) AS g \
+             FROM otel.metrics_series ARRAY JOIN arrayFilter(x -> x >= 0, [{eligible}]) AS qi \
+             WHERE OrgId = {{oc_org:String}} AND MetricName IN ({marks}) AND MetricType = '{metric_type}' AND {seen} GROUP BY SeriesId, qi) AS s ON x.SeriesId = s.SeriesId \
+             {filter} \
+             GROUP BY qi, g, t, sid{having}) WHERE isFinite(v) GROUP BY qi, g, t ORDER BY qi, g, t",
+            seen = super::super::SEEN_SINCE,
+            aggregates=aggregates.join(","), grouping=grouping.join(","), scaling=scaling.join(","), eligible=eligible.join(","),
+            marks=vec!["?"; metrics.len()].join(","), having=if kind == Kind::Counter { format!(" HAVING {samples} > 1") } else { String::new() }
+        );
+        (sql, params)
+    }
+
 
     #[test]
     fn integration_metrics_get_their_descriptions_when_senders_send_none() {
@@ -824,10 +831,12 @@ mod tests {
         assert_eq!(metric_unit("kubernetes_state.deployment.replicas", ""), None);
     }
 
-    /// Exercise the actual shared SQL against the storage introduced in ADR-0001.
-    /// The existing per-query evaluator is the oracle for all three resolutions.
+    /// One query per widget gives the previous shared scan's results, for every kind (rates,
+    /// deltas, gauges, up-down sums), filters, groups, weighted() and all three resolutions.
+    /// weighted() now counts samples with count() (not uniqExact) and takes the mean cadence (not
+    /// the median): equal for series with one point per timestamp and a regular cadence, as here.
     #[tokio::test]
-    async fn shared_scans_match_individual_queries_on_samples_and_rollups() {
+    async fn widget_queries_match_the_shared_scan_on_samples_and_rollups() {
         let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
             return;
         };
@@ -898,24 +907,30 @@ mod tests {
                     prepared(&format!("sum:{name}{{missing:*}} by {{host}}")),
                     prepared(&format!("sum:{name}{{!missing:*}} by {{host}}")),
                 ];
+                if kind == Kind::Gauge {
+                    for text in [format!("sum:{name}{{*}} by {{host}}"), format!("sum:{name}{{env:prod}}")] {
+                        let mut weighted = prepared(&text);
+                        weighted.weighted = true;
+                        items.push(weighted);
+                    }
+                }
                 for p in &mut items {
                     p.scalar_kind = Some(kind);
                     p.source = source;
                     p.step = step;
                 }
-                let (sql, params) = shared_sql(&items, &[0, 1, 2, 3, 4, 5], range, done);
+                let indices: Vec<usize> = (0..items.len()).collect();
+                let (sql, params) = oracle_shared_sql(&items, &indices, range, done);
                 let actual = bind(ch.query(&sql), &params)
                     .fetch_all::<BatchRow>()
                     .await
                     .unwrap_or_else(|e| panic!("{sql}: {e}"));
                 for (index, p) in items.iter().enumerate() {
-                    let (inner, params) =
-                        super::super::points_query(kind, source, &p.query, range, step / 1000, 1.0, done);
-                    let sql = format!("SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64({}(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g,t ORDER BY g,t", p.query.agg.sql());
+                    let (sql, params) = widget_sql(p, kind, range, done);
                     let expected = bind(ch.query(&sql), &params)
                         .fetch_all::<Row>()
                         .await
-                        .unwrap();
+                        .unwrap_or_else(|e| panic!("{sql}: {e}"));
                     let actual: Vec<_> = actual.iter().filter(|r| r.qi == index as u32).collect();
                     if index == 4 {
                         assert!(
@@ -936,8 +951,8 @@ mod tests {
                     for (a, e) in actual.iter().zip(&expected) {
                         assert_eq!((&a.g, a.ts), (&e.g, e.ts));
                         assert!(
-                            (a.value - e.value).abs() < 1e-9,
-                            "{kind:?} {source:?}: {} != {}",
+                            (a.value - e.value).abs() < 1e-9 * a.value.abs().max(1.0),
+                            "{kind:?} {source:?} query {index}: {} != {}",
                             a.value,
                             e.value
                         );
@@ -945,12 +960,12 @@ mod tests {
                 }
             }
         }
-        let (sql, params) = shared_sql(&[prepared("sum:dashboard.test.gauge{*}")], &[0], range, Default::default());
+        let (sql, params) = widget_sql(&prepared("sum:dashboard.test.gauge{*}"), Kind::Gauge, range, Default::default());
         let other = ch
             .clone()
             .with_option("param_oc_org", format!("{org}-empty"));
         assert!(bind(other.query(&sql), &params)
-            .fetch_all::<BatchRow>()
+            .fetch_all::<Row>()
             .await
             .unwrap()
             .is_empty());
@@ -975,45 +990,27 @@ mod tests {
     }
 
     #[test]
-    fn many_groupings_and_filters_share_a_single_bound_scan() {
-        let items = vec![
-            prepared("sum:kubernetes.memory.usage{env:prod} by {kube_namespace}"),
-            prepared("avg:kubernetes.memory.usage{!env:staging} by {host}"),
-            prepared("max:kubernetes.cpu.requests{team:checkout} by {kube_deployment}"),
-        ];
-        let (sql, params) = shared_sql(
-            &items,
-            &[0, 1, 2],
-            TimeRange {
-                from: 0,
-                to: 60_000,
-            },
-            Default::default(),
-        );
-        assert_eq!(sql.matches("otel.metrics_samples").count(), 1);
-        assert!(sql.contains("OrgId = {oc_org:String}"));
-        assert!(sql.contains("sum(v)") && sql.contains("avg(v)") && sql.contains("max(v)"));
-        assert!(!sql.contains("checkout") && !sql.contains("staging"));
+    fn a_widget_query_reads_its_own_metric_with_bound_values() {
+        let p = prepared("sum:kubernetes.memory.usage{env:prod,team:checkout} by {kube_namespace}");
+        let (sql, params) = widget_sql(&p, Kind::Gauge, TimeRange { from: 0, to: 60_000 }, Default::default());
+        assert!(sql.contains("OrgId = {oc_org:String}") && sql.contains("sum(v)"));
+        assert!(!sql.contains("checkout") && !sql.contains("prod") && !sql.contains("kubernetes.memory.usage"));
         assert_eq!(sql.matches('?').count(), params.len());
     }
 
     #[test]
-    fn weighted_gauges_keep_coverage_in_the_shared_scan() {
-        let mut query = prepared("sum:kubernetes_state.node.count{*} by {kube_cluster_name}");
-        query.weighted = true;
-        let (sql, params) = shared_sql(
-            &[query],
-            &[0],
-            TimeRange {
-                from: 0,
-                to: 60_000,
-            },
-            Default::default(),
-        );
-        assert!(sql.contains("sum(v * samples)"));
-        assert!(sql.contains("medianExactIf"));
-        assert_eq!(sql.matches("otel.metrics_samples").count(), 1);
-        assert_eq!(sql.matches('?').count(), params.len());
+    fn weighted_widgets_derive_cadence_from_sample_counts_and_spans() {
+        for source in [Source::Samples, Source::Rollup5m] {
+            let mut p = prepared("sum:kubernetes_state.node.count{*} by {kube_cluster_name}");
+            p.weighted = true;
+            p.source = source;
+            p.step = 300_000;
+            let (sql, params) = widget_sql(&p, Kind::Gauge, TimeRange { from: 0, to: 600_000 }, crate::metric_rollups::Progress { five_minutes: 300_000, hour: 0 });
+            assert!(sql.contains("sum(v * samples)"));
+            // No per-series, per-interval exact distinct counts or medians.
+            assert!(!sql.contains("uniqExact") && !sql.contains("median"), "{sql}");
+            assert_eq!(sql.matches('?').count(), params.len());
+        }
     }
 
     #[test]
