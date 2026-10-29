@@ -15,6 +15,9 @@
 {{- if eq .Values.postgres.mode "bundled" }}
 {{- $_ := set $rules "postgres" (list (list 5432 (list "server" "intake"))) }}
 {{- end }}
+{{- if eq .Values.cache.mode "bundled" }}
+{{- $_ := set $rules "valkey" (list (list 6379 (list "server"))) }}
+{{- end }}
 {{- if .Values.nats.enabled }}
 {{- $_ := set $rules "nats" (list (list 4222 (list "server" "vector")) (list 6222 (list "nats"))) }}
 {{- end }}

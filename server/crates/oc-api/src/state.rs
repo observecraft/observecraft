@@ -24,6 +24,8 @@ pub struct Inner {
     pub log_restrictions: crate::log_access::RestrictionCache,
     /// Each org's built Kubernetes / ECS / process inventory, reused for a few seconds.
     pub kube_inventory: crate::ttl_cache::TtlCache<Vec<crate::routes::kubernetes::KubeResource>>,
+    /// Results shared by every server replica (Valkey).
+    pub cache: crate::cache::SharedCache,
 }
 
 impl Inner {

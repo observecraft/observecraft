@@ -207,3 +207,57 @@ Success criteria:
 - Dev values: ClickHouse 4 vCPU; dev `otel` database recreated on the new schema.
 
 Status: Not Started
+
+## Stage 8: Shared cache
+
+Goal: one cache that every `observecraft-server` replica shares (ADR-0002, "Shared cache: Valkey, required"), so
+results computed by one replica serve the others.
+
+Success criteria:
+- `OC_CACHE_URL` required: the server exits at startup with a clear message when it is missing, not a
+  `redis://`/`rediss://` URL, or unreachable for 30 s; the intake doesn't need it.
+- `oc-api/src/cache.rs`: `get_or_load(namespace, org, key, ttl, load)` with org-scoped, hashed keys; compact values
+  with a size cap; coalescing within a replica and across replicas (lock, wait, take over from a dead holder);
+  `invalidate(namespace, org)` by generation; counters on the internal listener; requests served from the source
+  when Valkey fails. Unit tests on a fake backend, live tests (`OC_TEST_VALKEY_URL`) with two caches as replicas.
+- `ttl_cache.rs` bounded (entries, total weight, LRU); the inventory cache bounded by objects; the portal's
+  duplicate cache folded onto it.
+- Compose `valkey` service; Helm: bundled Valkey (no persistence, maxmemory from the memory limit, LRU,
+  NetworkPolicy, non-root) or `cache.mode=external`; `helm lint` (also `values-ha.yaml`) and `helm template` pass.
+
+Built: `cache.rs` on the `redis` crate (BSD-3-Clause; async `ConnectionManager` reconnecting in the background, 1 s
+response timeout, TLS over rustls/ring). Keys `oc:{ns}:{org}:{generation}:{sha256(key)[..16]}`; the org segment is
+percent-encoded outside `[A-Za-z0-9._-]`. A missing generation key (evicted) gets a new random one, so old entries
+can't come back. Values: one format byte, then zstd level 1 over MessagePack (`rmp-serde`, named fields: as
+tolerant of `serde` attributes as JSON); above `OC_CACHE_MAX_VALUE_BYTES` (8 MiB) a one-byte marker is stored so
+other replicas load at once instead of waiting for a lock. Lock: `SET …:lock <token> NX PX <load timeout>`,
+released by a compare-and-delete script (also, in the background, when the holder's request is cancelled
+mid-load, so other replicas don't wait out the lock); waiters poll from 5 ms doubling to 100 ms, take the lock over when it is
+gone, and load without it after `OC_CACHE_LOAD_TIMEOUT_SECONDS` (30). After a Valkey error the cache is skipped
+for 1 s; warnings at most every 30 s. Counters (`oc_cache_lookups_total{result}`, `_loads_total`,
+`_coalesced_total{scope=replica|cluster}`, `_lock_timeouts_total`, `_oversized_total`, `_errors_total`,
+`oc_cache_value_bytes` histogram, per namespace) at `GET /metrics` on the internal listener (`OC_LOGPROC_ADDR`,
+behind `OC_INTERNAL_TOKEN` when set). `ttl_cache.rs`: `with_max_entries`, `with_max_weight(max, weigher)`, LRU over
+finished entries, values heavier than the bound returned but not kept, plus `get` / `insert` / `remove_prefix`;
+the inventory is bounded by `OC_INVENTORY_CACHE_MAX_OBJECTS` (500k), the portal home's answers by 2,000 entries.
+
+Measured (release, Apple M4 Max, Valkey 8.1 in Docker on the same machine):
+
+| Value (as JSON) | Stored | Encode | Decode |
+|---|---|---|---|
+| 1.0 MiB of metric series (13 tags, 300 points, noisy values) | 188 KiB (17.8 %) | 1.7 ms | 1.6 ms |
+| 10.3 MiB of the same | 1.7 MiB (16.2 %) | 14.1 ms | 10.5 ms |
+
+MessagePack against JSON (both zstd 1, repetitive series): 1 MiB → 34 KB vs 79 KB, write 1.4 ms vs 2.5 ms, read
+1.1 ms vs 2.2 ms; 10 MiB → 283 KB vs 738 KB, write 13 ms vs 18 ms, read 11 ms vs 21 ms. LZ4 was faster to
+decompress but stored 4–8× more. A hit (generation + value) costs 0.24 ms for 1 KiB and 0.48 ms for 100 KiB:
+no in-process layer in front of Valkey. Coalescing (live tests): three concurrent misses on two caches run one
+load (one waiter shares the replica's load, one waits for the other replica's); a lock left by a dead replica
+delays the next load by its lock TTL only.
+
+Follow-up: switch call sites after Stages 2–4: dashboard widget results, template variable / tag values and the
+metric catalog through `cache.get_or_load`, dashboard edits through `cache.invalidate`; the Kubernetes inventory's
+`ttl_cache` load through the shared cache (one replica builds, the others decode its copy); `/metrics` reachable
+by a scraper (NetworkPolicy) when we monitor ObserveCraft with itself.
+
+Status: Complete (infrastructure and module; call sites pending)

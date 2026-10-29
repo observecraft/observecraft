@@ -62,6 +62,33 @@ pub struct Config {
     /// addresses, over http too (`OC_PORTAL_ALLOW_PRIVATE`; off by default, for self-hosted
     /// instances inside the network).
     pub portal_allow_private: bool,
+    /// The shared cache (Valkey) every replica uses; required by the server.
+    pub cache: CacheSettings,
+    /// Kubernetes objects kept in the in-process inventory cache over all orgs
+    /// (`OC_INVENTORY_CACHE_MAX_OBJECTS`; least recently used orgs go first).
+    pub inventory_cache_max_objects: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct CacheSettings {
+    /// `OC_CACHE_URL`: `redis://[user:password@]host:6379/0`, or `rediss://…` for TLS.
+    pub url: Option<String>,
+    /// `OC_CACHE_MAX_VALUE_BYTES`: larger values (after compression) are served but not stored.
+    pub max_value_bytes: usize,
+    /// `OC_CACHE_LOAD_TIMEOUT_SECONDS`: how long other replicas wait for one replica's load.
+    pub load_timeout_secs: u64,
+}
+
+impl CacheSettings {
+    pub fn require_url(&self) -> anyhow::Result<&str> {
+        self.url
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("OC_CACHE_URL is required: the URL of the shared cache (Valkey) every server replica uses, e.g. redis://localhost:6379/0 (`make up` starts one)"))
+    }
+
+    pub fn options(&self) -> crate::cache::CacheOptions {
+        crate::cache::CacheOptions { max_value_bytes: self.max_value_bytes, load_timeout: std::time::Duration::from_secs(self.load_timeout_secs) }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -145,6 +172,12 @@ impl Config {
             smtp_from: var("OC_SMTP_FROM", "ObserveCraft <alerts@observecraft.local>"),
             synthetics_allow_private: var("OC_SYNTHETICS_ALLOW_PRIVATE", "false") == "true",
             portal_allow_private: var("OC_PORTAL_ALLOW_PRIVATE", "false") == "true",
+            cache: CacheSettings {
+                url: env::var("OC_CACHE_URL").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+                max_value_bytes: var("OC_CACHE_MAX_VALUE_BYTES", "8388608").parse().unwrap_or(8 << 20),
+                load_timeout_secs: var("OC_CACHE_LOAD_TIMEOUT_SECONDS", "30").parse().unwrap_or(30).clamp(1, 600),
+            },
+            inventory_cache_max_objects: var("OC_INVENTORY_CACHE_MAX_OBJECTS", "500000").parse().unwrap_or(500_000),
             retention: Retention {
                 logs_days: days("OC_RETENTION_LOGS_DAYS", 15),
                 traces_days: days("OC_RETENTION_TRACES_DAYS", 15),
@@ -159,5 +192,20 @@ impl Config {
             },
             demo_ingest_key: env::var("OC_DEMO_INGEST_KEY").ok().filter(|k| k.starts_with("ocik_") && k.len() >= 20 && var("OC_SEED_DEMO", "true") == "true"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_shared_cache_url_is_required_with_a_clear_message() {
+        let missing = CacheSettings { url: None, max_value_bytes: 8 << 20, load_timeout_secs: 30 };
+        let msg = missing.require_url().unwrap_err().to_string();
+        assert!(msg.contains("OC_CACHE_URL") && msg.contains("Valkey") && msg.contains("redis://"), "{msg}");
+        let set = CacheSettings { url: Some("redis://observecraft-valkey:6379/0".into()), ..missing };
+        assert_eq!(set.require_url().unwrap(), "redis://observecraft-valkey:6379/0");
+        assert_eq!(set.options().load_timeout, std::time::Duration::from_secs(30));
     }
 }

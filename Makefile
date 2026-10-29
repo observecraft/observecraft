@@ -3,7 +3,7 @@ COMPOSE := docker compose -f deploy/docker-compose.yml
 
 .PHONY: up down logs ps server intake tracegen load-orgs load storage-report web web-mock test openapi build images charts clean-data
 
-up:            ## Start storage, pipeline and synthetic load (logs are indexed by `make server` on the host)
+up:            ## Start storage, cache, pipeline and synthetic load (logs are indexed by `make server` on the host)
 	OC_LOGPROC_URL=http://host.docker.internal:8090/ingest/logs $(COMPOSE) up -d
 down:          ## Stop the stack (keeps data)
 	$(COMPOSE) down
@@ -18,7 +18,7 @@ ps:
 DEMO_KEY ?= ocik_local_demo_only_do_not_use_in_production
 
 server:        ## Run the API on :8080 against the local stack
-	cd server && OC_DEMO_INGEST_KEY=$(DEMO_KEY) OC_DEMO_ARCHIVE_ENDPOINT=http://localhost:9100 cargo run --bin observecraft-server
+	cd server && OC_CACHE_URL=$${OC_CACHE_URL:-redis://localhost:6379/0} OC_DEMO_INGEST_KEY=$(DEMO_KEY) OC_DEMO_ARCHIVE_ENDPOINT=http://localhost:9100 cargo run --bin observecraft-server
 intake:        ## Run the telemetry intake (OTLP HTTP :4318 / gRPC :4317, Datadog APIs; API-key auth)
 	cd server && cargo run --bin oc-intake
 tracegen:      ## Send synthetic traces, host metrics and CI runs through the intake

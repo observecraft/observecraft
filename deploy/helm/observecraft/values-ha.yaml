@@ -23,6 +23,15 @@ postgres:
 nats:
   replicas: 3
 
+# One Valkey is enough for a cache: while it restarts the servers serve from ClickHouse (slower,
+# not failing). For a highly available cache use a managed service with a replica
+# (cache.mode=external, e.g. ElastiCache or Memorystore).
+cache:
+  bundled:
+    resources:
+      requests: { cpu: 500m, memory: 2Gi }
+      limits: { memory: 2Gi }
+
 server:
   autoscaling:
     enabled: true

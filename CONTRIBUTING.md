@@ -46,7 +46,7 @@ cd observecraft
 cp .env.example .env     # optional: every setting has a development default
 (cd web && npm install)
 
-make up        # ClickHouse, Postgres, NATS, Vector, OTel Collector, RustFS and synthetic logs
+make up        # ClickHouse, Postgres, NATS, Valkey, Vector, OTel Collector, RustFS and synthetic logs
 make server    # API on :8080 (applies migrations on startup)
 make intake    # telemetry intake on :4318 (API-key authenticated)
 make tracegen  # synthetic traces, logs, metrics and CI pipelines (through the intake)
@@ -65,6 +65,7 @@ No backend handy? `make web-mock` runs the UI against in-browser mocks.
 |---|---|
 | `make test` | Rust tests (`cargo test`) + web typecheck (`tsc`) |
 | `OC_TEST_API_URL=http://localhost:8080 OC_TEST_ADMIN_PASSWORD=… cargo test -p oc-api --test tenancy` | Organization-isolation test against a running server (instance admin account) |
+| `OC_TEST_VALKEY_URL=redis://localhost:6379/15 cargo test -p oc-api cache::` | Shared cache tests against a real Valkey (two replicas coalescing, TTLs, org isolation, oversized values, a dead lock holder) |
 | `make openapi` | Regenerate the OpenAPI document and the web's TypeScript API types |
 | `make logs` / `make ps` | Tail / list the Docker stack |
 | `make down` | Stop the stack, keeping data |

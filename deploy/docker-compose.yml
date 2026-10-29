@@ -60,6 +60,20 @@ services:
       timeout: 3s
       retries: 30
 
+  # Shared cache of every observecraft-server replica (OC_CACHE_URL; required by the server).
+  # A cache only: no persistence (no RDB snapshots, no AOF); least recently used keys go first
+  # when maxmemory is reached.
+  valkey:
+    image: valkey/valkey:8.1.11-alpine
+    command: ["valkey-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
   vector-aggregator:
     image: timberio/vector:0.42.0-debian
     restart: unless-stopped
@@ -141,6 +155,7 @@ services:
       OC_CLICKHOUSE_URL: http://clickhouse:8123
       OC_POSTGRES_URL: postgres://observecraft:observecraft@postgres:5432/observecraft
       OC_NATS_URL: nats://nats:4222
+      OC_CACHE_URL: redis://valkey:6379/0
       OC_CORS_ORIGINS: ${OC_CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
       # The containerised server also serves the web app on :8080.
       OC_PUBLIC_URL: ${OC_PUBLIC_URL:-http://localhost:8080}
@@ -157,6 +172,7 @@ services:
       clickhouse: { condition: service_healthy }
       postgres: { condition: service_healthy }
       nats: { condition: service_healthy }
+      valkey: { condition: service_healthy }
 
   # The public telemetry endpoint: OTLP (HTTP :4318, gRPC :4317) and the Datadog logs / metrics APIs,
   # authenticated by ingest API key.

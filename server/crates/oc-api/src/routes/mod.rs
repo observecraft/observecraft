@@ -1592,6 +1592,7 @@ mod tests {
             ("../auth/password.rs", include_str!("../auth/password.rs")),
             ("../auth/totp.rs", include_str!("../auth/totp.rs")),
             ("../config.rs", include_str!("../config.rs")),
+            ("../cache.rs", include_str!("../cache.rs")),
             ("../demo.rs", include_str!("../demo.rs")),
             ("../error.rs", include_str!("../error.rs")),
             ("../log_access.rs", include_str!("../log_access.rs")),

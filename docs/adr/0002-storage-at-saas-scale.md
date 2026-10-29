@@ -128,7 +128,42 @@ Keep ClickHouse as the only store and the ADR-0001 layout, and change *when* wor
   profiles applied per request, on top of the intake's per-org rate limits.
 - **Sizing.** At least 4 vCPU per ClickHouse node; the dev values move from 2 to 4.
 
-### 4. Rebuild instead of migrating
+### 4. Shared cache: Valkey, required
+
+The result caches of section 2 only pay off at SaaS scale if they work across replicas: behind a load balancer,
+the widgets of one dashboard, its auto-refresh and the other users who have it open reach different
+`observecraft-server` replicas, and per-replica caches would each run the same query. So the server gets a
+**required** shared cache, **Valkey** (`OC_CACHE_URL`; compose service `valkey`, bundled in the Helm chart, or an
+external Valkey/Redis-protocol service such as ElastiCache or Memorystore).
+
+- **Valkey, not Redis.** Valkey is the Linux Foundation fork of Redis 7.2 under BSD-3-Clause. Redis 7.4 and later
+  are RSALv2/SSPLv1 (Redis 8 adds AGPLv3), which we don't ship or depend on. The client is the `redis` crate
+  (BSD-3-Clause), which speaks to both.
+- **NATS KV rejected**, although NATS is already deployed: no LRU eviction under a memory bound (only per-key TTLs
+  and stream limits), and values are limited by the maximum message size (1 MB by default); widget results and
+  catalogs exceed it.
+- **Required, but not on the request path's critical side.** The server doesn't start without it (a misconfigured
+  install fails at once instead of silently running uncached); once running, a Valkey outage only costs hits:
+  requests are served from ClickHouse, Valkey is skipped for a second after an error and warnings are
+  rate-limited. The intake doesn't use it: its series cache (section 1) is deliberately per replica.
+- **How** (`oc-api/src/cache.rs`): keys `oc:{namespace}:{org}:{generation}:{hash}`, so every entry belongs to one
+  org and no query text is stored; values MessagePack + zstd (level 1), at most 8 MiB after compression (larger
+  values are served, not stored); concurrent callers on a replica share one load, and across replicas the first
+  to miss takes a `SET NX PX` lock while the others poll for its value and load themselves if it fails, dies or
+  exceeds the load timeout; `invalidate(namespace, org)` replaces a generation instead of scanning keys. Counters
+  are served as Prometheus text on the internal listener (`/metrics`). No in-process layer in front: a hit costs
+  ~0.25 ms (1 KiB) to ~0.5 ms (100 KiB) locally, against tens to hundreds of milliseconds per query.
+- **What goes where.** Small shared results go to Valkey: dashboard widget results, template variable / tag values,
+  the metric catalog. The Kubernetes inventory stays in a bounded in-process cache (`ttl_cache.rs`, LRU by object
+  count): it is large (tens of MB per org in memory) and is used as Rust objects, so fetching and decoding it on
+  every request would cost more than it saves. Its loads go through Valkey instead: the in-process cache's load
+  calls the shared cache, so one replica builds the inventory from ClickHouse (holding the lock) and the others
+  decode its stored copy once per TTL instead of building their own.
+- **Deployment.** One instance, no persistence (`--save ""`, no AOF), `maxmemory` with `allkeys-lru`; the chart
+  derives `maxmemory` from the memory limit and recreates (never doubles) the pod on upgrades. A restart empties it,
+  which is a performance event, not a data loss.
+
+### 5. Rebuild instead of migrating
 
 New numbered migrations create the new tables and views and drop the old views and the unused exporter tables
 (`otel.otel_metrics_*`). Data is not migrated: dev's `otel` database is recreated, and any install upgrading keeps
@@ -182,7 +217,8 @@ correctness depend on database engines we don't use yet.
 - **Easier:** ingest grows ~linearly with shards; dashboards and explorers read in proportion to what they show;
   template variables, facets and the Errors page become constant-time reads; noisy orgs are bounded.
 - **Harder:** the intake carries a cache; the rollup job is a new moving part to monitor (lag, reruns); one more
-  index table to keep consistent.
+  index table to keep consistent; one more required component (Valkey) to run and size, though a cache without
+  persistence.
 - **Revisit:** Metrics without Limits-style per-org tag allowlists on the index; ALP codec when GA; hot/cold
   storage for samples older than the raw tier; shard groups per very large org.
 

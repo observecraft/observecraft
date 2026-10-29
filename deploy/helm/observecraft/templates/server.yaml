@@ -1,7 +1,8 @@
 {{- $fullname := include "oc.fullname" . -}}
 {{- $secret := include "oc.secretName" . -}}
-# The API server: REST API and web app (:8080), log indexer for Vector (:8090, internal), monitor
-# evaluation, archiving and notifications (one replica at a time, coordinated through Postgres).
+# The API server: REST API and web app (:8080), log indexer for Vector and its own metrics
+# (:8090, internal: /metrics), monitor evaluation, archiving and notifications (one replica at a
+# time, coordinated through Postgres). Replicas share cached results through Valkey (required).
 # Each replica applies pending migrations at startup under a Postgres lock; the others wait.
 apiVersion: apps/v1
 kind: Deployment
@@ -46,6 +47,7 @@ spec:
           env:
             {{- include "oc.serverEnv" . | nindent 12 }}
             - { name: OC_NATS_URL, value: {{ include "oc.natsUrl" . | quote }} }
+            {{- include "oc.cacheEnv" . | nindent 12 }}
             - { name: OC_PUBLIC_URL, value: {{ include "oc.publicUrl" . | quote }} }
             - { name: OC_CORS_ORIGINS, value: {{ include "oc.publicUrl" . | quote }} }
             - { name: OC_COOKIE_SECURE, value: {{ hasPrefix "https://" (include "oc.publicUrl" .) | quote }} }

@@ -6,6 +6,7 @@
 //! `observecraft-server openapi`  print the OpenAPI document (used to generate the web app's types)
 
 mod auth;
+mod cache;
 mod config;
 mod demo;
 mod error;
@@ -50,6 +51,13 @@ async fn main() -> anyhow::Result<()> {
 
     let cfg = Config::from_env();
     let migrate_only = std::env::args().nth(1).as_deref() == Some("migrate");
+    // Required by the server (not by `migrate`): fail at once when it is missing or unreachable.
+    let cache = if migrate_only {
+        None
+    } else {
+        let url = cfg.cache.require_url()?;
+        Some(cache::SharedCache::connect(url, cfg.cache.options(), CACHE_STARTUP_WAIT).await?)
+    };
     let ch_cfg = oc_store::ClickHouseConfig {
         url: cfg.clickhouse_url.clone(),
         user: cfg.clickhouse_user.clone(),
@@ -96,7 +104,8 @@ async fn main() -> anyhow::Result<()> {
         nats,
         secrets,
         log_restrictions: Default::default(),
-        kube_inventory: ttl_cache::TtlCache::new(routes::kubernetes::INVENTORY_TTL),
+        kube_inventory: ttl_cache::TtlCache::new(routes::kubernetes::INVENTORY_TTL).with_max_weight(cfg.inventory_cache_max_objects, Vec::len),
+        cache: cache.context("shared cache")?,
         config: cfg.clone(),
     }));
     routes::auth::ensure_instance_admin(&state)
@@ -191,6 +200,8 @@ async fn main() -> anyhow::Result<()> {
 
 /// How long startup waits for Postgres and ClickHouse to become reachable.
 const STARTUP_WAIT: Duration = Duration::from_secs(300);
+/// How long startup waits for the shared cache (Valkey) to answer before giving up.
+const CACHE_STARTUP_WAIT: Duration = Duration::from_secs(30);
 
 /// Schema migrations (ClickHouse, Postgres), table retention and built-in content. Idempotent (safe
 /// to retry after a partial run); the caller holds the setup lock.

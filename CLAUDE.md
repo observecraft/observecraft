@@ -35,7 +35,7 @@ the origin in a comment):
 | Datadog protobuf payload definitions (`DataDog/agent-payload`) | Apache-2.0 / BSD-3-Clause |
 | OpenTelemetry (SDKs, Collector, Collector contrib incl. the Datadog receiver/exporter) | Apache-2.0 |
 | Vector | MPL-2.0: fine as an unmodified, separately run component; don't copy its source into this repo |
-| ClickHouse, DuckDB, NATS, RustFS | Apache-2.0 / MIT |
+| ClickHouse, DuckDB, NATS, RustFS, Valkey | Apache-2.0 / MIT / BSD-3-Clause (Valkey; never Redis ≥ 7.4, which is RSAL/SSPL/AGPL) |
 
 **Not OK:** Datadog's web app, its design system, icons, logos, illustrations and screenshots are proprietary. Use
 our own interface code and assets; never copy their frontend code or images, and don't use the
@@ -111,7 +111,7 @@ or SDK features.
 ## Commands
 
 ```bash
-make up         # ClickHouse, Postgres, NATS, Vector, OTel Collector, RustFS, synthetic logs
+make up         # ClickHouse, Postgres, NATS, Valkey, Vector, OTel Collector, RustFS, synthetic logs
 make server     # API on :8080 (applies migrations)
 make intake     # intake on :4318
 make tracegen   # demo traces, logs, metrics, CI pipelines

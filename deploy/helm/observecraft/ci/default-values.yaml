@@ -5,4 +5,5 @@ intake: { replicas: 1, resources: { requests: { cpu: 20m, memory: 32Mi } } }
 collector: { replicas: 1, persistence: { size: 1Gi }, resources: { requests: { cpu: 20m, memory: 128Mi } } }
 vector: { replicas: 1, persistence: { size: 1Gi }, resources: { requests: { cpu: 20m, memory: 64Mi } } }
 clickhouse: { bundled: { persistence: { size: 2Gi }, resources: { requests: { cpu: 100m, memory: 1Gi } } } }
+cache: { bundled: { resources: { requests: { cpu: 20m, memory: 64Mi }, limits: { memory: 128Mi } } } }
 postgres: { bundled: { persistence: { size: 1Gi }, resources: { requests: { cpu: 20m, memory: 64Mi } } } }
