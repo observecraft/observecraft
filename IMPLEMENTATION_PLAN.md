@@ -126,7 +126,36 @@ Success criteria:
 - Per-org short cache with coalescing for inventory reads.
 - Pods explorer page < 300 ms on dev-sized inventory.
 
-Status: Not Started
+Done: `otel.k8s_inventory` (migration 0011, `ReplacingMergeTree(LastSeen)` by `(OrgId, Kind, Uid)`, sharded
+like the objects) is filled by a view from `otel_k8s_objects`: typed metadata (namespace, owner, created,
+deletion, labels, annotations), pod columns (phase, node, IP, host network, ready / total containers,
+restarts, CPU / memory requests and limits) and `Doc`, a trimmed JSON of the spec and status fields the
+explorer's rows are built from. The explorer reads it (`FINAL` on these columns only), the detail panel reads
+the full object from `k8s_resources` by uid, and Network's pod / service address lookups read the typed
+columns. Rows depend on each other (owner chains, rollups, clusters / containers / images derived from pods)
+and on usage metrics (CPU sorts), so the built inventory is kept per org for 15 s with request coalescing
+(`ttl_cache.rs`) and explorers, widgets, the overview, catalog, SQL editor and host panel filter, facet and
+sort it in memory. No backfill: collectors resend every object within minutes.
+
+Measured (local single node, ClickHouse 26.8 limited to 2 vCPU, 9,363 objects in one cluster, 80 MiB of
+bodies, release server; medians of 5):
+
+| | before | after, uncached | after, cached |
+|---|---|---|---|
+| inventory query | 290 ms, 204 MiB read, 79 MiB sent | 21 ms, 15.5 MiB read, 8 MiB sent | — |
+| pods explorer page | 571–776 ms | 173–181 ms | 17 ms |
+| orchestration search (widget, sort by CPU) | 606–706 ms | 153–159 ms | 18 ms |
+| six widgets at once | 1.3–1.6 s | 137–173 ms | 37 ms |
+| pod detail | 545 ms | — | 7 ms |
+
+Parity: a ClickHouse test (`OC_TEST_CLICKHOUSE_URL`) writes a fixture of every kind and pod state through
+the view and checks that each built row equals the row of the full object, and the typed pod columns equal
+the rows' values. Old and new servers on the same 9.4k-object data: 240 responses (every kind, 24 sorts, 24
+filters, group-bys, per-namespace sets, 60+ details) are identical apart from the order of rows whose sort
+keys tie, which the old `FINAL` read left undefined (two old responses differ the same way); the new read
+orders by cluster, kind, namespace, name.
+
+Status: Complete
 
 ## Stage 6: Errors and log facets precomputed
 

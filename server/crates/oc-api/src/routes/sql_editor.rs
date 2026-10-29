@@ -642,7 +642,7 @@ fn resource_row(r: &CatalogResource) -> Vec<Value> {
 #[derive(Default)]
 struct Loaded {
     hosts: Option<Vec<HostRow>>,
-    kube: Option<Vec<KubeResource>>,
+    kube: Option<std::sync::Arc<Vec<KubeResource>>>,
     catalog: Option<Vec<CatalogResource>>,
 }
 
@@ -663,7 +663,7 @@ impl Loaded {
                     Inventory::Kube(k) => k,
                     _ => KubeKind::Containers,
                 };
-                let rows = self.kube.iter().flatten().filter(|r| r.kind == Some(kind));
+                let rows = self.kube.iter().flat_map(|k| k.iter()).filter(|r| r.kind == Some(kind));
                 if inv == Inventory::Containers {
                     rows.map(container_row).collect()
                 } else {

@@ -1608,6 +1608,7 @@ mod tests {
             ("../s3.rs", include_str!("../s3.rs")),
             ("../standard_attributes.rs", include_str!("../standard_attributes.rs")),
             ("../state.rs", include_str!("../state.rs")),
+            ("../ttl_cache.rs", include_str!("../ttl_cache.rs")),
         ]
     }
 

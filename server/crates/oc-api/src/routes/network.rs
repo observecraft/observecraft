@@ -258,20 +258,16 @@ async fn lookups(st: &AppState, org: &str) -> Result<Lookups, ApiError> {
     let ch = st.ch(org);
     let pods = ch
         .query(
-            "SELECT JSONExtractString(Body, 'status', 'podIP') AS ip, argMax(JSONExtractString(Body, 'metadata', 'name'), LastSeen) AS name, \
-             argMax(JSONExtractString(Body, 'metadata', 'namespace'), LastSeen) AS namespace, \
-             argMax(coalesce(nullIf(JSONExtractString(Body, 'metadata', 'labels', 'tags.datadoghq.com/service'), ''), \
-                             nullIf(JSONExtractString(Body, 'metadata', 'labels', 'app.kubernetes.io/name'), ''), \
-                             JSONExtractString(Body, 'metadata', 'labels', 'app')), LastSeen) AS service, \
-             argMax(JSONExtractString(Body, 'spec', 'nodeName'), LastSeen) AS node, argMax(Cluster, LastSeen) AS cluster \
-             FROM otel.k8s_resources WHERE OrgId = {oc_org:String} AND Kind = 'Pod' AND NOT JSONExtractBool(Body, 'spec', 'hostNetwork') GROUP BY ip HAVING ip != ''",
+            "SELECT Ip AS ip, argMax(Name, LastSeen) AS name, argMax(toString(Namespace), LastSeen) AS namespace, \
+             argMax(coalesce(nullIf(Labels['tags.datadoghq.com/service'], ''), nullIf(Labels['app.kubernetes.io/name'], ''), Labels['app']), LastSeen) AS service, \
+             argMax(toString(Node), LastSeen) AS node, argMax(toString(Cluster), LastSeen) AS cluster \
+             FROM otel.k8s_inventory WHERE OrgId = {oc_org:String} AND Kind = 'Pod' AND NOT HostNetwork GROUP BY ip HAVING ip != ''",
         )
         .fetch_all::<PodRow>();
     let services = ch
         .query(
-            "SELECT JSONExtractString(Body, 'spec', 'clusterIP') AS ip, argMax(JSONExtractString(Body, 'metadata', 'name'), LastSeen) AS name, \
-             argMax(JSONExtractString(Body, 'metadata', 'namespace'), LastSeen) AS namespace \
-             FROM otel.k8s_resources WHERE OrgId = {oc_org:String} AND Kind = 'Service' GROUP BY ip HAVING ip NOT IN ('', 'None')",
+            "SELECT Ip AS ip, argMax(Name, LastSeen) AS name, argMax(toString(Namespace), LastSeen) AS namespace \
+             FROM otel.k8s_inventory WHERE OrgId = {oc_org:String} AND Kind = 'Service' GROUP BY ip HAVING ip NOT IN ('', 'None')",
         )
         .fetch_all::<SvcRow>();
     let host_tags = sqlx::query_as::<_, (String, Vec<String>)>("SELECT host, host_tags FROM datadog_hosts WHERE org_id = $1").bind(org).fetch_all(&st.postgres);

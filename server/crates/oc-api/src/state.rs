@@ -22,6 +22,8 @@ pub struct Inner {
     pub secrets: SecretBox,
     /// Each org's log restriction queries (Logs → Configuration → Data Access).
     pub log_restrictions: crate::log_access::RestrictionCache,
+    /// Each org's built Kubernetes / ECS / process inventory, reused for a few seconds.
+    pub kube_inventory: crate::ttl_cache::TtlCache<Vec<crate::routes::kubernetes::KubeResource>>,
 }
 
 impl Inner {

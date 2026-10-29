@@ -17,6 +17,7 @@ mod routes;
 mod s3;
 mod standard_attributes;
 mod state;
+mod ttl_cache;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -95,6 +96,7 @@ async fn main() -> anyhow::Result<()> {
         nats,
         secrets,
         log_restrictions: Default::default(),
+        kube_inventory: ttl_cache::TtlCache::new(routes::kubernetes::INVENTORY_TTL),
         config: cfg.clone(),
     }));
     routes::auth::ensure_instance_admin(&state)

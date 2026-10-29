@@ -82,6 +82,10 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
         include_str!("../../../migrations/clickhouse/0008_k8s_generations.sql"),
     ),
     (
+        "0011_k8s_inventory",
+        include_str!("../../../migrations/clickhouse/0011_k8s_inventory.sql"),
+    ),
+    (
         "0012_log_aggregates",
         include_str!("../../../migrations/clickhouse/0012_log_aggregates.sql"),
     ),
@@ -524,6 +528,22 @@ mod tests {
             let mv = cluster.iter().find(|s| s.starts_with(&format!("CREATE MATERIALIZED VIEW IF NOT EXISTS {table}_mv ON CLUSTER 'oc'"))).unwrap();
             assert!(mv.contains(&format!("TO {table}_local AS")) && mv.contains("FROM oc.logs_local\n"), "{mv}");
         }
+    }
+
+    #[test]
+    fn kubernetes_inventory_keeps_one_typed_row_per_object() {
+        let single = all(None);
+        let table = single.iter().find(|s| s.starts_with("CREATE TABLE IF NOT EXISTS otel.k8s_inventory ")).expect("k8s_inventory table");
+        assert!(table.contains("ENGINE = ReplacingMergeTree(LastSeen)") && table.contains("ORDER BY (OrgId, Kind, Uid)"), "{table}");
+        assert!(table.contains("`Labels` Map(LowCardinality(String), String)"), "{table}");
+        let mv = single.iter().find(|s| s.contains("MATERIALIZED VIEW IF NOT EXISTS otel.k8s_inventory_mv")).expect("k8s_inventory_mv");
+        assert!(mv.contains("TO otel.k8s_inventory AS") && mv.contains("FROM otel.otel_k8s_objects\n"), "{mv}");
+
+        let cluster = all(Some("oc"));
+        assert!(cluster.iter().any(|s| s.starts_with("CREATE TABLE IF NOT EXISTS otel.k8s_inventory_local ON CLUSTER 'oc'") && s.contains("ENGINE = ReplicatedReplacingMergeTree(LastSeen)")));
+        // Sharded like the objects it is built from, so an object's snapshots dedupe on one shard.
+        assert!(cluster.iter().any(|s| s.contains("ENGINE = Distributed('oc', 'otel', 'k8s_inventory_local', cityHash64(OrgId, Uid, ''))")));
+        assert!(cluster.iter().any(|s| s.contains("otel.k8s_inventory_mv ON CLUSTER 'oc' TO otel.k8s_inventory_local AS") && s.contains("FROM otel.otel_k8s_objects_local\n")));
     }
 
     #[test]

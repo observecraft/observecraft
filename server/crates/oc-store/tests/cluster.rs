@@ -85,6 +85,23 @@ async fn schema_on_a_cluster() {
     .expect("insert logs");
     assert_eq!(count("SELECT toUInt64(sum(n)) AS n FROM oc.error_groups_1m WHERE org_id = 'acme'").await, 100);
     assert_eq!(count("SELECT toUInt64(sum(n)) AS n FROM oc.log_facets_1m WHERE org_id = 'acme' AND env = 'prod'").await, 200);
+    // Kubernetes objects: an object's inventory row is on the shard of its snapshots and full body.
+    ch.query(
+        "INSERT INTO otel.otel_k8s_objects (Timestamp, Body, ResourceAttributes) \
+         SELECT now64(9), concat('{\"kind\":\"Pod\",\"metadata\":{\"name\":\"storefront-api-', toString(number), '\",\"namespace\":\"storefront\",\"uid\":\"pod-', toString(number), '\"}}'), \
+                map('oc.org_id', 'acme', 'k8s.cluster.name', 'shop-prod') FROM numbers(100)",
+    )
+    .execute()
+    .await
+    .expect("insert kubernetes objects");
+    assert_eq!(count("SELECT count() AS n FROM otel.k8s_inventory FINAL WHERE OrgId = 'acme' AND Kind = 'Pod'").await, 100);
+    assert_eq!(count("SELECT uniqExact(_shard_num) AS n FROM otel.k8s_inventory").await, 2, "objects are spread over both shards");
+    let apart = count(
+        "SELECT count() AS n FROM (SELECT Uid, any(_shard_num) AS shard FROM otel.k8s_inventory GROUP BY Uid) i \
+         INNER JOIN (SELECT Uid, any(_shard_num) AS shard FROM otel.k8s_resources GROUP BY Uid) r USING Uid WHERE i.shard != r.shard",
+    )
+    .await;
+    assert_eq!(apart, 0, "an object's inventory row and its body are on different shards");
     // Retention changes reach every shard's local table.
     oc_store::apply_retention(&cfg, oc_store::RetentionDays { traces: 7, traces_max: 30, metrics: 30, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 0 }).await.expect("retention");
 }
