@@ -1,0 +1,7 @@
+# Shared by every language in .github/workflows/codeql.yml.
+name: observecraft
+paths-ignore:
+  # Generated from the server's OpenAPI document by `make openapi`.
+  - web/src/api/generated/**
+  # The in-browser demo backend: answers only in mock mode (`make web-mock`), with fictional data.
+  - web/src/api/mock/**

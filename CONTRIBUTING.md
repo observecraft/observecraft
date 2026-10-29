@@ -216,7 +216,8 @@ Code scanning from Default setup to Advanced setup and set repository Actions va
 to `true`. Dispatch `codeql` and confirm all four language analyses finish successfully. Until the variable
 is set, the advanced jobs deliberately skip so they do not duplicate Default setup or attempt rejected
 uploads. Advanced setup retains all four languages on main and weekly runs; PRs select languages from changed files,
-and newer PR commits cancel obsolete runs.
+and newer PR commits cancel obsolete runs. `.github/codeql/codeql-config.yml` keeps generated API types and the
+in-browser mocks out of the analysis.
 Do not disable main/weekly analysis: it supplies the default-branch baseline and detects newly published
 security queries. CodeQL findings are gated with a code-scanning ruleset if desired; a successful analysis
 job alone does not mean there are no security findings.
