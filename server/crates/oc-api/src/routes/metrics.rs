@@ -1830,9 +1830,7 @@ mod tests {
             database: "oc".into(),
             cluster: None,
         };
-        oc_store::migrate_clickhouse(&cfg, false)
-            .await
-            .expect("migrate");
+        crate::test_support::migrate_clickhouse_once(&cfg).await;
         let org = format!("parity-{}", std::process::id());
         let ch = clickhouse::Client::default()
             .with_url(&url)
@@ -1954,7 +1952,7 @@ mod tests {
             return;
         };
         let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: "default".into(), password: String::new(), database: "oc".into(), cluster: Some("oc".into()) };
-        oc_store::migrate_clickhouse(&cfg, false).await.expect("migrate");
+        crate::test_support::migrate_clickhouse_once(&cfg).await;
         let org = format!("cluster-{}-{}", std::process::id(), now_ms());
         let ch = clickhouse::Client::default().with_url(&url).with_user("default").with_option("param_oc_org", &org).with_option("insert_distributed_sync", "1");
         let start = 1_793_095_200_i64;
@@ -2015,9 +2013,7 @@ mod tests {
             database: "oc".into(),
             cluster: None,
         };
-        oc_store::migrate_clickhouse(&cfg, false)
-            .await
-            .expect("migrate");
+        crate::test_support::migrate_clickhouse_once(&cfg).await;
         let org = format!("readers-{}", std::process::id());
         let now = now_ms();
         // Open-ended like the `now() - INTERVAL` readers: points written after `now` count too.
@@ -2156,7 +2152,7 @@ mod tests {
         let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
         let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
         let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-        oc_store::migrate_clickhouse(&cfg, false).await.expect("migrate");
+        crate::test_support::migrate_clickhouse_once(&cfg).await;
         let org = format!("index-{}-{}", std::process::id(), now_ms());
         let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_option("param_oc_org", &org);
         // 24 series: namespaces, services (one without), a resource `env` some points override,
@@ -2277,9 +2273,7 @@ mod tests {
             database: "oc".into(),
             cluster: None,
         };
-        oc_store::migrate_clickhouse(&cfg, false)
-            .await
-            .expect("migrate");
+        crate::test_support::migrate_clickhouse_once(&cfg).await;
         let org = format!("dists-{}", std::process::id());
         let ch = clickhouse::Client::default()
             .with_url(&url)

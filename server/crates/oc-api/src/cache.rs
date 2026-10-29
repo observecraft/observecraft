@@ -871,14 +871,30 @@ mod tests {
         let Some((a, b)) = live_pair(options()).await else { return };
         let org = unique("acme");
         let loads = AtomicUsize::new(0);
+        // Replica b asks only once replica a's load has started, i.e. a holds the lock: a fixed
+        // delay was racy under a busy test run.
+        let (started_tx, started_rx) = tokio::sync::watch::channel(false);
+        let load_a = || {
+            let first = counting(&loads, vec![1], 100);
+            async move {
+                let _ = started_tx.send(true);
+                first().await
+            }
+        };
+        let wait_started = || {
+            let mut rx = started_rx.clone();
+            async move {
+                let _ = rx.wait_for(|started| *started).await;
+            }
+        };
         let (x, y, z) = tokio::join!(
-            a.get_or_load("widgets", &org, "q", TTL, counting(&loads, vec![1], 100)),
+            a.get_or_load("widgets", &org, "q", TTL, load_a),
             async {
-                tokio::time::sleep(Duration::from_millis(15)).await;
+                wait_started().await;
                 b.get_or_load("widgets", &org, "q", TTL, counting(&loads, vec![2], 100)).await
             },
             async {
-                tokio::time::sleep(Duration::from_millis(15)).await;
+                wait_started().await;
                 b.get_or_load("widgets", &org, "q", TTL, counting(&loads, vec![3], 100)).await
             },
         );

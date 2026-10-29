@@ -1350,7 +1350,7 @@ mod tests {
         let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
         let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
         let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-        oc_store::migrate_clickhouse(&cfg, false).await.expect("migrate");
+        crate::test_support::migrate_clickhouse_once(&cfg).await;
         let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_database("oc");
         let org = format!("error-parity-{}", std::process::id());
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;

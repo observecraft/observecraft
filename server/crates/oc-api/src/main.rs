@@ -20,6 +20,8 @@ mod s3;
 mod standard_attributes;
 mod state;
 mod ttl_cache;
+#[cfg(test)]
+mod test_support;
 
 use std::sync::Arc;
 use std::time::Duration;

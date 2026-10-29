@@ -842,18 +842,14 @@ mod tests {
         };
         let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
         let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
-        oc_store::migrate_clickhouse(
-            &oc_store::ClickHouseConfig {
-                url: url.clone(),
-                user: user.clone(),
-                password: password.clone(),
-                database: "oc".into(),
-                cluster: None,
-            },
-            false,
-        )
-        .await
-        .unwrap();
+        crate::test_support::migrate_clickhouse_once(&oc_store::ClickHouseConfig {
+            url: url.clone(),
+            user: user.clone(),
+            password: password.clone(),
+            database: "oc".into(),
+            cluster: None,
+        })
+        .await;
         let org = format!(
             "dashboard-parity-{}-{}",
             std::process::id(),

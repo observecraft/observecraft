@@ -1612,6 +1612,7 @@ mod tests {
             ("../standard_attributes.rs", include_str!("../standard_attributes.rs")),
             ("../state.rs", include_str!("../state.rs")),
             ("../ttl_cache.rs", include_str!("../ttl_cache.rs")),
+            ("../test_support.rs", include_str!("../test_support.rs")),
         ]
     }
 

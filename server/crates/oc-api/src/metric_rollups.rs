@@ -368,7 +368,7 @@ mod tests {
         let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
         let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
         let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-        oc_store::migrate_clickhouse(&cfg, false).await.expect("migrate");
+        crate::test_support::migrate_clickhouse_once(&cfg).await;
         let org = format!("rollup-job-{}-{}", std::process::id(), crate::routes::metrics::now_ms());
         let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_option("param_oc_org", &org);
         // Two series, a point every 10 s for 2 hours; tiers 15 / 180 / 760 days.
@@ -446,7 +446,7 @@ mod tests {
         let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
         let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
         let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-        oc_store::migrate_clickhouse(&cfg, false).await.expect("migrate");
+        crate::test_support::migrate_clickhouse_once(&cfg).await;
         let org = format!("rollup-dist-{}-{}", std::process::id(), crate::routes::metrics::now_ms());
         let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_option("param_oc_org", &org);
         // A cumulative histogram: 3 points in 10:00–10:05, one at 10:07.

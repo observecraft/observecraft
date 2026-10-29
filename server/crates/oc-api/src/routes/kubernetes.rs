@@ -2216,7 +2216,7 @@ mod tests {
             database: "oc".into(),
             cluster: None,
         };
-        oc_store::migrate_clickhouse(&cfg, false).await.expect("migrate");
+        crate::test_support::migrate_clickhouse_once(&cfg).await;
         let bodies: Vec<Value> = serde_json::from_str(include_str!("../../tests/fixtures/k8s_objects.json")).expect("fixture");
         let org = format!("k8s-parity-{}-{}", std::process::id(), now_ms());
         let admin = oc_store::clickhouse(&cfg);
