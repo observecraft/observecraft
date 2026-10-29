@@ -64,6 +64,22 @@ async fn schema_on_a_cluster() {
     .await
     .expect("insert histograms");
     assert_eq!(count("SELECT count() AS n FROM otel.metrics_dist_samples WHERE OrgId = 'acme'").await, 300);
+    // The tag index rows of a series are on its shard (the series view writes them shard-locally).
+    assert!(count("SELECT count() AS n FROM otel.metrics_tags WHERE OrgId = 'acme'").await > 0);
+    let apart = count(
+        "SELECT count() AS n FROM (SELECT SeriesId, any(_shard_num) AS shard FROM otel.metrics_tags GROUP BY SeriesId) t \
+         INNER JOIN (SELECT SeriesId, any(_shard_num) AS shard FROM otel.metrics_series GROUP BY SeriesId) r USING SeriesId WHERE t.shard != r.shard",
+    )
+    .await;
+    assert_eq!(apart, 0, "a series' index rows and its series row are on different shards");
+    // Its values, through the Distributed table, by (org, key).
+    for _ in 0..30 {
+        if count("SELECT count() AS n FROM otel.metrics_tag_values WHERE OrgId = 'acme' AND Key = 'host.name'").await == 100 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+    assert_eq!(count("SELECT count() AS n FROM otel.metrics_tag_values FINAL WHERE OrgId = 'acme' AND Key = 'host.name'").await, 100);
     for table in ["metrics_samples", "metrics_series", "metrics_rollup_5m", "metrics_rollup_1h", "metrics_dist_samples", "metrics_dist_rollup_5m", "metrics_dist_rollup_1h"] {
         let split = count(&format!("SELECT count() AS n FROM (SELECT SeriesId FROM otel.{table} GROUP BY SeriesId HAVING uniqExact(_shard_num) > 1)")).await;
         assert_eq!(split, 0, "a series is on more than one shard in {table}");

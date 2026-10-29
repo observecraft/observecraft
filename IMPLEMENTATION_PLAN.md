@@ -122,10 +122,12 @@ upgrade). Rows and CPU from `system.part_log` / `system.query_log` over 25 min, 
   test-owned copy of the exporter tables (ours are dropped), raw and from rollups with the job's progress at
   everything / partly / nothing rolled up; a mutation of the tail boundary fails both.
 - Not done: OTLP passthrough stays unmarked (Stage 1 measured decoding as affordable, but the intake's OTLP
-  types are partial: marking it needs lossless splitting). Cluster run of the new DDL not done here (the
-  rendered DDL is unit-tested in both modes).
+  types are partial: marking it needs lossless splitting).
+- Cluster (2 shards + Keeper, ClickHouse 26.8): all migrations apply (`oc-store/tests/cluster.rs`); the rollup
+  job rolls each shard's series on that shard (`parallel_distributed_insert_select = 2`) and point queries
+  through rollups and the tag index match the oracle (`rollups_and_point_queries_on_a_cluster`).
 
-Status: Complete (single node)
+Status: Complete
 
 ## Stage 3: Tag index and tag values
 
@@ -150,9 +152,11 @@ Verified (same setup as Stage 2):
   matching series (590 k rows, 163 ms).
 - Backfill of existing series in migration 0010: 1.46 M index rows from 91 k series.
 - Cluster: tags sharded by SeriesId with series and samples, values by (org, key); point queries use
-  `distributed_product_mode = 'local'`. Rendered DDL unit-tested; not run on a real cluster here.
+  `distributed_product_mode = 'local'` (without it ClickHouse refuses them: "Double-distributed IN/JOIN
+  subqueries is denied", which the previous point queries also hit on a cluster). On 2 shards + Keeper: index
+  rows on their series' shard, values reachable by key, point queries equal to the oracle.
 
-Status: Complete (single node)
+Status: Complete
 
 ## Stage 4: Dashboard query execution
 

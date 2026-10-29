@@ -1943,6 +1943,60 @@ mod tests {
         }
     }
 
+    /// On a cluster: the rollup job rolls each shard's series up on that shard, and point queries
+    /// (series → points joins and `SeriesId IN` through the tag index, shard-local as
+    /// `points_client` runs them) give the oracle's results. Skipped unless
+    /// OC_TEST_CLICKHOUSE_CLUSTER_URL points at a node of a cluster named `oc` with Keeper.
+    #[tokio::test]
+    async fn rollups_and_point_queries_on_a_cluster() {
+        let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_CLUSTER_URL") else {
+            eprintln!("OC_TEST_CLICKHOUSE_CLUSTER_URL unset: skipping");
+            return;
+        };
+        let cfg = oc_store::ClickHouseConfig { url: url.clone(), user: "default".into(), password: String::new(), database: "oc".into(), cluster: Some("oc".into()) };
+        oc_store::migrate_clickhouse(&cfg, false).await.expect("migrate");
+        let org = format!("cluster-{}-{}", std::process::id(), now_ms());
+        let ch = clickhouse::Client::default().with_url(&url).with_user("default").with_option("param_oc_org", &org).with_option("insert_distributed_sync", "1");
+        let start = 1_793_095_200_i64;
+        let select = format!(
+            "SELECT map('oc.org_id', '{org}', 'host.name', concat('i-0a1b2c3d4e5f6', toString(number % 40))) AS ResourceAttributes, 'storefront-api' AS ServiceName, \
+             'system.cpu.utilization' AS MetricName, map('state', if(number % 3 = 0, 'user', 'system')) AS Attributes, \
+             toDateTime64({start} + intDiv(number, 40) * 10, 9) AS TimeUnix, (number % 17) / 17 AS Value FROM numbers(28800)"
+        );
+        let cols = "ResourceAttributes, ServiceName, MetricName, Attributes, TimeUnix, Value";
+        for target in [oracle_table(&ch, "gauge").await, "otel.metrics_ingest_gauge".to_string()] {
+            ch.query(&format!("INSERT INTO {target} ({cols}) SELECT {cols} FROM ({select})")).execute().await.unwrap_or_else(|e| panic!("{target}: {e}"));
+        }
+        for hour in [start * 1000, start * 1000 + 3_600_000] {
+            metric_rollups::roll(&ch, true, metric_rollups::Tier::FiveMinutes, hour, hour + 3_600_000).await.expect("5m on the shards");
+        }
+        metric_rollups::roll(&ch, true, metric_rollups::Tier::Hour, start * 1000, start * 1000 + 7_200_000).await.expect("1h on the shards");
+        let shards: u64 = ch.query("SELECT uniqExact(_shard_num) FROM otel.metrics_rollup_5m WHERE OrgId = {oc_org:String}").fetch_one().await.expect("shards");
+        assert_eq!(shards, 2, "each shard rolled up its own series");
+        let local = ch.clone().with_option("distributed_product_mode", "local");
+        let range = TimeRange { from: start * 1000, to: (start + 7200) * 1000 - 1 };
+        for query in ["avg:system.cpu.utilization{*}", "max:system.cpu.utilization{state:user} by {host}", "sum:system.cpu.utilization{!state:user,host:i-0a1b2c3d4e5f61*} by {state}"] {
+            let q = parse(query).unwrap();
+            for (step_s, source, done) in [(30, Source::Samples, Default::default())]
+                .into_iter()
+                .chain(progress_cases(start * 1000).into_iter().flat_map(|done| [(600, Source::Rollup5m, done), (3600, Source::Rollup1h, done)]))
+            {
+                let run = |ch: clickhouse::Client, (inner, params): (String, Vec<Param>)| async move {
+                    let sql = format!("SELECT g, toInt64(toUnixTimestamp(t)) * 1000 AS ts, toFloat64({agg}(v)) AS value FROM ({inner}) WHERE isFinite(v) GROUP BY g, t ORDER BY g, t", agg = q.agg.sql());
+                    bind(ch.query(&sql), &params).fetch_all::<Row>().await.unwrap_or_else(|e| panic!("{sql}: {e}"))
+                };
+                let old = run(ch.clone(), exporter_points_query(Kind::Gauge, &q, range, step_s)).await;
+                let new = run(local.clone(), points_query(Kind::Gauge, source, &q, range, step_s, PointsOptions { done, ..Default::default() })).await;
+                assert!(!old.is_empty(), "{query}: no data");
+                assert_eq!(old.len(), new.len(), "{query} {source:?} at {done:?}");
+                for (o, n) in old.iter().zip(&new) {
+                    assert_eq!((&o.g, o.ts), (&n.g, n.ts), "{query} {source:?}");
+                    assert!((o.value - n.value).abs() <= 1e-9 * o.value.abs().max(1.0), "{query} {source:?} at {done:?}: {} vs {}", o.value, n.value);
+                }
+            }
+        }
+    }
+
     /// Readers that query points directly (hosts, Kubernetes), the metric catalog and tag values
     /// give the same rows from the exporter's tables and from series + samples. Skipped unless
     /// OC_TEST_CLICKHOUSE_URL is set (see above).
