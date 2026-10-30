@@ -5,7 +5,7 @@ import './metrics.css';
 
 const tab = ({ isActive }: { isActive: boolean }) => `product-tab${isActive ? ' active' : ''}`;
 
-/** Metrics product frame: Explorer, Summary, Volume and Derived Metrics share one time range (past hour by default). */
+/** Metrics product frame: Overview, Explorer, Catalog and Derived Metrics share one time range (past hour by default). */
 export function MetricsLayout() {
   return (
     <TimeProvider initial="1h">
@@ -16,14 +16,14 @@ export function MetricsLayout() {
             Metrics
           </div>
           <nav className="product-tabs">
+            <NavLink to="/metrics/overview" className={tab}>
+              Overview
+            </NavLink>
             <NavLink to="/metrics" end className={tab}>
               Explorer
             </NavLink>
-            <NavLink to="/metrics/summary" className={tab}>
-              Summary
-            </NavLink>
-            <NavLink to="/metrics/volume" className={tab}>
-              Volume
+            <NavLink to="/metrics/catalog" className={tab}>
+              Catalog
             </NavLink>
             <NavLink to="/metrics/derived" className={tab}>
               Derived Metrics <span className="badge-new mx-tab-new">NEW</span>

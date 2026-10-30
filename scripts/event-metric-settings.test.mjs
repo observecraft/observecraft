@@ -131,7 +131,7 @@ test('mock rules validate like the server and drive the overview', async () => {
   await assert.rejects(rulesMock.createMetricRule({ name: 'x', kind: 'indexing', metricPattern: 'a.*', action: 'drop', tags: [] }), /indexing controls allow tags/);
   await assert.rejects(rulesMock.createMetricRule({ name: 'x', kind: 'ingestion', metricPattern: 'a.*', action: 'strip_tags', tags: [] }), /at least one tag/);
   await assert.rejects(rulesMock.createMetricRule({ name: 'x', kind: 'ingestion', metricPattern: "a'; --", action: 'drop', tags: [] }), /pattern/);
-  const drop = await rulesMock.createMetricRule({ name: 'Drop restarts', kind: 'ingestion', metricPattern: 'kubernetes.containers.*', action: 'drop', tags: ['ignored'] });
+  const drop = await rulesMock.createMetricRule({ name: 'Drop restarts', kind: 'ingestion', metricPattern: 'kubernetes.containers.restart*', action: 'drop', tags: ['ignored'] });
   assert.deepEqual(drop.tags, []);
   assert.equal(drop.metricsImpacted, 1);
   const o = await rulesMock.metricRulesOverview();

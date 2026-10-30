@@ -10,6 +10,18 @@ export function compact(n: number): string {
 }
 
 /** "Oct 25 09:48:22.309" — the log-list timestamp format. */
+/** 1536 → "1.5 KiB": binary units, as host memory and disk metrics are reported. */
+export function formatBytes(n: number): string {
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+  let v = Math.abs(n);
+  let u = 0;
+  while (v >= 1024 && u < units.length - 1) {
+    v /= 1024;
+    u++;
+  }
+  return `${n < 0 ? '-' : ''}${v >= 100 || u === 0 ? Math.round(v) : v.toFixed(1)} ${units[u]}`;
+}
+
 export function formatLogDate(ts: number): string {
   const d = new Date(ts);
   return `${MONTHS[d.getMonth()]} ${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;

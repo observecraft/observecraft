@@ -42,6 +42,7 @@ pub mod log_pipelines;
 pub mod log_restrictions;
 pub mod log_aggregates;
 pub mod logs;
+pub mod metric_catalog;
 pub mod metric_inventory;
 pub mod metric_rules;
 pub mod metrics;
@@ -70,6 +71,8 @@ pub mod workflow_expr;
 pub mod workflows;
 pub mod profiles;
 pub mod reference_tables;
+pub mod resource_changes;
+pub mod cloud_cost;
 pub mod resource_policies;
 pub mod resource_policy_rules;
 pub mod scorecard_rules;
@@ -105,6 +108,18 @@ use crate::state::AppState;
         datadog_api::validate::validate,
         datadog_api::validate::validate_keys,
         datadog_api::current_user::current_user,
+        datadog_api::cost::list_budgets,
+        datadog_api::cost::get_budget,
+        datadog_api::cost::upsert_budget,
+        datadog_api::cost::delete_budget,
+        datadog_api::cost::validate_budget,
+        datadog_api::cost::upsert_custom_forecast,
+        datadog_api::cost::get_custom_forecast,
+        datadog_api::cost::delete_custom_forecast,
+        datadog_api::cost::upload_custom_costs,
+        datadog_api::cost::list_custom_costs,
+        datadog_api::cost::get_custom_costs,
+        datadog_api::cost::delete_custom_costs,
         datadog_api::slos::create,
         datadog_api::slos::get_one,
         datadog_api::slos::update,
@@ -238,6 +253,8 @@ use crate::state::AppState;
         metrics::distribution,
         metrics::catalog,
         metrics::volume,
+        metric_catalog::stats,
+        metric_catalog::detail,
         metrics::tag_values,
         derived_metrics::list,
         derived_metrics::create,
@@ -332,6 +349,15 @@ use crate::state::AppState;
         catalog::search,
         changes::search,
         resource_policies::search,
+        resource_changes::search,
+        cloud_cost::query,
+        cloud_cost::tags,
+        cloud_cost::unit_costs,
+        cloud_cost::commitments,
+        datadog_api::cost::budget_summaries,
+        datadog_api::cost::ui_budget,
+        datadog_api::cost::ui_save_budget,
+        datadog_api::cost::ui_delete_budget,
         resource_policies::attributes,
         resource_policies::preview,
         resource_policies::get,
@@ -766,6 +792,8 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/query/distribution", post(metrics::distribution))
         .route("/api/v1/metrics", get(metrics::catalog))
         .route("/api/v1/metrics/volume", post(metrics::volume))
+        .route("/api/v1/metrics/catalog/stats", post(metric_catalog::stats))
+        .route("/api/v1/metrics/detail", post(metric_catalog::detail))
         .route("/api/v1/metrics/derived", get(derived_metrics::list).post(derived_metrics::create))
         .route("/api/v1/metrics/derived/:id", axum::routing::put(derived_metrics::update).delete(derived_metrics::delete))
         .route("/api/v1/deployment-gates", get(deployment_gates::list).post(deployment_gates::create))
@@ -912,6 +940,13 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/infrastructure/cloud-map", post(cloud_map::cloud_map))
         .route("/api/v1/infrastructure/policies", post(resource_policies::create))
         .route("/api/v1/infrastructure/policies/search", post(resource_policies::search))
+        .route("/api/v1/infrastructure/resource-changes", post(resource_changes::search))
+        .route("/api/v1/cloud-cost/query", post(cloud_cost::query))
+        .route("/api/v1/cloud-cost/tags", post(cloud_cost::tags))
+        .route("/api/v1/cloud-cost/unit-costs", post(cloud_cost::unit_costs))
+        .route("/api/v1/cloud-cost/commitments", post(cloud_cost::commitments))
+        .route("/api/v1/cloud-cost/budgets", get(datadog_api::cost::budget_summaries).put(datadog_api::cost::ui_save_budget))
+        .route("/api/v1/cloud-cost/budgets/:budget_id", get(datadog_api::cost::ui_budget).delete(datadog_api::cost::ui_delete_budget))
         .route("/api/v1/infrastructure/policies/attributes", get(resource_policies::attributes))
         .route("/api/v1/infrastructure/policies/preview", post(resource_policies::preview))
         .route(
@@ -1620,6 +1655,10 @@ mod tests {
     /// Every source file of the server, relative to `src/routes`.
     fn server_sources() -> Vec<(&'static str, &'static str)> {
         vec![
+            ("cloud_cost.rs", include_str!("cloud_cost.rs")),
+            ("datadog_api/cost.rs", include_str!("datadog_api/cost.rs")),
+            ("metric_catalog.rs", include_str!("metric_catalog.rs")),
+            ("resource_changes.rs", include_str!("resource_changes.rs")),
             ("apm.rs", include_str!("apm.rs")),
             ("archives.rs", include_str!("archives.rs")),
             ("auth.rs", include_str!("auth.rs")),

@@ -63,7 +63,9 @@ export type Column =
   | 'version'
   | 'lastDeploy'
   | 'ciSuccess'
-  | 'lastCiRun';
+  | 'lastCiRun'
+  | 'service'
+  | 'api';
 
 const COLUMNS: Record<ViewId, Column[]> = {
   ownership: ['name', 'type', 'team', 'onCall', 'contacts', 'repo', 'docs'],
@@ -74,7 +76,33 @@ const COLUMNS: Record<ViewId, Column[]> = {
   delivery: ['name', 'team', 'version', 'lastDeploy', 'ciSuccess', 'lastCiRun'],
 };
 
-export const columnsFor = (view: ViewId): Column[] => COLUMNS[view];
+/** Endpoints list their service (and its API) in place of a team. */
+const ENDPOINT_COLUMNS: Partial<Record<ViewId, Column[]>> = {
+  ownership: ['name', 'service', 'team', 'api'],
+  reliability: ['name', 'service', 'monitors', 'errorRate'],
+  performance: ['name', 'service', 'requests', 'errorRate', 'p95', 'monitors', 'api'],
+};
+
+export const columnsFor = (view: ViewId, section?: Section): Column[] => (section === 'endpoint' && ENDPOINT_COLUMNS[view]) || COLUMNS[view];
+
+/** "GET /orders" → method and route; resources without a method (queue consumers, RPC) have none. */
+export function splitEndpoint(name: string): { method: string | null; route: string } {
+  const m = /^([A-Z]+)\s+(.+)$/.exec(name);
+  return m ? { method: m[1], route: m[2] } : { method: null, route: name };
+}
+
+/** API entities by the services that implement them (`implementedBy: service:x`). */
+export function apisByService(entities: Pick<PortalEntity, 'kind' | 'name' | 'displayName' | 'related'>[]): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const e of entities) {
+    if (e.kind !== 'api') continue;
+    for (const r of e.related) {
+      const svc = r.replace(/^service:/, '');
+      out.set(svc, [...(out.get(svc) ?? []), e.displayName ?? e.name]);
+    }
+  }
+  return out;
+}
 
 export const COLUMN_LABEL: Record<Column, string> = {
   name: 'Name',
@@ -99,6 +127,8 @@ export const COLUMN_LABEL: Record<Column, string> = {
   lastDeploy: 'Last deploy',
   ciSuccess: 'CI success',
   lastCiRun: 'Last CI run',
+  service: 'Service',
+  api: 'API',
 };
 
 export interface NavCounts {

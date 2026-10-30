@@ -1,5 +1,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 import type { KubeHealth, KubeKind, KubeResource, KubeUtilization } from '../../api/kubernetes/client';
+import { Boxes } from 'lucide-react';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { formatBytes } from '../../components/ui/Pager';
 
 /** Explorer resources: processes, containers, Kubernetes and ECS kinds. */
@@ -166,6 +168,8 @@ export const TAG_LABELS: Record<string, string> = {
   service: 'Service',
   env: 'Env',
   short_image: 'Image',
+  container_name: 'Container Name',
+  runtime: 'Runtime',
   image_tag: 'Image Tag',
   kube_node_role: 'Node Role',
   kubelet_version: 'Kubelet Version',
@@ -336,8 +340,41 @@ const alloc = (k: 'cpu' | 'memory', label: string): KubeColumn => ({ key: k, lab
 
 const tagValue = (r: KubeResource, key: string) => r.tags.find((x) => x.startsWith(`${key}:`))?.slice(key.length + 1);
 
+/** Columns a kind's list starts without (they stay available in Customize). */
+export const DEFAULT_HIDDEN: Partial<Record<KubeKind, string[]>> = { containers: ['cluster', 'owner', 'host', 'restarts'] };
+
+/** `registry.example.com/team/storefront-api:2.9.0` → `storefront-api`. */
+export function shortImage(image: string | null | undefined): string {
+  if (!image) return '—';
+  return image.split('@')[0].split('/').pop()!.split(':')[0];
+}
+
+/** A value with a small bar of its share (0–1). */
+export function BarValue({ text, share }: { text: string; share: number }) {
+  return (
+    <span className="ox-barvalue">
+      {text}
+      <span className="ox-bar">
+        <i style={{ width: `${Math.min(100, Math.max(0, share * 100))}%` }} />
+      </span>
+    </span>
+  );
+}
+
+/** Where a container runs: Kubernetes, ECS or a plain Docker / containerd host. */
+export function ContainerIcon({ r, size = 16 }: { r: KubeResource; size?: number }) {
+  const ecs = r.owner?.kind === 'Task' || r.tags.some((x) => x.startsWith('ecs_cluster:'));
+  const kube = !ecs && r.owner?.kind === 'Pod';
+  const [logo, title] = ecs ? ['amazonecs', 'ECS'] : kube ? ['kubernetes', 'Kubernetes'] : ['docker', r.runtime ?? 'Container'];
+  return (
+    <span className="ox-ctr-icon" title={title}>
+      <BrandLogo name={logo} size={size + 2} title={title} />
+    </span>
+  );
+}
+
 /** Process CPU as a share of all the host's cores (Datadog's "Total CPU - Normalized"). */
-function normalizedCpu(r: KubeResource): number | null {
+export function normalizedCpu(r: KubeResource): number | null {
   const used = r.cpu?.usage;
   if (used == null) return null;
   return (used / (r.hostCpus || 1)) * 100;
@@ -454,17 +491,48 @@ export const COLUMNS: Record<KubeKind, KubeColumn[]> = {
   ],
   customresourcedefinitions: [nameCol('CRD'), status, cluster, ageCol, t('target', 'GROUP'), t('version', 'VERSION'), t('volume', 'SCOPE')],
   containers: [
-    nameCol('CONTAINER'),
-    status,
+    {
+      key: 'name',
+      label: 'CONTAINER',
+      sort: 'name',
+      render: (r) => (
+        <span className="ox-name ox-container" title={r.name}>
+          <ContainerIcon r={r} />
+          {r.name}
+        </span>
+      ),
+    },
+    { key: 'status', label: 'STATUS', sort: 'status', render: (r) => <span className={`ox-up ox-up-${r.health}`}>{r.health === 'ok' ? 'UP' : r.status.toUpperCase()}</span> },
     {
       key: 'image',
       label: 'IMAGE',
       render: (r) => (
-        <span className="ox-name mono" title={r.images[0]}>
-          {r.images[0] ?? '—'}
+        <span className="ox-image-chip" title={r.images[0]}>
+          <Boxes size={13} />
+          {shortImage(r.images[0])}
         </span>
       ),
     },
+    {
+      key: 'cpu',
+      label: 'TOTAL CPU - NORMALIZED',
+      sort: 'cpu',
+      num: true,
+      render: (r) => {
+        const pct = normalizedCpu(r);
+        return pct == null ? '—' : <BarValue text={pct < 1 ? '< 1%' : `${Math.round(pct)}%`} share={pct / 100} />;
+      },
+    },
+    {
+      key: 'memory',
+      label: 'RSS MEMORY',
+      sort: 'memory',
+      num: true,
+      render: (r) => (r.memory?.usage == null ? '—' : <BarValue text={formatMem(r.memory.usage)} share={r.memory.limits ? r.memory.usage / r.memory.limits : r.memory.usage / 8 / 1024 ** 3} />),
+    },
+    { key: 'netSent', label: 'NET BYTES SENT (TX)', num: true, render: (r) => (r.netSent == null ? '—' : formatBytes(r.netSent)) },
+    { key: 'netReceived', label: 'NET BYTES RECEIVED (RX)', num: true, render: (r) => (r.netReceived == null ? '—' : formatBytes(r.netReceived)) },
+    { key: 'age', label: 'STARTED (AGO)', sort: 'age', num: true, render: (r) => (r.createdAt ? `${age(r.createdAt)} ago` : '—') },
     { key: 'cluster', label: 'CLUSTER', sort: 'cluster', render: (r, c) => <Chip k={r.tags.some((x) => x.startsWith('ecs_cluster:')) ? 'ecs_cluster' : 'kube_cluster_name'} v={r.cluster} ctx={c} /> },
     {
       key: 'owner',
@@ -475,10 +543,8 @@ export const COLUMNS: Record<KubeKind, KubeColumn[]> = {
         </span>
       ),
     },
-    { key: 'age', label: 'STARTED', sort: 'age', num: true, render: (r) => (r.createdAt ? `${age(r.createdAt)} ago` : '—') },
+    { key: 'host', label: 'HOST', render: (r, c) => <Chip k="host" v={r.node} ctx={c} /> },
     restarts,
-    cpu,
-    mem,
   ],
   container_images: [
     nameCol('IMAGE'),

@@ -491,7 +491,7 @@ pub(super) mod tests {
     /// Response fields Datadog adds although they weren't sent; we return only what was sent (so
     /// `datadog_dashboard_json` plans stay clean) and don't compare them.
     pub fn ignored() -> Vec<String> {
-        vec!["restricted_roles".into(), "is_read_only".into()]
+        vec!["restricted_roles".into(), "is_read_only".into(), "experience_type".into()]
     }
 
     /// Replaces widget definitions we don't render by a metric timeseries, in requests and recorded
@@ -532,6 +532,8 @@ pub(super) mod tests {
 
     /// Scenarios replayed as recorded.
     const AS_RECORDED: &[&str] = &[
+        "Clients deserialize a dashboard with a empty time object",
+        "Create a new dashboard with a timeseries widget using formulas and functions cloud cost query",
         "Create a new dashboard with a formulas and functions change widget",
         "Create a new dashboard with a formulas and functions treemap widget",
         "Create a new dashboard with a live default_timeframe returns \"OK\" response",
@@ -795,7 +797,7 @@ pub(super) mod tests {
         // What the provider checks during plan: one result per widget, the path inside the definition.
         let widgets = json!({ "layout_type": "ordered", "widgets": [
             { "definition": { "type": "timeseries", "requests": [{ "q": "avg:system.cpu.user{*}" }] } },
-            { "definition": { "type": "timeseries", "requests": [{ "queries": [{ "data_source": "cloud_cost", "name": "query1", "query": "sum:aws.cost.amortized{*}" }] }] } },
+            { "definition": { "type": "timeseries", "requests": [{ "queries": [{ "data_source": "rum", "name": "query1", "search": { "query": "" } }] }] } },
             { "definition": { "type": "group", "layout_type": "ordered", "widgets": [] } },
         ] });
         let (status, body) = call("POST", &format!("{}/api/unstable/dashboard/widgets/validate", s.base), &s.app_key, true, Some(widgets)).await;

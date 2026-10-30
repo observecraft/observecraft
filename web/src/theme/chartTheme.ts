@@ -34,6 +34,7 @@ export function seriesPalette(name?: string): string[] {
   if (name && HUES[name]) return shades(colors[HUES[name] - 1], 6);
   if (name === 'cool') return [colors[0], colors[2], colors[1], ...shades(colors[0], 4).slice(1)];
   if (name === 'warm') return [colors[3], colors[4], colors[6], ...shades(colors[3], 4).slice(1)];
+  if (name === 'classic') return [colors[0], colors[1], colors[2], colors[3], colors[4], colors[5]];
   return colors;
 }
 
@@ -93,4 +94,27 @@ export function registerChartTheme(): void {
       itemHeight: 3,
     },
   });
+}
+
+/** Palettes offered for a graph's series, with what each is for. */
+export const PALETTES: { name: string; label: string; description: string }[] = [
+  { name: 'consistent', label: 'Consistent', description: 'Every series keeps its color across graphs: picked from its name.' },
+  { name: 'classic', label: 'Classic', description: 'The default palette, six distinct colors that read well together.' },
+  { name: 'cool', label: 'Cool', description: 'Blues and greens.' },
+  { name: 'warm', label: 'Warm', description: 'Oranges and reds, for values that call for attention.' },
+  { name: 'purple', label: 'Purple', description: 'Shades of purple.' },
+  { name: 'orange', label: 'Orange', description: 'Shades of orange.' },
+  { name: 'gray', label: 'Gray', description: 'Shades of gray, for context next to colored series.' },
+  { name: 'red', label: 'Red', description: 'Shades of red, for errors and failures.' },
+  { name: 'green', label: 'Green', description: 'Shades of green, for successes.' },
+  { name: 'blue', label: 'Blue', description: 'Shades of blue.' },
+];
+
+/** A series' color: from its palette in order, or (consistent) from a hash of its name. */
+export function seriesColor(paletteName: string | undefined, name: string, index: number): string {
+  const colors = paletteName === 'consistent' ? palette() : seriesPalette(paletteName);
+  if (paletteName !== 'consistent') return colors[index % colors.length];
+  let h = 2166136261;
+  for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 16777619);
+  return colors[(h >>> 0) % colors.length];
 }

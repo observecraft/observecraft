@@ -73,6 +73,13 @@ or SDK features.
   `datadog-api-client-go` are downloaded at test time by `make datadog-fixtures`, never vendored (replayed by
   `datadog_api::replay`; `oc-api/tests/datadog_api/README.md`); `make tf-compat`
   runs the real provider. Add a cassette replay test and a `scripts/tf-compat/fixtures/<resource>/` per resource.
+- **New features start from the Terraform provider.** Before designing the API of a product area, check whether
+  [`DataDog/terraform-provider-datadog`](https://github.com/DataDog/terraform-provider-datadog) (MPL-2.0: read it,
+  don't copy it) has resources for it (`datadog_<area>_*`). If it does, the configuration lives under the Datadog
+  endpoints those resources call (paths, field names, defaults, read-after-write shape, error codes, as in
+  `datadog-api-client-go`), in `datadog_api`, and the UI reads and writes the same records; no parallel
+  ObserveCraft-only model for the same thing. Our own `/api/v1/...` routes are only for what the UI needs beyond it
+  (aggregations, explorers).
 - **Deployment:** use the official Datadog Helm chart and Datadog Operator unchanged; examples are in
   `deploy/examples/datadog`.
 - **No agent or SDK of our own:** senders are Datadog's agents and libraries, or OpenTelemetry. The
@@ -95,6 +102,9 @@ or SDK features.
 - **Still missing:**
   - Cloud Network Monitoring's network paths;
   - the profiler's Thread Timeline and Call Graph views, and Event Management's saved work item states, intelligent (learned) correlation, projects and event pipelines (correlators, maintenance windows and work item attributes exist);
+  - Cloud Cost Management's provider bills (`datadog_aws_cur_config`, `datadog_azure_uc_config`, `datadog_gcp_uc_config`),
+    tag pipelines and custom allocation rules (budgets, custom forecasts and custom costs files exist, `datadog_api/cost.rs`;
+    costs are the cost metrics `all.cost`, `aws.cost.amortized`, …, `cloud_cost.rs`);
   - Cloud Security, the live debugger and remote configuration;
   - Data Streams Monitoring's pathway checkpoints from the tracers (`/api/v0.1/pipeline_stats`, DDSketch in msgpack): its map,
     pipelines and Kafka Console are built from messaging spans and Kafka metrics (`data_streams.rs`, `kafka_console.rs`);

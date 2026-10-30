@@ -86,7 +86,7 @@ function RunDetail({ workflow, runId }: { workflow: Workflow; runId: number }) {
         )}
       </div>
       {run.error && <div className="wf-error">{run.error}</div>}
-      {run.status === 'waiting' && run.nextAt && <div className="wf-note">Waiting until {fmtDate(run.nextAt)}.</div>}
+      {run.status === 'waiting' && run.nextAt && <div className="wf-run-note">Waiting until {fmtDate(run.nextAt)}.</div>}
       <div className="wfr-split">
         <div className="wfr-canvas">
           <Canvas steps={shown.steps} triggers={shown.triggers} handle={workflow.handle} selected={focus} onSelect={setFocus} statuses={statuses} />

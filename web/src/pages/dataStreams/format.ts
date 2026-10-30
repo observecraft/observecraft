@@ -55,3 +55,8 @@ export function nodeName(id: string): string {
 }
 
 export const isTopic = (id: string) => id.startsWith('topic:');
+
+const SYSTEM_LOGOS: Record<string, string> = { kafka: 'apachekafka', rabbitmq: 'rabbitmq', sqs: 'amazonsqs', sns: 'amazonsns' };
+
+/** The brand logo of a messaging system (`kafka`, `rabbitmq`, `sqs`, …), if there is one. */
+export const systemLogo = (system: string | null | undefined): string | null => (system ? (SYSTEM_LOGOS[system.toLowerCase()] ?? null) : null);

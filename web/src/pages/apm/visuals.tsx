@@ -105,29 +105,32 @@ export function LineSpark({ values, tone = 'primary', width = 96, height = 24 }:
 
 const STAR_KEY = 'oc.apm.starred';
 
-function readStars(): string[] {
+function readStars(key: string): string[] {
   try {
-    const v = JSON.parse(localStorage.getItem(STAR_KEY) ?? '[]');
+    const v = JSON.parse(localStorage.getItem(key) ?? '[]');
     return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
   } catch {
     return [];
   }
 }
 
-/** Starred services: a per-browser convenience, kept in localStorage. */
-export function useStars() {
-  const [stars, setStars] = useState<Set<string>>(() => new Set(readStars()));
-  const toggle = useCallback((name: string) => {
-    setStars((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(name)) next.add(name);
-      try {
-        localStorage.setItem(STAR_KEY, JSON.stringify([...next]));
-      } catch {
-        /* storage unavailable: stars last for this session only */
-      }
-      return next;
-    });
-  }, []);
+/** Starred services (or, with another key, resources): a per-browser convenience, kept in localStorage. */
+export function useStars(key = STAR_KEY) {
+  const [stars, setStars] = useState<Set<string>>(() => new Set(readStars(key)));
+  const toggle = useCallback(
+    (name: string) => {
+      setStars((prev) => {
+        const next = new Set(prev);
+        if (!next.delete(name)) next.add(name);
+        try {
+          localStorage.setItem(key, JSON.stringify([...next]));
+        } catch {
+          /* storage unavailable: stars last for this session only */
+        }
+        return next;
+      });
+    },
+    [key],
+  );
   return { stars, toggle };
 }

@@ -118,10 +118,23 @@ pub mod pb {
         pub cpu_limit: f32,
         #[prost(uint64, tag = "6")]
         pub memory_limit: u64,
+        /// ContainerState: 0 unknown, 1 created, 2 restarting, 3 running, 4 paused, 5 exited, 6 dead.
+        #[prost(int32, tag = "8")]
+        pub state: i32,
+        /// Epoch seconds.
+        #[prost(int64, tag = "10")]
+        pub created: i64,
+        #[prost(float, tag = "16")]
+        pub net_rcvd_bps: f32,
+        #[prost(float, tag = "17")]
+        pub net_sent_bps: f32,
         #[prost(float, tag = "20")]
         pub total_pct: f32,
         #[prost(uint64, tag = "21")]
         pub mem_rss: u64,
+        /// Epoch seconds.
+        #[prost(int64, tag = "24")]
+        pub started: i64,
         #[prost(string, repeated, tag = "26")]
         pub tags: Vec<String>,
         #[prost(uint64, tag = "30")]
@@ -202,10 +215,22 @@ fn container_metrics(host: &str, c: &pb::Container, t: u64) -> otlp::ResourceMet
     a.insert("container.name".to_string(), c.name.clone());
     a.insert("container.image.name".to_string(), c.image.clone());
     a.insert("container.runtime".to_string(), c.r#type.clone());
+    a.insert("container.state".to_string(), container_state(c.state).to_string());
+    // Epoch milliseconds, as process.create_time.
+    let started = if c.started > 0 { c.started } else { c.created };
+    if started > 0 {
+        a.insert("container.started".to_string(), (started * 1000).to_string());
+    }
     tag_attrs(&c.tags, &mut a);
     let mut metrics = vec![gauge("container.cpu.usage", "{cpu}", t, f64::from(c.total_pct) / 100.0)];
     let mem = if c.mem_usage > 0 { c.mem_usage } else { c.mem_rss };
     metrics.push(gauge("container.memory.usage", "By", t, mem as f64));
+    if c.mem_rss > 0 {
+        metrics.push(gauge("container.memory.rss", "By", t, c.mem_rss as f64));
+    }
+    // Datadog's live container network rates (bytes per second), under its metric names.
+    metrics.push(gauge("container.net.rcvd", "By/s", t, f64::from(c.net_rcvd_bps)));
+    metrics.push(gauge("container.net.sent", "By/s", t, f64::from(c.net_sent_bps)));
     if c.cpu_limit > 0.0 {
         // The Agent reports the limit in percent of one core.
         metrics.push(gauge("container.cpu.limit", "{cpu}", t, f64::from(c.cpu_limit) / 100.0));
@@ -214,6 +239,19 @@ fn container_metrics(host: &str, c: &pb::Container, t: u64) -> otlp::ResourceMet
         metrics.push(gauge("container.memory.limit", "By", t, c.memory_limit as f64));
     }
     otlp::ResourceMetrics { resource: resource(a), scope_metrics: vec![otlp::ScopeMetrics { scope: otlp::scope("datadog.container"), metrics }] }
+}
+
+/// agent-payload's ContainerState as the explorer shows it.
+fn container_state(state: i32) -> &'static str {
+    match state {
+        1 => "created",
+        2 => "restarting",
+        3 => "running",
+        4 => "paused",
+        5 => "exited",
+        6 => "dead",
+        _ => "unknown",
+    }
 }
 
 /// OTLP metrics for a CollectorProc / CollectorContainer message; `None` for other message types.
@@ -294,7 +332,19 @@ mod tests {
                 tags: vec!["kube_namespace:shop".into()],
                 ..Default::default()
             }],
-            containers: vec![pb::Container { id: "c1".into(), total_pct: 50.0, mem_usage: 1024, cpu_limit: 200.0, tags: vec!["pod_name:order-7d9".into()], ..Default::default() }],
+            containers: vec![pb::Container {
+                id: "c1".into(),
+                total_pct: 50.0,
+                mem_usage: 1024,
+                mem_rss: 512,
+                cpu_limit: 200.0,
+                state: 3,
+                started: 1_700_000_000,
+                net_sent_bps: 300.0,
+                net_rcvd_bps: 900.0,
+                tags: vec!["pod_name:order-7d9".into()],
+                ..Default::default()
+            }],
         };
         let (req, n) = to_otlp(&message(TYPE_COLLECTOR_PROC, &m.encode_to_vec()), 1).unwrap().unwrap();
         assert_eq!(n, 2);
@@ -313,8 +363,17 @@ mod tests {
         let c = &req.resource_metrics[1];
         assert_eq!(attr(c, "container.id"), "c1");
         assert_eq!(attr(c, "k8s.pod.name"), "order-7d9");
-        let Some(otlp::metric::Data::Gauge(limit)) = &c.scope_metrics[0].metrics[2].data else { panic!() };
-        assert_eq!(limit.data_points[0].as_double, 2.0);
+        assert_eq!(attr(c, "container.state"), "running");
+        assert_eq!(attr(c, "container.started"), "1700000000000");
+        let value = |name: &str| {
+            let m = c.scope_metrics[0].metrics.iter().find(|m| m.name == name).unwrap_or_else(|| panic!("{name}"));
+            let Some(otlp::metric::Data::Gauge(g)) = &m.data else { panic!() };
+            g.data_points[0].as_double
+        };
+        assert_eq!(value("container.cpu.limit"), 2.0);
+        assert_eq!(value("container.memory.rss"), 512.0);
+        assert_eq!(value("container.net.sent"), 300.0);
+        assert_eq!(value("container.net.rcvd"), 900.0);
         // Other message types are not processes.
         assert!(to_otlp(&message(41, b""), 1).unwrap().is_none());
     }

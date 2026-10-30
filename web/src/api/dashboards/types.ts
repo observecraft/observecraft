@@ -13,6 +13,23 @@ export type TimeAggregator = 'avg' | 'sum' | 'min' | 'max' | 'last';
 export interface MetricRequest {
   query: MetricQueryString;
   alias?: string;
+  /** Color override: a palette name for this query's series. */
+  palette?: string;
+}
+
+/** How a timeseries draws its lines (Metrics Explorer's display options). */
+export interface TimeseriesStyle {
+  /** classic | consistent | cool | warm | purple | orange | gray | red | green | blue */
+  palette?: string;
+  lineType?: 'solid' | 'dashed' | 'dotted';
+  stroke?: 'thin' | 'normal' | 'thick';
+  /** Series order in the legend and tooltip. */
+  order?: 'values' | 'tags';
+  reverse?: boolean;
+  /** Labels the highest points of each series. */
+  showLabels?: boolean;
+  /** A legend even for a single series. */
+  legend?: boolean;
 }
 
 /** Template variable values applied to queries: name → value ("*" = all). */
@@ -71,7 +88,7 @@ interface Base {
 
 export type WidgetDefinition =
   | (Base & { type: 'integration'; original: IntegrationWidgetDefinition })
-  | (Base & { type: 'timeseries'; requests: MetricRequest[]; display: 'line' | 'area' | 'bars'; stacked?: boolean; yMax?: number })
+  | (Base & { type: 'timeseries'; requests: MetricRequest[]; display: 'line' | 'area' | 'bars'; stacked?: boolean; yMax?: number; style?: TimeseriesStyle })
   | (Base & { type: 'query_value'; request: MetricRequest; aggregator: TimeAggregator; precision: number; unit?: string; formats: ConditionalFormat[]; fill?: boolean })
   | (Base & { type: 'toplist'; request: MetricRequest; aggregator: TimeAggregator; limit: number; showChange?: boolean })
   /** Columns = requests; rows = groups of the first request's `by` tags. */
@@ -95,6 +112,8 @@ export type WidgetDefinition =
   | (Base & {
       type: 'group';
       color: 'blue' | 'purple' | 'green' | 'gray' | 'orange';
+      /** A pale header with dark text instead of the saturated one. */
+      light?: boolean;
       widgets: Widget[];
       compact?: boolean;
       logo?: string;

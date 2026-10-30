@@ -272,6 +272,8 @@ pub struct ResourceStats {
     pub p99_ms: f64,
     /// Share of the service's total time spent in this resource (0..1).
     pub time_share: f64,
+    /// Time spent in this resource over the range (sum of span durations), in milliseconds.
+    pub total_ms: f64,
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -332,6 +334,7 @@ pub async fn resources(State(st): State<AppState>, OrgId(org): OrgId, Json(req):
         rows.into_iter()
             .map(|r| ResourceStats {
                 time_share: r.total as f64 / totals.get(&r.service).copied().unwrap_or(1).max(1) as f64,
+                total_ms: r.total as f64 / 1e6,
                 req_per_sec: r.hits as f64 / secs,
                 error_rate: rate(r.errors, r.hits),
                 requests: r.hits,

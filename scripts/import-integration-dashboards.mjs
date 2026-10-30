@@ -79,6 +79,8 @@ export function convertDashboard(doc, integration, path, revision) {
           type: 'group',
           title: d.title || (d.banner_img ? doc.title : ''),
           color: color(GROUP_COLORS, d.background_color, 'blue'),
+          // Plain colors are pale headers with dark text; vivid_* (and no color) are saturated.
+          ...(d.background_color && !d.background_color.startsWith('vivid_') ? { light: true } : {}),
           compact: false,
           ...(d.show_title === false ? { showTitle: false } : {}),
           widgets: children,

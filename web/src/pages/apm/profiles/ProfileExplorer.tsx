@@ -12,6 +12,7 @@ import { useTime } from '../../../components/shell/TimeContext';
 import { Empty, ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { formatLongDate, hhmm } from '../../../lib/format';
 import { addTerm, formatQuery, parseQuery, type Term } from '../../../lib/searchQuery';
+import { ServiceGlyph } from '../explorer/SpanBits';
 import { useStars } from '../visuals';
 import { FlameGraphView, viewTree, type GroupBy } from './FlameGraph';
 import { CATEGORY_ORDER, LANGUAGES, averageLabel, chartLabel, chartValue, fmtCard, fmtChart, fmtValue, frameLabel, isLibrary, selectedService } from './format';
@@ -305,7 +306,7 @@ function ServiceTable({ data, onPick }: { data: ProfileOverview; onPick: (s: str
                 </td>
                 <td>
                   <span className="pf-svc">
-                    {s.service} <LanguageMark language={s.language} size={18} />
+                    <ServiceGlyph service={s.service} size={20} /> {s.service} <LanguageMark language={s.language} size={18} />
                   </span>
                 </td>
                 <td className="num">

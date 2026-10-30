@@ -98,6 +98,14 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
         "0012_log_aggregates",
         include_str!("../../../migrations/clickhouse/0012_log_aggregates.sql"),
     ),
+    (
+        "0013_resource_changes",
+        include_str!("../../../migrations/clickhouse/0013_resource_changes.sql"),
+    ),
+    (
+        "0014_cloud_costs",
+        include_str!("../../../migrations/clickhouse/0014_cloud_costs.sql"),
+    ),
 ];
 
 /// Migrations of the schema before 0001_schema (no org-first sort keys, no cluster support).

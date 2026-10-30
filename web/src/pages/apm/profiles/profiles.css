@@ -988,3 +988,22 @@
   border-radius: var(--radius-sm);
   background: var(--bg);
 }
+
+.pf-overview-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  width: min(1280px, 100%);
+  margin-top: 28px;
+}
+
+.pf-overview-cards .pf-overview-card {
+  align-self: stretch;
+  width: auto;
+  margin: 0;
+  text-align: left;
+}
+
+.pf-overview-cards .pf-overview-card:hover {
+  border-color: var(--primary);
+}

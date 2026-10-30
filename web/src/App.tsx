@@ -10,8 +10,8 @@ import { ArchivesPage } from './pages/logs/ArchivesPage';
 import { RehydrationsPage } from './pages/logs/RehydrationsPage';
 import { MetricsLayout } from './pages/metrics/MetricsLayout';
 import { MetricsExplorer } from './pages/metrics/MetricsExplorer';
-import { MetricsSummary } from './pages/metrics/MetricsSummary';
-import { MetricsVolume } from './pages/metrics/MetricsVolume';
+import { MetricsCatalog } from './pages/metrics/MetricsCatalog';
+import { MetricsOverview } from './pages/metrics/MetricsOverview';
 import { DerivedMetrics } from './pages/metrics/DerivedMetrics';
 import { FilteredMetricsPage, MetricRulesPage, MetricsSettingsLayout } from './pages/metrics/settings/MetricsSettings';
 import { CheckSummary } from './pages/checks/CheckSummary';
@@ -30,7 +30,7 @@ import { TopBar } from './components/shell/TopBar';
 import { ApmComingSoon, ApmLayout } from './pages/apm/ApmLayout';
 import { ApmHome } from './pages/apm/ApmHome';
 import { ServicePage } from './pages/apm/service/ServicePage';
-import { EndpointsPage } from './pages/apm/EndpointsPage';
+import { InstrumentPage } from './pages/apm/InstrumentPage';
 import { SpanExplorer } from './pages/apm/explorer/SpanExplorer';
 import { IncidentPage } from './pages/incidents/IncidentPage';
 import { CiLayout, DeliveryLayout } from './pages/delivery/DeliveryLayout';
@@ -119,8 +119,22 @@ import { NotebookPage } from './pages/notebooks/NotebookPage';
 import { ErrorTrackingLayout } from './pages/errors/ErrorTrackingLayout';
 import { IssuesPage } from './pages/errors/IssuesPage';
 import { ChangesPage } from './pages/infrastructure/ChangesPage';
+import { ResourceChangesPage } from './pages/infrastructure/ResourceChangesPage';
 import { ResourceCatalogPage } from './pages/infrastructure/ResourceCatalogPage';
 import { ResourcesLayout } from './pages/infrastructure/ResourcesLayout';
+import { CloudCostComingSoon, CloudCostLayout } from './pages/cloudCost/CloudCostLayout';
+import { OverviewPage as CloudCostOverviewPage } from './pages/cloudCost/OverviewPage';
+import { ContainersCostPage } from './pages/cloudCost/ContainersCostPage';
+import { CostBoardPage } from './pages/cloudCost/CostBoardPage';
+import { AiCostsPage } from './pages/cloudCost/AiCostsPage';
+import { CostMapPage } from './pages/cloudCost/CostMapPage';
+import { CostExplorerPage } from './pages/cloudCost/CostExplorerPage';
+import { CostTagsPage } from './pages/cloudCost/CostTagsPage';
+import { BudgetsPage } from './pages/cloudCost/BudgetsPage';
+import { BudgetDetailPage } from './pages/cloudCost/BudgetDetailPage';
+import { BudgetEditorPage } from './pages/cloudCost/BudgetEditorPage';
+import { CommitmentsPage } from './pages/cloudCost/CommitmentsPage';
+import { UnitCostsPage } from './pages/cloudCost/UnitCostsPage';
 import { PoliciesPage } from './pages/infrastructure/PoliciesPage';
 import { PolicyDetailPage } from './pages/infrastructure/PolicyDetailPage';
 import { PolicyEditorPage } from './pages/infrastructure/PolicyEditorPage';
@@ -263,7 +277,8 @@ function Shell() {
               <Route index element={<ApmHome />} />
               <Route path="services/:service" element={<ServicePage />} />
               <Route path="traces" element={<SpanExplorer />} />
-              <Route path="endpoints" element={<EndpointsPage />} />
+              <Route path="endpoints" element={<Navigate to="/portal/catalog?section=endpoint&view=performance" replace />} />
+              <Route path="instrument" element={<InstrumentPage />} />
               <Route path="recommendations" element={<Navigate to="/apm?view=recommendations" replace />} />
               <Route path="profiles" element={<ProfilesLayout />}>
                 <Route index element={<ProfileExplorer />} />
@@ -279,7 +294,8 @@ function Shell() {
             <Route path="/infrastructure/add" element={<SetupGuidePage kind="infrastructure" />} />
             <Route element={<ResourcesLayout />}>
               <Route path="/infrastructure/catalog" element={<ResourceCatalogPage />} />
-              <Route path="/infrastructure/changes" element={<ChangesPage />} />
+              <Route path="/infrastructure/changes" element={<ResourceChangesPage />} />
+              <Route path="/infrastructure/change-tracking" element={<ChangesPage />} />
               <Route path="/infrastructure/policies" element={<PoliciesPage />} />
               <Route path="/infrastructure/policies/new" element={<PolicyEditorPage />} />
               <Route path="/infrastructure/policies/:id" element={<PolicyDetailPage />} />
@@ -359,6 +375,25 @@ function Shell() {
             </Route>
             <Route path="/slo/create" element={<SloEditor />} />
             <Route path="/slo/:id/edit" element={<SloEditor />} />
+            <Route path="/cloud-cost/budgets/new" element={<BudgetEditorPage />} />
+            <Route path="/cloud-cost/budgets/:id/edit" element={<BudgetEditorPage />} />
+            <Route path="/cloud-cost" element={<CloudCostLayout />}>
+              <Route index element={<CloudCostOverviewPage />} />
+              <Route path="containers" element={<ContainersCostPage />} />
+              <Route path="gpu" element={<CostBoardPage key="gpu" tab="gpu" />} />
+              <Route path="networking" element={<CostBoardPage key="networking" tab="networking" />} />
+              <Route path="storage" element={<CostBoardPage key="storage" tab="storage" />} />
+              <Route path="saas" element={<CostBoardPage key="saas" tab="saas" />} />
+              <Route path="ai" element={<AiCostsPage />} />
+              <Route path="map" element={<CostMapPage />} />
+              <Route path="explorer" element={<CostExplorerPage />} />
+              <Route path="tags" element={<CostTagsPage />} />
+              <Route path="budgets" element={<BudgetsPage />} />
+              <Route path="budgets/:id" element={<BudgetDetailPage />} />
+              <Route path="commitments" element={<CommitmentsPage />} />
+              <Route path="unit-costs" element={<UnitCostsPage />} />
+              <Route path="*" element={<CloudCostComingSoon />} />
+            </Route>
             <Route path="/llm" element={<LlmLayout />}>
               <Route index element={<ApplicationsPage />} />
               <Route path="traces" element={<LlmTracesPage />} />
@@ -503,8 +538,10 @@ function Shell() {
             <Route path="/teams" element={<TeamsPage />} />
             <Route path="/metrics" element={<MetricsLayout />}>
               <Route index element={<MetricsExplorer />} />
-              <Route path="summary" element={<MetricsSummary />} />
-              <Route path="volume" element={<MetricsVolume />} />
+              <Route path="overview" element={<MetricsOverview />} />
+              <Route path="catalog" element={<MetricsCatalog />} />
+              <Route path="summary" element={<Navigate to="/metrics/catalog" replace />} />
+              <Route path="volume" element={<Navigate to="/metrics/catalog" replace />} />
               <Route path="derived" element={<DerivedMetrics />} />
             </Route>
             <Route path="/metrics/settings" element={<MetricsSettingsLayout />}>

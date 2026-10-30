@@ -2708,6 +2708,7 @@
           "type": "group",
           "title": "Pod Health",
           "color": "blue",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -2951,6 +2952,7 @@
           "type": "group",
           "title": "Inventory",
           "color": "purple",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -3137,6 +3139,7 @@
           "type": "group",
           "title": "Resource Utilization",
           "color": "green",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -11935,6 +11938,7 @@
           "type": "group",
           "title": "Overview",
           "color": "blue",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -12661,6 +12665,7 @@
           "type": "group",
           "title": "Jobs overview",
           "color": "purple",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -13142,6 +13147,7 @@
           "type": "group",
           "title": "CronJob overview",
           "color": "purple",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -15143,6 +15149,7 @@
           "type": "group",
           "title": "Cluster Health Overview",
           "color": "blue",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -15720,6 +15727,7 @@
           "type": "group",
           "title": "Resource Overview",
           "color": "blue",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -16202,6 +16210,7 @@
           "type": "group",
           "title": "Nodes",
           "color": "green",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -16783,6 +16792,7 @@
           "type": "group",
           "title": "Deployments",
           "color": "green",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -17479,6 +17489,7 @@
           "type": "group",
           "title": "DaemonSets",
           "color": "green",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -17909,6 +17920,7 @@
           "type": "group",
           "title": "StatefulSets",
           "color": "green",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -18297,6 +18309,7 @@
           "type": "group",
           "title": "Jobs",
           "color": "green",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -18677,6 +18690,7 @@
           "type": "group",
           "title": "Replicasets",
           "color": "green",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -19102,6 +19116,7 @@
           "type": "group",
           "title": "Pods",
           "color": "green",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -19505,6 +19520,7 @@
           "type": "group",
           "title": "Services",
           "color": "green",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -20612,6 +20628,7 @@
           "type": "group",
           "title": "Cluster Capacity Review",
           "color": "purple",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -21050,6 +21067,7 @@
           "type": "group",
           "title": "Capacity Review per Kubernetes Object",
           "color": "purple",
+          "light": true,
           "compact": false,
           "widgets": [
             {
@@ -21628,6 +21646,7 @@
           "type": "group",
           "title": "CPU and Memory utilization per cluster",
           "color": "purple",
+          "light": true,
           "compact": false,
           "widgets": [
             {

@@ -281,7 +281,7 @@ export async function getTeamsReport(req: PortalReportRequest): Promise<PortalTe
 /** A fictional history: each service climbed to today's level over the past weeks. */
 export async function getScorecardsReport(req: PortalReportRequest): Promise<PortalScorecardsReport> {
   const overview = await getScorecards();
-  if (!overview.setUp) return { days: [], teams: [] };
+  if (!overview.setUp) return { days: [], teams: [], ruleDays: [] };
   const today = Math.floor(Date.now() / DAY) * DAY;
   const rows: [number, string, string, number][] = [];
   for (const s of overview.services) {
@@ -293,7 +293,23 @@ export async function getScorecardsReport(req: PortalReportRequest): Promise<Por
       rows.push([d, s.service, s.team, level]);
     }
   }
-  return scorecardTrend(req.range, rows, req.teams ?? []);
+  // Each rule's results per day: today's outcomes, with fewer passes further back (services improved over time).
+  const teamOf = new Map(overview.services.map((s) => [s.service, s.team]));
+  const selected = (service: string) => !req.teams?.length || req.teams.includes(teamOf.get(service) ?? '');
+  const ruleDays: PortalScorecardsReport['ruleDays'] = [];
+  for (const rule of overview.rules) {
+    const outcomes = overview.outcomes.filter((o) => o.ruleId === rule.id && selected(o.service));
+    const pass = outcomes.filter((o) => o.state === 'pass').length;
+    const fail = outcomes.filter((o) => o.state === 'fail').length;
+    if (!pass && !fail) continue;
+    const hash = [...rule.name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+    for (let d = Math.floor(req.range.from / DAY) * DAY; d <= Math.min(today, req.range.to); d += DAY) {
+      const age = (today - d) / DAY;
+      const lost = Math.min(pass, Math.floor(age / (20 + (hash % 40))));
+      ruleDays.push({ day: d, ruleId: rule.id, pass: pass - lost, fail: fail + lost });
+    }
+  }
+  return { ...scorecardTrend(req.range, rows, req.teams ?? []), ruleDays };
 }
 
 export async function listReportDashboards(): Promise<PortalReportDashboard[]> {

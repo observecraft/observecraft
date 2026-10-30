@@ -96,6 +96,29 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 | `datadog_dashboard_list`, `datadog_dashboard_list` (data source) | `/api/v1/dashboard/lists/manual`, `/api/v2/dashboard/lists/manual/{id}/dashboards` | ✅ [details](#dashboard-lists) |
 | `datadog_service_level_objective`, data sources `datadog_service_level_objective(s)` | `/api/v1/slo` (create, get, update, delete, list), `/api/v1/slo/search` | ✅ [details](#service-level-objectives) |
 | `datadog_slo_correction` | `/api/v1/slo/correction`, `/api/v1/slo/{id}/corrections` | ✅ one-off corrections ([details](#slo-corrections)) |
+| `datadog_cost_budget`, `datadog_cost_budget` (data source) | `PUT /api/v2/cost/budget`, `GET`/`DELETE /api/v2/cost/budget/{id}`, `GET /api/v2/cost/budgets`, `POST /api/v2/cost/budget/validate` | ✅ [details](#cloud-cost) |
+| `datadog_cost_custom_forecast` | `PUT /api/v2/cost/budget/custom-forecast`, `GET`/`DELETE /api/v2/cost/budget/{id}/custom-forecast` | ✅ [details](#cloud-cost) |
+| Custom costs files (API clients) | `PUT`/`GET /api/v2/cost/custom_costs`, `GET`/`DELETE /api/v2/cost/custom_costs/{id}` | ✅ [details](#cloud-cost) |
+| `datadog_aws_cur_config`, `datadog_azure_uc_config`, `datadog_gcp_uc_config`, `datadog_tag_pipeline_ruleset(s)`, `datadog_custom_allocation_rule(s)` | `/api/v2/cost/*_config`, `/api/v2/tags/enrichment`, `/api/v2/cost/arbitrary_rule` | Not yet |
+
+## Cloud cost
+
+Costs are daily line items in the FOCUS columns (`otel.cloud_costs`). They come from custom costs files: a JSON list
+of line items (`ProviderName`, `ChargeDescription`, `ChargePeriodStart`, `ChargePeriodEnd`, `BilledCost`,
+`BillingCurrency` `USD`, `Tags`), each spread evenly over the days of its charge period (the end date excluded). The
+cloud providers' bills (AWS CUR, Azure and Google Cloud cost exports) aren't read yet.
+
+They are queried as Datadog's cost metrics, in dashboards (`data_source: cloud_cost` or `metrics`), monitors, notebooks
+and budgets: `all.cost`, `<provider>.cost.amortized` (`aws`, `azure`, `gcp`, or a custom provider's name) and
+`<provider>.cost.unblended` / `.actual`, `custom.cost.basis` / `custom.cost.amortized`, summed per day, with the tags
+`providername`, `servicename`, `subaccountname`, `regionname`, `chargecategory`, `chargedescription`, … and the line
+items' own tags.
+
+A budget's `metrics_query` has no aggregator (`aws.cost.amortized{env:prod} by {team}`). Its entries name each tag of
+the query's `by {…}` once, and each tag combination has an entry for every month from `start_month` to `end_month`;
+`/validate` answers `valid: false` with the problems, and an upsert with them answers 400. `GET …/budget/{id}` with
+`actual=true` or `forecast=true` adds each entry's `costs`: what the month cost so far and, for the current month, the
+cost at the pace so far (or the custom forecast).
 
 ## Service level objectives
 
@@ -175,7 +198,7 @@ Not supported yet, and refused with the widget's path: the widget types `alert_g
 `run_workflow`, `sankey`, `scatterplot`, `servicemap`, `slo`, `slo_list`, `split_group`, `topology_map`,
 `trace_service` (and any other); legacy per-product requests (`apm_query`, `log_query`, `rum_query`,
 `process_query`, `profile_metrics_query`, `apm_stats_query`, …) and the single `query` request of histogram widgets;
-`queries` with other data sources (`cloud_cost`, `apm_metrics`, `apm_resource_stats`, `apm_dependency_stats`,
+`queries` with other data sources (`apm_metrics`, `apm_resource_stats`, `apm_dependency_stats`,
 `ci_pipelines`, `ci_tests`, `audit`, `rum`, `slo`, `product_analytics`, `incident_analytics`, …); `list_stream`
 data sources other than `event_stream` and `infrastructure` (`logs_stream`, `apm_issue_stream`, `trace_stream`, …).
 

@@ -1,13 +1,24 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Plus } from 'lucide-react';
+import { BookOpen, FileCode2, Plus } from 'lucide-react';
 import { getProfile } from '../../../api/identity/client';
 import { API_MODE } from '../../../api/http';
 import { profileOverview } from '../../../api/profiles/client';
 import { useTime } from '../../../components/shell/TimeContext';
 
 const DOCS = 'https://github.com/observecraft/observecraft/blob/main/docs/sending-data.md#continuous-profiler';
+
+/** Each question opens the view that answers it for the service. */
+function questions(service: string): { label: string; to: string }[] {
+  const q = `q=${encodeURIComponent(`service:${service}`)}`;
+  return [
+    { label: 'Which functions use the most CPU and memory in this service?', to: `/apm/profiles?${q}&metric=cpu-time` },
+    { label: 'What insights are detected for this service?', to: `/apm/profiles/insights?service=${encodeURIComponent(service)}` },
+    { label: 'Does this service show signs of a memory leak?', to: `/apm/profiles?${q}&view=metrics` },
+    { label: 'Which functions use the most wall time in this service?', to: `/apm/profiles?${q}&metric=wall-time` },
+  ];
+}
 
 /** Profiles → Overview: a greeting and the service to continue the investigation on. */
 export function ProfilesOverview() {
@@ -42,9 +53,19 @@ export function ProfilesOverview() {
           <Plus size={18} /> Filter
         </button>
       </div>
-      <a className="pf-overview-card" href={DOCS} target="_blank" rel="noreferrer">
-        <BookOpen size={18} /> How do I enable Continuous Profiler for my service?
-      </a>
+      {service ? (
+        <div className="pf-overview-cards">
+          {questions(service).map((q) => (
+            <button key={q.label} className="pf-overview-card" onClick={() => navigate(q.to)}>
+              <FileCode2 size={18} /> {q.label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <a className="pf-overview-card" href={DOCS} target="_blank" rel="noreferrer">
+          <BookOpen size={18} /> How do I enable Continuous Profiler for my service?
+        </a>
+      )}
     </div>
   );
 }

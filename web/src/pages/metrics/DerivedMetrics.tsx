@@ -6,6 +6,7 @@ import { createDerivedMetric, deleteDerivedMetric, listDerivedMetrics, updateDer
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
 import { useTime } from '../../components/shell/TimeContext';
+import { TimePicker } from '../../components/shell/PageHeader';
 import { filterDerived, queryRow } from '../../lib/derivedMetrics';
 import { expandFormula } from '../../lib/metricFormula';
 import { timeAgo } from '../../lib/format';
@@ -154,12 +155,32 @@ function DerivedModal({ metric, onClose, onSaved }: { metric: DerivedMetric | nu
         }}
       >
         <div className="modal-title-row">
-          <h3>{metric ? `Edit ${metric.name}` : 'New Derived Metric'}</h3>
+          <h3>{metric ? `Edit ${metric.name}` : 'Generate metric'}</h3>
           <button type="button" className="icon-plain" onClick={onClose} title="Close">
             <X size={18} />
           </button>
         </div>
-        <b>Queries</b>
+        <div className="dm-step">
+          <span className="dm-step-num">1</span>
+          <h4>Set Metric Name</h4>
+        </div>
+        <div className="ar-grid dm-step-body">
+          <label className="form-label">
+            Metric name
+            <input className="mono" value={name} onChange={(e) => setName(e.target.value)} placeholder="checkout.error_ratio" maxLength={200} required disabled={Boolean(metric)} />
+          </label>
+          <label className="form-label">
+            Description
+            <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What it measures" maxLength={1000} />
+          </label>
+        </div>
+        <div className="dm-step">
+          <span className="dm-step-num">2</span>
+          <h4>Define Query</h4>
+          <span className="dm-step-time">
+            <TimePicker compact />
+          </span>
+        </div>
         <div className="mx-rows">
           {rows.map((r, i) => (
             <div key={i} className="mx-row">
@@ -208,16 +229,6 @@ function DerivedModal({ metric, onClose, onSaved }: { metric: DerivedMetric | nu
         ) : (
           <p className="muted">Pick a metric for each query and write a formula over their letters to preview it.</p>
         )}
-        <div className="ar-grid">
-          <label className="form-label">
-            Metric name
-            <input className="mono" value={name} onChange={(e) => setName(e.target.value)} placeholder="checkout.error_ratio" maxLength={200} required disabled={Boolean(metric)} />
-          </label>
-          <label className="form-label">
-            Description
-            <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What it measures" maxLength={1000} />
-          </label>
-        </div>
         <p className="muted lm-preview">
           Query it like any metric, e.g.{' '}
           <code>

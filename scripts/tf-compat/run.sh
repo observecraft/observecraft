@@ -123,12 +123,13 @@ start_local_server() {
   OC_TF_API_URL="http://127.0.0.1:$port"
   OC_TF_APP_KEY="ocak_tfcompat_$(openssl rand -hex 24)"
   OC_TF_API_KEY="ocik_tfcompat_$(openssl rand -hex 24)"
-  # Keys are stored as SHA-256; the org's first admin acts through the application key.
+  # Keys are stored as SHA-256; the org's first active admin acts through the application key (demo
+  # seeds add invited, still pending admins).
   psql_run -v app_key="$OC_TF_APP_KEY" -v api_key="$OC_TF_API_KEY" <<'SQL'
 INSERT INTO app_keys (org_id, user_id, name, key_hash, prefix)
 SELECT u.org_id, u.id, 'tf-compat', sha256(convert_to(:'app_key', 'UTF8')), left(:'app_key', 12)
 FROM users u JOIN user_roles r ON r.user_id = u.id AND r.role_id = u.org_id || '-admin'
-WHERE u.org_id = 'default' ORDER BY u.created_at LIMIT 1;
+WHERE u.org_id = 'default' AND u.status = 'active' ORDER BY u.created_at LIMIT 1;
 INSERT INTO ingest_keys (org_id, name, key_hash, prefix)
 VALUES ('default', 'tf-compat', sha256(convert_to(:'api_key', 'UTF8')), left(:'api_key', 12));
 SQL

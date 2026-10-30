@@ -717,6 +717,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cloud-cost/budgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's budgets with this month's figures (Cloud Cost → Plan, Overview). */
+        get: operations["cloud_cost_budgets"];
+        /** Create or replace a budget from Plan → Budgets: the same document and checks as
+         *     `PUT /api/v2/cost/budget`, so Terraform and the page manage the same budgets. */
+        put: operations["cloud_cost_save_budget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-cost/budgets/{budget_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A budget with its entries and what each month cost so far and is forecast to cost, as Datadog's
+         *     API answers it (`GET /api/v2/cost/budget/{id}?actual=true&forecast=true`), for Plan → Budgets. */
+        get: operations["cloud_cost_budget"];
+        put?: never;
+        post?: never;
+        delete: operations["cloud_cost_delete_budget"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-cost/commitments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commitment programs of a provider: savings, coverage, utilization and the commitments. */
+        post: operations["cloud_cost_commitments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-cost/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Costs per group and interval over the range, with each group's cost over the previous period. */
+        post: operations["query_cloud_cost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-cost/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The tags costs can be broken down by, with their values, coverage and sources. */
+        post: operations["cloud_cost_tags"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-cost/unit-costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unit prices: per group of tags, the usage and what it cost amortized and on demand (Plan → Unit
+         *     Costs divides them). Only usage with a quantity; unused commitments are left out. */
+        post: operations["cloud_cost_unit_costs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard": {
         parameters: {
             query?: never;
@@ -2296,6 +2402,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/infrastructure/resource-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_resource_changes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ingest-keys": {
         parameters: {
             query?: never;
@@ -3367,6 +3489,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/metrics/catalog/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Every metric's series in the range and before it, its first submission, and the volume over time. */
+        post: operations["metric_catalog_stats"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/metrics/derived": {
         parameters: {
             query?: never;
@@ -3395,6 +3534,23 @@ export interface paths {
         put: operations["update_derived_metric"];
         post?: never;
         delete: operations["delete_derived_metric"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metrics/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One metric: its series, hosts and tag values in the range, its volume over time and where it is used. */
+        post: operations["metric_detail"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -6369,6 +6525,146 @@ export interface paths {
         patch: operations["datadog_update_application_key"];
         trace?: never;
     };
+    "/api/v2/cost/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Create a budget, or replace the one `data.id` names (Datadog-compatible). */
+        put: operations["datadog_upsert_budget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/cost/budget/custom-forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set a budget's custom forecast (Datadog-compatible): overrides of the forecast for some of its entries. */
+        put: operations["datadog_upsert_custom_forecast"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/cost/budget/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check a budget without saving it (Datadog-compatible; Terraform calls it while planning). */
+        post: operations["datadog_validate_budget"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/cost/budget/{budget_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a budget with its entries (Datadog-compatible); `actual` / `forecast` add their costs. */
+        get: operations["datadog_get_budget"];
+        put?: never;
+        post?: never;
+        /** Delete a budget (Datadog-compatible). */
+        delete: operations["datadog_delete_budget"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/cost/budget/{budget_id}/custom-forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a budget's custom forecast (Datadog-compatible). */
+        get: operations["datadog_get_custom_forecast"];
+        put?: never;
+        post?: never;
+        /** Remove a budget's custom forecast (Datadog-compatible). */
+        delete: operations["datadog_delete_custom_forecast"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/cost/budgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List budgets (Datadog-compatible), without their entries. */
+        get: operations["datadog_list_budgets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/cost/custom_costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List custom costs files (Datadog-compatible): paging, status, name and provider filters, sort. */
+        get: operations["datadog_list_custom_costs_files"];
+        /** Upload a custom costs file (Datadog-compatible): FOCUS line items as JSON. */
+        put: operations["datadog_upload_custom_costs_file"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/cost/custom_costs/{file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a custom costs file with its line items (Datadog-compatible). */
+        get: operations["datadog_get_custom_costs_file"];
+        put?: never;
+        post?: never;
+        /** Delete a custom costs file and its costs (Datadog-compatible). */
+        delete: operations["datadog_delete_custom_costs_file"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/current_user": {
         parameters: {
             query?: never;
@@ -7267,6 +7563,14 @@ export interface components {
             /** @description name (default), type, cluster, region or last_seen. */
             sort?: string | null;
         };
+        CatalogStats: {
+            metrics: components["schemas"]["MetricStats"][];
+            /** @description Distinct series of all metrics per bucket (5 minutes up to two days, else hours). */
+            timeline: components["schemas"]["VolumePoint"][];
+        };
+        CatalogStatsRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
         /**
          * @description The resource types of the catalog.
          * @enum {string}
@@ -7592,6 +7896,89 @@ export interface components {
         };
         /** @enum {string} */
         CollectorKind: "observecraft" | "otel" | "datadog";
+        Commitment: {
+            account: string;
+            /**
+             * Format: double
+             * @description Amortized cost over the range (used + unused).
+             */
+            amortizedCost: number;
+            end: string;
+            id: string;
+            kind: string;
+            purchaseOption: string;
+            region: string;
+            /**
+             * Format: double
+             * @description On-demand value of what it covered minus what it cost.
+             */
+            savings: number;
+            service: string;
+            start: string;
+            term: string;
+            /** Format: double */
+            unusedCost: number;
+            /**
+             * Format: double
+             * @description Share used (0–1).
+             */
+            utilization: number;
+        };
+        /** @description A commitment type's daily figures. */
+        CommitmentTypeSeries: {
+            /** @description `Savings Plan`, `Reserved Instance`, `Pre-purchase Plan`, `Committed Use Discount`, or `On-Demand`. */
+            kind: string;
+            /** @description On-demand value of the usage it covered (for `On-Demand`: the uncovered usage), per day. */
+            values: number[];
+        };
+        CommitmentUtilization: {
+            kind: string;
+            /** Format: double */
+            unused: number;
+            /**
+             * Format: double
+             * @description Amortized cost of the used and unused parts.
+             */
+            used: number;
+        };
+        CommitmentsRequest: {
+            /** @description `aws`, `azure` or `gcp`. */
+            provider: string;
+            /** @description Search syntax narrowing the costs (`subaccountname:ecommerce-eu`). */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        CommitmentsResult: {
+            /** @description Days (epoch ms, UTC midnight). */
+            buckets: number[];
+            /** @description Amortized cost of the commitments (used and unused), per day. */
+            commitmentCost: number[];
+            commitments: components["schemas"]["Commitment"][];
+            /**
+             * Format: double
+             * @description Share (0–1) of the eligible usage (services commitments cover) that commitments covered.
+             */
+            coverage: number;
+            coverageByService: components["schemas"]["CoverageRow"][];
+            coverageByType: components["schemas"]["CommitmentTypeSeries"][];
+            /**
+             * Format: double
+             * @description Over the range: 1 − what the eligible usage cost / what it would have cost on demand.
+             */
+            effectiveSavingsRate?: number | null;
+            /** @description What the covered usage would have cost on demand, per day. */
+            onDemandEquivalent: number[];
+            /**
+             * Format: double
+             * @description What the uncovered eligible usage cost.
+             */
+            onDemandSpend: number;
+            /** Format: double */
+            realizedSavings: number;
+            /** @description Effective savings rate (0–1) per day, when there was eligible usage. */
+            savingsRate: (number | null)[];
+            utilization: components["schemas"]["CommitmentUtilization"][];
+        };
         /** @enum {string} */
         Comparator: "above" | "above_or_equal" | "below" | "below_or_equal";
         /**
@@ -7601,6 +7988,119 @@ export interface components {
         ComponentStatus: "operational" | "degraded_performance" | "partial_outage" | "major_outage";
         /** @enum {string} */
         CorrectionCategory: "scheduled_maintenance" | "outside_business_hours" | "deployment" | "other";
+        /** @description A budget for the Cloud Cost pages: this month's amount, cost so far and forecast. */
+        CostBudgetSummary: {
+            /** Format: int32 */
+            endMonth: number;
+            id: string;
+            metricsQuery: string;
+            /**
+             * Format: int64
+             * @description This month (`YYYYMM`), when the budget covers it.
+             */
+            month?: number | null;
+            /** Format: double */
+            monthActual: number;
+            /** Format: double */
+            monthAmount: number;
+            /** Format: double */
+            monthForecast: number;
+            name: string;
+            /** Format: int32 */
+            startMonth: number;
+            /** Format: double */
+            totalAmount: number;
+        };
+        /** @enum {string} */
+        CostInterval: "day" | "week" | "month";
+        CostQueryRequest: {
+            costType?: components["schemas"]["CostType"];
+            groupBy?: string[];
+            interval?: components["schemas"]["CostInterval"];
+            /** @description Groups returned (largest first); the others are summed into `Other`. */
+            limit?: number | null;
+            /** @description Search syntax over the cost tags (`providername:aws team:checkout`). */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /** @description Only usage charges: no purchases, taxes, credits or adjustments. */
+            usageOnly?: boolean;
+        };
+        CostQueryResult: {
+            /** @description Interval starts (epoch ms, UTC midnight). */
+            buckets: number[];
+            /**
+             * Format: int64
+             * @description The last day with costs (epoch ms), if any: later days aren't billed yet.
+             */
+            dataThrough?: number | null;
+            /** @description The days compared with: the same number of days just before the range. */
+            previousRange: components["schemas"]["TimeRange"];
+            /** Format: double */
+            previousTotal: number;
+            series: components["schemas"]["CostSeries"][];
+            /** Format: double */
+            total: number;
+        };
+        CostSeries: {
+            /**
+             * Format: double
+             * @description What the group cost over the previous period of the same length.
+             */
+            previousTotal: number;
+            /** @description The group's tag values ("N/A" when the cost has no such tag); `{"other": "Other"}` for the rest. */
+            tags: {
+                [key: string]: string;
+            };
+            /** Format: double */
+            total: number;
+            /** @description One value per bucket. */
+            values: number[];
+        };
+        CostTag: {
+            /**
+             * Format: int64
+             * @description Sub-accounts whose costs have the tag.
+             */
+            accounts: number;
+            /**
+             * Format: double
+             * @description Share of the cost (0–1) that has the tag.
+             */
+            coverage: number;
+            /** Format: int64 */
+            distinctValues: number;
+            key: string;
+            /** @description `focus` (the bill's standard columns), `aws` / `azure` / `gcp` (provider tags), `kubernetes`, or
+             *     `resource` (tags on the billed resources). */
+            source: string;
+            /** @description Its values, costliest first (at most 50). */
+            values: components["schemas"]["CostTagValue"][];
+        };
+        CostTagValue: {
+            /** Format: double */
+            cost: number;
+            value: string;
+        };
+        CostTagsRequest: {
+            costType?: components["schemas"]["CostType"];
+            /** @description Search syntax narrowing the costs (`providername:azure`). */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @enum {string} */
+        CostType: "amortized" | "billed";
+        /** @description Coverage of one service and region. */
+        CoverageRow: {
+            /**
+             * Format: double
+             * @description On-demand value of the covered usage, and what the uncovered usage cost.
+             */
+            covered: number;
+            /** Format: double */
+            onDemand: number;
+            region: string;
+            service: string;
+        };
         CreateAppKey: {
             name: string;
         };
@@ -10300,6 +10800,7 @@ export interface components {
             clusterIp?: string | null;
             /** @description Jobs: "1/1" succeeded / completions, and run time in seconds. */
             completions?: string | null;
+            containerId?: string | null;
             containers: components["schemas"]["KubeContainer"][];
             cpu?: null | components["schemas"]["KubeUtilization"];
             /** Format: double */
@@ -10340,6 +10841,14 @@ export interface components {
             memoryReservation?: number | null;
             name: string;
             namespace?: string | null;
+            /** Format: double */
+            netReceived?: number | null;
+            /**
+             * Format: double
+             * @description Containers (Datadog Agent live containers): network bytes per second sent and received,
+             *     and the container runtime's id.
+             */
+            netSent?: number | null;
             node?: string | null;
             /** Format: int32 */
             nodes?: number | null;
@@ -11122,6 +11631,30 @@ export interface components {
             tags: string[];
             unit?: string | null;
         };
+        MetricDetail: {
+            /** Format: int64 */
+            firstSeen?: number | null;
+            /**
+             * Format: int64
+             * @description Distinct hosts reporting it in the range.
+             */
+            hosts: number;
+            name: string;
+            related: components["schemas"]["RelatedAssets"];
+            /** Format: int64 */
+            series: number;
+            /**
+             * Format: int64
+             * @description Distinct tag values (all keys) in the range.
+             */
+            tagValues: number;
+            tags: components["schemas"]["MetricTagKey"][];
+            timeline: components["schemas"]["VolumePoint"][];
+        };
+        MetricDetailRequest: {
+            name: string;
+            range: components["schemas"]["TimeRange"];
+        };
         MetricFilter: {
             /** Format: double */
             max?: number | null;
@@ -11189,6 +11722,35 @@ export interface components {
             ][];
             /** @description The metric's unit (`byte`, `nanocore`, `byte/second`…): its sender's, else its integration's. */
             unit?: string;
+        };
+        MetricStats: {
+            /**
+             * Format: int64
+             * @description Epoch ms of the first hour it was reported in (within retention); absent before its first rollup.
+             */
+            firstSeen?: number | null;
+            kind: string;
+            name: string;
+            /**
+             * Format: int64
+             * @description Distinct series in the period of the same length before the range.
+             */
+            previousSeries: number;
+            /**
+             * Format: int64
+             * @description Distinct series in the range.
+             */
+            series: number;
+        };
+        MetricTagKey: {
+            /**
+             * Format: int64
+             * @description Distinct values in the range.
+             */
+            count: number;
+            key: string;
+            /** @description Up to 50 of them, sorted. */
+            values: string[];
         };
         MetricVolume: {
             metrics: components["schemas"]["MetricVolumeEntry"][];
@@ -12501,6 +13063,18 @@ export interface components {
             /** @description Team handles; empty for every team. */
             teams?: string[];
         };
+        PortalScorecardRuleDay: {
+            /**
+             * Format: int64
+             * @description Day start (epoch ms, UTC).
+             */
+            day: number;
+            /** Format: int64 */
+            fail: number;
+            /** Format: int64 */
+            pass: number;
+            ruleId: string;
+        };
         PortalScorecardTeam: {
             /** @description Services at level 0–3 on the last evaluated day. */
             current: number[];
@@ -12512,6 +13086,8 @@ export interface components {
         PortalScorecardsReport: {
             /** @description Day starts (epoch ms, UTC). */
             days: number[];
+            /** @description Each rule's passes and failures per day, over the selected teams (all when none). */
+            ruleDays: components["schemas"]["PortalScorecardRuleDay"][];
             teams: components["schemas"]["PortalScorecardTeam"][];
         };
         PortalSignal: {
@@ -13065,6 +13641,16 @@ export interface components {
             /** Format: int64 */
             to: number;
         };
+        RelatedAsset: {
+            id: string;
+            title: string;
+        };
+        RelatedAssets: {
+            dashboards: components["schemas"]["RelatedAsset"][];
+            monitors: components["schemas"]["RelatedAsset"][];
+            notebooks: components["schemas"]["RelatedAsset"][];
+            slos: components["schemas"]["RelatedAsset"][];
+        };
         ReorderIndexes: {
             /** @description Every index id, in routing order. */
             ids: string[];
@@ -13111,6 +13697,63 @@ export interface components {
             /** @description Empty for widgets that are only listed. */
             series: components["schemas"]["ReportSeriesSummary"][];
             title: string;
+        };
+        ResourceChange: {
+            account: string;
+            changeTypes: string[];
+            changedFields: string[];
+            cloud: string;
+            cluster: string;
+            description: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            detected: number;
+            env: string;
+            isNoise: boolean;
+            namespace: string;
+            newFields?: unknown;
+            /** @description The configuration before (null when created) and after (null when deleted); in the page only. */
+            oldFields?: unknown;
+            region: string;
+            /** @description Changes of this resource among the ones matching the query. */
+            resourceChanges: number;
+            resourceId: string;
+            resourceName: string;
+            resourceType: string;
+            /** @description low | medium | high */
+            risk: string;
+            service: string;
+            team: string;
+            title: string;
+        };
+        ResourceChangeBucket: {
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Format: int64
+             * @description Bucket start, epoch ms.
+             */
+            t: number;
+        };
+        ResourceChangePage: {
+            /** Format: int64 */
+            bucketMs: number;
+            facets: components["schemas"]["CatalogFacet"][];
+            histogram: components["schemas"]["ResourceChangeBucket"][];
+            items: components["schemas"]["ResourceChange"][];
+            total: number;
+        };
+        ResourceChangeSearchRequest: {
+            /** @description What the histogram stacks by: resource_type (default), risk, change_type, team, … */
+            groupBy?: string | null;
+            limit?: number;
+            offset?: number;
+            /** @description `team:checkout risk:high change_type:deletion @is_noise:false resource_id:…`, free text on the name and title. */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
         };
         /** @description A policy as stored, with its compliance on the current catalog. */
         ResourcePolicy: {
@@ -13232,6 +13875,11 @@ export interface components {
              * @description Share of the service's total time spent in this resource (0..1).
              */
             timeShare: number;
+            /**
+             * Format: double
+             * @description Time spent in this resource over the range (sum of span durations), in milliseconds.
+             */
+            totalMs: number;
         };
         ResourcesRequest: {
             env?: string | null;
@@ -15641,6 +16289,34 @@ export interface components {
             /** @description The process seen (`postgres`, `mysqld`, …). */
             process: string;
         };
+        UnitCostRow: {
+            /**
+             * Format: double
+             * @description What the usage cost, commitments amortized.
+             */
+            amortizedCost: number;
+            /**
+             * Format: double
+             * @description What it would have cost at on-demand prices.
+             */
+            onDemandCost: number;
+            /** @description The row's tag values ("N/A" when the usage has no such tag). */
+            tags: {
+                [key: string]: string;
+            };
+            /**
+             * Format: double
+             * @description Units used (in the row's pricing unit).
+             */
+            usageQuantity: number;
+        };
+        UnitCostsRequest: {
+            /** @description The tags a row is (`metername`, `regionname`, `pricingunit`, …); at most 6. */
+            groupBy: string[];
+            /** @description Search syntax narrowing the usage (`providername:azure metercategory:"Virtual Machines"`). */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
         UserPatch: {
             /** @description Replaces the user's roles. */
             roleIds?: string[] | null;
@@ -15684,6 +16360,18 @@ export interface components {
             roles: components["schemas"]["RoleRef"][];
             status: components["schemas"]["UserStatus"];
             title?: string | null;
+        };
+        VolumePoint: {
+            /**
+             * Format: int64
+             * @description Distinct series in the bucket.
+             */
+            series: number;
+            /**
+             * Format: int64
+             * @description Bucket start, epoch ms.
+             */
+            t: number;
         };
         VolumeRequest: {
             range: components["schemas"]["TimeRange"];
@@ -17195,6 +17883,204 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CiRepository"][];
+                };
+            };
+        };
+    };
+    cloud_cost_budgets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostBudgetSummary"][];
+                };
+            };
+        };
+    };
+    cloud_cost_save_budget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cloud_cost_budget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                budget_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cloud_cost_delete_budget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                budget_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cloud_cost_commitments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitmentsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentsResult"];
+                };
+            };
+        };
+    };
+    query_cloud_cost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostQueryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostQueryResult"];
+                };
+            };
+        };
+    };
+    cloud_cost_tags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostTagsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostTag"][];
+                };
+            };
+        };
+    };
+    cloud_cost_unit_costs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnitCostsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitCostRow"][];
                 };
             };
         };
@@ -20710,6 +21596,29 @@ export interface operations {
             };
         };
     };
+    search_resource_changes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceChangeSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceChangePage"];
+                };
+            };
+        };
+    };
     list_ingest_keys: {
         parameters: {
             query?: never;
@@ -22740,6 +23649,29 @@ export interface operations {
             };
         };
     };
+    metric_catalog_stats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogStatsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogStats"];
+                };
+            };
+        };
+    };
     list_derived_metrics: {
         parameters: {
             query?: never;
@@ -22823,6 +23755,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    metric_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetricDetailRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricDetail"];
+                };
             };
         };
     };
@@ -29653,6 +30608,376 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DatadogErrors"];
                 };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_upsert_budget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_upsert_custom_forecast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_validate_budget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_budget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                budget_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_budget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                budget_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_custom_forecast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                budget_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_custom_forecast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                budget_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_budgets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_custom_costs_files: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_upload_custom_costs_file: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_custom_costs_file: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_custom_costs_file: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             404: {
                 headers: {

@@ -8,7 +8,7 @@ import type { ConditionalFormat, WidgetDefinition } from '../../../api/dashboard
 import { Chart } from '../../../components/charts/Chart';
 import { hhmm } from '../../../lib/format';
 import { overlaySeries, overlayStatusToken } from '../../../lib/overlays';
-import { palette, token } from '../../../theme/chartTheme';
+import { palette, seriesColor, token } from '../../../theme/chartTheme';
 import { useDistributionData, useGroupedData, useScalarData, useTimeseriesData } from '../queries';
 import { formatValue, useDashboardContext } from './context';
 
@@ -44,23 +44,48 @@ export function TimeseriesWidget({ def }: { def: Def<'timeseries'> }) {
     const units = new Set(series.map((s) => s.unit ?? ''));
     const display = units.size === 1 ? presentationUnit([...units][0]) : { unit: '', scale: 1 };
     const format = (v: number) => (display.unit ? formatUnitValue(v, display.unit, 2) : formatValue(v, Math.abs(v) < 1 ? 3 : 1));
-    const showLegend = series.length > 1 && series.length <= 12;
+    const style = def.style ?? {};
+    const showLegend = (series.length > 1 || style.legend) && series.length <= 12;
+    // Which request a series comes from: its own query text when ungrouped, else the only request.
+    const requestOf = (name: string) => def.requests.find((r) => resolve(r.query) === name) ?? (def.requests.length === 1 ? def.requests[0] : undefined);
+    const last = (s: (typeof series)[number]) => s.points.at(-1)?.[1] ?? -Infinity;
+    const ordered = style.order ? [...series].sort((a, b) => (style.order === 'tags' ? a.name.localeCompare(b.name) : last(b) - last(a))) : series;
+    if (style.reverse) ordered.reverse();
+    const width = { thin: 0.8, normal: 1.4, thick: 2.6 }[style.stroke ?? 'normal'];
     return {
-      grid: { left: 40, right: 10, top: 10, bottom: showLegend ? 46 : 22 },
-      tooltip: { trigger: 'axis', confine: true, order: 'valueDesc', valueFormatter: (v) => format(Number(v)) },
+      grid: { left: 40, right: 10, top: style.showLabels && series.length <= 5 ? 22 : 10, bottom: showLegend ? 46 : 22 },
+      tooltip: { trigger: 'axis', confine: true, order: style.reverse ? 'valueAsc' : 'valueDesc', valueFormatter: (v) => format(Number(v)) },
       legend: showLegend ? { type: 'scroll', bottom: 0, left: 0, right: 0, formatter: (n: string) => (n.length > 32 ? `${n.slice(0, 32)}…` : n) } : undefined,
       xAxis: { type: 'time', axisLabel: { formatter: (v: number) => axisLabel(v, span) } },
       yAxis: { type: 'value', max: def.yMax, axisLabel: { formatter: format } },
       series: [
-        ...series.map((s, i) => ({
-          name: def.requests.length > 1 && def.requests[i]?.alias ? def.requests[i].alias : s.name,
-          type: def.display === 'bars' ? 'bar' : 'line',
-          stack: def.stacked || def.display === 'bars' ? 'total' : undefined,
-          areaStyle: def.display === 'area' ? { opacity: 0.55 } : undefined,
-          lineStyle: { width: def.display === 'area' ? 0.8 : 1.4 },
-          barMaxWidth: 10,
-          data: display.scale === 1 ? s.points : s.points.map(([t, v]) => [t, v * display.scale]),
-        })),
+        ...ordered.map((s, i) => {
+          const request = requestOf(s.name);
+          const points = display.scale === 1 ? s.points : s.points.map(([t, v]) => [t, v * display.scale] as [number, number]);
+          const peak = points.reduce<[number, number] | undefined>((m, p) => (m === undefined || p[1] > m[1] ? p : m), undefined);
+          const color = style.palette || request?.palette ? seriesColor(request?.palette ?? style.palette, s.name, i) : undefined;
+          return {
+            name: def.requests.length > 1 && request?.alias ? request.alias : s.name,
+            type: def.display === 'bars' ? 'bar' : 'line',
+            stack: def.stacked || def.display === 'bars' ? 'total' : undefined,
+            areaStyle: def.display === 'area' ? { opacity: 0.55 } : undefined,
+            lineStyle: { width: def.display === 'area' ? 0.8 : width, type: style.lineType ?? 'solid' },
+            color,
+            barMaxWidth: 10,
+            data: points,
+            // "Show labels": the series' highest point, labelled.
+            markPoint:
+              style.showLabels && series.length <= 5 && peak
+                ? {
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    itemStyle: { color: color ?? palette()[i % 8] },
+                    label: { show: true, position: 'top', fontSize: 11, color: color ?? palette()[i % 8], formatter: () => format(peak[1]) },
+                    data: [{ coord: peak, value: peak[1] }],
+                  }
+                : undefined,
+          };
+        }),
         ...(overlays?.length ? [overlaySeries(overlays, (status) => token(overlayStatusToken(status)))] : []),
       ],
     } as EChartsOption;

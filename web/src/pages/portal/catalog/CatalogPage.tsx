@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { ResourceCatalogPage } from '../../infrastructure/ResourceCatalogPage';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ExternalLink, Info, Mail, MessageSquare, MoreVertical, Pin, PinOff, Plus, Search, Server, Settings, Upload, Users, X } from 'lucide-react';
 import type { OnCallTeam } from '../../../api/onCall/client';
@@ -6,9 +7,24 @@ import type { PortalCatalog, PortalEntity } from '../../../api/portalCatalog/typ
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { Menu, Select } from '../../../components/ui/Dropdown';
 import { useTime } from '../../../components/shell/TimeContext';
-import { timeAgo } from '../../../lib/format';
+import { compact as compactCount, timeAgo } from '../../../lib/format';
+import { ServiceGlyph } from '../../apm/explorer/SpanBits';
 import { fmtLatency } from '../../apm/visuals';
-import { columnsFor, COLUMN_LABEL, filterEntities, KIND_LABEL, navCounts, productLink, SOFTWARE_SECTIONS, VIEWS, type Column, type Section, type ViewId } from './catalogModel';
+import {
+  apisByService,
+  columnsFor,
+  COLUMN_LABEL,
+  filterEntities,
+  splitEndpoint,
+  KIND_LABEL,
+  navCounts,
+  productLink,
+  SOFTWARE_SECTIONS,
+  VIEWS,
+  type Column,
+  type Section,
+  type ViewId,
+} from './catalogModel';
 import { CatalogWelcome } from './CatalogWelcome';
 import { EntityPanel } from './EntityPanel';
 import { ImportModal } from './ImportModal';
@@ -64,6 +80,8 @@ export function SoftwareCatalogPage() {
         <main className="pc-main">
           {empty ? (
             <CatalogWelcome onImport={() => setImporting(true)} />
+          ) : params.get('section') === 'infrastructure' ? (
+            <ResourceCatalogPage />
           ) : params.get('section') === 'teams' ? (
             <TeamsList data={data} onCall={onCall.data ?? []} onTeam={(t) => setParams({ team: t })} />
           ) : (
@@ -143,7 +161,8 @@ function CatalogNav({ data, params, setParams, infrastructure }: { data: PortalC
       const next = new URLSearchParams(p);
       if (s === 'all') next.delete('section');
       else next.set('section', s);
-      next.delete('entity');
+      // Infrastructure has its own search, grouping and paging.
+      for (const k of ['entity', 'q', 'group', 'sort', 'offset']) next.delete(k);
       return next;
     });
   const item = (id: string, label: string, icon: ReactNode, count: number | undefined) => (
@@ -156,11 +175,7 @@ function CatalogNav({ data, params, setParams, infrastructure }: { data: PortalC
   return (
     <aside className="pc-nav" aria-label="Catalog sections">
       {item('teams', 'Teams', <Users size={15} />, data.teams.length)}
-      <Link className="pc-nav-item" to="/infrastructure/catalog">
-        <Server size={15} />
-        <span className="pc-nav-label">Infrastructure</span>
-        <span className="pc-nav-count">{infrastructure ?? '…'}</span>
-      </Link>
+      {item('infrastructure', 'Infrastructure', <Server size={15} />, infrastructure)}
       <div className="pc-nav-group">
         <button className={`pc-nav-group-title${section === 'all' ? ' active' : ''}`} onClick={() => go('all')}>
           Software <span className="pc-nav-count">{counts.software}</span>
@@ -199,7 +214,8 @@ function EntitiesView({ data, params, setParams, onCall }: { data: PortalCatalog
   }, [data, section, search, team, lifecycle, tier]);
   const lifecycles = [...new Set(data.entities.map((e) => e.lifecycle).filter((x): x is string => !!x))].sort();
   const tiers = [...new Set(data.entities.map((e) => e.tier).filter((x): x is string => !!x))].sort();
-  const columns = columnsFor(view);
+  const columns = columnsFor(view, section);
+  const apis = useMemo(() => apisByService(data.entities), [data.entities]);
   const onCallByTeam = new Map(onCall.map((t) => [t.handle, t]));
   const title = section === 'all' ? 'All software' : (SOFTWARE_SECTIONS.find((s) => s.id === section)?.label ?? 'Software');
 
@@ -288,7 +304,7 @@ function EntitiesView({ data, params, setParams, onCall }: { data: PortalCatalog
           <thead>
             <tr>
               {columns.map((c) => (
-                <th key={c}>{COLUMN_LABEL[c]}</th>
+                <th key={c}>{c === 'requests' && section === 'endpoint' ? 'Requests' : c === 'monitors' && section === 'endpoint' ? 'Monitors' : COLUMN_LABEL[c]}</th>
               ))}
             </tr>
           </thead>
@@ -297,7 +313,7 @@ function EntitiesView({ data, params, setParams, onCall }: { data: PortalCatalog
               <tr key={e.id} className="pc-row" onClick={() => set('entity', e.id)}>
                 {columns.map((c) => (
                   <td key={c}>
-                    <Cell column={c} e={e} onCall={onCallByTeam.get(e.owner)} />
+                    <Cell column={c} e={e} onCall={onCallByTeam.get(e.owner)} apis={apis} />
                   </td>
                 ))}
               </tr>
@@ -330,11 +346,28 @@ function FilterChip({ label, value, options, onChange, onRemove }: { label: stri
 
 const dash = <span className="sc-muted">—</span>;
 
-function Cell({ column, e, onCall }: { column: Column; e: PortalEntity; onCall?: OnCallTeam }) {
+function Cell({ column, e, onCall, apis }: { column: Column; e: PortalEntity; onCall?: OnCallTeam; apis: Map<string, string[]> }) {
   const isService = e.kind === 'service';
+  const isEndpoint = e.kind === 'endpoint';
   switch (column) {
     case 'name': {
       const link = productLink(e);
+      if (isEndpoint) {
+        const { method, route } = splitEndpoint(e.name);
+        return (
+          <span className="pc-name pc-endpoint">
+            <span className={`pc-method${method ? ` m-${method.toLowerCase()}` : ''}`}>{method}</span>
+            <span className="pc-name-text" title={`${e.service} · ${e.name}`}>
+              {route}
+            </span>
+            {link && (
+              <Link to={link} className="pc-row-link" onClick={(ev) => ev.stopPropagation()} title="Open in APM" aria-label="Open in APM">
+                <ExternalLink size={13} />
+              </Link>
+            )}
+          </span>
+        );
+      }
       return (
         <span className="pc-name">
           <EntityIcon entity={e} />
@@ -385,13 +418,37 @@ function Cell({ column, e, onCall }: { column: Column; e: PortalEntity; onCall?:
       return e.docsUrl ? <ExtLink url={e.docsUrl} label="Docs" /> : dash;
     case 'slos':
       return isService ? <span>{e.slos}</span> : dash;
+    case 'service':
+      return e.service ? (
+        <Link to={`/apm/services/${encodeURIComponent(e.service)}`} className="pc-service-chip" onClick={(ev) => ev.stopPropagation()}>
+          <ServiceGlyph service={e.service} size={16} /> {e.service}
+        </Link>
+      ) : (
+        dash
+      );
+    case 'api': {
+      const names = apis.get(e.service ?? e.name) ?? [];
+      return names.length ? (
+        <span className="pc-contacts">
+          {names.map((n) => (
+            <span key={n} className="pc-team">
+              {n}
+            </span>
+          ))}
+        </span>
+      ) : (
+        dash
+      );
+    }
     case 'monitors':
+      if (isEndpoint) return e.monitors ? <span className={`pc-mon ${e.monitorsAlerting ? 'alert' : 'ok'}`}>{e.monitorsAlerting ? `${e.monitorsAlerting} ALERT` : `${e.monitors} OK`}</span> : dash;
       return isService ? <span className={e.monitorsAlerting ? 'pc-alert' : undefined}>{e.monitors ? `${e.monitorsAlerting} / ${e.monitors}` : '0'}</span> : dash;
     case 'incidents':
       return isService ? <span className={e.openIncidents ? 'pc-alert' : undefined}>{e.openIncidents ? `${e.incidents} (${e.openIncidents} open)` : e.incidents}</span> : dash;
     case 'errors':
       return e.errorIssues === null || e.errorIssues === undefined ? dash : <span className={e.errorIssues ? 'pc-alert' : undefined}>{e.errorIssues}</span>;
     case 'requests':
+      if (isEndpoint && e.requests != null) return <span>{compactCount(e.requests)}</span>;
       return e.reqPerSec === null || e.reqPerSec === undefined ? e.requests ? <span>{e.requests.toLocaleString()} req</span> : dash : <span>{fmtNumber(e.reqPerSec)}</span>;
     case 'errorRate':
       return e.errorRate === null || e.errorRate === undefined ? dash : <span className={e.errorRate > 0.05 ? 'pc-alert' : undefined}>{fmtPercent(e.errorRate)}</span>;

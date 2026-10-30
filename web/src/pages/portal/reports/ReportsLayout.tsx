@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, NavLink, Outlet, useOutletContext } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useOutletContext } from 'react-router-dom';
 import { BarChart3, ClipboardCheck, ExternalLink, HeartPulse, LayoutDashboard, Pin, PinOff, Plus, Settings, ShieldCheck, Users } from 'lucide-react';
 import { Select } from '../../../components/ui/Dropdown';
 import { useOnCallTeams, useReportDashboards } from '../catalog/queries';
@@ -21,6 +21,14 @@ export interface ReportsContext {
   rangeLabel: string;
   /** Selected team handles; empty for every team. */
   teams: string[];
+  rangeKey: string;
+  setRangeKey: (k: string) => void;
+}
+
+/** The report's time frame picker, for the reports that show their own filter bar. */
+export function RangeSelect() {
+  const { rangeKey, setRangeKey } = useReports();
+  return <Select value={rangeKey} options={RANGES.map((r) => ({ value: r.value, label: r.label }))} onChange={setRangeKey} align="right" />;
 }
 
 export const useReports = () => useOutletContext<ReportsContext>();
@@ -33,11 +41,43 @@ const readPinned = () => {
   }
 };
 
-const REPORTS = [
-  { to: 'teams', label: 'Teams Performance', icon: Users },
-  { to: 'reliability', label: 'Reliability Overview', icon: ShieldCheck },
-  { to: 'catalog-health', label: 'Catalog Health', icon: HeartPulse },
-  { to: 'scorecards', label: 'Scorecards Performance', icon: ClipboardCheck },
+/** The reports, the sections each one's navigation jumps to, and whether it shows its own filter bar. */
+const REPORTS: { to: string; label: string; icon: typeof Users; sections: [string, string][]; ownFilters?: boolean }[] = [
+  { to: 'teams', label: 'Teams Performance', icon: Users, sections: [] },
+  {
+    to: 'reliability',
+    label: 'Reliability Overview',
+    icon: ShieldCheck,
+    ownFilters: true,
+    sections: [
+      ['incident-trends', 'Incident Trends'],
+      ['slos', 'SLOs'],
+    ],
+  },
+  {
+    to: 'catalog-health',
+    label: 'Catalog Health',
+    icon: HeartPulse,
+    ownFilters: true,
+    sections: [
+      ['summary', 'Summary Information'],
+      ['stats', 'Stats on Catalog Entities'],
+      ['without-owners', 'Entities Without Owners'],
+      ['ownership', 'Entity Ownership Information'],
+    ],
+  },
+  {
+    to: 'scorecards',
+    label: 'Scorecards Performance',
+    icon: ClipboardCheck,
+    ownFilters: true,
+    sections: [
+      ['by-scorecard', 'Performance by Scorecard'],
+      ['scorecard-trends', 'Historical Trends by Scorecard'],
+      ['by-rule', 'Performance by Rule'],
+      ['rule-trends', 'Historical Trends by Rule'],
+    ],
+  },
 ];
 
 /** Developer Portal → Reports: the report navigation, the team and time filters, and the selected report. */
@@ -52,8 +92,10 @@ export function ReportsLayout() {
     const r = RANGES.find((x) => x.value === rangeKey) ?? RANGES[2];
     // Whole minutes, so queries keep their cache key while the page is open.
     const to = Math.floor(Date.now() / 60_000) * 60_000;
-    return { range: { from: to - r.ms, to }, rangeLabel: r.label, teams: team ? [team] : [] };
+    return { range: { from: to - r.ms, to }, rangeLabel: r.label, teams: team ? [team] : [], rangeKey, setRangeKey };
   }, [rangeKey, team]);
+  const location = useLocation();
+  const current = REPORTS.find((r) => location.pathname.endsWith(`/${r.to}`));
   const pin = () => {
     const next = pinned === team ? '' : team;
     setPinned(next);
@@ -70,9 +112,20 @@ export function ReportsLayout() {
       <aside className="pr-nav" aria-label="Reports">
         <div className="pr-nav-title">Reports</div>
         {REPORTS.map((r) => (
-          <NavLink key={r.to} to={r.to} className={({ isActive }) => `pr-nav-item${isActive ? ' active' : ''}`}>
-            <r.icon size={15} /> {r.label}
-          </NavLink>
+          <div key={r.to}>
+            <NavLink to={r.to} className={({ isActive }) => `pr-nav-item${isActive ? ' active' : ''}`}>
+              <r.icon size={15} /> {r.label}
+            </NavLink>
+            {current === r && r.sections.length > 0 && (
+              <div className="pr-nav-sections">
+                {r.sections.map(([id, label]) => (
+                  <button key={id} className="pr-nav-section" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
         <Link to="/delivery/dora" className="pr-nav-item">
           <BarChart3 size={15} /> DORA Metrics <ExternalLink size={12} className="pr-nav-ext" />
@@ -99,21 +152,23 @@ export function ReportsLayout() {
         )}
       </aside>
       <main className="pr-main">
-        <div className="pr-controls">
-          <div className="pr-filter-box">
-            <Select label="Teams" value={team} options={[{ value: '', label: 'All teams' }, ...(teams.data ?? []).map((t) => ({ value: t.handle, label: t.name }))]} onChange={setTeam} />
-            <button
-              className={`pr-icon-btn${pinned && pinned === team ? ' pr-pinned' : ''}`}
-              disabled={!team}
-              onClick={pin}
-              aria-label={pinned === team ? 'Unpin team' : 'Pin team'}
-              title="Pin this team as your default"
-            >
-              {pinned && pinned === team ? <PinOff size={14} /> : <Pin size={14} />}
-            </button>
+        {!current?.ownFilters && (
+          <div className="pr-controls">
+            <div className="pr-filter-box">
+              <Select label="Teams" value={team} options={[{ value: '', label: 'All teams' }, ...(teams.data ?? []).map((t) => ({ value: t.handle, label: t.name }))]} onChange={setTeam} />
+              <button
+                className={`pr-icon-btn${pinned && pinned === team ? ' pr-pinned' : ''}`}
+                disabled={!team}
+                onClick={pin}
+                aria-label={pinned === team ? 'Unpin team' : 'Pin team'}
+                title="Pin this team as your default"
+              >
+                {pinned && pinned === team ? <PinOff size={14} /> : <Pin size={14} />}
+              </button>
+            </div>
+            <Select value={rangeKey} options={RANGES.map((r) => ({ value: r.value, label: r.label }))} onChange={setRangeKey} align="right" />
           </div>
-          <Select value={rangeKey} options={RANGES.map((r) => ({ value: r.value, label: r.label }))} onChange={setRangeKey} align="right" />
-        </div>
+        )}
         <Outlet context={ctx} />
       </main>
       {adding && <AddDashboardsModal current={dashboards.data ?? []} onClose={() => setAdding(false)} />}

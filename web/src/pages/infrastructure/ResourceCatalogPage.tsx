@@ -58,7 +58,7 @@ function CategoryIcon({ category }: { category: string }) {
 }
 
 const chip = (v: string | null | undefined) => (v ? <span className="tag-chip">{v}</span> : <span className="muted-text">—</span>);
-const CHIP_LIMIT = 3;
+const CHIP_LIMIT = 1;
 const chips = (values: string[], icon?: boolean) =>
   values.length ? (
     <span className="rc-chips">
@@ -185,7 +185,15 @@ function GroupTable({ groups, groupBy, onOpen }: { groups: CatalogGroup[]; group
             <td className="num">{g.count.toLocaleString()}</td>
             <td>{chips(g.regions, true)}</td>
             <td>{chips(g.envs)}</td>
-            <td>{chips(g.teams)}</td>
+            <td>
+              {g.teams.length > 1 ? (
+                <span className="rc-pill rc-count" title={g.teams.join(', ')}>
+                  {g.teams.length} Teams
+                </span>
+              ) : (
+                chips(g.teams)
+              )}
+            </td>
             <td>{chips(g.services)}</td>
           </tr>
         ))}
