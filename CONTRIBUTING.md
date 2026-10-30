@@ -216,7 +216,19 @@ After successful CI, `release.yml` checks out that exact trusted main commit, bu
 assembles/signs/attests a candidate digest, blocks on fixable HIGH/CRITICAL vulnerabilities, and installs the
 candidate in kind. The GitHub release remains a draft while this runs. Only then does it promote that same digest to `:main`, `:sha-<commit>` and, for a tagged
 release commit, version/major.minor/latest tags and signed Helm charts, and publish the GitHub release. Older runs cannot roll the `main`
-tag back. PRs still build and test a local image in kind; their artifacts are never promoted into releases.
+tag back. PRs build and test a local image in kind when Docker packaging, Helm charts, Collector/Vector
+configuration or CI changes; ordinary application PRs run the affected Rust/web checks. Every changed image
+on main is still built and tested in kind before promotion. PR artifacts are never promoted into releases.
+The candidate's vulnerability scans and kind installation run in parallel; both must pass before promotion.
+Docs-only PRs keep the required `ci-ok` check without starting application builds.
+
+`tf-compat` is a compatibility test, not an infrastructure deployment: OpenTofu runs the Datadog provider's
+fixtures against a disposable local API, Postgres, ClickHouse and Valkey. Keep it on PRs and main when
+the Datadog API/authentication, shared storage/migrations, Rust dependency manifests, compatibility scripts
+or CI changes. Frontend-only changes do not need it. OpenTofu/provider downloads are cached separately
+from Rust compilation, and failed compatibility runs retain their Rust dependency cache.
+CI disables development/test debug symbols to reduce native DuckDB compilation, archive sizes and cache
+transfer costs; production images still use the release profile.
 Docker dependency layers (including DuckDB) are cached separately from application source with cargo-chef
 and Buildx's GitHub Actions cache. A release still rebuilds when necessary; previous-commit images are not
 reused just because a change appears to be version-only.

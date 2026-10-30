@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+# DuckDB compiles native C++ too: debug symbols make CI builds and caches much larger.
+# Tests and clippy do not need debugger symbols; production images use the release profile.
+env:
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+
 concurrency:
   group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -26,6 +32,7 @@ jobs:
       licenses: ${{ steps.f.outputs.licenses }}
       configs: ${{ steps.f.outputs.configs }}
       charts: ${{ steps.f.outputs.charts }}
+      smoke: ${{ steps.f.outputs.smoke }}
       tf_compat: ${{ steps.f.outputs.tf_compat }}
     timeout-minutes: 15
     steps:
@@ -64,13 +71,29 @@ jobs:
               - scripts/helm-chart.test.mjs
               - deploy/otel/**
               - deploy/vector/**
-              - server/**
-              - web/**
+            # Application changes have Rust/web checks and the exact image is tested on main.
+            # Exercise Docker/kind on PRs when packaging or deployment itself changes.
+            smoke:
+              - *ci
+              - server/Dockerfile
               - .dockerignore
+              - deploy/helm/**
+              - deploy/otel/**
+              - deploy/vector/**
             tf_compat:
               - *ci
               - server/crates/oc-api/src/routes/datadog_api/**
               - server/crates/oc-api/src/auth/**
+              - server/crates/oc-api/src/state.rs
+              - server/crates/oc-api/src/main.rs
+              - server/crates/oc-api/src/config.rs
+              - server/crates/oc-api/src/routes/mod.rs
+              - server/crates/oc-api/Cargo.toml
+              - server/crates/oc-store/**
+              - server/migrations/**
+              - server/Cargo.toml
+              - server/Cargo.lock
+              - Makefile
               - scripts/datadog-fixtures/**
               - scripts/tf-compat/**
 
@@ -147,7 +170,12 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libclang-dev libxml2-dev libxmlsec1-dev postgresql-client
       - uses: dtolnay/rust-toolchain@599c45df1a24c1c63ae1129a7e59f46654b8fb66 # 1.89.0
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with: { workspaces: server }
+        # Preserve expensive compiled dependencies even when a compatibility assertion fails.
+        with: { workspaces: server, cache-on-failure: true }
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/observecraft/tf-compat
+          key: tf-compat-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/tf-compat/run.sh', 'scripts/tf-compat/fixtures/**') }}
       # Datadog's recordings are fetched at test time, not vendored: scripts/datadog-fixtures/fetch.sh pins
       # the datadog-api-client-go commit and its archive's SHA-256, and the cache is keyed on that commit.
       - id: dd-fixtures
@@ -217,7 +245,7 @@ jobs:
 
   charts:
     needs: changes
-    if: needs.changes.outputs.charts == 'true'
+    if: needs.changes.outputs.charts == 'true' || needs.changes.outputs.smoke == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -238,9 +266,9 @@ jobs:
             helm lint "deploy/helm/$chart" -f "deploy/helm/$chart/ci/default-values.yaml"
           done
       # PRs test an untrusted local image. Main is built once in release.yml after ci-ok.
-      - if: github.event_name == 'pull_request'
+      - if: github.event_name == 'pull_request' && needs.changes.outputs.smoke == 'true'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - if: github.event_name == 'pull_request'
+      - if: github.event_name == 'pull_request' && needs.changes.outputs.smoke == 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -250,14 +278,14 @@ jobs:
           cache-from: type=gha,scope=amd64
           cache-to: type=gha,mode=max,scope=amd64
       # Match the publishing gate: block fixable high/critical vulnerabilities.
-      - if: github.event_name == 'pull_request'
+      - if: github.event_name == 'pull_request' && needs.changes.outputs.smoke == 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with: { image-ref: "ghcr.io/observecraft/observecraft:ci", severity: "CRITICAL,HIGH", ignore-unfixed: true, exit-code: "1" }
-      - if: github.event_name == 'pull_request'
+      - if: github.event_name == 'pull_request' && needs.changes.outputs.smoke == 'true'
         uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
         with: { cluster_name: ci }
       - name: Install and test
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && needs.changes.outputs.smoke == 'true'
         run: |
           kind load docker-image ghcr.io/observecraft/observecraft:ci --name ci
           helm install observecraft deploy/helm/observecraft -n observecraft --create-namespace \

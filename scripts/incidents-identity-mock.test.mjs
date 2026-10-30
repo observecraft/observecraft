@@ -100,11 +100,15 @@ test('"mine" keeps incidents the current user commands or responds to', async ()
   }
 });
 
-test('declaring an incident takes the next IR number, appears in search and starts the timeline', async () => {
+test('declaring an incident takes the next IR number, appears in search and starts the timeline', async (t) => {
   const me = await id.getProfile();
   const before = await search();
   const next = Math.max(...before.incidents.map((i) => i.id)) + 1;
+  // Force the clock to advance between reads: a notification must never predate its declaration.
+  let clock = Date.now();
+  const dateNow = t.mock.method(Date, 'now', () => clock++);
   const d = await inc.declareIncident({ title: '  [Checkout] Cart totals off by one cent  ', severity: 'SEV-2', services: ['order-service'], teams: ['checkout'] });
+  dateNow.mock.restore();
   assert.equal(d.id, next);
   assert.equal(d.title, '[Checkout] Cart totals off by one cent');
   assert.equal(d.status, 'active');
@@ -122,6 +126,11 @@ test('declaring an incident takes the next IR number, appears in search and star
   assert.equal(timeline[0].kind, 'declared');
   assert.equal(timeline[0].body, 'Incident declared with severity SEV-2');
   assert.equal(timeline[0].authorId, me.id);
+  assert.equal(timeline[0].createdAt, d.declaredAt);
+  assert.ok(
+    timeline.some((e) => e.kind === 'notification'),
+    'the declaring team is notified',
+  );
 
   await assert.rejects(inc.declareIncident({ title: 'x', severity: 'SEV-9' }), /severity/);
   await assert.rejects(inc.declareIncident({ title: '   ', severity: 'SEV-1' }), /title/);

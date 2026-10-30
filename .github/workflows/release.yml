@@ -278,7 +278,7 @@ jobs:
 
   # Exercise the candidate before publishing main/latest/version or either chart.
   verify:
-    needs: [manifest, scan]
+    needs: manifest
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -307,7 +307,7 @@ jobs:
             -f deploy/helm/observecraft-agent/ci/default-values.yaml --wait --timeout 5m
 
   promote:
-    needs: [prepare, manifest, verify]
+    needs: [prepare, manifest, scan, verify]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
