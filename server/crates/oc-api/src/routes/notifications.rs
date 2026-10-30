@@ -84,10 +84,19 @@ pub struct CreateChannel {
 }
 
 /// Webhook targets must be http(s) and not the cloud metadata endpoint.
+/// Webhook URLs often carry a credential (Slack's do) and the payload a signature: they go over TLS.
+/// Plain http only reaches a receiver on this machine (development).
+fn encrypted_transport(u: &url::Url) -> bool {
+    u.scheme() == "https" || (u.scheme() == "http" && matches!(u.host(), Some(url::Host::Domain("localhost")) | Some(url::Host::Ipv4(std::net::Ipv4Addr::LOCALHOST)) | Some(url::Host::Ipv6(std::net::Ipv6Addr::LOCALHOST))))
+}
+
 fn check_url(raw: &str) -> Result<url::Url, ApiError> {
     let u = url::Url::parse(raw.trim()).map_err(|_| ApiError::BadRequest("Enter a valid URL".into()))?;
     if !matches!(u.scheme(), "http" | "https") {
         return Err(ApiError::BadRequest("Only http(s) URLs are supported".into()));
+    }
+    if !encrypted_transport(&u) {
+        return Err(ApiError::BadRequest("Webhook URLs must use https (plain http only to localhost)".into()));
     }
     if matches!(u.host_str(), Some("169.254.169.254") | Some("metadata.google.internal") | None) {
         return Err(ApiError::BadRequest("That host isn't allowed".into()));
@@ -241,6 +250,11 @@ pub(crate) async fn send(st: &AppState, recipient: &str, out: &Outgoing) -> Outc
     };
     let (Ok(url), secret) = (st.secrets.decrypt(&url_enc), secret_enc.and_then(|s| st.secrets.decrypt(&s).ok())) else {
         return Outcome::Failed("The channel's URL can't be decrypted (was OC_SECRET_KEY changed?)".into());
+    };
+    // Channels created before https was required are refused here rather than sent in the clear.
+    let url = match url::Url::parse(&url) {
+        Ok(u) if encrypted_transport(&u) => u,
+        _ => return Outcome::Failed("The channel's URL doesn't use https: edit the channel".into()),
     };
     let body = if kind == "slack" { json!({ "text": out.slack_text }) } else { out.webhook.clone() };
     let raw = serde_json::to_vec(&body).unwrap_or_default();
@@ -469,6 +483,10 @@ mod tests {
         assert!(check_url("ftp://example.com").is_err());
         assert!(check_url("http://169.254.169.254/latest/meta-data").is_err());
         assert!(check_url("not a url").is_err());
+        // Over TLS only, except to this machine.
+        assert!(check_url("http://hooks.example.com/x").is_err());
+        assert!(check_url("http://localhost:9000/hook").is_ok());
+        assert!(check_url("http://127.0.0.1:9000/hook").is_ok());
     }
 
     #[test]

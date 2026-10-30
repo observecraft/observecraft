@@ -51,7 +51,8 @@ def main() -> None:
     chart_yaml = chart / "Chart.yaml"
     text = chart_yaml.read_text()
     # The annotations are appended to the `annotations:` map, which must be the file's last key.
-    if not re.search(r"^annotations:\n(?:[ ].*\n?)*\Z", text, re.M):
+    top_level = [line for line in text.splitlines() if line and not line[0].isspace() and not line.startswith("#")]
+    if not top_level or top_level[-1].rstrip() != "annotations:":
         sys.exit(f"{chart_yaml}: `annotations:` must be the last key")
     lines = ["  artifacthub.io/images: |"]
     for ref in images(chart):

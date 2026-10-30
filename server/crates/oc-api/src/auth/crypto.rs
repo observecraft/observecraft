@@ -1,6 +1,6 @@
 //! Token generation, hashing and at-rest encryption.
 
-use aes_gcm::aead::{Aead, KeyInit};
+use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng as AeadRng};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use base64::Engine;
@@ -31,9 +31,9 @@ impl SecretBox {
     }
 
     pub fn encrypt(&self, plaintext: &str) -> String {
-        let mut nonce = [0u8; 12];
-        rand::rngs::OsRng.fill_bytes(&mut nonce);
-        let ct = self.0.encrypt(Nonce::from_slice(&nonce), plaintext.as_bytes()).expect("aes-gcm encrypt");
+        // A fresh random 96-bit nonce per message.
+        let nonce = Aes256Gcm::generate_nonce(&mut AeadRng);
+        let ct = self.0.encrypt(&nonce, plaintext.as_bytes()).expect("aes-gcm encrypt");
         let mut out = nonce.to_vec();
         out.extend(ct);
         format!("v1:{}", STANDARD.encode(out))
