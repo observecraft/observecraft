@@ -71,6 +71,17 @@ fn not_replayed(version: &str, feature: &str) -> Option<NotReplayed> {
         ("v2", "Key Management") => Some(NotReplayed::Containing(&["personal access token", "with scopes"])),
         // Teams and memberships only: not links, hierarchy, connections, notification rules, sync or
         // permission settings, nor the scenarios that set avatars, banners or modules.
+        // Budgets and custom costs files; not the cloud accounts, tag pipelines, allocation rules or
+        // commitments, nor the recordings of fixed upstream ids (`Get Custom Costs File returns "OK"`).
+        ("v2", "Cloud Cost Management") => Some(NotReplayed::AllBut(&[
+            "Delete Custom Costs file returns \"Not Found\" response",
+            "Delete a budget returns \"Bad Request\" response",
+            "Get Custom Costs file returns \"Not Found\" response",
+            "Get a budget returns \"Not Found\" response",
+            "List budgets returns \"OK\" response",
+            "Upload Custom Costs File returns \"Accepted\" response",
+            "Upload Custom Costs file returns \"Bad Request\" response",
+        ])),
         ("v2", "Teams") => Some(NotReplayed::AllBut(&[
             "Add a user to a team returns \"Represents a user's association to a team\" response",
             "Create a team returns \"CREATED\" response",
@@ -168,6 +179,14 @@ impl Feature {
             Some(NotReplayed::Containing(parts)) => !parts.iter().any(|p| scenario.name.contains(p)),
             Some(NotReplayed::AllBut(names)) => names.contains(&scenario.name.as_str()),
         }
+    }
+
+    /// A cassette of the feature recorded under a name no scenario has (upstream renamed the scenario
+    /// and kept the recording), or None.
+    pub fn cassette_named(&self, name: &str) -> Option<Vec<Interaction>> {
+        let text = std::fs::read_to_string(self.cassette_dir().join(format!("{}.yaml", cassette_name(name)))).ok()?;
+        let c: CassetteFile = serde_yaml_ng::from_str(&text).unwrap_or_else(|e| panic!("cassette {name:?}: {e}"));
+        Some(c.interactions)
     }
 
     /// The recorded interactions of a scenario, or None when it has no cassette (not recorded upstream)
@@ -535,7 +554,7 @@ mod tests {
     }
 
     /// The features the tests replay (what `scripts/datadog-fixtures/fetch.sh` downloads).
-    const FEATURES: [&str; 13] = [
+    const FEATURES: [&str; 14] = [
         "v1/authentication",
         "v1/monitors",
         "v1/downtimes",
@@ -549,6 +568,7 @@ mod tests {
         "v2/roles",
         "v2/teams",
         "v2/key_management",
+        "v2/cloud_cost_management",
     ];
 
     #[test]

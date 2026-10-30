@@ -16,6 +16,7 @@ import { formatBytes } from '../../components/ui/Pager';
 import { formatLongDate, timeAgo } from '../../lib/format';
 import { toYaml } from '../../lib/yaml';
 import { LogTable } from '../logs/LogTable';
+import { ContainerPanel } from './ContainerPanel';
 import { COLUMNS, KIND_INFO, StatusPill, UtilCell, age, formatCores, formatCoresAxis, formatMem, logQuery, metricQueries } from './columns';
 
 type Tab = 'yaml' | 'logs' | 'apm' | 'metrics' | 'processes' | 'network' | 'events' | 'monitors' | 'related' | 'taskdef';
@@ -61,6 +62,17 @@ export function KubePanel({ uid, onClose, onFilter, onOpen }: { uid: string; onC
         <Loading label="Loading resource…" />
       ) : q.isError ? (
         <ErrorState error={q.error} onRetry={() => q.refetch()} />
+      ) : q.data.resource.kind === 'containers' ? (
+        <div className="kx-panel-scroll">
+          <ContainerPanel
+            r={q.data.resource}
+            onClose={onClose}
+            onFilter={onFilter}
+            renderTab={(t) =>
+              t === 'metrics' ? <Metrics r={q.data.resource} /> : t === 'logs' ? <Logs r={q.data.resource} /> : t === 'network' ? <NetworkTab r={q.data.resource} /> : <Apm r={q.data.resource} />
+            }
+          />
+        </div>
       ) : (
         <div className="kx-panel-scroll">
           <header className="kx-panel-head">

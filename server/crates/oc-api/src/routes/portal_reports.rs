@@ -77,6 +77,18 @@ pub struct PortalScorecardsReport {
     /// Day starts (epoch ms, UTC).
     pub days: Vec<i64>,
     pub teams: Vec<PortalScorecardTeam>,
+    /// Each rule's passes and failures per day, over the selected teams (all when none).
+    pub rule_days: Vec<PortalScorecardRuleDay>,
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PortalScorecardRuleDay {
+    /// Day start (epoch ms, UTC).
+    pub day: i64,
+    pub rule_id: String,
+    pub pass: i64,
+    pub fail: i64,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -312,7 +324,19 @@ pub async fn scorecards(State(st): State<AppState>, OrgId(org): OrgId, Json(req)
     .fetch_all(&st.postgres)
     .await?;
     let (days, teams) = scorecard_trend(req.range, &rows, &req.teams);
-    Ok(Json(PortalScorecardsReport { days, teams }))
+    let rule_days: Vec<(i64, String, i64, i64)> = sqlx::query_as(
+        "SELECT (extract(epoch FROM day::timestamp AT TIME ZONE 'UTC') * 1000)::bigint, rule_id::text, sum(pass)::bigint, sum(fail)::bigint FROM portal_scorecard_rule_days \
+         WHERE org_id = $1 AND day >= (to_timestamp($2 / 1000.0) AT TIME ZONE 'UTC')::date AND day <= (to_timestamp($3 / 1000.0) AT TIME ZONE 'UTC')::date \
+         AND (cardinality($4::text[]) = 0 OR team = ANY($4)) GROUP BY 1, 2 ORDER BY 1",
+    )
+    .bind(&org)
+    .bind(req.range.from as f64)
+    .bind(req.range.to as f64)
+    .bind(&req.teams)
+    .fetch_all(&st.postgres)
+    .await?;
+    let rule_days = rule_days.into_iter().map(|(day, rule_id, pass, fail)| PortalScorecardRuleDay { day, rule_id, pass, fail }).collect();
+    Ok(Json(PortalScorecardsReport { days, teams, rule_days }))
 }
 
 /// Custom Reports: the dashboards added to the Reports tab, in order.

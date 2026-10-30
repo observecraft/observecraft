@@ -20,8 +20,14 @@ postgres:
   operator:
     instances: 3
 
-nats:
+kafka:
   replicas: 3
+  persistence:
+    size: 200Gi
+  heapOpts: "-Xms4g -Xmx4g"
+  resources:
+    requests: { cpu: "2", memory: 8Gi }
+    limits: { memory: 8Gi }
 
 # One Valkey is enough for a cache: while it restarts the servers serve from ClickHouse (slower,
 # not failing). For a highly available cache use a managed service with a replica

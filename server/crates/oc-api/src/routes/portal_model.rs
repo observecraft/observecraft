@@ -811,6 +811,15 @@ pub fn assemble(inputs: &CatalogInputs) -> Vec<PortalEntity> {
         e.req_per_sec = Some(ep.req_per_sec);
         e.error_rate = Some(ep.error_rate);
         e.p95_ms = Some(ep.p95_ms);
+        // Its monitors: those naming its service and its route (`resource_name:"GET /orders"`, `/orders`).
+        let route = match ep.resource.split_once(' ') {
+            Some((_, r)) if r.len() > 1 => r.to_lowercase(),
+            _ => ep.resource.to_lowercase(),
+        };
+        let mentions = |t: &String| references_service(t, &ep.service) && t.to_lowercase().contains(&route);
+        let monitors: Vec<&ReliabilityRef> = inputs.monitors.iter().filter(|m| m.texts.iter().any(mentions)).collect();
+        e.monitors = monitors.len() as u32;
+        e.monitors_alerting = monitors.iter().filter(|m| m.alerting).count() as u32;
         entities.insert((PortalEntityKind::Endpoint, id_name), e);
     }
 
@@ -1049,6 +1058,7 @@ mod tests {
             monitors: vec![
                 ReliabilityRef { name: "Order errors".into(), texts: vec!["avg:trace.error_rate{service:order-service} > 5".into()], alerting: true, ..Default::default() },
                 ReliabilityRef { name: "Billing latency".into(), texts: vec!["service:billing".into()], ..Default::default() },
+                ReliabilityRef { name: "Slow orders".into(), texts: vec!["avg:trace.http.request{service:order-service,resource_name:post_/orders} > 1".into()], ..Default::default() },
             ],
             incidents: vec![
                 IncidentRef { services: vec!["order-service".into()], open: true, in_range: true },
@@ -1094,12 +1104,14 @@ mod tests {
     fn services_get_reliability_and_endpoints_their_owner() {
         let all = assemble(&inputs());
         let order = find(&all, "service:order-service");
-        assert_eq!((order.monitors, order.monitors_alerting, order.slos, order.incidents, order.open_incidents, order.error_issues), (1, 1, 1, 1, 1, Some(3)));
+        assert_eq!((order.monitors, order.monitors_alerting, order.slos, order.incidents, order.open_incidents, order.error_issues), (2, 1, 1, 1, 1, Some(3)));
         let billing = find(&all, "service:billing");
         assert_eq!((billing.monitors, billing.slos, billing.incidents, billing.error_issues), (1, 0, 0, Some(0)));
         assert_eq!(find(&all, "service:legacy-cron").error_issues, None);
         let ep = find(&all, "endpoint:order-service/POST /orders");
         assert_eq!((ep.name.as_str(), ep.service.as_deref(), ep.owner.as_str()), ("POST /orders", Some("order-service"), "checkout"));
+        // Only the monitor naming the route counts for the endpoint.
+        assert_eq!((ep.monitors, ep.monitors_alerting), (1, 0));
     }
 
     #[test]

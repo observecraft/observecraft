@@ -16,7 +16,7 @@
   font-size: var(--fs-md);
 }
 
-.wf-note {
+.wf-run-note {
   margin: 8px 0;
   padding: 8px 12px;
   border-radius: var(--radius-md);

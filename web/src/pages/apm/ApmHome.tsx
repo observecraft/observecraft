@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, Bug, ChevronRight, Lightbulb, Plus, Search, Sparkles, Star } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowDown, ArrowRight, ArrowUp, Braces, Bug, ChevronRight, Lightbulb, Plus, Search, Sparkles, Star, Table2 } from 'lucide-react';
 import type { Anomaly, Recommendation, ResourceStats, ServiceStats, SpanErrorGroup } from '../../api/apm/client';
 import { TimePicker } from '../../components/shell/PageHeader';
 import { useTime } from '../../components/shell/TimeContext';
 import { Empty, ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Select } from '../../components/ui/Dropdown';
 import { compact, timeAgo } from '../../lib/format';
-import { InstrumentModal } from './InstrumentModal';
 import { useAnomalies, useEnvs, useRecommendations, useResources, useServices, useSpanErrors } from './queries';
 import { errorTone, fmtLatency, fmtPct, fmtRate, ServiceIcon, useStars } from './visuals';
 
@@ -33,31 +32,30 @@ export function servicePath(service: string, env: string, resource?: string): st
 export function ApmHome() {
   const { range } = useTime();
   const [env, setEnv] = useState(ALL_ENVS);
-  const [instrumenting, setInstrumenting] = useState(false);
+  const navigate = useNavigate();
   const envs = useEnvs(range);
   // Deep links from the APM menu: ?instrument=1 opens the setup guide, ?view=recommendations scrolls to them.
   const [params, setParams] = useSearchParams();
   const want = params.get('instrument') === '1' ? 'instrument' : params.get('view');
   useEffect(() => {
     if (!want) return;
-    if (want === 'instrument') setInstrumenting(true);
+    if (want === 'instrument') navigate('/apm/instrument', { replace: true });
     if (want === 'recommendations') document.getElementById('apm-attention')?.scrollIntoView({ behavior: 'smooth' });
     setParams({}, { replace: true });
-  }, [want, setParams]);
+  }, [want, setParams, navigate]);
   const scope = { range, env: env === ALL_ENVS ? null : env };
   const services = useServices(scope);
 
   return (
     <div className="apm-home">
       <div className="apm-hero">
-        <h1>Welcome to APM</h1>
-        <div className="apm-hero-actions">
-          <Select label="Env" value={env} onChange={setEnv} options={[{ value: ALL_ENVS, label: 'All environments' }, ...(envs.data ?? []).map((e) => ({ value: e, label: e }))]} />
-          <TimePicker compact />
-          <button className="btn btn-primary" onClick={() => setInstrumenting(true)}>
-            <Plus size={14} /> Instrument a Service
-          </button>
+        <div>
+          <h1>Welcome to APM</h1>
+          <p className="muted">A live view of your services, what they call and how they perform.</p>
         </div>
+        <Link className="btn apm-outline-primary" to="/apm/instrument">
+          <Plus size={14} /> Instrument a Service
+        </Link>
       </div>
       {services.data?.length === 0 ? (
         <section className="apm-block apm-onboard">
@@ -73,24 +71,25 @@ export function ApmHome() {
             </li>
             <li>Send a few requests: services appear here within a minute.</li>
           </ol>
-          <button className="btn btn-primary" onClick={() => setInstrumenting(true)}>
+          <Link className="btn btn-primary" to="/apm/instrument">
             <Plus size={14} /> Instrument a Service
-          </button>
+          </Link>
         </section>
       ) : (
         <>
-          <AttentionSection scope={scope} env={env} />
-          <GlanceSection scope={scope} env={env} />
+          <AttentionSection scope={scope} env={env} envFilter={<Select label="Env" value={env} onChange={setEnv} options={envOptions(envs.data)} />} />
+          <GlanceSection scope={scope} env={env} envFilter={<Select value={env} onChange={setEnv} options={envOptions(envs.data, 'env:*')} />} />
         </>
       )}
-      {instrumenting && <InstrumentModal onClose={() => setInstrumenting(false)} />}
     </div>
   );
 }
 
 type Scope = { range: { from: number; to: number }; env: string | null };
 
-function AttentionSection({ scope, env }: { scope: Scope; env: string }) {
+const envOptions = (envs: string[] | undefined, all = 'All environments') => [{ value: ALL_ENVS, label: all }, ...(envs ?? []).map((e) => ({ value: e, label: all === 'env:*' ? `env:${e}` : e }))];
+
+function AttentionSection({ scope, env, envFilter }: { scope: Scope; env: string; envFilter: React.ReactNode }) {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Attention>('recommendations');
   const [type, setType] = useState<RecType>('all');
@@ -108,8 +107,8 @@ function AttentionSection({ scope, env }: { scope: Scope; env: string }) {
 
   return (
     <section className="apm-block" id="apm-attention">
-      <h2>What needs your attention</h2>
       <div className="apm-attn-bar">
+        <h2>What needs your attention</h2>
         <div className="apm-pills">
           {pills.map((p) => (
             <button key={p.id} className={`apm-pill${tab === p.id ? ' active' : ''}`} onClick={() => setTab(p.id)}>
@@ -123,9 +122,10 @@ function AttentionSection({ scope, env }: { scope: Scope; env: string }) {
             label="Type"
             value={type}
             onChange={setType}
-            options={[{ value: 'all', label: 'All types' }, ...(Object.keys(REC_TITLE) as Recommendation['kind'][]).map((k) => ({ value: k, label: REC_TITLE[k] }))]}
+            options={[{ value: 'all', label: 'All' }, ...(Object.keys(REC_TITLE) as Recommendation['kind'][]).map((k) => ({ value: k, label: REC_TITLE[k] }))]}
           />
         )}
+        {envFilter}
       </div>
       {active.isPending ? (
         <Loading />
@@ -262,27 +262,39 @@ function ErrorCard({ group: e, onOpen }: { group: SpanErrorGroup; onOpen: () => 
 
 type SortKey = 'service' | 'lastDeploy' | 'reqPerSec' | 'errorRate' | 'p95Ms';
 
-function GlanceSection({ scope, env }: { scope: Scope; env: string }) {
+/** Services and endpoints are Software Catalog entities: the glance lists them and links to the catalog. */
+function GlanceSection({ scope, env, envFilter }: { scope: Scope; env: string; envFilter: React.ReactNode }) {
   const [tab, setTab] = useState<'services' | 'endpoints'>('services');
   const [filter, setFilter] = useState('');
+  const services = tab === 'services';
   return (
     <section className="apm-block">
       <h2>Your system at a glance</h2>
-      <div className="apm-glance-bar">
-        <div className="apm-seg">
-          <button className={tab === 'services' ? 'active' : ''} onClick={() => setTab('services')}>
-            Services
+      <div className="apm-glance">
+        <div className="apm-glance-tabs">
+          <button className={services ? 'active' : ''} onClick={() => setTab('services')}>
+            <Table2 size={15} /> Services
           </button>
-          <button className={tab === 'endpoints' ? 'active' : ''} onClick={() => setTab('endpoints')}>
-            Endpoints
+          <button className={services ? '' : 'active'} onClick={() => setTab('endpoints')}>
+            <Braces size={15} /> Endpoints
           </button>
         </div>
-        <label className="apm-search">
-          <Search size={14} />
-          <input placeholder={tab === 'services' ? 'Filter services' : 'Filter endpoints'} value={filter} onChange={(e) => setFilter(e.target.value)} />
-        </label>
+        <div className="apm-glance-head">
+          <h3>{services ? 'Service List' : 'Endpoint List'}</h3>
+          <Link className="link-muted" to={`/portal/catalog?section=${services ? 'service' : 'endpoint'}&view=performance`}>
+            View in Software Catalog <ArrowRight size={14} />
+          </Link>
+        </div>
+        <div className="apm-glance-bar">
+          <TimePicker compact />
+          <label className="apm-search">
+            <Search size={14} />
+            <input placeholder={services ? 'Search services' : 'Search endpoints'} value={filter} onChange={(e) => setFilter(e.target.value)} />
+          </label>
+          {envFilter}
+        </div>
+        {services ? <ServiceList scope={scope} env={env} filter={filter} /> : <EndpointList scope={scope} env={env} filter={filter} />}
       </div>
-      {tab === 'services' ? <ServiceList scope={scope} env={env} filter={filter} /> : <EndpointList scope={scope} env={env} filter={filter} />}
     </section>
   );
 }

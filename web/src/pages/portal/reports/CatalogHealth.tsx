@@ -1,110 +1,118 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { catalogHealth } from '../../../api/portalCatalog/reports';
+import { Copy } from 'lucide-react';
+import type { PortalEntity } from '../../../api/portalCatalog/types';
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
+import { Select } from '../../../components/ui/Dropdown';
 import { useTime } from '../../../components/shell/TimeContext';
-import { KIND_LABEL } from '../catalog/catalogModel';
-import { useOnCallTeams, usePortalCatalog } from '../catalog/queries';
-import { EntityIcon } from '../catalog/visuals';
+import { usePortalCatalog } from '../catalog/queries';
 import { useReports } from './ReportsLayout';
+import { BigNumber, CountTreemap, DonutWithLegend, ReportSection } from './widgets';
 
-const pct = (covered: number, total: number) => (total ? Math.round((covered * 100) / total) : 0);
+/** The entity kinds the report counts, as they read in it. */
+const KINDS: [PortalEntity['kind'], string][] = [
+  ['system', 'Systems'],
+  ['service', 'Services'],
+  ['api', 'APIs'],
+  ['queue', 'Queues'],
+  ['frontend', 'Frontend Apps'],
+];
 
-/** Reports → Catalog Health: how many services and defined entities have an owner, docs, a repository, contacts and On-Call. */
+/** Entities defined in the catalog are in its definition format, v3; the others have none. */
+const definitionVersion = (e: PortalEntity) => (e.definitionId ? 'v3' : '');
+
+/** Values of a field with their counts, the most common first ('' is "none"). */
+function countBy(entities: PortalEntity[], field: (e: PortalEntity) => string | null | undefined) {
+  const counts = new Map<string, number>();
+  for (const e of entities) {
+    const v = field(e) ?? '';
+    if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  return [...counts].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+}
+
+const ALL = '*';
+
+/** Reports → Catalog Health: what the catalog holds, how complete its definitions are and who owns it. */
 export function CatalogHealth() {
-  const { teams } = useReports();
   const { range } = useTime();
+  const { teams } = useReports();
   const catalog = usePortalCatalog(range, null);
-  const onCall = useOnCallTeams();
-  const health = useMemo(() => {
-    const withOnCall = new Set((onCall.data ?? []).filter((t) => t.schedules.length > 0).map((t) => t.handle));
-    return catalogHealth(catalog.data?.entities ?? [], withOnCall, teams);
-  }, [catalog.data, onCall.data, teams]);
+  const [owner, setOwner] = useState(teams[0] ?? ALL);
+  const [lifecycle, setLifecycle] = useState(ALL);
+  const [tier, setTier] = useState(ALL);
+  const [version, setVersion] = useState(ALL);
+  const all = useMemo(() => (catalog.data?.entities ?? []).filter((e) => KINDS.some(([k]) => k === e.kind)), [catalog.data]);
+  const entities = all.filter(
+    (e) =>
+      (owner === ALL || e.owner === owner) &&
+      (lifecycle === ALL || (e.lifecycle ?? '') === lifecycle) &&
+      (tier === ALL || (e.tier ?? '') === tier) &&
+      (version === ALL || definitionVersion(e) === version),
+  );
   if (catalog.isPending) return <Loading label="Loading the catalog…" />;
   if (catalog.isError) return <ErrorState error={catalog.error} onRetry={() => catalog.refetch()} />;
-  const gaps = health.entities
-    .map((e) => ({
-      e,
-      missing: [!e.owner && 'owner', !e.docsUrl && !e.links.some((l) => l.type === 'doc' || l.type === 'runbook') && 'docs', !e.repoUrl && 'repository', !e.contacts.length && 'contacts'].filter(
-        (m): m is string => !!m,
-      ),
-    }))
-    .filter((g) => g.missing.length)
-    .sort((a, b) => b.missing.length - a.missing.length || a.e.name.localeCompare(b.e.name));
-  const overall = health.rows.length ? Math.round(health.rows.reduce((n, r) => n + pct(r.covered, r.total), 0) / health.rows.length) : 0;
+
+  const options = (values: string[]) => [{ value: ALL, label: '*' }, ...values.filter(Boolean).map((v) => ({ value: v, label: v }))];
+  const ofKind = (list: PortalEntity[], kind: string) => list.filter((e) => e.kind === kind).length;
+  const unowned = entities.filter((e) => !e.owner);
 
   return (
     <div className="pr-report">
-      <h1 className="pr-title">Catalog Health</h1>
-      <p className="pr-muted pr-lead">Services and the entities your teams defined ({health.entities.length}). Endpoints, repositories and dependencies seen only in telemetry are left out.</p>
-      <div className="pr-cards">
-        <section className="pr-card">
-          <div className="pr-card-title">Overall completeness</div>
-          <div className="pr-big">{overall}%</div>
-          <p className="pr-muted">Mean of the checks on the right.</p>
-        </section>
-        <section className="pr-card pr-card-wide">
-          <div className="pr-card-title">Entities with…</div>
-          <ul className="pr-bars">
-            {health.rows.map((r) => (
-              <li key={r.key}>
-                <span className="pr-bar-label">{r.label}</span>
-                <span className="pr-bar">
-                  <span style={{ width: `${pct(r.covered, r.total)}%` }} />
-                </span>
-                <span className="pr-bar-value">
-                  {pct(r.covered, r.total)}%{' '}
-                  <span className="pr-muted">
-                    ({r.covered}/{r.total})
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <div className="rw-filters">
+        <Select label="owner" value={owner} options={options([...new Set(all.map((e) => e.owner))].sort())} onChange={setOwner} />
+        <Select label="lifecycle" value={lifecycle} options={options([...new Set(all.map((e) => e.lifecycle ?? ''))].sort())} onChange={setLifecycle} />
+        <Select label="tier" value={tier} options={options([...new Set(all.map((e) => e.tier ?? ''))].sort())} onChange={setTier} />
+        <Select label="definition_api_version" value={version} options={options(['v3'])} onChange={setVersion} />
       </div>
-      <section className="pr-section">
-        <header className="pr-section-head">
-          <h2>What's missing</h2>
-          <span className="pr-muted">{gaps.length} entities</span>
-        </header>
-        {gaps.length ? (
-          <div className="pr-table-wrap">
-            <table className="pr-table">
-              <thead>
-                <tr>
-                  <th>Entity</th>
-                  <th>Type</th>
-                  <th>Team</th>
-                  <th>Missing</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {gaps.slice(0, 100).map(({ e, missing }) => (
-                  <tr key={e.id}>
-                    <td>
-                      <span className="pr-name">
-                        <EntityIcon entity={e} /> <Link to={`/portal/catalog?entity=${encodeURIComponent(e.id)}`}>{e.displayName ?? e.name}</Link>
-                      </span>
-                    </td>
-                    <td>{KIND_LABEL[e.kind]}</td>
-                    <td>{e.owner || <span className="pr-muted">No team</span>}</td>
-                    <td>{missing.join(', ')}</td>
-                    <td>
-                      <Link className="btn btn-sm" to={e.definitionId ? `/portal/catalog/edit/${e.definitionId}` : `/portal/catalog/new?kind=${e.kind}&name=${encodeURIComponent(e.name)}`}>
-                        {e.definitionId ? 'Edit' : 'Add definition'}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="pr-muted">Every entity has an owner, docs, a repository and contacts.</p>
-        )}
-      </section>
+      <div className="rw-title-row">
+        <h1 className="pr-title">Catalog Health</h1>
+        <Link className="link-btn" to="/dashboards">
+          <Copy size={14} /> Clone as Dashboard
+        </Link>
+      </div>
+
+      <ReportSection id="summary" title="Summary Information">
+        <div className="rw-tiles rw-tiles-6">
+          <BigNumber title="Total Entities" value={entities.length} />
+          {KINDS.map(([kind, label]) => (
+            <BigNumber key={kind} title={label} value={ofKind(entities, kind)} />
+          ))}
+        </div>
+        <DonutWithLegend title="Entity Types in Catalog" slices={KINDS.map(([kind, label]) => ({ label, value: ofKind(entities, kind) }))} />
+      </ReportSection>
+
+      <ReportSection id="stats" title="Stats on Catalog Entities">
+        <div className="rw-tiles rw-tiles-3 rw-tall">
+          <CountTreemap title="Entities by Lifecycle" slices={countBy(entities, (e) => e.lifecycle)} />
+          <CountTreemap title="Entities by Tier" slices={countBy(entities, (e) => e.tier)} />
+          <CountTreemap title="Entities by Definition Version" slices={countBy(entities, definitionVersion)} />
+        </div>
+        <div className="rw-tiles rw-tiles-3">
+          <BigNumber title="Entities with no Lifecycle" value={entities.filter((e) => !e.lifecycle).length} />
+          <BigNumber title="Entities with no Tier" value={entities.filter((e) => !e.tier).length} />
+          <BigNumber title="Entities with no Definition Version" value={entities.filter((e) => !definitionVersion(e)).length} />
+        </div>
+      </ReportSection>
+
+      <ReportSection id="without-owners" title="Entities Without Owners">
+        <div className="rw-tiles rw-tiles-6">
+          <BigNumber title="Total" value={unowned.length} />
+          {KINDS.map(([kind, label]) => (
+            <BigNumber key={kind} title={label} value={ofKind(unowned, kind)} />
+          ))}
+        </div>
+      </ReportSection>
+
+      <ReportSection id="ownership" title="Entity Ownership Information">
+        <DonutWithLegend
+          title="Ownership Distribution"
+          slices={[
+            { label: 'Without Owners', value: unowned.length },
+            { label: 'With Owners', value: entities.length - unowned.length },
+          ]}
+        />
+      </ReportSection>
     </div>
   );
 }

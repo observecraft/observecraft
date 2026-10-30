@@ -2,9 +2,15 @@ import { Fragment, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Cylinder, Search, Server, Timer } from 'lucide-react';
 import type { StreamEdge, StreamPathway } from '../../api/dataStreams/client';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { Empty } from '../../components/ui/AsyncState';
-import { fmtCount, fmtLagSeconds, fmtMs, fmtRate, isTopic, nodeName } from './format';
+import { fmtCount, fmtLagSeconds, fmtMs, fmtRate, isTopic, nodeName, systemLogo } from './format';
 import { useStreamMap } from './queries';
+
+function TopicIcon({ id }: { id: string }) {
+  const logo = systemLogo(id.split(':')[1]);
+  return logo ? <BrandLogo name={logo} size={12} /> : <Cylinder size={12} />;
+}
 
 /** service → topic → service … as chips. */
 export function PathwayChain({ nodes, highlight }: { nodes: string[]; highlight?: string }) {
@@ -14,7 +20,7 @@ export function PathwayChain({ nodes, highlight }: { nodes: string[]; highlight?
         <Fragment key={`${id}-${i}`}>
           {i > 0 && <span className="dsm-chain-arrow">→</span>}
           <span className={`dsm-chip${isTopic(id) ? ' topic' : ''}${id === highlight ? ' hl' : ''}`}>
-            {isTopic(id) ? <Cylinder size={12} /> : <Server size={12} />}
+            {isTopic(id) ? <TopicIcon id={id} /> : <Server size={12} />}
             {nodeName(id)}
           </span>
         </Fragment>

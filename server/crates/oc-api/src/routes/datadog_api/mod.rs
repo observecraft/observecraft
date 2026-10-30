@@ -16,6 +16,7 @@
 //!
 //! Errors are Datadog's `{"errors": ["…"]}` with Datadog's status codes ([`DdError`]).
 
+pub mod cost;
 pub mod current_user;
 pub mod slo_corrections;
 pub mod slos;
@@ -67,6 +68,23 @@ pub fn router() -> Router<AppState> {
         .merge(dashboard_lists::router())
         .merge(monitors_and_downtimes())
         .merge(iam_router())
+        .merge(cost_router())
+}
+
+/// Cloud Cost Management: `datadog_cost_budget`, `datadog_cost_custom_forecast` and custom costs files ([`cost`]).
+fn cost_router() -> Router<AppState> {
+    use axum::routing::put;
+    Router::new()
+        .route("/api/v2/cost/budgets", get(cost::list_budgets))
+        .route("/api/v2/cost/budget", put(cost::upsert_budget))
+        // `datadog-ci sbom upload`
+        .route("/api/v2/static-analysis-sca/dependencies", post(crate::routes::code_security::upload_sbom))
+        .route("/api/v2/cost/budget/validate", post(cost::validate_budget))
+        .route("/api/v2/cost/budget/custom-forecast", put(cost::upsert_custom_forecast))
+        .route("/api/v2/cost/budget/:budget_id", get(cost::get_budget).delete(cost::delete_budget))
+        .route("/api/v2/cost/budget/:budget_id/custom-forecast", get(cost::get_custom_forecast).delete(cost::delete_custom_forecast))
+        .route("/api/v2/cost/custom_costs", get(cost::list_custom_costs).put(cost::upload_custom_costs))
+        .route("/api/v2/cost/custom_costs/:file_id", get(cost::get_custom_costs).delete(cost::delete_custom_costs))
 }
 
 /// `datadog_monitor`, `datadog_downtime_schedule` and `datadog_downtime` ([`monitors`], [`downtimes`]).

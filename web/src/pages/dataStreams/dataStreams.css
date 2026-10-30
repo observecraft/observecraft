@@ -276,6 +276,9 @@
 }
 
 .dsm-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
   letter-spacing: 0.06em;

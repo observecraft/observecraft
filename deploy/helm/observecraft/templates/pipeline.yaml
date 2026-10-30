@@ -59,6 +59,7 @@ spec:
             # Client-side balancing over every Vector pod (gRPC connections are long-lived).
             - { name: OC_VECTOR_OTLP_ENDPOINT, value: "dns:///{{ $fullname }}-vector-headless:4317" }
             - { name: OC_COLLECTOR_MEMORY_LIMIT_MIB, value: {{ .Values.collector.memoryLimitMiB | quote }} }
+            - { name: OC_KAFKA_BROKERS, value: {{ include "oc.kafkaBrokers" . | quote }} }
             - { name: CLICKHOUSE_USER, value: {{ include "oc.clickhouseIngestUser" . | quote }} }
             - name: CLICKHOUSE_PASSWORD
               valueFrom: { secretKeyRef: { name: {{ $secret }}, key: {{ include "oc.clickhouseIngestPasswordKey" . }} } }
@@ -171,7 +172,7 @@ spec:
             - { name: api, containerPort: 8686 }
           env:
             - { name: OC_CLICKHOUSE_HTTP_ENDPOINT, value: {{ include "oc.clickhouseHttpUrl" . | quote }} }
-            - { name: OC_NATS_URL, value: {{ include "oc.natsUrl" . | quote }} }
+            - { name: OC_KAFKA_BROKERS, value: {{ include "oc.kafkaBrokers" . | quote }} }
             - { name: OC_LOGPROC_URL, value: "http://{{ $fullname }}-server:8090/ingest/logs" }
             - name: OC_INTERNAL_TOKEN
               valueFrom: { secretKeyRef: { name: {{ $secret }}, key: internal-token } }

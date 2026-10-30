@@ -1654,6 +1654,592 @@
         }
       }
     },
+    "/api/v1/cloud-cost/budgets": {
+      "get": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "The org's budgets with this month's figures (Cloud Cost → Plan, Overview).",
+        "operationId": "cloud_cost_budgets",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CostBudgetSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "Create or replace a budget from Plan → Budgets: the same document and checks as\n`PUT /api/v2/cost/budget`, so Terraform and the page manage the same budgets.",
+        "operationId": "cloud_cost_save_budget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/cloud-cost/budgets/{budget_id}": {
+      "get": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "A budget with its entries and what each month cost so far and is forecast to cost, as Datadog's\nAPI answers it (`GET /api/v2/cost/budget/{id}?actual=true&forecast=true`), for Plan → Budgets.",
+        "operationId": "cloud_cost_budget",
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "operationId": "cloud_cost_delete_budget",
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/cloud-cost/commitments": {
+      "post": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "Commitment programs of a provider: savings, coverage, utilization and the commitments.",
+        "operationId": "cloud_cost_commitments",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitmentsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommitmentsResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cloud-cost/query": {
+      "post": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "Costs per group and interval over the range, with each group's cost over the previous period.",
+        "operationId": "query_cloud_cost",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostQueryResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cloud-cost/tags": {
+      "post": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "The tags costs can be broken down by, with their values, coverage and sources.",
+        "operationId": "cloud_cost_tags",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostTagsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CostTag"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cloud-cost/unit-costs": {
+      "post": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "Unit prices: per group of tags, the usage and what it cost amortized and on demand (Plan → Unit\nCosts divides them). Only usage with a quantity; unused commitments are left out.",
+        "operationId": "cloud_cost_unit_costs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnitCostsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnitCostRow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/advisories": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "list_advisories",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvisoryFilter"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdvisoryPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/advisories/{id}": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "get_advisory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdvisoryDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/findings": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "list_findings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingFilter"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaticFindingPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/inventory/libraries": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "inventory_libraries",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/inventory/services": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "inventory_services",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InventoryService"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/library-vulnerabilities": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "list_library_vulnerabilities",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsFilter"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryVulnerabilityPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/pull-requests": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "pull_requests",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PullRequestScan"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/repositories": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "repositories",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepositorySummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/rules": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "rules",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RulesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RuleSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/runtime-code-vulnerabilities": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "list_iast",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IastRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeCodeVulnerabilityPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/setup": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "setup",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeSecuritySetup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/summary": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "summary",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeSecuritySummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/triage": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "triage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/dashboard": {
       "get": {
         "tags": [
@@ -6571,6 +7157,36 @@
         }
       }
     },
+    "/api/v1/infrastructure/resource-changes": {
+      "post": {
+        "tags": [
+          "infrastructure"
+        ],
+        "operationId": "search_resource_changes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceChangeSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceChangePage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ingest-keys": {
       "get": {
         "tags": [
@@ -9248,6 +9864,37 @@
         }
       }
     },
+    "/api/v1/metrics/catalog/stats": {
+      "post": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Every metric's series in the range and before it, its first submission, and the volume over time.",
+        "operationId": "metric_catalog_stats",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogStatsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogStats"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/metrics/derived": {
       "get": {
         "tags": [
@@ -9357,6 +10004,37 @@
         "responses": {
           "204": {
             "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/detail": {
+      "post": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "One metric: its series, hosts and tag values in the range, its volume over time and where it is used.",
+        "operationId": "metric_detail",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetricDetailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricDetail"
+                }
+              }
+            }
           }
         }
       }
@@ -18859,6 +19537,471 @@
         }
       }
     },
+    "/api/v2/cost/budget": {
+      "put": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Create a budget, or replace the one `data.id` names (Datadog-compatible).",
+        "operationId": "datadog_upsert_budget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/cost/budget/custom-forecast": {
+      "put": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Set a budget's custom forecast (Datadog-compatible): overrides of the forecast for some of its entries.",
+        "operationId": "datadog_upsert_custom_forecast",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/cost/budget/validate": {
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Check a budget without saving it (Datadog-compatible; Terraform calls it while planning).",
+        "operationId": "datadog_validate_budget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/cost/budget/{budget_id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Get a budget with its entries (Datadog-compatible); `actual` / `forecast` add their costs.",
+        "operationId": "datadog_get_budget",
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Delete a budget (Datadog-compatible).",
+        "operationId": "datadog_delete_budget",
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/cost/budget/{budget_id}/custom-forecast": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Get a budget's custom forecast (Datadog-compatible).",
+        "operationId": "datadog_get_custom_forecast",
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Remove a budget's custom forecast (Datadog-compatible).",
+        "operationId": "datadog_delete_custom_forecast",
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/cost/budgets": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "List budgets (Datadog-compatible), without their entries.",
+        "operationId": "datadog_list_budgets",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/cost/custom_costs": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "List custom costs files (Datadog-compatible): paging, status, name and provider filters, sort.",
+        "operationId": "datadog_list_custom_costs_files",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Upload a custom costs file (Datadog-compatible): FOCUS line items as JSON.",
+        "operationId": "datadog_upload_custom_costs_file",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/cost/custom_costs/{file_id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Get a custom costs file with its line items (Datadog-compatible).",
+        "operationId": "datadog_get_custom_costs_file",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Delete a custom costs file and its costs (Datadog-compatible).",
+        "operationId": "datadog_delete_custom_costs_file",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/current_user": {
       "get": {
         "tags": [
@@ -21502,6 +22645,282 @@
           }
         }
       },
+      "AdvisoryDetail": {
+        "type": "object",
+        "required": [
+          "id",
+          "aliases",
+          "summary",
+          "details",
+          "severity",
+          "vector",
+          "cwes",
+          "refs",
+          "source",
+          "packages",
+          "vulnerabilities",
+          "servicesAnalyzed",
+          "repositoriesAnalyzed"
+        ],
+        "properties": {
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cwes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "details": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "modified": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "packages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdvisoryPackageInfo"
+            }
+          },
+          "published": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdvisoryRef"
+            }
+          },
+          "repositoriesAnalyzed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "servicesAnalyzed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "severity": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "vector": {
+            "type": "string"
+          },
+          "vulnerabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryVulnerability"
+            },
+            "description": "The org's vulnerabilities from this advisory."
+          }
+        }
+      },
+      "AdvisoryFilter": {
+        "type": "object",
+        "properties": {
+          "ecosystem": {
+            "type": "string",
+            "default": ""
+          },
+          "impact": {
+            "type": "string",
+            "description": "impacted | not_impacted",
+            "default": ""
+          },
+          "limit": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "default": ""
+          },
+          "severity": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          }
+        }
+      },
+      "AdvisoryPackageInfo": {
+        "type": "object",
+        "required": [
+          "ecosystem",
+          "package",
+          "ranges",
+          "fixed"
+        ],
+        "properties": {
+          "ecosystem": {
+            "type": "string"
+          },
+          "fixed": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          },
+          "ranges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AffectedRange"
+            }
+          }
+        }
+      },
+      "AdvisoryPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "advisories"
+        ],
+        "properties": {
+          "advisories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdvisorySummary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AdvisoryRef": {
+        "type": "object",
+        "required": [
+          "type",
+          "url"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "AdvisorySummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "aliases",
+          "summary",
+          "severity",
+          "packages",
+          "ecosystems",
+          "impacted"
+        ],
+        "properties": {
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cve": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ecosystems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "impacted": {
+            "type": "boolean",
+            "description": "Some library of the org is in an affected range."
+          },
+          "packages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "published": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
+      "AffectedRange": {
+        "type": "object",
+        "description": "One affected interval of a package: `[introduced, fixed)` or `[introduced, last_affected]`.",
+        "required": [
+          "introduced"
+        ],
+        "properties": {
+          "fixed": {
+            "type": "string"
+          },
+          "introduced": {
+            "type": "string"
+          },
+          "last_affected": {
+            "type": "string"
+          }
+        }
+      },
       "AnalyticsSeries": {
         "type": "object",
         "required": [
@@ -22658,6 +24077,39 @@
           }
         }
       },
+      "CatalogStats": {
+        "type": "object",
+        "required": [
+          "metrics",
+          "timeline"
+        ],
+        "properties": {
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricStats"
+            }
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VolumePoint"
+            },
+            "description": "Distinct series of all metrics per bucket (5 minutes up to two days, else hours)."
+          }
+        }
+      },
+      "CatalogStatsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
       "CatalogType": {
         "type": "string",
         "description": "The resource types of the catalog.",
@@ -23808,6 +25260,131 @@
           }
         }
       },
+      "CodeSecuritySetup": {
+        "type": "object",
+        "required": [
+          "runtimeServices",
+          "repositoriesWithLibraries",
+          "repositoriesWithCodeScans",
+          "iastServices",
+          "advisories",
+          "osvEnabled"
+        ],
+        "properties": {
+          "advisories": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "iastServices": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastOsvCheck": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "osvEnabled": {
+            "type": "boolean"
+          },
+          "repositoriesWithCodeScans": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "repositoriesWithLibraries": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "runtimeServices": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "CodeSecuritySummary": {
+        "type": "object",
+        "required": [
+          "libraries",
+          "code",
+          "runtimeCode",
+          "secrets",
+          "iac",
+          "inRepositories",
+          "inProduction",
+          "fixable",
+          "repositoriesAnalyzed",
+          "servicesAnalyzed",
+          "emerging",
+          "byService",
+          "byRepository",
+          "history"
+        ],
+        "properties": {
+          "byRepository": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupCount"
+            }
+          },
+          "byService": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupCount"
+            }
+          },
+          "code": {
+            "$ref": "#/components/schemas/SeverityCounts"
+          },
+          "emerging": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdvisorySummary"
+            },
+            "description": "Advisories published in the last 30 days for packages in use, and how many affect the org."
+          },
+          "fixable": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayCount"
+            }
+          },
+          "iac": {
+            "$ref": "#/components/schemas/SeverityCounts"
+          },
+          "inProduction": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "inRepositories": {
+            "type": "integer",
+            "description": "Library vulnerabilities by stage: on the default branch, loaded in production, with a fix.",
+            "minimum": 0
+          },
+          "libraries": {
+            "$ref": "#/components/schemas/SeverityCounts"
+          },
+          "repositoriesAnalyzed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "runtimeCode": {
+            "$ref": "#/components/schemas/SeverityCounts"
+          },
+          "secrets": {
+            "$ref": "#/components/schemas/SeverityCounts"
+          },
+          "servicesAnalyzed": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
       "CollectorKind": {
         "type": "string",
         "enum": [
@@ -23815,6 +25392,235 @@
           "otel",
           "datadog"
         ]
+      },
+      "Commitment": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "account",
+          "region",
+          "service",
+          "term",
+          "purchaseOption",
+          "start",
+          "end",
+          "amortizedCost",
+          "unusedCost",
+          "utilization",
+          "savings"
+        ],
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "amortizedCost": {
+            "type": "number",
+            "format": "double",
+            "description": "Amortized cost over the range (used + unused)."
+          },
+          "end": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "purchaseOption": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "savings": {
+            "type": "number",
+            "format": "double",
+            "description": "On-demand value of what it covered minus what it cost."
+          },
+          "service": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string"
+          },
+          "term": {
+            "type": "string"
+          },
+          "unusedCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "utilization": {
+            "type": "number",
+            "format": "double",
+            "description": "Share used (0–1)."
+          }
+        }
+      },
+      "CommitmentTypeSeries": {
+        "type": "object",
+        "description": "A commitment type's daily figures.",
+        "required": [
+          "kind",
+          "values"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "`Savings Plan`, `Reserved Instance`, `Pre-purchase Plan`, `Committed Use Discount`, or `On-Demand`."
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "description": "On-demand value of the usage it covered (for `On-Demand`: the uncovered usage), per day."
+          }
+        }
+      },
+      "CommitmentUtilization": {
+        "type": "object",
+        "required": [
+          "kind",
+          "used",
+          "unused"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "unused": {
+            "type": "number",
+            "format": "double"
+          },
+          "used": {
+            "type": "number",
+            "format": "double",
+            "description": "Amortized cost of the used and unused parts."
+          }
+        }
+      },
+      "CommitmentsRequest": {
+        "type": "object",
+        "required": [
+          "provider",
+          "range"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "`aws`, `azure` or `gcp`."
+          },
+          "query": {
+            "type": "string",
+            "description": "Search syntax narrowing the costs (`subaccountname:ecommerce-eu`)."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "CommitmentsResult": {
+        "type": "object",
+        "required": [
+          "buckets",
+          "commitmentCost",
+          "onDemandEquivalent",
+          "savingsRate",
+          "realizedSavings",
+          "coverage",
+          "onDemandSpend",
+          "coverageByType",
+          "coverageByService",
+          "utilization",
+          "commitments"
+        ],
+        "properties": {
+          "buckets": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Days (epoch ms, UTC midnight)."
+          },
+          "commitmentCost": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "description": "Amortized cost of the commitments (used and unused), per day."
+          },
+          "commitments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Commitment"
+            }
+          },
+          "coverage": {
+            "type": "number",
+            "format": "double",
+            "description": "Share (0–1) of the eligible usage (services commitments cover) that commitments covered."
+          },
+          "coverageByService": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoverageRow"
+            }
+          },
+          "coverageByType": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommitmentTypeSeries"
+            }
+          },
+          "effectiveSavingsRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Over the range: 1 − what the eligible usage cost / what it would have cost on demand."
+          },
+          "onDemandEquivalent": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "description": "What the covered usage would have cost on demand, per day."
+          },
+          "onDemandSpend": {
+            "type": "number",
+            "format": "double",
+            "description": "What the uncovered eligible usage cost."
+          },
+          "realizedSavings": {
+            "type": "number",
+            "format": "double"
+          },
+          "savingsRate": {
+            "type": "array",
+            "items": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            },
+            "description": "Effective savings rate (0–1) per day, when there was eligible usage."
+          },
+          "utilization": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommitmentUtilization"
+            }
+          }
+        }
       },
       "Comparator": {
         "type": "string",
@@ -23843,6 +25649,306 @@
           "deployment",
           "other"
         ]
+      },
+      "CostBudgetSummary": {
+        "type": "object",
+        "description": "A budget for the Cloud Cost pages: this month's amount, cost so far and forecast.",
+        "required": [
+          "id",
+          "name",
+          "metricsQuery",
+          "startMonth",
+          "endMonth",
+          "totalAmount",
+          "monthAmount",
+          "monthActual",
+          "monthForecast"
+        ],
+        "properties": {
+          "endMonth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "id": {
+            "type": "string"
+          },
+          "metricsQuery": {
+            "type": "string"
+          },
+          "month": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "This month (`YYYYMM`), when the budget covers it."
+          },
+          "monthActual": {
+            "type": "number",
+            "format": "double"
+          },
+          "monthAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "monthForecast": {
+            "type": "number",
+            "format": "double"
+          },
+          "name": {
+            "type": "string"
+          },
+          "startMonth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalAmount": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "CostInterval": {
+        "type": "string",
+        "enum": [
+          "day",
+          "week",
+          "month"
+        ]
+      },
+      "CostQueryRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "costType": {
+            "$ref": "#/components/schemas/CostType"
+          },
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "interval": {
+            "$ref": "#/components/schemas/CostInterval"
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Groups returned (largest first); the others are summed into `Other`.",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "description": "Search syntax over the cost tags (`providername:aws team:checkout`)."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "usageOnly": {
+            "type": "boolean",
+            "description": "Only usage charges: no purchases, taxes, credits or adjustments."
+          }
+        }
+      },
+      "CostQueryResult": {
+        "type": "object",
+        "required": [
+          "buckets",
+          "series",
+          "total",
+          "previousTotal",
+          "previousRange"
+        ],
+        "properties": {
+          "buckets": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Interval starts (epoch ms, UTC midnight)."
+          },
+          "dataThrough": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The last day with costs (epoch ms), if any: later days aren't billed yet."
+          },
+          "previousRange": {
+            "$ref": "#/components/schemas/TimeRange",
+            "description": "The days compared with: the same number of days just before the range."
+          },
+          "previousTotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostSeries"
+            }
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "CostSeries": {
+        "type": "object",
+        "required": [
+          "tags",
+          "values",
+          "total",
+          "previousTotal"
+        ],
+        "properties": {
+          "previousTotal": {
+            "type": "number",
+            "format": "double",
+            "description": "What the group cost over the previous period of the same length."
+          },
+          "tags": {
+            "type": "object",
+            "description": "The group's tag values (\"N/A\" when the cost has no such tag); `{\"other\": \"Other\"}` for the rest.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "description": "One value per bucket."
+          }
+        }
+      },
+      "CostTag": {
+        "type": "object",
+        "required": [
+          "key",
+          "source",
+          "values",
+          "distinctValues",
+          "coverage",
+          "accounts"
+        ],
+        "properties": {
+          "accounts": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Sub-accounts whose costs have the tag.",
+            "minimum": 0
+          },
+          "coverage": {
+            "type": "number",
+            "format": "double",
+            "description": "Share of the cost (0–1) that has the tag."
+          },
+          "distinctValues": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "key": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "`focus` (the bill's standard columns), `aws` / `azure` / `gcp` (provider tags), `kubernetes`, or\n`resource` (tags on the billed resources)."
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostTagValue"
+            },
+            "description": "Its values, costliest first (at most 50)."
+          }
+        }
+      },
+      "CostTagValue": {
+        "type": "object",
+        "required": [
+          "value",
+          "cost"
+        ],
+        "properties": {
+          "cost": {
+            "type": "number",
+            "format": "double"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "CostTagsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "costType": {
+            "$ref": "#/components/schemas/CostType"
+          },
+          "query": {
+            "type": "string",
+            "description": "Search syntax narrowing the costs (`providername:azure`)."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "CostType": {
+        "type": "string",
+        "enum": [
+          "amortized",
+          "billed"
+        ]
+      },
+      "CoverageRow": {
+        "type": "object",
+        "description": "Coverage of one service and region.",
+        "required": [
+          "service",
+          "region",
+          "covered",
+          "onDemand"
+        ],
+        "properties": {
+          "covered": {
+            "type": "number",
+            "format": "double",
+            "description": "On-demand value of the covered usage, and what the uncovered usage cost."
+          },
+          "onDemand": {
+            "type": "number",
+            "format": "double"
+          },
+          "region": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          }
+        }
       },
       "CreateAppKey": {
         "type": "object",
@@ -24243,6 +26349,55 @@
           "inviteUrl": {
             "type": "string",
             "description": "One-time link (72h) for the first admin. Share it until mail delivery is configured."
+          }
+        }
+      },
+      "CsFilter": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "default": ""
+          },
+          "limit": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "description": "Free text: advisory id, CVE, package, rule, file, message.",
+            "default": ""
+          },
+          "repository": {
+            "type": "string",
+            "default": ""
+          },
+          "scope": {
+            "type": "string",
+            "description": "production (default for libraries: not dev-only) | all",
+            "default": ""
+          },
+          "service": {
+            "type": "string",
+            "default": ""
+          },
+          "severity": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "status": {
+            "type": "string",
+            "description": "open (default) | muted | resolved | all",
+            "default": ""
           }
         }
       },
@@ -25601,6 +27756,33 @@
             "items": {
               "$ref": "#/components/schemas/DatadogWidgetValidationResult"
             }
+          }
+        }
+      },
+      "DayCount": {
+        "type": "object",
+        "required": [
+          "day",
+          "libraries",
+          "code",
+          "secrets"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "day": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "libraries": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "secrets": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -28245,6 +30427,38 @@
           }
         }
       },
+      "FindingFilter": {
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CsFilter"
+              }
+            ],
+            "default": {
+              "language": "",
+              "limit": 0,
+              "offset": 0,
+              "query": "",
+              "repository": "",
+              "scope": "",
+              "service": "",
+              "severity": [],
+              "status": ""
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "description": "sast | secret | iac",
+                "default": ""
+              }
+            }
+          }
+        ]
+      },
       "FlagCondition": {
         "type": "object",
         "required": [
@@ -30146,6 +32360,32 @@
           }
         }
       },
+      "GroupCount": {
+        "type": "object",
+        "required": [
+          "name",
+          "count",
+          "critical",
+          "high"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "critical": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "high": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "GroupCounts": {
         "type": "object",
         "required": [
@@ -30848,6 +33088,89 @@
           }
         }
       },
+      "IastRequest": {
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CsFilter"
+              }
+            ],
+            "default": {
+              "language": "",
+              "limit": 0,
+              "offset": 0,
+              "query": "",
+              "repository": "",
+              "scope": "",
+              "service": "",
+              "severity": [],
+              "status": ""
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "range": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TimeRange"
+                  }
+                ],
+                "default": null
+              }
+            }
+          }
+        ]
+      },
+      "IastVulnerability": {
+        "type": "object",
+        "description": "A runtime code vulnerability a tracer reported on a span (`_dd.iast.json`).",
+        "required": [
+          "type",
+          "title",
+          "severity",
+          "cwe",
+          "hash",
+          "path",
+          "method",
+          "line",
+          "evidence"
+        ],
+        "properties": {
+          "cwe": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "hash": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
       "IdsRequest": {
         "type": "object",
         "required": [
@@ -31539,6 +33862,162 @@
               "null"
             ],
             "description": "active | suspended"
+          }
+        }
+      },
+      "InventoryLibrary": {
+        "type": "object",
+        "required": [
+          "ecosystem",
+          "language",
+          "name",
+          "version",
+          "licenses",
+          "vulnerabilities",
+          "worstSeverity",
+          "locations",
+          "files",
+          "firstSeen"
+        ],
+        "properties": {
+          "direct": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "ecosystem": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "language": {
+            "type": "string"
+          },
+          "licenses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "vulnerabilities": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "worstSeverity": {
+            "type": "string"
+          }
+        }
+      },
+      "InventoryPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "libraries"
+        ],
+        "properties": {
+          "libraries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InventoryLibrary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "InventoryRequest": {
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CsFilter"
+              }
+            ],
+            "default": {
+              "language": "",
+              "limit": 0,
+              "offset": 0,
+              "query": "",
+              "repository": "",
+              "scope": "",
+              "service": "",
+              "severity": [],
+              "status": ""
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "view": {
+                "type": "string",
+                "description": "static (repositories) | runtime (services)",
+                "default": ""
+              }
+            }
+          }
+        ]
+      },
+      "InventoryService": {
+        "type": "object",
+        "required": [
+          "service",
+          "language",
+          "envs",
+          "libraries",
+          "vulnerabilities",
+          "runtimeCodeVulnerabilities",
+          "lastSeen"
+        ],
+        "properties": {
+          "envs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "language": {
+            "type": "string"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "libraries": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "runtimeCodeVulnerabilities": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "service": {
+            "type": "string"
+          },
+          "vulnerabilities": {
+            "$ref": "#/components/schemas/SeverityCounts"
           }
         }
       },
@@ -32945,6 +35424,12 @@
             ],
             "description": "Jobs: \"1/1\" succeeded / completions, and run time in seconds."
           },
+          "containerId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "containers": {
             "type": "array",
             "items": {
@@ -33114,6 +35599,21 @@
               "string",
               "null"
             ]
+          },
+          "netReceived": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "netSent": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Containers (Datadog Agent live containers): network bytes per second sent and received,\nand the container runtime's id."
           },
           "node": {
             "type": [
@@ -33888,6 +36388,157 @@
           },
           "upstream": {
             "$ref": "#/components/schemas/PipelineUpstream"
+          }
+        }
+      },
+      "LibraryVulnerability": {
+        "type": "object",
+        "required": [
+          "key",
+          "advisoryId",
+          "aliases",
+          "title",
+          "severity",
+          "cwes",
+          "ecosystem",
+          "language",
+          "package",
+          "version",
+          "services",
+          "repositories",
+          "envs",
+          "inProduction",
+          "firstSeen",
+          "lastSeen",
+          "status",
+          "occurrences"
+        ],
+        "properties": {
+          "advisoryId": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cve": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cwes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "direct": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "ecosystem": {
+            "type": "string"
+          },
+          "envs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fixed": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inProduction": {
+            "type": "boolean",
+            "description": "Loaded by a service running in a production environment."
+          },
+          "key": {
+            "type": "string",
+            "description": "`advisory|ecosystem|package|version`."
+          },
+          "language": {
+            "type": "string"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "occurrences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Occurrence"
+            }
+          },
+          "package": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "severity": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "LibraryVulnerabilityPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "findings",
+          "vulnerabilities"
+        ],
+        "properties": {
+          "findings": {
+            "type": "integer",
+            "description": "Occurrences (library × service or repository) of the matching vulnerabilities.",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "vulnerabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryVulnerability"
+            }
           }
         }
       },
@@ -35662,6 +38313,77 @@
           }
         }
       },
+      "MetricDetail": {
+        "type": "object",
+        "required": [
+          "name",
+          "series",
+          "hosts",
+          "tagValues",
+          "tags",
+          "timeline",
+          "related"
+        ],
+        "properties": {
+          "firstSeen": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "hosts": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Distinct hosts reporting it in the range.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "related": {
+            "$ref": "#/components/schemas/RelatedAssets"
+          },
+          "series": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "tagValues": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Distinct tag values (all keys) in the range.",
+            "minimum": 0
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricTagKey"
+            }
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VolumePoint"
+            }
+          }
+        }
+      },
+      "MetricDetailRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "range"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
       "MetricFilter": {
         "type": "object",
         "required": [
@@ -35878,6 +38600,69 @@
           "unit": {
             "type": "string",
             "description": "The metric's unit (`byte`, `nanocore`, `byte/second`…): its sender's, else its integration's."
+          }
+        }
+      },
+      "MetricStats": {
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "series",
+          "previousSeries"
+        ],
+        "properties": {
+          "firstSeen": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the first hour it was reported in (within retention); absent before its first rollup."
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "previousSeries": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Distinct series in the period of the same length before the range.",
+            "minimum": 0
+          },
+          "series": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Distinct series in the range.",
+            "minimum": 0
+          }
+        }
+      },
+      "MetricTagKey": {
+        "type": "object",
+        "required": [
+          "key",
+          "count",
+          "values"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Distinct values in the range.",
+            "minimum": 0
+          },
+          "key": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Up to 50 of them, sorted."
           }
         }
       },
@@ -37415,6 +40200,49 @@
           "target": {
             "type": "string",
             "description": "Host of the URL (the full URL is a credential and never returned)."
+          }
+        }
+      },
+      "Occurrence": {
+        "type": "object",
+        "required": [
+          "source",
+          "service",
+          "env",
+          "repository",
+          "file",
+          "dev",
+          "firstSeen",
+          "lastSeen"
+        ],
+        "properties": {
+          "dev": {
+            "type": "boolean",
+            "description": "A development dependency of the repository (tests, build tools)."
+          },
+          "env": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "runtime (a service loads it) | static (a repository declares it)"
           }
         }
       },
@@ -40200,6 +43028,33 @@
           }
         }
       },
+      "PortalScorecardRuleDay": {
+        "type": "object",
+        "required": [
+          "day",
+          "ruleId",
+          "pass",
+          "fail"
+        ],
+        "properties": {
+          "day": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Day start (epoch ms, UTC)."
+          },
+          "fail": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pass": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ruleId": {
+            "type": "string"
+          }
+        }
+      },
       "PortalScorecardTeam": {
         "type": "object",
         "required": [
@@ -40238,7 +43093,8 @@
         "type": "object",
         "required": [
           "days",
-          "teams"
+          "teams",
+          "ruleDays"
         ],
         "properties": {
           "days": {
@@ -40248,6 +43104,13 @@
               "format": "int64"
             },
             "description": "Day starts (epoch ms, UTC)."
+          },
+          "ruleDays": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalScorecardRuleDay"
+            },
+            "description": "Each rule's passes and failures per day, over the selected teams (all when none)."
           },
           "teams": {
             "type": "array",
@@ -41551,6 +44414,50 @@
           }
         }
       },
+      "PullRequestScan": {
+        "type": "object",
+        "required": [
+          "repository",
+          "prNumber",
+          "branch",
+          "baseBranch",
+          "commitSha",
+          "receivedAt",
+          "tool",
+          "findings"
+        ],
+        "properties": {
+          "baseBranch": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "commitSha": {
+            "type": "string"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaticFinding"
+            },
+            "description": "Findings the pull request would introduce (not on its base branch)."
+          },
+          "prNumber": {
+            "type": "string"
+          },
+          "receivedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          }
+        }
+      },
       "QualityIssue": {
         "type": "object",
         "required": [
@@ -41640,14 +44547,15 @@
         "required": [
           "clickhouse",
           "postgres",
-          "nats"
+          "kafka"
         ],
         "properties": {
           "clickhouse": {
             "type": "boolean"
           },
-          "nats": {
-            "type": "boolean"
+          "kafka": {
+            "type": "boolean",
+            "description": "Kafka (live tail; ingestion depends on it through the intake). Informational: the API works without it."
           },
           "postgres": {
             "type": "boolean"
@@ -42023,6 +44931,56 @@
           }
         }
       },
+      "RelatedAsset": {
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "RelatedAssets": {
+        "type": "object",
+        "required": [
+          "dashboards",
+          "notebooks",
+          "monitors",
+          "slos"
+        ],
+        "properties": {
+          "dashboards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelatedAsset"
+            }
+          },
+          "monitors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelatedAsset"
+            }
+          },
+          "notebooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelatedAsset"
+            }
+          },
+          "slos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelatedAsset"
+            }
+          }
+        }
+      },
       "ReorderIndexes": {
         "type": "object",
         "required": [
@@ -42154,6 +45112,252 @@
           },
           "title": {
             "type": "string"
+          }
+        }
+      },
+      "RepositorySummary": {
+        "type": "object",
+        "required": [
+          "repository",
+          "codeVulnerabilities",
+          "codeViolations",
+          "libraryVulnerabilities",
+          "libraries",
+          "secrets",
+          "iacViolations",
+          "lastBranch",
+          "lastCommit"
+        ],
+        "properties": {
+          "codeViolations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "codeVulnerabilities": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "iacViolations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastBranch": {
+            "type": "string"
+          },
+          "lastCommit": {
+            "type": "string"
+          },
+          "lastScan": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "libraries": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "libraryVulnerabilities": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "repository": {
+            "type": "string"
+          },
+          "secrets": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ResourceChange": {
+        "type": "object",
+        "required": [
+          "detected",
+          "resourceId",
+          "resourceType",
+          "resourceName",
+          "cloud",
+          "account",
+          "region",
+          "cluster",
+          "namespace",
+          "env",
+          "service",
+          "team",
+          "changeTypes",
+          "changedFields",
+          "risk",
+          "title",
+          "description",
+          "isNoise",
+          "resourceChanges"
+        ],
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "changeTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "changedFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cloud": {
+            "type": "string"
+          },
+          "cluster": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "detected": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "env": {
+            "type": "string"
+          },
+          "isNoise": {
+            "type": "boolean"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "newFields": {},
+          "oldFields": {
+            "description": "The configuration before (null when created) and after (null when deleted); in the page only."
+          },
+          "region": {
+            "type": "string"
+          },
+          "resourceChanges": {
+            "type": "integer",
+            "description": "Changes of this resource among the ones matching the query.",
+            "minimum": 0
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "resourceName": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "risk": {
+            "type": "string",
+            "description": "low | medium | high"
+          },
+          "service": {
+            "type": "string"
+          },
+          "team": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "ResourceChangeBucket": {
+        "type": "object",
+        "required": [
+          "t",
+          "counts"
+        ],
+        "properties": {
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bucket start, epoch ms."
+          }
+        }
+      },
+      "ResourceChangePage": {
+        "type": "object",
+        "required": [
+          "total",
+          "items",
+          "histogram",
+          "bucketMs",
+          "facets"
+        ],
+        "properties": {
+          "bucketMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogFacet"
+            }
+          },
+          "histogram": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceChangeBucket"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceChange"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ResourceChangeSearchRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "groupBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the histogram stacks by: resource_type (default), risk, change_type, team, …"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "description": "`team:checkout risk:high change_type:deletion @is_noise:false resource_id:…`, free text on the name and title."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
           }
         }
       },
@@ -42509,7 +45713,8 @@
           "p50Ms",
           "p95Ms",
           "p99Ms",
-          "timeShare"
+          "timeShare",
+          "totalMs"
         ],
         "properties": {
           "errorRate": {
@@ -42552,6 +45757,11 @@
             "type": "number",
             "format": "double",
             "description": "Share of the service's total time spent in this resource (0..1)."
+          },
+          "totalMs": {
+            "type": "number",
+            "format": "double",
+            "description": "Time spent in this resource over the range (sum of span durations), in milliseconds."
           }
         }
       },
@@ -42698,6 +45908,174 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "RuleSummary": {
+        "type": "object",
+        "required": [
+          "kind",
+          "tool",
+          "ruleId",
+          "name",
+          "description",
+          "severity",
+          "cwes",
+          "helpUri",
+          "language",
+          "openFindings",
+          "repositories"
+        ],
+        "properties": {
+          "cwes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "helpUri": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "openFindings": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          }
+        }
+      },
+      "RulesRequest": {
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CsFilter"
+              }
+            ],
+            "default": {
+              "language": "",
+              "limit": 0,
+              "offset": 0,
+              "query": "",
+              "repository": "",
+              "scope": "",
+              "service": "",
+              "severity": [],
+              "status": ""
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "description": "sast | iac | secret",
+                "default": ""
+              }
+            }
+          }
+        ]
+      },
+      "RuntimeCodeVulnerability": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IastVulnerability"
+          },
+          {
+            "type": "object",
+            "required": [
+              "services",
+              "envs",
+              "resources",
+              "count",
+              "firstSeen",
+              "lastSeen",
+              "traceId",
+              "status"
+            ],
+            "properties": {
+              "count": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "envs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "firstSeen": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "lastSeen": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "resources": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "services": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "status": {
+                "type": "string"
+              },
+              "traceId": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "RuntimeCodeVulnerabilityPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "vulnerabilities"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "vulnerabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuntimeCodeVulnerability"
+            }
           }
         }
       },
@@ -44182,6 +47560,38 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "SeverityCounts": {
+        "type": "object",
+        "required": [
+          "critical",
+          "high",
+          "medium",
+          "low",
+          "unknown"
+        ],
+        "properties": {
+          "critical": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "high": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "low": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "medium": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unknown": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -45979,6 +49389,125 @@
           "double",
           "boolean"
         ]
+      },
+      "StaticFinding": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "tool",
+          "ruleId",
+          "ruleName",
+          "description",
+          "cwes",
+          "helpUri",
+          "severity",
+          "message",
+          "repository",
+          "branch",
+          "commitSha",
+          "file",
+          "line",
+          "snippet",
+          "prNumber",
+          "firstSeen",
+          "lastSeen",
+          "status"
+        ],
+        "properties": {
+          "branch": {
+            "type": "string"
+          },
+          "commitSha": {
+            "type": "string"
+          },
+          "cwes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "helpUri": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "line": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "prNumber": {
+            "type": "string"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "resolvedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "ruleName": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "snippet": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          }
+        }
+      },
+      "StaticFindingPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "findings"
+        ],
+        "properties": {
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaticFinding"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
       },
       "StatusCounts": {
         "type": "object",
@@ -49625,6 +53154,26 @@
           }
         }
       },
+      "TriageRequest": {
+        "type": "object",
+        "required": [
+          "key",
+          "status"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "`vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>` or `iast:<hash>`."
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "open | muted"
+          }
+        }
+      },
       "TriggeredFacets": {
         "type": "object",
         "required": [
@@ -49874,6 +53423,65 @@
           }
         }
       },
+      "UnitCostRow": {
+        "type": "object",
+        "required": [
+          "tags",
+          "usageQuantity",
+          "amortizedCost",
+          "onDemandCost"
+        ],
+        "properties": {
+          "amortizedCost": {
+            "type": "number",
+            "format": "double",
+            "description": "What the usage cost, commitments amortized."
+          },
+          "onDemandCost": {
+            "type": "number",
+            "format": "double",
+            "description": "What it would have cost at on-demand prices."
+          },
+          "tags": {
+            "type": "object",
+            "description": "The row's tag values (\"N/A\" when the usage has no such tag).",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "usageQuantity": {
+            "type": "number",
+            "format": "double",
+            "description": "Units used (in the row's pricing unit)."
+          }
+        }
+      },
+      "UnitCostsRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "groupBy"
+        ],
+        "properties": {
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The tags a row is (`metername`, `regionname`, `pricingunit`, …); at most 6."
+          },
+          "query": {
+            "type": "string",
+            "description": "Search syntax narrowing the usage (`providername:azure metercategory:\"Virtual Machines\"`)."
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
       "UserPatch": {
         "type": "object",
         "properties": {
@@ -50044,6 +53652,26 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "VolumePoint": {
+        "type": "object",
+        "required": [
+          "t",
+          "series"
+        ],
+        "properties": {
+          "series": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Distinct series in the bucket.",
+            "minimum": 0
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bucket start, epoch ms."
           }
         }
       },
@@ -51054,6 +54682,10 @@
     {
       "name": "logs",
       "description": "Log search, facets, histogram and live tail"
+    },
+    {
+      "name": "code-security",
+      "description": "Code Security: vulnerable libraries, static findings, runtime code vulnerabilities and advisories"
     },
     {
       "name": "apm",

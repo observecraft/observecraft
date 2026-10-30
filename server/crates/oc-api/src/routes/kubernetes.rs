@@ -47,6 +47,8 @@ const K8S_USAGE: &[&str] = &[
     "k8s.node.memory.working_set",
 ];
 const DD_USAGE: &[&str] = &["kubernetes.cpu.usage.total", "kubernetes.memory.working_set"];
+/// What the Datadog Agent reports per live container (datadog_process.rs in the intake).
+const AGENT_CONTAINER_METRICS: &[&str] = &["container.cpu.usage", "container.memory.usage", "container.memory.rss", "container.net.rcvd", "container.net.sent"];
 const ECS_USAGE: &[&str] = &[
     "ecs.task.cpu.reserved",
     "container.cpu.reserved",
@@ -197,7 +199,7 @@ impl KubeKind {
             KubeKind::Jobs => &["kube_cronjob"],
             KubeKind::Services => &["kube_service_type"],
             KubeKind::PersistentVolumeClaims | KubeKind::PersistentVolumes => &["kube_storage_class"],
-            KubeKind::Containers => &["kube_node", "kube_deployment", "pod_name", "short_image", "ecs_cluster", "task_family"],
+            KubeKind::Containers => &["container_name", "runtime", "host", "kube_node", "kube_deployment", "pod_name", "short_image", "ecs_cluster", "task_family"],
             KubeKind::ContainerImages => &["short_image", "image_tag"],
             KubeKind::EcsTasks => &["task_health", "task_launch_type", "ecs_cluster", "task_family", "ecs_service", "region"],
             KubeKind::EcsTaskDefinitions => &["task_launch_type", "region"],
@@ -375,6 +377,11 @@ pub struct KubeResource {
     /// Processes: owner and the host's CPU count (CPU is then shown normalized to the host).
     pub user: Option<String>,
     pub host_cpus: Option<u32>,
+    /// Containers (Datadog Agent live containers): network bytes per second sent and received,
+    /// and the container runtime's id.
+    pub net_sent: Option<f64>,
+    pub net_received: Option<f64>,
+    pub container_id: Option<String>,
 }
 
 impl KubeResource {
@@ -441,6 +448,8 @@ struct Inventory {
     ecs: Vec<EcsRow>,
     /// Latest state of every process (last 5 minutes).
     processes: Vec<ProcRow>,
+    /// Latest state of every Datadog Agent live container (last 5 minutes).
+    agent_containers: Vec<AgentContainerRow>,
     /// host → CPU count (Datadog Agent host metadata).
     host_cpus: HashMap<String, u32>,
 }
@@ -460,6 +469,27 @@ struct ProcRow {
     cluster: String,
     cpu: f64,
     rss: f64,
+    seen: i64,
+}
+
+#[derive(clickhouse::Row, Deserialize, Clone, Default)]
+struct AgentContainerRow {
+    host: String,
+    id: String,
+    name: String,
+    image: String,
+    runtime: String,
+    state: String,
+    started: String,
+    cluster: String,
+    namespace: String,
+    pod: String,
+    kube_container: String,
+    cpu: f64,
+    rss: f64,
+    mem: f64,
+    net_rx: f64,
+    net_tx: f64,
     seen: i64,
 }
 
@@ -638,17 +668,35 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
              WHERE pid != '' GROUP BY host, pid LIMIT 50000"
         ))
         .fetch_all::<ProcRow>();
+    // Datadog Agent live containers: the latest CPU (cores), memory, RSS and network rates of each.
+    let agent_src = points_subquery("gauge", AGENT_CONTAINER_METRICS);
+    let agent_containers = with_window(st.ch(org), procs_from, end)
+        .query(&format!(
+            "SELECT ResourceAttributes['host.name'] AS host, ResourceAttributes['container.id'] AS id, any(ResourceAttributes['container.name']) AS name, \
+             any(ResourceAttributes['container.image.name']) AS image, any(ResourceAttributes['container.runtime']) AS runtime, \
+             argMax(ResourceAttributes['container.state'], TimeUnix) AS state, any(ResourceAttributes['container.started']) AS started, \
+             any(ResourceAttributes['k8s.cluster.name']) AS cluster, any(ResourceAttributes['k8s.namespace.name']) AS namespace, any(ResourceAttributes['k8s.pod.name']) AS pod, \
+             any(ResourceAttributes['k8s.container.name']) AS kube_container, \
+             ifNotFinite(argMaxIf(Value, TimeUnix, MetricName = 'container.cpu.usage'), 0) AS cpu, ifNotFinite(argMaxIf(Value, TimeUnix, MetricName = 'container.memory.rss'), 0) AS rss, \
+             ifNotFinite(argMaxIf(Value, TimeUnix, MetricName = 'container.memory.usage'), 0) AS mem, ifNotFinite(argMaxIf(Value, TimeUnix, MetricName = 'container.net.rcvd'), 0) AS net_rx, \
+             ifNotFinite(argMaxIf(Value, TimeUnix, MetricName = 'container.net.sent'), 0) AS net_tx, toInt64(toUnixTimestamp64Milli(max(TimeUnix))) AS seen \
+             FROM {agent_src} WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) AND TimeUnix > now() - INTERVAL 5 MINUTE \
+             AND ResourceAttributes['observecraft.collector'] = 'datadog-agent' AND ResourceAttributes['container.id'] != '' GROUP BY host, id LIMIT 50000",
+            names = name_list(AGENT_CONTAINER_METRICS),
+        ))
+        .fetch_all::<AgentContainerRow>();
     let host_cpus = sqlx::query_as::<_, (String, i32)>(
         "SELECT host, cpu_cores FROM datadog_hosts WHERE org_id = $1 AND cpu_cores IS NOT NULL",
     )
     .bind(org)
     .fetch_all(&st.postgres);
-    let (objects, usage, dd_usage, ecs, processes, host_cpus) = tokio::try_join!(
+    let (objects, usage, dd_usage, ecs, processes, agent_containers, host_cpus) = tokio::try_join!(
         objects,
         async { usage.await.map_err(ApiError::from) },
         async { dd_usage.await.map_err(ApiError::from) },
         async { ecs.await.map_err(ApiError::from) },
         async { processes.await.map_err(ApiError::from) },
+        async { agent_containers.await.map_err(ApiError::from) },
         async { host_cpus.await.map_err(ApiError::from) }
     )?;
     let host_cpus = host_cpus
@@ -663,6 +711,7 @@ async fn load(st: &AppState, org: &str) -> Result<Inventory, ApiError> {
         node_usage: HashMap::new(),
         ecs,
         processes,
+        agent_containers,
         host_cpus,
     };
     for u in usage {
@@ -1338,11 +1387,77 @@ fn build(inv: &Inventory) -> Vec<KubeResource> {
     }
 
     rows.extend(clusters(&rows));
-    let containers = containers(&rows);
+    let containers = with_agent_containers(containers(&rows), &inv.agent_containers, &inv.host_cpus);
     rows.extend(images(&containers));
     rows.extend(containers);
     rows.extend(ecs(inv));
     rows.extend(processes(inv));
+    rows
+}
+
+/// Pod containers enriched with what the Datadog Agent reports for them (network, RSS, runtime id),
+/// and a row for every other Agent container (Docker or containerd containers outside Kubernetes).
+fn with_agent_containers(mut rows: Vec<KubeResource>, agent: &[AgentContainerRow], host_cpus: &HashMap<String, u32>) -> Vec<KubeResource> {
+    let index: HashMap<(&str, &str), usize> = rows.iter().enumerate().filter_map(|(i, r)| Some(((r.owner.as_ref()?.name.as_str(), r.name.as_str()), i))).collect();
+    let mut matched = vec![None; agent.len()];
+    for (a, m) in agent.iter().zip(matched.iter_mut()) {
+        let name = if a.kube_container.is_empty() { a.name.as_str() } else { a.kube_container.as_str() };
+        *m = index.get(&(a.pod.as_str(), name)).copied();
+    }
+    for (a, m) in agent.iter().zip(&matched) {
+        if let Some(i) = m {
+            let r = &mut rows[*i];
+            r.net_sent = Some(a.net_tx);
+            r.net_received = Some(a.net_rx);
+            r.container_id = Some(a.id.clone());
+            r.host_cpus = host_cpus.get(&a.host).copied();
+            if a.rss > 0.0 {
+                r.memory.get_or_insert_with(Default::default).usage = Some(a.rss);
+            }
+            r.runtime = Some(a.runtime.clone()).filter(|v| !v.is_empty());
+            if !r.tags.iter().any(|t| t.starts_with("container_id:")) {
+                r.tags.push(format!("container_id:{}", a.id));
+            }
+        }
+    }
+    for (a, _) in agent.iter().zip(&matched).filter(|(_, m)| m.is_none()) {
+        let (image_name, short, tag) = image_parts(&a.image);
+        let mut tags = vec![format!("host:{}", a.host), format!("container_id:{}", a.id), format!("container_name:{}", a.name), format!("image_name:{image_name}"), format!("short_image:{short}"), format!("image_tag:{tag}")];
+        if !a.runtime.is_empty() {
+            tags.push(format!("runtime:{}", a.runtime));
+        }
+        if !a.cluster.is_empty() {
+            tags.push(format!("kube_cluster_name:{}", a.cluster));
+        }
+        let (status, health) = match a.state.as_str() {
+            "running" | "" | "unknown" => ("Running", KubeHealth::Ok),
+            "restarting" => ("Restarting", KubeHealth::Warning),
+            "paused" | "created" => (if a.state == "paused" { "Paused" } else { "Created" }, KubeHealth::Info),
+            _ => ("Exited", KubeHealth::Error),
+        };
+        rows.push(KubeResource {
+            uid: format!("container:{}:{}", a.host, a.id),
+            kind: Some(KubeKind::Containers),
+            cluster: a.cluster.clone(),
+            namespace: Some(a.namespace.clone()).filter(|n| !n.is_empty()),
+            name: if a.name.is_empty() { a.id.chars().take(12).collect() } else { a.name.clone() },
+            created_at: a.started.parse().ok().filter(|t: &i64| *t > 0),
+            last_seen: a.seen,
+            status: status.into(),
+            health,
+            tags,
+            node: Some(a.host.clone()),
+            host_cpus: host_cpus.get(&a.host).copied(),
+            cpu: Some(KubeUtilization { usage: Some(a.cpu.max(0.0)), ..Default::default() }),
+            memory: Some(KubeUtilization { usage: Some(if a.rss > 0.0 { a.rss } else { a.mem }), ..Default::default() }),
+            images: vec![a.image.clone()],
+            runtime: Some(a.runtime.clone()).filter(|v| !v.is_empty()),
+            net_sent: Some(a.net_tx),
+            net_received: Some(a.net_rx),
+            container_id: Some(a.id.clone()),
+            ..Default::default()
+        });
+    }
     rows
 }
 
@@ -2092,7 +2207,7 @@ pub(crate) async fn resources(st: &AppState, org: &str) -> Result<Arc<Vec<KubeRe
 /// The org's current deployments and their replica sets, without usage (change tracking's rollouts).
 pub(crate) async fn replica_sets(st: &AppState, org: &str) -> Result<Vec<KubeResource>, ApiError> {
     let objects = load_objects(&st.ch(org), &["Deployment", "ReplicaSet"]).await?;
-    let inv = Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), host_cpus: HashMap::new() };
+    let inv = Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), agent_containers: Vec::new(), host_cpus: HashMap::new() };
     Ok(build(&inv).into_iter().filter(|r| r.kind == Some(KubeKind::ReplicaSets)).collect())
 }
 
@@ -2118,6 +2233,29 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn agent_containers_enrich_pod_containers_and_add_the_others() {
+        let pod_container = KubeResource {
+            uid: "pod-1/app".into(),
+            kind: Some(KubeKind::Containers),
+            name: "app".into(),
+            owner: Some(KubeObjectRef { kind: "Pod".into(), name: "order-7d9".into(), uid: "pod-1".into() }),
+            tags: vec!["kube_container_name:app".into()],
+            ..Default::default()
+        };
+        let agent = vec![
+            AgentContainerRow { host: "i-0a1b2c3d4e5f60001".into(), id: "c1".into(), name: "k8s_app_order".into(), pod: "order-7d9".into(), kube_container: "app".into(), rss: 512.0, net_tx: 30.0, net_rx: 90.0, runtime: "containerd".into(), ..Default::default() },
+            AgentContainerRow { host: "i-0a1b2c3d4e5f60002".into(), id: "c2".into(), name: "datadog-agent".into(), image: "registry.example.com/agent:7.58.0".into(), runtime: "docker".into(), state: "running".into(), started: "1700000000000".into(), cpu: 0.2, ..Default::default() },
+        ];
+        let rows = with_agent_containers(vec![pod_container], &agent, &HashMap::from([("i-0a1b2c3d4e5f60002".to_string(), 4)]));
+        assert_eq!(rows.len(), 2);
+        assert_eq!((rows[0].net_sent, rows[0].net_received, rows[0].memory.as_ref().and_then(|m| m.usage)), (Some(30.0), Some(90.0), Some(512.0)));
+        assert!(rows[0].tags.contains(&"container_id:c1".to_string()));
+        let docker = &rows[1];
+        assert_eq!((docker.name.as_str(), docker.status.as_str(), docker.created_at, docker.host_cpus), ("datadog-agent", "Running", Some(1_700_000_000_000), Some(4)));
+        assert!(docker.tags.contains(&"short_image:agent".to_string()));
+    }
 
     #[test]
     fn datadog_usage_without_a_cluster_matches_a_unique_pod() {
@@ -2211,7 +2349,7 @@ mod tests {
     }
 
     fn inventory_of(objects: Vec<KubeObject>) -> Inventory {
-        Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), host_cpus: HashMap::new() }
+        Inventory { objects, pod_usage: HashMap::new(), container_usage: HashMap::new(), node_usage: HashMap::new(), ecs: Vec::new(), processes: Vec::new(), agent_containers: Vec::new(), host_cpus: HashMap::new() }
     }
 
     /// Objects written through the ingest path (otel_k8s_objects → k8s_inventory) build the same

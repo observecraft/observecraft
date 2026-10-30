@@ -5,7 +5,6 @@ import './apm.css';
 
 const TABS = [
   { to: '/apm', label: 'Service', match: (p: string) => p === '/apm' || p.startsWith('/apm/services') },
-  { to: '/apm/endpoints', label: 'Endpoints', match: (p: string) => p.startsWith('/apm/endpoints') },
   { to: '/apm/traces', label: 'Traces', match: (p: string) => p.startsWith('/apm/traces') },
   { to: '/apm/profiles', label: 'Profiles', match: (p: string) => p.startsWith('/apm/profiles') },
   { to: '/apm/debugger', label: 'Debugger', match: (p: string) => p.startsWith('/apm/debugger') },
@@ -17,22 +16,25 @@ export function ApmLayout() {
   return (
     <TimeProvider initial="1h">
       <div className="apm-layout">
-        <header className="product-header">
-          <div className="product-title">
-            <Network size={20} />
-            APM
-          </div>
-          <nav className="product-tabs">
-            {TABS.map((t) => (
-              <NavLink key={t.to} to={t.to} end className={() => `product-tab${t.match(pathname) ? ' active' : ''}`}>
-                {t.label}
-              </NavLink>
-            ))}
-          </nav>
-          <NavLink to="/apm/settings" className="btn product-config">
-            <Settings size={14} /> Settings
-          </NavLink>
-        </header>
+        {/* A service page has its own breadcrumb header in place of the product tabs. */}
+        {!pathname.startsWith('/apm/services/') && (
+          <header className="product-header">
+            <div className="product-title">
+              <Network size={20} />
+              APM
+            </div>
+            <nav className="product-tabs">
+              {TABS.map((t) => (
+                <NavLink key={t.to} to={t.to} end className={() => `product-tab${t.match(pathname) ? ' active' : ''}`}>
+                  {t.label}
+                </NavLink>
+              ))}
+            </nav>
+            <NavLink to="/apm/settings" className="btn product-config">
+              <Settings size={14} /> Settings
+            </NavLink>
+          </header>
+        )}
         <div className="apm-section">
           <Outlet />
         </div>

@@ -42,7 +42,10 @@ const WRAPPED_QUERY = /(?:avg|sum|min|max):[\w./-]+\{[^{}]*\}(?:\s+by\s+\{[\w, -
  * to that query's name.
  */
 export function normalizeRequest(request: Pick<IntegrationRequest, 'q' | 'queries' | 'formulas'>): { queries: IntegrationQuery[]; formulas?: IntegrationFormula[] } {
-  const raw: IntegrationQuery[] = request.queries ?? (request.q ? [{ name: 'query1', query: request.q, data_source: 'metrics' }] : []);
+  // Cost queries (`sum:aws.cost.amortized{*}`) are cost metrics: the metric engine reads them.
+  const raw: IntegrationQuery[] = (request.queries ?? (request.q ? [{ name: 'query1', query: request.q, data_source: 'metrics' }] : [])).map((q) =>
+    q.data_source === 'cloud_cost' ? { ...q, data_source: 'metrics' } : q,
+  );
   const wrappers = new Map<string, string>();
   const queries = raw.map((q) => {
     const m = q.data_source === 'metrics' ? WRAPPED_QUERY.exec(q.query) : null;

@@ -8,7 +8,8 @@ local-only password, ports on loopback.
 |---|---|---|
 | ClickHouse 26.8, 2 vCPU / 6 GiB, chart tuning and ingest profile | `ocfin-old-ch` :18201 | `ocfin-new-ch` :18301 |
 | Collector 0.163.2 with that version's `deploy/otel/collector.yaml` | :18203 | :18303 |
-| Vector (that version's `deploy/vector`) + NATS | :18204 / :18205 | :18304 / :18305 |
+| Vector (that version's `deploy/vector`) + NATS (old) | :18204 / :18205 | :18304 / :18305 |
+| Kafka (versions with ADR-0004) | :18206 | :18306 |
 | Release `oc-intake` / `observecraft-server` | :18210 / :18220 (indexer :18221) | :18310 / :18320 (indexer :18321) |
 | Postgres (the existing `ocv-pg` container, :25433) | `oc_final_old` | `oc_final_new` |
 | Valkey | — | `ocfin-valkey` :16393 |

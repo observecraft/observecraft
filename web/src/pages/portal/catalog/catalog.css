@@ -1007,3 +1007,73 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Endpoints: method badge, service chip, monitor status */
+.pc-method {
+  flex: 0 0 auto;
+  min-width: 44px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  font-size: var(--fs-sm);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.pc-method.m-get {
+  background: #e3f5e8;
+  color: #1d7a3a;
+}
+
+.pc-method.m-post {
+  background: #e3effc;
+  color: #1f5fa8;
+}
+
+.pc-method.m-put,
+.pc-method.m-patch {
+  background: #fdf0dc;
+  color: #94590a;
+}
+
+.pc-method.m-delete {
+  background: #fde6e6;
+  color: #b3122e;
+}
+
+.pc-endpoint .pc-name-text {
+  font-weight: var(--fw-semibold);
+}
+
+.pc-service-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.pc-service-chip:hover {
+  border-color: var(--border-strong);
+  text-decoration: none;
+}
+
+.pc-mon {
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.pc-mon.ok {
+  background: #e3f5e8;
+  color: #1d7a3a;
+}
+
+.pc-mon.alert {
+  background: #fde6e6;
+  color: #b3122e;
+}

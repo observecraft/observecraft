@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Cylinder, Search, Server, Timer, X } from 'lucide-react';
 import type { StreamMap, StreamNode } from '../../api/dataStreams/client';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { Empty } from '../../components/ui/AsyncState';
-import { fmtCount, fmtLagSeconds, fmtMs, fmtRate, nodeName } from './format';
+import { fmtCount, fmtLagSeconds, fmtMs, fmtRate, nodeName, systemLogo } from './format';
 import { LineChart } from './LineChart';
 import { PathwayChain } from './PipelinesPage';
 import { useStreamMap, useStreamNode } from './queries';
@@ -100,7 +101,9 @@ function NodePanel({ node, map, onClose }: { node: StreamNode; map: StreamMap; o
     <aside className="dsm-panel" aria-label={`${node.name} details`}>
       <header>
         <div>
-          <span className="dsm-kind">{topic ? `${node.system ?? 'queue'} topic` : 'service'}</span>
+          <span className="dsm-kind">
+            {topic && systemLogo(node.system) && <BrandLogo name={systemLogo(node.system)!} size={12} />} {topic ? `${node.system ?? 'queue'} topic` : 'service'}
+          </span>
           <h2>{node.name}</h2>
         </div>
         <button className="icon-btn" onClick={onClose} title="Close">

@@ -1,23 +1,16 @@
 // Source icons and status badges of the event list.
-import { Activity, Box, CalendarClock, GitCommitHorizontal, Server, Ship } from 'lucide-react';
+import { Activity, CalendarClock, GitCommitHorizontal, Server } from 'lucide-react';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 
-/** A neutral mark per known source (no third-party logos). */
+/** The platform's logo for platform sources (Kubernetes, Docker, ECS), else a neutral mark per kind of source. */
 export function SourceIcon({ source, size = 18 }: { source: string; size?: number }) {
   const s = source.toLowerCase();
-  const Icon = s.includes('kubernetes')
-    ? Ship
-    : s.includes('monitor') || s.includes('watchdog')
-      ? Activity
-      : s.includes('container') || s.includes('docker') || s.includes('ecs')
-        ? Box
-        : s.includes('change') || s.includes('deploy')
-          ? GitCommitHorizontal
-          : s === 'system' || s.includes('agent')
-            ? Server
-            : CalendarClock;
+  const logo = s.includes('kubernetes') ? 'kubernetes' : s.includes('ecs') ? 'amazonecs' : s.includes('docker') || s.includes('container') ? 'docker' : null;
+  const Icon =
+    s.includes('monitor') || s.includes('watchdog') ? Activity : s.includes('change') || s.includes('deploy') ? GitCommitHorizontal : s === 'system' || s.includes('agent') ? Server : CalendarClock;
   return (
     <span className="ev-source-icon" title={source}>
-      <Icon size={size} />
+      {logo ? <BrandLogo name={logo} size={size} title={source} /> : <Icon size={size} />}
     </span>
   );
 }

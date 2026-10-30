@@ -121,11 +121,25 @@
   --qv-red: #c3283b;
   --qv-gray: #6b7385;
   --qv-blue: #2f6ad0;
+  /* Conditional formats of integration widgets (palette `<text>_on_<background>`) */
+  --cf-red: #e5384a;
+  --cf-yellow: #f59f0b;
+  --cf-green: #2fae5b;
+  --cf-gray: #6b7385;
+  --cf-light-red: #fbe1e4;
+  --cf-light-yellow: #fdf3dc;
+  --cf-light-green: #e5f5ea;
+  --cf-light-gray: #eceef2;
   --group-blue: #1d6fd8;
   --group-purple: #7a45d9;
   --group-green: #2ea86b;
   --group-orange: #e98404;
   --group-gray: #5a6273;
+  --group-blue-light: #cfe5fb;
+  --group-purple-light: #e9e1fb;
+  --group-green-light: #c6f1dd;
+  --group-orange-light: #fdebd3;
+  --group-gray-light: #e6e8ee;
   --note-yellow: #fdf6c5;
   --note-blue: #e4effd;
   --note-purple: #efe9ff;

@@ -85,9 +85,13 @@ impl UnaryService<Bytes> for Export {
             let headers = req.metadata().clone().into_headers();
             let body = req.into_inner();
             let org = admit(&st, &headers, body.len()).await.map_err(rejected)?;
-            let target = format!("{}{path}", st.cfg.collector_url);
+            let target = match path {
+                "/v1/traces" => crate::kafka::Sink::Traces,
+                "/v1/metrics" => crate::kafka::Sink::Metrics,
+                _ => crate::kafka::Sink::Logs,
+            };
             let protobuf = HeaderValue::from_static("application/x-protobuf");
-            let up = send(&st, &org, &target, Some(&protobuf), None, body).await.map_err(rejected)?;
+            let up = send(&st, &org, target, Some(&protobuf), None, body).await.map_err(rejected)?;
             if up.status.is_success() {
                 // The ExportResponse message, partial success included.
                 Ok(tonic::Response::new(up.body))

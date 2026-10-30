@@ -1070,25 +1070,3 @@
   background: #fdefd6;
   color: #9a5b06;
 }
-
-/* ---------- endpoints ---------- */
-.endpoints-page {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 14px 18px 30px;
-}
-
-.endpoints-page .section-header {
-  padding: 0;
-}
-
-.endpoints-page .section-header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.endpoints-page .tv-filter {
-  width: 360px;
-}

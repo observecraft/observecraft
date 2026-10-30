@@ -219,7 +219,7 @@ function InstancePanel({ id, onClose }: { id: string; onClose: () => void }) {
     <aside className="dbm-panel" role="dialog" aria-label="Database instance">
       <header className="dbm-panel-head">
         <h3>
-          <Database size={18} /> {id.split(':').slice(1).join(':')}
+          {i && engineSetup(i.engine).logo ? <BrandLogo name={engineSetup(i.engine).logo!} size={18} /> : <Database size={18} />} {id.split(':').slice(1).join(':')}
         </h3>
         <button className="icon-btn" onClick={onClose} title="Close">
           <X size={16} />

@@ -626,8 +626,8 @@ pub async fn traces(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -
         return StatusCode::ACCEPTED.into_response();
     }
     drop(body);
-    let target = format!("{}/v1/traces", st.cfg.collector_url);
-    match send(&st, &org, &target, Some(&HeaderValue::from_static("application/x-protobuf")), None, crate::otlp::encode(&otlp)).await {
+    let target = crate::kafka::Sink::Traces;
+    match send(&st, &org, target, Some(&HeaderValue::from_static("application/x-protobuf")), None, crate::otlp::encode(&otlp)).await {
         Ok(up) if up.status.is_success() => StatusCode::ACCEPTED.into_response(),
         Ok(up) => {
             tracing::warn!(status = %up.status, "collector refused converted Datadog spans");

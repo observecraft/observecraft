@@ -285,7 +285,44 @@ export const NAV_SECTIONS: NavItem[][] = [
         group('End User Devices', '/end-user-devices', [], [], 'PREVIEW'),
       ],
     },
-    { label: 'Cloud Cost', to: '/cloud-cost', icon: Cloud },
+    {
+      label: 'Cloud Cost',
+      to: '/cloud-cost',
+      icon: Cloud,
+      menu: [
+        group(
+          'Summarize',
+          '/cloud-cost',
+          [
+            ['Overview', '/cloud-cost'],
+            ['Containers', '/cloud-cost/containers'],
+            ['AI Costs!NEW', '/cloud-cost/ai'],
+          ],
+          [
+            ['Settings', '/cloud-cost/settings'],
+            ['Data History', '/cloud-cost/data-history'],
+            ['Onboarding Checklist', '/cloud-cost/onboarding'],
+          ],
+        ),
+        group('Analyze', '/cloud-cost/explorer', [
+          ['Explorer', '/cloud-cost/explorer'],
+          ['Reports', '/cloud-cost/reports'],
+        ]),
+        group('Monitor', '/monitors?q=cost'),
+        group('Optimize', '/cloud-cost/recommendations', [
+          ['Recommendations', '/cloud-cost/recommendations'],
+          ['Automations!NEW', '/cloud-cost/automations'],
+        ]),
+        group('Allocate', '/cloud-cost/tag-pipelines', [
+          ['Tag Pipelines', '/cloud-cost/tag-pipelines'],
+          ['Custom Allocation Rules', '/cloud-cost/allocation-rules'],
+        ]),
+        group('Plan', '/cloud-cost/budgets', [
+          ['Budgets', '/cloud-cost/budgets'],
+          ['Commitment Programs', '/cloud-cost/commitments'],
+        ]),
+      ],
+    },
     {
       label: 'APM',
       to: '/apm',
@@ -296,12 +333,12 @@ export const NAV_SECTIONS: NavItem[][] = [
           '/apm',
           [
             ['Services', '/apm'],
-            ['Endpoints', '/apm/endpoints'],
+            ['Endpoints', '/portal/catalog?section=endpoint&view=performance'],
             ['Traces', '/apm/traces'],
             ['Recommendations', '/apm/recommendations'],
           ],
           [
-            ['+Instrument a Service', '/apm?instrument=1'],
+            ['+Instrument a Service', '/apm/instrument'],
             ['Settings', '/apm/settings'],
           ],
         ),
@@ -508,9 +545,9 @@ export const NAV_SECTIONS: NavItem[][] = [
           'Metrics',
           '/metrics',
           [
+            ['Overview', '/metrics/overview'],
             ['Explorer', '/metrics'],
-            ['Summary', '/metrics/summary'],
-            ['Volume', '/metrics/volume'],
+            ['Catalog', '/metrics/catalog'],
             ['Derived Metrics', '/metrics/derived'],
           ],
           [['Settings!PREVIEW', '/metrics/settings']],

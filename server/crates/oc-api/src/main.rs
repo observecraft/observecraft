@@ -10,6 +10,7 @@ mod cache;
 mod config;
 mod demo;
 mod error;
+mod live_feed;
 mod log_access;
 mod log_metrics;
 mod logproc;
@@ -91,14 +92,8 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("migrations applied");
         return Ok(());
     }
-    let nats = async_nats::ConnectOptions::new()
-        .name("observecraft-server")
-        .connection_timeout(Duration::from_secs(5))
-        // Live tail only: start without it and keep reconnecting.
-        .retry_on_initial_connect()
-        .connect(&cfg.nats_url)
-        .await
-        .context("connect nats")?;
+    // Live tail only (docs/adr/0004): connects on the first live tail session.
+    let live = cfg.kafka_brokers.as_deref().map(|b| Arc::new(live_feed::LiveFeed::new(b)));
 
     let secrets = auth::crypto::SecretBox::new(&cfg.secret_key);
     let state = AppState(Arc::new(Inner {
@@ -106,7 +101,7 @@ async fn main() -> anyhow::Result<()> {
         org_clients: org_limits::OrgClients::new(&ch_cfg, cfg.org_query.clone()),
         tables: ch_cfg,
         postgres,
-        nats,
+        live,
         secrets,
         log_restrictions: Default::default(),
         kube_inventory: ttl_cache::TtlCache::new(routes::kubernetes::INVENTORY_TTL).with_max_weight(cfg.inventory_cache_max_objects, Vec::len),
@@ -154,6 +149,14 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(org_limits::background(routes::synthetics::run_scheduler(state.clone())));
     tokio::spawn(org_limits::background(routes::scorecards::run_scheduler(state.clone())));
     tokio::spawn(org_limits::background(routes::resource_policies::run_snapshots(state.clone())));
+    tokio::spawn(org_limits::background(routes::resource_changes::run(state.clone())));
+    if state.config.seed_demo {
+        tokio::spawn(org_limits::background(routes::cloud_cost::run_demo(state.clone(), state.config.dev_org.clone())));
+        if let Err(e) = routes::code_security::seed_demo(&state, &state.config.dev_org).await {
+            tracing::warn!(error = %e, "seeding demo Code Security data failed");
+        }
+    }
+    tokio::spawn(org_limits::background(routes::code_security::run_osv_sync(state.clone())));
     tokio::spawn(org_limits::background(routes::workflows::run_executor(state.clone())));
     tokio::spawn(org_limits::background(metric_rollups::run(state.clone())));
     logproc::serve(state.clone()).await.context("log indexer")?;

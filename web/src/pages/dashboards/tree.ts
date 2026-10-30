@@ -14,6 +14,16 @@ export function updateWidget(widgets: Widget[], id: string, fn: (w: Widget) => W
   });
 }
 
+/** A widget anywhere in the tree (inside groups too). */
+export function findWidget(widgets: Widget[], id: string): Widget | undefined {
+  for (const w of widgets) {
+    if (w.id === id) return w;
+    const inner = w.definition.type === 'group' ? findWidget(w.definition.widgets, id) : undefined;
+    if (inner) return inner;
+  }
+  return undefined;
+}
+
 export function removeWidget(widgets: Widget[], id: string): Widget[] {
   return widgets.filter((w) => w.id !== id).map((w) => (w.definition.type === 'group' ? { ...w, definition: { ...w.definition, widgets: removeWidget(w.definition.widgets, id) } } : w));
 }

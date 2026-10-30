@@ -18,8 +18,8 @@
 {{- if eq .Values.cache.mode "bundled" }}
 {{- $_ := set $rules "valkey" (list (list 6379 (list "server"))) }}
 {{- end }}
-{{- if .Values.nats.enabled }}
-{{- $_ := set $rules "nats" (list (list 4222 (list "server" "vector")) (list 6222 (list "nats"))) }}
+{{- if .Values.kafka.enabled }}
+{{- $_ := set $rules "kafka" (list (list 9092 (list "intake" "server" "collector" "vector" "kafka" "kafka-topics")) (list 9093 (list "kafka"))) }}
 {{- end }}
 {{- range $component, $ports := $rules }}
 ---

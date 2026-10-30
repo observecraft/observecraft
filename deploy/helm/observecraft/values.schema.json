@@ -972,54 +972,6 @@
         }
       }
     },
-    "nats": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
-        "replicas": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "image": {
-          "type": "object",
-          "required": [
-            "repository",
-            "tag"
-          ],
-          "properties": {
-            "repository": {
-              "type": "string",
-              "minLength": 1
-            },
-            "tag": {
-              "type": "string",
-              "minLength": 1
-            }
-          }
-        },
-        "resources": {
-          "type": "object",
-          "properties": {
-            "requests": {
-              "type": "object"
-            },
-            "limits": {
-              "type": "object"
-            }
-          }
-        },
-        "external": {
-          "type": "object",
-          "properties": {
-            "url": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
     "ingress": {
       "type": "object",
       "properties": {
@@ -1115,6 +1067,87 @@
     },
     "containerSecurityContext": {
       "type": "object"
+    },
+    "kafka": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "replicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "image": {
+          "type": "object",
+          "required": [
+            "repository",
+            "tag"
+          ],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "clusterId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{22}$"
+        },
+        "partitions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "retentionHours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "liveRetentionMinutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "heapOpts": {
+          "type": "string"
+        },
+        "persistence": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "resources": {
+          "type": "object"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "external": {
+          "type": "object",
+          "properties": {
+            "brokers": {
+              "type": "string"
+            },
+            "replication": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
     }
   }
 }

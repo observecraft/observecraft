@@ -21,6 +21,7 @@ const KINDS: KubeKind[] = [
   'persistentvolumes',
   'horizontalpodautoscalers',
   'processes',
+  'containers',
 ];
 
 interface Workload {
@@ -262,6 +263,65 @@ export function inventory(): KubeResource[] {
       proc(n.name, '/usr/bin/containerd', 'root', 0.03 + r() * 0.02, (50 + r() * 20) * MI, 20 * day);
       proc(n.name, '/usr/sbin/sshd -D', 'root', 0, 6 * MI, 20 * day);
     }
+    // Containers: each pod's containers (as the Agent and the kubelet report them), and the
+    // Agent's own Docker containers on every node.
+    for (const p of pods) {
+      for (const pc of p.containers) {
+        const ctr = base('containers', cluster, pc.name, p.namespace ?? null, `${p.uid}/${pc.name}`, Date.now() - (pc.startedAt ?? Date.now()));
+        const short = (pc.image.split('/').pop() ?? pc.image).split(':')[0];
+        Object.assign(ctr, {
+          status: pc.state === 'running' ? 'Running' : (pc.reason ?? 'Waiting'),
+          health: pc.state === 'running' ? 'ok' : 'error',
+          createdAt: pc.startedAt,
+          node: p.node,
+          hostCpus: 4,
+          owner: { kind: 'Pod', name: p.name, uid: p.uid },
+          images: [pc.image],
+          restarts: pc.restarts,
+          runtime: 'containerd',
+          cpu: pc.cpu,
+          memory: { ...pc.memory, usage: (pc.memory.usage ?? 0) * 0.85 },
+          netSent: Math.round(200 + r() * 40_000),
+          netReceived: Math.round(500 + r() * 90_000),
+          containerId: p.uid
+            .replace(/[^a-z0-9]/g, '')
+            .padEnd(64, '0')
+            .slice(0, 64),
+        });
+        ctr.tags.push(
+          `pod_name:${p.name}`,
+          `kube_container_name:${pc.name}`,
+          `container_name:${pc.name}`,
+          `short_image:${short}`,
+          `image_name:${pc.image.split(':')[0]}`,
+          `host:${p.node}`,
+          'runtime:containerd',
+          ...p.tags.filter((t) => t.startsWith('kube_deployment:') || t.startsWith('service:') || t.startsWith('env:')),
+        );
+        out.push(ctr);
+      }
+    }
+    for (const n of nodes) {
+      for (const [name, image, cpu, rss] of [
+        ['datadog-agent', 'registry.example.com/datadog/agent:7.58.0', 0.06, 210 * MI],
+        ['trace-agent', 'registry.example.com/datadog/agent:7.58.0', 0.01, 60 * MI],
+      ] as const) {
+        const ctr = base('containers', '', name, null, `container:${n.name}:${name}`, 6 * day);
+        Object.assign(ctr, {
+          status: 'Running',
+          node: n.name,
+          hostCpus: 4,
+          images: [image],
+          runtime: 'docker',
+          cpu: { usage: cpu },
+          memory: { usage: rss },
+          netSent: Math.round(30_000 + r() * 20_000),
+          netReceived: Math.round(5_000 + r() * 5_000),
+        });
+        ctr.tags = [`host:${n.name}`, `container_name:${name}`, 'short_image:agent', `image_name:${image.split(':')[0]}`, 'runtime:docker'];
+        out.push(ctr);
+      }
+    }
     const c = base('clusters', cluster, cluster, null, `cluster:${cluster}`, 60 * day);
     Object.assign(c, { status: 'Healthy', nodes: nodes.length, pods: pods.length, version: 'v1.31.2', cpu: sum(nodes, (n) => n.cpu), memory: sum(nodes, (n) => n.memory) });
     out.push(c);
@@ -299,6 +359,7 @@ const FACETS: Partial<Record<KubeKind, string[]>> = {
   nodes: ['kube_node_role', 'kubelet_version'],
   deployments: ['service', 'env', 'short_image'],
   services: ['kube_service_type'],
+  containers: ['container_name', 'runtime', 'host', 'pod_name', 'short_image'],
 };
 
 export async function searchKubernetes(req: KubeSearchRequest): Promise<KubeSearchPage> {

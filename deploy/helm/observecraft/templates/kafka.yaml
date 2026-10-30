@@ -1,0 +1,224 @@
+{{- if .Values.kafka.enabled }}
+{{- $fullname := include "oc.fullname" . -}}
+{{- $n := int .Values.kafka.replicas -}}
+{{- $rf := min 3 $n -}}
+{{- $isr := ternary 2 1 (ge $n 3) -}}
+{{- $headless := printf "%s-kafka-headless" $fullname -}}
+# Kafka: the durable buffer between the intake and processing (docs/adr/0004-kafka-ingestion-buffer.md).
+# KRaft (brokers are their own controllers, no ZooKeeper). With 3 replicas: replication 3 and
+# min.insync.replicas 2, so one broker can fail without losing acknowledged data or stopping writes.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullname }}-kafka
+  labels:
+    {{- include "oc.componentLabels" (list . "kafka") | nindent 4 }}
+spec:
+  serviceName: {{ $headless }}
+  replicas: {{ $n }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "kafka") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "oc.selector" (list . "kafka") | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      {{- include "oc.pullSecrets" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      {{- with .Values.kafka.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.kafka.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      affinity:
+        {{- if .Values.kafka.affinity }}
+        {{- toYaml .Values.kafka.affinity | nindent 8 }}
+        {{- else }}
+        # Brokers on different nodes: a node failure costs one replica of each partition.
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "oc.selector" (list . "kafka") | nindent 20 }}
+        {{- end }}
+      containers:
+        - name: kafka
+          image: {{ include "oc.imageOf" (list . .Values.kafka.image) }}
+          # The node id is the pod's ordinal; each broker advertises its own stable DNS name.
+          command:
+            - /bin/sh
+            - -c
+            - |
+              export KAFKA_NODE_ID="${HOSTNAME##*-}"
+              export KAFKA_ADVERTISED_LISTENERS="INTERNAL://${HOSTNAME}.{{ $headless }}.${POD_NAMESPACE}.svc:9092"
+              exec /etc/kafka/docker/run
+          env:
+            - name: POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - { name: CLUSTER_ID, value: {{ .Values.kafka.clusterId | quote }} }
+            - { name: KAFKA_PROCESS_ROLES, value: "broker,controller" }
+            - { name: KAFKA_LISTENERS, value: "INTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093" }
+            - { name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP, value: "INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT" }
+            - { name: KAFKA_INTER_BROKER_LISTENER_NAME, value: INTERNAL }
+            - { name: KAFKA_CONTROLLER_LISTENER_NAMES, value: CONTROLLER }
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: "{{ range $i, $_ := until $n }}{{ if $i }},{{ end }}{{ $i }}@{{ $fullname }}-kafka-{{ $i }}.{{ $headless }}.{{ $.Release.Namespace }}.svc:9093{{ end }}"
+            - { name: KAFKA_LOG_DIRS, value: /var/lib/kafka/data }
+            - { name: KAFKA_AUTO_CREATE_TOPICS_ENABLE, value: "false" }
+            - { name: KAFKA_DEFAULT_REPLICATION_FACTOR, value: {{ $rf | quote }} }
+            - { name: KAFKA_MIN_INSYNC_REPLICAS, value: {{ $isr | quote }} }
+            - { name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR, value: {{ $rf | quote }} }
+            - { name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR, value: {{ $rf | quote }} }
+            - { name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR, value: {{ $isr | quote }} }
+            # An unclean leader (a replica that missed acknowledged writes) is never elected.
+            - { name: KAFKA_UNCLEAN_LEADER_ELECTION_ENABLE, value: "false" }
+            - { name: KAFKA_MESSAGE_MAX_BYTES, value: "67108864" }
+            - { name: KAFKA_REPLICA_FETCH_MAX_BYTES, value: "67108864" }
+            - { name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS, value: "3000" }
+            - { name: KAFKA_HEAP_OPTS, value: {{ .Values.kafka.heapOpts | quote }} }
+          {{- include "oc.containerSecurity" . | nindent 10 }}
+          ports:
+            - { name: kafka, containerPort: 9092 }
+            - { name: controller, containerPort: 9093 }
+          readinessProbe:
+            tcpSocket: { port: kafka }
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: controller }
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.kafka.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/kafka/data }
+            - { name: tmp, mountPath: /tmp }
+            - { name: config, mountPath: /opt/kafka/config }
+            - { name: docker-config, mountPath: /mnt/shared/config }
+      volumes:
+        # The image writes its generated configuration; the root filesystem stays read-only.
+        - { name: tmp, emptyDir: {} }
+        - { name: config, emptyDir: {} }
+        - { name: docker-config, emptyDir: {} }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- include "oc.storageClass" . | nindent 8 }}
+        resources:
+          requests:
+            storage: {{ .Values.kafka.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-kafka
+  labels:
+    {{- include "oc.componentLabels" (list . "kafka") | nindent 4 }}
+spec:
+  selector:
+    {{- include "oc.selector" (list . "kafka") | nindent 4 }}
+  ports:
+    - { name: kafka, port: 9092, targetPort: kafka }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $headless }}
+  labels:
+    {{- include "oc.componentLabels" (list . "kafka") | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    {{- include "oc.selector" (list . "kafka") | nindent 4 }}
+  ports:
+    - { name: kafka, port: 9092 }
+    - { name: controller, port: 9093 }
+{{- if gt $n 1 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $fullname }}-kafka
+  labels:
+    {{- include "oc.componentLabels" (list . "kafka") | nindent 4 }}
+spec:
+  # One broker at a time: with replication 3 and min.insync 2, writes continue.
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "kafka") | nindent 6 }}
+{{- end }}
+{{- end }}
+---
+{{- $fullname := include "oc.fullname" . }}
+{{- $n := int .Values.kafka.replicas }}
+# Creates the topics (idempotent) after every install and upgrade.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-kafka-topics
+  labels:
+    {{- include "oc.componentLabels" (list . "kafka-topics") | nindent 4 }}
+data:
+  topics.sh: |
+    {{- .Files.Get "files/kafka-topics.sh" | nindent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $fullname }}-kafka-topics-{{ .Release.Revision }}
+  labels:
+    {{- include "oc.componentLabels" (list . "kafka-topics") | nindent 4 }}
+spec:
+  backoffLimit: 20
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        {{- include "oc.selector" (list . "kafka-topics") | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      {{- include "oc.pullSecrets" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: topics
+          image: {{ include "oc.imageOf" (list . .Values.kafka.image) }}
+          command: [/bin/sh, /scripts/topics.sh]
+          env:
+            - { name: OC_KAFKA_BROKERS, value: {{ include "oc.kafkaBrokers" . | quote }} }
+            - { name: OC_KAFKA_PARTITIONS, value: {{ .Values.kafka.partitions | quote }} }
+            {{- $rf := ternary (min 3 $n) (int .Values.kafka.external.replication) .Values.kafka.enabled }}
+            - { name: OC_KAFKA_REPLICATION, value: {{ $rf | quote }} }
+            - { name: OC_KAFKA_MIN_INSYNC, value: {{ ternary 2 1 (ge (int $rf) 3) | quote }} }
+            - { name: OC_KAFKA_RETENTION_HOURS, value: {{ .Values.kafka.retentionHours | quote }} }
+            - { name: OC_KAFKA_LIVE_RETENTION_MINUTES, value: {{ .Values.kafka.liveRetentionMinutes | quote }} }
+          {{- include "oc.containerSecurity" . | nindent 10 }}
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - { name: scripts, mountPath: /scripts }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: scripts
+          configMap: { name: {{ $fullname }}-kafka-topics }
+        - { name: tmp, emptyDir: {} }

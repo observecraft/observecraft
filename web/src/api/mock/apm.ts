@@ -203,6 +203,7 @@ function resourceStats(spans: GenSpan[], weight: number, range: TimeRange, servi
         errorRate: rate(a.errors, a.spans.length),
         ...latencies(a.spans),
         timeShare: a.totalMs / Math.max(totals.get(service) ?? 1, 1e-9),
+        totalMs: a.totalMs * weight,
       };
     })
     .sort((a, b) => b.requests - a.requests)

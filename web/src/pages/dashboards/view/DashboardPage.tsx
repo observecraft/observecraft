@@ -1,3 +1,4 @@
+import { IntegrationInspect } from '../widgets/IntegrationInspect';
 import { useQuery } from '@tanstack/react-query';
 import { useDashboardExecution } from '../execution';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,9 +17,9 @@ import { IntegrationLogo } from '../../integrations/IntegrationLogo';
 import { AddWidgetsDrawer } from '../editor/AddWidgetsDrawer';
 import { WidgetEditor } from '../editor/WidgetEditor';
 import { useCloneDashboard, useDashboard, useDeleteDashboards, useUpdateDashboard } from '../queries';
-import { DEFAULT_SIZE, applyLayouts, bottom, cloneWidget, defaultDefinition, newWidgetId, removeWidget, updateWidget } from '../tree';
+import { DEFAULT_SIZE, applyLayouts, findWidget, bottom, cloneWidget, defaultDefinition, newWidgetId, removeWidget, updateWidget } from '../tree';
 import { DashboardContext, type DashboardContextValue } from '../widgets/context';
-import { GroupFrame, WidgetFrame } from '../widgets/WidgetFrame';
+import { FULLSCREEN_PARAM, GroupFrame, WidgetFrame } from '../widgets/WidgetFrame';
 import { DashboardCanvas } from './DashboardCanvas';
 import { TemplateVarBar, TemplateVarEditor } from './TemplateVarBar';
 import { ReportEditorModal } from '../reports/ReportEditorModal';
@@ -29,6 +30,12 @@ import '../dashboards.css';
 const OVERLAYS_KEY = 'oc.dashboards.overlays';
 
 const VAR_PREFIX = 'tpl_var_';
+
+/** Integration metric widgets open in the inspect view; lists, notes and groups open as they are. */
+const inspectable = (w: Widget) =>
+  w.definition.type === 'integration' &&
+  ['timeseries', 'query_value', 'query_table', 'toplist', 'treemap', 'sunburst', 'change', 'heatmap'].includes(w.definition.original.type) &&
+  Array.isArray(w.definition.original.requests);
 
 export function DashboardPage() {
   const { id } = useParams();
@@ -70,7 +77,19 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
 
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<{ widget: Widget; isNew: boolean } | null>(null);
-  const [fullscreen, setFullscreen] = useState<Widget | null>(null);
+  // The widget in full screen lives in the URL, so a copied link opens it.
+  const fullscreenId = params.get(FULLSCREEN_PARAM);
+  const fullscreen = fullscreenId ? (findWidget(d.widgets, fullscreenId) ?? null) : null;
+  const setFullscreen = (w: Widget | null) =>
+    setParams(
+      (p) => {
+        const next = new URLSearchParams(p);
+        if (w) next.set(FULLSCREEN_PARAM, w.id);
+        else next.delete(FULLSCREEN_PARAM);
+        return next;
+      },
+      { replace: true },
+    );
   const [tvEditor, setTvEditor] = useState(false);
   const [importing, setImporting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -323,6 +342,12 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
                 <GroupFrame widget={fullscreen}>
                   <DashboardCanvas widgets={fullscreen.definition.widgets} layoutType="grid" editable={false} onLayout={() => undefined} />
                 </GroupFrame>
+              ) : inspectable(fullscreen) ? (
+                <IntegrationInspect
+                  widget={fullscreen}
+                  onClose={() => setFullscreen(null)}
+                  filters={<TemplateVarBar dashboardId={d.id} variables={d.templateVariables} values={values} onValues={setValues} canEdit={false} onEditVariables={() => undefined} />}
+                />
               ) : (
                 <WidgetFrame widget={fullscreen} />
               )}

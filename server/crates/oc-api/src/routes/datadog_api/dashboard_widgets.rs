@@ -39,7 +39,7 @@ pub const SUPPORTED_WIDGETS: &[&str] = &[
 /// Widgets drawn from `requests` (`q`, or `queries` + `formulas`).
 const METRIC_WIDGETS: &[&str] = &["timeseries", "query_value", "toplist", "query_table", "change", "heatmap", "sunburst", "treemap"];
 /// Data sources of `requests[].queries[]` the panels query.
-const QUERY_SOURCES: &[&str] = &["metrics", "logs", "events"];
+const QUERY_SOURCES: &[&str] = &["metrics", "cloud_cost", "logs", "events"];
 /// Data sources of a `list_stream` request the panels list.
 const LIST_SOURCES: &[&str] = &["event_stream", "infrastructure"];
 /// Rows a group's banner image takes above its widgets (as in the importer).
@@ -282,7 +282,12 @@ fn convert_level(items: &[Value], source_width: Option<f64>, nested: bool, free:
                         json!({ "id": format!("{id}-banner"), "definition": { "type": "image", "title": "", "src": banner }, "layout": { "x": 0, "y": 0, "w": 12, "h": BANNER_ROWS as i64 } }),
                     );
                 }
-                let mut group = json!({ "type": "group", "title": str_of("title"), "color": group_color(d["background_color"].as_str().unwrap_or_default()), "compact": false, "widgets": children });
+                let background = d["background_color"].as_str().unwrap_or_default();
+                let mut group = json!({ "type": "group", "title": str_of("title"), "color": group_color(background), "compact": false, "widgets": children });
+                // Plain colors are pale headers; `vivid_*` (and none) are saturated.
+                if !background.is_empty() && !background.starts_with("vivid_") {
+                    group["light"] = json!(true);
+                }
                 if d["show_title"] == false {
                     group["showTitle"] = json!(false);
                 }
@@ -523,12 +528,13 @@ fn level_to_datadog(ours: &[Value], parent: &str, stored: &Stored, nested: bool,
 }
 
 fn same_group_header(derived: &Value, ours: &Value) -> bool {
-    ["title", "color", "showTitle"].iter().all(|k| derived[*k] == ours[*k])
+    ["title", "color", "light", "showTitle"].iter().all(|k| derived[*k] == ours[*k])
 }
 
 fn apply_group_header(group: &mut Value, ours: &Value) {
     group["title"] = json!(ours["title"].as_str().unwrap_or_default());
-    group["background_color"] = json!(ours["color"].as_str().unwrap_or("blue"));
+    let color = ours["color"].as_str().unwrap_or("blue");
+    group["background_color"] = json!(if ours["light"] == true { color.to_string() } else { format!("vivid_{color}") });
     match ours["showTitle"].as_bool() {
         Some(false) => group["show_title"] = json!(false),
         _ => {
@@ -698,9 +704,9 @@ mod tests {
         assert!(e.message.contains("\"hostmap\" is not supported"), "{}", e.message);
         assert_eq!(err(json!({ "type": "timeseries", "requests": [{ "profile_metrics_query": { "compute": {} } }] })).path, "requests[0].profile_metrics_query");
         assert_eq!(err(json!({ "type": "heatmap", "requests": [{ "query": { "data_source": "metrics" } }] })).path, "requests[0].query");
-        let e = err(json!({ "type": "timeseries", "requests": [{ "q": "avg:a{*}" }, { "queries": [{ "data_source": "metrics" }, { "data_source": "cloud_cost" }] }] }));
+        let e = err(json!({ "type": "timeseries", "requests": [{ "q": "avg:a{*}" }, { "queries": [{ "data_source": "metrics" }, { "data_source": "rum" }] }] }));
         assert_eq!(e.path, "requests[1].queries[1].data_source");
-        assert!(e.message.contains("cloud_cost"));
+        assert!(e.message.contains("rum"));
         assert_eq!(err(json!({ "type": "list_stream", "requests": [{ "query": { "data_source": "logs_stream" } }] })).path, "requests[0].query.data_source");
         assert_eq!(err(json!({ "type": "group", "widgets": [{ "definition": { "type": "note", "content": "" } }, { "definition": { "type": "slo" } }] })).path, "widgets[1].definition.type");
         assert_eq!(err(json!({ "type": "group", "widgets": [{ "definition": { "type": "group", "widgets": [] } }] })).path, "widgets[0].definition.type");
@@ -841,7 +847,7 @@ mod tests {
         }
         assert_eq!(widgets[0]["definition"]["requests"][0]["conditional_formats"], json!([{ "comparator": ">", "value": 10, "palette": "white_on_red" }]));
         assert_eq!(widgets[1]["definition"], json!({ "type": "note", "content": "hi", "background_color": "blue", "font_size": "14", "text_align": "left" }));
-        assert_eq!(widgets[2]["definition"]["background_color"], "green");
+        assert_eq!(widgets[2]["definition"]["background_color"], "vivid_green");
         assert_eq!(widgets[2]["definition"]["widgets"][0]["definition"]["requests"][0]["formulas"][0]["limit"], json!({ "count": 5, "order": "desc" }));
         assert_eq!(widgets[2]["layout"], json!({ "x": 0, "y": 2, "width": 12, "height": 4 }));
     }

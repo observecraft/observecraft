@@ -16,7 +16,8 @@ pub struct Config {
     /// Limits on the queries an org runs, so one org can't starve the others (`OC_ORG_QUERY_*`).
     pub org_query: crate::org_limits::OrgQueryLimits,
     pub postgres_url: String,
-    pub nats_url: String,
+    /// `OC_KAFKA_BROKERS`: the Kafka the intake writes to; the server reads live tail from it.
+    pub kafka_brokers: Option<String>,
     /// Built web app to serve (e.g. `../web/dist`); unset in development (Vite serves it).
     pub web_dist: Option<String>,
     pub cors_origins: Vec<String>,
@@ -52,6 +53,9 @@ pub struct Config {
     pub internal_token: Option<String>,
     /// SMTP server for monitor notification emails (`smtps://user:pass@host:465`, `smtp://host:25?tls=required`).
     pub smtp_url: Option<String>,
+    /// `OC_OSV_URL`: the OSV.dev API Code Security looks advisories up in (`off` or empty: no lookups,
+    /// for instances without internet access).
+    pub osv_url: Option<String>,
     /// Sender address of notification emails.
     pub smtp_from: String,
     /// Synthetic tests may reach loopback, private, link-local and other internal addresses
@@ -147,7 +151,7 @@ impl Config {
             run_migrations: var("OC_RUN_MIGRATIONS", "true") != "false",
             org_query: crate::org_limits::OrgQueryLimits::from_env(),
             postgres_url: var("OC_POSTGRES_URL", "postgres://observecraft:observecraft@localhost:5432/observecraft"),
-            nats_url: var("OC_NATS_URL", "nats://localhost:4222"),
+            kafka_brokers: Some(var("OC_KAFKA_BROKERS", "localhost:19092")).filter(|s| !s.trim().is_empty()),
             web_dist: env::var("OC_WEB_DIST").ok().filter(|s| !s.is_empty()),
             cors_origins: var("OC_CORS_ORIGINS", "http://localhost:5173")
                 .split(',')
@@ -176,6 +180,7 @@ impl Config {
             logproc_addr: var("OC_LOGPROC_ADDR", "0.0.0.0:8090"),
             internal_token: env::var("OC_INTERNAL_TOKEN").ok().filter(|s| !s.is_empty()),
             smtp_url: env::var("OC_SMTP_URL").ok().filter(|s| !s.is_empty()),
+            osv_url: Some(var("OC_OSV_URL", "https://api.osv.dev")).filter(|s| !s.is_empty() && s != "off").map(|s| s.trim_end_matches('/').to_string()),
             smtp_from: var("OC_SMTP_FROM", "ObserveCraft <alerts@observecraft.local>"),
             synthetics_allow_private: var("OC_SYNTHETICS_ALLOW_PRIVATE", "false") == "true",
             portal_allow_private: var("OC_PORTAL_ALLOW_PRIVATE", "false") == "true",

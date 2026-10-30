@@ -61,6 +61,21 @@ const SETS: Record<string, Tags[]> = {
     const cluster = CLUSTERS[i % CLUSTERS.length];
     return { kube_cluster_name: cluster, kube_node: `ip-10-0-${(i * 7) % 250}-${10 + i}.ec2.internal`, status: r() < 0.06 ? 'unschedulable' : 'schedulable' };
   }),
+  containers: build(90, 15, (r, i) => {
+    const cluster = CLUSTERS[i % CLUSTERS.length];
+    const image = pick(r, ['agent', 'kube-proxy', 'coredns', 'aws-node', 'ebs-csi-driver', 'storefront-api', 'order-service', 'catalog-service', 'nginx-ingress']);
+    return { kube_cluster_name: cluster, kube_namespace: pick(r, NAMESPACES), short_image: image, image_tag: pick(r, ['7.58.0', '7.57.2', 'v1.29.3', 'v1.11.1', '1.4.2']) };
+  }),
+  agent_containers: build(40, 16, (r, i) => {
+    const app = pick(r, ['api-gateway', 'storefront-api', 'order-service', 'billing', 'catalog-service', 'inventory-service', 'datadog-agent']);
+    return {
+      container_name: app,
+      host: `i-0a1b2c3d4e5f6000${i % 8}`,
+      short_image: app === 'datadog-agent' ? 'agent' : app,
+      kube_cluster_name: pick(r, CLUSTERS),
+      pod_name: `${app}-${i.toString(36)}`,
+    };
+  }),
   monitors: build(320, 13, (r, i) => {
     const service = r() < 0.3 ? 'undefined' : pick(r, SERVICES);
     const name = pick(r, [
@@ -138,6 +153,14 @@ const METRICS: Record<string, MetricDef> = {
   'kubernetes.cpu.usage.total': { set: 'deployments', description: 'CPU used by containers', unit: 'millicore', base: (_e, r) => 50 + r() * 900, noise: 0.25 },
   'kubernetes.memory.usage': { set: 'deployments', description: 'Memory used by containers', unit: 'MiB', base: (_e, r) => 120 + r() * 1500, noise: 0.08 },
   'kubernetes.containers.restarts': { set: 'deployments', description: 'Container restarts', base: (_e, r) => (r() < 0.2 ? r() * 8 : 0), noise: 0.8, integer: true },
+  'kubernetes.cpu.requests': { set: 'deployments', description: 'CPU requested by containers', unit: 'core', base: (e) => 0.25 * (1 + (hash(e.kube_deployment) % 12)), noise: 0 },
+  'kubernetes.cpu.limits': { set: 'deployments', description: 'CPU limit of containers', unit: 'core', base: (e) => 0.5 * (1 + (hash(e.kube_deployment) % 16)), noise: 0 },
+  'kubernetes.memory.requests': { set: 'deployments', description: 'Memory requested by containers', unit: 'MiB', base: (e) => 256 * (1 + (hash(e.kube_deployment) % 8)), noise: 0 },
+  'kubernetes.memory.limits': { set: 'deployments', description: 'Memory limit of containers', unit: 'MiB', base: (e) => 512 * (1 + (hash(e.kube_deployment) % 8)), noise: 0 },
+  'system.cpu.num_cores': { set: 'hosts', description: 'Number of CPU cores', unit: 'core', base: (_e, r) => 2 ** (1 + Math.floor(r() * 4)), noise: 0, integer: true },
+  'system.cpu.system': { set: 'hosts', description: 'CPU time in kernel space', unit: '%', base: (_e, r) => 1 + r() * 8, noise: 0.2, max: 100 },
+  'system.mem.total': { set: 'hosts', description: 'Total memory', unit: 'mebibyte', base: (_e, r) => 1024 * 2 ** (2 + Math.floor(r() * 4)), noise: 0 },
+  'system.mem.free': { set: 'hosts', description: 'Free memory', unit: 'mebibyte', base: (_e, r) => 1024 * (1 + r() * 6), noise: 0.05 },
   'system.cpu.user': { set: 'hosts', description: 'CPU time in user space', unit: '%', base: (_e, r) => 10 + Math.pow(r(), 1.5) * 80, noise: 0.15, max: 100 },
   'system.cpu.idle': { set: 'hosts', description: 'CPU idle', unit: '%', base: (_e, r) => 20 + r() * 70, noise: 0.1, max: 100 },
   'system.mem.used': { set: 'hosts', description: 'Memory used', unit: 'GiB', base: (_e, r) => 2 + r() * 12, noise: 0.05 },
@@ -157,6 +180,12 @@ const METRICS: Record<string, MetricDef> = {
   'trace.latency.p50': { set: 'apm', description: 'Median latency', unit: 'ms', base: (e, r) => (e.service === 'catalog-service' ? 210 : 12 + r() * 60), noise: 0.12 },
   // catalog-service's slower product query (see the APM mock) keeps its p95 above 300 ms.
   'trace.latency.p95': { set: 'apm', description: 'p95 latency', unit: 'ms', base: (e, r) => (e.service === 'catalog-service' ? 410 : 60 + r() * 200), noise: 0.1 },
+  'container.cpu.usage': { set: 'agent_containers', description: 'CPU used by the container', unit: 'core', base: (_e, r) => 0.01 + Math.pow(r(), 2) * 1.2, noise: 0.35 },
+  'container.memory.rss': { set: 'agent_containers', description: 'Resident memory of the container', unit: 'byte', base: (_e, r) => (60 + r() * 900) * 2 ** 20, noise: 0.05 },
+  'container.net.sent': { set: 'agent_containers', description: 'Bytes sent per second', unit: 'byte/second', base: (_e, r) => 200 + r() * 40_000, noise: 0.5 },
+  'container.net.rcvd': { set: 'agent_containers', description: 'Bytes received per second', unit: 'byte/second', base: (_e, r) => 500 + r() * 90_000, noise: 0.5 },
+  'kubernetes_state.node.count': { set: 'nodes', description: 'Nodes', unit: 'node', base: () => 1, noise: 0, integer: true },
+  'kubernetes.containers.running': { set: 'containers', description: 'Running containers', base: (_e, r) => 1 + Math.floor(r() * 6), noise: 0, integer: true },
   'kubernetes_state.node.status': { set: 'nodes', description: 'Nodes by status', base: () => 1, noise: 0, integer: true },
   'observecraft.monitor.notifications': {
     set: 'monitors',
@@ -299,8 +328,21 @@ function stepFor(range: TimeRange, points: number): number {
   return steps.find((s) => s >= raw) ?? 12 * 3600e3;
 }
 
+/** `key:value`, with `*` wildcards (`kube_deployment:*` is any entity that has the tag). */
 function matches(e: Tags, q: ParsedMetricQuery): boolean {
-  return q.filters.every((f) => (e[f.key] === f.value) !== f.negate);
+  return q.filters.every((f) => {
+    const v = e[f.key];
+    const hit = f.value.includes('*')
+      ? v !== undefined &&
+        new RegExp(
+          `^${f.value
+            .split('*')
+            .map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+            .join('.*')}$`,
+        ).test(v)
+      : v === f.value;
+    return hit !== f.negate;
+  });
 }
 
 function combine(values: number[], agg: ParsedMetricQuery['aggregator']): number {
@@ -497,4 +539,10 @@ export function queryDistribution(req: { query: string; range: TimeRange }): Pro
     });
     return { buckets, times, counts };
   });
+}
+
+/** A metric's series (entities) and its kind, for the catalog's per-metric details; undefined when unknown. */
+export function metricEntities(name: string): Tags[] | undefined {
+  const def = lookup(name);
+  return def ? entitiesOf(def) : undefined;
 }

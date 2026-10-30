@@ -2138,3 +2138,258 @@
   align-items: center;
   gap: 6px;
 }
+
+/* Status page: priority, group filters, side query, runbook and troubleshooting. */
+
+.mon-priority {
+  display: inline-block;
+  margin-right: 12px;
+  padding-right: 12px;
+  border-right: 1px solid var(--border-strong);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-lg);
+}
+
+.mon-filterbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 18px 40px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mon-filter {
+  min-width: 170px;
+}
+
+.mon-filter.set {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.mon-filter-small {
+  min-width: 70px;
+}
+
+.mon-filter-sep {
+  align-self: stretch;
+  width: 1px;
+  background: var(--border);
+}
+
+.mon-filter-btn {
+  height: 32px;
+  padding: 0 8px;
+}
+
+.mon-filter-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.mon-filter-search input {
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+}
+
+.mon-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mon-clear:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.mon-filterbar-time {
+  margin-left: auto;
+}
+
+.mon-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 400px);
+  border-bottom: 1px solid var(--border);
+}
+
+.mon-overview.no-query {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mon-overview .mon-history {
+  border-bottom: 0;
+  padding-top: 20px;
+}
+
+.mon-overview .mon-query-box {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 40px 20px 0;
+  border-bottom: 0;
+}
+
+.mon-overview .mon-query-box code {
+  flex: 1;
+  min-height: 200px;
+  font-size: var(--fs-md);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.mon-msg-md {
+  line-height: 1.6;
+}
+
+.mon-msg-md p,
+.mon-msg-md ol,
+.mon-msg-md ul {
+  margin: 0 0 8px;
+}
+
+.mon-msg-md ol,
+.mon-msg-md ul {
+  padding-left: 22px;
+}
+
+.mon-runbook-linked {
+  align-items: center;
+  color: var(--primary);
+  border-style: solid;
+}
+
+.mon-trouble {
+  margin-top: 36px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+
+.mon-trouble h3 {
+  margin: 0 0 14px;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+
+.mon-work-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.mon-work-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.mon-work-tabs button.active {
+  border-bottom-color: var(--primary);
+  color: var(--text);
+}
+
+.mon-work-count {
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  font-size: var(--fs-xs);
+}
+
+.mon-work-empty {
+  padding: 12px 0;
+}
+
+.mon-work-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.mon-work-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.mon-work-list a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.mon-work-list a:hover {
+  background: var(--bg-hover);
+}
+
+.mon-work-sev {
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.mon-work-sev.sev-error {
+  background: color-mix(in srgb, var(--status-error) 14%, var(--bg));
+  color: var(--status-error);
+}
+
+.mon-work-sev.sev-warning {
+  background: color-mix(in srgb, var(--status-warn) 18%, var(--bg));
+  color: var(--status-warn);
+}
+
+.mon-work-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mon-work-main b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mon-work-state {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, var(--bg));
+}
+
+.mon-work-state.st-closed {
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+}
+
+@media (max-width: 1100px) {
+  .mon-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mon-overview .mon-query-box {
+    padding: 0 40px 20px;
+  }
+}

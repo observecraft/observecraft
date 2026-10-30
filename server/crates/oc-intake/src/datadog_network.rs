@@ -348,8 +348,8 @@ pub async fn connections(State(st): State<Shared>, headers: HeaderMap, body: Byt
     drop(body);
     match converted {
         Ok(Some((req, n))) if n > 0 => {
-            let target = format!("{}/v1/logs", st.cfg.collector_url);
-            match send(&st, &org, &target, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&req)).await {
+            let target = crate::kafka::Sink::Logs;
+            match send(&st, &org, target, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&req)).await {
                 Ok(up) if up.status.is_success() => {}
                 Ok(up) => {
                     tracing::warn!(status = %up.status, "collector refused converted Datadog connections");

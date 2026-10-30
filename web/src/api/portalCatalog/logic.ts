@@ -441,6 +441,11 @@ export function assembleCatalog(f: CatalogFacts): PortalEntity[] {
       errorRate: ep.errorRate,
       p95Ms: ep.p95Ms,
     });
+    // Its monitors: those naming its service and its route (`resource_name:"GET /orders"`, `/orders`).
+    const route = (/^[A-Z]+\s+(\/.+)$/.exec(ep.resource)?.[1] ?? ep.resource).toLowerCase();
+    const monitors = f.monitors.filter((m) => m.texts.some((t) => f.references(t, ep.service) && t.toLowerCase().includes(route)));
+    e.monitors = monitors.length;
+    e.monitorsAlerting = monitors.filter((m) => m.alerting).length;
     all.set(e.id, e);
   }
   const repos = new Map<string, PortalEntity>();

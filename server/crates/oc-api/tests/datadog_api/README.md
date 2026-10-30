@@ -11,7 +11,7 @@ are **not in this repository**: they are downloaded at test time.
 - Commit: `1a5c98969c6a269710149bfa7ca7e39320a1e644`, pinned with its archive's SHA-256 in
   `scripts/datadog-fixtures/fetch.sh`.
 - Features: v1 Authentication, Monitors, Downtimes, Dashboards, Dashboard Lists, Service Level Objectives and
-  Service Level Objective Corrections; v2 Downtimes, Dashboard Lists, Users, Roles, Teams and Key Management. The
+  Service Level Objective Corrections; v2 Downtimes, Dashboard Lists, Users, Roles, Teams, Key Management and Cloud Cost Management. The
   script takes their `tests/scenarios/features/{v1,v2}/*.feature` files (with `given.json` and the request bodies
   they read from files) and `tests/scenarios/cassettes/TestScenarios/{v1,v2}/Feature_*/`, unchanged.
 

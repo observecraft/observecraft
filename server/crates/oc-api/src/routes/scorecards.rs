@@ -324,6 +324,21 @@ fn evaluate_all(inputs: &Inputs) -> Vec<ScorecardOutcome> {
 }
 
 /// Levels and counts per service from the outcomes.
+/// Passes and failures per (rule, owning team); skipped services count in neither.
+fn rule_results(outcomes: &[ScorecardOutcome], team_of: &HashMap<&str, &str>) -> BTreeMap<(String, String), (i32, i32)> {
+    let mut out: BTreeMap<(String, String), (i32, i32)> = BTreeMap::new();
+    for o in outcomes {
+        let team = team_of.get(o.service.as_str()).copied().unwrap_or_default().to_string();
+        let e = out.entry((o.rule_id.clone(), team)).or_default();
+        match o.state {
+            ScorecardOutcomeState::Pass => e.0 += 1,
+            ScorecardOutcomeState::Fail => e.1 += 1,
+            ScorecardOutcomeState::Skip => {}
+        }
+    }
+    out
+}
+
 fn score_services(inputs: &Inputs, scorecards: &[Scorecard], outcomes: &[ScorecardOutcome]) -> Vec<ScorecardService> {
     let rule_by_id: HashMap<&str, &RuleDef> = inputs.rules.iter().map(|r| (r.id.as_str(), r)).collect();
     let mut by_service: HashMap<&str, Vec<(&RuleDef, ScorecardOutcomeState)>> = HashMap::new();
@@ -639,8 +654,21 @@ async fn evaluate_org(st: &AppState, org: &str, refresh: bool) -> Result<(), Api
     .await?;
     // Reports → Scorecards Performance: today's level per service (the day's last evaluation wins).
     let scorecards = load_scorecards(st, org).await?;
-    let levels = serde_json::to_value(score_services(&inputs, &scorecards, &outcomes).iter().map(|s| serde_json::json!({"service": s.service, "team": s.team, "level": s.level})).collect::<Vec<_>>())
+    let scored = score_services(&inputs, &scorecards, &outcomes);
+    let levels = serde_json::to_value(scored.iter().map(|s| serde_json::json!({"service": s.service, "team": s.team, "level": s.level})).collect::<Vec<_>>()).map_err(anyhow::Error::from)?;
+    // And today's results of each rule per team (historical trends by scorecard and by rule).
+    let team_of: HashMap<&str, &str> = scored.iter().map(|s| (s.service.as_str(), s.team.as_str())).collect();
+    let rule_days = serde_json::to_value(rule_results(&outcomes, &team_of).into_iter().map(|((rule, team), (pass, fail))| serde_json::json!({"rule": rule, "team": team, "pass": pass, "fail": fail})).collect::<Vec<_>>())
         .map_err(anyhow::Error::from)?;
+    sqlx::query("DELETE FROM portal_scorecard_rule_days WHERE org_id = $1 AND day = current_date").bind(org).execute(&mut *tx).await?;
+    sqlx::query(
+        "INSERT INTO portal_scorecard_rule_days (org_id, day, rule_id, team, pass, fail) \
+         SELECT $1, current_date, (e->>'rule')::uuid, e->>'team', (e->>'pass')::int, (e->>'fail')::int FROM jsonb_array_elements($2::jsonb) AS e",
+    )
+    .bind(org)
+    .bind(rule_days)
+    .execute(&mut *tx)
+    .await?;
     sqlx::query("DELETE FROM portal_scorecard_levels WHERE org_id = $1 AND day = current_date").bind(org).execute(&mut *tx).await?;
     sqlx::query(
         "INSERT INTO portal_scorecard_levels (org_id, day, service, team, level) \
@@ -1010,6 +1038,24 @@ pub async fn update_metadata(State(st): State<AppState>, Writer(ctx): Writer, Pa
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rule_results_count_passes_and_failures_per_rule_and_team_skips_aside() {
+        let o = |rule: &str, service: &str, state| ScorecardOutcome { rule_id: rule.into(), service: service.into(), state, reason: String::new() };
+        let outcomes = vec![
+            o("r1", "order-service", ScorecardOutcomeState::Pass),
+            o("r1", "billing", ScorecardOutcomeState::Fail),
+            o("r1", "storefront-api", ScorecardOutcomeState::Pass),
+            o("r1", "cart-sync-job", ScorecardOutcomeState::Skip),
+            o("r2", "order-service", ScorecardOutcomeState::Fail),
+        ];
+        let team_of = HashMap::from([("order-service", "checkout"), ("billing", "checkout"), ("storefront-api", "storefront")]);
+        let out = rule_results(&outcomes, &team_of);
+        assert_eq!(out.get(&("r1".to_string(), "checkout".to_string())), Some(&(1, 1)));
+        assert_eq!(out.get(&("r1".to_string(), "storefront".to_string())), Some(&(1, 0)));
+        assert_eq!(out.get(&("r1".to_string(), String::new())), Some(&(0, 0)));
+        assert_eq!(out.get(&("r2".to_string(), "checkout".to_string())), Some(&(0, 1)));
+    }
     use ScorecardOutcomeState::{Fail, Pass, Skip};
 
     const NOW: i64 = 1_800_000_000_000;

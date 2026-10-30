@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { ChevronDown, ListTree, Pause, Play, Ship } from 'lucide-react';
+import { ChevronDown, ListTree, Pause, Play } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { usePopover } from '../../components/ui/Dropdown';
 
 export type Product = 'kubernetes' | 'ecs' | 'processes';
@@ -22,17 +23,9 @@ const TABS: Record<Product, { label: string; to: string; isNew?: boolean; end?: 
 
 const NAMES: Record<Product, string> = { kubernetes: 'Kubernetes', ecs: 'ECS', processes: 'Processes' };
 
-function AwsIcon({ size = 20 }: { size?: number }) {
-  return (
-    <span className="ox-aws" style={{ fontSize: size * 0.9 }} aria-hidden>
-      a
-    </span>
-  );
-}
-
 export function ProductIcon({ product, size = 20 }: { product: Product; size?: number }) {
   if (product === 'processes') return <ListTree size={size} className="ox-k8s" />;
-  return product === 'ecs' ? <AwsIcon size={size} /> : <Ship size={size} className="ox-k8s" />;
+  return product === 'ecs' ? <BrandLogo name="amazonecs" size={size} title="ECS" /> : <BrandLogo name="kubernetes" size={size} title="Kubernetes" />;
 }
 
 /** "Kubernetes ▾ | Overview Explorer …" header of the Kubernetes, ECS and Processes pages, with the live clock. */

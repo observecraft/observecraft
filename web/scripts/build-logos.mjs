@@ -46,6 +46,7 @@ const MAP = {
   otel: 'opentelemetry-icon',
   kubernetes: 'kubernetes',
   docker: 'docker-icon',
+  fastly: 'fastly',
   helm: 'helm',
   // AWS services
   amazonapigateway: 'aws-api-gateway',
@@ -57,6 +58,23 @@ const MAP = {
   amazoneks: 'aws-eks',
   amazonecs: 'aws-ecs',
   'tile:aws-athena': 'aws-athena',
+  amazoncloudfront: 'aws-cloudfront',
+  amazonvpc: 'aws-vpc',
+  elasticloadbalancing: 'aws-elb',
+  amazoncloudwatch: 'aws-cloudwatch',
+  amazonsqs: 'aws-sqs',
+  amazonsns: 'aws-sns',
+  amazonelasticache: 'aws-elasticache',
+  amazonredshift: 'aws-redshift',
+  amazonroute53: 'aws-route53',
+  awsfargate: 'aws-fargate',
+  // Google Cloud services
+  googlecloudrun: 'google-cloud-run',
+  googlecloudfunctions: 'google-cloud-functions',
+  gemini: 'google-gemini',
+  // languages
+  ruby: 'ruby',
+  php: 'php',
   // data stores / messaging / web
   apache: 'apache',
   apachetomcat: 'tomcat',

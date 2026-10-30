@@ -1,5 +1,5 @@
-//! Live tail over Server-Sent Events. The Vector aggregator publishes every normalized log to
-//! NATS (`oc.logs.live.<org>`); each SSE connection subscribes, filters with the search matcher,
+//! Live tail over Server-Sent Events. The Vector aggregator writes every normalized log to Kafka
+//! (`oc.logs.live`, keyed by org; see `crate::live_feed`); each SSE connection subscribes to its org's records, filters with the search matcher,
 //! samples down to a display cap, and pushes a batch every 250 ms. Only events the viewer's log
 //! restriction queries allow are sent; the restriction is re-read every 10 s, so a change applies to
 //! open connections too.
@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use axum::extract::{Query, State};
 use axum::response::sse::{Event, KeepAlive, Sse};
-use futures::{Stream, StreamExt};
+use futures::Stream;
 use oc_query::{matches, parse_query, Fields};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -85,14 +85,17 @@ impl Rng {
 pub async fn live(State(st): State<AppState>, ctx: AuthContext, mut access: LogAccess, Query(p): Query<LiveParams>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let (tx, rx) = mpsc::channel::<Result<Event, Infallible>>(8);
     let terms = parse_query(&p.query);
-    let nats = st.nats.clone();
-    let subject = format!("oc.logs.live.{}", ctx.org_id);
+    let feed = st.live.clone();
 
     tokio::spawn(async move {
-        let mut sub = match nats.subscribe(subject.clone()).await {
+        let sub = match feed {
+            Some(feed) => feed.subscribe(&ctx.org_id).await,
+            None => Err("OC_KAFKA_BROKERS is not set".to_string()),
+        };
+        let mut sub = match sub {
             Ok(s) => s,
             Err(e) => {
-                tracing::error!(error = %e, subject, "live tail subscribe failed");
+                tracing::error!(error = %e, org = %ctx.org_id, "live tail subscribe failed");
                 let _ = tx.send(Ok(Event::default().event("error").data("live tail unavailable"))).await;
                 return;
             }
@@ -109,9 +112,14 @@ pub async fn live(State(st): State<AppState>, ctx: AuthContext, mut access: LogA
 
         loop {
             tokio::select! {
-                msg = sub.next() => {
-                    let Some(msg) = msg else { break };
-                    let Ok(r) = serde_json::from_slice::<LiveRecord>(&msg.payload) else { continue };
+                msg = sub.rx.recv() => {
+                    let msg = match msg {
+                        Ok(m) => m,
+                        // The session fell behind: skip ahead to what's arriving now.
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    };
+                    let Ok(r) = serde_json::from_slice::<LiveRecord>(&msg) else { continue };
                     let f = Fields { service: &r.service, status: &r.status, host: &r.host, source: &r.source, message: &r.message, tags: &r.tags, attr: &r.attr, index: None };
                     if !access.allows(&f) || !matches(&terms, &f) {
                         continue;
@@ -170,7 +178,7 @@ pub async fn live(State(st): State<AppState>, ctx: AuthContext, mut access: LogA
                 }
             }
         }
-        let _ = sub.unsubscribe().await;
+        drop(sub);
     });
 
     Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::default())

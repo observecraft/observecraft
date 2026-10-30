@@ -10,8 +10,9 @@
 #   - LICENSE and NOTICE.
 #
 # Destination: $OC_DATADOG_FIXTURES, or ${XDG_CACHE_HOME:-$HOME/.cache}/observecraft/datadog-api-client-go/<commit>.
-# The tests read the same location. A complete extraction is marked by a `.complete` file and is
-# left alone; the files are staged next to it and moved into place at the end.
+# The tests read the same location. A complete extraction is marked by a `.complete` file holding the
+# commit and the feature list; it is left alone while both match, and extracted again when a feature
+# was added; the files are staged next to it and moved into place at the end.
 #
 # Usage: scripts/datadog-fixtures/fetch.sh   (or `make datadog-fixtures`)
 set -eu
@@ -22,13 +23,19 @@ URL="https://codeload.github.com/DataDog/datadog-api-client-go/tar.gz/$COMMIT"
 
 # Features replayed by the tests (`Feature::load` paths).
 FEATURES="v1/authentication v1/monitors v1/downtimes v1/dashboards v1/dashboard_lists v1/service_level_objectives
-v1/service_level_objective_corrections v2/downtimes v2/dashboard_lists v2/users v2/roles v2/teams v2/key_management"
+v1/service_level_objective_corrections v2/downtimes v2/dashboard_lists v2/users v2/roles v2/teams v2/key_management
+v2/cloud_cost_management"
 
 DEST="${OC_DATADOG_FIXTURES:-${XDG_CACHE_HOME:-$HOME/.cache}/observecraft/datadog-api-client-go/$COMMIT}"
 
+MARK="$COMMIT $(echo $FEATURES)"
 if [ -f "$DEST/.complete" ]; then
-  echo "Datadog API fixtures already in $DEST"
-  exit 0
+  if [ "$(cat "$DEST/.complete")" = "$MARK" ]; then
+    echo "Datadog API fixtures already in $DEST"
+    exit 0
+  fi
+  echo "The feature list changed: extracting the fixtures again"
+  rm -rf "$DEST"
 fi
 if [ -e "$DEST" ] && [ -n "$(ls -A "$DEST" 2>/dev/null)" ]; then
   echo "$DEST exists but is not a complete fixture extraction (no .complete): remove it and run again" >&2
@@ -80,7 +87,7 @@ extract "$@"
 mkdir -p "$TMP/stage/tests"
 mv "$OUT/$ROOT/LICENSE" "$OUT/$ROOT/NOTICE" "$TMP/stage/"
 mv "$OUT/$SC" "$TMP/stage/tests/scenarios"
-echo "$COMMIT" >"$TMP/stage/.complete"
+echo "$MARK" >"$TMP/stage/.complete"
 rmdir "$DEST" 2>/dev/null || true
 mv "$TMP/stage" "$DEST"
 echo "Datadog API fixtures extracted to $DEST ($(find "$DEST" -name '*.yaml' | wc -l | tr -d ' ') cassettes)"

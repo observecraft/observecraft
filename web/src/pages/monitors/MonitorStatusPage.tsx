@@ -1,8 +1,13 @@
 import { useMemo, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowRight,
   BookOpen,
+  Check,
+  List,
+  Search,
+  XCircle,
   ChevronDown,
   ChevronRight,
   Copy,
@@ -24,7 +29,11 @@ import type { MonitorDetail, MonitorEvent, MonitorStatus, StatusSegment } from '
 import { TimePicker } from '../../components/shell/PageHeader';
 import { TimeProvider, useTime } from '../../components/shell/TimeContext';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
-import { Menu } from '../../components/ui/Dropdown';
+import { Menu, Select } from '../../components/ui/Dropdown';
+import { workItems } from '../../api/events/client';
+import { createNotebook, searchNotebooks } from '../../api/notebooks/client';
+import { newCellId } from '../../api/notebooks/templates';
+import { Markdown } from '../dashboards/widgets/markdown';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { DeclareModal } from '../incidents/DeclareModal';
 import { MUTE_OPTIONS, RecipientIcon, STATUS_NAME, StatusBadge, fmtDateTime, fmtDuration, fmtValue, recipientLabel } from './common';
@@ -55,6 +64,7 @@ function StatusInner() {
   const clone = useCloneMonitor();
   const [declaring, setDeclaring] = useState(false);
   const [details, setDetails] = useState(false);
+  const [filters, setFilters] = useState<GroupFilter>(NO_FILTER);
   if (q.isPending) return <Loading label="Loading monitor…" />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const m = q.data;
@@ -128,6 +138,7 @@ function StatusInner() {
       <div className="mon-status-scroll">
         <section className="mon-status-head">
           <div className="mon-status-title">
+            {m.priority != null && <span className="mon-priority">P{m.priority}</span>}
             <StatusBadge status={m.status} />
             {m.draft && <span className="mon-draft">DRAFT</span>}
             <h1>{m.name}</h1>
@@ -152,6 +163,11 @@ function StatusInner() {
                 ...(m.muted ? [{ label: 'Unmute', onClick: unmute }] : []),
               ]}
             />
+            {m.status !== 'ok' && (
+              <button className="btn" title="Resolve" disabled={bulk.isPending} onClick={() => bulk.mutate({ ids: [id], action: 'resolve' })}>
+                <Check size={16} />
+              </button>
+            )}
             <button className="btn" onClick={() => setDeclaring(true)}>
               <Siren size={15} /> Declare Incident
             </button>
@@ -172,16 +188,19 @@ function StatusInner() {
             <Link to={`/synthetics/tests/${m.syntheticTestId}`}>View the test</Link>
           </div>
         )}
-        <History m={m} />
-        {!m.syntheticTestId && (
-          <section className="mon-query-box">
-            <div className="mon-query-head">
-              <span className="muted">Query</span>
-              <Link to={`/metrics?query=${encodeURIComponent(m.metricQuery)}`}>View in Metrics Explorer</Link>
-            </div>
-            <code>{m.query}</code>
-          </section>
-        )}
+        <GroupFilters m={m} filters={filters} onChange={setFilters} />
+        <div className={`mon-overview${m.syntheticTestId ? ' no-query' : ''}`}>
+          <History m={m} filters={filters} />
+          {!m.syntheticTestId && (
+            <section className="mon-query-box">
+              <div className="mon-query-head">
+                <span className="muted">Query</span>
+                <Link to={`/metrics?query=${encodeURIComponent(m.metricQuery)}`}>View in Metrics Explorer</Link>
+              </div>
+              <code>{m.query}</code>
+            </section>
+          )}
+        </div>
         <Lower m={m} onMute={mute} onUnmute={unmute} onDeclare={() => setDeclaring(true)} />
       </div>
       {declaring && <DeclareModal onClose={() => setDeclaring(false)} initialTitle={`[Monitor] ${m.name}`} detection="monitor" />}
@@ -230,7 +249,94 @@ function DetailsPanel({ m }: { m: MonitorDetail }) {
 
 const MAX_GROUPS = 8;
 
-function History({ m }: { m: MonitorDetail }) {
+/** The filters above the status bars: a value per group tag, the status, muted, and a text search. */
+interface GroupFilter {
+  tags: Record<string, string>;
+  status: string;
+  muted: string;
+  text: string;
+}
+
+const NO_FILTER: GroupFilter = { tags: {}, status: '*', muted: '*', text: '' };
+
+/** `kube_cluster_name:a,kube_namespace:b` → its tags. */
+function groupTags(group: string): [string, string][] {
+  if (group === '*') return [];
+  return group.split(',').map((t) => {
+    const i = t.indexOf(':');
+    return i < 0 ? [t, ''] : [t.slice(0, i), t.slice(i + 1)];
+  });
+}
+
+function groupMatches(m: MonitorDetail, group: string, f: GroupFilter): boolean {
+  const tags = Object.fromEntries(groupTags(group));
+  const state = m.groups.find((x) => x.group === group);
+  if (Object.entries(f.tags).some(([k, v]) => v && tags[k] !== v)) return false;
+  if (f.status !== '*' && (state?.status ?? 'ok') !== f.status) return false;
+  if (f.muted !== '*' && String(m.muted || !!state?.muted) !== f.muted) return false;
+  return !f.text || group.toLowerCase().includes(f.text.toLowerCase());
+}
+
+function GroupFilters({ m, filters, onChange }: { m: MonitorDetail; filters: GroupFilter; onChange: (f: GroupFilter) => void }) {
+  const [searching, setSearching] = useState(!!filters.text);
+  const keys = useMemo(() => {
+    const out = new Map<string, Set<string>>();
+    for (const g of m.groups) for (const [k, v] of groupTags(g.group)) (out.get(k) ?? out.set(k, new Set()).get(k)!).add(v);
+    return [...out].map(([k, vs]) => [k, [...vs].sort()] as const);
+  }, [m.groups]);
+  const active = filters !== NO_FILTER && (Object.values(filters.tags).some(Boolean) || filters.status !== '*' || filters.muted !== '*' || !!filters.text);
+  return (
+    <section className="mon-filterbar">
+      {keys.map(([k, values]) => (
+        <Select
+          key={k}
+          label={k}
+          value={filters.tags[k] ?? ''}
+          options={[{ value: '', label: '*' }, ...values.map((v) => ({ value: v, label: v }))]}
+          onChange={(v) => onChange({ ...filters, tags: { ...filters.tags, [k]: v } })}
+          triggerClassName={`dd-trigger mon-filter${filters.tags[k] ? ' set' : ''}`}
+        />
+      ))}
+      {keys.length > 0 && <span className="mon-filter-sep" />}
+      <Select
+        label="status"
+        value={filters.status}
+        options={[{ value: '*', label: '*' }, ...(['alert', 'warn', 'nodata', 'ok'] as MonitorStatus[]).map((st) => ({ value: st, label: STATUS_NAME[st] }))]}
+        onChange={(v) => onChange({ ...filters, status: v })}
+        triggerClassName={`dd-trigger mon-filter mon-filter-small${filters.status !== '*' ? ' set' : ''}`}
+      />
+      <Select
+        label="muted"
+        value={filters.muted}
+        options={[
+          { value: '*', label: '*' },
+          { value: 'true', label: 'true' },
+          { value: 'false', label: 'false' },
+        ]}
+        onChange={(v) => onChange({ ...filters, muted: v })}
+        triggerClassName={`dd-trigger mon-filter mon-filter-small${filters.muted !== '*' ? ' set' : ''}`}
+      />
+      {searching ? (
+        <label className="mon-filter-search">
+          <Search size={15} />
+          <input autoFocus placeholder="Search groups" value={filters.text} onChange={(e) => onChange({ ...filters, text: e.target.value })} />
+        </label>
+      ) : (
+        <button className="btn mon-filter-btn" title="Search groups" onClick={() => setSearching(true)}>
+          <Search size={16} />
+        </button>
+      )}
+      <button className="link-btn mon-clear" disabled={!active} onClick={() => (onChange(NO_FILTER), setSearching(false))}>
+        <XCircle size={16} /> Clear Filters
+      </button>
+      <span className="mon-filterbar-time">
+        <TimePicker />
+      </span>
+    </section>
+  );
+}
+
+function History({ m, filters }: { m: MonitorDetail; filters: GroupFilter }) {
   const t = useTime();
   const h = useMonitorHistory(m.id, t.range);
   const [all, setAll] = useState(false);
@@ -245,8 +351,8 @@ function History({ m }: { m: MonitorDetail }) {
       ok: 3,
     };
     const current = (g: string) => m.groups.find((x) => x.group === g)?.status ?? 'ok';
-    return keys.sort((a, b) => rank[current(a)] - rank[current(b)] || a.localeCompare(b));
-  }, [segs, m.groups]);
+    return keys.filter((g) => groupMatches(m, g, filters)).sort((a, b) => rank[current(a)] - rank[current(b)] || a.localeCompare(b));
+  }, [segs, m, filters]);
   const counts = { alert: 0, warn: 0, nodata: 0, ok: 0 };
   m.groups.forEach((g) => counts[g.status]++);
   const { from, to } = t.range;
@@ -268,9 +374,6 @@ function History({ m }: { m: MonitorDetail }) {
 
   return (
     <section className="mon-history">
-      <div className="mon-history-bar">
-        <TimePicker />
-      </div>
       {h.isPending ? (
         <Loading label="Loading history…" />
       ) : h.isError ? (
@@ -352,7 +455,6 @@ function Segment({ s, left, width }: { s: StatusSegment; left: string; width: st
 function Lower({ m, onMute, onUnmute, onDeclare }: { m: MonitorDetail; onMute: (minutes: number | null) => void; onUnmute: () => void; onDeclare: () => void }) {
   const t = useTime();
   const h = useMonitorHistory(m.id, t.range);
-  const [runbook, setRunbook] = useState(true);
   const thresholds = m.options?.thresholds ?? { critical: 0 };
   const rules = (['alert', 'warn', 'nodata'] as MonitorStatus[])
     .map((status) => {
@@ -400,7 +502,13 @@ function Lower({ m, onMute, onUnmute, onDeclare }: { m: MonitorDetail; onMute: (
       <section className="mon-msg">
         <div className="mon-msg-box">
           <h4>Message Template</h4>
-          <pre>{m.message || <span className="muted">No message. Edit the monitor to add one with @-mentions.</span>}</pre>
+          {m.message ? (
+            <div className="mon-msg-md">
+              <Markdown source={autolink(m.message)} />
+            </div>
+          ) : (
+            <p className="muted">No message. Edit the monitor to add one with @-mentions.</p>
+          )}
         </div>
         {recipients.length > 0 && (
           <>
@@ -429,22 +537,8 @@ function Lower({ m, onMute, onUnmute, onDeclare }: { m: MonitorDetail; onMute: (
           </div>
         )}
         <h3 className="mon-runbook-title">Runbook</h3>
-        {runbook && (
-          <div className="mon-runbook">
-            <div>
-              <b>
-                <BookOpen size={15} /> Add a Runbook
-              </b>
-              <p className="muted">Link the steps responders should follow in the monitor message, e.g. “Runbook: https://wiki.example.com/runbooks/high-load”.</p>
-            </div>
-            <Link to={`/monitors/${m.id}/edit`} className="link-btn">
-              Add Runbook <ArrowRight size={14} />
-            </Link>
-            <button className="icon-plain" title="Dismiss" onClick={() => setRunbook(false)}>
-              <X size={16} />
-            </button>
-          </div>
-        )}
+        <Runbook m={m} />
+        <Troubleshooting m={m} />
       </section>
       <aside className="mon-next">
         <h3>Next Steps</h3>
@@ -476,6 +570,11 @@ function Lower({ m, onMute, onUnmute, onDeclare }: { m: MonitorDetail; onMute: (
         </button>
         <p className="muted mon-next-label">Suggested Resources</p>
         <ul className="mon-resources">
+          <li>
+            <Link to={`/event/explorer?${new URLSearchParams({ query: eventScope(m) })}`}>
+              <List size={16} /> Event Explorer <ExternalLink size={14} />
+            </Link>
+          </li>
           <li>
             <Link to={`/metrics?query=${encodeURIComponent(m.metricQuery)}`}>
               <Gauge size={16} /> Metrics Explorer <ExternalLink size={14} />
@@ -529,5 +628,124 @@ function EventRow({ e }: { e: MonitorEvent }) {
       </button>
       {open && e.message && <pre className="mon-event-msg">{e.message}</pre>}
     </li>
+  );
+}
+
+/** Bare URLs in a monitor message as Markdown links, so they render clickable. */
+function autolink(text: string): string {
+  return text.replace(/(^|[\s(])(https?:\/\/[^\s)<>]+)/g, (all, pre: string, url: string) => (pre === '(' ? all : `${pre}[${url}](${url})`));
+}
+
+/** The events and work items that concern a monitor: its scope tags (`service:`, `env:`, `team:`, …). */
+function eventScope(m: MonitorDetail): string {
+  const tags = m.tags.filter((t) => /^[\w.-]+:[^\s]+$/.test(t) && !t.startsWith('monitor'));
+  return tags.length ? (tags.length === 1 ? tags[0] : `(${tags.join(' OR ')})`) : '';
+}
+
+/** The monitor's runbook: a notebook tagged with it, or a prompt to start one. */
+function Runbook({ m }: { m: MonitorDetail }) {
+  const navigate = useNavigate();
+  const [dismissed, setDismissed] = useState(false);
+  const tag = `monitor_id:${m.id}`;
+  const found = useQuery({
+    queryKey: ['notebooks', 'runbook', m.id],
+    queryFn: () => searchNotebooks({ query: tag, view: 'all', sort: 'modified', dir: 'desc', limit: 5, offset: 0 }),
+  });
+  const create = useMutation({
+    mutationFn: () =>
+      createNotebook({
+        title: `Runbook: ${m.name}`,
+        tags: [tag],
+        teams: m.teams,
+        time: '4h',
+        cells: [
+          {
+            id: newCellId(),
+            definition: {
+              type: 'markdown',
+              text: `## When this monitor alerts\n\nMonitor: [${m.name}](${window.location.origin}/monitors/${m.id})\n\n1. Check what changed.\n2. Mitigate.\n3. Note what you did here.`,
+            },
+          },
+        ] as never[],
+      }),
+    onSuccess: (nb) => navigate(`/notebooks/${nb.id}`),
+  });
+  const notebook = found.data?.notebooks.find((n) => n.tags.includes(tag));
+  if (notebook)
+    return (
+      <Link className="mon-runbook mon-runbook-linked" to={`/notebooks/${notebook.id}`}>
+        <BookOpen size={16} /> <b>{notebook.title}</b>
+        <ArrowRight size={14} />
+      </Link>
+    );
+  if (dismissed || found.isPending) return null;
+  return (
+    <div className="mon-runbook">
+      <div>
+        <b>
+          <BookOpen size={15} /> Add a Runbook with Notebooks
+        </b>
+        <p className="muted">Use a Notebook to combine live data, graphs, and rich text for faster issue resolution.</p>
+      </div>
+      <button className="link-btn" disabled={create.isPending} onClick={() => create.mutate()}>
+        Add Runbook <ArrowRight size={14} />
+      </button>
+      <button className="icon-plain" title="Dismiss" onClick={() => setDismissed(true)}>
+        <X size={16} />
+      </button>
+    </div>
+  );
+}
+
+const WORK_TABS = [
+  { id: 'open', label: 'Open' },
+  { id: 'closed', label: 'Closed' },
+  { id: 'all', label: 'All' },
+] as const;
+
+/** Troubleshooting: Event Management's work items in the monitor's scope over the last week. */
+function Troubleshooting({ m }: { m: MonitorDetail }) {
+  const [tab, setTab] = useState<(typeof WORK_TABS)[number]['id']>('open');
+  const scope = eventScope(m);
+  const range = useMemo(() => ({ from: Date.now() - 7 * 86_400_000, to: Date.now() }), []);
+  const q = useQuery({ queryKey: ['monitor-work-items', m.id, scope], queryFn: () => workItems({ range, query: scope }), enabled: !!scope });
+  const items = (q.data?.items ?? []).filter((w) => !w.maintenance && (tab === 'all' || w.state === tab));
+  const count = (id: string) => (id === 'open' ? q.data?.open : id === 'closed' ? q.data?.closed : (q.data?.open ?? 0) + (q.data?.closed ?? 0));
+  return (
+    <section className="mon-trouble">
+      <h3>Troubleshooting</h3>
+      <p className="muted">Work Items</p>
+      <div className="mon-work-tabs">
+        {WORK_TABS.map((t) => (
+          <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
+            {t.label} {tab === t.id && count(t.id) != null && <span className="mon-work-count">{count(t.id)}</span>}
+          </button>
+        ))}
+      </div>
+      {!scope ? (
+        <p className="muted mon-work-empty">Tag the monitor (service, env, team, …) to see the work items in its scope.</p>
+      ) : q.isPending ? (
+        <Loading label="Loading work items…" />
+      ) : items.length === 0 ? (
+        <p className="muted mon-work-empty">No {tab === 'all' ? '' : `${tab} `}work items in this monitor's scope over the past week.</p>
+      ) : (
+        <ul className="mon-work-list">
+          {items.slice(0, 20).map((w) => (
+            <li key={w.id}>
+              <Link to={`/event/inbox?${new URLSearchParams({ item: w.id })}`}>
+                <span className={`mon-work-sev sev-${w.status}`}>{w.status === 'error' ? 'ERROR' : 'WARN'}</span>
+                <span className="mon-work-main">
+                  <b>{w.summary || w.reason || w.source}</b>
+                  <small className="muted">
+                    {w.source} · {w.count} events · last seen {fmtDateTime(w.lastSeen)}
+                  </small>
+                </span>
+                <span className={`mon-work-state st-${w.state}`}>{w.state.toUpperCase()}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

@@ -11,8 +11,8 @@
 # Data flow:
 #   senders ─► intake (API key → org) ─► collector ─► ClickHouse (traces, metrics, Kubernetes objects)
 #                                    │            └─► vector (logs)
-#                                    └─► vector (JSON logs) ─► ClickHouse, server log indexer, NATS (live tail)
-#   browser ─► server (API + web app) ─► ClickHouse, Postgres, NATS, Valkey (shared cache)
+#                                    └─► vector (JSON logs) ─► ClickHouse, server log indexer, Kafka (live tail)
+#   browser ─► server (API + web app) ─► ClickHouse, Postgres, Kafka (live tail), Valkey (shared cache)
 
 # -- Origin users reach the web app on, e.g. https://observecraft.example.com (SSO redirects,
 # emailed links, cookies). Defaults to the ingress host.
@@ -325,20 +325,38 @@ cache:
     # -- redis://[user:password@]host:6379/0, or rediss://… for TLS (prefer the secret key cache-url).
     url: ""
 
-# NATS carries live tail (best effort: nothing is lost when it is down, only the live view pauses).
-nats:
-  # -- false: use external.url.
+# Kafka: the durable buffer between the intake and processing (docs/adr/0004-kafka-ingestion-buffer.md).
+# The intake answers senders once Kafka has their data; the collector and Vector consume it and commit
+# only what they stored, so processing restarts and storage outages lose nothing within retention.
+kafka:
+  # -- false: use external.brokers (a managed Kafka: MSK, Confluent, Aiven, Strimzi, …).
   enabled: true
-  # -- 3 for a NATS cluster (live tail keeps working while a node restarts).
+  # -- 3 in production (values-ha.yaml): replication 3, min.insync.replicas 2.
   replicas: 1
   image:
-    repository: nats
-    tag: "2.10-alpine"
+    repository: apache/kafka
+    tag: "4.1.0"
+  # -- KRaft cluster id (base64 UUID, `kafka-storage.sh random-uuid`); fixed for the life of the cluster.
+  clusterId: MkU3OEVBNTcwNTJENDM2Qk
+  # -- Partitions per topic: the most consumers (collector / Vector replicas) a signal can use.
+  partitions: 12
+  # -- How long accepted data is kept: a storage outage up to this long is replayed, not lost.
+  retentionHours: 72
+  liveRetentionMinutes: 60
+  heapOpts: "-Xms1g -Xmx1g"
+  persistence:
+    size: 50Gi
   resources:
-    requests: { cpu: 50m, memory: 64Mi }
-    limits: { memory: 512Mi }
+    requests: { cpu: 500m, memory: 2Gi }
+    limits: { memory: 2Gi }
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
   external:
-    url: ""
+    # -- host:port[,host:port…]
+    brokers: ""
+    # -- Replication of the topics the chart creates there.
+    replication: 3
 
 ingress:
   enabled: false

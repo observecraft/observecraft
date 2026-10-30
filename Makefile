@@ -26,7 +26,7 @@ DEMO_KEY ?= ocik_local_demo_only_do_not_use_in_production
 server:        ## Run the API on :8080 against the local stack
 	cd server && OC_CACHE_URL=$${OC_CACHE_URL:-redis://localhost:6379/0} OC_DEMO_INGEST_KEY=$(DEMO_KEY) OC_DEMO_ARCHIVE_ENDPOINT=http://localhost:9100 cargo run --bin observecraft-server
 intake:        ## Run the telemetry intake (OTLP HTTP :4318 / gRPC :4317, Datadog APIs; API-key auth)
-	cd server && cargo run --bin oc-intake
+	cd server && OC_KAFKA_BROKERS=$${OC_KAFKA_BROKERS:-localhost:19092} cargo run --bin oc-intake
 tracegen:      ## Send synthetic traces, host metrics and CI runs through the intake
 	cd server && OC_INGEST_KEY=$(DEMO_KEY) cargo run --bin oc-tracegen
 # Storage load profile and report (docs/adr/0002): `make load-orgs`, `make load`, then `make storage-report`.

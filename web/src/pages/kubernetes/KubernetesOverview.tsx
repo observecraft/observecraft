@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Box, Boxes, ChevronDown, ChevronUp, Database, Filter, Layers, Network, Server, Ship, type LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { searchKubernetes, type KubeKind } from '../../api/kubernetes/client';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Select } from '../../components/ui/Dropdown';
 import { compact } from '../../lib/format';
@@ -113,7 +114,7 @@ function OverviewBody() {
           <>
             <section className="ox-hero">
               <div className="ox-hero-text">
-                <Ship size={44} className="ox-k8s" />
+                <BrandLogo name="kubernetes" size={44} title="Kubernetes" />
                 <h1>
                   Check the state of all of your <span className="ox-accent">Kubernetes</span> resources
                 </h1>

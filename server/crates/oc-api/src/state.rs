@@ -20,7 +20,8 @@ pub struct Inner {
     /// Where tables physically live (single server or cluster), for DDL and mutations.
     pub tables: oc_store::ClickHouseConfig,
     pub postgres: sqlx::PgPool,
-    pub nats: async_nats::Client,
+    /// Live tail's Kafka reader (`OC_KAFKA_BROKERS`); None turns live tail off.
+    pub live: Option<std::sync::Arc<crate::live_feed::LiveFeed>>,
     pub secrets: SecretBox,
     /// Each org's log restriction queries (Logs → Configuration → Data Access).
     pub log_restrictions: crate::log_access::RestrictionCache,

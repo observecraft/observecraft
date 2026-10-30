@@ -13,6 +13,8 @@
 //!   exponential histograms do the same per series (bucket layouts differ between series) and the
 //!   query's aggregator combines series; summaries use the quantiles the SDK reported.
 //! - `trace.*` metrics computed on the fly from service entry spans (see [`SPAN_METRICS`]).
+//! - Cloud cost metrics (`all.cost`, `aws.cost.amortized`, …) summed per day from the cost line items
+//!   (see [`super::cloud_cost`]).
 //! - Familiar host metric aliases (`system.cpu.user`, `system.mem.used`, …) over the OTel names (see [`ALIASES`]).
 //!
 //! Evaluation follows the usual model: values are first aggregated in time per series (a series is one
@@ -823,6 +825,12 @@ async fn inner_query_at_step(
             filter = f.clause,
         );
         return Ok((sql, params, step));
+    }
+    // Cloud costs (`all.cost`, `aws.cost.amortized`, …): daily line items, not samples.
+    if let Some(cost) = super::cloud_cost::cost_metric(&q.metric) {
+        let step = forced.map(|(_, step)| step).unwrap_or_else(|| super::cloud_cost::step_ms(range, points));
+        let (sql, p) = super::cloud_cost::points_sql(&cost, q, range, step);
+        return Ok((sql, p, step));
     }
     let (q, scale) = resolve_alias_if_missing(st, org, q).await?;
     let q = &q;

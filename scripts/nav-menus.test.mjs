@@ -54,7 +54,14 @@ const REFERENCE = {
     'Storage Management!NEW',
     'End User Devices!PREVIEW',
   ],
-  'Cloud Cost': [],
+  'Cloud Cost': [
+    'Summarize = Overview, Containers, AI Costs!NEW | Settings, Data History, Onboarding Checklist',
+    'Analyze = Explorer, Reports',
+    'Monitor',
+    'Optimize = Recommendations, Automations!NEW',
+    'Allocate = Tag Pipelines, Custom Allocation Rules',
+    'Plan = Budgets, Commitment Programs',
+  ],
   APM: [
     'Application Performance Monitoring = Services, Endpoints, Traces, Recommendations | +Instrument a Service, Settings',
     'Profiles = Explorer, Comparison, Insights',
@@ -98,7 +105,7 @@ const REFERENCE = {
     'Agent Console!PREVIEW',
   ],
   Errors: [],
-  Metrics: ['Metrics = Explorer, Summary, Volume, Derived Metrics | Settings!PREVIEW'],
+  Metrics: ['Metrics = Overview, Explorer, Catalog, Derived Metrics | Settings!PREVIEW'],
   Logs: [
     'Search & Analytics = Explorer, Live Tail, Notebooks | Archive Search!NEW',
     'Log Configuration = Pipelines, Indexes, Flex Logs Controls, Archiving & Forwarding | Add a Log Source, Generate Metrics, Data Access, Migration!NEW',

@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   ArrowDownWideNarrow,
@@ -28,7 +28,8 @@ import { Empty, ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Menu, Select, usePopover } from '../../components/ui/Dropdown';
 import { Pager } from '../../components/ui/Pager';
 import { addTerm, formatQuery, parseQuery, type Term } from '../../lib/searchQuery';
-import { COLUMNS, KIND_INFO, RESOURCE_TREE, TAG_LABELS, facetGroup, isEcs, logQuery, type CellContext, type ExplorerKind, type KubeColumn, type TreeNode } from './columns';
+import { SummaryGraphs } from './SummaryGraphs';
+import { COLUMNS, DEFAULT_HIDDEN, KIND_INFO, RESOURCE_TREE, TAG_LABELS, facetGroup, isEcs, logQuery, type CellContext, type ExplorerKind, type KubeColumn, type TreeNode } from './columns';
 import { KubePanel } from './KubePanel';
 import { LiveClock, LiveProvider, OrchestrationHeader, ProductIcon, useLive } from './OrchestrationHeader';
 import { ResourceUtilization } from './ResourceUtilization';
@@ -136,7 +137,16 @@ function ExplorerBody() {
 function TreeItem({ node, kind, depth, onSelect }: { node: TreeNode; kind: ExplorerKind; depth: number; onSelect: (k: ExplorerKind) => void }) {
   const contains = (n: TreeNode): boolean => n.kind === kind || (n.children ?? []).some(contains);
   const [open, setOpen] = useState(() => contains(node));
-  const icon = node.label === 'ECS' ? <ProductIcon product="ecs" size={15} /> : depth > 0 || node.label === 'Kubernetes' ? <Ship size={14} /> : <Table2 size={14} />;
+  const icon =
+    node.label === 'ECS' ? (
+      <ProductIcon product="ecs" size={15} />
+    ) : node.label === 'Kubernetes' ? (
+      <ProductIcon product="kubernetes" size={15} />
+    ) : depth > 0 ? (
+      <Ship size={14} />
+    ) : (
+      <Table2 size={14} />
+    );
   if (node.children) {
     // Top-level products (Kubernetes, ECS) frame their resources; nested groups expand to the right in Datadog, inline here.
     const top = depth === 0;
@@ -232,7 +242,9 @@ function Inventory({ kind, onUpdated, filter }: { kind: ExplorerKind; onUpdated:
   const [showControls, setShowControls] = useState(true);
   const [teamsOpen, setTeamsOpen] = useState(false);
   const [fill, setFill] = useState<MapFill>('cpu');
-  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set(DEFAULT_HIDDEN[kind] ?? []));
+  // Each kind starts with its own default columns.
+  useEffect(() => setHidden(new Set(DEFAULT_HIDDEN[kind] ?? [])), [kind]);
   const apiKind: KubeKind = kind;
   const info = KIND_INFO[kind];
 
@@ -308,6 +320,9 @@ function Inventory({ kind, onUpdated, filter }: { kind: ExplorerKind; onUpdated:
   };
   const select = (k: ExplorerKind) => (setDraft(''), setParam({ resource: k, q: null, group: null, sort: null, offset: null, panel: null }, true));
   const total = q.data?.total ?? 0;
+  // The summary graphs show the past 15 minutes, like the live list.
+  const minute = Math.floor((q.dataUpdatedAt || Date.now()) / 60_000) * 60_000;
+  const summaryRange = useMemo(() => ({ from: minute - 15 * 60_000, to: minute }), [minute]);
   const ctx: CellContext = { filter };
   const exportCsv = () => {
     const blob = new Blob([toCsv(cols, q.data?.items ?? [])], { type: 'text/csv' });
@@ -372,6 +387,7 @@ function Inventory({ kind, onUpdated, filter }: { kind: ExplorerKind; onUpdated:
           </aside>
         )}
         <div className="hosts-main">
+          {kind === 'containers' && view === 'list' && <SummaryGraphs query={query} range={summaryRange} rows={q.data?.items ?? []} />}
           <div className="hosts-toolbar">
             <button className="link-btn" onClick={() => setShowControls((s) => !s)}>
               {showControls ? <PanelLeftClose size={15} /> : <PanelLeft size={15} />}
