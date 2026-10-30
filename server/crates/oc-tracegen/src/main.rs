@@ -278,22 +278,30 @@ where
     let child_end = body(t, &id, start + pre);
     let end = child_end + t.rng.latency_ns(self_ms / 2.0);
     let code = if error.is_some() { 500 } else { 200 };
-    t.push(
-        svc,
-        id,
-        parent,
-        &format!("{method} {route}"),
-        SERVER,
-        start,
-        end,
-        vec![
-            ("http.request.method", json!(method)),
-            ("http.route", json!(route)),
-            ("http.response.status_code", json!(code)),
-        ],
-        error,
-    );
+    let mut attrs = vec![
+        ("http.request.method", json!(method)),
+        ("http.route", json!(route)),
+        ("http.response.status_code", json!(code)),
+    ];
+    // Code Security: the runtime code vulnerabilities a tracer with IAST reports on some requests.
+    if let Some(iast) = iast_report(svc.name, route) {
+        if t.rng.chance(0.05) {
+            attrs.push(("_dd.iast.json", json!(iast)));
+        }
+    }
+    t.push(svc, id, parent, &format!("{method} {route}"), SERVER, start, end, attrs, error);
     end
+}
+
+/// The demo's IAST findings (`_dd.iast.json`, as Datadog's tracers write it) for a route, if any.
+fn iast_report(service: &str, route: &str) -> Option<String> {
+    let (kind, hash, path, method, line, evidence) = match (service, route) {
+        ("storefront-api", "/api/orders/{id}") => ("SQL_INJECTION", 4_118_201, "com.example.storefront.orders.OrderDao", "findById", 44, "SELECT * FROM orders WHERE id = 1042"),
+        ("storefront-api", "/api/products") => ("WEAK_HASH", 2_779_013, "com.example.storefront.catalog.ProductCache", "cacheKey", 87, "MD5"),
+        ("billing", "/payments/charge") => ("SSRF", 9_334_507, "billing/providers/callback.py", "notify", 112, "https://payments.example.com/hooks/42"),
+        _ => return None,
+    };
+    Some(json!({ "vulnerabilities": [{ "type": kind, "hash": hash, "location": { "path": path, "method": method, "line": line }, "evidence": { "value": evidence } }] }).to_string())
 }
 
 /// HTTP client span in `from` calling `to`'s server span.

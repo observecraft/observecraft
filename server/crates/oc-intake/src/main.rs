@@ -18,6 +18,8 @@
 //! - `POST /api/v1/collector`, `/api/v1/container`  Datadog live processes and containers → process.* / container.* metrics
 //! - `POST /api/v1/connections`                  Datadog network connections (system-probe) → otel.otel_network
 //! - `POST /api/v2/profile`                      Datadog profiler uploads → the server (otel.profiles)
+//! - `POST /api/v2/apmtelemetry`                 tracers' instrumentation telemetry (via the Agent) → the server (Code Security's runtime libraries)
+//! - `POST /api/v2/cicodescan`                   `datadog-ci sarif upload` reports → the server (Code Security findings)
 //! - `POST /intake/`, `/api/v2/host_metadata`   Datadog Agent host metadata → Postgres `datadog_hosts`; its events → events.
 //!   Its host tags are added to that host's series, sketches and service checks (see `host_tags`)
 //! - `POST /api/v1/events`, `/api/v2/events`     Datadog events (API, Agent) → otel.otel_events
@@ -32,6 +34,8 @@
 //! Env: OC_INTAKE_ADDR (0.0.0.0:4318), OC_INTAKE_GRPC_ADDR (0.0.0.0:4317), OC_POSTGRES_URL,
 //! OC_INTAKE_COLLECTOR_URL (http://localhost:14318), OC_INTAKE_LOGS_URL (http://localhost:8687),
 //! OC_INTAKE_PROFILES_URL (http://localhost:8090/ingest/profiles),
+//! OC_INTAKE_APM_TELEMETRY_URL (http://localhost:8090/ingest/apm-telemetry),
+//! OC_INTAKE_CODE_SCANS_URL (http://localhost:8090/ingest/code-scans),
 //! OC_INTAKE_FLAG_EVALUATIONS_URL (http://localhost:8090/ingest/feature-flag-evaluations), OC_INTERNAL_TOKEN,
 //! OC_INTAKE_MAX_BODY_MB (16), OC_INTAKE_ORG_RPS (500), OC_INTAKE_ORG_MBPS (50),
 //! OC_INTAKE_SERIES_CACHE (2000000 series × hour entries; 0 = no series marking, see `series_cache`).
@@ -87,6 +91,9 @@ struct Config {
     profiles_url: String,
     /// The server's internal listener for feature flag evaluation counts.
     flag_evaluations_url: String,
+    /// The server's internal listeners for Code Security: tracer telemetry and SARIF uploads.
+    apm_telemetry_url: String,
+    code_scans_url: String,
     /// Bearer token of the server's internal listener (OC_INTERNAL_TOKEN), if it requires one.
     internal_token: Option<String>,
     max_body: usize,
@@ -120,6 +127,8 @@ impl Config {
                 "http://localhost:8090/ingest/profiles",
             ),
             flag_evaluations_url: env("OC_INTAKE_FLAG_EVALUATIONS_URL", "http://localhost:8090/ingest/feature-flag-evaluations"),
+            apm_telemetry_url: env("OC_INTAKE_APM_TELEMETRY_URL", "http://localhost:8090/ingest/apm-telemetry"),
+            code_scans_url: env("OC_INTAKE_CODE_SCANS_URL", "http://localhost:8090/ingest/code-scans"),
             internal_token: std::env::var("OC_INTERNAL_TOKEN")
                 .ok()
                 .filter(|t| !t.is_empty()),
@@ -430,15 +439,32 @@ async fn forward(st: Shared, headers: HeaderMap, body: Bytes, target: String) ->
 /// `POST /api/v2/profile`: a profiler upload (multipart) from the Datadog Agent, passed unchanged to
 /// the server's internal listener, which stores it.
 async fn profile(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
+    let url = st.cfg.profiles_url.clone();
+    pass_to_server(st, headers, body, url, "profile").await
+}
+
+/// `POST /api/v2/apmtelemetry`: a tracer's instrumentation telemetry, forwarded by the Agent (the
+/// libraries a service loads, for Code Security).
+async fn apm_telemetry(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
+    let url = st.cfg.apm_telemetry_url.clone();
+    pass_to_server(st, headers, body, url, "telemetry").await
+}
+
+/// `POST /api/v2/cicodescan`: a `datadog-ci sarif upload` (multipart: the scan's git context and
+/// its SARIF report).
+async fn code_scan(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
+    let url = st.cfg.code_scans_url.clone();
+    pass_to_server(st, headers, body, url, "code scan").await
+}
+
+/// Passes an upload unchanged to one of the server's internal listeners, with the org resolved from
+/// its key.
+async fn pass_to_server(st: Shared, headers: HeaderMap, body: Bytes, url: String, what: &'static str) -> Response {
     let org = match admit(&st, &headers, body.len()).await {
         Ok(org) => org.org_id,
         Err(r) => return r.into_response(),
     };
-    let mut req = st
-        .http
-        .post(&st.cfg.profiles_url)
-        .header(ORG_HEADER, &org)
-        .body(body);
+    let mut req = st.http.post(&url).header(ORG_HEADER, &org).body(body);
     for h in [
         header::CONTENT_TYPE.as_str(),
         header::CONTENT_ENCODING.as_str(),
@@ -454,18 +480,18 @@ async fn profile(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> R
     match req.send().await {
         Ok(res) if res.status().is_success() => StatusCode::ACCEPTED.into_response(),
         Ok(res) => {
-            tracing::warn!(status = %res.status(), "server refused a profile");
+            tracing::warn!(status = %res.status(), what, "server refused an upload");
             reject(
                 if res.status().is_client_error() {
                     StatusCode::BAD_REQUEST
                 } else {
                     StatusCode::SERVICE_UNAVAILABLE
                 },
-                "profile was not accepted",
+                &format!("{what} was not accepted"),
             )
         }
         Err(e) => {
-            tracing::warn!(error = %e, "profile store unavailable");
+            tracing::warn!(error = %e, what, "server unavailable");
             reject(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "pipeline unavailable, retry later",
@@ -599,6 +625,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/container", post(datadog_process::collector))
         .route("/api/v1/connections", post(datadog_network::connections))
         .route("/api/v2/profile", post(profile))
+        .route("/api/v2/apmtelemetry", post(apm_telemetry))
+        .route("/api/v2/cicodescan", post(code_scan))
         .route("/api/v1/check_run", post(datadog::check_run))
         .route("/api/v1/metadata", post(datadog::metadata))
         .route("/intake/", post(datadog::intake))

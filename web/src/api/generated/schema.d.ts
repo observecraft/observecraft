@@ -823,6 +823,214 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/code-security/advisories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["list_advisories"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/advisories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_advisory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["list_findings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/inventory/libraries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["inventory_libraries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/inventory/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["inventory_services"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/library-vulnerabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["list_library_vulnerabilities"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/pull-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pull_requests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["repositories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rules"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/runtime-code-vulnerabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["list_iast"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["setup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/code-security/triage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["triage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard": {
         parameters: {
             query?: never;
@@ -7228,6 +7436,80 @@ export interface components {
             role: string;
             userId: string;
         };
+        AdvisoryDetail: {
+            aliases: string[];
+            cwes: string[];
+            details: string;
+            id: string;
+            /** Format: int64 */
+            modified?: number | null;
+            packages: components["schemas"]["AdvisoryPackageInfo"][];
+            /** Format: int64 */
+            published?: number | null;
+            refs: components["schemas"]["AdvisoryRef"][];
+            repositoriesAnalyzed: number;
+            /** Format: double */
+            score?: number | null;
+            servicesAnalyzed: number;
+            severity: string;
+            source: string;
+            summary: string;
+            vector: string;
+            /** @description The org's vulnerabilities from this advisory. */
+            vulnerabilities: components["schemas"]["LibraryVulnerability"][];
+        };
+        AdvisoryFilter: {
+            /** @default  */
+            ecosystem: string;
+            /**
+             * @description impacted | not_impacted
+             * @default
+             */
+            impact: string;
+            /** @default 0 */
+            limit: number;
+            /** @default 0 */
+            offset: number;
+            /** @default  */
+            query: string;
+            /** @default [] */
+            severity: string[];
+        };
+        AdvisoryPackageInfo: {
+            ecosystem: string;
+            fixed: string;
+            package: string;
+            ranges: components["schemas"]["AffectedRange"][];
+        };
+        AdvisoryPage: {
+            advisories: components["schemas"]["AdvisorySummary"][];
+            total: number;
+        };
+        AdvisoryRef: {
+            type: string;
+            url: string;
+        };
+        AdvisorySummary: {
+            aliases: string[];
+            cve?: string | null;
+            ecosystems: string[];
+            id: string;
+            /** @description Some library of the org is in an affected range. */
+            impacted: boolean;
+            packages: string[];
+            /** Format: int64 */
+            published?: number | null;
+            /** Format: double */
+            score?: number | null;
+            severity: string;
+            summary: string;
+        };
+        /** @description One affected interval of a package: `[introduced, fixed)` or `[introduced, last_affected]`. */
+        AffectedRange: {
+            fixed?: string;
+            introduced: string;
+            last_affected?: string;
+        };
         AnalyticsSeries: {
             group: string;
             /**
@@ -7894,6 +8176,34 @@ export interface components {
             /** @description 6-digit code from the authenticator app. */
             code: string;
         };
+        CodeSecuritySetup: {
+            advisories: number;
+            iastServices: number;
+            /** Format: int64 */
+            lastOsvCheck?: number | null;
+            osvEnabled: boolean;
+            repositoriesWithCodeScans: number;
+            repositoriesWithLibraries: number;
+            runtimeServices: number;
+        };
+        CodeSecuritySummary: {
+            byRepository: components["schemas"]["GroupCount"][];
+            byService: components["schemas"]["GroupCount"][];
+            code: components["schemas"]["SeverityCounts"];
+            /** @description Advisories published in the last 30 days for packages in use, and how many affect the org. */
+            emerging: components["schemas"]["AdvisorySummary"][];
+            fixable: number;
+            history: components["schemas"]["DayCount"][];
+            iac: components["schemas"]["SeverityCounts"];
+            inProduction: number;
+            /** @description Library vulnerabilities by stage: on the default branch, loaded in production, with a fix. */
+            inRepositories: number;
+            libraries: components["schemas"]["SeverityCounts"];
+            repositoriesAnalyzed: number;
+            runtimeCode: components["schemas"]["SeverityCounts"];
+            secrets: components["schemas"]["SeverityCounts"];
+            servicesAnalyzed: number;
+        };
         /** @enum {string} */
         CollectorKind: "observecraft" | "otel" | "datadog";
         Commitment: {
@@ -8209,6 +8519,35 @@ export interface components {
             id: string;
             /** @description One-time link (72h) for the first admin. Share it until mail delivery is configured. */
             inviteUrl: string;
+        };
+        CsFilter: {
+            /** @default  */
+            language: string;
+            /** @default 0 */
+            limit: number;
+            /** @default 0 */
+            offset: number;
+            /**
+             * @description Free text: advisory id, CVE, package, rule, file, message.
+             * @default
+             */
+            query: string;
+            /** @default  */
+            repository: string;
+            /**
+             * @description production (default for libraries: not dev-only) | all
+             * @default
+             */
+            scope: string;
+            /** @default  */
+            service: string;
+            /** @default [] */
+            severity: string[];
+            /**
+             * @description open (default) | muted | resolved | all
+             * @default
+             */
+            status: string;
         };
         Dashboard: {
             author?: null | components["schemas"]["UserRef"];
@@ -8586,6 +8925,13 @@ export interface components {
         /** @description One result per widget sent, in order. */
         DatadogWidgetValidationResults: {
             results: components["schemas"]["DatadogWidgetValidationResult"][];
+        };
+        DayCount: {
+            code: number;
+            /** Format: int64 */
+            day: number;
+            libraries: number;
+            secrets: number;
         };
         /** @enum {string} */
         DbEngine: "postgres" | "mysql" | "redis" | "mongodb" | "sqlserver";
@@ -9413,6 +9759,13 @@ export interface components {
             environments: components["schemas"]["FeatureFlagEnvironment"][];
             flags: components["schemas"]["FeatureFlag"][];
         };
+        FindingFilter: components["schemas"]["CsFilter"] & {
+            /**
+             * @description sast | secret | iac
+             * @default
+             */
+            kind: string;
+        };
         FlagCondition: {
             /** @description A context attribute: `targetingKey`, `country`, or a dotted path into an object (`user.plan`). */
             attribute: string;
@@ -10018,6 +10371,12 @@ export interface components {
             error?: string | null;
             samples: components["schemas"]["GrokSampleResult"][];
         };
+        GroupCount: {
+            count: number;
+            critical: number;
+            high: number;
+            name: string;
+        };
         GroupCounts: {
             /** Format: int64 */
             alert: number;
@@ -10208,6 +10567,23 @@ export interface components {
             service?: string | null;
             software: components["schemas"]["Software"][];
             team?: string | null;
+        };
+        IastRequest: components["schemas"]["CsFilter"] & {
+            /** @default null */
+            range: null | components["schemas"]["TimeRange"];
+        };
+        /** @description A runtime code vulnerability a tracer reported on a span (`_dd.iast.json`). */
+        IastVulnerability: {
+            cwe: string;
+            evidence: string;
+            hash: string;
+            /** Format: int64 */
+            line: number;
+            method: string;
+            path: string;
+            severity: string;
+            title: string;
+            type: string;
         };
         IdsRequest: {
             ids: string[];
@@ -10411,6 +10787,41 @@ export interface components {
             name?: string | null;
             /** @description active | suspended */
             status?: string | null;
+        };
+        InventoryLibrary: {
+            direct?: boolean | null;
+            ecosystem: string;
+            files: string[];
+            /** Format: int64 */
+            firstSeen: number;
+            language: string;
+            licenses: string[];
+            locations: string[];
+            name: string;
+            version: string;
+            vulnerabilities: number;
+            worstSeverity: string;
+        };
+        InventoryPage: {
+            libraries: components["schemas"]["InventoryLibrary"][];
+            total: number;
+        };
+        InventoryRequest: components["schemas"]["CsFilter"] & {
+            /**
+             * @description static (repositories) | runtime (services)
+             * @default
+             */
+            view: string;
+        };
+        InventoryService: {
+            envs: string[];
+            language: string;
+            /** Format: int64 */
+            lastSeen: number;
+            libraries: number;
+            runtimeCodeVulnerabilities: number;
+            service: string;
+            vulnerabilities: components["schemas"]["SeverityCounts"];
         };
         Invitation: {
             email: string;
@@ -11067,6 +11478,41 @@ export interface components {
             name: string;
             processors: Record<string, never>[];
             upstream: components["schemas"]["PipelineUpstream"];
+        };
+        LibraryVulnerability: {
+            advisoryId: string;
+            aliases: string[];
+            cve?: string | null;
+            cwes: string[];
+            direct?: boolean | null;
+            ecosystem: string;
+            envs: string[];
+            /** Format: int64 */
+            firstSeen: number;
+            fixed?: string | null;
+            /** @description Loaded by a service running in a production environment. */
+            inProduction: boolean;
+            /** @description `advisory|ecosystem|package|version`. */
+            key: string;
+            language: string;
+            /** Format: int64 */
+            lastSeen: number;
+            occurrences: components["schemas"]["Occurrence"][];
+            package: string;
+            repositories: string[];
+            /** Format: double */
+            score?: number | null;
+            services: string[];
+            severity: string;
+            status: string;
+            title: string;
+            version: string;
+        };
+        LibraryVulnerabilityPage: {
+            /** @description Occurrences (library × service or repository) of the matching vulnerabilities. */
+            findings: number;
+            total: number;
+            vulnerabilities: components["schemas"]["LibraryVulnerability"][];
         };
         LinkInfo: {
             email: string;
@@ -12218,6 +12664,20 @@ export interface components {
             signed: boolean;
             /** @description Host of the URL (the full URL is a credential and never returned). */
             target: string;
+        };
+        Occurrence: {
+            /** @description A development dependency of the repository (tests, build tools). */
+            dev: boolean;
+            env: string;
+            file: string;
+            /** Format: int64 */
+            firstSeen: number;
+            /** Format: int64 */
+            lastSeen: number;
+            repository: string;
+            service: string;
+            /** @description runtime (a service loads it) | static (a repository declares it) */
+            source: string;
         };
         OidcStatus: {
             buttonLabel: string;
@@ -13492,6 +13952,18 @@ export interface components {
             visibility: components["schemas"]["StatusPageVisibility"];
             visualization: components["schemas"]["StatusPageVisualization"];
         };
+        PullRequestScan: {
+            baseBranch: string;
+            branch: string;
+            commitSha: string;
+            /** @description Findings the pull request would introduce (not on its base branch). */
+            findings: components["schemas"]["StaticFinding"][];
+            prNumber: string;
+            /** Format: int64 */
+            receivedAt: number;
+            repository: string;
+            tool: string;
+        };
         QualityIssue: {
             description: string;
             fix: string;
@@ -13697,6 +14169,19 @@ export interface components {
             /** @description Empty for widgets that are only listed. */
             series: components["schemas"]["ReportSeriesSummary"][];
             title: string;
+        };
+        RepositorySummary: {
+            codeViolations: number;
+            codeVulnerabilities: number;
+            iacViolations: number;
+            lastBranch: string;
+            lastCommit: string;
+            /** Format: int64 */
+            lastScan?: number | null;
+            libraries: number;
+            libraryVulnerabilities: number;
+            repository: string;
+            secrets: number;
         };
         ResourceChange: {
             account: string;
@@ -13923,6 +14408,43 @@ export interface components {
         RoleRef: {
             id: string;
             name: string;
+        };
+        RuleSummary: {
+            cwes: string[];
+            description: string;
+            helpUri: string;
+            kind: string;
+            language: string;
+            name: string;
+            openFindings: number;
+            repositories: string[];
+            ruleId: string;
+            severity: string;
+            tool: string;
+        };
+        RulesRequest: components["schemas"]["CsFilter"] & {
+            /**
+             * @description sast | iac | secret
+             * @default
+             */
+            kind: string;
+        };
+        RuntimeCodeVulnerability: components["schemas"]["IastVulnerability"] & {
+            /** Format: int64 */
+            count: number;
+            envs: string[];
+            /** Format: int64 */
+            firstSeen: number;
+            /** Format: int64 */
+            lastSeen: number;
+            resources: string[];
+            services: string[];
+            status: string;
+            traceId: string;
+        };
+        RuntimeCodeVulnerabilityPage: {
+            total: number;
+            vulnerabilities: components["schemas"]["RuntimeCodeVulnerability"][];
         };
         SamlMapping: {
             attributeKey: string;
@@ -14378,6 +14900,13 @@ export interface components {
             /** @description Organization the session is acting in. */
             orgId: string;
             userAgent?: string | null;
+        };
+        SeverityCounts: {
+            critical: number;
+            high: number;
+            low: number;
+            medium: number;
+            unknown: number;
         };
         /** @enum {string} */
         SloComparator: "<" | "<=" | ">" | ">=";
@@ -14926,6 +15455,37 @@ export interface components {
         };
         /** @enum {string} */
         StandardAttributeType: "string" | "integer" | "double" | "boolean";
+        StaticFinding: {
+            branch: string;
+            commitSha: string;
+            cwes: string[];
+            description: string;
+            file: string;
+            /** Format: int64 */
+            firstSeen: number;
+            helpUri: string;
+            id: string;
+            kind: string;
+            /** Format: int64 */
+            lastSeen: number;
+            /** Format: int32 */
+            line: number;
+            message: string;
+            prNumber: string;
+            repository: string;
+            /** Format: int64 */
+            resolvedAt?: number | null;
+            ruleId: string;
+            ruleName: string;
+            severity: string;
+            snippet: string;
+            status: string;
+            tool: string;
+        };
+        StaticFindingPage: {
+            findings: components["schemas"]["StaticFinding"][];
+            total: number;
+        };
         StatusCounts: {
             /** Format: int64 */
             debug: number;
@@ -16207,6 +16767,13 @@ export interface components {
             recover: number;
             /** Format: int64 */
             warn: number;
+        };
+        TriageRequest: {
+            /** @description `vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>` or `iast:<hash>`. */
+            key: string;
+            reason?: string;
+            /** @description open | muted */
+            status: string;
         };
         TriggeredFacets: {
             draft: components["schemas"]["FacetCount"][];
@@ -18082,6 +18649,281 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UnitCostRow"][];
                 };
+            };
+        };
+    };
+    list_advisories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdvisoryFilter"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdvisoryPage"];
+                };
+            };
+        };
+    };
+    get_advisory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdvisoryDetail"];
+                };
+            };
+        };
+    };
+    list_findings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingFilter"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaticFindingPage"];
+                };
+            };
+        };
+    };
+    inventory_libraries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InventoryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryPage"];
+                };
+            };
+        };
+    };
+    inventory_services: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryService"][];
+                };
+            };
+        };
+    };
+    list_library_vulnerabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CsFilter"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryVulnerabilityPage"];
+                };
+            };
+        };
+    };
+    pull_requests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequestScan"][];
+                };
+            };
+        };
+    };
+    repositories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositorySummary"][];
+                };
+            };
+        };
+    };
+    rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RulesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleSummary"][];
+                };
+            };
+        };
+    };
+    list_iast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IastRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeCodeVulnerabilityPage"];
+                };
+            };
+        };
+    };
+    setup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeSecuritySetup"];
+                };
+            };
+        };
+    };
+    summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeSecuritySummary"];
+                };
+            };
+        };
+    };
+    triage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriageRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

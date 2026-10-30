@@ -31,6 +31,11 @@ import { ApmComingSoon, ApmLayout } from './pages/apm/ApmLayout';
 import { ApmHome } from './pages/apm/ApmHome';
 import { ServicePage } from './pages/apm/service/ServicePage';
 import { InstrumentPage } from './pages/apm/InstrumentPage';
+import { CodeSecurityLayout } from './pages/codeSecurity/CodeSecurityLayout';
+import { SummaryPage as CodeSecuritySummary } from './pages/codeSecurity/SummaryPage';
+import { VulnerabilitiesPage as CodeSecurityVulnerabilities } from './pages/codeSecurity/VulnerabilitiesPage';
+import { DetectionCoveragePage, InventoryPage as CodeSecurityInventory, PrSecurityPage, RepositoriesPage as CodeSecurityRepositories } from './pages/codeSecurity/CoveragePages';
+import { SettingsPage as CodeSecuritySettings } from './pages/codeSecurity/SettingsPage';
 import { SpanExplorer } from './pages/apm/explorer/SpanExplorer';
 import { IncidentPage } from './pages/incidents/IncidentPage';
 import { CiLayout, DeliveryLayout } from './pages/delivery/DeliveryLayout';
@@ -301,6 +306,18 @@ function Shell() {
               <Route path="/infrastructure/policies/:id" element={<PolicyDetailPage />} />
               <Route path="/infrastructure/policies/:id/edit" element={<PolicyEditorPage />} />
               <Route path="/cloudcraft" element={<CloudcraftPage />} />
+            </Route>
+            <Route path="/code-security" element={<CodeSecurityLayout />}>
+              <Route index element={<CodeSecuritySummary />} />
+              <Route path="vulnerabilities" element={<Navigate to="/code-security/vulnerabilities/libraries" replace />} />
+              <Route path="vulnerabilities/:type" element={<CodeSecurityVulnerabilities />} />
+              <Route path="repositories" element={<CodeSecurityRepositories />} />
+              <Route path="detection-coverage" element={<Navigate to="/code-security/detection-coverage/cves" replace />} />
+              <Route path="detection-coverage/:tab" element={<DetectionCoveragePage />} />
+              <Route path="inventory" element={<Navigate to="/code-security/inventory/libraries" replace />} />
+              <Route path="inventory/:tab" element={<CodeSecurityInventory />} />
+              <Route path="pr-security" element={<PrSecurityPage />} />
+              <Route path="settings" element={<CodeSecuritySettings />} />
             </Route>
             <Route path="/gpu-monitoring" element={<GpuMonitoringPage view="summary" />} />
             <Route path="/gpu-monitoring/explorer" element={<GpuMonitoringPage view="explorer" />} />

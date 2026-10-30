@@ -16,6 +16,7 @@ with Docker Compose) and `ocik_…` for the key. Keep the key in a secret, not i
 | Datadog metrics API | `POST /api/v2/series` (JSON or the Agent's protobuf), `POST /api/v1/series` (JSON), `POST /api/beta/sketches` (distributions) | metrics | `DD-API-KEY: ocik_…` |
 | Datadog Agent APM | `POST /api/v0.2/traces` (the trace-agent's payloads, both formats), `/api/v0.2/stats` | traces | `DD-API-KEY: ocik_…` |
 | Datadog Agent service checks, Kubernetes | `POST /api/v1/check_run`, `POST /api/v2/orchmanif` (Cluster Agent manifests) | service checks, Kubernetes objects | `DD-API-KEY: ocik_…` |
+| Datadog Agent APM telemetry, `datadog-ci sarif upload` | `POST /api/v2/apmtelemetry`, `POST /api/v2/cicodescan` | Code Security: libraries services load, static scan findings | `DD-API-KEY: ocik_…` |
 
 Any of the three headers works on every endpoint: `Authorization: Bearer`, `OC-API-Key` or `DD-API-KEY`. As with
 Datadog, the query parameters `?api_key=` and `?dd-api-key=` work too.
@@ -119,6 +120,23 @@ In APM → Profiles:
 The Thread Timeline and Call Graph views aren't available yet. Go services send separate CPU and heap files; their
 sample types (`cpu`, `inuse_space`, …) are shown under Datadog's names (CPU Time, Heap Live Size, …).
 
+### Code Security
+
+Code Security (Security → Code Security) reads what Datadog's tools already send:
+
+- **Libraries services load** (runtime SCA): the tracers report the libraries they load in their instrumentation
+  telemetry, which the Agent forwards to `DD_APM_TELEMETRY_DD_URL` (set in the examples above).
+- **Runtime code vulnerabilities** (IAST): set `DD_IAST_ENABLED=true` on a service; the tracer reports the
+  vulnerabilities it detects on the spans of the requests that exercise them.
+- **Libraries repositories declare, and static findings**: from CI, `datadog-ci sbom upload <CycloneDX file>` (needs
+  an application key, `DD_APP_KEY`) and `datadog-ci sarif upload <SARIF report>` (any analyzer: code, secrets, IaC).
+  datadog-ci derives its URLs from `DD_SITE`: SBOMs go to `https://<DD_SITE>/` (route it to the API server) and SARIF
+  reports to `https://cicodescan-intake.<DD_SITE>/` (route it to the intake). A `DD_SITE` of two labels gets `app.`
+  prepended. Scans of pull requests are listed under PR Security and don't change the branch's findings.
+
+Libraries are matched against the [OSV.dev](https://osv.dev) advisories of the packages in use: the server looks the
+package names up in `OC_OSV_URL` (`https://api.osv.dev`; `off` for instances without internet access).
+
 **What isn't supported yet:**
 - Some payloads are acknowledged so the Agent doesn't keep retrying them, but they aren't stored: the Agent's
   inventories (`/api/v1/metadata`) and the orchestrator's summaries (`/api/v2/orch`).
@@ -129,7 +147,7 @@ sample types (`cpu`, `inuse_space`, …) are shown under Datadog's names (CPU Ti
 - Not available yet: Cloud Security, the live debugger, data streams and remote configuration.
 - The examples set `site` to a domain that isn't Datadog's, `observecraft.invalid`. They also turn off products that
   would send to Datadog's own intakes, so nothing the Agent collects goes to Datadog.
-- Not available yet: APM telemetry and the security products.
+- Not available yet: the security products other than Code Security (Cloud SIEM, Cloud Security, App and API Protection).
 - Run either the Datadog Agent or the `observecraft-agent` chart's node agent on a node, not both. Both listen on
   8125 and 8126. If you need both, set `node.hostPorts=false` on `observecraft-agent`.
 

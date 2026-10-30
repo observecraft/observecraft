@@ -1895,6 +1895,351 @@
         }
       }
     },
+    "/api/v1/code-security/advisories": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "list_advisories",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvisoryFilter"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdvisoryPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/advisories/{id}": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "get_advisory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdvisoryDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/findings": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "list_findings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingFilter"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaticFindingPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/inventory/libraries": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "inventory_libraries",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/inventory/services": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "inventory_services",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InventoryService"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/library-vulnerabilities": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "list_library_vulnerabilities",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsFilter"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryVulnerabilityPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/pull-requests": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "pull_requests",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PullRequestScan"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/repositories": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "repositories",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepositorySummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/rules": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "rules",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RulesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RuleSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/runtime-code-vulnerabilities": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "list_iast",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IastRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeCodeVulnerabilityPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/setup": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "setup",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeSecuritySetup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/summary": {
+      "get": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "summary",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeSecuritySummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/code-security/triage": {
+      "post": {
+        "tags": [
+          "code-security"
+        ],
+        "operationId": "triage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/dashboard": {
       "get": {
         "tags": [
@@ -22300,6 +22645,282 @@
           }
         }
       },
+      "AdvisoryDetail": {
+        "type": "object",
+        "required": [
+          "id",
+          "aliases",
+          "summary",
+          "details",
+          "severity",
+          "vector",
+          "cwes",
+          "refs",
+          "source",
+          "packages",
+          "vulnerabilities",
+          "servicesAnalyzed",
+          "repositoriesAnalyzed"
+        ],
+        "properties": {
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cwes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "details": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "modified": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "packages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdvisoryPackageInfo"
+            }
+          },
+          "published": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdvisoryRef"
+            }
+          },
+          "repositoriesAnalyzed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "servicesAnalyzed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "severity": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "vector": {
+            "type": "string"
+          },
+          "vulnerabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryVulnerability"
+            },
+            "description": "The org's vulnerabilities from this advisory."
+          }
+        }
+      },
+      "AdvisoryFilter": {
+        "type": "object",
+        "properties": {
+          "ecosystem": {
+            "type": "string",
+            "default": ""
+          },
+          "impact": {
+            "type": "string",
+            "description": "impacted | not_impacted",
+            "default": ""
+          },
+          "limit": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "default": ""
+          },
+          "severity": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          }
+        }
+      },
+      "AdvisoryPackageInfo": {
+        "type": "object",
+        "required": [
+          "ecosystem",
+          "package",
+          "ranges",
+          "fixed"
+        ],
+        "properties": {
+          "ecosystem": {
+            "type": "string"
+          },
+          "fixed": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          },
+          "ranges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AffectedRange"
+            }
+          }
+        }
+      },
+      "AdvisoryPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "advisories"
+        ],
+        "properties": {
+          "advisories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdvisorySummary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AdvisoryRef": {
+        "type": "object",
+        "required": [
+          "type",
+          "url"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "AdvisorySummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "aliases",
+          "summary",
+          "severity",
+          "packages",
+          "ecosystems",
+          "impacted"
+        ],
+        "properties": {
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cve": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ecosystems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "impacted": {
+            "type": "boolean",
+            "description": "Some library of the org is in an affected range."
+          },
+          "packages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "published": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
+      "AffectedRange": {
+        "type": "object",
+        "description": "One affected interval of a package: `[introduced, fixed)` or `[introduced, last_affected]`.",
+        "required": [
+          "introduced"
+        ],
+        "properties": {
+          "fixed": {
+            "type": "string"
+          },
+          "introduced": {
+            "type": "string"
+          },
+          "last_affected": {
+            "type": "string"
+          }
+        }
+      },
       "AnalyticsSeries": {
         "type": "object",
         "required": [
@@ -24639,6 +25260,131 @@
           }
         }
       },
+      "CodeSecuritySetup": {
+        "type": "object",
+        "required": [
+          "runtimeServices",
+          "repositoriesWithLibraries",
+          "repositoriesWithCodeScans",
+          "iastServices",
+          "advisories",
+          "osvEnabled"
+        ],
+        "properties": {
+          "advisories": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "iastServices": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastOsvCheck": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "osvEnabled": {
+            "type": "boolean"
+          },
+          "repositoriesWithCodeScans": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "repositoriesWithLibraries": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "runtimeServices": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "CodeSecuritySummary": {
+        "type": "object",
+        "required": [
+          "libraries",
+          "code",
+          "runtimeCode",
+          "secrets",
+          "iac",
+          "inRepositories",
+          "inProduction",
+          "fixable",
+          "repositoriesAnalyzed",
+          "servicesAnalyzed",
+          "emerging",
+          "byService",
+          "byRepository",
+          "history"
+        ],
+        "properties": {
+          "byRepository": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupCount"
+            }
+          },
+          "byService": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupCount"
+            }
+          },
+          "code": {
+            "$ref": "#/components/schemas/SeverityCounts"
+          },
+          "emerging": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdvisorySummary"
+            },
+            "description": "Advisories published in the last 30 days for packages in use, and how many affect the org."
+          },
+          "fixable": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayCount"
+            }
+          },
+          "iac": {
+            "$ref": "#/components/schemas/SeverityCounts"
+          },
+          "inProduction": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "inRepositories": {
+            "type": "integer",
+            "description": "Library vulnerabilities by stage: on the default branch, loaded in production, with a fix.",
+            "minimum": 0
+          },
+          "libraries": {
+            "$ref": "#/components/schemas/SeverityCounts"
+          },
+          "repositoriesAnalyzed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "runtimeCode": {
+            "$ref": "#/components/schemas/SeverityCounts"
+          },
+          "secrets": {
+            "$ref": "#/components/schemas/SeverityCounts"
+          },
+          "servicesAnalyzed": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
       "CollectorKind": {
         "type": "string",
         "enum": [
@@ -25603,6 +26349,55 @@
           "inviteUrl": {
             "type": "string",
             "description": "One-time link (72h) for the first admin. Share it until mail delivery is configured."
+          }
+        }
+      },
+      "CsFilter": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "default": ""
+          },
+          "limit": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0
+          },
+          "query": {
+            "type": "string",
+            "description": "Free text: advisory id, CVE, package, rule, file, message.",
+            "default": ""
+          },
+          "repository": {
+            "type": "string",
+            "default": ""
+          },
+          "scope": {
+            "type": "string",
+            "description": "production (default for libraries: not dev-only) | all",
+            "default": ""
+          },
+          "service": {
+            "type": "string",
+            "default": ""
+          },
+          "severity": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "status": {
+            "type": "string",
+            "description": "open (default) | muted | resolved | all",
+            "default": ""
           }
         }
       },
@@ -26961,6 +27756,33 @@
             "items": {
               "$ref": "#/components/schemas/DatadogWidgetValidationResult"
             }
+          }
+        }
+      },
+      "DayCount": {
+        "type": "object",
+        "required": [
+          "day",
+          "libraries",
+          "code",
+          "secrets"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "day": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "libraries": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "secrets": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -29605,6 +30427,38 @@
           }
         }
       },
+      "FindingFilter": {
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CsFilter"
+              }
+            ],
+            "default": {
+              "language": "",
+              "limit": 0,
+              "offset": 0,
+              "query": "",
+              "repository": "",
+              "scope": "",
+              "service": "",
+              "severity": [],
+              "status": ""
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "description": "sast | secret | iac",
+                "default": ""
+              }
+            }
+          }
+        ]
+      },
       "FlagCondition": {
         "type": "object",
         "required": [
@@ -31506,6 +32360,32 @@
           }
         }
       },
+      "GroupCount": {
+        "type": "object",
+        "required": [
+          "name",
+          "count",
+          "critical",
+          "high"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "critical": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "high": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "GroupCounts": {
         "type": "object",
         "required": [
@@ -32208,6 +33088,89 @@
           }
         }
       },
+      "IastRequest": {
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CsFilter"
+              }
+            ],
+            "default": {
+              "language": "",
+              "limit": 0,
+              "offset": 0,
+              "query": "",
+              "repository": "",
+              "scope": "",
+              "service": "",
+              "severity": [],
+              "status": ""
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "range": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TimeRange"
+                  }
+                ],
+                "default": null
+              }
+            }
+          }
+        ]
+      },
+      "IastVulnerability": {
+        "type": "object",
+        "description": "A runtime code vulnerability a tracer reported on a span (`_dd.iast.json`).",
+        "required": [
+          "type",
+          "title",
+          "severity",
+          "cwe",
+          "hash",
+          "path",
+          "method",
+          "line",
+          "evidence"
+        ],
+        "properties": {
+          "cwe": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "hash": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
       "IdsRequest": {
         "type": "object",
         "required": [
@@ -32899,6 +33862,162 @@
               "null"
             ],
             "description": "active | suspended"
+          }
+        }
+      },
+      "InventoryLibrary": {
+        "type": "object",
+        "required": [
+          "ecosystem",
+          "language",
+          "name",
+          "version",
+          "licenses",
+          "vulnerabilities",
+          "worstSeverity",
+          "locations",
+          "files",
+          "firstSeen"
+        ],
+        "properties": {
+          "direct": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "ecosystem": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "language": {
+            "type": "string"
+          },
+          "licenses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "vulnerabilities": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "worstSeverity": {
+            "type": "string"
+          }
+        }
+      },
+      "InventoryPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "libraries"
+        ],
+        "properties": {
+          "libraries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InventoryLibrary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "InventoryRequest": {
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CsFilter"
+              }
+            ],
+            "default": {
+              "language": "",
+              "limit": 0,
+              "offset": 0,
+              "query": "",
+              "repository": "",
+              "scope": "",
+              "service": "",
+              "severity": [],
+              "status": ""
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "view": {
+                "type": "string",
+                "description": "static (repositories) | runtime (services)",
+                "default": ""
+              }
+            }
+          }
+        ]
+      },
+      "InventoryService": {
+        "type": "object",
+        "required": [
+          "service",
+          "language",
+          "envs",
+          "libraries",
+          "vulnerabilities",
+          "runtimeCodeVulnerabilities",
+          "lastSeen"
+        ],
+        "properties": {
+          "envs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "language": {
+            "type": "string"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "libraries": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "runtimeCodeVulnerabilities": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "service": {
+            "type": "string"
+          },
+          "vulnerabilities": {
+            "$ref": "#/components/schemas/SeverityCounts"
           }
         }
       },
@@ -35269,6 +36388,157 @@
           },
           "upstream": {
             "$ref": "#/components/schemas/PipelineUpstream"
+          }
+        }
+      },
+      "LibraryVulnerability": {
+        "type": "object",
+        "required": [
+          "key",
+          "advisoryId",
+          "aliases",
+          "title",
+          "severity",
+          "cwes",
+          "ecosystem",
+          "language",
+          "package",
+          "version",
+          "services",
+          "repositories",
+          "envs",
+          "inProduction",
+          "firstSeen",
+          "lastSeen",
+          "status",
+          "occurrences"
+        ],
+        "properties": {
+          "advisoryId": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cve": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cwes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "direct": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "ecosystem": {
+            "type": "string"
+          },
+          "envs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fixed": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inProduction": {
+            "type": "boolean",
+            "description": "Loaded by a service running in a production environment."
+          },
+          "key": {
+            "type": "string",
+            "description": "`advisory|ecosystem|package|version`."
+          },
+          "language": {
+            "type": "string"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "occurrences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Occurrence"
+            }
+          },
+          "package": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "severity": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "LibraryVulnerabilityPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "findings",
+          "vulnerabilities"
+        ],
+        "properties": {
+          "findings": {
+            "type": "integer",
+            "description": "Occurrences (library × service or repository) of the matching vulnerabilities.",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "vulnerabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryVulnerability"
+            }
           }
         }
       },
@@ -38930,6 +40200,49 @@
           "target": {
             "type": "string",
             "description": "Host of the URL (the full URL is a credential and never returned)."
+          }
+        }
+      },
+      "Occurrence": {
+        "type": "object",
+        "required": [
+          "source",
+          "service",
+          "env",
+          "repository",
+          "file",
+          "dev",
+          "firstSeen",
+          "lastSeen"
+        ],
+        "properties": {
+          "dev": {
+            "type": "boolean",
+            "description": "A development dependency of the repository (tests, build tools)."
+          },
+          "env": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "runtime (a service loads it) | static (a repository declares it)"
           }
         }
       },
@@ -43101,6 +44414,50 @@
           }
         }
       },
+      "PullRequestScan": {
+        "type": "object",
+        "required": [
+          "repository",
+          "prNumber",
+          "branch",
+          "baseBranch",
+          "commitSha",
+          "receivedAt",
+          "tool",
+          "findings"
+        ],
+        "properties": {
+          "baseBranch": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "commitSha": {
+            "type": "string"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaticFinding"
+            },
+            "description": "Findings the pull request would introduce (not on its base branch)."
+          },
+          "prNumber": {
+            "type": "string"
+          },
+          "receivedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          }
+        }
+      },
       "QualityIssue": {
         "type": "object",
         "required": [
@@ -43754,6 +45111,62 @@
           },
           "title": {
             "type": "string"
+          }
+        }
+      },
+      "RepositorySummary": {
+        "type": "object",
+        "required": [
+          "repository",
+          "codeVulnerabilities",
+          "codeViolations",
+          "libraryVulnerabilities",
+          "libraries",
+          "secrets",
+          "iacViolations",
+          "lastBranch",
+          "lastCommit"
+        ],
+        "properties": {
+          "codeViolations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "codeVulnerabilities": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "iacViolations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastBranch": {
+            "type": "string"
+          },
+          "lastCommit": {
+            "type": "string"
+          },
+          "lastScan": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "libraries": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "libraryVulnerabilities": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "repository": {
+            "type": "string"
+          },
+          "secrets": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -44494,6 +45907,174 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "RuleSummary": {
+        "type": "object",
+        "required": [
+          "kind",
+          "tool",
+          "ruleId",
+          "name",
+          "description",
+          "severity",
+          "cwes",
+          "helpUri",
+          "language",
+          "openFindings",
+          "repositories"
+        ],
+        "properties": {
+          "cwes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "helpUri": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "openFindings": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          }
+        }
+      },
+      "RulesRequest": {
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CsFilter"
+              }
+            ],
+            "default": {
+              "language": "",
+              "limit": 0,
+              "offset": 0,
+              "query": "",
+              "repository": "",
+              "scope": "",
+              "service": "",
+              "severity": [],
+              "status": ""
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "description": "sast | iac | secret",
+                "default": ""
+              }
+            }
+          }
+        ]
+      },
+      "RuntimeCodeVulnerability": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IastVulnerability"
+          },
+          {
+            "type": "object",
+            "required": [
+              "services",
+              "envs",
+              "resources",
+              "count",
+              "firstSeen",
+              "lastSeen",
+              "traceId",
+              "status"
+            ],
+            "properties": {
+              "count": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "envs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "firstSeen": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "lastSeen": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "resources": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "services": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "status": {
+                "type": "string"
+              },
+              "traceId": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "RuntimeCodeVulnerabilityPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "vulnerabilities"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "vulnerabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuntimeCodeVulnerability"
+            }
           }
         }
       },
@@ -45978,6 +47559,38 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "SeverityCounts": {
+        "type": "object",
+        "required": [
+          "critical",
+          "high",
+          "medium",
+          "low",
+          "unknown"
+        ],
+        "properties": {
+          "critical": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "high": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "low": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "medium": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unknown": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -47775,6 +49388,125 @@
           "double",
           "boolean"
         ]
+      },
+      "StaticFinding": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "tool",
+          "ruleId",
+          "ruleName",
+          "description",
+          "cwes",
+          "helpUri",
+          "severity",
+          "message",
+          "repository",
+          "branch",
+          "commitSha",
+          "file",
+          "line",
+          "snippet",
+          "prNumber",
+          "firstSeen",
+          "lastSeen",
+          "status"
+        ],
+        "properties": {
+          "branch": {
+            "type": "string"
+          },
+          "commitSha": {
+            "type": "string"
+          },
+          "cwes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "helpUri": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "line": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "prNumber": {
+            "type": "string"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "resolvedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "ruleName": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "snippet": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          }
+        }
+      },
+      "StaticFindingPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "findings"
+        ],
+        "properties": {
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaticFinding"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
       },
       "StatusCounts": {
         "type": "object",
@@ -51421,6 +53153,26 @@
           }
         }
       },
+      "TriageRequest": {
+        "type": "object",
+        "required": [
+          "key",
+          "status"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "`vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>` or `iast:<hash>`."
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "open | muted"
+          }
+        }
+      },
       "TriggeredFacets": {
         "type": "object",
         "required": [
@@ -52929,6 +54681,10 @@
     {
       "name": "logs",
       "description": "Log search, facets, histogram and live tail"
+    },
+    {
+      "name": "code-security",
+      "description": "Code Security: vulnerable libraries, static findings, runtime code vulnerabilities and advisories"
     },
     {
       "name": "apm",

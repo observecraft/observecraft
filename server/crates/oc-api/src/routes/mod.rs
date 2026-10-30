@@ -73,6 +73,8 @@ pub mod profiles;
 pub mod reference_tables;
 pub mod resource_changes;
 pub mod cloud_cost;
+pub mod code_security;
+pub mod code_security_model;
 pub mod resource_policies;
 pub mod resource_policy_rules;
 pub mod scorecard_rules;
@@ -354,6 +356,19 @@ use crate::state::AppState;
         cloud_cost::tags,
         cloud_cost::unit_costs,
         cloud_cost::commitments,
+        code_security::list_library_vulnerabilities,
+        code_security::list_advisories,
+        code_security::get_advisory,
+        code_security::list_findings,
+        code_security::list_iast,
+        code_security::summary,
+        code_security::repositories,
+        code_security::inventory_libraries,
+        code_security::inventory_services,
+        code_security::rules,
+        code_security::pull_requests,
+        code_security::triage,
+        code_security::setup,
         datadog_api::cost::budget_summaries,
         datadog_api::cost::ui_budget,
         datadog_api::cost::ui_save_budget,
@@ -707,6 +722,7 @@ use crate::state::AppState;
     components(schemas(live::LiveTailBatch, workflow_engine::WorkflowStepKind)),
     tags(
         (name = "logs", description = "Log search, facets, histogram and live tail"),
+        (name = "code-security", description = "Code Security: vulnerable libraries, static findings, runtime code vulnerabilities and advisories"),
         (name = "apm", description = "Services, endpoints, dependencies and traces computed from spans"),
         (name = "metrics", description = "Metric queries for dashboards (OTel metrics and span-derived trace.* metrics)"),
         (name = "dashboards", description = "Dashboards, dashboard lists and the monitor summary widget"),
@@ -945,6 +961,19 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/cloud-cost/tags", post(cloud_cost::tags))
         .route("/api/v1/cloud-cost/unit-costs", post(cloud_cost::unit_costs))
         .route("/api/v1/cloud-cost/commitments", post(cloud_cost::commitments))
+        .route("/api/v1/code-security/summary", get(code_security::summary))
+        .route("/api/v1/code-security/library-vulnerabilities", post(code_security::list_library_vulnerabilities))
+        .route("/api/v1/code-security/advisories", post(code_security::list_advisories))
+        .route("/api/v1/code-security/advisories/:id", get(code_security::get_advisory))
+        .route("/api/v1/code-security/findings", post(code_security::list_findings))
+        .route("/api/v1/code-security/runtime-code-vulnerabilities", post(code_security::list_iast))
+        .route("/api/v1/code-security/repositories", get(code_security::repositories))
+        .route("/api/v1/code-security/inventory/libraries", post(code_security::inventory_libraries))
+        .route("/api/v1/code-security/inventory/services", get(code_security::inventory_services))
+        .route("/api/v1/code-security/rules", post(code_security::rules))
+        .route("/api/v1/code-security/pull-requests", get(code_security::pull_requests))
+        .route("/api/v1/code-security/triage", post(code_security::triage))
+        .route("/api/v1/code-security/setup", get(code_security::setup))
         .route("/api/v1/cloud-cost/budgets", get(datadog_api::cost::budget_summaries).put(datadog_api::cost::ui_save_budget))
         .route("/api/v1/cloud-cost/budgets/:budget_id", get(datadog_api::cost::ui_budget).delete(datadog_api::cost::ui_delete_budget))
         .route("/api/v1/infrastructure/policies/attributes", get(resource_policies::attributes))
@@ -1473,6 +1502,8 @@ mod tests {
             include_str!("reference_tables.rs"),
             include_str!("resource_policies.rs"),
             include_str!("cloud_map.rs"),
+            include_str!("code_security.rs"),
+            include_str!("code_security_model.rs"),
             include_str!("resource_policy_rules.rs"),
             include_str!("status_pages.rs"),
             include_str!("synthetics.rs"),
@@ -1656,6 +1687,8 @@ mod tests {
     fn server_sources() -> Vec<(&'static str, &'static str)> {
         vec![
             ("cloud_cost.rs", include_str!("cloud_cost.rs")),
+            ("code_security.rs", include_str!("code_security.rs")),
+            ("code_security_model.rs", include_str!("code_security_model.rs")),
             ("datadog_api/cost.rs", include_str!("datadog_api/cost.rs")),
             ("metric_catalog.rs", include_str!("metric_catalog.rs")),
             ("resource_changes.rs", include_str!("resource_changes.rs")),

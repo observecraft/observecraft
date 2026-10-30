@@ -157,7 +157,11 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(org_limits::background(routes::resource_changes::run(state.clone())));
     if state.config.seed_demo {
         tokio::spawn(org_limits::background(routes::cloud_cost::run_demo(state.clone(), state.config.dev_org.clone())));
+        if let Err(e) = routes::code_security::seed_demo(&state, &state.config.dev_org).await {
+            tracing::warn!(error = %e, "seeding demo Code Security data failed");
+        }
     }
+    tokio::spawn(org_limits::background(routes::code_security::run_osv_sync(state.clone())));
     tokio::spawn(org_limits::background(routes::workflows::run_executor(state.clone())));
     tokio::spawn(org_limits::background(metric_rollups::run(state.clone())));
     logproc::serve(state.clone()).await.context("log indexer")?;

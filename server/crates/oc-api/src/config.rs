@@ -52,6 +52,9 @@ pub struct Config {
     pub internal_token: Option<String>,
     /// SMTP server for monitor notification emails (`smtps://user:pass@host:465`, `smtp://host:25?tls=required`).
     pub smtp_url: Option<String>,
+    /// `OC_OSV_URL`: the OSV.dev API Code Security looks advisories up in (`off` or empty: no lookups,
+    /// for instances without internet access).
+    pub osv_url: Option<String>,
     /// Sender address of notification emails.
     pub smtp_from: String,
     /// Synthetic tests may reach loopback, private, link-local and other internal addresses
@@ -176,6 +179,7 @@ impl Config {
             logproc_addr: var("OC_LOGPROC_ADDR", "0.0.0.0:8090"),
             internal_token: env::var("OC_INTERNAL_TOKEN").ok().filter(|s| !s.is_empty()),
             smtp_url: env::var("OC_SMTP_URL").ok().filter(|s| !s.is_empty()),
+            osv_url: Some(var("OC_OSV_URL", "https://api.osv.dev")).filter(|s| !s.is_empty() && s != "off").map(|s| s.trim_end_matches('/').to_string()),
             smtp_from: var("OC_SMTP_FROM", "ObserveCraft <alerts@observecraft.local>"),
             synthetics_allow_private: var("OC_SYNTHETICS_ALLOW_PRIVATE", "false") == "true",
             portal_allow_private: var("OC_PORTAL_ALLOW_PRIVATE", "false") == "true",

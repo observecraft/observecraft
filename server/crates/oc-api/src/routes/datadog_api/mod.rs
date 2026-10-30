@@ -77,6 +77,8 @@ fn cost_router() -> Router<AppState> {
     Router::new()
         .route("/api/v2/cost/budgets", get(cost::list_budgets))
         .route("/api/v2/cost/budget", put(cost::upsert_budget))
+        // `datadog-ci sbom upload`
+        .route("/api/v2/static-analysis-sca/dependencies", post(crate::routes::code_security::upload_sbom))
         .route("/api/v2/cost/budget/validate", post(cost::validate_budget))
         .route("/api/v2/cost/budget/custom-forecast", put(cost::upsert_custom_forecast))
         .route("/api/v2/cost/budget/:budget_id", get(cost::get_budget).delete(cost::delete_budget))
