@@ -215,8 +215,8 @@ function find(id: number): IncidentRow {
 
 const userName = (id: string) => mockUser(id)?.name ?? 'Unknown user';
 
-function event(inc: IncidentRow, kind: string, body: string, author = mockMe()): void {
-  inc.events.push({ id: db().seq++, kind, author: author.name, authorId: author.id, body, important: false, createdAt: Date.now() });
+function event(inc: IncidentRow, kind: string, body: string, author = mockMe(), createdAt = Date.now()): void {
+  inc.events.push({ id: db().seq++, kind, author: author.name, authorId: author.id, body, important: false, createdAt });
 }
 
 function text(s: string, what: string, max: number): string {
@@ -384,7 +384,7 @@ export async function declareIncident(req: S['DeclareRequest']): Promise<S['Inci
     postmortem: null,
   };
   s.incidents.push(inc);
-  event(inc, 'declared', `Incident declared with severity ${req.severity}`);
+  event(inc, 'declared', `Incident declared with severity ${req.severity}`, me, now);
   // Teams with notification channels hear about their incidents automatically.
   const recipients = inc.teams.flatMap((t) => mockTeam(t)?.notifications ?? []);
   if (recipients.length) {
