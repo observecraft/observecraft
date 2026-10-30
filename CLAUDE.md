@@ -35,7 +35,7 @@ the origin in a comment):
 | Datadog protobuf payload definitions (`DataDog/agent-payload`) | Apache-2.0 / BSD-3-Clause |
 | OpenTelemetry (SDKs, Collector, Collector contrib incl. the Datadog receiver/exporter) | Apache-2.0 |
 | Vector | MPL-2.0: fine as an unmodified, separately run component; don't copy its source into this repo |
-| ClickHouse, DuckDB, NATS, RustFS, Valkey | Apache-2.0 / MIT / BSD-3-Clause (Valkey; never Redis ≥ 7.4, which is RSAL/SSPL/AGPL) |
+| ClickHouse, DuckDB, Apache Kafka, RustFS, Valkey | Apache-2.0 / MIT / BSD-3-Clause (Valkey; never Redis ≥ 7.4, which is RSAL/SSPL/AGPL; Kafka, never Redpanda, which is BSL) |
 
 **Not OK:** Datadog's web app, its design system, icons, logos, illustrations and screenshots are proprietary. Use
 our own interface code and assets; never copy their frontend code or images, and don't use the
@@ -131,7 +131,7 @@ or SDK features.
 ## Commands
 
 ```bash
-make up         # ClickHouse, Postgres, NATS, Valkey, Vector, OTel Collector, RustFS, synthetic logs
+make up         # ClickHouse, Postgres, Kafka, Valkey, Vector, OTel Collector, RustFS, synthetic logs
 make server     # API on :8080 (applies migrations)
 make intake     # intake on :4318
 make tracegen   # demo traces, logs, metrics, CI pipelines
@@ -149,6 +149,11 @@ browser (live and, where relevant, mock mode).
 - **Tenancy.** Organization and user come only from the session or API key, never from request input. Every Postgres
   query filters on `org_id`; ClickHouse telemetry queries filter on `org_id = ?` (`oc.logs`) or
   `OrgId = {oc_org:String}` (`otel.*`) through `AppState::ch(org)`. A test fails on telemetry queries without it.
+- **Ingestion goes through Kafka** (docs/adr/0004-kafka-ingestion-buffer.md). The intake writes what it accepts to a
+  topic per signal (`oc.otlp.*`, `oc.otlp-json.*`, `oc.logs.json`), keyed by org, with the org's headers
+  (`x-oc-org`, retention) as record headers, and answers once Kafka acknowledged (`acks=all`). New telemetry paths
+  in the intake go through `send_with` with a `Sink`, never straight to the Collector or Vector; consumers commit
+  offsets only after storing. Live tail reads `oc.logs.live` (`live_feed.rs`).
 - **SQL.** Bind every user-supplied value as a parameter; never interpolate it.
 - **Migrations.** Add a new numbered file; never edit a merged one. ClickHouse DDL must work single-node and clustered:
   use the placeholders documented at the top of `server/migrations/clickhouse/0001_schema.sql`.

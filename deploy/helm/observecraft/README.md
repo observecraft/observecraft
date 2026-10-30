@@ -18,7 +18,7 @@ This chart installs the whole platform:
 | `vector` | Log normalization, then ClickHouse, the log indexer and live tail |
 | ClickHouse | Telemetry storage: bundled single node, sharded and replicated through the Altinity operator, or your own |
 | Postgres | Metadata (users, dashboards, monitors, …): bundled, CloudNativePG cluster, or your own |
-| NATS | Live tail (best effort) |
+| Kafka | Durable buffer between the intake and processing (72 h), and live tail: bundled KRaft brokers (3 with replication 3 in `values-ha.yaml`), or your own |
 | Valkey | Shared cache of the server replicas (required): bundled single instance without persistence, or your own |
 
 ## Install
@@ -126,7 +126,8 @@ only the traffic each component needs; secrets are generated once and kept acros
 | `clickhouse.bundled.coldStorage.*` | off | Moves metric samples and rollups older than `moveAfterDays` to an S3-compatible bucket (e.g. RustFS); they stay queryable. `endpoint` is the path-style bucket URL with a prefix, `existingSecret` holds `access-key-id` and `secret-access-key`. With `operator` or `external` ClickHouse, declare an `observecraft_tiered` storage policy (volumes `default` and `cold`) yourself and set `OC_METRICS_COLD_AFTER_DAYS` in `extraEnv`. |
 | `clickhouse.bundled.tuning.*` | small server | Caches, concurrent queries, merge threads and async insert buffering for the bundled server. Raise them with `clickhouse.bundled.resources`. |
 | `postgres.mode` | `bundled` | `bundled`, `operator` (CloudNativePG) or `external`. |
-| `nats.enabled` | `true` | `false` to use `nats.external.url`. |
+| `kafka.enabled` | `true` | `false` to use `kafka.external.brokers` (MSK, Confluent, Aiven, Strimzi…); the chart's job creates the topics there with `kafka.external.replication`. |
+| `kafka.replicas` / `partitions` / `retentionHours` | `1` / `12` / `72` | Brokers (3 for replication 3 and `min.insync.replicas` 2), partitions per topic (the most collector or Vector replicas a signal can use), and how long accepted data stays replayable. |
 | `cache.mode` | `bundled` | `bundled` (one Valkey, `cache.bundled.resources`; maxmemory is `maxmemoryPercent` of the memory limit, least recently used keys go first) or `external`: any Valkey/Redis-protocol service (ElastiCache, Memorystore, …) at `cache.external.url` or the secret key `cache-url` (`redis://[user:password@]host:6379/0`, `rediss://` for TLS). |
 | `cache.auth.enabled` / `existingSecret` / `key` | `true` / `""` / `cache-password` | Password of the bundled Valkey: generated in the chart's secret, or read from `existingSecret` under `key` (letters and digits). With `secrets.existingSecret`, rendering fails until you set `cache.auth.existingSecret` (it may be that same secret) or `cache.auth.enabled=false` (no password; the NetworkPolicy still admits only the server). |
 | `cache.maxValueBytes` / `loadTimeoutSeconds` | `8 MiB` / `30` | Largest cached value (after compression); how long replicas wait for another replica's load of the same entry. |

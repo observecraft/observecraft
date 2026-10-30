@@ -13990,7 +13990,8 @@ export interface components {
         };
         Readiness: {
             clickhouse: boolean;
-            nats: boolean;
+            /** @description Kafka (live tail; ingestion depends on it through the intake). Informational: the API works without it. */
+            kafka: boolean;
             postgres: boolean;
         };
         ReassignOnCallPage: {

@@ -46,7 +46,7 @@ spec:
             - { name: logproc, containerPort: 8090 }
           env:
             {{- include "oc.serverEnv" . | nindent 12 }}
-            - { name: OC_NATS_URL, value: {{ include "oc.natsUrl" . | quote }} }
+            - { name: OC_KAFKA_BROKERS, value: {{ include "oc.kafkaBrokers" . | quote }} }
             {{- include "oc.cacheEnv" . | nindent 12 }}
             - { name: OC_PUBLIC_URL, value: {{ include "oc.publicUrl" . | quote }} }
             - { name: OC_CORS_ORIGINS, value: {{ include "oc.publicUrl" . | quote }} }

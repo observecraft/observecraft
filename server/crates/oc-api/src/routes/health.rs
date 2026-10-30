@@ -10,7 +10,8 @@ use crate::state::AppState;
 pub struct Readiness {
     pub clickhouse: bool,
     pub postgres: bool,
-    pub nats: bool,
+    /// Kafka (live tail; ingestion depends on it through the intake). Informational: the API works without it.
+    pub kafka: bool,
 }
 
 /// Liveness: the process is up.
@@ -26,8 +27,11 @@ pub async fn readyz(State(st): State<AppState>) -> (StatusCode, Json<Readiness>)
     let r = Readiness {
         clickhouse: ch.is_ok(),
         postgres: pg.is_ok(),
-        nats: st.nats.connection_state() == async_nats::connection::State::Connected,
+        kafka: match &st.live {
+            Some(live) => live.reachable().await,
+            None => false,
+        },
     };
-    let code = if r.clickhouse && r.postgres && r.nats { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
+    let code = if r.clickhouse && r.postgres { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
     (code, Json(r))
 }

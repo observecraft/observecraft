@@ -10,6 +10,7 @@ mod cache;
 mod config;
 mod demo;
 mod error;
+mod live_feed;
 mod log_access;
 mod log_metrics;
 mod logproc;
@@ -91,14 +92,8 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("migrations applied");
         return Ok(());
     }
-    let nats = async_nats::ConnectOptions::new()
-        .name("observecraft-server")
-        .connection_timeout(Duration::from_secs(5))
-        // Live tail only: start without it and keep reconnecting.
-        .retry_on_initial_connect()
-        .connect(&cfg.nats_url)
-        .await
-        .context("connect nats")?;
+    // Live tail only (docs/adr/0004): connects on the first live tail session.
+    let live = cfg.kafka_brokers.as_deref().map(|b| Arc::new(live_feed::LiveFeed::new(b)));
 
     let secrets = auth::crypto::SecretBox::new(&cfg.secret_key);
     let state = AppState(Arc::new(Inner {
@@ -106,7 +101,7 @@ async fn main() -> anyhow::Result<()> {
         org_clients: org_limits::OrgClients::new(&ch_cfg, cfg.org_query.clone()),
         tables: ch_cfg,
         postgres,
-        nats,
+        live,
         secrets,
         log_restrictions: Default::default(),
         kube_inventory: ttl_cache::TtlCache::new(routes::kubernetes::INVENTORY_TTL).with_max_weight(cfg.inventory_cache_max_objects, Vec::len),

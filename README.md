@@ -39,8 +39,8 @@ visibility in one place, built on OpenTelemetry and ClickHouse.**
   without stitching five tools together.
 - **Open standards in, your storage underneath.** Send data with OpenTelemetry or Vector; it lands in ClickHouse
   tables you own and can query directly.
-- **Fast.** A Rust (axum) API over ClickHouse columnar storage. Search values are bound parameters, and live tail is
-  pushed over NATS.
+- **Fast and durable.** A Rust (axum) API over ClickHouse columnar storage. The intake writes what it accepts to
+  Kafka before answering, so processing restarts and storage outages don't lose data, and live tail streams from it.
 - **Enterprise-ready auth from day one.** Password + MFA, SAML 2.0, OpenID Connect, RBAC, application keys and an
   audit trail.
 - **Multi-tenant.** Organizations keep their users, SSO, content and telemetry apart; one account can belong to
@@ -99,7 +99,7 @@ git clone https://github.com/observecraft/observecraft.git
 cd observecraft
 (cd web && npm install)
 
-make up        # ClickHouse, Postgres, NATS, Valkey, Vector, OTel Collector, RustFS (S3), synthetic logs
+make up        # ClickHouse, Postgres, Kafka, Valkey, Vector, OTel Collector, RustFS (S3), synthetic logs
 make server    # API on :8080 (applies migrations on startup)
 make intake    # telemetry intake on :4318 (OTLP/HTTP + JSON logs, API-key authenticated)
 make tracegen  # demo traces, logs, metrics and CI pipelines, sent through the intake
@@ -203,7 +203,7 @@ The platform is one Helm chart, published with every release as an OCI artifact 
 [releases](https://github.com/observecraft/observecraft/releases):
 
 ```bash
-# Server (API + web app), intake, collector, Vector, and by default single-node ClickHouse, Postgres, NATS, Valkey.
+# Server (API + web app), intake, collector, Vector, and by default single-node ClickHouse, Postgres, Kafka, Valkey.
 helm install observecraft oci://ghcr.io/observecraft/charts/observecraft --version 0.1.0 -n observecraft --create-namespace \
   --set publicUrl=https://observecraft.example.com --set instanceAdminEmail=admin@example.com \
   --set ingress.enabled=true --set ingress.app.host=observecraft.example.com \
@@ -222,7 +222,7 @@ For an OpenTelemetry-only setup, use the `observecraft-agent` chart instead. It 
 Collector as a node agent and a cluster agent.
 
 For production, [`values-ha.yaml`](deploy/helm/observecraft/values-ha.yaml) runs ClickHouse sharded and replicated with
-Keeper (Altinity operator), Postgres as a CloudNativePG cluster with failover, three NATS nodes, and autoscaled,
+Keeper (Altinity operator), Postgres as a CloudNativePG cluster with failover, three Kafka brokers (replication 3), and autoscaled,
 disruption-budgeted services. Or point the chart at your own databases (`clickhouse.mode=external`,
 `postgres.mode=external`) and cache (`cache.mode=external`: ElastiCache, Memorystore or any Valkey/Redis-protocol
 server).
@@ -249,15 +249,16 @@ flowchart LR
   D[Datadog Agent · Fluent Bit<br/>Vector · Logstash]
   A & H & C -->|OTLP HTTP/gRPC + API key| IN[oc-intake<br/>auth · rate limits]
   D -->|Datadog logs / series API| IN
-  IN -->|x-oc-org| COL[OTel Collector]
-  IN -->|JSON logs| VEC[Vector aggregator]
+  IN -->|acks=all · keyed by org| K[[Kafka<br/>durable buffer · 72 h]]
+  K -->|OTLP| COL[OTel Collector]
+  K -->|JSON logs| VEC[Vector aggregator]
   COL -->|logs| VEC
   COL --> CH[(ClickHouse<br/>logs · traces · metrics · CI<br/>per org)]
   VEC --> CH
-  VEC --> NATS[[NATS<br/>live tail]]
+  VEC -->|live tail| K
   API[observecraft-server<br/>Rust · axum] --> CH
   API --> PG[(Postgres<br/>orgs · accounts · dashboards<br/>monitors · incidents)]
-  API --> NATS
+  API -->|live tail| K
   API <-->|shared results| VK[(Valkey<br/>cache)]
   API <-->|hourly Parquet| S3[(S3-compatible bucket<br/>log archives)]
   API -.->|DuckDB| S3
@@ -265,8 +266,10 @@ flowchart LR
   UI[Web app<br/>React · TypeScript] <-->|JSON · SSE| API
 ```
 
-Every telemetry row carries its organization: the intake resolves the API key, the Collector stamps the resource with
-`oc.org_id` (replacing anything a sender put there), and every query filters on it.
+Every telemetry row carries its organization: the intake resolves the API key and writes the org as a Kafka record
+header, the Collector stamps the resource with `oc.org_id` (replacing anything a sender put there), and every query
+filters on it. The intake answers a sender once Kafka has its data on all in-sync replicas; the Collector and Vector
+commit their Kafka offsets only after storing (see [ADR-0004](docs/adr/0004-kafka-ingestion-buffer.md)).
 
 | Path | What |
 |---|---|
@@ -296,7 +299,7 @@ most important ones:
 | `OC_ORG_QUERY_TIMEOUT_SECONDS` / `OC_ORG_QUERY_MAX_MEMORY_BYTES` / `OC_ORG_QUERY_MAX_ROWS_TO_READ` | `60` / `4294967296` / `0` (none) | Limits on each telemetry query of an organization (`OC_QUERY_TIMEOUT_SECONDS` / `OC_QUERY_MAX_MEMORY_BYTES` still work); queries also send the org as ClickHouse `quota_key` for per-org quotas. A query stopped at a limit gets 503 with what to change |
 | `OC_ORG_QUERY_CONCURRENCY` / `OC_ORG_QUERY_QUEUE_TIMEOUT_MS` | `16` / `10000` | ClickHouse queries of one organization running at once on each server replica (0 = no limit); more wait up to the timeout, then the API answers 429 ("retry shortly"). Background jobs (metric rollups, monitors, schedulers) are exempt |
 | `OC_POSTGRES_URL` | `postgres://observecraft:…@localhost:5432/observecraft` | Postgres connection string |
-| `OC_NATS_URL` | `nats://localhost:4222` | NATS for live tail |
+| `OC_KAFKA_BROKERS` | `localhost:19092` | Kafka bootstrap brokers (`host:port,…`). The server reads live tail from it; the intake (`oc-intake`) writes telemetry to it, and forwards over HTTP to the Collector and Vector when it is unset |
 | `OC_CACHE_URL` | — | **Required.** Shared cache of all server replicas: Valkey (or another Redis-protocol server), `redis://[user:password@]host:6379/0` or `rediss://…` for TLS. The server exits at startup when it is unset or unreachable for 30 s; later outages only cost cache hits |
 | `OC_DATADOG_API_ALLOW_APP_KEY_CREATION` | `false` | Lets the Datadog-compatible API create application keys when the caller is itself an application key (Terraform's `datadog_application_key`). Off by default so a leaked key can't create keys that outlive its revocation; see [docs/datadog-api.md](docs/datadog-api.md) |
 | `OC_CACHE_MAX_VALUE_BYTES` / `OC_CACHE_LOAD_TIMEOUT_SECONDS` | `8388608` / `30` | Largest value stored (after compression); how long replicas wait for another replica's load of the same entry |

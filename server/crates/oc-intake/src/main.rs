@@ -29,9 +29,14 @@
 //!   other inventories are acknowledged
 //! - `POST /api/v2/orch`                         the Agent's orchestrator summaries, acknowledged but not stored
 //!
+//! With OC_KAFKA_BROKERS set (docs/adr/0004-kafka-ingestion-buffer.md), OTLP and JSON logs are written to
+//! Kafka instead (topics per signal, keyed by org, the org's headers as record headers) and acknowledged once
+//! Kafka has them; the Collector and Vector consume from there. Without it they are forwarded over HTTP.
+//!
 //! Each org is rate limited (requests and bytes per second); over the limit answers 429.
 //!
-//! Env: OC_INTAKE_ADDR (0.0.0.0:4318), OC_INTAKE_GRPC_ADDR (0.0.0.0:4317), OC_POSTGRES_URL,
+//! Env: OC_KAFKA_BROKERS (unset: HTTP forwarding), OC_KAFKA_ORG_SPREAD (4 partitions per org),
+//! OC_INTAKE_ADDR (0.0.0.0:4318), OC_INTAKE_GRPC_ADDR (0.0.0.0:4317), OC_POSTGRES_URL,
 //! OC_INTAKE_COLLECTOR_URL (http://localhost:14318), OC_INTAKE_LOGS_URL (http://localhost:8687),
 //! OC_INTAKE_PROFILES_URL (http://localhost:8090/ingest/profiles),
 //! OC_INTAKE_APM_TELEMETRY_URL (http://localhost:8090/ingest/apm-telemetry),
@@ -51,6 +56,7 @@ mod datadog_process;
 mod datadog_tags;
 mod grpc;
 mod host_tags;
+mod kafka;
 mod metric_rules;
 mod ofrep;
 mod otlp;
@@ -62,6 +68,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::Context;
 use axum::body::Bytes;
+use kafka::Sink;
 use axum::extract::{DefaultBodyLimit, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -101,6 +108,10 @@ struct Config {
     org_bytes_per_sec: f64,
     /// Series remembered as forwarded in their hour (see `series_cache`); 0 turns marking off.
     series_cache: usize,
+    /// Kafka bootstrap brokers (`host:port,…`); unset forwards over HTTP to the Collector and Vector.
+    kafka_brokers: Option<String>,
+    /// Partitions an organization's records spread over (see `kafka`).
+    kafka_spread: usize,
 }
 
 fn env(key: &str, default: &str) -> String {
@@ -140,6 +151,8 @@ impl Config {
             org_rps: env("OC_INTAKE_ORG_RPS", "500").parse().unwrap_or(500.0),
             org_bytes_per_sec: env("OC_INTAKE_ORG_MBPS", "50").parse::<f64>().unwrap_or(50.0) * 1024.0 * 1024.0,
             series_cache: env("OC_INTAKE_SERIES_CACHE", "2000000").parse().unwrap_or(2_000_000),
+            kafka_brokers: std::env::var("OC_KAFKA_BROKERS").ok().filter(|v| !v.trim().is_empty()),
+            kafka_spread: env("OC_KAFKA_ORG_SPREAD", "4").parse().unwrap_or(4),
         }
     }
 }
@@ -214,6 +227,8 @@ struct Inner {
     metric_rules: metric_rules::MetricRules,
     /// The last service check messages written per org, check and host.
     check_messages: check_messages::CheckMessages,
+    /// The Kafka producer when OC_KAFKA_BROKERS is set.
+    kafka: Option<kafka::Kafka>,
     /// Series forwarded per hour, so points of known series are sent marked.
     series: series_cache::SeriesCache,
 }
@@ -353,7 +368,7 @@ pub struct Upstream {
 async fn send(
     st: &Shared,
     org: &KeyOrg,
-    target: &str,
+    target: Sink,
     content_type: Option<&HeaderValue>,
     content_encoding: Option<&HeaderValue>,
     body: Bytes,
@@ -361,16 +376,73 @@ async fn send(
     send_with(st, org, target, content_type, content_encoding, body, &[]).await
 }
 
-/// [`send`] with `extra` headers for the pipeline (e.g. the series-known mark).
-async fn send_with(
-    st: &Shared,
+/// The HTTP endpoint of a sink when there's no Kafka.
+fn http_target(cfg: &Config, sink: Sink) -> String {
+    match sink {
+        Sink::Traces => format!("{}/v1/traces", cfg.collector_url),
+        Sink::Metrics => format!("{}/v1/metrics", cfg.collector_url),
+        Sink::Logs => format!("{}/v1/logs", cfg.collector_url),
+        Sink::JsonLogs => cfg.logs_url.clone(),
+    }
+}
+
+/// Writes one admitted body to its Kafka topic: decompressed (Kafka compresses batches itself), keyed by
+/// org, the org's headers as record headers. Answers like an OTLP receiver once Kafka acknowledged it.
+async fn produce(
+    kafka: &kafka::Kafka,
     org: &KeyOrg,
-    target: &str,
+    sink: Sink,
     content_type: Option<&HeaderValue>,
     content_encoding: Option<&HeaderValue>,
     body: Bytes,
     extra: &[(&str, &str)],
 ) -> Result<Upstream, Rejection> {
+    let json = sink == Sink::JsonLogs || content_type.and_then(|v| v.to_str().ok()).is_some_and(|v| v.contains("json"));
+    let value = match content_encoding {
+        Some(enc) => {
+            let mut h = HeaderMap::new();
+            h.insert(header::CONTENT_ENCODING, enc.clone());
+            datadog::inflate(&h, &body).map_err(|_| Rejection::new(StatusCode::BAD_REQUEST, "cannot decompress body"))?
+        }
+        None => body.to_vec(),
+    };
+    let mut headers = std::collections::BTreeMap::new();
+    for (name, value) in org_headers(org) {
+        headers.insert(name.to_string(), value.into_bytes());
+    }
+    for (name, value) in extra {
+        headers.insert(name.to_string(), value.as_bytes().to_vec());
+    }
+    let topic = sink.topic(json);
+    match kafka.produce(topic, &org.org_id, value, headers).await {
+        Ok(()) => Ok(Upstream {
+            status: StatusCode::OK,
+            content_type: Some(HeaderValue::from_static(if json { "application/json" } else { "application/x-protobuf" })),
+            // An empty Export*ServiceResponse.
+            body: if json { Bytes::from_static(b"{}") } else { Bytes::new() },
+        }),
+        Err(e) => {
+            tracing::warn!(error = %e, topic, "Kafka unavailable");
+            Err(Rejection::new(StatusCode::SERVICE_UNAVAILABLE, "pipeline unavailable, retry later"))
+        }
+    }
+}
+
+/// [`send`] with `extra` headers for the pipeline (e.g. the series-known mark).
+async fn send_with(
+    st: &Shared,
+    org: &KeyOrg,
+    sink: Sink,
+    content_type: Option<&HeaderValue>,
+    content_encoding: Option<&HeaderValue>,
+    body: Bytes,
+    extra: &[(&str, &str)],
+) -> Result<Upstream, Rejection> {
+    if let Some(kafka) = &st.kafka {
+        return produce(kafka, org, sink, content_type, content_encoding, body, extra).await;
+    }
+    let target = http_target(&st.cfg, sink);
+    let target = target.as_str();
     let mut req = st.http.post(target).body(body);
     for (name, value) in org_headers(org) {
         req = req.header(name, value);
@@ -410,7 +482,7 @@ async fn send_with(
 }
 
 /// Authenticates, rate limits and forwards one request body to `target` unchanged.
-async fn forward(st: Shared, headers: HeaderMap, body: Bytes, target: String) -> Response {
+async fn forward(st: Shared, headers: HeaderMap, body: Bytes, target: Sink) -> Response {
     let org = match admit(&st, &headers, body.len()).await {
         Ok(org) => org,
         Err(r) => return r.into_response(),
@@ -418,7 +490,7 @@ async fn forward(st: Shared, headers: HeaderMap, body: Bytes, target: String) ->
     match send(
         &st,
         &org,
-        &target,
+        target,
         headers.get(header::CONTENT_TYPE),
         headers.get(header::CONTENT_ENCODING),
         body,
@@ -501,23 +573,19 @@ async fn pass_to_server(st: Shared, headers: HeaderMap, body: Bytes, url: String
 }
 
 async fn traces(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
-    let target = format!("{}/v1/traces", st.cfg.collector_url);
-    forward(st, headers, body, target).await
+    forward(st, headers, body, Sink::Traces).await
 }
 
 async fn metrics(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
-    let target = format!("{}/v1/metrics", st.cfg.collector_url);
-    forward(st, headers, body, target).await
+    forward(st, headers, body, Sink::Metrics).await
 }
 
 async fn otlp_logs(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
-    let target = format!("{}/v1/logs", st.cfg.collector_url);
-    forward(st, headers, body, target).await
+    forward(st, headers, body, Sink::Logs).await
 }
 
 async fn json_logs(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
-    let target = st.cfg.logs_url.clone();
-    forward(st, headers, body, target).await
+    forward(st, headers, body, Sink::JsonLogs).await
 }
 
 /// Datadog clients may pass the key in the query string (`?api_key=…` or `?dd-api-key=…`, e.g. the
@@ -566,16 +634,16 @@ async fn log_requests(req: axum::extract::Request, next: axum::middleware::Next)
     res
 }
 
-fn state(cfg: Config, pg: PgPool, http: reqwest::Client) -> Shared {
+fn state(cfg: Config, pg: PgPool, http: reqwest::Client, kafka: Option<kafka::Kafka>) -> Shared {
     let series = series_cache::SeriesCache::new(cfg.series_cache);
-    Arc::new(Inner { cfg, pg, http, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default(), flags: ofrep::FlagState::default(), metric_rules: metric_rules::MetricRules::default(), check_messages: check_messages::CheckMessages::default(), series })
+    Arc::new(Inner { cfg, pg, http, kafka, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default(), flags: ofrep::FlagState::default(), metric_rules: metric_rules::MetricRules::default(), check_messages: check_messages::CheckMessages::default(), series })
 }
 
 /// An intake for tests: `cfg`, a Postgres pool that never connects unless used.
 #[cfg(test)]
 fn test_state(cfg: Config) -> Shared {
     let pg = PgPoolOptions::new().connect_lazy("postgres://localhost/unused").expect("lazy pool");
-    state(cfg, pg, reqwest::Client::new())
+    state(cfg, pg, reqwest::Client::new(), None)
 }
 
 #[tokio::main]
@@ -594,7 +662,18 @@ async fn main() -> anyhow::Result<()> {
     let addr = cfg.addr.clone();
     let grpc_addr = cfg.grpc_addr.clone();
     let max_body = cfg.max_body;
-    let st = state(cfg, pg, http);
+    let kafka = match &cfg.kafka_brokers {
+        Some(brokers) => {
+            let k = kafka::Kafka::connect(brokers, cfg.kafka_spread).await.with_context(|| format!("connect to Kafka at {brokers}"))?;
+            tracing::info!(%brokers, "writing telemetry to Kafka");
+            Some(k)
+        }
+        None => {
+            tracing::info!(collector = %cfg.collector_url, "OC_KAFKA_BROKERS unset: forwarding telemetry over HTTP");
+            None
+        }
+    };
+    let st = state(cfg, pg, http, kafka);
     let flusher = st.clone();
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(ofrep::FLUSH_EVERY);

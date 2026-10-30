@@ -1,6 +1,13 @@
 # OpenTelemetry Collector (internal). Senders reach it only through oc-intake, which authenticates
 # the ingest key and adds the `x-oc-org` header; `resource/org` turns that into the `oc.org_id`
 # resource attribute every table is filtered by (a client-sent oc.org_id is always replaced).
+#
+# Input: Kafka (docs/adr/0004-kafka-ingestion-buffer.md): the intake writes each request to a topic,
+# with its headers as record headers, which the Kafka receivers pass on as request metadata (the same
+# `metadata.x-oc-org` as over HTTP). A record is marked consumed only once the pipeline accepted it,
+# i.e. once the exporters' file-backed queues hold it: batching happens in those queues, not in a
+# batch processor (which would accept records before they are persisted). The OTLP receiver stays for
+# an intake running without Kafka (OC_KAFKA_BROKERS unset).
 #   logs            → Vector aggregator (single normalization point, same path as agent logs)
 #   traces, metrics → ClickHouse `otel` database via the contrib ClickHouse exporter (tables owned by
 #                     the server's ClickHouse migrations, hence create_schema: false)
@@ -9,6 +16,37 @@
 # Endpoints come from the environment (defaults: the compose service names); the Helm chart mounts
 # this same file. hostmetrics.yaml adds the collector's own host metrics in compose.
 receivers:
+  kafka/otlp:
+    brokers: ["${env:OC_KAFKA_BROKERS:-kafka:9092}"]
+    group_id: oc-collector
+    client_id: oc-collector
+    # A new consumer group starts from the oldest data Kafka still has: nothing accepted is skipped.
+    initial_offset: earliest
+    message_marking: { after: true, on_error: false }
+    # A record the pipeline refused (the export queue full, ClickHouse down long enough) is retried
+    # instead of pausing its partition until a rebalance.
+    error_backoff: { enabled: true, initial_interval: 1s, max_interval: 30s }
+    # Each partition in its own worker, several requests in flight: waiting for the queue on one
+    # partition doesn't hold the others (ordering within an org isn't needed for telemetry).
+    partition_processing: { independent: true, max_buffered_batches: 4, max_in_flight: { records: 8 } }
+    traces: { topics: [oc.otlp.traces], encoding: otlp_proto }
+    metrics: { topics: [oc.otlp.metrics], encoding: otlp_proto }
+    logs: { topics: [oc.otlp.logs], encoding: otlp_proto }
+  kafka/otlp_json:
+    brokers: ["${env:OC_KAFKA_BROKERS:-kafka:9092}"]
+    group_id: oc-collector-json
+    client_id: oc-collector-json
+    initial_offset: earliest
+    message_marking: { after: true, on_error: false }
+    # A record the pipeline refused (the export queue full, ClickHouse down long enough) is retried
+    # instead of pausing its partition until a rebalance.
+    error_backoff: { enabled: true, initial_interval: 1s, max_interval: 30s }
+    # Each partition in its own worker, several requests in flight: waiting for the queue on one
+    # partition doesn't hold the others (ordering within an org isn't needed for telemetry).
+    partition_processing: { independent: true, max_buffered_batches: 4, max_in_flight: { records: 8 } }
+    traces: { topics: [oc.otlp-json.traces], encoding: otlp_json }
+    metrics: { topics: [oc.otlp-json.metrics], encoding: otlp_json }
+    logs: { topics: [oc.otlp-json.logs], encoding: otlp_json }
   otlp:
     protocols:
       grpc:
@@ -26,12 +64,6 @@ processors:
     detectors: [env, system]
     # Keep host.name etc. sent by the application; only fill in what is missing.
     override: false
-  # Every batch becomes one INSERT, i.e. one new part per table. The defaults (8192 items or 200ms)
-  # mean several small parts a second per table, and merging them takes ClickHouse's CPU and memory.
-  batch:
-    timeout: 5s
-    send_batch_size: 50000
-    send_batch_max_size: 100000
   # The tenant: from oc-intake's header only. Without it (nothing should reach us that way) the data
   # has no organization and is visible to no one.
   resource/org:
@@ -82,6 +114,13 @@ exporters:
     endpoint: ${env:OC_VECTOR_OTLP_ENDPOINT:-vector-aggregator:4317}
     tls:
       insecure: true
+    retry_on_failure:
+      enabled: true
+    sending_queue:
+      storage: file_storage/queue
+      sizer: items
+      queue_size: 5000000
+      batch: { flush_timeout: 1s, min_size: 10000, max_size: 50000 }
   clickhouse:
     endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
     database: otel
@@ -92,9 +131,13 @@ exporters:
     timeout: 10s
     retry_on_failure:
       enabled: true
-    sending_queue:
-      queue_size: 1000
+    sending_queue: &queue
       storage: file_storage/queue
+      # Every batch becomes one INSERT, i.e. one new part per table. Small batches mean several new
+      # parts a second per table, and merging them takes ClickHouse's CPU and memory.
+      sizer: items
+      queue_size: 5000000
+      batch: { flush_timeout: 5s, min_size: 50000, max_size: 100000 }
   # Metrics: the ingest tables of the metrics storage (series and samples, built by materialized
   # views; rollups by the server's rollup job, docs/adr/0001-metrics-storage.md and 0002).
   clickhouse/metrics:
@@ -112,9 +155,7 @@ exporters:
       exponential_histogram: { name: metrics_ingest_exponential_histogram }
     retry_on_failure:
       enabled: true
-    sending_queue:
-      queue_size: 1000
-      storage: file_storage/queue
+    sending_queue: *queue
   clickhouse/k8s:
     endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
     database: otel
@@ -125,8 +166,7 @@ exporters:
     timeout: 10s
     retry_on_failure:
       enabled: true
-    sending_queue:
-      storage: file_storage/queue
+    sending_queue: *queue
   clickhouse/events:
     endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
     database: otel
@@ -137,8 +177,7 @@ exporters:
     timeout: 10s
     retry_on_failure:
       enabled: true
-    sending_queue:
-      storage: file_storage/queue
+    sending_queue: *queue
   clickhouse/network:
     endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
     database: otel
@@ -149,8 +188,7 @@ exporters:
     timeout: 10s
     retry_on_failure:
       enabled: true
-    sending_queue:
-      storage: file_storage/queue
+    sending_queue: *queue
   clickhouse/ci:
     endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
     database: otel
@@ -162,8 +200,7 @@ exporters:
     timeout: 10s
     retry_on_failure:
       enabled: true
-    sending_queue:
-      storage: file_storage/queue
+    sending_queue: *queue
 
 extensions:
   health_check:
@@ -178,37 +215,32 @@ service:
   extensions: [health_check, file_storage/queue]
   pipelines:
     logs:
-      receivers: [otlp]
-      processors: [memory_limiter, resource/org, resourcedetection, batch]
+      receivers: [kafka/otlp, kafka/otlp_json, otlp]
+      processors: [memory_limiter, resource/org, resourcedetection]
       exporters: [routing/logs]
     logs/app:
       receivers: [routing/logs]
       exporters: [otlp/vector]
     logs/k8s:
       receivers: [routing/logs]
-      processors: [batch]
       exporters: [clickhouse/k8s]
     logs/events:
       receivers: [routing/logs]
-      processors: [batch]
       exporters: [clickhouse/events]
     logs/network:
       receivers: [routing/logs]
-      processors: [batch]
       exporters: [clickhouse/network]
     traces:
-      receivers: [otlp]
-      processors: [memory_limiter, resource/org, resourcedetection, batch]
+      receivers: [kafka/otlp, kafka/otlp_json, otlp]
+      processors: [memory_limiter, resource/org, resourcedetection]
       exporters: [routing/ci]
     traces/apm:
       receivers: [routing/ci]
-      processors: [batch]
       exporters: [clickhouse]
     traces/ci:
       receivers: [routing/ci]
-      processors: [batch]
       exporters: [clickhouse/ci]
     metrics:
-      receivers: [otlp]
-      processors: [memory_limiter, resource/org, resourcedetection, batch]
+      receivers: [kafka/otlp, kafka/otlp_json, otlp]
+      processors: [memory_limiter, resource/org, resourcedetection]
       exporters: [clickhouse/metrics]

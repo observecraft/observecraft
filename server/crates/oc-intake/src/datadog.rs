@@ -567,8 +567,8 @@ pub(crate) async fn deliver_metrics(st: &Shared, org: &crate::KeyOrg, req: otlp:
 }
 
 async fn post_metrics(st: &Shared, org: &crate::KeyOrg, body: Bytes, extra: &[(&str, &str)]) -> Result<(), Rejection> {
-    let target = format!("{}/v1/metrics", st.cfg.collector_url);
-    let up = send_with(st, org, &target, Some(&HeaderValue::from_static("application/x-protobuf")), None, body, extra).await?;
+    let target = crate::kafka::Sink::Metrics;
+    let up = send_with(st, org, target, Some(&HeaderValue::from_static("application/x-protobuf")), None, body, extra).await?;
     if up.status.is_success() {
         return Ok(());
     }

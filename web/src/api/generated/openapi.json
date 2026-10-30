@@ -44547,14 +44547,15 @@
         "required": [
           "clickhouse",
           "postgres",
-          "nats"
+          "kafka"
         ],
         "properties": {
           "clickhouse": {
             "type": "boolean"
           },
-          "nats": {
-            "type": "boolean"
+          "kafka": {
+            "type": "boolean",
+            "description": "Kafka (live tail; ingestion depends on it through the intake). Informational: the API works without it."
           },
           "postgres": {
             "type": "boolean"

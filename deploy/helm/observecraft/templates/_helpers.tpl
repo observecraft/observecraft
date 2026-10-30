@@ -118,8 +118,9 @@ storageClassName: {{ . | quote }}
 {{- if and (eq .Values.clickhouse.mode "external") (not .Values.clickhouse.external.ingestUser) -}}clickhouse-password{{- else -}}clickhouse-ingest-password{{- end -}}
 {{- end -}}
 
-{{- define "oc.natsUrl" -}}
-{{- if .Values.nats.enabled -}}nats://{{ include "oc.fullname" . }}-nats:4222{{- else -}}{{ required "nats.external.url is required with nats.enabled=false" .Values.nats.external.url }}{{- end -}}
+{{/* Kafka bootstrap brokers (host:port,…): the bundled cluster's service, or kafka.external.brokers. */}}
+{{- define "oc.kafkaBrokers" -}}
+{{- if .Values.kafka.enabled -}}{{ include "oc.fullname" . }}-kafka:9092{{- else -}}{{ required "kafka.external.brokers is required with kafka.enabled=false" .Values.kafka.external.brokers }}{{- end -}}
 {{- end -}}
 
 {{/* Secret holding the bundled Valkey's password ("" with cache.auth.enabled=false): cache.auth.existingSecret,

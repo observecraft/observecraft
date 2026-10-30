@@ -1624,6 +1624,7 @@ mod tests {
             ("slos.rs", include_str!("slos.rs")),
             ("spans.rs", include_str!("spans.rs")),
             ("../logproc.rs", include_str!("../logproc.rs")),
+            ("../live_feed.rs", include_str!("../live_feed.rs")),
             ("../metric_rollups.rs", include_str!("../metric_rollups.rs")),
         ];
         let mut missing = Vec::new();
@@ -1811,6 +1812,7 @@ mod tests {
             ("../log_access.rs", include_str!("../log_access.rs")),
             ("../log_metrics.rs", include_str!("../log_metrics.rs")),
             ("../logproc.rs", include_str!("../logproc.rs")),
+            ("../live_feed.rs", include_str!("../live_feed.rs")),
             ("../main.rs", include_str!("../main.rs")),
             ("../metric_rollups.rs", include_str!("../metric_rollups.rs")),
             ("../org_limits.rs", include_str!("../org_limits.rs")),

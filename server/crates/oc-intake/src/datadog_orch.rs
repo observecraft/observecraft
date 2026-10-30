@@ -192,8 +192,8 @@ pub async fn manifests(State(st): State<Shared>, headers: HeaderMap, raw: Bytes)
     if n == 0 {
         return StatusCode::ACCEPTED.into_response();
     }
-    let target = format!("{}/v1/logs", st.cfg.collector_url);
-    match send(&st, &org, &target, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&req)).await {
+    let target = crate::kafka::Sink::Logs;
+    match send(&st, &org, target, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&req)).await {
         Ok(up) if up.status.is_success() => StatusCode::ACCEPTED.into_response(),
         Ok(up) => {
             tracing::warn!(status = %up.status, "collector refused converted manifests");

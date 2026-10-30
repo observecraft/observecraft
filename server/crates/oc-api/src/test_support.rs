@@ -44,8 +44,6 @@ pub async fn replicas_with(count: usize, configure: impl Fn(&mut crate::config::
     migrate_clickhouse_once(&tables()).await;
     let postgres = oc_store::postgres(&pg_url, std::time::Duration::from_secs(5)).await.expect("postgres");
     PG_MIGRATED.get_or_init(|| async { oc_store::migrate_postgres(&postgres).await.expect("migrate postgres") }).await;
-    // Live tail only: never connected in these tests.
-    let nats = async_nats::ConnectOptions::new().retry_on_initial_connect().connect("nats://127.0.0.1:1").await.expect("nats client");
     let backend = Arc::new(FakeBackend::default());
     let states = (0..count)
         .map(|_| {
@@ -59,7 +57,7 @@ pub async fn replicas_with(count: usize, configure: impl Fn(&mut crate::config::
                 org_clients: crate::org_limits::OrgClients::new(&tables(), crate::org_limits::OrgQueryLimits::from_env()),
                 tables: tables(),
                 postgres: postgres.clone(),
-                nats: nats.clone(),
+                live: None,
                 secrets: crate::auth::crypto::SecretBox::new("test-secret"),
                 log_restrictions: Default::default(),
                 kube_inventory: crate::ttl_cache::TtlCache::new(crate::routes::kubernetes::INVENTORY_TTL),

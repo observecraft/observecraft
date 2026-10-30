@@ -1,9 +1,11 @@
 # Vector aggregator: one normalization point for every log source.
 #   inputs : the OTel Collector (OTLP :4317/:4318; resources carry oc.org_id), JSON logs from oc-intake
-#            (HTTP :8687; organization in the x-oc-org header) and trusted in-cluster Vector agents
-#            (vector protocol :6000; events must set org_id)
+#            (Kafka oc.logs.json, organization in the record's x-oc-org header; or HTTP :8687 when the
+#            intake runs without Kafka) and trusted in-cluster Vector agents (vector protocol :6000;
+#            events must set org_id)
 #   outputs: ClickHouse oc.logs_raw (every log, kept briefly; archives read it), the server's log
-#            indexer (routes logs to the org's indexes → oc.logs) and NATS oc.logs.live.<org> (live tail)
+#            indexer (routes logs to the org's indexes → oc.logs) and Kafka oc.logs.live (live tail,
+#            keyed by org)
 # Events without an organization are dropped: nothing is stored that no tenant owns.
 # Endpoints come from the environment (defaults: the compose service names); the Helm chart mounts this file.
 data_dir: /var/lib/vector
@@ -32,11 +34,27 @@ sources:
       codec: json
     headers: ["x-oc-org"]
 
+  # docs/adr/0004-kafka-ingestion-buffer.md: offsets are committed once the storage sinks' disk buffers
+  # hold the events (their `acknowledgements`), so a restart replays what wasn't stored.
+  kafka:
+    type: kafka
+    bootstrap_servers: "${OC_KAFKA_BROKERS:-kafka:9092}"
+    group_id: oc-vector
+    topics: [oc.logs.json]
+    auto_offset_reset: earliest
+    decoding:
+      codec: json
+    key_field: _oc_kafka_key
+    topic_key: _oc_kafka_topic
+    partition_key: _oc_kafka_partition
+    offset_key: _oc_kafka_offset
+    headers_key: _oc_kafka_headers
+
 transforms:
   # Output shape = oc.logs columns (+ ts_ms for live tail consumers).
   normalize:
     type: remap
-    inputs: [agents, otlp.logs, intake]
+    inputs: [agents, otlp.logs, intake, kafka]
     drop_on_abort: true
     # Datadog-style preprocessing, metadata → tags, reserved attributes. Tested by vector/tests.yaml
     # (`docker compose run --rm vector-aggregator test /etc/vector/aggregator.yaml /etc/vector/tests.yaml`).
@@ -49,6 +67,8 @@ sinks:
     endpoint: "${OC_CLICKHOUSE_HTTP_ENDPOINT:-http://clickhouse:8123}"
     database: oc
     table: logs_raw
+    acknowledgements:
+      enabled: true
     auth:
       strategy: basic
       user: "${CLICKHOUSE_USER}"
@@ -70,6 +90,8 @@ sinks:
     type: http
     inputs: [normalize]
     uri: "${OC_LOGPROC_URL}"
+    acknowledgements:
+      enabled: true
     method: post
     encoding:
       codec: json
@@ -89,13 +111,20 @@ sinks:
       when_full: block
 
   live:
-    type: nats
+    type: kafka
     inputs: [normalize]
-    url: "${OC_NATS_URL:-nats://nats:4222}"
-    subject: "oc.logs.live.{{ org_id }}"
+    bootstrap_servers: "${OC_KAFKA_BROKERS:-kafka:9092}"
+    topic: oc.logs.live
+    key_field: org_id
+    compression: zstd
+    # Kafka's Java partitioner: the server computes an org's partition the same way (live_feed.rs).
+    librdkafka_options:
+      partitioner: murmur2_random
     encoding:
       codec: json
     # Live tail is best-effort: never let it back-pressure storage.
+    acknowledgements:
+      enabled: false
     buffer:
       type: memory
       max_events: 10000

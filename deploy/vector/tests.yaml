@@ -35,6 +35,32 @@ tests:
               # Time-ordered ids (UUIDv7) compress; random ones (v4) don't.
               assert!(match(string!(.id), r'^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-'))
 
+  - name: JSON log from Kafka takes its organization from the intake's record header only
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "kafka"
+          ."x-oc-org" = "someone-else"
+          ._oc_kafka_headers = { "x-oc-org": "acme", "x-oc-retention-days": "15" }
+          ._oc_kafka_key = "acme"
+          ._oc_kafka_topic = "oc.logs.json"
+          ._oc_kafka_partition = 3
+          ._oc_kafka_offset = 42
+          .message = "payment authorized"
+          .service = "billing"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.org_id, "acme")
+              assert_eq!(.message, "payment authorized")
+              assert_eq!(.service, "billing")
+              assert!(!exists(.attr._oc_kafka_topic))
+              assert!(!exists(.attr._oc_kafka_headers))
+              assert!(!exists(.attr."x-oc-org"))
+
   - name: ECS FireLens record with a JSON `log` (oc-intake JSON logs)
     inputs:
       - insert_at: normalize

@@ -16,7 +16,8 @@ pub struct Config {
     /// Limits on the queries an org runs, so one org can't starve the others (`OC_ORG_QUERY_*`).
     pub org_query: crate::org_limits::OrgQueryLimits,
     pub postgres_url: String,
-    pub nats_url: String,
+    /// `OC_KAFKA_BROKERS`: the Kafka the intake writes to; the server reads live tail from it.
+    pub kafka_brokers: Option<String>,
     /// Built web app to serve (e.g. `../web/dist`); unset in development (Vite serves it).
     pub web_dist: Option<String>,
     pub cors_origins: Vec<String>,
@@ -150,7 +151,7 @@ impl Config {
             run_migrations: var("OC_RUN_MIGRATIONS", "true") != "false",
             org_query: crate::org_limits::OrgQueryLimits::from_env(),
             postgres_url: var("OC_POSTGRES_URL", "postgres://observecraft:observecraft@localhost:5432/observecraft"),
-            nats_url: var("OC_NATS_URL", "nats://localhost:4222"),
+            kafka_brokers: Some(var("OC_KAFKA_BROKERS", "localhost:19092")).filter(|s| !s.trim().is_empty()),
             web_dist: env::var("OC_WEB_DIST").ok().filter(|s| !s.is_empty()),
             cors_origins: var("OC_CORS_ORIGINS", "http://localhost:5173")
                 .split(',')

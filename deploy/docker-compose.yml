@@ -2,10 +2,10 @@
 #   make up            → storage + pipeline + synthetic load
 #   make server        → API on :8080 (cargo run), or `docker compose --profile app up` for the container
 #
-# Data flow:
-#   loadgen (Vector agent) ──vector──► vector-aggregator ──► ClickHouse oc.logs
-#   apps ──OTLP──► otel-collector ──logs──► vector-aggregator      └──► NATS oc.logs.live.<org>
-#                                 └─traces/metrics──► ClickHouse otel.*
+# Data flow (docs/adr/0004-kafka-ingestion-buffer.md):
+#   senders ──► intake ──► Kafka oc.otlp.* ──► otel-collector ──► ClickHouse otel.*
+#                     └──► Kafka oc.logs.json ─┐        └─logs──► vector-aggregator ──► ClickHouse oc.logs
+#   loadgen (Vector agent) ──vector────────────┴──► vector-aggregator ──► Kafka oc.logs.live (live tail)
 name: observecraft
 
 x-ch-auth: &ch-auth
@@ -48,17 +48,51 @@ services:
       timeout: 3s
       retries: 30
 
-  nats:
-    image: nats:2.10-alpine
-    command: ["-js", "-m", "8222"]
+  # Durable ingestion buffer between the intake and processing (Apache Kafka, KRaft: no ZooKeeper).
+  # Containers use kafka:9092; an intake or server running on the host (make intake / make server)
+  # uses localhost:19092. One broker here; Helm's values-ha.yaml runs three with replication 3.
+  kafka:
+    image: apache/kafka:4.1.0
+    restart: unless-stopped
+    # Root only so it can write to the named volume (the image's user can't).
+    user: "0:0"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,HOST://0.0.0.0:19092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,HOST://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_MESSAGE_MAX_BYTES: 67108864
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 67108864
+    volumes:
+      - kafka-data:/var/lib/kafka/data
     ports:
-      - "4222:4222" # clients
-      - "8222:8222" # monitoring
+      - "127.0.0.1:19092:19092"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
       interval: 5s
-      timeout: 3s
+      timeout: 10s
       retries: 30
+
+  # Creates the topics (idempotent), then exits.
+  kafka-topics:
+    image: apache/kafka:4.1.0
+    entrypoint: ["/bin/sh", "/topics.sh"]
+    environment:
+      OC_KAFKA_BROKERS: kafka:9092
+    volumes:
+      - ./kafka/topics.sh:/topics.sh:ro
+    depends_on:
+      kafka: { condition: service_healthy }
 
   # Shared cache of every observecraft-server replica (OC_CACHE_URL; required by the server).
   # A cache only: no persistence (no RDB snapshots, no AOF); least recently used keys go first
@@ -93,7 +127,7 @@ services:
       - "127.0.0.1:8687:8687" # JSON logs from oc-intake (internal)
     depends_on:
       clickhouse: { condition: service_healthy }
-      nats: { condition: service_healthy }
+      kafka-topics: { condition: service_completed_successfully }
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.163.2
@@ -154,7 +188,7 @@ services:
     environment:
       OC_CLICKHOUSE_URL: http://clickhouse:8123
       OC_POSTGRES_URL: postgres://observecraft:observecraft@postgres:5432/observecraft
-      OC_NATS_URL: nats://nats:4222
+      OC_KAFKA_BROKERS: kafka:9092
       OC_CACHE_URL: redis://valkey:6379/0
       OC_CORS_ORIGINS: ${OC_CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
       # The containerised server also serves the web app on :8080.
@@ -171,7 +205,7 @@ services:
     depends_on:
       clickhouse: { condition: service_healthy }
       postgres: { condition: service_healthy }
-      nats: { condition: service_healthy }
+      kafka-topics: { condition: service_completed_successfully }
       valkey: { condition: service_healthy }
 
   # The public telemetry endpoint: OTLP (HTTP :4318, gRPC :4317) and the Datadog logs / metrics APIs,
@@ -186,8 +220,7 @@ services:
     restart: unless-stopped
     environment:
       OC_POSTGRES_URL: postgres://observecraft:observecraft@postgres:5432/observecraft
-      OC_INTAKE_COLLECTOR_URL: http://otel-collector:4318
-      OC_INTAKE_LOGS_URL: http://vector-aggregator:8687
+      OC_KAFKA_BROKERS: kafka:9092
       OC_INTAKE_PROFILES_URL: http://server:8090/ingest/profiles
       OC_INTAKE_FLAG_EVALUATIONS_URL: http://server:8090/ingest/feature-flag-evaluations
       OC_INTERNAL_TOKEN: ${OC_INTERNAL_TOKEN:-}
@@ -196,7 +229,7 @@ services:
       - "4317:4317"
     depends_on:
       postgres: { condition: service_healthy }
-      otel-collector: { condition: service_started }
+      kafka-topics: { condition: service_completed_successfully }
 
   # Synthetic OTLP traces for APM (services, dependencies, N+1 calls, errors, rolling deploys).
   tracegen:
@@ -261,6 +294,7 @@ services:
 
 volumes:
   collector-queue:
+  kafka-data:
   clickhouse-data:
   postgres-data:
   rustfs-data:

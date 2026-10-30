@@ -20,7 +20,18 @@ attrs = object(.attributes) ?? {}
 root_tags = object(.tags) ?? {}
 
 # ---------------------------------------------------------------- organization
-# Set by oc-intake (JSON) or the Collector (OTLP resource); trusted agents set org_id themselves.
+# Set by oc-intake (JSON over HTTP, or the record headers of Kafka oc.logs.json) or the Collector (OTLP
+# resource); trusted agents set org_id themselves. From Kafka, only the intake's header counts: a field
+# of the same name in the log event itself is replaced.
+if kind == "kafka" {
+  kafka_headers = object(._oc_kafka_headers) ?? {}
+  ."x-oc-org" = to_string(get(kafka_headers, ["x-oc-org"]) ?? null) ?? ""
+  del(._oc_kafka_headers)
+  del(._oc_kafka_key)
+  del(._oc_kafka_topic)
+  del(._oc_kafka_partition)
+  del(._oc_kafka_offset)
+}
 org = to_string(get(., ["x-oc-org"]) ?? null) ?? ""
 if org == "" { org = to_string(get(res, ["oc.org_id"]) ?? null) ?? "" }
 if org == "" { org = to_string(.org_id) ?? "" }

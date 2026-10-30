@@ -147,8 +147,8 @@ pub async fn deliver(st: &Shared, org: &KeyOrg, events: &[Event]) -> Result<(), 
     if events.is_empty() {
         return Ok(());
     }
-    let target = format!("{}/v1/logs", st.cfg.collector_url);
-    let up = send(st, org, &target, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&to_otlp(events))).await?;
+    let target = crate::kafka::Sink::Logs;
+    let up = send(st, org, target, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&to_otlp(events))).await?;
     if up.status.is_success() {
         return Ok(());
     }
