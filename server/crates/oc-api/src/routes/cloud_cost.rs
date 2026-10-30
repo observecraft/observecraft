@@ -1209,8 +1209,9 @@ const DEMO_COMMITMENTS: &[DemoCommitment] = &[
 ];
 
 /// A deterministic number in [-1, 1) for a day and line.
-fn noise(day: i64, line: usize, salt: u64) -> f64 {
-    let mut x = (day as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ (line as u64).wrapping_mul(0xC2B2_AE3D_27D4_EB4F) ^ salt;
+/// Deterministic noise in [-1, 1) for the demo bills: `stream` picks an independent sequence (not cryptographic).
+fn noise(day: i64, line: usize, stream: u64) -> f64 {
+    let mut x = (day as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ (line as u64).wrapping_mul(0xC2B2_AE3D_27D4_EB4F) ^ stream;
     x ^= x >> 33;
     x = x.wrapping_mul(0xFF51_AFD7_ED55_8CCD);
     x ^= x >> 33;

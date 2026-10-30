@@ -31,7 +31,7 @@ export function budgetScope(metricsQuery: string): BudgetScope | null {
     const i = kv.indexOf(':');
     if (i < 0) continue;
     const v = kv.slice(i + 1);
-    parts.push(`${neg ? '-' : ''}${kv.slice(0, i)}:${/[\s():"]/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : v}`);
+    parts.push(`${neg ? '-' : ''}${kv.slice(0, i)}:${/[\s():"]/.test(v) ? `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : v}`);
   }
   return {
     query: parts.join(' '),

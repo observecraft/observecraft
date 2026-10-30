@@ -177,13 +177,14 @@ jobs:
           path: ~/.cache/observecraft/tf-compat
           key: tf-compat-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/tf-compat/run.sh', 'scripts/tf-compat/fixtures/**') }}
       # Datadog's recordings are fetched at test time, not vendored: scripts/datadog-fixtures/fetch.sh pins
-      # the datadog-api-client-go commit and its archive's SHA-256, and the cache is keyed on that commit.
+      # the datadog-api-client-go commit and its archive's SHA-256; the cache is keyed on that commit and on
+      # the script (its feature list).
       - id: dd-fixtures
         run: echo "commit=$(sed -n 's/^COMMIT=//p' scripts/datadog-fixtures/fetch.sh)" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/observecraft/datadog-api-client-go/${{ steps.dd-fixtures.outputs.commit }}
-          key: datadog-api-client-go-${{ steps.dd-fixtures.outputs.commit }}
+          key: datadog-api-client-go-${{ steps.dd-fixtures.outputs.commit }}-${{ hashFiles('scripts/datadog-fixtures/fetch.sh') }}
       - name: Fetch Datadog API contract fixtures
         run: make datadog-fixtures
       - name: Datadog API contract fixtures
