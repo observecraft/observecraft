@@ -36,7 +36,7 @@ hyper = "1"
 hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
 tower-service = "0.3"
 # Synthetic DNS tests: record lookups (A, AAAA, CNAME, MX, TXT, NS) with the system's or a chosen server.
-hickory-resolver = { version = "0.25", default-features = false, features = ["system-config", "tokio"] }
+hickory-resolver = { version = "0.26", default-features = false, features = ["system-config", "tokio"] }
 # Monitor notification email (SMTP over rustls).
 lettre = { version = "=0.11.23", default-features = false, features = ["builder", "hostname", "smtp-transport", "pool", "tokio1-rustls-tls"] }
 oc-flags = { workspace = true, features = ["openapi"] }
