@@ -19,7 +19,8 @@
 //! to their standard names (`status_code` → `http.status_code`), so generated metrics and routing see them.
 //!
 //! After the pipelines and before routing, every log is counted in the org's generated metrics (see
-//! `log_metrics`), so logs an index excludes still count; their buckets are flushed every 10 s.
+//! `log_metrics`), so logs an index excludes still count. Each request's buckets are durably queued
+//! before acknowledgement, and a background worker retries their export after failures/restarts.
 //!
 //! After the pipelines, logs matching a custom destination's query are queued for forwarding (see
 //! `log_forwarding`), whether an index keeps them or not.
@@ -92,6 +93,7 @@ pub struct Indexer {
     standard: RwLock<HashMap<String, Arc<Remapper>>>,
     /// Each org's generated metrics, and their buckets not flushed yet.
     log_metrics: RwLock<HashMap<String, Arc<OrgMetrics>>>,
+    #[cfg(test)]
     metric_buckets: Mutex<Aggregator>,
     /// Each org's custom destinations and the logs queued for them.
     forwarder: Arc<Forwarder>,
@@ -240,23 +242,6 @@ impl Indexer {
         Ok(())
     }
 
-    /// Writes the generated metrics' buckets; a failed insert is logged and its points dropped.
-    async fn flush_metrics(&self, st: &AppState) {
-        let (points, dropped) = self.metric_buckets.lock().unwrap().drain();
-        for ((org, metric), logs) in dropped {
-            tracing::warn!(%org, %metric, logs, max_series = log_metrics::MAX_SERIES_PER_METRIC, "generated metric has too many series: logs of new series not counted");
-        }
-        let (sums, histograms) = log_metrics::rows(&points);
-        for (table, rows) in [("otel.metrics_ingest_sum", sums), ("otel.metrics_ingest_exponential_histogram", histograms)] {
-            if rows.is_empty() {
-                continue;
-            }
-            if let Err(e) = insert_rows(st, table, rows).await {
-                tracing::warn!(%table, error = %e, "writing generated metrics failed");
-            }
-        }
-    }
-
     /// Brings quota counters up to what ClickHouse holds (other servers index too).
     async fn sync_counts(&self, st: &AppState) -> Result<(), clickhouse::error::Error> {
         #[derive(clickhouse::Row, Deserialize)]
@@ -329,6 +314,17 @@ impl Indexer {
 struct Reservations<'a> {
     ix: &'a Indexer,
     counts: HashMap<(String, String, i64), u64>,
+    metrics: Aggregator,
+}
+
+impl<'a> Reservations<'a> {
+    fn new(ix: &'a Indexer) -> Self {
+        Self {
+            ix,
+            counts: HashMap::new(),
+            metrics: Aggregator::default(),
+        }
+    }
 }
 
 impl Drop for Reservations<'_> {
@@ -427,7 +423,7 @@ fn admit_batch(ix: &Indexer, rows: Vec<Value>, existing: &Admissions, reservatio
         let org_metrics = ix.log_metrics.read().unwrap().get(&org).cloned();
         if let Some(m) = org_metrics {
             let ts = ev.get("ts_ms").and_then(Value::as_i64).unwrap_or(now);
-            ix.metric_buckets.lock().unwrap().record(&org, &m, &f, ts, now);
+            reservations.metrics.record(&org, &m, &f, ts, log_metrics::processing_clock(&id, now));
         }
         ix.forwarder.record(&org, &f, &ev);
         // Duplicate identities in one batch spend one slot, including before any row is persisted.
@@ -451,10 +447,11 @@ fn admit_batch(ix: &Indexer, rows: Vec<Value>, existing: &Admissions, reservatio
 #[cfg(test)]
 fn route_batch(ix: &Indexer, body: &[u8]) -> (Vec<u8>, usize, usize) {
     let now = now_ms();
-    let mut reservations = Reservations { ix, counts: HashMap::new() };
+    let mut reservations = Reservations::new(ix);
     let rules = ix.rules.read().unwrap().clone();
     let result = admit_batch(ix, prepare_batch(ix, body, now), &Admissions::new(), &mut reservations, now, &rules);
     reservations.counts.clear();
+    *ix.metric_buckets.lock().unwrap() = std::mem::take(&mut reservations.metrics);
     result
 }
 
@@ -494,22 +491,25 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
             return StatusCode::SERVICE_UNAVAILABLE;
         }
     };
-    let mut reservations = Reservations { ix: &ix, counts: HashMap::new() };
+    let mut reservations = Reservations::new(&ix);
     let (rows, _seen, kept) = admit_batch(&ix, prepared, &existing, &mut reservations, now, &rules);
-    if kept == 0 {
-        return StatusCode::OK;
-    }
-    match insert_rows(&st, "oc.logs_dedup", rows).await {
-        Ok(()) => {
-            reservations.counts.clear();
-            StatusCode::OK
-        }
-        Err(e) => {
+    if kept > 0 {
+        if let Err(e) = insert_rows(&st, "oc.logs_dedup", rows).await {
             tracing::warn!(error = %e, "indexing logs failed");
-            // Vector retries while Kafka retains ownership of the unacknowledged records.
-            StatusCode::SERVICE_UNAVAILABLE
+            return StatusCode::SERVICE_UNAVAILABLE;
         }
     }
+    let (points, dropped) = reservations.metrics.drain();
+    for ((org, metric), logs) in dropped {
+        tracing::warn!(%org, %metric, logs, max_series = log_metrics::MAX_SERIES_PER_METRIC, "generated metric has too many series: logs of new series not counted");
+    }
+    if let Err(e) = crate::log_metric_outbox::enqueue(&st, points).await {
+        tracing::warn!(error = %e, "persisting generated metric exports failed");
+        // Both log storage and the durable metric spool must succeed before Vector can commit.
+        return StatusCode::SERVICE_UNAVAILABLE;
+    }
+    reservations.counts.clear();
+    StatusCode::OK
 }
 
 /// `INSERT INTO <table> … FORMAT JSONEachRow` of NDJSON rows.
@@ -573,14 +573,7 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
             n += 1;
         }
     });
-    let (st3, ix3) = (st.clone(), ix.clone());
-    tokio::spawn(async move {
-        let mut tick = tokio::time::interval(Duration::from_millis(log_metrics::BUCKET_MS as u64));
-        loop {
-            tick.tick().await;
-            ix3.flush_metrics(&st3).await;
-        }
-    });
+    tokio::spawn(crate::log_metric_outbox::run(st.clone()));
     let addr = st.config.logproc_addr.clone();
     let profiles = Router::new()
         .route("/ingest/profiles", post(crate::routes::profiles::ingest))
@@ -698,7 +691,7 @@ mod tests {
         ]
         .concat();
         {
-            let mut reservations = Reservations { ix: &ix, counts: HashMap::new() };
+            let mut reservations = Reservations::new(&ix);
             let (_, _, kept) = admit_batch(&ix, prepare_batch(&ix, body.as_bytes(), 1), &Admissions::new(), &mut reservations, 1, &rules);
             assert_eq!(kept, 3, "two identities, including both copies of the first");
             assert_eq!(ix.counters.lock().unwrap()[&("acme".into(), "main".into())].n, 2);
@@ -713,9 +706,9 @@ mod tests {
     fn rollback_does_not_subtract_from_a_new_quota_day() {
         let ix = indexer(vec![rule("main", "", Some(1), vec![])]);
         let rules = ix.rules.read().unwrap().clone();
-        let mut old = Reservations { ix: &ix, counts: HashMap::new() };
+        let mut old = Reservations::new(&ix);
         admit_batch(&ix, prepare_batch(&ix, line("acme", "1", "api", "info").as_bytes(), 1), &Admissions::new(), &mut old, 1, &rules);
-        let mut new = Reservations { ix: &ix, counts: HashMap::new() };
+        let mut new = Reservations::new(&ix);
         admit_batch(
             &ix,
             prepare_batch(&ix, line("acme", "2", "api", "info").as_bytes(), DAY_MS + 1),
@@ -913,5 +906,40 @@ mod tests {
         let r = IndexRule { reset_hour: 14, ..rule("main", "", Some(1), vec![]) };
         // 2026-10-25T13:00Z belongs to the day that started 2026-10-24T14:00Z.
         assert_eq!(r.day_start(1_792_933_200_000), 1_792_850_400_000);
+    }
+
+    #[tokio::test]
+    async fn unindexed_logs_require_durable_metric_exports_and_backpressure_when_full() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "metric-spool-ingest").await;
+        let ix = Arc::new(Indexer::default());
+        ix.log_metrics.write().unwrap().insert(
+            org.clone(),
+            Arc::new(OrgMetrics {
+                definitions: vec![Definition::new("logs.all", "", Aggregation::Count, &[])],
+                retention: Retention::default(),
+            }),
+        );
+        let body = Bytes::from(line(&org, "00000000-0000-4000-8000-000000000001", "storefront-api", "info"));
+        assert_eq!(ingest(State((st.clone(), ix.clone())), HeaderMap::new(), body.clone()).await, StatusCode::OK);
+        let pending: Vec<u8> = sqlx::query_scalar("SELECT sums FROM log_metric_outbox WHERE org_id = $1")
+            .bind(&org)
+            .fetch_one(&st.postgres)
+            .await
+            .unwrap();
+        assert!(String::from_utf8(pending).unwrap().contains("logs.all"), "unindexed logs are durably counted before acknowledgement");
+        sqlx::query("INSERT INTO log_metric_outbox (org_id, sums, histograms) SELECT $1, 'x'::bytea, ''::bytea FROM generate_series(1, 4095)")
+            .bind(&org)
+            .execute(&st.postgres)
+            .await
+            .unwrap();
+        assert_eq!(ingest(State((st.clone(), ix)), HeaderMap::new(), body).await, StatusCode::SERVICE_UNAVAILABLE);
+        let batches: i64 = sqlx::query_scalar("SELECT count(*) FROM log_metric_outbox WHERE org_id = $1")
+            .bind(&org)
+            .fetch_one(&st.postgres)
+            .await
+            .unwrap();
+        assert_eq!(batches, 4096, "full queues leave new delivery with Kafka instead of growing without bound");
     }
 }

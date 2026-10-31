@@ -1,8 +1,8 @@
 //! Logs-based metrics (Logs → Configuration → Generate Metrics): the indexer matches every log,
 //! after pipelines and before index routing (so excluded or unindexed logs count too), against its
-//! org's metric definitions and aggregates the matches in memory into short buckets per (org,
-//! metric, group-by values). A flush loop writes them to the metric ingest tables as the Collector
-//! would, so they are queried like any other metric:
+//! org's metric definitions and aggregates each request's matches into short buckets per (org,
+//! metric, group-by values). The indexer persists these buckets to a bounded outbox before source
+//! acknowledgement; its worker writes the metric ingest tables as the Collector would:
 //!   count        → delta, monotonic sum (as Datadog `count` series are stored by the intake);
 //!   distribution → delta exponential histogram (as Datadog distributions are), percentiles included.
 //! Group-by values become tags: `service` is the series' service, the Datadog tags that map to
@@ -20,7 +20,7 @@ use crate::pipelines::Filter;
 
 /// Width of the aggregation buckets.
 pub const BUCKET_MS: i64 = 10_000;
-/// Distinct group-by value sets kept per metric between two flushes; logs of further series are dropped.
+/// Distinct group-by value sets kept per metric in an aggregation batch; further series are dropped.
 pub const MAX_SERIES_PER_METRIC: usize = 1_000;
 /// Logs whose date is further in the past are not counted.
 pub const MAX_LATENESS_MS: i64 = 20 * 60_000;
@@ -28,6 +28,16 @@ pub const MAX_LATENESS_MS: i64 = 20 * 60_000;
 pub const MISSING: &str = "N/A";
 /// Exponential histogram scale: base 2^(1/64), about 1.1 % per bucket (as converted Datadog sketches).
 pub const SCALE: i32 = 6;
+
+/// Modern JSON IDs carry server acceptance time. Use that stable clock for lateness and future
+/// clamping so delayed Kafka replay does not age previously eligible logs out of metric generation.
+pub fn processing_clock(id: &str, fallback: i64) -> i64 {
+    let hex: String = id.chars().filter(|c| *c != '-').collect();
+    if hex.len() != 32 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) || hex.as_bytes()[12] != b'7' {
+        return fallback;
+    }
+    i64::from_str_radix(&hex[..12], 16).unwrap_or(fallback)
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Aggregation {
@@ -334,6 +344,15 @@ mod tests {
     use super::*;
 
     const NOW: i64 = 1_792_933_205_000;
+
+    #[test]
+    fn acceptance_clock_is_stable_across_replay_and_legacy_ids_keep_the_fallback() {
+        let hex = format!("{NOW:012x}");
+        let id = format!("{}-{}-7000-8000-000000000001", &hex[..8], &hex[8..]);
+        assert_eq!(processing_clock(&id, NOW + 72 * 3_600_000), NOW);
+        assert_eq!(processing_clock("00000000-0000-4000-8000-000000000001", NOW), NOW);
+        assert_eq!(processing_clock("not-an-id", NOW), NOW);
+    }
 
     struct Log {
         service: &'static str,

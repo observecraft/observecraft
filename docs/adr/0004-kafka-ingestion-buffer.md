@@ -146,9 +146,31 @@ events. Restored daily totals still use event timestamps; late events and change
 make those totals differ from ingestion-day accounting. Admission reuse lasts only while the indexed
 row is retained and requires the same immutable identity fields as storage deduplication above.
 
-Generated log metrics still update per delivery in memory before storage and drop flushed points
-on export failure. They need durable, idempotent aggregation before claiming end-to-end idempotency;
-an in-memory seen-ID cache would not survive a restart or close the crash window around export.
+Generated log metrics aggregate each internal request into 10-second event-time buckets, including
+logs excluded from indexes. Before acknowledging that request, the indexer commits the aggregate
+payloads to Postgres `log_metric_outbox`. No per-log payloads or IDs are journaled there. A background
+worker exports the saved count/distribution rows into the existing OpenTelemetry metric ingest
+tables. Row locks with `SKIP LOCKED` let replicas share work and release unfinished work on restart.
+Successful sink payloads are cleared even when the other sink fails, and an export attempt is
+bounded to 30 seconds per sink. Up to four organizations export concurrently per API replica.
+
+The spool is bounded per organization to 64 MiB of pending payloads and 4,096 batches; reaching
+either limit or losing Postgres returns 503 to the source instead of dropping metric points.
+Kafka retains the unacknowledged source delivery. This adds Postgres writes only for requests that
+produce generated metrics, one compact batch per organization per request, and increases series
+metadata writes relative to the previous 10-second in-memory flush. The series cap is 1,000 per
+metric per request. Size Postgres/WAL and benchmark this bounded spool before enabling generated
+metrics at high volume; a Kafka-backed derived stream is the next scaling option if needed.
+Modern JSON UUIDv7 IDs supply a stable acceptance clock for the existing 20-minute lateness policy,
+so delayed delivery/replay does not make an originally eligible event too old. Legacy/OTLP IDs
+without that clock retain the processing-time fallback.
+
+This closes the acknowledged-but-only-in-memory loss window; exports remain at least once.
+Source replay can enqueue another contribution, and a crash/timeout after ClickHouse accepted an
+insert but before its outbox transaction committed can duplicate it. Neither an outbox nor an
+in-memory seen-ID cache supplies end-to-end deduplication. That still requires canonical event
+contributions and idempotent metric storage/aggregation; ordinary delta samples cannot simply
+be overwritten by bucket, because independently delivered contributions must all count.
 Raw metric samples, traces and live tail retain at-least-once semantics.
 
 Before upgrading from file-backed Collector/Vector queues, stop new ingestion, leave the old consumers running
