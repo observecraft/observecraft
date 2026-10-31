@@ -2218,6 +2218,7 @@ mod tests {
             ("../log_access.rs", include_str!("../log_access.rs")),
             ("../log_metrics.rs", include_str!("../log_metrics.rs")),
             ("../log_metric_outbox.rs", include_str!("../log_metric_outbox.rs")),
+            ("../ingest_stats.rs", include_str!("../ingest_stats.rs")),
             ("../log_quota.rs", include_str!("../log_quota.rs")),
             ("../logproc.rs", include_str!("../logproc.rs")),
             ("../live_feed.rs", include_str!("../live_feed.rs")),
