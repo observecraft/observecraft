@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@iconify-json/logos": "^1.2.3",
+    "@lobehub/icons-static-svg": "^1.101.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/react-grid-layout": "^1.3.5",

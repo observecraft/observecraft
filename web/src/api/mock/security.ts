@@ -28,6 +28,7 @@ import * as cs from './codeSecurity';
 import { allMisconfigs, allVulns } from './cloudSecurity';
 import { USERS } from './errorTracking';
 import { searchUsers } from './identity';
+import { WP_AGENT_RULES, wpDetectionRuleId, wpMitreTags } from './workloadCatalog';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -433,6 +434,86 @@ const APPSEC_RULES: DefaultRule[] = [
     tags: ['tactic:TA0001-initial-access', 'technique:T1190-exploit-public-facing-application'],
   },
 ];
+/** AI Guard's default detection rules on its evaluations (the server's ai_guard::DEFAULT_RULES). */
+const EXFIL = ['category:exploit', 'tactic:ta0010-exfiltration', 'technique:t1567-exfiltration-over-web-service'];
+const AI_GUARD_RULES: DefaultRule[] = [
+  {
+    id: 'def-aig-001',
+    name: 'Unblocked & Unsafe Indirect prompt injection on AI service',
+    message: 'Content an agent fetched carried instructions to the model, and AI Guard flagged it without blocking. Look at the tool that returned it and turn on blocking for the service.',
+    query: '@ai_guard.attack_categories:indirect-prompt-injection @ai_guard.blocked:false',
+    groupBy: ['service'],
+    cases: [['a > 0', 'high', '']],
+    window: 300,
+    tags: ['ai_guard:true', 'category:exploit', 'tactic:ta0001-initial-access', 'technique:t1190-exploit-public-facing-application'],
+  },
+  {
+    id: 'def-aig-002',
+    name: 'Data exfiltrated from AI service',
+    message: "A step of an AI service tried to move data outside the application and wasn't blocked. Check the destination and the data in the conversation.",
+    query: '@ai_guard.attack_categories:data-exfiltration @ai_guard.blocked:false',
+    groupBy: ['service'],
+    cases: [['a > 0', 'critical', '']],
+    window: 300,
+    tags: ['ai_guard:true', ...EXFIL],
+  },
+  {
+    id: 'def-aig-003',
+    name: 'PII or credentials exfiltrated from AI service',
+    message: 'Model answers or tool calls of an AI service carried personal data or credentials out of the application.',
+    query: '@ai_guard.direction:output @ai_guard.sds.category:(pii OR credentials)',
+    groupBy: ['service'],
+    cases: [['a > 5', 'high', '']],
+    window: 900,
+    tags: ['ai_guard:true', ...EXFIL],
+  },
+  {
+    id: 'def-aig-004',
+    name: 'Unblocked & Unsafe Traffic on AI service',
+    message: 'AI Guard flagged a burst of unsafe steps on an AI service that doesn’t block them.',
+    query: '@ai_guard.assessment:unsafe @ai_guard.blocked:false',
+    groupBy: ['service'],
+    cases: [
+      ['a > 50', 'high', 'Condition 2'],
+      ['a > 10', 'medium', 'Condition 1'],
+    ],
+    window: 900,
+    tags: ['ai_guard:true', 'category:custom'],
+  },
+];
+/** Workload Protection's default detection rules, one per threat detection agent rule (the server's security_rules::ensure_defaults). */
+const WP_RULES: DefaultRule[] = WP_AGENT_RULES.filter((r) => r.policy === 'threat-detection').map((r) => ({
+  id: wpDetectionRuleId(r.name),
+  name: r.title,
+  message: r.description,
+  query: `@agent.rule_id:${r.name}`,
+  groupBy: ['host'],
+  cases: [['a > 0', r.severity, '']],
+  window: 300,
+  tags: wpMitreTags(r),
+}));
+const WP_PACK: Pack = {
+  id: 'workload-protection',
+  name: 'Workload Protection',
+  category: 'Workload',
+  platform: 'Workload',
+  logo: '',
+  description: '',
+  query: 'source:runtime-security-agent',
+  setup: '',
+  rules: [],
+};
+const AI_GUARD_PACK: Pack = {
+  id: 'ai-guard',
+  name: 'AI Guard',
+  category: 'Application',
+  platform: 'Application',
+  logo: '',
+  description: '',
+  query: 'source:application-threats',
+  setup: '',
+  rules: [],
+};
 const APPSEC_PACK: Pack = { id: 'app-sec', name: 'App & API Protection', category: 'Application', platform: 'Application', logo: '', description: '', query: 'source:appsec', setup: '', rules: [] };
 
 function allRules(): SecurityRule[] {
@@ -440,12 +521,14 @@ function allRules(): SecurityRule[] {
     ...customRules,
     ...PACKS.flatMap((p) => p.rules.map((r) => defaultRule(p, r))),
     ...APPSEC_RULES.map((r) => ({ ...defaultRule(APPSEC_PACK, r), type: 'application_security', active: ruleEnabled.get(r.id) ?? true })),
+    ...AI_GUARD_RULES.map((r) => ({ ...defaultRule(AI_GUARD_PACK, r), type: 'application_security', active: ruleEnabled.get(r.id) ?? true })),
+    ...WP_RULES.map((r) => ({ ...defaultRule(WP_PACK, r), type: 'workload_security', active: ruleEnabled.get(r.id) ?? true })),
   ];
 }
 
 function notEvaluated(input: SecurityRuleInput): string | null {
   const type = input.type ?? 'log_detection';
-  if (type !== 'log_detection') return `${type.replace(/_/g, ' ')} rules are stored but not evaluated yet`;
+  if (!['log_detection', 'workload_security', 'application_security'].includes(type)) return `${type.replace(/_/g, ' ')} rules are stored but not evaluated yet`;
   const method = (input.options as { detectionMethod?: string })?.detectionMethod ?? 'threshold';
   if (method !== 'threshold') return `the ${method.replace(/_/g, ' ')} detection method is not evaluated yet`;
   const q = input.queries.find((x) => !['count', 'cardinality'].includes(x.aggregation ?? 'count'));
@@ -641,7 +724,106 @@ interface Schedule {
 }
 const ATTACKERS = ['203.0.113.7', '203.0.113.41', '203.0.113.88', '198.51.100.23', '198.51.100.71', '198.51.100.140', '203.0.113.150', '198.51.100.201'];
 const ips = (r: () => number, n: number, lead: number) => ({ top: Array.from({ length: Math.min(n, 5) }, (_, i) => ATTACKERS[(lead + i) % ATTACKERS.length]), count: n + Math.floor(r() * 3) });
+const AI_SERVICES = ['shopping-assistant', 'support-agent', 'catalog-enricher', 'review-summarizer'];
+/** Workload Protection signals on the schedule of oc-tracegen's cws.rs, thinned: the server's keep-alive extends a signal while its events repeat. */
+const WP_HOST = (n: number) => `i-0a1b2c3d4e5f6000${n}`;
+const wpHost = (n: number, events: (r: () => number) => number, extra: Record<string, { top: string[]; count: number }> = {}) => ({
+  group: () => ({ host: WP_HOST(n) }),
+  events,
+  entities: () => ({ host: { top: [WP_HOST(n)], count: 1 }, ...extra }),
+});
+const WP_SCHEDULES: Schedule[] = [
+  {
+    rule: wpDetectionRuleId('web_server_spawned_shell'),
+    every: 6 * HOUR,
+    offset: 25 * MIN,
+    severity: () => ['high', ''],
+    ...wpHost(1, () => 1, { container: { top: ['storefront-api-7d9f6c5b8-x2kq4'], count: 1 } }),
+    services: () => ['storefront-api'],
+  },
+  {
+    rule: wpDetectionRuleId('reverse_shell'),
+    every: 6 * HOUR,
+    offset: 26 * MIN,
+    severity: () => ['critical', ''],
+    ...wpHost(1, () => 1, { ip: { top: ['203.0.113.41'], count: 1 } }),
+    services: () => ['storefront-api'],
+  },
+  { rule: wpDetectionRuleId('service_account_token_read'), every: 6 * HOUR, offset: 25 * MIN, severity: () => ['medium', ''], ...wpHost(1, () => 1), services: () => ['storefront-api'] },
+  { rule: wpDetectionRuleId('network_scanner_executed'), every: 6 * HOUR, offset: 26 * MIN, severity: () => ['medium', ''], ...wpHost(1, () => 1), services: () => ['storefront-api'] },
+  {
+    rule: wpDetectionRuleId('shell_in_container'),
+    every: 8 * HOUR,
+    offset: 31 * MIN,
+    severity: () => ['medium', ''],
+    ...wpHost(1, (r) => 1 + Math.floor(r() * 3)),
+    services: () => ['storefront-api'],
+  },
+  {
+    rule: wpDetectionRuleId('imds_v1_request'),
+    every: 12 * HOUR,
+    offset: 7 * MIN,
+    severity: () => ['medium', ''],
+    ...wpHost(4, (r) => 12 + Math.floor(r() * 4)),
+    services: () => ['runtime-security-agent'],
+  },
+  { rule: wpDetectionRuleId('sudoers_modified'), every: 8 * HOUR, offset: 10 * MIN, severity: () => ['medium', ''], ...wpHost(5, () => 1), services: () => ['runtime-security-agent'] },
+  { rule: wpDetectionRuleId('cryptominer_executed'), every: 9 * HOUR, offset: 40 * MIN, severity: () => ['high', ''], ...wpHost(5, () => 1), services: () => ['runtime-security-agent'] },
+  { rule: wpDetectionRuleId('mining_pool_dns'), every: 9 * HOUR, offset: 40 * MIN, severity: () => ['medium', ''], ...wpHost(5, () => 1), services: () => ['runtime-security-agent'] },
+  { rule: wpDetectionRuleId('user_account_created'), every: 12 * HOUR, offset: 20 * MIN, severity: () => ['medium', ''], ...wpHost(4, () => 1), services: () => ['runtime-security-agent'] },
+  { rule: wpDetectionRuleId('package_manager_in_container'), every: 12 * HOUR, offset: 97 * MIN, severity: () => ['low', ''], ...wpHost(2, () => 1), services: () => ['order-service'] },
+  { rule: wpDetectionRuleId('compiler_in_container'), every: 16 * HOUR, offset: 2 * HOUR, severity: () => ['low', ''], ...wpHost(2, () => 1), services: () => ['catalog-service'] },
+];
 const SCHEDULES: Schedule[] = [
+  ...WP_SCHEDULES,
+  {
+    rule: 'def-aig-001',
+    every: 7 * HOUR,
+    offset: 52 * MIN,
+    severity: () => ['high', ''],
+    group: (slot) => ({ service: AI_SERVICES[slot % 2 ? 0 : 2] }),
+    events: (r) => 1 + Math.floor(r() * 4),
+    entities: (_r, slot) => ({
+      ip: { top: [ATTACKERS[slot % ATTACKERS.length]], count: 1 },
+      attack_category: { top: ['indirect-prompt-injection', 'instruction-override'], count: 2 },
+      tool: { top: ['fetch_url'], count: 1 },
+    }),
+    services: (slot) => [AI_SERVICES[slot % 2 ? 0 : 2]],
+  },
+  {
+    rule: 'def-aig-002',
+    every: 15 * HOUR,
+    offset: 3 * HOUR,
+    severity: () => ['critical', ''],
+    group: (slot) => ({ service: AI_SERVICES[slot % 2] }),
+    events: (r) => 1 + Math.floor(r() * 3),
+    entities: (_r, slot) => ({
+      ip: { top: [ATTACKERS[(slot + 2) % ATTACKERS.length]], count: 1 },
+      attack_category: { top: ['data-exfiltration', 'credential-access'], count: 2 },
+      tool: { top: ['http_request', 'send_email'], count: 2 },
+    }),
+    services: (slot) => [AI_SERVICES[slot % 2]],
+  },
+  {
+    rule: 'def-aig-003',
+    every: 11 * HOUR,
+    offset: 6 * HOUR,
+    severity: () => ['high', ''],
+    group: (slot) => ({ service: AI_SERVICES[(slot % 2) + 2] }),
+    events: (r) => 6 + Math.floor(r() * 30),
+    entities: (_r, slot) => ({ ip: { top: [ATTACKERS[(slot + 4) % ATTACKERS.length]], count: 1 }, user: { top: ['ana.popescu@example.com'], count: 1 } }),
+    services: (slot) => [AI_SERVICES[(slot % 2) + 2]],
+  },
+  {
+    rule: 'def-aig-004',
+    every: 5 * HOUR,
+    offset: 2 * HOUR,
+    severity: (r) => (r() < 0.3 ? ['high', 'Condition 2'] : ['medium', 'Condition 1']),
+    group: (slot) => ({ service: AI_SERVICES[slot % AI_SERVICES.length] }),
+    events: (r) => 12 + Math.floor(r() * 80),
+    entities: (r, slot) => ({ ip: ips(r, 3, slot + 1), attack_category: { top: ['jailbreak', 'system-prompt-extraction', 'instruction-override'], count: 3 } }),
+    services: (slot) => [AI_SERVICES[slot % AI_SERVICES.length]],
+  },
   {
     rule: 'def-aap-001',
     every: 4 * HOUR,
@@ -769,7 +951,7 @@ function term(k: string, v: string) {
 function makeSignal(sch: Schedule, slot: number, now: number): SecuritySignal | null {
   const rule = allRules().find((r) => r.id === sch.rule);
   if (!rule) return null;
-  const pack = PACKS.find((p) => p.id === rule.pack) ?? APPSEC_PACK;
+  const pack = PACKS.find((p) => p.id === rule.pack) ?? (rule.pack === 'ai-guard' ? AI_GUARD_PACK : rule.pack === 'workload-protection' ? WP_PACK : APPSEC_PACK);
   const r = rng(hash(`${sch.rule}:${slot}`));
   const created = slot * sch.every + sch.offset;
   const [severity, caseName] = sch.severity(r);
@@ -821,7 +1003,7 @@ function makeSignal(sch: Schedule, slot: number, now: number): SecuritySignal | 
 }
 
 /** Signals created in [from, to], newest first. */
-function signalsBetween(from: number, to: number): SecuritySignal[] {
+export function signalsBetween(from: number, to: number): SecuritySignal[] {
   const now = Date.now();
   const out: SecuritySignal[] = [];
   const start = Math.max(from, now - 14 * DAY);

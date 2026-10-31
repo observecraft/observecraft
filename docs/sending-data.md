@@ -17,6 +17,7 @@ with Docker Compose) and `ocik_…` for the key. Keep the key in a secret, not i
 | Datadog Agent APM | `POST /api/v0.2/traces` (the trace-agent's payloads, both formats), `/api/v0.2/stats` | traces | `DD-API-KEY: ocik_…` |
 | Datadog Agent service checks, Kubernetes | `POST /api/v1/check_run`, `POST /api/v2/orchmanif` (Cluster Agent manifests) | service checks, Kubernetes objects | `DD-API-KEY: ocik_…` |
 | Datadog Agent APM telemetry, `datadog-ci sarif upload` | `POST /api/v2/apmtelemetry`, `POST /api/v2/cicodescan` | Code Security: libraries services load, static scan findings | `DD-API-KEY: ocik_…` |
+| Datadog Agent runtime security | `POST /api/v2/secruntime`, `/api/v2/secinfo` (logs payloads) | Workload Protection: events that matched an agent rule | `DD-API-KEY: ocik_…` |
 
 Any of the three headers works on every endpoint: `Authorization: Bearer`, `OC-API-Key` or `DD-API-KEY`. As with
 Datadog, the query parameters `?api_key=` and `?dd-api-key=` work too.
@@ -145,6 +146,41 @@ to the intake (the examples in `deploy/examples/datadog` do). Their packages are
 advisories as Code Security's libraries; Kubernetes objects sent by the orchestrator explorer are checked for
 misconfigurations.
 
+### Workload Protection
+
+The Agent's runtime security module (system-probe and security-agent) watches processes, files, network and kernel
+activity on hosts and containers and sends the events that match an agent rule, as logs on its own track
+(`/api/v2/secruntime`, `source:runtime-security-agent`). Enable it with `datadog.securityAgent.runtime.enabled`
+(Helm) or `features.cws.enabled` (Operator) and point `DD_RUNTIME_SECURITY_CONFIG_ENDPOINTS_LOGS_DD_URL` (host:port)
+at the intake, with `DD_RUNTIME_SECURITY_CONFIG_ENDPOINTS_LOGS_NO_SSL=true` over plain HTTP; the examples in
+`deploy/examples/datadog` do. The Agent's inventory (`/api/v1/metadata`) tells which hosts run it.
+
+Agents normally receive their agent rules through Remote Configuration, which ObserveCraft doesn't serve yet: download
+the enabled policies (Workload Protection → Policies, or `GET /api/v2/remote_config/products/cws/policy/download`,
+a zip of policy files) and mount them in the security agent's `runtime_security_config.policies.dir`
+(`/etc/datadog-agent/runtime-security.d`), for example from a ConfigMap. Agents also load their bundled default policy.
+Policies and agent rules are managed with the Terraform provider's `datadog_csm_threats_policy` and
+`datadog_csm_threats_agent_rule`.
+
+### AI Guard
+
+The tracers' AI Guard SDKs (dd-trace-py, -js, -java, -rb, …) ask the API, not the intake, whether each step of an LLM
+conversation is safe: `POST <DD_AI_GUARD_ENDPOINT>/evaluate` with `DD-API-KEY` (an ingest key) and `DD-APPLICATION-KEY`
+(an application key). Point them at the API server:
+
+```bash
+DD_AI_GUARD_ENABLED=true
+DD_AI_GUARD_ENDPOINT=https://observecraft.example.com/api/v2/ai-guard
+DD_API_KEY=<ingest key>
+DD_APP_KEY=<application key>
+```
+
+The answer is the recommended action (`ALLOW`, `DENY`, `ABORT`), the attack categories with their confidence and the
+sensitive data found; the SDK blocks only for services in blocking mode (Security → AI Guard → Settings). Every
+evaluation is stored for AI Guard's Investigate, Discover and Signals pages, and the SDK's own `ai_guard` spans reach
+APM as usual (they add the client IP and user to an evaluation). Discover also lists the AI services and model
+providers found in LLM spans.
+
 ### Security logs for Cloud SIEM
 
 Cloud SIEM's detection rules read your logs as they arrive, by `source`: send CloudTrail with the Datadog Forwarder
@@ -154,8 +190,8 @@ Security → Cloud SIEM → Content Packs lists the sources, their rules and whe
 reads CISA's Known Exploited Vulnerabilities catalog from `OC_KEV_URL` (`off` for instances without internet access).
 
 **What isn't supported yet:**
-- Some payloads are acknowledged so the Agent doesn't keep retrying them, but they aren't stored: the Agent's
-  inventories (`/api/v1/metadata`) and the orchestrator's summaries (`/api/v2/orch`).
+- Some payloads are acknowledged so the Agent doesn't keep retrying them, but they aren't stored: the orchestrator's
+  summaries (`/api/v2/orch`).
 - Cloud Network Monitoring tags both ends of a connection with what the Agent sends (the container's tags, the
   host's tags, the remote service's tags for same-host traffic), then the Kubernetes inventory, the hosts' Datadog
   metadata, the other Agents' reports and the hosts' DNS lookups (`domain`). DNS monitoring (requests, response time, timeouts,

@@ -26,12 +26,18 @@
 //! `oc-tracegen load` instead sends only the multi-org metrics load profile (see `load`).
 //!
 //! Also writes OTLP logs inside the traces (one per request handled, one per error) for log ↔ trace links.
+//! Every few seconds an agent run of an AI service goes through AI Guard's evaluate endpoint, as the
+//! tracers' SDKs call it, with the SDK's `ai_guard` spans (see `ai_guard`).
+//!
 //! Env: OTLP_ENDPOINT (default http://localhost:4318, the intake), OC_INGEST_KEY (ingest API key), TRACES_PER_SEC (default 20),
+//! OC_API_URL (default http://localhost:8080) and OC_APP_KEY (application key) for AI Guard's evaluate endpoint,
 //! CLICKHOUSE_HTTP (default http://localhost:8123), CLICKHOUSE_USER / CLICKHOUSE_PASSWORD (observecraft).
 
+mod ai_guard;
 mod appmetrics;
 mod appsec;
 mod ci;
+mod cws;
 mod hosts;
 mod kafka;
 mod kubernetes;
@@ -935,6 +941,7 @@ async fn main() -> anyhow::Result<()> {
     let replay_url = format!("{endpoint}/api/v2/replay");
     let dd_logs_url = format!("{endpoint}/api/v2/logs");
     let sbom_url = format!("{endpoint}/api/v2/sbom");
+    let secruntime_url = format!("{endpoint}/api/v2/secruntime");
     let mut headers = reqwest::header::HeaderMap::new();
     if let Ok(key) = std::env::var("OC_INGEST_KEY") {
         headers.insert(
@@ -948,6 +955,20 @@ async fn main() -> anyhow::Result<()> {
         .timeout(Duration::from_secs(5))
         .default_headers(headers)
         .build()?;
+    // AI Guard's SDKs call the API host with both keys.
+    let ai_guard = match (std::env::var("OC_INGEST_KEY"), std::env::var("OC_APP_KEY")) {
+        (Ok(api), Ok(app)) => {
+            let mut h = reqwest::header::HeaderMap::new();
+            h.insert("DD-API-KEY", api.parse()?);
+            h.insert("DD-APPLICATION-KEY", app.parse()?);
+            let api_url = std::env::var("OC_API_URL").unwrap_or_else(|_| "http://localhost:8080".into());
+            Some((reqwest::Client::builder().timeout(Duration::from_secs(5)).default_headers(h).build()?, format!("{}/api/v2/ai-guard/evaluate", api_url.trim_end_matches('/'))))
+        }
+        _ => {
+            tracing::warn!("OC_APP_KEY is not set: no AI Guard evaluations");
+            None
+        }
+    };
     let mut rng = Rng(now_ns() | 1);
     tracing::info!(%url, per_sec, "oc-tracegen started");
 
@@ -1044,6 +1065,17 @@ async fn main() -> anyhow::Result<()> {
             tracing::warn!(error = %e, "security traces export failed");
         }
         security::send(&http, &dd_logs_url, security::tick(&mut rng, (now_ns() / 1_000_000) as i64, seconds)).await;
+        // Workload Protection: the Agents' metadata every 10 minutes, probe counts every 10 s, matched events.
+        if seconds % 600 == 1 {
+            cws::send_metadata(&http, &endpoint).await;
+        }
+        if seconds % 10 == 3 {
+            cws::post(&http, &series_url, &cws::monitored_series(&mut rng, now_ns() / 1_000_000_000, 10.0), "runtime security counters").await;
+        }
+        let matched = cws::tick(&mut rng, (now_ns() / 1_000_000) as i64, seconds);
+        if !matched.is_empty() {
+            cws::post(&http, &secruntime_url, &Value::Array(matched), "runtime security events").await;
+        }
         if seconds % 5 == 2 {
             let batches = rum::tick(&mut rng, &mut rum_sessions, now_ns() / 1_000_000, 5_000);
             rum::send(&http, &rum_url, batches).await;
@@ -1055,6 +1087,10 @@ async fn main() -> anyhow::Result<()> {
         // About one support-assistant conversation every two seconds (LLM Observability).
         if seconds.is_multiple_of(2) {
             spans.extend(llm::support_trace(&mut rng, now_ns() - 4_000_000_000));
+            spans.extend(ai_guard::llm_spans(&mut rng, now_ns()));
+        }
+        if let Some((client, eval_url)) = ai_guard.as_ref().filter(|_| seconds % 3 == 1) {
+            spans.extend(ai_guard::run(client, eval_url, &mut rng, now_ns()).await);
         }
         let count = spans.len();
         let logs = otlp_logs(&spans);

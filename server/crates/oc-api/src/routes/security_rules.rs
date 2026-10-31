@@ -340,14 +340,14 @@ impl SecurityRuleInput {
 
 /// Why the engine skips a rule, if it does.
 pub fn not_evaluated(kind: &str, queries: &[RuleQuery], options: &Value) -> Option<String> {
-    if kind != "log_detection" && kind != "application_security" {
+    if !matches!(kind, "log_detection" | "application_security" | "workload_security") {
         return Some(format!("{} rules are stored but not evaluated yet", kind.replace('_', " ")));
     }
     let method = detection_method(options);
     if method != "threshold" {
         return Some(format!("the {} detection method is not evaluated yet", method.replace('_', " ")));
     }
-    let counts_only = kind == "application_security";
+    let counts_only = kind != "log_detection";
     if let Some(q) = queries.iter().find(|q| !matches!(q.aggregation.as_str(), "count" | "cardinality") || (counts_only && q.aggregation != "count")) {
         return Some(format!("the {} aggregation is not evaluated yet", q.aggregation));
     }
@@ -570,6 +570,51 @@ pub async fn ensure_defaults(st: &AppState, org: &str) -> Result<(), ApiError> {
         .execute(&st.postgres)
         .await?;
     }
+    // AI Guard's default rules, on the evaluations.
+    for (id, name, message, query, group_by, cases, window, rule_tags) in super::ai_guard::DEFAULT_RULES {
+        let queries = json!([{ "query": query, "groupByFields": group_by, "distinctFields": [], "aggregation": "count", "name": "a", "hasOptionalGroupByFields": false }]);
+        let cases: Vec<Value> = cases.iter().map(|(cond, sev, name)| json!({ "name": name, "status": sev, "condition": cond, "notifications": [] })).collect();
+        let options = json!({ "detectionMethod": "threshold", "evaluationWindow": window, "keepAlive": 3600, "maxSignalDuration": 86400 });
+        let mut tags: Vec<String> = vec!["source:application-threats".into(), "ai_guard:true".into()];
+        tags.extend(rule_tags.iter().map(|t| t.to_string()));
+        sqlx::query(
+            "INSERT INTO security_rules (org_id, id, version, name, message, type, is_enabled, is_default, pack, default_rule_id, queries, cases, options, tags, has_extended_title) \
+             VALUES ($1, $2, 1, $3, $4, 'application_security', true, true, 'ai-guard', $2, $5, $6, $7, $8, true) ON CONFLICT (org_id, id) DO NOTHING",
+        )
+        .bind(org)
+        .bind(id)
+        .bind(name)
+        .bind(message)
+        .bind(queries)
+        .bind(json!(cases))
+        .bind(options)
+        .bind(&tags)
+        .execute(&st.postgres)
+        .await?;
+    }
+    // Workload Protection's default rules, one per threat detection agent rule, on its events.
+    for r in super::workload_catalog::AGENT_RULES.iter().filter(|r| r.policy == "threat-detection") {
+        let id = super::workload_catalog::detection_rule_id(r.name);
+        let queries = json!([{ "query": format!("@agent.rule_id:{}", r.name), "groupByFields": ["host"], "distinctFields": [], "aggregation": "count", "name": "a", "hasOptionalGroupByFields": false }]);
+        let cases = json!([{ "name": "", "status": r.severity, "condition": "a > 0", "notifications": [] }]);
+        let options = json!({ "detectionMethod": "threshold", "evaluationWindow": 300, "keepAlive": 3600, "maxSignalDuration": 86400 });
+        let mut tags = super::workload_catalog::mitre_tags(r);
+        tags.push("source:runtime-security-agent".into());
+        sqlx::query(
+            "INSERT INTO security_rules (org_id, id, version, name, message, type, is_enabled, is_default, pack, default_rule_id, queries, cases, options, tags, has_extended_title) \
+             VALUES ($1, $2, 1, $3, $4, 'workload_security', true, true, 'workload-protection', $2, $5, $6, $7, $8, true) ON CONFLICT (org_id, id) DO NOTHING",
+        )
+        .bind(org)
+        .bind(&id)
+        .bind(r.title)
+        .bind(r.description)
+        .bind(queries)
+        .bind(cases)
+        .bind(options)
+        .bind(&tags)
+        .execute(&st.postgres)
+        .await?;
+    }
     defaults_installed().lock().unwrap().insert(org.to_string());
     Ok(())
 }
@@ -771,7 +816,8 @@ mod tests {
     fn only_threshold_log_rules_with_counts_are_evaluated() {
         let i = input();
         assert!(not_evaluated("log_detection", &i.queries, &json!({})).is_none());
-        assert!(not_evaluated("workload_security", &i.queries, &json!({})).is_some());
+        assert!(not_evaluated("workload_security", &i.queries, &json!({})).is_none());
+        assert!(not_evaluated("signal_correlation", &i.queries, &json!({})).is_some());
         assert!(not_evaluated("log_detection", &i.queries, &json!({"detectionMethod": "new_value"})).is_some());
     }
 }

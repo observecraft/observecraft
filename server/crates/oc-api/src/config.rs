@@ -41,6 +41,9 @@ pub struct Config {
     pub seed_demo: bool,
     /// With `seed_demo`: an ingest key of the install's org for the local data generators.
     pub demo_ingest_key: Option<String>,
+    /// With `seed_demo`: an application key of the install's dev user, for generators that call the
+    /// management API as an SDK would (AI Guard's evaluate endpoint).
+    pub demo_app_key: Option<String>,
     /// With `seed_demo`: a local S3-compatible store (RustFS) the install's org archives logs to.
     pub demo_archive: Option<DemoArchive>,
     /// Local working files (archive download cache, search scratch space).
@@ -210,6 +213,7 @@ impl Config {
                 metrics_cold_after_days: var("OC_METRICS_COLD_AFTER_DAYS", "0").parse().unwrap_or(0),
             },
             demo_ingest_key: env::var("OC_DEMO_INGEST_KEY").ok().filter(|k| k.starts_with("ocik_") && k.len() >= 20 && var("OC_SEED_DEMO", "true") == "true"),
+            demo_app_key: env::var("OC_DEMO_APP_KEY").ok().filter(|k| k.starts_with("ocak_") && k.len() >= 20 && var("OC_SEED_DEMO", "true") == "true"),
         }
     }
 }

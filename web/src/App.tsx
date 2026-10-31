@@ -98,6 +98,19 @@ import { RuleEditorPage, RulesPage } from './pages/security/RulesPage';
 import { SiemSettingsPage } from './pages/security/SiemSettingsPage';
 import { CloudSecurityLayout } from './pages/security/cloud/CloudSecurityLayout';
 import { AppsecLayout } from './pages/security/appsec/AppsecLayout';
+import { WorkloadLayout } from './pages/security/workload/WorkloadLayout';
+import { WorkloadOverviewPage } from './pages/security/workload/OverviewPage';
+import { WorkloadSignalsPage } from './pages/security/workload/SignalsPage';
+import { AgentEventsPage } from './pages/security/workload/InvestigatePage';
+import { WorkloadFindingsPage } from './pages/security/workload/FindingsPage';
+import { CoveragePage, HostsContainersPage, ServerlessPage as WpServerlessPage } from './pages/security/workload/InventoryPages';
+import { AgentConfigurationPage, FindingRulesPage, WorkloadDetectionRulesPage } from './pages/security/workload/PoliciesPages';
+import { AiGuardLayout } from './pages/security/aiGuard/AiGuardLayout';
+import { AiGuardInvestigatePage } from './pages/security/aiGuard/InvestigatePage';
+import { AiGuardSignalsPage } from './pages/security/aiGuard/SignalsPage';
+import { AiGuardDiscoverPage } from './pages/security/aiGuard/DiscoverPage';
+import { AiGuardPlaygroundPage } from './pages/security/aiGuard/PlaygroundPage';
+import { AiGuardSettingsPage } from './pages/security/aiGuard/SettingsPage';
 import { AppsecOverviewPage } from './pages/security/appsec/OverviewPage';
 import { ApiFindingsPage, CompliancePage } from './pages/security/appsec/FindingsPages';
 import { AppsecUsersPage, AttackersPage, SecurityTracesPage } from './pages/security/appsec/InvestigatePages';
@@ -520,6 +533,25 @@ function Shell() {
               <Route path="policies/denylist" element={<DenylistPage />} />
               <Route path="policies/passlist" element={<PasslistPage />} />
               <Route path="policies/sensitive-data" element={<SensitiveDataPage />} />
+            </Route>
+            <Route path="/security/workload-protection" element={<WorkloadLayout />}>
+              <Route index element={<WorkloadOverviewPage />} />
+              <Route path="signals" element={<WorkloadSignalsPage />} />
+              <Route path="investigate" element={<AgentEventsPage />} />
+              <Route path="findings" element={<WorkloadFindingsPage />} />
+              <Route path="inventory" element={<HostsContainersPage />} />
+              <Route path="inventory/serverless" element={<WpServerlessPage />} />
+              <Route path="inventory/coverage" element={<CoveragePage />} />
+              <Route path="policies" element={<AgentConfigurationPage />} />
+              <Route path="policies/detection-rules" element={<WorkloadDetectionRulesPage />} />
+              <Route path="policies/finding-rules" element={<FindingRulesPage />} />
+            </Route>
+            <Route path="/security/ai-guard" element={<AiGuardLayout />}>
+              <Route index element={<AiGuardInvestigatePage />} />
+              <Route path="signals" element={<AiGuardSignalsPage />} />
+              <Route path="discover" element={<AiGuardDiscoverPage />} />
+              <Route path="playground" element={<AiGuardPlaygroundPage />} />
+              <Route path="settings" element={<AiGuardSettingsPage />} />
             </Route>
             <Route path="/security/cloud" element={<CloudSecurityLayout />}>
               <Route index element={<CloudSummaryPage />} />

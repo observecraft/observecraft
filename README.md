@@ -363,6 +363,8 @@ releases.
 | Cloud SIEM: content packs (CloudTrail, Okta, GitHub, Kubernetes audit, web servers, …), log detection rules and suppressions (Terraform `datadog_security_monitoring_rule` / `_suppression`), signals and triage; Security overview, inbox and research feed (CISA KEV) | ✅ Live (ClickHouse, Postgres) |
 | Cloud Security: host and container image vulnerabilities from the Agent's SBOMs, Kubernetes and host misconfigurations, inventory, infrastructure packages, CVE explorer | ✅ Live (Postgres, ClickHouse) |
 | App & API Protection: security traces from the tracers' AppSec spans, attackers and users, API endpoints and findings (OWASP API Top 10), In-App WAF custom rules, exclusion filters and policies (Terraform `datadog_appsec_waf_custom_rule` / `_exclusion_filter`), denylist and detection rules | ✅ Live (ClickHouse, Postgres); not yet pushed to tracers |
+| Workload Protection: the Agent's runtime security events, agent policies and rules (Terraform `datadog_csm_threats_policy` / `_agent_rule`), Agents and coverage, `workload_security` detection rules and signals, `workload_activity` findings, MITRE ATT&CK coverage | ✅ Live (ClickHouse, Postgres); policies reach Agents as downloaded files |
+| AI Guard: the tracers' AI Guard SDK evaluate endpoint with our own evaluator (prompt injection, jailbreak, prompt extraction, exfiltration, destructive tool calls, sensitive data), Investigate with the conversation timeline, Signals, Discover (AI services and model providers from LLM spans), Playground, per-service blocking | ✅ Live (ClickHouse, Postgres) |
 | Live debugger | 🗺️ Planned |
 
 ## Contributing

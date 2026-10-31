@@ -51,6 +51,230 @@
         }
       }
     },
+    "/api/v1/ai-guard/categories": {
+      "get": {
+        "tags": [
+          "ai-guard"
+        ],
+        "operationId": "ai_guard_categories",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AiGuardCategory"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai-guard/discover": {
+      "post": {
+        "tags": [
+          "ai-guard"
+        ],
+        "operationId": "ai_guard_discover",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiDiscoverRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiDiscover"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai-guard/evaluations": {
+      "post": {
+        "tags": [
+          "ai-guard"
+        ],
+        "operationId": "ai_guard_evaluations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiGuardSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiGuardEvaluationPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai-guard/evaluations/{id}": {
+      "get": {
+        "tags": [
+          "ai-guard"
+        ],
+        "operationId": "ai_guard_evaluation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiGuardEvaluationDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/ai-guard/playground": {
+      "post": {
+        "tags": [
+          "ai-guard"
+        ],
+        "operationId": "ai_guard_playground",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiGuardPlaygroundRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiGuardPlaygroundResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai-guard/settings": {
+      "get": {
+        "tags": [
+          "ai-guard"
+        ],
+        "operationId": "ai_guard_settings",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiGuardSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ai-guard"
+        ],
+        "operationId": "ai_guard_update_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiGuardSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiGuardSettings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai-guard/summary": {
+      "post": {
+        "tags": [
+          "ai-guard"
+        ],
+        "operationId": "ai_guard_summary",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiGuardQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiGuardSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apm/anomalies": {
       "post": {
         "tags": [
@@ -21480,6 +21704,458 @@
         }
       }
     },
+    "/api/v1/workload-protection/agent-rules": {
+      "get": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_agent_rules",
+        "parameters": [
+          {
+            "name": "policy_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WpAgentRule"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_create_agent_rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WpAgentRuleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WpAgentRule"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workload-protection/agent-rules/{id}": {
+      "delete": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_delete_agent_rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_update_agent_rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WpAgentRuleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WpAgentRule"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workload-protection/agents": {
+      "get": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_agents",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WpAgents"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workload-protection/events": {
+      "post": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_events",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WpEventsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WpEventsPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workload-protection/findings": {
+      "get": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_findings",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Epoch ms; defaults to 7 days before `to`.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Epoch ms; defaults to now.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WpFindings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workload-protection/policies": {
+      "get": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_policies",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WpPolicy"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_create_policy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WpPolicyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WpPolicy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workload-protection/policies/download": {
+      "get": {
+        "tags": [
+          "workload-protection"
+        ],
+        "summary": "The enabled policies as Agent policy files (a zip), for Agents without Remote Configuration.",
+        "operationId": "workload_protection_download_policies",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workload-protection/policies/{id}": {
+      "delete": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_delete_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_update_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WpPolicyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WpPolicy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workload-protection/summary": {
+      "get": {
+        "tags": [
+          "workload-protection"
+        ],
+        "operationId": "workload_protection_summary",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Epoch ms; defaults to 7 days before `to`.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Epoch ms; defaults to now.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WpSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/ai-guard/evaluate": {
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_ai_guard_evaluate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/api_keys": {
       "get": {
         "tags": [
@@ -22303,6 +22979,179 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/csm/onboarding/agents": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_csm_agents",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/csm/onboarding/coverage_analysis/cloud_accounts": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Cloud accounts aren't scanned (Cloud Security's account scanning is still missing): no resources.",
+        "operationId": "datadog_csm_cloud_accounts_coverage",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/csm/onboarding/coverage_analysis/hosts_and_containers": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_csm_hosts_coverage",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/csm/onboarding/coverage_analysis/serverless": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_csm_serverless_coverage",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/csm/onboarding/serverless/agents": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_csm_serverless_agents",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order_direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
                 }
               }
             }
@@ -23625,6 +24474,451 @@
         "responses": {
           "204": {
             "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/remote_config/products/cws/agent_rules": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_cws_agent_rules",
+        "parameters": [
+          {
+            "name": "policy_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_create_cws_agent_rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/remote_config/products/cws/agent_rules/{agent_rule_id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_get_cws_agent_rule",
+        "parameters": [
+          {
+            "name": "agent_rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policy_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_delete_cws_agent_rule",
+        "parameters": [
+          {
+            "name": "agent_rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policy_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_update_cws_agent_rule",
+        "parameters": [
+          {
+            "name": "agent_rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/remote_config/products/cws/policy": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_cws_policies",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_create_cws_policy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/remote_config/products/cws/policy/download": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_download_cws_policy",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/remote_config/products/cws/policy/{policy_id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_get_cws_policy",
+        "parameters": [
+          {
+            "name": "policy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_delete_cws_policy",
+        "parameters": [
+          {
+            "name": "policy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_update_cws_policy",
+        "parameters": [
+          {
+            "name": "policy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           },
           "404": {
             "description": "",
@@ -26711,6 +28005,798 @@
           },
           "last_affected": {
             "type": "string"
+          }
+        }
+      },
+      "AiDiscover": {
+        "type": "object",
+        "required": [
+          "providers",
+          "services"
+        ],
+        "properties": {
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiProvider"
+            }
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiService"
+            }
+          }
+        }
+      },
+      "AiDiscoverRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "AiGuardCategory": {
+        "type": "object",
+        "description": "Category list for the UI.",
+        "required": [
+          "category",
+          "description"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "AiGuardCategoryScore": {
+        "type": "object",
+        "required": [
+          "category",
+          "confidence",
+          "flagged",
+          "description"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "format": "double"
+          },
+          "description": {
+            "type": "string"
+          },
+          "flagged": {
+            "type": "boolean",
+            "description": "At or above the threshold: reported as an attack category."
+          }
+        }
+      },
+      "AiGuardEvaluationDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AiGuardEvaluationRow"
+          },
+          {
+            "type": "object",
+            "required": [
+              "reason",
+              "blockingEnabled",
+              "source",
+              "language",
+              "threshold",
+              "scores",
+              "sdsFindings",
+              "messages",
+              "context",
+              "steps",
+              "clientIp",
+              "userId",
+              "userEmail",
+              "traceId",
+              "spanId"
+            ],
+            "properties": {
+              "blockingEnabled": {
+                "type": "boolean"
+              },
+              "clientIp": {
+                "type": "string",
+                "description": "From the SDK's `ai_guard` span, when it reached APM."
+              },
+              "context": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                },
+                "description": "Messages before the first evaluated step of the run."
+              },
+              "language": {
+                "type": "string"
+              },
+              "messages": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                },
+                "description": "The request's messages, as sent."
+              },
+              "reason": {
+                "type": "string"
+              },
+              "scores": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AiGuardCategoryScore"
+                }
+              },
+              "sdsFindings": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "source": {
+                "type": "string"
+              },
+              "spanId": {
+                "type": "string"
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AiGuardStep"
+                },
+                "description": "Every evaluated step of the run, oldest first (this one included)."
+              },
+              "threshold": {
+                "type": "number",
+                "format": "double"
+              },
+              "traceId": {
+                "type": "string"
+              },
+              "userEmail": {
+                "type": "string"
+              },
+              "userId": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "AiGuardEvaluationPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "rows"
+        ],
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiGuardEvaluationRow"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "AiGuardEvaluationRow": {
+        "type": "object",
+        "required": [
+          "id",
+          "timestamp",
+          "service",
+          "env",
+          "target",
+          "direction",
+          "toolName",
+          "action",
+          "blocked",
+          "tags",
+          "sdsCategories",
+          "sdsTags",
+          "content",
+          "durationMs",
+          "conversation"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "ALLOW | DENY | ABORT"
+          },
+          "blocked": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "content": {
+            "type": "string"
+          },
+          "conversation": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string",
+            "description": "input | output"
+          },
+          "durationMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "env": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "sdsCategories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sdsTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "service": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "target": {
+            "type": "string",
+            "description": "prompt | tool"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "toolName": {
+            "type": "string"
+          }
+        }
+      },
+      "AiGuardMatch": {
+        "type": "object",
+        "description": "A pattern that matched, for the UI's \"rule match\" line.",
+        "required": [
+          "category",
+          "rule",
+          "weight"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "rule": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "AiGuardPlaygroundRequest": {
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "meta": {
+            "type": "object"
+          }
+        }
+      },
+      "AiGuardPlaygroundResult": {
+        "type": "object",
+        "required": [
+          "action",
+          "reason",
+          "target",
+          "direction",
+          "toolName",
+          "blockingEnabled",
+          "threshold",
+          "scores",
+          "sdsFindings",
+          "matches"
+        ],
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "blockingEnabled": {
+            "type": "boolean"
+          },
+          "direction": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiGuardMatch"
+            }
+          },
+          "reason": {
+            "type": "string"
+          },
+          "scores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiGuardCategoryScore"
+            }
+          },
+          "sdsFindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiGuardSdsFinding"
+            }
+          },
+          "target": {
+            "type": "string"
+          },
+          "threshold": {
+            "type": "number",
+            "format": "double"
+          },
+          "toolName": {
+            "type": "string"
+          }
+        }
+      },
+      "AiGuardQuery": {
+        "type": "object",
+        "description": "The filters of the Investigate page.",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "assessment": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "safe | unsafe"
+          },
+          "blocked": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "env": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "service": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "prompt | tool"
+          }
+        }
+      },
+      "AiGuardSdsFinding": {
+        "type": "object",
+        "required": [
+          "category",
+          "rule_display_name",
+          "rule_tag",
+          "location"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "location": {
+            "$ref": "#/components/schemas/AiGuardSdsLocation"
+          },
+          "rule_display_name": {
+            "type": "string"
+          },
+          "rule_tag": {
+            "type": "string"
+          }
+        }
+      },
+      "AiGuardSdsLocation": {
+        "type": "object",
+        "required": [
+          "path",
+          "start_index",
+          "end_index_exclusive"
+        ],
+        "properties": {
+          "end_index_exclusive": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "path": {
+            "type": "string"
+          },
+          "start_index": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AiGuardSearchRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AiGuardQuery"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ascending": {
+                "type": "boolean",
+                "description": "Oldest first."
+              },
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "minimum": 0
+              },
+              "offset": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "minimum": 0
+              }
+            }
+          }
+        ]
+      },
+      "AiGuardSeriesPoint": {
+        "type": "object",
+        "required": [
+          "t",
+          "safe",
+          "unsafeCount",
+          "blocked",
+          "avg",
+          "p75",
+          "p95",
+          "p99"
+        ],
+        "properties": {
+          "avg": {
+            "type": "number",
+            "format": "double"
+          },
+          "blocked": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "p75": {
+            "type": "number",
+            "format": "double"
+          },
+          "p95": {
+            "type": "number",
+            "format": "double"
+          },
+          "p99": {
+            "type": "number",
+            "format": "double"
+          },
+          "safe": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unsafeCount": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "AiGuardSettings": {
+        "type": "object",
+        "required": [
+          "blockingEnabled",
+          "threshold",
+          "disabledCategories",
+          "sdsEnabled"
+        ],
+        "properties": {
+          "blockingEnabled": {
+            "type": "boolean",
+            "description": "Block unsafe steps of every service."
+          },
+          "blockingServices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Services in blocking mode when `blocking_enabled` is off."
+          },
+          "disabledCategories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sdsEnabled": {
+            "type": "boolean"
+          },
+          "threshold": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "AiGuardStep": {
+        "type": "object",
+        "description": "One evaluated step of the conversation timeline.",
+        "required": [
+          "id",
+          "timestamp",
+          "target",
+          "direction",
+          "toolName",
+          "action",
+          "blocked",
+          "tags",
+          "message"
+        ],
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "blocked": {
+            "type": "boolean"
+          },
+          "direction": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "object",
+            "description": "The step's message (the last one of its request)."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "target": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "toolName": {
+            "type": "string"
+          }
+        }
+      },
+      "AiGuardSummary": {
+        "type": "object",
+        "required": [
+          "total",
+          "unsafeCount",
+          "unsafeNotBlocked",
+          "blocked",
+          "sensitive",
+          "stepMs",
+          "series",
+          "services",
+          "envs",
+          "categories",
+          "blockingEnabled"
+        ],
+        "properties": {
+          "blocked": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "blockingEnabled": {
+            "type": "boolean"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "envs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sensitive": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiGuardSeriesPoint"
+            }
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Values for the filter dropdowns."
+          },
+          "stepMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unsafeCount": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unsafeNotBlocked": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "AiProvider": {
+        "type": "object",
+        "required": [
+          "provider",
+          "tokens",
+          "requests",
+          "services"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Normalized provider key (openai, anthropic, google, deepseek, azureopenai, bedrock, vertexai, mistral, cohere, meta, …)."
+          },
+          "requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tokens": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "AiService": {
+        "type": "object",
+        "required": [
+          "service",
+          "tokens",
+          "requests",
+          "providers",
+          "models",
+          "protected",
+          "evaluations",
+          "unsafeCount",
+          "sensitive"
+        ],
+        "properties": {
+          "evaluations": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "protected": {
+            "type": "boolean",
+            "description": "Calls AI Guard (evaluations in the range)."
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "sensitive": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "service": {
+            "type": "string"
+          },
+          "tokens": {
+            "type": "number",
+            "format": "double"
+          },
+          "unsafeCount": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
           }
         }
       },
@@ -31354,6 +33440,114 @@
             "type": "string",
             "description": "open (default) | muted | resolved | all",
             "default": ""
+          }
+        }
+      },
+      "CsmAgent": {
+        "type": "object",
+        "description": "An Agent as the `csm/onboarding` endpoints describe it, from its host metadata and inventory.",
+        "required": [
+          "id",
+          "hostId",
+          "hostname",
+          "agentVersion",
+          "os",
+          "envs",
+          "clusterName",
+          "awsFargate",
+          "ecsFargateTaskArn",
+          "installMethodTool",
+          "installMethodInstallerVersion",
+          "isCwsEnabled",
+          "isCspmEnabled",
+          "isCsmVmHostsEnabled",
+          "isCsmVmContainersEnabled",
+          "isRemoteConfigurationEnabled",
+          "isCwsRemoteConfigurationEnabled",
+          "tags",
+          "osLogo",
+          "platformLogo",
+          "lastSeen"
+        ],
+        "properties": {
+          "agentVersion": {
+            "type": "string"
+          },
+          "awsFargate": {
+            "type": "string",
+            "description": "ECS or EKS for Fargate tasks, empty otherwise."
+          },
+          "clusterName": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ecsFargateTaskArn": {
+            "type": "string"
+          },
+          "envs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hostId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installMethodInstallerVersion": {
+            "type": "string"
+          },
+          "installMethodTool": {
+            "type": "string"
+          },
+          "isCsmVmContainersEnabled": {
+            "type": "boolean"
+          },
+          "isCsmVmHostsEnabled": {
+            "type": "boolean"
+          },
+          "isCspmEnabled": {
+            "type": "boolean"
+          },
+          "isCwsEnabled": {
+            "type": "boolean"
+          },
+          "isCwsRemoteConfigurationEnabled": {
+            "type": "boolean"
+          },
+          "isRemoteConfigurationEnabled": {
+            "type": "boolean"
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms of the last host metadata."
+          },
+          "os": {
+            "type": "string"
+          },
+          "osLogo": {
+            "type": "string",
+            "description": "The OS's brand logo key (`web/src/assets/brandLogos.generated.ts`): linux, windows or darwin."
+          },
+          "platformLogo": {
+            "type": "string",
+            "description": "Where the Agent runs, as a brand logo key: amazonecs / amazoneks (Fargate), kubernetes, or \"\"."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The host's `key:value` tags."
           }
         }
       },
@@ -61133,7 +63327,7 @@
         "properties": {
           "key": {
             "type": "string",
-            "description": "`vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>` or `iast:<hash>`."
+            "description": "`vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>`, `iast:<hash>`, `api-finding:…` (App & API\nProtection) or `workload-finding:<rule>:<resource>` (Workload Protection)."
           },
           "reason": {
             "type": "string"
@@ -62814,6 +65008,891 @@
           "api",
           "app"
         ]
+      },
+      "WpAgentCounts": {
+        "type": "object",
+        "required": [
+          "hosts",
+          "hostsEnabled",
+          "serverless",
+          "serverlessEnabled"
+        ],
+        "properties": {
+          "hosts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hostsEnabled": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "serverless": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "serverlessEnabled": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "WpAgentRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "title",
+          "description",
+          "expression",
+          "category",
+          "enabled",
+          "blocking",
+          "silent",
+          "productTags",
+          "policyId",
+          "policyName",
+          "isDefault",
+          "tactic",
+          "technique",
+          "pack",
+          "severity",
+          "actions",
+          "matches",
+          "createdAt",
+          "updatedAt",
+          "updatedBy"
+        ],
+        "properties": {
+          "actions": {},
+          "blocking": {
+            "type": "boolean"
+          },
+          "category": {
+            "type": "string",
+            "description": "File Activity | Process Activity | Network Activity | Kernel Activity"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "expression": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "matches": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Events that matched it in the range.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "pack": {
+            "type": "string"
+          },
+          "policyId": {
+            "type": "string"
+          },
+          "policyName": {
+            "type": "string"
+          },
+          "productTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "severity": {
+            "type": "string",
+            "description": "The severity of the default detection rule on it (\"\" for custom rules)."
+          },
+          "silent": {
+            "type": "boolean"
+          },
+          "tactic": {
+            "type": "string"
+          },
+          "technique": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "description": "A readable name: the catalog's for default rules, the description's first sentence otherwise."
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "WpAgentRuleInput": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "expression": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "policyId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "productTags": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "silent": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
+      "WpAgents": {
+        "type": "object",
+        "required": [
+          "hosts",
+          "serverless"
+        ],
+        "properties": {
+          "hosts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CsmAgent"
+            }
+          },
+          "serverless": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CsmAgent"
+            }
+          }
+        }
+      },
+      "WpCount": {
+        "type": "object",
+        "required": [
+          "name",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "WpEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "timestamp",
+          "host",
+          "service",
+          "title",
+          "ruleId",
+          "category",
+          "event",
+          "outcome",
+          "process",
+          "processArgs",
+          "user",
+          "file",
+          "containerId",
+          "containerName",
+          "image",
+          "env",
+          "attributes"
+        ],
+        "properties": {
+          "attributes": {
+            "description": "The event as the Agent sent it."
+          },
+          "category": {
+            "type": "string"
+          },
+          "containerId": {
+            "type": "string"
+          },
+          "containerName": {
+            "type": "string"
+          },
+          "env": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string",
+            "description": "The event type (exec, open, dns, …)."
+          },
+          "file": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "process": {
+            "type": "string"
+          },
+          "processArgs": {
+            "type": "string"
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "title": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          }
+        }
+      },
+      "WpEventsPage": {
+        "type": "object",
+        "required": [
+          "events",
+          "total",
+          "series",
+          "facets"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WpEvent"
+            }
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WpFacet"
+            }
+          },
+          "series": {
+            "$ref": "#/components/schemas/WpSeries",
+            "description": "Matching events per bucket and category."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "WpEventsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "query": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "WpFacet": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "values"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "The search key (`@agent.rule_id`, `host`, …)."
+          },
+          "label": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WpCount"
+            }
+          }
+        }
+      },
+      "WpFinding": {
+        "type": "object",
+        "required": [
+          "key",
+          "ruleId",
+          "ruleName",
+          "severity",
+          "resourceType",
+          "resource",
+          "host",
+          "containerId",
+          "image",
+          "service",
+          "env",
+          "status",
+          "events",
+          "agentRules",
+          "firstSeen",
+          "lastSeen"
+        ],
+        "properties": {
+          "agentRules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "containerId": {
+            "type": "string"
+          },
+          "env": {
+            "type": "string"
+          },
+          "events": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Matching agent events in the range.",
+            "minimum": 0
+          },
+          "firstSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "host": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "description": "The triage key (`workload-finding:<rule>:<resource>`)."
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "resource": {
+            "type": "string",
+            "description": "The host name, or the container's name (its id when unnamed)."
+          },
+          "resourceType": {
+            "type": "string",
+            "description": "host | container"
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "ruleName": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "open | muted"
+          }
+        }
+      },
+      "WpFindingRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "severity",
+          "resourceType",
+          "agentRules",
+          "failing",
+          "passing",
+          "muted"
+        ],
+        "properties": {
+          "agentRules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "failing": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "muted": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "passing": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          }
+        }
+      },
+      "WpFindings": {
+        "type": "object",
+        "required": [
+          "rules",
+          "findings"
+        ],
+        "properties": {
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WpFinding"
+            }
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WpFindingRule"
+            }
+          }
+        }
+      },
+      "WpPack": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "rules",
+          "enabledRules",
+          "status"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "enabledRules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "description": "active (some rules enabled) | available"
+          }
+        }
+      },
+      "WpPolicy": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "enabled",
+          "hostTagsLists",
+          "isDefault",
+          "version",
+          "monitoring",
+          "blocking",
+          "disabled",
+          "agents",
+          "updatedAt",
+          "updatedBy"
+        ],
+        "properties": {
+          "agents": {
+            "type": "integer",
+            "description": "Agents with Workload Protection whose tags match the policy.",
+            "minimum": 0
+          },
+          "blocking": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "description": {
+            "type": "string"
+          },
+          "disabled": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "hostTagsLists": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Inner lists ANDed, outer list ORed; empty: every host."
+          },
+          "id": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "monitoring": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "WpPolicyCard": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "rules"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rules": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "WpPolicyInput": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "hostTagsLists": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "WpSeries": {
+        "type": "object",
+        "required": [
+          "times",
+          "groups"
+        ],
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WpSeriesGroup"
+            }
+          },
+          "times": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Bucket starts, epoch ms."
+          }
+        }
+      },
+      "WpSeriesGroup": {
+        "type": "object",
+        "required": [
+          "name",
+          "values"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "WpSummary": {
+        "type": "object",
+        "required": [
+          "agents",
+          "monitored",
+          "monitoredSeries",
+          "captured",
+          "capturedSeries",
+          "policies",
+          "agentRules",
+          "detectionRules",
+          "findingRules",
+          "signals",
+          "signalSeries",
+          "triage",
+          "findings",
+          "tactics",
+          "packs",
+          "agentPolicies"
+        ],
+        "properties": {
+          "agentPolicies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WpPolicyCard"
+            }
+          },
+          "agentRules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "agents": {
+            "$ref": "#/components/schemas/WpAgentCounts"
+          },
+          "captured": {
+            "type": "object",
+            "description": "Events that matched an agent rule and were sent, per category.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "capturedSeries": {
+            "$ref": "#/components/schemas/WpSeries"
+          },
+          "detectionRules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "findingRules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "findings": {
+            "type": "object",
+            "description": "Failing findings by severity.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "monitored": {
+            "type": "object",
+            "description": "Events the Agents' probes saw, per category (file, process, network, kernel).",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "monitoredSeries": {
+            "$ref": "#/components/schemas/WpSeries"
+          },
+          "packs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WpPack"
+            }
+          },
+          "policies": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "signalSeries": {
+            "$ref": "#/components/schemas/WpSeries"
+          },
+          "signals": {
+            "type": "object",
+            "description": "Signals of `workload_security` rules raised in the range, by severity.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "tactics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WpTactic"
+            }
+          },
+          "triage": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WpCount"
+            },
+            "description": "Archived signals by archive reason, and the open and under review ones."
+          }
+        }
+      },
+      "WpTactic": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "rules"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rules": {
+            "type": "integer",
+            "description": "Enabled agent rules with this tactic.",
+            "minimum": 0
+          }
+        }
       }
     }
   },

@@ -97,6 +97,10 @@ pub mod rum;
 pub mod rum_analytics;
 pub mod rum_replay;
 pub mod appsec;
+pub mod ai_guard;
+pub mod ai_guard_engine;
+pub mod workload_catalog;
+pub mod workload_protection;
 pub mod cloud_security;
 pub mod cloud_security_rules;
 pub mod security_catalog;
@@ -212,6 +216,23 @@ use crate::state::AppState;
         datadog_api::rum::create,
         datadog_api::rum::update,
         datadog_api::rum::delete,
+        datadog_api::csm_threats::list_policies,
+        datadog_api::csm_threats::get_policy,
+        datadog_api::csm_threats::create_policy,
+        datadog_api::csm_threats::update_policy,
+        datadog_api::csm_threats::delete_policy,
+        datadog_api::csm_threats::download,
+        datadog_api::csm_threats::list_rules,
+        datadog_api::csm_threats::get_rule,
+        datadog_api::csm_threats::create_rule,
+        datadog_api::csm_threats::update_rule,
+        datadog_api::csm_threats::delete_rule,
+        datadog_api::csm_threats::list_agents,
+        datadog_api::csm_threats::list_serverless_agents,
+        datadog_api::csm_threats::coverage_hosts,
+        datadog_api::csm_threats::coverage_serverless,
+        datadog_api::csm_threats::coverage_cloud_accounts,
+        datadog_api::ai_guard::evaluate,
         datadog_api::appsec::list_custom_rules,
         datadog_api::appsec::get_custom_rule,
         datadog_api::appsec::create_custom_rule,
@@ -659,6 +680,27 @@ use crate::state::AppState;
         security_overview::overview,
         security_overview::inbox,
         security_feed::feed,
+        workload_protection::summary,
+        workload_protection::events,
+        workload_protection::findings,
+        workload_protection::agents,
+        workload_protection::list_policies,
+        workload_protection::create_policy,
+        workload_protection::update_policy,
+        workload_protection::delete_policy,
+        workload_protection::download,
+        workload_protection::list_rules,
+        workload_protection::create_rule,
+        workload_protection::update_rule,
+        workload_protection::delete_rule,
+        ai_guard::settings,
+        ai_guard::update_settings,
+        ai_guard::summary,
+        ai_guard::evaluations,
+        ai_guard::evaluation,
+        ai_guard::playground,
+        ai_guard::discover,
+        ai_guard::categories,
         appsec::traces,
         appsec::attackers,
         appsec::users,
@@ -1310,6 +1352,22 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/security/siem/packs/:id", axum::routing::put(security_siem::set_pack))
         .route("/api/v1/security/siem/overview", post(security_siem::overview))
         .route("/api/v1/cloud-security/summary", get(cloud_security::summary))
+        .route("/api/v1/workload-protection/summary", get(workload_protection::summary))
+        .route("/api/v1/workload-protection/events", post(workload_protection::events))
+        .route("/api/v1/workload-protection/findings", get(workload_protection::findings))
+        .route("/api/v1/workload-protection/agents", get(workload_protection::agents))
+        .route("/api/v1/workload-protection/policies", get(workload_protection::list_policies).post(workload_protection::create_policy))
+        .route("/api/v1/workload-protection/policies/download", get(workload_protection::download))
+        .route("/api/v1/workload-protection/policies/:id", axum::routing::patch(workload_protection::update_policy).delete(workload_protection::delete_policy))
+        .route("/api/v1/workload-protection/agent-rules", get(workload_protection::list_rules).post(workload_protection::create_rule))
+        .route("/api/v1/workload-protection/agent-rules/:id", axum::routing::patch(workload_protection::update_rule).delete(workload_protection::delete_rule))
+        .route("/api/v1/ai-guard/settings", get(ai_guard::settings).put(ai_guard::update_settings))
+        .route("/api/v1/ai-guard/summary", post(ai_guard::summary))
+        .route("/api/v1/ai-guard/evaluations", post(ai_guard::evaluations))
+        .route("/api/v1/ai-guard/evaluations/:id", get(ai_guard::evaluation))
+        .route("/api/v1/ai-guard/playground", post(ai_guard::playground))
+        .route("/api/v1/ai-guard/discover", post(ai_guard::discover))
+        .route("/api/v1/ai-guard/categories", get(ai_guard::categories))
         .route("/api/v1/appsec/traces", post(appsec::traces))
         .route("/api/v1/appsec/attackers", post(appsec::attackers))
         .route("/api/v1/appsec/users", post(appsec::users))
@@ -1683,6 +1741,9 @@ mod tests {
             include_str!("rum_replay.rs"),
             include_str!("cloud_security.rs"),
             include_str!("appsec.rs"),
+            include_str!("ai_guard.rs"),
+            include_str!("ai_guard_engine.rs"),
+            include_str!("datadog_api/ai_guard.rs"),
             include_str!("cloud_security_rules.rs"),
             include_str!("security_catalog.rs"),
             include_str!("security_engine.rs"),
@@ -1694,6 +1755,9 @@ mod tests {
             include_str!("security_suppressions.rs"),
             include_str!("datadog_api/security_monitoring.rs"),
             include_str!("datadog_api/appsec.rs"),
+            include_str!("workload_protection.rs"),
+            include_str!("workload_catalog.rs"),
+            include_str!("datadog_api/csm_threats.rs"),
             include_str!("synthetics_explorer.rs"),
             include_str!("synthetics_settings.rs"),
             include_str!("scorecards.rs"),
@@ -1789,6 +1853,12 @@ mod tests {
             ("rum_replay.rs", include_str!("rum_replay.rs")),
             ("cloud_security.rs", include_str!("cloud_security.rs")),
             ("appsec.rs", include_str!("appsec.rs")),
+            ("ai_guard.rs", include_str!("ai_guard.rs")),
+            ("ai_guard_engine.rs", include_str!("ai_guard_engine.rs")),
+            ("datadog_api/ai_guard.rs", include_str!("datadog_api/ai_guard.rs")),
+            ("workload_protection.rs", include_str!("workload_protection.rs")),
+            ("workload_catalog.rs", include_str!("workload_catalog.rs")),
+            ("datadog_api/csm_threats.rs", include_str!("datadog_api/csm_threats.rs")),
             ("cloud_security_rules.rs", include_str!("cloud_security_rules.rs")),
             ("security_catalog.rs", include_str!("security_catalog.rs")),
             ("security_engine.rs", include_str!("security_engine.rs")),
@@ -1998,6 +2068,12 @@ mod tests {
             ("rum_replay.rs", include_str!("rum_replay.rs")),
             ("cloud_security.rs", include_str!("cloud_security.rs")),
             ("appsec.rs", include_str!("appsec.rs")),
+            ("ai_guard.rs", include_str!("ai_guard.rs")),
+            ("ai_guard_engine.rs", include_str!("ai_guard_engine.rs")),
+            ("datadog_api/ai_guard.rs", include_str!("datadog_api/ai_guard.rs")),
+            ("workload_protection.rs", include_str!("workload_protection.rs")),
+            ("workload_catalog.rs", include_str!("workload_catalog.rs")),
+            ("datadog_api/csm_threats.rs", include_str!("datadog_api/csm_threats.rs")),
             ("cloud_security_rules.rs", include_str!("cloud_security_rules.rs")),
             ("security_catalog.rs", include_str!("security_catalog.rs")),
             ("security_engine.rs", include_str!("security_engine.rs")),
