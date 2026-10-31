@@ -141,7 +141,7 @@ try {
   for (const file of readdirSync(`${root}server/migrations/clickhouse`)
     .filter((f) => f.endsWith('.sql'))
     .sort()) {
-    if (file === '0016_log_replay_storage.sql') {
+    if (file === '0019_log_replay_storage.sql') {
       sql('ALTER TABLE oc.logs_raw MODIFY TTL toDateTime(timestamp) + INTERVAL 30 DAY');
       sql(`INSERT INTO oc.logs_raw (org_id, timestamp, service, message) VALUES ('${org}-retention', now() - INTERVAL 10 DAY, 'order-service', 'extended raw retention')`);
     }
@@ -151,7 +151,7 @@ try {
       .replaceAll('${LOCAL}', '')
       .replaceAll('${REPLICATED}', '');
     docker(['exec', '-i', names.clickhouse, 'clickhouse-client', '--multiquery'], ddl);
-    if (file === '0016_log_replay_storage.sql') {
+    if (file === '0019_log_replay_storage.sql') {
       sql('OPTIMIZE TABLE oc.logs_raw_dedup FINAL');
       assert.equal(sql(`SELECT count() FROM oc.logs_raw_read WHERE org_id='${org}-retention'`), '1', 'backfill preserves raw logs older than the default TTL');
       sql('ALTER TABLE oc.logs_raw_dedup MODIFY TTL toDateTime(timestamp) + INTERVAL 30 DAY');
@@ -348,7 +348,7 @@ try {
   assert.equal(sql(`SELECT count() FROM oc.logs_read WHERE org_id='${org}-other'`), '1', 'the same ID in another org is independent');
   sql(`INSERT INTO oc.logs (org_id, id, timestamp, service, status, message) VALUES ('${org}', '019a4000-0000-7000-8000-000000000003', now64(3), 'order-service', 'error', 'legacy writer')`);
   assert.equal(sql(`SELECT count() FROM oc.logs_read WHERE org_id='${org}'`), '3', 'legacy writers remain visible through forwarding');
-  const migration = readFileSync(`${root}server/migrations/clickhouse/0016_log_replay_storage.sql`, 'utf8')
+  const migration = readFileSync(`${root}server/migrations/clickhouse/0019_log_replay_storage.sql`, 'utf8')
     .split('\n')
     .filter((line) => !line.trimStart().startsWith('--'))
     .join('\n')
