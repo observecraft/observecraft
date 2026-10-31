@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { configFrom, phases, kafkaOffsets, totalLag, memoryBytes } from './ingestion-benchmark/model.mjs';
+import { configFrom, phases, kafkaOffsets, totalLag, memoryBytes, stageMetrics, stageDelta } from './ingestion-benchmark/model.mjs';
 
 const cfg = configFrom(process.env);
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -184,6 +184,7 @@ async function measure(phase) {
     return s.raw === warmCount && s.indexed === warmCount && s.outboxBatches === 0 && (!phase.metrics || s.metrics === warmCount) && totalLag(await offsets()) === 0;
   }, `${phase.name}: warmup drained`);
   const baseline = await stored(phase);
+  const baselineStages = stageMetrics(await (await fetch(`${admin}/indexer-metrics`)).json());
   const startOffsets = await offsets();
   const samples = [],
     samplingErrors = [];
@@ -267,6 +268,7 @@ async function measure(phase) {
       peak.memoryBytes = Math.max(peak.memoryBytes, r.memoryBytes);
     }
   const result = {
+    stageTimings: stageDelta(baselineStages, stageMetrics(await (await fetch(`${admin}/indexer-metrics`)).json())),
     name: phase.name,
     orgs: phase.orgs,
     quota: phase.quota,

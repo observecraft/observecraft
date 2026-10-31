@@ -55,6 +55,22 @@ http
   .listen(8123, '0.0.0.0');
 http
   .createServer(async (req, res) => {
+    if (req.url === '/indexer-metrics') {
+      try {
+        const metrics = await Promise.all(
+          apis.map(async (api) => {
+            const r = await fetch(`http://${api}:8090/metrics`, { headers: { authorization: 'Bearer disposable-benchmark-token' }, signal: AbortSignal.timeout(5000) });
+            if (!r.ok) throw new Error(`Indexer metrics: ${r.status}`);
+            return [api, await r.text()];
+          }),
+        );
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify(Object.fromEntries(metrics)));
+      } catch (e) {
+        res.writeHead(503).end(String(e));
+      }
+      return;
+    }
     if (req.url === '/query' && req.method === 'POST') {
       try {
         let body = '';

@@ -134,6 +134,7 @@ pub(super) async fn admit(
 }
 
 async fn lock(tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, org: &str) -> Result<(), String> {
+    let _timer = ingest_stats::timer(Stage::QuotaLock);
     sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 724915))")
         .bind(org)
         .execute(&mut **tx)

@@ -1,4 +1,27 @@
 // Pure report/config helpers shared by the isolated benchmark and its tests.
+export function stageMetrics(texts) {
+  const stages = {};
+  for (const text of Object.values(texts))
+    for (const line of text.split('\n')) {
+      const match = /^oc_log_ingest_stage_seconds_(count|sum)\{stage="([a-z_]+)"\} ([\d.eE+-]+)$/.exec(line);
+      if (!match) continue;
+      const value = Number(match[3]);
+      if (!Number.isFinite(value) || value < 0) throw new Error('Invalid ingestion stage metric');
+      const stage = (stages[match[2]] ??= { count: 0, seconds: 0 });
+      stage[match[1] === 'count' ? 'count' : 'seconds'] += value;
+    }
+  return stages;
+}
+export function stageDelta(before, after) {
+  return Object.fromEntries(
+    Object.entries(after).map(([stage, value]) => {
+      const count = value.count - (before[stage]?.count ?? 0);
+      const seconds = value.seconds - (before[stage]?.seconds ?? 0);
+      if (count < 0 || seconds < -1e-9) throw new Error('Ingestion metrics reset during phase');
+      return [stage, { count, seconds: Math.max(0, seconds), meanMs: count ? (Math.max(0, seconds) * 1000) / count : null }];
+    }),
+  );
+}
 export function percentile(values, fraction) {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
