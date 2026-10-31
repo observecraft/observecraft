@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronDown, ChevronRight, EllipsisVertical, PanelLeft, PanelLeftClose, Pin, Plus, Search, Siren, Star } from 'lucide-react';
+import { ChevronDown, ChevronRight, EllipsisVertical, PanelLeft, PanelLeftClose, Pin, Plus, Search, Radar, Siren, Star } from 'lucide-react';
 import type { DashboardSummary, PresetList } from '../../../api/dashboards/types';
 import { Empty, ErrorState, Loading } from '../../../components/ui/AsyncState';
 import { Menu, Select } from '../../../components/ui/Dropdown';
@@ -25,6 +25,7 @@ const PRESETS: { key: PresetList; label: string }[] = [
 
 function DashIcon({ d, size = 18 }: { d: Pick<DashboardSummary, 'logo' | 'title'>; size?: number }) {
   if (d.logo === 'tile:monitors') return <Siren size={size} color="var(--status-warn)" />;
+  if (d.logo === 'tile:synthetics') return <Radar size={size} color="var(--primary)" />;
   if (d.logo) return <IntegrationLogo logo={d.logo} name={d.title} size={size} />;
   return null;
 }

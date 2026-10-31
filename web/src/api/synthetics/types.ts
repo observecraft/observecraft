@@ -11,6 +11,7 @@ export type SyntheticAssertionResult = S['SyntheticAssertionResult'];
 export type SyntheticCertificate = S['SyntheticCertificate'];
 export type SyntheticDnsRecord = S['SyntheticDnsRecord'];
 export type SyntheticRunDetail = S['SyntheticRunDetail'];
+export type SyntheticTimings = S['SyntheticTimings'];
 export type SyntheticTest = S['SyntheticTest'];
 export type SyntheticTestInput = S['SyntheticTestInput'];
 export type SyntheticTestsPage = S['SyntheticTestsPage'];

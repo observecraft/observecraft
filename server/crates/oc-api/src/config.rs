@@ -56,6 +56,9 @@ pub struct Config {
     /// `OC_OSV_URL`: the OSV.dev API Code Security looks advisories up in (`off` or empty: no lookups,
     /// for instances without internet access).
     pub osv_url: Option<String>,
+    /// `OC_KEV_URL`: CISA's Known Exploited Vulnerabilities catalog (JSON) the Security research feed
+    /// reads (`off` or empty: no downloads).
+    pub kev_url: Option<String>,
     /// Sender address of notification emails.
     pub smtp_from: String,
     /// Synthetic tests may reach loopback, private, link-local and other internal addresses
@@ -181,6 +184,7 @@ impl Config {
             internal_token: env::var("OC_INTERNAL_TOKEN").ok().filter(|s| !s.is_empty()),
             smtp_url: env::var("OC_SMTP_URL").ok().filter(|s| !s.is_empty()),
             osv_url: Some(var("OC_OSV_URL", "https://api.osv.dev")).filter(|s| !s.is_empty() && s != "off").map(|s| s.trim_end_matches('/').to_string()),
+            kev_url: Some(var("OC_KEV_URL", "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json")).filter(|s| !s.is_empty() && s != "off"),
             smtp_from: var("OC_SMTP_FROM", "ObserveCraft <alerts@observecraft.local>"),
             synthetics_allow_private: var("OC_SYNTHETICS_ALLOW_PRIVATE", "false") == "true",
             portal_allow_private: var("OC_PORTAL_ALLOW_PRIVATE", "false") == "true",

@@ -2824,6 +2824,7 @@ dependencies = [
  "futures",
  "hickory-resolver",
  "hmac 0.12.1",
+ "http-body-util",
  "hyper",
  "hyper-util",
  "lettre",
@@ -2896,6 +2897,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "url",
  "zstd",
 ]
 

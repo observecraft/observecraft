@@ -355,6 +355,230 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/appsec/attackers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["appsec_attackers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/business-logic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appsec_business_logic"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/denylist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appsec_denylist"];
+        put?: never;
+        post: operations["appsec_block"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/denylist/{kind}/{value}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["appsec_unblock"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/endpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appsec_endpoints"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appsec_api_findings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["appsec_overview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appsec_waf_policies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appsec_services"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/settings/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appsec_setting"];
+        put: operations["appsec_set_setting"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/traces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["appsec_security_traces"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["appsec_users"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/waf/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appsec_waf_list"];
+        put?: never;
+        post: operations["appsec_waf_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appsec/waf/{kind}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["appsec_waf_update"];
+        post?: never;
+        delete: operations["appsec_waf_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit": {
         parameters: {
             query?: never;
@@ -817,6 +1041,102 @@ export interface paths {
         /** Unit prices: per group of tags, the usage and what it cost amortized and on demand (Plan → Unit
          *     Costs divides them). Only usage with a quantity; unused commitments are left out. */
         post: operations["cloud_cost_unit_costs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-security/cves": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cloud_security_cves"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-security/misconfigurations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cloud_security_misconfigurations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-security/packages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cloud_security_packages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-security/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cloud_security_resources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-security/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cloud_security_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-security/vulnerabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cloud_security_vulnerabilities"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5191,6 +5511,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/product-analytics/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One Product Analytics page for the range (and an application, or all of them). */
+        post: operations["product_analytics_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles/flamegraph": {
         parameters: {
             query?: never;
@@ -5448,6 +5785,219 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rum/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_rum_applications"];
+        put?: never;
+        post: operations["create_rum_application"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/applications/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_rum_application"];
+        put: operations["update_rum_application"];
+        post?: never;
+        delete: operations["delete_rum_application"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/events/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_rum_events"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The top values of the event type's facets among the matching events (sessions: among their events). */
+        post: operations["rum_facets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/replay/heatmap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["session_replay_heatmap"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/replay/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's watch history, newest first. */
+        get: operations["session_replay_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/replay/playlists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_replay_playlists"];
+        put?: never;
+        post: operations["create_replay_playlist"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/replay/playlists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_replay_playlist"];
+        put: operations["update_replay_playlist"];
+        post?: never;
+        delete: operations["delete_replay_playlist"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/replay/playlists/{id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adds a session to a playlist (again: no change). */
+        post: operations["add_replay_playlist_session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/replay/playlists/{id}/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_replay_playlist_session"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/replay/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The recording of one session, its RUM summary and events. */
+        post: operations["get_session_replay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/replay/sessions/{id}/watched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Records that the caller watched a replay. */
+        put: operations["watch_session_replay"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rum/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rum_summary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/saml/mappings": {
         parameters: {
             query?: never;
@@ -5596,6 +6146,262 @@ export interface paths {
         /** Creates the recommended scorecards with the chosen built-in rules enabled, and evaluates them. */
         post: operations["setup_scorecards"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["security_research_feed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["security_inbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["security_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_security_rules"];
+        put?: never;
+        post: operations["create_security_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_security_rule"];
+        put: operations["update_security_rule"];
+        post?: never;
+        delete: operations["delete_security_rule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/rules/{id}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["enable_security_rule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/siem/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["siem_overview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/siem/packs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_siem_content_packs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/siem/packs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_siem_content_pack"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/signals/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["bulk_update_security_signals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/signals/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search_security_signals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/signals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_security_signal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/signals/{id}/assignee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_security_signal_assignee"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/signals/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_security_signal_state"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/suppressions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_security_suppressions"];
+        put?: never;
+        post: operations["create_security_suppression"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/suppressions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_security_suppression"];
+        post?: never;
+        delete: operations["delete_security_suppression"];
         options?: never;
         head?: never;
         patch?: never;
@@ -7018,6 +7824,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/remote_config/products/asm/waf/custom_rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_waf_custom_rule"];
+        put?: never;
+        post: operations["datadog_create_waf_custom_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/remote_config/products/asm/waf/custom_rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_waf_custom_rule"];
+        put: operations["datadog_update_waf_custom_rule"];
+        post?: never;
+        delete: operations["datadog_delete_waf_custom_rule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/remote_config/products/asm/waf/exclusion_filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_waf_exclusion_filter"];
+        put?: never;
+        post: operations["datadog_create_waf_exclusion_filter"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/remote_config/products/asm/waf/exclusion_filters/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_waf_exclusion_filter"];
+        put: operations["datadog_update_waf_exclusion_filter"];
+        post?: never;
+        delete: operations["datadog_delete_waf_exclusion_filter"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/remote_config/products/asm/waf/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_waf_policy"];
+        put?: never;
+        post: operations["datadog_create_waf_policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/remote_config/products/asm/waf/policies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_waf_policy"];
+        put: operations["datadog_update_waf_policy"];
+        post?: never;
+        delete: operations["datadog_delete_waf_policy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/roles": {
         parameters: {
             query?: never;
@@ -7108,6 +8010,237 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v2/rum/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List RUM applications (Datadog-compatible). */
+        get: operations["datadog_list_rum_applications"];
+        put?: never;
+        /** Create a RUM application (Datadog-compatible); answers 200 with the document, as Datadog does. */
+        post: operations["datadog_create_rum_application"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/rum/applications/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a RUM application (Datadog-compatible). */
+        get: operations["datadog_get_rum_application"];
+        put?: never;
+        post?: never;
+        /** Delete a RUM application (Datadog-compatible). */
+        delete: operations["datadog_delete_rum_application"];
+        options?: never;
+        head?: never;
+        /** Update a RUM application (Datadog-compatible): the body's id must be the URL's (422 otherwise). */
+        patch: operations["datadog_update_rum_application"];
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/configuration/suppressions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_suppressions"];
+        put?: never;
+        post: operations["datadog_create_suppression"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/configuration/suppressions/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["datadog_validate_suppression"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/configuration/suppressions/{suppression_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_suppression"];
+        put?: never;
+        post?: never;
+        delete: operations["datadog_delete_suppression"];
+        options?: never;
+        head?: never;
+        patch: operations["datadog_update_suppression"];
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List rules (Datadog-compatible). */
+        get: operations["datadog_list_security_rules"];
+        put?: never;
+        post: operations["datadog_create_security_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/rules/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate a rule without saving it. */
+        post: operations["datadog_validate_security_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_security_rule"];
+        put: operations["datadog_update_security_rule"];
+        post?: never;
+        delete: operations["datadog_delete_security_rule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/signals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_security_signals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/signals/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["datadog_search_security_signals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/signals/{signal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_security_signal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/signals/{signal_id}/assignee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["datadog_set_security_signal_assignee"];
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/signals/{signal_id}/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["datadog_set_security_signal_incidents"];
+        trace?: never;
+    };
+    "/api/v2/security_monitoring/signals/{signal_id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["datadog_set_security_signal_state"];
         trace?: never;
     };
     "/api/v2/team": {
@@ -7510,6 +8643,61 @@ export interface components {
             introduced: string;
             last_affected?: string;
         };
+        AnalyticsItem: {
+            name: string;
+            /** Format: double */
+            value: number;
+        };
+        /** @enum {string} */
+        AnalyticsPage: "home" | "users" | "devices" | "traffic" | "engagement" | "performance";
+        /** @description One page's numbers; the fields of other pages stay empty. */
+        AnalyticsReport: {
+            activeUsers: components["schemas"]["AnalyticsValue"];
+            /** @description Sessions with a single view, percent. */
+            bounceRate: components["schemas"]["AnalyticsValue"];
+            browsers: components["schemas"]["AnalyticsItem"][];
+            /** Format: int64 */
+            bucketMs: number;
+            campaigns: components["schemas"]["AnalyticsItem"][];
+            countries: components["schemas"]["AnalyticsItem"][];
+            /** @description Sessions on desktop, percent (the rest: mobile and other devices). */
+            desktop: components["schemas"]["AnalyticsValue"];
+            /** @description Frustration signals per view, on average, for the views that had some. */
+            frustrationByView: components["schemas"]["AnalyticsItem"][];
+            issueCount: components["schemas"]["AnalyticsValue"];
+            /** @description Error messages by count. */
+            issues: components["schemas"]["AnalyticsItem"][];
+            /** @description 75th percentile of the views' loading time, ms. */
+            loadTime: components["schemas"]["AnalyticsValue"];
+            newUsers: components["schemas"]["AnalyticsValue"];
+            /** @description Users (home, users), page views (traffic) per bucket. */
+            overTime: components["schemas"]["RumBucket"][];
+            popularViews: components["schemas"]["AnalyticsItem"][];
+            powerUsers: components["schemas"]["AnalyticsItem"][];
+            returningUsers: components["schemas"]["AnalyticsValue"];
+            /** @description Average, ms. */
+            sessionDuration: components["schemas"]["AnalyticsValue"];
+            sessions: components["schemas"]["AnalyticsValue"];
+            sessionsPerUser: components["schemas"]["AnalyticsValue"];
+            /** @description Percent. */
+            sessionsWithErrors: components["schemas"]["AnalyticsValue"];
+            sources: components["schemas"]["AnalyticsItem"][];
+            /** @description Average time on a page, ms. */
+            timeOnPage: components["schemas"]["AnalyticsValue"];
+            /** @description Users with an event in the last 5 minutes. */
+            usersOnline: components["schemas"]["AnalyticsValue"];
+            versions: components["schemas"]["AnalyticsItem"][];
+            versionsInUse: components["schemas"]["AnalyticsValue"];
+            viewsPerSession: components["schemas"]["AnalyticsValue"];
+            viewsPerUser: components["schemas"]["AnalyticsValue"];
+            /** @description Views with at least one frustration signal, percent. */
+            viewsWithFrustration: components["schemas"]["AnalyticsValue"];
+        };
+        AnalyticsRequest: {
+            applicationId?: string | null;
+            page: components["schemas"]["AnalyticsPage"];
+            range: components["schemas"]["TimeRange"];
+        };
         AnalyticsSeries: {
             group: string;
             /**
@@ -7519,6 +8707,13 @@ export interface components {
             total: number;
             /** @description One value per bucket (null when the bucket has no spans). */
             values: (number | null)[];
+        };
+        /** @description A value and its change from the previous period of the same length (percent; absent without one). */
+        AnalyticsValue: {
+            /** Format: double */
+            change?: number | null;
+            /** Format: double */
+            value?: number | null;
         };
         Anomaly: {
             /** Format: double */
@@ -7530,6 +8725,62 @@ export interface components {
             requests: number;
             resource: string;
             service: string;
+        };
+        ApiEndpoint: {
+            /** Format: int64 */
+            attacks: number;
+            /**
+             * Format: int64
+             * @description Requests with an authenticated user (`usr.id`).
+             */
+            authenticated: number;
+            /** Format: int64 */
+            blocked: number;
+            /** Format: int64 */
+            clientIps: number;
+            env: string;
+            frameOptions: boolean;
+            /** @description Response headers seen (the tracer reports them on security traces). */
+            headersSeen: boolean;
+            /** Format: int64 */
+            hits: number;
+            hosts: string[];
+            hsts: boolean;
+            /** Format: int64 */
+            lastSeen: number;
+            /** Format: int64 */
+            loginEvents: number;
+            method: string;
+            /** @description The service runs App & API Protection. */
+            protected: boolean;
+            route: string;
+            /** Format: int64 */
+            serverErrorsOnAttacks: number;
+            service: string;
+        };
+        ApiEndpointView: components["schemas"]["ApiEndpoint"] & {
+            /** @description Open findings by severity. */
+            findings: {
+                [key: string]: number;
+            };
+        };
+        ApiFinding: {
+            env: string;
+            key: string;
+            method: string;
+            owasp: string;
+            route: string;
+            ruleId: string;
+            ruleName: string;
+            service: string;
+            severity: string;
+            /** @description open | muted */
+            status: string;
+        };
+        ApiFindingsPage: {
+            findings: components["schemas"]["ApiFinding"][];
+            owasp: components["schemas"]["NamedCount"][];
+            rules: components["schemas"]["FindingRuleStatus"][];
         };
         ApmRequest: {
             /** @description `deployment.environment`; empty or `*` for all. */
@@ -7584,6 +8835,79 @@ export interface components {
             lastUsedAt?: number | null;
             name: string;
             prefix: string;
+        };
+        AppsecFacet: {
+            key: string;
+            values: components["schemas"]["NamedCount"][];
+        };
+        AppsecOverview: {
+            authenticatedEndpoints: number;
+            endpoints: number;
+            endpointsWithTraffic: number;
+            exposedEndpoints: number;
+            findingRulesEnabled: number;
+            /** @description Open findings by severity. */
+            findings: {
+                [key: string]: number;
+            };
+            owaspCovered: string[];
+            servicesBlocking: number;
+            servicesMonitoring: number;
+            /** @description Services running App & API Protection, of those with traffic. */
+            servicesProtected: number;
+            servicesTotal: number;
+            servicesWithAttacks: components["schemas"]["NamedCount"][];
+            /** @description Endpoints with the most open findings: `service|METHOD route` → count. */
+            threatEndpoints: components["schemas"]["NamedCount"][];
+            topAttackTypes: components["schemas"]["TrendCount"][];
+            topCountries: components["schemas"]["TrendCount"][];
+            topFindingRules: components["schemas"]["NamedCount"][];
+            unauthenticatedEndpoints: number;
+            unprotectedEndpoints: number;
+        };
+        AppsecOverviewRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
+        AppsecSearchRequest: {
+            /** Format: int32 */
+            limit?: number | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        AppsecService: {
+            env: string;
+            iast: boolean;
+            language: string;
+            /** @description monitoring | blocking | disabled (the WAF policy assigned to the service). */
+            mode: string;
+            policy: string;
+            protected: boolean;
+            sca: boolean;
+            /** Format: int64 */
+            securityTraces: number;
+            service: string;
+            /** @description Security traces per day over the last 7 days. */
+            trend: number[];
+            /** @description Library vulnerabilities (Code Security). */
+            vulnerabilities: number;
+        };
+        AppsecUser: {
+            /** Format: int64 */
+            attacks: number;
+            countries: string[];
+            ips: string[];
+            /** Format: int64 */
+            lastSeen: number;
+            /** Format: int64 */
+            loginFailure: number;
+            /** Format: int64 */
+            loginSuccess: number;
+            /** @description new_geolocation, many_failed_logins, … */
+            risks: string[];
+            services: string[];
+            /** Format: int64 */
+            traces: number;
+            user: string;
         };
         ArchiveNowResult: {
             /** @description Hours written by this run. */
@@ -7664,6 +8988,36 @@ export interface components {
         ArchiveTestResult: {
             error?: string | null;
             ok: boolean;
+        };
+        Attacker: {
+            attackTypes: string[];
+            /** Format: int64 */
+            attacks: number;
+            /** Format: int64 */
+            blockedTraces: number;
+            country: string;
+            /** @description On the denylist. */
+            denylisted: boolean;
+            envs: string[];
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            firstSeen: number;
+            ip: string;
+            /** Format: int64 */
+            lastSeen: number;
+            services: string[];
+            /** @description Many attacks from several tools (scanner, injections): worth blocking. */
+            suspicious: boolean;
+            /** Format: int64 */
+            traces: number;
+            userAgents: string[];
+        };
+        AttackerPage: {
+            attackers: components["schemas"]["Attacker"][];
+            flagged: number;
+            suspicious: number;
         };
         AuditEvent: {
             action: string;
@@ -7770,6 +9124,17 @@ export interface components {
          * @enum {string}
          */
         BurnLevel: "high" | "elevated" | "normal" | "unknown";
+        BusinessEvent: {
+            description: string;
+            event: string;
+            /** Format: int64 */
+            requests7d: number;
+            services: string[];
+        };
+        BusinessLogic: {
+            events: components["schemas"]["BusinessEvent"][];
+            suggested: components["schemas"]["SuggestedRule"][];
+        };
         /**
          * @description Broad groups of resource types (the catalog's default grouping).
          * @enum {string}
@@ -7858,6 +9223,11 @@ export interface components {
          * @enum {string}
          */
         CatalogType: "host" | "kube_cluster" | "kube_node" | "kube_namespace" | "kube_deployment" | "kube_statefulset" | "kube_daemonset" | "kube_cronjob" | "kube_job" | "kube_pod" | "kube_service" | "kube_ingress" | "kube_persistent_volume_claim" | "kube_persistent_volume" | "container" | "ecs_cluster" | "ecs_service" | "ecs_task";
+        CategoryCoverage: {
+            active: number;
+            category: string;
+            total: number;
+        };
         Change: {
             author?: string | null;
             changeType: components["schemas"]["ChangeType"];
@@ -8101,6 +9471,18 @@ export interface components {
         };
         /** @enum {string} */
         Cloud: "aws" | "azure" | "gcp" | "oracle" | "alibaba" | "none";
+        CloudCoverage: {
+            /** @description Cloud accounts and their providers seen in the catalog. */
+            accounts: string[];
+            clusters: number;
+            hosts: number;
+            /** @description Hosts that sent an SBOM in the last week. */
+            hostsScanned: number;
+            images: number;
+            imagesRunning: number;
+            /** @description Kubernetes objects evaluated by the misconfiguration rules. */
+            resourcesEvaluated: number;
+        };
         CloudMap: {
             edges: components["schemas"]["CloudMapEdge"][];
             /** @description The group keys used. */
@@ -8172,9 +9554,44 @@ export interface components {
             /** @description Catalog search narrowing the resources (`env:prod team:checkout`, free text on names). */
             query?: string;
         };
+        CloudSecuritySummary: {
+            coverage: components["schemas"]["CloudCoverage"];
+            inventory: components["schemas"]["ResourceCategory"][];
+            /** @description Open misconfigurations by severity. */
+            misconfigurations: {
+                [key: string]: number;
+            };
+            vulnerabilities: components["schemas"]["VulnerabilityPrioritization"];
+            vulnerabilitiesBySeverity: {
+                [key: string]: number;
+            };
+        };
         CodeRequest: {
             /** @description 6-digit code from the authenticator app. */
             code: string;
+        };
+        CodeSecurityCoverage: {
+            /** @description Runtime library vulnerabilities in services that attack signals targeted. */
+            exposedToAttacks: number;
+            iac: boolean;
+            iacFindings: number;
+            /** @description Runtime code analysis (tracers report vulnerable code paths). */
+            iast: boolean;
+            runtimeCodeVulnerabilities: number;
+            runtimeLibrariesInProduction: number;
+            runtimeLibraryVulnerabilities: number;
+            /** @description Static code analysis: repositories send SARIF scans. */
+            sast: boolean;
+            /** @description Libraries loaded by running services (tracer telemetry). */
+            scaRuntime: boolean;
+            /** @description Software composition analysis of repositories (SBOM uploads). */
+            scaStatic: boolean;
+            secrets: boolean;
+            secretsFound: number;
+            staticCodeVulnerabilities: number;
+            staticLibraryVulnerabilities: number;
+            /** @description Library vulnerabilities listed as exploited in the wild. */
+            withExploit: number;
         };
         CodeSecuritySetup: {
             advisories: number;
@@ -8296,6 +9713,31 @@ export interface components {
          * @enum {string}
          */
         ComponentStatus: "operational" | "degraded_performance" | "partial_outage" | "major_outage";
+        ContentPackStatus: {
+            category: string;
+            description: string;
+            enabled: boolean;
+            /** @description Logs per hour over the last 24 hours. */
+            hourly: number[];
+            id: string;
+            /**
+             * Format: int64
+             * @description Epoch ms of the latest hour with logs in the last 7 days.
+             */
+            lastLogAt?: number | null;
+            logo: string;
+            /** Format: int64 */
+            logs24h: number;
+            name: string;
+            platform: string;
+            query: string;
+            rules: components["schemas"]["PackRule"][];
+            setup: string;
+            /** @description Signals of the pack's rules in the last 7 days. */
+            signals7d: number;
+            /** @description active | warning | available | disabled */
+            status: string;
+        };
         /** @enum {string} */
         CorrectionCategory: "scheduled_maintenance" | "outside_business_hours" | "deployment" | "other";
         /** @description A budget for the Cloud Cost pages: this month's amount, cost so far and forecast. */
@@ -8548,6 +9990,27 @@ export interface components {
              * @default
              */
             status: string;
+        };
+        CvePage: {
+            rows: components["schemas"]["CveRow"][];
+            /** Format: int64 */
+            total: number;
+        };
+        CveRow: {
+            cve?: string | null;
+            exploited: boolean;
+            id: string;
+            /** @description Libraries (Code Security) or hosts and images (Cloud Security) the advisory affects. */
+            impactedLibraries: number;
+            impactedResources: number;
+            /** @description `ecosystem:package` */
+            packages: string[];
+            /** Format: int64 */
+            published?: number | null;
+            /** Format: double */
+            score?: number | null;
+            severity: string;
+            summary: string;
         };
         Dashboard: {
             author?: null | components["schemas"]["UserRef"];
@@ -9035,6 +10498,36 @@ export interface components {
             status: string;
             toStatus: string;
         };
+        DenylistEntry: {
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            /**
+             * Format: int64
+             * @description Epoch ms; null: permanent.
+             */
+            expiresAt?: number | null;
+            /** @description ip | user */
+            kind: string;
+            reason: string;
+            source: string;
+            value: string;
+        };
+        DenylistInput: {
+            /**
+             * Format: int64
+             * @description Minutes; null: permanent.
+             */
+            durationMinutes?: number | null;
+            /** @description ip | user */
+            kind: string;
+            reason?: string;
+            values: string[];
+        };
+        DenylistView: components["schemas"]["DenylistEntry"] & {
+            /** @description Security traces from the entity over the last 10 days, per day. */
+            activity: number[];
+        };
         Dependencies: {
             downstream: components["schemas"]["Dependency"][];
             /** @description The service's own language. */
@@ -9389,6 +10882,9 @@ export interface components {
         };
         /** @enum {string} */
         DowntimeStatus: "active" | "scheduled" | "ended" | "canceled";
+        EndpointPage: {
+            endpoints: components["schemas"]["ApiEndpointView"][];
+        };
         EntityContact: {
             /** @description Address, channel or URL. */
             contact: string;
@@ -9759,12 +11255,57 @@ export interface components {
             environments: components["schemas"]["FeatureFlagEnvironment"][];
             flags: components["schemas"]["FeatureFlag"][];
         };
+        FeedItem: {
+            /** @description exploited_vulnerability | emerging_vulnerability */
+            articleType: string;
+            cve?: string | null;
+            dueDate?: string | null;
+            id: string;
+            /** @description Some library of the org is affected. */
+            impacted: boolean;
+            /** @description The services and repositories affected. */
+            impactedResources: string[];
+            product: string;
+            /** @description Products the item concerns (Code Security, App & API Protection, Cloud SIEM). */
+            products: string[];
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            publishedAt: number;
+            ransomware: boolean;
+            requiredAction: string;
+            severity?: string | null;
+            /** @description CISA KEV, OSV.dev, … */
+            source: string;
+            summary: string;
+            title: string;
+            url: string;
+            vendor: string;
+        };
         FindingFilter: components["schemas"]["CsFilter"] & {
             /**
              * @description sast | secret | iac
              * @default
              */
             kind: string;
+        };
+        FindingRuleStatus: {
+            description: string;
+            evaluated: number;
+            failing: number;
+            id: string;
+            name: string;
+            owasp: string;
+            remediation: string;
+            severity: string;
+        };
+        FindingStatusFilter: {
+            /**
+             * @description open (default) | muted | all
+             * @default
+             */
+            status: string;
         };
         FlagCondition: {
             /** @description A context attribute: `targetingKey`, `country`, or a dotted path into an object (`user.plan`). */
@@ -10398,6 +11939,35 @@ export interface components {
         };
         /** @enum {string} */
         Health: "ok" | "warn" | "critical";
+        Heatmap: {
+            /** @description Click positions in the snapshot's viewport, from the view's recordings. */
+            clicks: components["schemas"]["HeatmapPoint"][];
+            /** @description The latest full snapshot of the view: its Meta record and FullSnapshot record (absent without a recording). */
+            snapshot?: Record<string, never>[] | null;
+            /** @description The view's most clicked elements (RUM actions by target name). */
+            topElements: components["schemas"]["HeatmapCount"][];
+            /** @description The most visited views (sessions), to pick one. */
+            views: components["schemas"]["HeatmapCount"][];
+        };
+        HeatmapCount: {
+            /** Format: int64 */
+            count: number;
+            name: string;
+        };
+        HeatmapPoint: {
+            /** Format: double */
+            x: number;
+            /** Format: double */
+            y: number;
+        };
+        HeatmapRequest: {
+            applicationId?: string | null;
+            /** @description Only actions with this frustration type (`rage_click`, `dead_click`, `error_click`). */
+            frustration?: string | null;
+            range: components["schemas"]["TimeRange"];
+            /** @description The view; without one, the most visited views (to pick from). */
+            viewName?: string | null;
+        };
         HistogramBucket: {
             counts: components["schemas"]["StatusCounts"];
             /**
@@ -10607,6 +12177,28 @@ export interface components {
         ImportantPatch: {
             important: boolean;
         };
+        InboxFinding: {
+            cve?: string | null;
+            /** @description Library Vulnerability | Code Vulnerability | Secret | IaC Misconfiguration */
+            findingType: string;
+            /** Format: int64 */
+            firstSeen: number;
+            /** @description Code Security's triage key. */
+            key: string;
+            /** @description Where to open it. */
+            link: string;
+            /** @description Why it is in the inbox. */
+            reasons: string[];
+            repositories: string[];
+            /** @description Service | Repository */
+            resourceType: string;
+            resources: string[];
+            services: string[];
+            severity: string;
+            title: string;
+            /** @description pending | in_flight */
+            triage: string;
+        };
         IncidentCounts: {
             /** Format: int64 */
             active: number;
@@ -10722,6 +12314,51 @@ export interface components {
             teams: string[];
             test: boolean;
             title: string;
+        };
+        InfraPackage: {
+            ecosystem: string;
+            /** Format: int64 */
+            firstSeen: number;
+            maxSeverity?: string | null;
+            name: string;
+            /** @description Hosts and images with the package, and how many of them run. */
+            resources: number;
+            running: number;
+            version: string;
+            vulnerabilities: number;
+        };
+        InfraVulnerability: {
+            advisoryId: string;
+            aliases: string[];
+            cve?: string | null;
+            cwes: string[];
+            ecosystem: string;
+            env: string;
+            /** @description The CVE is in CISA's known exploited catalog. */
+            exploitAvailable: boolean;
+            /** Format: int64 */
+            firstSeen: number;
+            fixed?: string | null;
+            host: string;
+            /** @description Triage key. */
+            key: string;
+            /** Format: int64 */
+            lastSeen: number;
+            os: string;
+            package: string;
+            resourceId: string;
+            /** @description host | container_image */
+            resourceKind: string;
+            resourceName: string;
+            /** @description A running container uses the image (hosts always run). */
+            running: boolean;
+            /** Format: double */
+            score?: number | null;
+            severity: string;
+            /** @description open | muted */
+            status: string;
+            title: string;
+            version: string;
         };
         IngestKey: {
             /** Format: int64 */
@@ -12220,6 +13857,47 @@ export interface components {
             /** @description Base32 secret for manual entry. */
             secret: string;
         };
+        MisconfigFinding: {
+            account?: string | null;
+            cluster?: string | null;
+            description: string;
+            /** @description What fails on this resource. */
+            detail: string;
+            env?: string | null;
+            frameworks: string[];
+            /** @description Triage key. */
+            key: string;
+            /** Format: int64 */
+            lastSeen: number;
+            namespace?: string | null;
+            region?: string | null;
+            remediation: string;
+            resourceId: string;
+            resourceName: string;
+            resourceType: string;
+            ruleId: string;
+            ruleName: string;
+            service?: string | null;
+            severity: string;
+            /** @description open | muted */
+            status: string;
+            team?: string | null;
+        };
+        MisconfigPage: {
+            findings: components["schemas"]["MisconfigFinding"][];
+            rules: components["schemas"]["MisconfigRuleStatus"][];
+        };
+        MisconfigRuleStatus: {
+            description: string;
+            /** @description Resources the rule applies to, and how many fail it. */
+            evaluated: number;
+            failing: number;
+            frameworks: string[];
+            id: string;
+            name: string;
+            remediation: string;
+            severity: string;
+        };
         MonitorBulkRequest: {
             action: components["schemas"]["BulkAction"];
             ids: number[];
@@ -12482,6 +14160,11 @@ export interface components {
             current: boolean;
             id: string;
             isAdmin: boolean;
+            name: string;
+        };
+        NamedCount: {
+            /** Format: int64 */
+            count: number;
             name: string;
         };
         NetworkFacet: {
@@ -13094,6 +14777,16 @@ export interface components {
             id: string;
             name: string;
         };
+        PackEnabled: {
+            enabled: boolean;
+        };
+        PackRule: {
+            enabled: boolean;
+            id: string;
+            name: string;
+            /** @description The most severe case. */
+            severity: string;
+        };
         Page: {
             /** Format: int64 */
             acknowledgedAt?: number | null;
@@ -13143,6 +14836,11 @@ export interface components {
             path: string;
             repository: string;
             revision: string;
+        };
+        PlaylistSession: {
+            sessionId: string;
+            /** Format: int64 */
+            startedAt: number;
         };
         /** @enum {string} */
         PolicyCategory: "cost_optimization" | "reliability" | "security" | "versioning" | "tagging";
@@ -14132,6 +15830,37 @@ export interface components {
             /** @description Every pipeline id, in processing order. */
             ids: string[];
         };
+        ReplayPlaylist: {
+            /** Format: int64 */
+            createdAt: number;
+            createdBy?: string | null;
+            createdByMe: boolean;
+            description: string;
+            id: string;
+            name: string;
+            /** Format: int64 */
+            sessionCount: number;
+            /** @description The playlist's sessions (on a single playlist): id and start. */
+            sessions: components["schemas"]["PlaylistSession"][];
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        ReplayPlaylistInput: {
+            description?: string;
+            name: string;
+        };
+        ReplaySegment: {
+            /** Format: int64 */
+            end: number;
+            /** @description The SDK's records (full snapshots, incremental snapshots, meta, focus, view end, …). */
+            records: Record<string, never>[];
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            start: number;
+            viewId: string;
+        };
         ReportSchedule: {
             /** @description daily | weekly | monthly */
             frequency: string;
@@ -14183,6 +15912,18 @@ export interface components {
             libraryVulnerabilities: number;
             repository: string;
             secrets: number;
+        };
+        ResourceCategory: {
+            /** @description Hosts, Containers, Kubernetes, Networking, Storage, Container Images, … */
+            category: string;
+            count: number;
+            envs: string[];
+            regions: string[];
+            services: string[];
+            teams: string[];
+            types: {
+                [key: string]: number;
+            };
         };
         ResourceChange: {
             account: string;
@@ -14410,6 +16151,33 @@ export interface components {
             id: string;
             name: string;
         };
+        RuleCase: {
+            condition?: string;
+            name?: string;
+            notifications?: string[];
+            /** @description info, low, medium, high or critical. */
+            status: string;
+        };
+        RuleEnabled: {
+            enabled: boolean;
+        };
+        RuleFilter: {
+            /** @description require or suppress. */
+            action: string;
+            query?: string;
+        };
+        RuleQuery: {
+            aggregation?: string;
+            dataSource?: string | null;
+            distinctFields?: string[];
+            groupByFields?: string[];
+            hasOptionalGroupByFields?: boolean;
+            metric?: string | null;
+            metrics?: string[] | null;
+            /** @description The name conditions use; empty: `a`, `b`, … by position. */
+            name?: string;
+            query?: string;
+        };
         RuleSummary: {
             cwes: string[];
             description: string;
@@ -14429,6 +16197,148 @@ export interface components {
              * @default
              */
             kind: string;
+        };
+        RumApplication: {
+            /** @description Public token the SDK sends events with. */
+            clientToken: string;
+            /** Format: int64 */
+            createdAt: number;
+            createdBy?: string | null;
+            createdByHandle?: string | null;
+            /** @description The application ID the SDK is initialized with. */
+            id: string;
+            name: string;
+            /** Format: int64 */
+            productAnalyticsModifiedAt: number;
+            /** @description MAX or NONE. */
+            productAnalyticsRetentionState: string;
+            /** Format: int64 */
+            rumEventProcessingModifiedAt: number;
+            /** @description ALL, ERROR_FOCUSED_MODE (only sessions with errors) or NONE (events are dropped). */
+            rumEventProcessingState: string;
+            tags: string[];
+            type: string;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy?: string | null;
+            updatedByHandle?: string | null;
+        };
+        /** @description What creating or changing an application sets; absent fields keep their value (or default). */
+        RumApplicationInput: {
+            name?: string | null;
+            productAnalyticsRetentionState?: string | null;
+            rumEventProcessingState?: string | null;
+            tags?: string[] | null;
+            type?: string | null;
+        };
+        RumBucket: {
+            /** Format: int64 */
+            count: number;
+            /** Format: int64 */
+            t: number;
+        };
+        /** @description One event (or session): its time, type and fields. */
+        RumEventRow: {
+            /** @description Fields as dotted paths. Sessions carry `session.time_spent` (ms), `session.view.count`,
+             *     `session.error.count`, `session.action.count`, `session.frustration.count`,
+             *     `session.initial_view.name`, `session.last_view.name` and `session.last_event_at` (ms). */
+            attributes: {
+                [key: string]: string;
+            };
+            /** @description view.id, session.id or a hash of the event. */
+            id: string;
+            service: string;
+            /** Format: int64 */
+            timestamp: number;
+            type: string;
+        };
+        RumFacet: {
+            /** @description The field's path (`browser.name`). */
+            path: string;
+            values: components["schemas"]["RumFacetValue"][];
+        };
+        RumFacetValue: {
+            /** Format: int64 */
+            count: number;
+            value: string;
+        };
+        RumNamedCount: {
+            /** Format: int64 */
+            count: number;
+            name: string;
+            /**
+             * Format: double
+             * @description Errors per 100 views (top views by error rate), or sessions (deployments).
+             */
+            value: number;
+        };
+        RumSearchPage: {
+            /** Format: int64 */
+            bucketMs: number;
+            /** @description Counts per bucket over the range. */
+            buckets: components["schemas"]["RumBucket"][];
+            rows: components["schemas"]["RumEventRow"][];
+            /**
+             * Format: int64
+             * @description Events (or sessions) matching in the range.
+             */
+            total: number;
+        };
+        RumSearchRequest: {
+            /** @description Only this application's events. */
+            applicationId?: string | null;
+            /** @description Oldest first (default newest first). */
+            ascending?: boolean;
+            /** @description session, view, action, error, resource, long_task, vital, or `all` (every event type, not sessions). */
+            eventType: string;
+            /** Format: int32 */
+            limit?: number | null;
+            /** Format: int32 */
+            offset?: number | null;
+            /** @description RUM search syntax (`@view.name:/checkout* -@session.type:synthetics`). */
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            sessions?: null | components["schemas"]["SessionFilter"];
+        };
+        /** @description An application's health over a range: Core Web Vitals, errors, deployments and usage. */
+        RumSummary: {
+            /** Format: int64 */
+            bucketMs: number;
+            /**
+             * Format: double
+             * @description Sessions with at least one error, percent.
+             */
+            crashFreeSessions?: number | null;
+            /** Format: double */
+            cumulativeLayoutShiftP75?: number | null;
+            /**
+             * Format: double
+             * @description Errors per minute of the range.
+             */
+            errorRate: number;
+            /** Format: int64 */
+            errors: number;
+            /** Format: double */
+            interactionToNextPaintP75?: number | null;
+            /** Format: double */
+            largestContentfulPaintP75?: number | null;
+            /**
+             * Format: double
+             * @description 75th percentiles, milliseconds (CLS has no unit).
+             */
+            loadingTimeP75?: number | null;
+            /** Format: int64 */
+            sessions: number;
+            sessionsOverTime: components["schemas"]["RumBucket"][];
+            topErrorViews: components["schemas"]["RumNamedCount"][];
+            topViews: components["schemas"]["RumNamedCount"][];
+            versions: components["schemas"]["RumNamedCount"][];
+            /** Format: int64 */
+            views: number;
+        };
+        RumSummaryRequest: {
+            applicationId: string;
+            range: components["schemas"]["TimeRange"];
         };
         RuntimeCodeVulnerability: components["schemas"]["IastVulnerability"] & {
             /** Format: int64 */
@@ -14666,10 +16576,179 @@ export interface components {
              */
             telemetryAt?: number | null;
         };
+        SecurityInbox: {
+            byType: {
+                [key: string]: number;
+            };
+            /** @description Critical and high findings now and a week ago (first seen before then). */
+            critical: number;
+            criticalWeekAgo: number;
+            findings: components["schemas"]["InboxFinding"][];
+            high: number;
+            highWeekAgo: number;
+        };
+        SecurityOverview: {
+            /** @description App & API Protection signals over the last 7 days, per day `[epoch ms, count]`. */
+            appSecSignals: [
+                number,
+                number
+            ][];
+            codeSecurity: components["schemas"]["CodeSecurityCoverage"];
+            /** Format: int64 */
+            endpoints: number;
+            /** Format: int64 */
+            hosts: number;
+            importantSignals: number;
+            /** @description Log sources of Cloud SIEM's content packs sending logs. */
+            logSources: number;
+            repositories: number;
+            /** Format: int64 */
+            services: number;
+            /** @description Cloud SIEM: content packs on, and open high or critical signals. */
+            siemPacksEnabled: number;
+        };
+        /** @description A detection rule as Datadog sends it, plus what the UI shows about its evaluation. */
+        SecurityRule: {
+            /** @description Whether the rule raises signals now: enabled, and its pack on. */
+            active: boolean;
+            cases: components["schemas"]["RuleCase"][];
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            createdAt: number;
+            /** Format: int64 */
+            creationAuthorId: number;
+            filters: components["schemas"]["RuleFilter"][];
+            hasExtendedTitle: boolean;
+            id: string;
+            isDefault: boolean;
+            isEnabled: boolean;
+            message: string;
+            name: string;
+            /** @description Why the engine doesn't evaluate the rule (its type, method or aggregation); absent when it does. */
+            notEvaluated?: string | null;
+            /** @description evaluationWindow, keepAlive, maxSignalDuration (seconds), detectionMethod, … */
+            options: Record<string, never>;
+            /** @description The content pack of a default rule. */
+            pack?: string | null;
+            queries: components["schemas"]["RuleQuery"][];
+            tags: string[];
+            type: string;
+            /** Format: int64 */
+            updateAuthorId: number;
+            /** Format: int64 */
+            updatedAt: number;
+            /** Format: int32 */
+            version: number;
+        };
+        /** @description A rule as the UI creates or changes it (the same fields as Datadog's create body). */
+        SecurityRuleInput: {
+            cases: components["schemas"]["RuleCase"][];
+            filters?: components["schemas"]["RuleFilter"][];
+            hasExtendedTitle?: boolean;
+            isEnabled?: boolean;
+            message?: string;
+            name: string;
+            options?: Record<string, never>;
+            queries: components["schemas"]["RuleQuery"][];
+            tags?: string[];
+            type?: string;
+        };
+        /** @description A rule in the list, with its recent signals. */
+        SecurityRuleSummary: components["schemas"]["SecurityRule"] & {
+            /**
+             * Format: int64
+             * @description Epoch ms of the latest signal.
+             */
+            lastSignalAt?: number | null;
+            packName?: string | null;
+            /**
+             * Format: int64
+             * @description Signals raised in the last 7 days.
+             */
+            signals7d: number;
+        };
+        SecuritySignal: {
+            archiveComment: string;
+            archiveReason: string;
+            assignee?: null | components["schemas"]["SignalUser"];
+            caseName: string;
+            condition: string;
+            /** Format: int64 */
+            createdAt: number;
+            /** @description `{ip: {top: [...], count: n}, user: …, host: …, service: …, country: …}` */
+            entities: Record<string, never>;
+            env: string;
+            /** Format: int64 */
+            eventsMatched: number;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            firstSeen: number;
+            groupValues: {
+                [key: string]: string;
+            };
+            id: string;
+            incidentIds: number[];
+            /** Format: int64 */
+            lastSeen: number;
+            /** @description The logs the signal is about, in the logs search syntax (the first query and the group). */
+            logsQuery: string;
+            message: string;
+            queries: components["schemas"]["SignalQuery"][];
+            ruleId: string;
+            ruleName: string;
+            ruleType: string;
+            services: string[];
+            /** @description info | low | medium | high | critical */
+            severity: string;
+            source: string;
+            /** @description open | under_review | archived */
+            state: string;
+            /** Format: int64 */
+            stateUpdatedAt?: number | null;
+            stateUpdatedBy?: string | null;
+            tags: string[];
+            title: string;
+        };
         SecurityStatus: {
             access: components["schemas"]["Access"];
             hasPassword: boolean;
             mfaEnabled: boolean;
+        };
+        SecurityTrace: {
+            /** @description attack_attempt.sql_injection, business_logic.users.login.failure, security_response.block_ip, … */
+            activities: string[];
+            blocked: boolean;
+            clientIp: string;
+            country: string;
+            env: string;
+            method: string;
+            route: string;
+            service: string;
+            spanId: string;
+            status: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            timestamp: number;
+            traceId: string;
+            triggers: components["schemas"]["WafTrigger"][];
+            url: string;
+            user: string;
+            userAgent: string;
+        };
+        SecurityTracePage: {
+            facets: components["schemas"]["AppsecFacet"][];
+            histogram: components["schemas"]["TypeBucket"][];
+            topActivities: components["schemas"]["NamedCount"][];
+            topUsers: components["schemas"]["NamedCount"][];
+            /** Format: int64 */
+            total: number;
+            traces: components["schemas"]["SecurityTrace"][];
         };
         SeriesPoint: {
             /** Format: int64 */
@@ -14889,6 +16968,19 @@ export interface components {
             service: string;
             versions: string[];
         };
+        /** @description What a session must be (Session Replay's filters); the query picks sessions with a matching event. */
+        SessionFilter: {
+            /** @description In progress (an event in the last 15 minutes) or ended. */
+            active?: boolean | null;
+            /** @description Only these sessions (a playlist's). */
+            ids?: string[];
+            /** Format: int64 */
+            minActionCount?: number | null;
+            /** Format: int64 */
+            minTimeSpentMs?: number | null;
+            /** @description Only sessions with a Session Replay recording. */
+            withReplay?: boolean;
+        };
         SessionInfo: {
             /** Format: int64 */
             createdAt: number;
@@ -14902,12 +16994,137 @@ export interface components {
             orgId: string;
             userAgent?: string | null;
         };
+        SessionReplay: {
+            /** @description Its views, actions and errors, oldest first. */
+            events: components["schemas"]["RumEventRow"][];
+            segments: components["schemas"]["ReplaySegment"][];
+            session?: null | components["schemas"]["RumEventRow"];
+            /**
+             * Format: int64
+             * @description People who watched it.
+             */
+            watched: number;
+        };
+        SessionReplayRequest: {
+            /**
+             * Format: int64
+             * @description When the session started (epoch ms; around it the recording is looked up).
+             */
+            startedAt: number;
+        };
         SeverityCounts: {
             critical: number;
             high: number;
             low: number;
             medium: number;
             unknown: number;
+        };
+        SiemOverview: {
+            coverage: components["schemas"]["CategoryCoverage"][];
+            /** @description Open high and critical signals, newest first. */
+            importantSignals: components["schemas"]["SecuritySignal"][];
+            /** @description Logs of the packs' sources over the range. */
+            logsAnalyzed: components["schemas"]["SourceSeries"][];
+            openSignals: number;
+            setup: components["schemas"]["SiemSetup"];
+            signalsBySeverity: {
+                [key: string]: number;
+            };
+            /** @description Pack counts by status. */
+            statuses: {
+                [key: string]: number;
+            };
+        };
+        SiemOverviewRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
+        SiemSetup: {
+            /** @description Content packs on. */
+            packsEnabled: number;
+            /** @description Packs receiving logs. */
+            receivingLogs: number;
+            /** @description Rules evaluated now. */
+            rulesActive: number;
+            /** @description Rules with a case that notifies someone. */
+            rulesNotifying: number;
+        };
+        SignalAssigneeInput: {
+            /** @description A member's id; null unassigns. */
+            assigneeId?: string | null;
+        };
+        SignalBucket: {
+            critical: number;
+            high: number;
+            info: number;
+            low: number;
+            medium: number;
+            /** Format: int64 */
+            ts: number;
+        };
+        SignalBulkInput: {
+            /** @description Set to change the assignee; `""` unassigns. */
+            assigneeId?: string | null;
+            ids: string[];
+            state?: null | components["schemas"]["SignalStateInput"];
+        };
+        SignalBulkResult: {
+            /** Format: int64 */
+            updated: number;
+        };
+        SignalDetail: components["schemas"]["SecuritySignal"] & {
+            /** @description Whether the rule still exists (and its id, to open it). */
+            ruleExists: boolean;
+            /** Format: int64 */
+            ruleSignalsDay: number;
+            /**
+             * Format: int64
+             * @description Signals of the same rule in the last 30 days and the last day.
+             */
+            ruleSignalsMonth: number;
+        };
+        SignalFacet: {
+            /** @description The search key (`status`, `@workflow.triage.state`, `source`, …). */
+            key: string;
+            values: components["schemas"]["SignalFacetValue"][];
+        };
+        SignalFacetValue: {
+            count: number;
+            value: string;
+        };
+        SignalQuery: {
+            name: string;
+            query: string;
+        };
+        SignalSearchPage: {
+            facets: components["schemas"]["SignalFacet"][];
+            histogram: components["schemas"]["SignalBucket"][];
+            signals: components["schemas"]["SecuritySignal"][];
+            /** @description Counts per triage state of the signals matching the query (the All / Open / Archived / Under Review tabs). */
+            states: {
+                [key: string]: number;
+            };
+            total: number;
+        };
+        SignalSearchRequest: {
+            /** @description Oldest first (default newest first). */
+            ascending?: boolean;
+            limit?: number | null;
+            offset?: number | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            /** @description open | under_review | archived; empty: all. */
+            state?: string;
+        };
+        SignalStateInput: {
+            archiveComment?: string | null;
+            archiveReason?: string | null;
+            /** @description open | under_review | archived */
+            state: string;
+        };
+        SignalUser: {
+            email: string;
+            id: string;
+            name: string;
         };
         /** @enum {string} */
         SloComparator: "<" | "<=" | ">" | ">=";
@@ -15183,6 +17400,14 @@ export interface components {
         SortDir: "asc" | "desc";
         /** @enum {string} */
         SortField: "title" | "modified" | "popularity";
+        SourceSeries: {
+            /** @description `[epoch ms, logs]` */
+            points: [
+                number,
+                number
+            ][];
+            source: string;
+        };
         SpanAnalytics: {
             series: components["schemas"]["AnalyticsSeries"][];
             /** Format: int64 */
@@ -15779,6 +18004,51 @@ export interface components {
             partial?: string;
             range: components["schemas"]["TimeRange"];
         };
+        SuggestedRule: {
+            env: string;
+            /** @description users.login.success | users.login.failure */
+            event: string;
+            route: string;
+            service: string;
+        };
+        Suppression: {
+            /** Format: int64 */
+            createdAt: number;
+            creator: string;
+            dataExclusionQuery: string;
+            description: string;
+            enabled: boolean;
+            /** Format: int64 */
+            expirationDate?: number | null;
+            id: string;
+            name: string;
+            ruleQuery: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            startDate?: number | null;
+            suppressionQuery: string;
+            tags: string[];
+            /** Format: int64 */
+            updatedAt: number;
+            updater: string;
+            /** Format: int32 */
+            version: number;
+        };
+        SuppressionInput: {
+            dataExclusionQuery?: string;
+            description?: string;
+            enabled?: boolean;
+            /** Format: int64 */
+            expirationDate?: number | null;
+            name: string;
+            ruleQuery?: string;
+            /** Format: int64 */
+            startDate?: number | null;
+            suppressionQuery?: string;
+            tags?: string[];
+        };
         Survey: {
             anonymous: boolean;
             /**
@@ -16065,6 +18335,11 @@ export interface components {
             errors: number;
             /** @description Empty when the spans don't say. */
             method: string;
+            /**
+             * Format: double
+             * @description 95th percentile latency in milliseconds (the slowest of the span names serving the endpoint).
+             */
+            p95Ms: number;
             /** Format: int64 */
             requests: number;
             route: string;
@@ -16270,6 +18545,7 @@ export interface components {
             startedAt: number;
             /** Format: int32 */
             statusCode?: number | null;
+            timings?: null | components["schemas"]["SyntheticTimings"];
             /** @description scheduled | manual */
             trigger: string;
         };
@@ -16335,6 +18611,11 @@ export interface components {
              * @default null
              */
             error: string | null;
+            /**
+             * @description HTTP: the response's protocol version (`1.1`).
+             * @default null
+             */
+            httpVersion: string | null;
             /** @default null */
             method: string | null;
             /** @default false */
@@ -16355,6 +18636,8 @@ export interface components {
              * @default null
              */
             statusCode: number | null;
+            /** @default null */
+            timings: null | components["schemas"]["SyntheticTimings"];
             /**
              * @description The URL that answered (after redirects).
              * @default null
@@ -16515,6 +18798,49 @@ export interface components {
         SyntheticTestsPage: {
             location: components["schemas"]["SyntheticLocation"];
             tests: components["schemas"]["SyntheticTest"][];
+        };
+        /** @description An HTTP run's phases in milliseconds, named as Datadog's results name them. */
+        SyntheticTimings: {
+            /**
+             * Format: double
+             * @default 0
+             */
+            dns: number;
+            /**
+             * Format: double
+             * @description Reading the body.
+             * @default 0
+             */
+            download: number;
+            /**
+             * Format: double
+             * @description From sending the request to the response's headers.
+             * @default 0
+             */
+            firstByte: number;
+            /**
+             * Format: double
+             * @description Following redirects, before the request that answered.
+             * @default 0
+             */
+            redirect: number;
+            /**
+             * Format: double
+             * @description The TLS handshake (https).
+             * @default 0
+             */
+            ssl: number;
+            /**
+             * Format: double
+             * @description Opening the TCP connection.
+             * @default 0
+             */
+            tcp: number;
+            /**
+             * Format: double
+             * @default 0
+             */
+            total: number;
         };
         SyntheticTryRequest: {
             assertions?: components["schemas"]["SyntheticAssertion"][];
@@ -16769,6 +19095,16 @@ export interface components {
             /** Format: int64 */
             warn: number;
         };
+        TrendCount: {
+            /**
+             * Format: double
+             * @description Change against the previous period, in percent (None: new).
+             */
+            change?: number | null;
+            /** Format: int64 */
+            count: number;
+            name: string;
+        };
         TriageRequest: {
             /** @description `vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>` or `iast:<hash>`. */
             key: string;
@@ -16850,6 +19186,14 @@ export interface components {
              * @default null
              */
             triggeredWithin: number | null;
+        };
+        TypeBucket: {
+            /** @description Count per security activity type. */
+            counts: {
+                [key: string]: number;
+            };
+            /** Format: int64 */
+            ts: number;
         };
         UnconfiguredDb: {
             engine: components["schemas"]["DbEngine"];
@@ -16944,6 +19288,36 @@ export interface components {
         VolumeRequest: {
             range: components["schemas"]["TimeRange"];
         };
+        VulnerabilityPrioritization: {
+            exploitAvailable: number;
+            fixAvailable: number;
+            /** @description Running, high or critical, and known exploited. */
+            highExploitRisk: number;
+            highOrCritical: number;
+            running: number;
+            /** @description Unique vulnerabilities (advisories) of hosts and images. */
+            total: number;
+        };
+        WafPolicyView: {
+            blocking: number;
+            description: string;
+            disabled: number;
+            id: string;
+            isDefault: boolean;
+            managed: boolean;
+            modifiedBy: string;
+            monitoring: number;
+            name: string;
+            services: string[];
+        };
+        WafTrigger: {
+            category: string;
+            /** @description What matched: `address` (server.request.query, …), key path and value. */
+            matches: string[];
+            ruleId: string;
+            ruleName: string;
+            type: string;
+        };
         WatchdogAlert: {
             alertType: components["schemas"]["WatchdogAlertType"];
             /**
@@ -17029,6 +19403,13 @@ export interface components {
             upper?: number | null;
             /** Format: double */
             value?: number | null;
+        };
+        WatchedSession: {
+            sessionId: string;
+            /** Format: int64 */
+            startedAt: number;
+            /** Format: int64 */
+            watchedAt: number;
         };
         /** @description Correlated events: one affected object's warnings and errors. */
         WorkItem: {
@@ -17891,6 +20272,397 @@ export interface operations {
             };
         };
     };
+    appsec_attackers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppsecSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttackerPage"];
+                };
+            };
+        };
+    };
+    appsec_business_logic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessLogic"];
+                };
+            };
+        };
+    };
+    appsec_denylist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DenylistView"][];
+                };
+            };
+        };
+    };
+    appsec_block: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DenylistInput"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    appsec_unblock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                value: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    appsec_endpoints: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointPage"];
+                };
+            };
+        };
+    };
+    appsec_api_findings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFindingsPage"];
+                };
+            };
+        };
+    };
+    appsec_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppsecOverviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppsecOverview"];
+                };
+            };
+        };
+    };
+    appsec_waf_policies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WafPolicyView"][];
+                };
+            };
+        };
+    };
+    appsec_services: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppsecService"][];
+                };
+            };
+        };
+    };
+    appsec_setting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    appsec_set_setting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    appsec_security_traces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppsecSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityTracePage"];
+                };
+            };
+        };
+    };
+    appsec_users: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppsecSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppsecUser"][];
+                };
+            };
+        };
+    };
+    appsec_waf_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+        };
+    };
+    appsec_waf_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    appsec_waf_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    appsec_waf_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     audit_trail: {
         parameters: {
             query?: {
@@ -18649,6 +21421,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnitCostRow"][];
+                };
+            };
+        };
+    };
+    cloud_security_cves: {
+        parameters: {
+            query?: {
+                query?: string;
+                severity?: string;
+                impact?: string;
+                exploited?: boolean;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvePage"];
+                };
+            };
+        };
+    };
+    cloud_security_misconfigurations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingStatusFilter"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MisconfigPage"];
+                };
+            };
+        };
+    };
+    cloud_security_packages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InfraPackage"][];
+                };
+            };
+        };
+    };
+    cloud_security_resources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceCategory"][];
+                };
+            };
+        };
+    };
+    cloud_security_summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudSecuritySummary"];
+                };
+            };
+        };
+    };
+    cloud_security_vulnerabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingStatusFilter"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InfraVulnerability"][];
                 };
             };
         };
@@ -27789,6 +30690,37 @@ export interface operations {
             };
         };
     };
+    product_analytics_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalyticsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsReport"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     profile_flamegraph: {
         parameters: {
             query?: never;
@@ -28251,6 +31183,554 @@ export interface operations {
             };
         };
     };
+    list_rum_applications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RumApplication"][];
+                };
+            };
+        };
+    };
+    create_rum_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RumApplicationInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RumApplication"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_rum_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RumApplication"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_rum_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RumApplicationInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RumApplication"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_rum_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_rum_events: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RumSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RumSearchPage"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    rum_facets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RumSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RumFacet"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    session_replay_heatmap: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HeatmapRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Heatmap"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    session_replay_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchedSession"][];
+                };
+            };
+        };
+    };
+    list_replay_playlists: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayPlaylist"][];
+                };
+            };
+        };
+    };
+    create_replay_playlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplayPlaylistInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayPlaylist"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_replay_playlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayPlaylist"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_replay_playlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplayPlaylistInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayPlaylist"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_replay_playlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    add_replay_playlist_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaylistSession"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayPlaylist"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    remove_replay_playlist_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayPlaylist"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_session_replay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionReplayRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionReplay"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    watch_session_replay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionReplayRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    rum_summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RumSummaryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RumSummary"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     mappings: {
         parameters: {
             query: {
@@ -28577,6 +32057,615 @@ export interface operations {
                 };
             };
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    security_research_feed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedItem"][];
+                };
+            };
+        };
+    };
+    security_inbox: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityInbox"];
+                };
+            };
+        };
+    };
+    security_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityOverview"];
+                };
+            };
+        };
+    };
+    list_security_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityRuleSummary"][];
+                };
+            };
+        };
+    };
+    create_security_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecurityRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityRule"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_security_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityRule"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_security_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecurityRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityRule"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_security_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    enable_security_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleEnabled"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityRule"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    siem_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiemOverviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiemOverview"];
+                };
+            };
+        };
+    };
+    list_siem_content_packs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentPackStatus"][];
+                };
+            };
+        };
+    };
+    set_siem_content_pack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PackEnabled"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    bulk_update_security_signals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignalBulkInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignalBulkResult"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_security_signals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignalSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignalSearchPage"];
+                };
+            };
+        };
+    };
+    get_security_signal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignalDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_security_signal_assignee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignalAssigneeInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignalDetail"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_security_signal_state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignalStateInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignalDetail"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_security_suppressions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Suppression"][];
+                };
+            };
+        };
+    };
+    create_security_suppression: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuppressionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Suppression"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_security_suppression: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuppressionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Suppression"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_security_suppression: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -32389,6 +36478,447 @@ export interface operations {
             };
         };
     };
+    datadog_list_waf_custom_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_waf_custom_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_waf_custom_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_waf_custom_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_delete_waf_custom_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_list_waf_exclusion_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_waf_exclusion_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_waf_exclusion_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_waf_exclusion_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_delete_waf_exclusion_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_list_waf_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_waf_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_waf_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_waf_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_delete_waf_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
     datadog_list_roles: {
         parameters: {
             query?: never;
@@ -32811,6 +37341,715 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_rum_applications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_create_rum_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogIamDocument"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_rum_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_rum_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_update_rum_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatadogIamDocument"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_suppressions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_suppression: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_validate_suppression: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_suppression: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                suppression_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_suppression: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                suppression_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_update_suppression: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                suppression_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_security_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_security_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_validate_security_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_security_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_update_security_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_security_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_security_signals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_search_security_signals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_security_signal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                signal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_set_security_signal_assignee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                signal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_set_security_signal_incidents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                signal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_set_security_signal_state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                signal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
             400: {

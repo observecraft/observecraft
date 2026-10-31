@@ -74,9 +74,10 @@ const REFERENCE = {
   ],
   'Digital Experience': [
     'Journey Monitoring!NEW',
-    'Synthetic Monitoring & Testing = Tests, +New Test, Test Suites!NEW, +New Test Suite!NEW, AI Testing!NEW, Results Explorer, Continuous Testing, Test Coverage | Settings',
-    'Real User Monitoring',
-    'Product Analytics!NEW',
+    'Synthetic Monitoring & Testing = Tests, +New Test, Test Suites, +New Test Suite, AI Testing!NEW, Results Explorer, Continuous Testing, Test Coverage | Settings',
+    'Real User Monitoring = Summary, Operations!NEW, Investigate, Explore | Manage Applications, Generate Metrics, Sensitive Data Scanner',
+    'Session Replay = Recordings, Playlists, Heatmaps',
+    'Product Analytics',
     'Experiments',
   ],
   'Software Delivery': [
@@ -92,7 +93,7 @@ const REFERENCE = {
     'Security = Inbox, Signals | Research Feed, Settings',
     'Cloud SIEM = Content Packs, Signals | Detection Rules, Settings',
     'Code Security = Vulnerabilities, Repositories | Detection Coverage, Settings',
-    'Cloud Security',
+    'Cloud Security = Misconfigurations, Vulnerabilities | Inventory, CVE Explorer',
     'App & API Protection = API Inventory, Signals | Policies, Settings',
     'Workload Protection',
     'Sensitive Data Scanner = Findings | Settings',

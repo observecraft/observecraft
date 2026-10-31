@@ -4,7 +4,7 @@ import { useDashboardExecution } from '../execution';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { Layout } from 'react-grid-layout';
-import { CalendarClock, Check, ChevronDown, Copy, Download, LayoutDashboard, Plus, Settings, Share, Siren, Star, Trash2, Upload, Variable, X } from 'lucide-react';
+import { CalendarClock, Check, ChevronDown, Copy, Download, LayoutDashboard, Plus, Settings, Share, Radar, Siren, Star, Trash2, Upload, Variable, X } from 'lucide-react';
 import type { Dashboard, TemplateVarValues, Widget, WidgetDefinition, WidgetType } from '../../../api/dashboards/types';
 import { TimePicker } from '../../../components/shell/PageHeader';
 import { TimeProvider, useTime } from '../../../components/shell/TimeContext';
@@ -235,7 +235,15 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
               <Star size={18} fill={d.starred ? 'currentColor' : 'none'} />
             </button>
             <span className="dash-icon">
-              {d.logo === 'tile:monitors' ? <Siren size={18} color="var(--status-warn)" /> : d.logo ? <IntegrationLogo logo={d.logo} name={d.title} size={20} /> : <LayoutDashboard size={18} />}
+              {d.logo === 'tile:monitors' ? (
+                <Siren size={18} color="var(--status-warn)" />
+              ) : d.logo === 'tile:synthetics' ? (
+                <Radar size={18} color="var(--primary)" />
+              ) : d.logo ? (
+                <IntegrationLogo logo={d.logo} name={d.title} size={20} />
+              ) : (
+                <LayoutDashboard size={18} />
+              )}
             </span>
             {renaming ? (
               <input className="dash-title-input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} onBlur={commitTitle} onKeyDown={(e) => e.key === 'Enter' && commitTitle()} />

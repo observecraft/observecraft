@@ -28,6 +28,9 @@ pub mod monitors;
 pub mod keys;
 pub mod permissions;
 pub mod roles;
+pub mod appsec;
+pub mod rum;
+pub mod security_monitoring;
 pub mod teams;
 pub mod users;
 pub mod validate;
@@ -69,6 +72,32 @@ pub fn router() -> Router<AppState> {
         .merge(monitors_and_downtimes())
         .merge(iam_router())
         .merge(cost_router())
+        .route("/api/v2/rum/applications", get(rum::list).post(rum::create))
+        .route("/api/v2/rum/applications/:id", get(rum::get).patch(rum::update).delete(rum::delete))
+        .route("/api/v2/remote_config/products/asm/waf/custom_rules", get(appsec::list_custom_rules).post(appsec::create_custom_rule))
+        .route("/api/v2/remote_config/products/asm/waf/custom_rules/:id", get(appsec::get_custom_rule).put(appsec::update_custom_rule).delete(appsec::delete_custom_rule))
+        .route("/api/v2/remote_config/products/asm/waf/exclusion_filters", get(appsec::list_exclusion_filters).post(appsec::create_exclusion_filter))
+        .route(
+            "/api/v2/remote_config/products/asm/waf/exclusion_filters/:id",
+            get(appsec::get_exclusion_filter).put(appsec::update_exclusion_filter).delete(appsec::delete_exclusion_filter),
+        )
+        .route("/api/v2/remote_config/products/asm/waf/policies", get(appsec::list_policies).post(appsec::create_policy))
+        .route("/api/v2/remote_config/products/asm/waf/policies/:id", get(appsec::get_policy).put(appsec::update_policy).delete(appsec::delete_policy))
+        .route("/api/v2/security_monitoring/rules", get(security_monitoring::list_rules).post(security_monitoring::create_rule))
+        .route("/api/v2/security_monitoring/rules/validation", post(security_monitoring::validate_rule))
+        .route("/api/v2/security_monitoring/rules/:rule_id", get(security_monitoring::get_rule).put(security_monitoring::update_rule).delete(security_monitoring::delete_rule))
+        .route("/api/v2/security_monitoring/signals", get(security_monitoring::list_signals))
+        .route("/api/v2/security_monitoring/signals/search", post(security_monitoring::search_signals))
+        .route("/api/v2/security_monitoring/signals/:signal_id", get(security_monitoring::get_signal))
+        .route("/api/v2/security_monitoring/signals/:signal_id/state", axum::routing::patch(security_monitoring::signal_state))
+        .route("/api/v2/security_monitoring/signals/:signal_id/assignee", axum::routing::patch(security_monitoring::signal_assignee))
+        .route("/api/v2/security_monitoring/signals/:signal_id/incidents", axum::routing::patch(security_monitoring::signal_incidents))
+        .route("/api/v2/security_monitoring/configuration/suppressions", get(security_monitoring::list_suppressions).post(security_monitoring::create_suppression))
+        .route("/api/v2/security_monitoring/configuration/suppressions/validation", post(security_monitoring::validate_suppression))
+        .route(
+            "/api/v2/security_monitoring/configuration/suppressions/:suppression_id",
+            get(security_monitoring::get_suppression).patch(security_monitoring::update_suppression).delete(security_monitoring::delete_suppression),
+        )
 }
 
 /// Cloud Cost Management: `datadog_cost_budget`, `datadog_cost_custom_forecast` and custom costs files ([`cost`]).

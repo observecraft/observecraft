@@ -218,6 +218,28 @@ pub struct SyntheticRunDetail {
     pub certificate: Option<SyntheticCertificate>,
     pub dns_server: Option<String>,
     pub records: Vec<SyntheticDnsRecord>,
+    /// HTTP: where the time went, in milliseconds (of the request that answered).
+    pub timings: Option<SyntheticTimings>,
+    /// HTTP: the response's protocol version (`1.1`).
+    pub http_version: Option<String>,
+}
+
+/// An HTTP run's phases in milliseconds, named as Datadog's results name them.
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct SyntheticTimings {
+    /// Following redirects, before the request that answered.
+    pub redirect: f64,
+    pub dns: f64,
+    /// Opening the TCP connection.
+    pub tcp: f64,
+    /// The TLS handshake (https).
+    pub ssl: f64,
+    /// From sending the request to the response's headers.
+    pub first_byte: f64,
+    /// Reading the body.
+    pub download: f64,
+    pub total: f64,
 }
 
 // ================================================================ assertions
@@ -575,19 +597,83 @@ fn same_origin(a: &url::Url, b: &url::Url) -> bool {
 }
 
 /// The method and body of the request that follows a redirect answered with `status`.
-fn after_redirect(status: u16, method: &reqwest::Method) -> (reqwest::Method, bool) {
-    let to_get = status == 303 && *method != reqwest::Method::HEAD || (matches!(status, 301 | 302) && *method == reqwest::Method::POST);
+fn after_redirect(status: u16, method: &hyper::Method) -> (hyper::Method, bool) {
+    let to_get = status == 303 && *method != hyper::Method::HEAD || (matches!(status, 301 | 302) && *method == hyper::Method::POST);
     if to_get {
-        (reqwest::Method::GET, false)
+        (hyper::Method::GET, false)
     } else {
         (method.clone(), true)
     }
 }
 
+/// A connection a synthetic HTTP request goes over: plain TCP or TLS.
+trait Io: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send {}
+impl<T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send> Io for T {}
+
+/// Accepts any certificate (tests that accept self-signed ones), still checking handshake signatures.
+#[derive(Debug)]
+struct AcceptAny(Arc<rustls::client::WebPkiServerVerifier>);
+
+impl rustls::client::danger::ServerCertVerifier for AcceptAny {
+    fn verify_server_cert(
+        &self,
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &[rustls::pki_types::CertificateDer<'_>],
+        _: &rustls::pki_types::ServerName<'_>,
+        _: &[u8],
+        _: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        self.0.verify_tls12_signature(message, cert, dss)
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        self.0.verify_tls13_signature(message, cert, dss)
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        self.0.supported_verify_schemes()
+    }
+}
+
+fn tls_config(accept_any: bool) -> Result<rustls::ClientConfig, String> {
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let mut roots = rustls::RootCertStore::empty();
+    roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let builder = rustls::ClientConfig::builder_with_provider(provider.clone()).with_safe_default_protocol_versions().map_err(|e| e.to_string())?;
+    let mut config = if accept_any {
+        let inner = rustls::client::WebPkiServerVerifier::builder_with_provider(Arc::new(roots), provider).build().map_err(|e| e.to_string())?;
+        builder.dangerous().with_custom_certificate_verifier(Arc::new(AcceptAny(inner))).with_no_client_auth()
+    } else {
+        builder.with_root_certificates(roots).with_no_client_auth()
+    };
+    config.alpn_protocols = vec![b"http/1.1".to_vec()];
+    Ok(config)
+}
+
+fn ms(d: Duration) -> f64 {
+    d.as_secs_f64() * 1000.0
+}
+
 async fn run_http(r: &SyntheticRequest, allow_private: bool, out: &mut SyntheticRunDetail, body_out: &mut String) -> Result<(), String> {
+    use http_body_util::BodyExt;
+    use hyper::header::{HeaderName, HeaderValue};
     let first = url::Url::parse(r.url.trim()).map_err(|e| format!("Invalid URL: {e}"))?;
     let mut url = first.clone();
-    let mut method = reqwest::Method::from_bytes(r.method.trim().to_ascii_uppercase().as_bytes()).map_err(|_| format!("Invalid method {}", r.method))?;
+    let mut method = hyper::Method::from_bytes(r.method.trim().to_ascii_uppercase().as_bytes()).map_err(|_| format!("Invalid method {}", r.method))?;
     let mut send_body = !r.body.is_empty();
     let started = Instant::now();
     out.method = Some(method.to_string());
@@ -595,42 +681,85 @@ async fn run_http(r: &SyntheticRequest, allow_private: bool, out: &mut Synthetic
         if !matches!(url.scheme(), "http" | "https") {
             return Err(format!("Only http and https URLs can be tested ({url})"));
         }
+        let hop_started = Instant::now();
+        let mut timings = SyntheticTimings { redirect: if hop == 0 { 0.0 } else { ms(hop_started - started) }, ..Default::default() };
         let host = url.host_str().ok_or("The URL has no host")?.to_string();
         let port = url.port_or_known_default().ok_or("The URL has no port")?;
-        let addr = resolve(&host, port, allow_private).await?;
-        out.resolved_ip = Some(addr.ip().to_string());
-        let mut builder = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .no_proxy()
-            .user_agent(USER_AGENT)
-            .danger_accept_invalid_certs(r.accept_self_signed)
-            .connect_timeout(Duration::from_secs(u64::from(MAX_TIMEOUT_SECONDS)));
         // Connect to the checked address, never to a second lookup's answer.
-        if matches!(url.host(), Some(url::Host::Domain(_))) {
-            builder = builder.resolve(&host, addr);
-        }
-        let client = builder.build().map_err(|e| describe(&e))?;
-        let mut rb = client.request(method.clone(), url.clone());
+        let addr = resolve(&host, port, allow_private).await?;
+        timings.dns = ms(hop_started.elapsed());
+        out.resolved_ip = Some(addr.ip().to_string());
+        out.timings = Some(timings.clone());
+        let at = Instant::now();
+        let tcp = tokio::time::timeout(Duration::from_secs(u64::from(MAX_TIMEOUT_SECONDS)), tokio::net::TcpStream::connect(addr))
+            .await
+            .map_err(|_| format!("Connection to {addr} timed out"))?
+            .map_err(|e| format!("Connection to {addr} failed: {e}"))?;
+        let _ = tcp.set_nodelay(true);
+        timings.tcp = ms(at.elapsed());
+        out.timings = Some(timings.clone());
+        let stream: Box<dyn Io> = if url.scheme() == "https" {
+            let at = Instant::now();
+            let name = rustls::pki_types::ServerName::try_from(host.trim_start_matches('[').trim_end_matches(']').to_string()).map_err(|_| format!("Invalid host name {host}"))?;
+            let tls = tokio_rustls::TlsConnector::from(Arc::new(tls_config(r.accept_self_signed)?)).connect(name, tcp).await.map_err(|e| format!("TLS handshake failed: {}", describe(&e)))?;
+            timings.ssl = ms(at.elapsed());
+            out.timings = Some(timings.clone());
+            Box::new(tls)
+        } else {
+            Box::new(tcp)
+        };
+        let (mut sender, conn) = hyper::client::conn::http1::handshake(hyper_util::rt::TokioIo::new(stream)).await.map_err(|e| describe(&e))?;
+        tokio::spawn(async move {
+            let _ = conn.await;
+        });
+
+        let path = match url.query() {
+            Some(q) => format!("{}?{q}", url.path()),
+            None => url.path().to_string(),
+        };
+        let mut req = hyper::Request::builder().method(method.clone()).uri(path).body(http_body_util::Full::new(hyper::body::Bytes::new())).map_err(|e| e.to_string())?;
+        let authority = match url.port() {
+            Some(p) => format!("{host}:{p}"),
+            None => host.clone(),
+        };
+        let headers = req.headers_mut();
+        headers.insert(hyper::header::HOST, HeaderValue::from_str(&authority).map_err(|_| format!("Invalid host {authority}"))?);
+        headers.insert(hyper::header::USER_AGENT, HeaderValue::from_static(USER_AGENT));
+        headers.insert(hyper::header::ACCEPT, HeaderValue::from_static("*/*"));
         // Credentials only go to the origin the test names.
         let trusted = same_origin(&url, &first);
         for h in &r.headers {
-            let sensitive = ["authorization", "cookie", "proxy-authorization"].contains(&h.name.trim().to_ascii_lowercase().as_str());
-            if trusted || !sensitive {
-                rb = rb.header(h.name.trim(), h.value.as_str());
+            let name = h.name.trim().to_ascii_lowercase();
+            let sensitive = ["authorization", "cookie", "proxy-authorization"].contains(&name.as_str());
+            if name == "host" || (!trusted && sensitive) {
+                continue;
+            }
+            let name = HeaderName::from_bytes(name.as_bytes()).map_err(|_| format!("Invalid header name {}", h.name))?;
+            let value = HeaderValue::from_str(&h.value).map_err(|_| format!("Invalid value for header {name}"))?;
+            if [hyper::header::USER_AGENT, hyper::header::ACCEPT].contains(&name) {
+                headers.insert(name, value);
+            } else {
+                headers.append(name, value);
             }
         }
         if let (Some(auth), true) = (&r.basic_auth, trusted) {
-            rb = rb.basic_auth(&auth.username, Some(&auth.password));
+            use base64::Engine;
+            let token = base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", auth.username, auth.password));
+            headers.insert(hyper::header::AUTHORIZATION, HeaderValue::from_str(&format!("Basic {token}")).map_err(|_| "Invalid basic auth credentials")?);
         }
         if send_body {
-            if !r.body_type.is_empty() && !r.headers.iter().any(|h| h.name.trim().eq_ignore_ascii_case("content-type")) {
-                rb = rb.header("content-type", r.body_type.as_str());
+            if !r.body_type.is_empty() && !headers.contains_key(hyper::header::CONTENT_TYPE) {
+                headers.insert(hyper::header::CONTENT_TYPE, HeaderValue::from_str(&r.body_type).map_err(|_| "Invalid body type")?);
             }
-            rb = rb.body(r.body.clone());
+            headers.insert(hyper::header::CONTENT_LENGTH, HeaderValue::from(r.body.len()));
+            *req.body_mut() = http_body_util::Full::new(hyper::body::Bytes::from(r.body.clone()));
         }
-        let mut resp = rb.send().await.map_err(|e| describe(&e))?;
+        let at = Instant::now();
+        let resp = sender.send_request(req).await.map_err(|e| describe(&e))?;
+        timings.first_byte = ms(at.elapsed());
+        out.timings = Some(timings.clone());
         let status = resp.status().as_u16();
-        let location = resp.headers().get(reqwest::header::LOCATION).and_then(|v| v.to_str().ok()).map(str::to_string);
+        let location = resp.headers().get(hyper::header::LOCATION).and_then(|v| v.to_str().ok()).map(str::to_string);
         if r.follow_redirects && resp.status().is_redirection() {
             if let Some(loc) = location {
                 if hop == MAX_REDIRECTS {
@@ -647,16 +776,25 @@ async fn run_http(r: &SyntheticRequest, allow_private: bool, out: &mut Synthetic
         }
         out.url = Some(url.to_string());
         out.status_code = Some(status);
+        out.http_version = Some(match resp.version() {
+            hyper::Version::HTTP_10 => "1.0",
+            hyper::Version::HTTP_2 => "2.0",
+            _ => "1.1",
+        }
+        .to_string());
         out.response_headers = resp
             .headers()
             .iter()
             .take(MAX_KEPT_HEADERS)
             .map(|(k, v)| SyntheticHeader { name: k.as_str().to_string(), value: String::from_utf8_lossy(v.as_bytes()).chars().take(4096).collect() })
             .collect();
+        let at = Instant::now();
+        let mut incoming = resp.into_body();
         let mut buf: Vec<u8> = Vec::new();
         loop {
-            match resp.chunk().await {
-                Ok(Some(chunk)) => {
+            match incoming.frame().await {
+                Some(Ok(frame)) => {
+                    let Ok(chunk) = frame.into_data() else { continue };
                     let room = MAX_BODY_BYTES - buf.len();
                     if chunk.len() > room {
                         buf.extend_from_slice(&chunk[..room]);
@@ -665,15 +803,18 @@ async fn run_http(r: &SyntheticRequest, allow_private: bool, out: &mut Synthetic
                     }
                     buf.extend_from_slice(&chunk);
                 }
-                Ok(None) => break,
-                Err(e) => {
-                    out.duration_ms = started.elapsed().as_secs_f64() * 1000.0;
+                None => break,
+                Some(Err(e)) => {
+                    out.duration_ms = ms(started.elapsed());
                     *body_out = String::from_utf8_lossy(&buf).into_owned();
                     return Err(format!("Reading the body failed: {}", describe(&e)));
                 }
             }
         }
-        out.duration_ms = started.elapsed().as_secs_f64() * 1000.0;
+        timings.download = ms(at.elapsed());
+        out.duration_ms = ms(started.elapsed());
+        timings.total = out.duration_ms;
+        out.timings = Some(timings);
         out.body_size = Some(buf.len() as u64);
         *body_out = String::from_utf8_lossy(&buf).into_owned();
         return Ok(());
@@ -857,6 +998,19 @@ mod tests {
     use super::*;
     use SyntheticAssertionType as K;
 
+    /// A real HTTPS request (`OC_TEST_DNS=1`: needs network): every phase is timed.
+    #[tokio::test]
+    async fn https_runs_time_each_phase() {
+        if std::env::var("OC_TEST_DNS").is_err() {
+            return;
+        }
+        let req = SyntheticRequest { url: "https://example.com/".into(), ..Default::default() };
+        let r = run(SyntheticTestType::Http, &req, &[a(K::StatusCode, Op::Is, "", "200")], false).await;
+        assert!(r.passed, "{r:?}");
+        let t = r.timings.unwrap();
+        assert!(t.tcp > 0.0 && t.ssl > 0.0 && t.first_byte > 0.0 && t.total >= t.dns + t.tcp + t.ssl + t.first_byte, "{t:?}");
+    }
+
     /// A real lookup through the system resolver and through a named server (`OC_TEST_DNS=1`: needs network).
     #[tokio::test]
     async fn dns_lookups_resolve_records() {
@@ -990,7 +1144,7 @@ mod tests {
 
     #[test]
     fn redirects_turn_posts_into_gets_like_browsers() {
-        use reqwest::Method;
+        use hyper::Method;
         assert_eq!(after_redirect(303, &Method::POST), (Method::GET, false));
         assert_eq!(after_redirect(302, &Method::POST), (Method::GET, false));
         assert_eq!(after_redirect(301, &Method::PUT), (Method::PUT, true));
@@ -1060,6 +1214,9 @@ mod tests {
         assert!(r.passed, "{r:?}");
         assert_eq!(r.redirects, vec![format!("http://127.0.0.1:{port}/health")]);
         assert_eq!(r.body.as_deref(), Some(r#"{"status":"ok"}"#));
+        let t = r.timings.clone().expect("timings");
+        assert!(t.redirect > 0.0 && t.first_byte > 0.0 && t.ssl == 0.0 && t.total == r.duration_ms, "{t:?}");
+        assert_eq!(r.http_version.as_deref(), Some("1.1"));
         // Every hop is checked again (scheme, then address).
         let r = run(SyntheticTestType::Http, &req("/away"), &checks, true).await;
         assert!(r.error.unwrap().contains("Only http and https"));

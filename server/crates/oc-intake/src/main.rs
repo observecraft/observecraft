@@ -23,6 +23,8 @@
 //! - `POST /intake/`, `/api/v2/host_metadata`   Datadog Agent host metadata → Postgres `datadog_hosts`; its events → events.
 //!   Its host tags are added to that host's series, sketches and service checks (see `host_tags`)
 //! - `POST /api/v1/events`, `/api/v2/events`     Datadog events (API, Agent) → otel.otel_events
+//! - `POST /api/v2/rum`                          RUM events of the browser and mobile SDKs (client token `pub…`) → otel.otel_rum
+//! - `POST /api/v2/replay`                       Session Replay segments of the browser SDK (multipart) → otel.otel_rum_replay
 //! - `POST /api/v2/service_checks`               the Agent's service checks (as `/api/v1/check_run`)
 //! - `POST /ofrep/v1/evaluate/flags[/{key}]`     feature flag evaluation for OpenFeature SDKs (OFREP, see `ofrep`)
 //! - `POST /api/v1/metadata`                     the Agent's inventory (features, configuration) → `datadog_hosts.agent_inventory`;
@@ -40,6 +42,7 @@
 //! OC_INTAKE_COLLECTOR_URL (http://localhost:14318), OC_INTAKE_LOGS_URL (http://localhost:8687),
 //! OC_INTAKE_PROFILES_URL (http://localhost:8090/ingest/profiles),
 //! OC_INTAKE_APM_TELEMETRY_URL (http://localhost:8090/ingest/apm-telemetry),
+//! OC_INTAKE_SBOM_URL (http://localhost:8090/ingest/sbom),
 //! OC_INTAKE_CODE_SCANS_URL (http://localhost:8090/ingest/code-scans),
 //! OC_INTAKE_FLAG_EVALUATIONS_URL (http://localhost:8090/ingest/feature-flag-evaluations), OC_INTERNAL_TOKEN,
 //! OC_INTAKE_MAX_BODY_MB (16), OC_INTAKE_ORG_RPS (500), OC_INTAKE_ORG_MBPS (50),
@@ -53,6 +56,9 @@ mod datadog_events;
 mod datadog_network;
 mod datadog_orch;
 mod datadog_process;
+mod datadog_replay;
+mod datadog_rum;
+mod datadog_sbom;
 mod datadog_tags;
 mod grpc;
 mod host_tags;
@@ -100,6 +106,7 @@ struct Config {
     flag_evaluations_url: String,
     /// The server's internal listeners for Code Security: tracer telemetry and SARIF uploads.
     apm_telemetry_url: String,
+    sbom_url: String,
     code_scans_url: String,
     /// Bearer token of the server's internal listener (OC_INTERNAL_TOKEN), if it requires one.
     internal_token: Option<String>,
@@ -139,6 +146,7 @@ impl Config {
             ),
             flag_evaluations_url: env("OC_INTAKE_FLAG_EVALUATIONS_URL", "http://localhost:8090/ingest/feature-flag-evaluations"),
             apm_telemetry_url: env("OC_INTAKE_APM_TELEMETRY_URL", "http://localhost:8090/ingest/apm-telemetry"),
+            sbom_url: env("OC_INTAKE_SBOM_URL", "http://localhost:8090/ingest/sbom"),
             code_scans_url: env("OC_INTAKE_CODE_SCANS_URL", "http://localhost:8090/ingest/code-scans"),
             internal_token: std::env::var("OC_INTERNAL_TOKEN")
                 .ok()
@@ -231,6 +239,8 @@ struct Inner {
     kafka: Option<kafka::Kafka>,
     /// Series forwarded per hour, so points of known series are sent marked.
     series: series_cache::SeriesCache,
+    /// RUM client tokens seen lately.
+    rum_tokens: datadog_rum::TokenCache,
 }
 
 type Shared = Arc<Inner>;
@@ -522,6 +532,27 @@ async fn apm_telemetry(State(st): State<Shared>, headers: HeaderMap, body: Bytes
     pass_to_server(st, headers, body, url, "telemetry").await
 }
 
+/// `POST /api/v2/sbom`: the Agent's software bills of materials (hosts and container images),
+/// decoded and passed to the server as JSON (Cloud Security).
+async fn sbom(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
+    let org = match admit(&st, &headers, body.len()).await {
+        Ok(org) => org.org_id,
+        Err(r) => return r.into_response(),
+    };
+    let raw = match datadog::inflate(&headers, &body) {
+        Ok(r) => r,
+        Err(e) => return reject(StatusCode::BAD_REQUEST, &e),
+    };
+    let payload = match datadog_sbom::decode(&raw) {
+        Ok(p) => p,
+        Err(e) => return reject(StatusCode::BAD_REQUEST, &e),
+    };
+    let mut json_headers = HeaderMap::new();
+    json_headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    let url = st.cfg.sbom_url.clone();
+    send_to_server(&st, &org, &json_headers, Bytes::from(datadog_sbom::to_upload(&payload).to_string()), &url, "SBOM").await
+}
+
 /// `POST /api/v2/cicodescan`: a `datadog-ci sarif upload` (multipart: the scan's git context and
 /// its SARIF report).
 async fn code_scan(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
@@ -536,7 +567,12 @@ async fn pass_to_server(st: Shared, headers: HeaderMap, body: Bytes, url: String
         Ok(org) => org.org_id,
         Err(r) => return r.into_response(),
     };
-    let mut req = st.http.post(&url).header(ORG_HEADER, &org).body(body);
+    send_to_server(&st, &org, &headers, body, &url, what).await
+}
+
+/// Posts a body to one of the server's internal listeners for `org`.
+async fn send_to_server(st: &Shared, org: &str, headers: &HeaderMap, body: Bytes, url: &str, what: &'static str) -> Response {
+    let mut req = st.http.post(url).header(ORG_HEADER, org).body(body);
     for h in [
         header::CONTENT_TYPE.as_str(),
         header::CONTENT_ENCODING.as_str(),
@@ -636,7 +672,7 @@ async fn log_requests(req: axum::extract::Request, next: axum::middleware::Next)
 
 fn state(cfg: Config, pg: PgPool, http: reqwest::Client, kafka: Option<kafka::Kafka>) -> Shared {
     let series = series_cache::SeriesCache::new(cfg.series_cache);
-    Arc::new(Inner { cfg, pg, http, kafka, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default(), flags: ofrep::FlagState::default(), metric_rules: metric_rules::MetricRules::default(), check_messages: check_messages::CheckMessages::default(), series })
+    Arc::new(Inner { cfg, pg, http, kafka, keys: Mutex::default(), limits: Mutex::default(), host_tags: host_tags::HostTags::default(), flags: ofrep::FlagState::default(), metric_rules: metric_rules::MetricRules::default(), check_messages: check_messages::CheckMessages::default(), series, rum_tokens: Mutex::default() })
 }
 
 /// An intake for tests: `cfg`, a Postgres pool that never connects unless used.
@@ -686,6 +722,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/ofrep/v1/evaluate/flags", post(ofrep::evaluate_flags))
         .route("/ofrep/v1/evaluate/flags/:key", post(ofrep::evaluate_flag))
         .layer(ofrep::cors());
+    let rum_routes = Router::new().route("/api/v2/rum", post(datadog_rum::post)).route("/api/v2/replay", post(datadog_replay::post)).layer(datadog_rum::cors());
     let app = Router::new()
         .route("/healthz", get(|| async { "ok" }))
         .route("/v1/traces", post(traces))
@@ -705,6 +742,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/connections", post(datadog_network::connections))
         .route("/api/v2/profile", post(profile))
         .route("/api/v2/apmtelemetry", post(apm_telemetry))
+        .route("/api/v2/sbom", post(sbom))
         .route("/api/v2/cicodescan", post(code_scan))
         .route("/api/v1/check_run", post(datadog::check_run))
         .route("/api/v1/metadata", post(datadog::metadata))
@@ -714,6 +752,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v2/events", post(datadog_events::post_agent))
         .route("/api/v2/service_checks", post(datadog::check_run))
         .merge(ofrep_routes)
+        .merge(rum_routes)
         .layer(DefaultBodyLimit::max(max_body))
         .layer(axum::middleware::from_fn(query_api_key))
         .layer(axum::middleware::from_fn(log_requests))

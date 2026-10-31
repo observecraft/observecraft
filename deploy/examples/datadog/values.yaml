@@ -47,13 +47,17 @@ datadog:
     - { name: DD_APM_TELEMETRY_ENABLED, value: "true" }
     - { name: DD_APM_TELEMETRY_DD_URL, value: *intake }
     - { name: DD_INSTRUMENTATION_TELEMETRY_ENABLED, value: "false" }
+    # Software bills of materials of hosts and container images feed Cloud Security's vulnerabilities.
+    - { name: DD_SBOM_ENABLED, value: "true" }
+    - { name: DD_SBOM_HOST_ENABLED, value: "true" }
+    - { name: DD_SBOM_CONTAINER_IMAGE_ENABLED, value: "true" }
+    - { name: DD_SBOM_DD_URL, value: *intake }
     # Products that would send to Datadog's own intakes (not to ObserveCraft): keep them off so nothing
     # leaves for Datadog.
     - { name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED, value: "false" }
     - { name: DD_PROCESS_CONFIG_PROCESS_DISCOVERY_ENABLED, value: "false" }
     - { name: DD_CONTAINER_IMAGE_ENABLED, value: "false" }
     - { name: DD_CONTAINER_LIFECYCLE_ENABLED, value: "false" }
-    - { name: DD_SBOM_ENABLED, value: "false" }
 
 clusterAgent:
   enabled: true

@@ -318,6 +318,7 @@ most important ones:
 | `OC_COOKIE_SECURE` | `false` | Set `true` when served over HTTPS |
 | `OC_SESSION_HOURS` | `12` | Idle session lifetime (sessions also end 7 days after sign-in) |
 | `OC_WEB_DIST` | — | Serve the built web app from the API (production-style) |
+| `OC_KEV_URL` | CISA's catalog | Known Exploited Vulnerabilities JSON the Security research feed reads every six hours (`off` without internet access) |
 | `OC_SEED_DEMO` | `true` | Fictional demo users, teams, monitors and incidents, a demo ingest key and archive. **Set `false` in production.** |
 
 The intake (`oc-intake`) has its own settings: `OC_INTAKE_ADDR` (HTTP, `:4318`), `OC_INTAKE_GRPC_ADDR` (OTLP/gRPC,
@@ -357,7 +358,12 @@ releases.
 | Log pipelines (parsing, remapping), logs → metrics, self-serve signup and per-org usage limits (SaaS mode) | 🗺️ Planned |
 | Datadog Agent / Cluster Agent (Helm chart, Operator): metrics, distributions, logs, APM from dd-trace libraries, service checks, Kubernetes, host metadata, live processes and containers, events, continuous profiles, network connections (system-probe) | ✅ Live |
 | PagerDuty / on-call | 🗺️ Planned |
-| Live debugger, RUM | 🗺️ Planned |
+| RUM: applications (Terraform `datadog_rum_application`), browser and mobile SDK events, Summary, Explorer | ✅ Live (ClickHouse, Postgres) |
+| RUM Session Replay: browser recordings, player, playlists, watch history, heatmaps; Product Analytics | ✅ Live (ClickHouse, Postgres) |
+| Cloud SIEM: content packs (CloudTrail, Okta, GitHub, Kubernetes audit, web servers, …), log detection rules and suppressions (Terraform `datadog_security_monitoring_rule` / `_suppression`), signals and triage; Security overview, inbox and research feed (CISA KEV) | ✅ Live (ClickHouse, Postgres) |
+| Cloud Security: host and container image vulnerabilities from the Agent's SBOMs, Kubernetes and host misconfigurations, inventory, infrastructure packages, CVE explorer | ✅ Live (Postgres, ClickHouse) |
+| App & API Protection: security traces from the tracers' AppSec spans, attackers and users, API endpoints and findings (OWASP API Top 10), In-App WAF custom rules, exclusion filters and policies (Terraform `datadog_appsec_waf_custom_rule` / `_exclusion_filter`), denylist and detection rules | ✅ Live (ClickHouse, Postgres); not yet pushed to tracers |
+| Live debugger | 🗺️ Planned |
 
 ## Contributing
 

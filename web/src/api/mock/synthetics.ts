@@ -141,6 +141,7 @@ function db(): Db {
     });
   };
   const common = { retry: { count: 0, intervalMs: 300 }, minLocationFailed: 1, priority: null, paused: false, createdBy: 'Priya Shah' };
+  const byDaniel = { createdBy: 'Daniel Kim' };
   add({
     ...common,
     id: 'f1d2c3b4-0001-4a00-8000-00000000a001',
@@ -186,6 +187,7 @@ function db(): Db {
   add({
     ...common,
     id: 'f1d2c3b4-0003-4a00-8000-00000000a003',
+    ...byDaniel,
     name: 'Catalog search',
     type: 'http',
     request: req('http', { method: 'POST', url: 'https://api.example.com/catalog/search', body: '{"query":"running shoes","limit":20}', bodyType: 'application/json' }),
@@ -220,6 +222,7 @@ function db(): Db {
   add({
     ...common,
     id: 'f1d2c3b4-0005-4a00-8000-00000000a005',
+    ...byDaniel,
     name: 'Storefront DNS',
     type: 'dns',
     request: req('dns', { host: 'shop.example.com' }),
@@ -273,6 +276,7 @@ function db(): Db {
   add({
     ...common,
     id: 'f1d2c3b4-0008-4a00-8000-00000000a008',
+    ...byDaniel,
     name: 'Product listing API',
     type: 'http',
     request: req('http', { url: 'https://{{ SHOP_HOST }}/api/products?limit=20', headers: [{ name: 'Accept', value: 'application/json' }] }),
@@ -363,6 +367,8 @@ function respond(type: SyntheticTestType, r: SyntheticRequest, seed: number, at:
     certificate: null,
     dnsServer: null,
     records: [],
+    timings: null,
+    httpVersion: null,
   };
   const host = testDomain(type, r);
   if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.)/.test(host)) {
@@ -391,6 +397,15 @@ function respond(type: SyntheticTestType, r: SyntheticRequest, seed: number, at:
     ];
     run.body = body;
     run.bodySize = body.length;
+    run.httpVersion = '1.1';
+    // The phases of a fictional request, scaled to its duration (no TLS on http, no redirect).
+    const https = r.url.startsWith('https');
+    const share = (k: number, n: number) => Math.round(durationMs * (k + noise(seed, at + n) * k * 0.6) * 10) / 10;
+    const dns = share(0.12, 2);
+    const tcp = share(0.08, 3);
+    const ssl = https ? share(0.1, 4) : 0;
+    const download = Math.max(0.2, share(0.01, 5));
+    run.timings = { redirect: 0, dns, tcp, ssl, firstByte: Math.max(1, Math.round((durationMs - dns - tcp - ssl - download) * 10) / 10), download, total: durationMs };
     return { run, observed: { statusCode: status, responseTimeMs: durationMs, headers: run.responseHeaders, body } };
   }
   if (type === 'ssl') {
@@ -616,6 +631,7 @@ function summary(id: number, at: number, run: SyntheticRunDetail, trigger: strin
     attempts,
     trigger,
     failedAssertions: run.assertions.filter((a) => !a.passed).length,
+    timings: run.timings,
   };
 }
 
@@ -882,14 +898,15 @@ export async function getSyntheticCoverage(req: SyntheticCoverageRequest): Promi
     const target = testTarget(t.request.method, t.request.url);
     return target ? [{ id: t.id, name: t.name, method: target[0], path: target[1] }] : [];
   });
-  const merged = new Map<string, { service: string; method: string; route: string; requests: number; errors: number }>();
+  const merged = new Map<string, { service: string; method: string; route: string; requests: number; errors: number; p95Ms: number }>();
   for (const r of listResources({ range: req.range, env: req.env })) {
     const e = endpointOf(r.resource, '', '');
     if (!e) continue;
     const key = `${r.service} ${e[0]} ${e[1]}`;
-    const m = merged.get(key) ?? { service: r.service, method: e[0], route: e[1], requests: 0, errors: 0 };
+    const m = merged.get(key) ?? { service: r.service, method: e[0], route: e[1], requests: 0, errors: 0, p95Ms: 0 };
     m.requests += Math.round(r.requests);
     m.errors += Math.round(r.errors);
+    m.p95Ms = Math.max(m.p95Ms, r.p95Ms);
     merged.set(key, m);
   }
   const endpoints = [...merged.values()]

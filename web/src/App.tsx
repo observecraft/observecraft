@@ -79,7 +79,39 @@ import { ScheduleEditor as OnCallScheduleEditor } from './pages/onCall/ScheduleE
 import { SchedulesPage as OnCallSchedulesPage } from './pages/onCall/SchedulesPage';
 import { SummaryPage as OnCallSummaryPage } from './pages/onCall/SummaryPage';
 import { OnCallTeamsPage } from './pages/onCall/TeamsPage';
+import { RumLayout } from './pages/rum/RumLayout';
+import { RumSummaryPage } from './pages/rum/RumSummaryPage';
+import { RumOperationsPage } from './pages/rum/RumOperationsPage';
+import { RumExplorerPage } from './pages/rum/RumExplorerPage';
+import { RumApplicationsPage } from './pages/rum/RumApplicationsPage';
+import { RumApplicationPage } from './pages/rum/RumApplicationPage';
+import { ProductAnalyticsLayout, ProductAnalyticsPage } from './pages/rum/ProductAnalyticsPage';
+import { SessionReplayLayout } from './pages/rum/replay/SessionReplayLayout';
+import { SecurityLayout, SiemLayout } from './pages/security/SecurityLayout';
+import { SecurityOverviewPage } from './pages/security/OverviewPage';
+import { InboxPage } from './pages/security/InboxPage';
+import { AppsecSignalsPage, SignalsPage, SiemSignalsPage } from './pages/security/SignalsPage';
+import { FeedPage } from './pages/security/FeedPage';
+import { SiemOverviewPage } from './pages/security/SiemOverviewPage';
+import { ContentPacksPage } from './pages/security/ContentPacksPage';
+import { RuleEditorPage, RulesPage } from './pages/security/RulesPage';
+import { SiemSettingsPage } from './pages/security/SiemSettingsPage';
+import { CloudSecurityLayout } from './pages/security/cloud/CloudSecurityLayout';
+import { AppsecLayout } from './pages/security/appsec/AppsecLayout';
+import { AppsecOverviewPage } from './pages/security/appsec/OverviewPage';
+import { ApiFindingsPage, CompliancePage } from './pages/security/appsec/FindingsPages';
+import { AppsecUsersPage, AttackersPage, SecurityTracesPage } from './pages/security/appsec/InvestigatePages';
+import { AppsecServicesPage, EndpointsPage } from './pages/security/appsec/InventoryPages';
+import { AppsecRulesPage, BusinessLogicPage, DenylistPage, InAppWafPage, PasslistPage, SensitiveDataPage } from './pages/security/appsec/PoliciesPages';
+import { CloudSummaryPage } from './pages/security/cloud/SummaryPage';
+import { InfraVulnerabilitiesPage, MisconfigurationsPage } from './pages/security/cloud/FindingsPages';
+import { CloudInboxPage, CveExplorerPage, PackagesPage, ResourcesPage } from './pages/security/cloud/InventoryPages';
+import { RecordingsPage } from './pages/rum/replay/RecordingsPage';
+import { ReplayPlayerPage } from './pages/rum/replay/ReplayPlayerPage';
+import { PlaylistPage, PlaylistsPage } from './pages/rum/replay/PlaylistsPage';
+import { HeatmapsPage } from './pages/rum/replay/HeatmapsPage';
 import { SyntheticTestEditor } from './pages/synthetics/SyntheticTestEditor';
+import { ApiTemplatesPage } from './pages/synthetics/NewTest';
 import { SyntheticTestPage } from './pages/synthetics/SyntheticTestPage';
 import { SyntheticTestsPage } from './pages/synthetics/SyntheticTestsPage';
 import { SyntheticsLayout, SyntheticsNotAvailable } from './pages/synthetics/SyntheticsLayout';
@@ -454,7 +486,70 @@ function Shell() {
               <Route path="continuous-testing" element={<ContinuousTestingSettings />} />
               <Route path="mobile-applications" element={<MobileApplicationsSettings />} />
             </Route>
+            <Route path="/rum" element={<RumLayout />}>
+              <Route index element={<RumSummaryPage />} />
+              <Route path="operations" element={<RumOperationsPage />} />
+              <Route path="explorer" element={<RumExplorerPage />} />
+            </Route>
+            <Route path="/product-analytics" element={<ProductAnalyticsLayout />}>
+              <Route index element={<ProductAnalyticsPage />} />
+              {['users', 'devices', 'traffic', 'engagement', 'performance'].map((p) => (
+                <Route key={p} path={p} element={<ProductAnalyticsPage />} />
+              ))}
+            </Route>
+            <Route path="/security" element={<SecurityLayout />}>
+              <Route index element={<SecurityOverviewPage />} />
+              <Route path="inbox" element={<InboxPage />} />
+              <Route path="signals" element={<SignalsPage />} />
+              <Route path="feed" element={<FeedPage />} />
+              <Route path="settings" element={<Navigate to="/security/siem/settings" replace />} />
+            </Route>
+            <Route path="/security/appsec" element={<AppsecLayout />}>
+              <Route index element={<AppsecOverviewPage />} />
+              <Route path="signals" element={<AppsecSignalsPage />} />
+              <Route path="findings" element={<ApiFindingsPage />} />
+              <Route path="findings/compliance" element={<CompliancePage />} />
+              <Route path="investigate" element={<SecurityTracesPage />} />
+              <Route path="investigate/users" element={<AppsecUsersPage />} />
+              <Route path="investigate/attackers" element={<AttackersPage />} />
+              <Route path="inventory" element={<EndpointsPage />} />
+              <Route path="inventory/services" element={<AppsecServicesPage />} />
+              <Route path="policies" element={<InAppWafPage />} />
+              <Route path="policies/business-logic" element={<BusinessLogicPage />} />
+              <Route path="policies/rules" element={<AppsecRulesPage />} />
+              <Route path="policies/denylist" element={<DenylistPage />} />
+              <Route path="policies/passlist" element={<PasslistPage />} />
+              <Route path="policies/sensitive-data" element={<SensitiveDataPage />} />
+            </Route>
+            <Route path="/security/cloud" element={<CloudSecurityLayout />}>
+              <Route index element={<CloudSummaryPage />} />
+              <Route path="inbox" element={<CloudInboxPage />} />
+              <Route path="findings" element={<MisconfigurationsPage />} />
+              <Route path="vulnerabilities" element={<InfraVulnerabilitiesPage />} />
+              <Route path="inventory" element={<ResourcesPage />} />
+              <Route path="inventory/packages" element={<PackagesPage />} />
+              <Route path="inventory/cves" element={<CveExplorerPage />} />
+            </Route>
+            <Route path="/security/siem" element={<SiemLayout />}>
+              <Route index element={<SiemOverviewPage />} />
+              <Route path="content-packs" element={<ContentPacksPage />} />
+              <Route path="signals" element={<SiemSignalsPage />} />
+              <Route path="rules" element={<RulesPage />} />
+              <Route path="rules/:id" element={<RuleEditorPage />} />
+              <Route path="settings" element={<SiemSettingsPage />} />
+            </Route>
+            <Route path="/rum/replay" element={<SessionReplayLayout />}>
+              <Route index element={<Navigate to="sessions" replace />} />
+              <Route path="sessions" element={<RecordingsPage />} />
+              <Route path="playlists" element={<PlaylistsPage />} />
+              <Route path="playlists/:id" element={<PlaylistPage />} />
+              <Route path="heatmaps" element={<HeatmapsPage />} />
+            </Route>
+            <Route path="/rum/replay/sessions/:id" element={<ReplayPlayerPage />} />
+            <Route path="/rum/applications" element={<RumApplicationsPage />} />
+            <Route path="/rum/applications/:id" element={<RumApplicationPage />} />
             <Route path="/synthetics/create" element={<SyntheticTestEditor />} />
+            <Route path="/synthetics/templates" element={<ApiTemplatesPage />} />
             <Route path="/synthetics/tests/:id" element={<SyntheticTestPage />} />
             <Route path="/synthetics/tests/:id/edit" element={<SyntheticTestEditor />} />
             <Route path="/feature-flags" element={<FeatureFlagsLayout />}>

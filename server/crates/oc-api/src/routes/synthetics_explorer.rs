@@ -445,6 +445,7 @@ pub struct SyntheticCoveringTest {
 }
 
 #[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct SyntheticEndpoint {
     pub service: String,
     /// Empty when the spans don't say.
@@ -452,6 +453,8 @@ pub struct SyntheticEndpoint {
     pub route: String,
     pub requests: u64,
     pub errors: u64,
+    /// 95th percentile latency in milliseconds (the slowest of the span names serving the endpoint).
+    pub p95_ms: f64,
     /// HTTP tests calling this method and path.
     pub tests: Vec<SyntheticCoveringTest>,
 }
@@ -472,6 +475,7 @@ struct EndpointAgg {
     name: String,
     hits: u64,
     errors: u64,
+    p95_ms: f64,
 }
 
 /// HTTP endpoints APM saw serving traffic, and the HTTP tests covering each.
@@ -485,7 +489,7 @@ pub async fn coverage(State(st): State<AppState>, ctx: AuthContext, Json(req): J
         .query(&format!(
             "SELECT toString(ServiceName) AS service, toString(SpanAttributes['http.route']) AS route, \
              toString(if(SpanAttributes['http.request.method'] != '', SpanAttributes['http.request.method'], SpanAttributes['http.method'])) AS method, \
-             toString(SpanName) AS name, count() AS hits, countIf(StatusCode = 'Error') AS errors FROM otel.otel_traces \
+             toString(SpanName) AS name, count() AS hits, countIf(StatusCode = 'Error') AS errors, toFloat64(quantile(0.95)(Duration)) / 1e6 AS p95_ms FROM otel.otel_traces \
              WHERE OrgId = {{oc_org:String}} AND Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) AND SpanKind = 'Server' \
              AND (SpanAttributes['http.route'] != '' OR match(SpanName, '^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) /')) {} \
              GROUP BY service, route, method, name ORDER BY hits DESC LIMIT 2000",
@@ -508,19 +512,20 @@ pub async fn coverage(State(st): State<AppState>, ctx: AuthContext, Json(req): J
             test_target(method, url).map(|(m, p)| (SyntheticCoveringTest { id: id.clone(), name: name.clone() }, m, p))
         })
         .collect();
-    let mut merged: BTreeMap<(String, String, String), (u64, u64)> = BTreeMap::new();
+    let mut merged: BTreeMap<(String, String, String), (u64, u64, f64)> = BTreeMap::new();
     for r in rows {
         if let Some((method, route)) = endpoint_of(&r.name, &r.route, &r.method) {
             let e = merged.entry((r.service, method, route)).or_default();
             e.0 += r.hits;
             e.1 += r.errors;
+            e.2 = e.2.max(r.p95_ms);
         }
     }
     let mut endpoints: Vec<SyntheticEndpoint> = merged
         .into_iter()
-        .map(|((service, method, route), (requests, errors))| {
+        .map(|((service, method, route), (requests, errors, p95_ms))| {
             let tests = targets.iter().filter(|(_, m, p)| (method.is_empty() || *m == method) && route_matches(&route, p)).map(|(t, _, _)| t.clone()).collect();
-            SyntheticEndpoint { service, method, route, requests, errors, tests }
+            SyntheticEndpoint { service, method, route, requests, errors, p95_ms, tests }
         })
         .collect();
     endpoints.sort_by(|a, b| b.requests.cmp(&a.requests).then_with(|| a.route.cmp(&b.route)));

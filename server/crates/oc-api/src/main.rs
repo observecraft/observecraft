@@ -117,6 +117,9 @@ async fn main() -> anyhow::Result<()> {
     routes::ingest_keys::ensure_demo_key(&state)
         .await
         .context("demo ingest key")?;
+    routes::rum::ensure_demo_application(&state)
+        .await
+        .context("demo RUM application")?;
 
     // Expired sessions, one-time links, SSO requests and replay records.
     let pg = state.postgres.clone();
@@ -155,8 +158,16 @@ async fn main() -> anyhow::Result<()> {
         if let Err(e) = routes::code_security::seed_demo(&state, &state.config.dev_org).await {
             tracing::warn!(error = %e, "seeding demo Code Security data failed");
         }
+        if let Err(e) = routes::appsec::seed_demo(&state, &state.config.dev_org).await {
+            tracing::warn!(error = %e, "seeding demo App & API Protection data failed");
+        }
+        if let Err(e) = routes::cloud_security::seed_demo_advisories(&state).await {
+            tracing::warn!(error = %e, "seeding demo Cloud Security advisories failed");
+        }
     }
     tokio::spawn(org_limits::background(routes::code_security::run_osv_sync(state.clone())));
+    tokio::spawn(org_limits::background(routes::security_engine::run(state.clone())));
+    tokio::spawn(org_limits::background(routes::security_feed::run_kev_sync(state.clone())));
     tokio::spawn(org_limits::background(routes::workflows::run_executor(state.clone())));
     tokio::spawn(org_limits::background(metric_rollups::run(state.clone())));
     logproc::serve(state.clone()).await.context("log indexer")?;

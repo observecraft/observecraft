@@ -1,0 +1,30 @@
+import type { components } from '../generated/schema';
+
+type S = components['schemas'];
+export type RumApplication = S['RumApplication'];
+export type RumApplicationInput = S['RumApplicationInput'];
+export type RumSearchRequest = S['RumSearchRequest'];
+export type RumSearchPage = S['RumSearchPage'];
+export type RumEventRow = S['RumEventRow'];
+export type RumBucket = S['RumBucket'];
+export type RumFacet = S['RumFacet'];
+export type RumSummaryRequest = S['RumSummaryRequest'];
+export type RumSummary = S['RumSummary'];
+export type RumNamedCount = S['RumNamedCount'];
+/** session, view, action, error, resource, long_task, vital, or all. */
+export type RumEventType = 'session' | 'view' | 'action' | 'error' | 'resource' | 'long_task' | 'vital' | 'all';
+export type AnalyticsRequest = S['AnalyticsRequest'];
+export type AnalyticsReport = S['AnalyticsReport'];
+export type AnalyticsPage = S['AnalyticsPage'];
+export type AnalyticsValue = S['AnalyticsValue'];
+export type AnalyticsItem = S['AnalyticsItem'];
+export type SessionFilter = S['SessionFilter'];
+export type SessionReplay = S['SessionReplay'];
+export type ReplaySegment = S['ReplaySegment'];
+export type WatchedSession = S['WatchedSession'];
+export type ReplayPlaylist = S['ReplayPlaylist'];
+export type ReplayPlaylistInput = S['ReplayPlaylistInput'];
+export type PlaylistSession = S['PlaylistSession'];
+export type HeatmapRequest = S['HeatmapRequest'];
+export type Heatmap = S['Heatmap'];
+export type HeatmapPoint = S['HeatmapPoint'];

@@ -15,8 +15,9 @@
 //! - **Metrics.** Each scheduled run writes `synthetics.test_runs` (count, tagged `result`,
 //!   `subtype`, `location`, `test_id`, `env` and the test's `key:value` tags) and its response time
 //!   in milliseconds (`synthetics.http.response.time`, `synthetics.ssl.handshake.time`,
-//!   `synthetics.dns.response.time`, `synthetics.tcp.connect.time`, distributions) to the metric
-//!   tables, as logs-based metrics are written, for dashboards, monitors and SLOs.
+//!   `synthetics.dns.response.time`, `synthetics.tcp.connect.time`, distributions), and for HTTP
+//!   tests the phases (`synthetics.http.{redirect,dns,connect,ssl,firstbyte,download}.time`) to the
+//!   metric tables, as logs-based metrics are written, for dashboards, monitors and SLOs.
 //! - **Safety.** Targets are resolved and refused when internal (see [`super::synthetics_net`]);
 //!   only standard users and admins create, edit, run and send tests.
 
@@ -217,6 +218,9 @@ pub struct SyntheticResultSummary {
     /// scheduled | manual
     pub trigger: String,
     pub failed_assertions: i64,
+    /// HTTP runs: where the time went.
+    #[schema(value_type = Option<exec::SyntheticTimings>)]
+    pub timings: Option<sqlx::types::Json<exec::SyntheticTimings>>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -647,8 +651,26 @@ fn metric_points(org: &str, test: &TestRow, run: &SyntheticRunDetail, at: i64, r
         };
         let mut h = Histogram::default();
         h.add(run.duration_ms);
-        let timing_tags = tags.into_iter().filter(|(k, _)| k != "result").collect();
-        out.push(point(metric, "Synthetic test response time (ms)", timing_tags, PointValue::Distribution(h)));
+        let timing_tags: Vec<(String, String)> = tags.into_iter().filter(|(k, _)| k != "result").collect();
+        out.push(point(metric, "Synthetic test response time (ms)", timing_tags.clone(), PointValue::Distribution(h)));
+        // HTTP phases (zero ones are left out: no TLS on http, no redirects followed).
+        if let (SyntheticTestType::Http, Some(timings)) = (t, &run.timings) {
+            let phases = [
+                ("synthetics.http.redirect.time", "Synthetic HTTP redirect time (ms)", timings.redirect),
+                ("synthetics.http.dns.time", "Synthetic HTTP DNS lookup time (ms)", timings.dns),
+                ("synthetics.http.connect.time", "Synthetic HTTP connection time (ms)", timings.tcp),
+                ("synthetics.http.ssl.time", "Synthetic HTTP TLS handshake time (ms)", timings.ssl),
+                ("synthetics.http.firstbyte.time", "Synthetic HTTP time to first byte (ms)", timings.first_byte),
+                ("synthetics.http.download.time", "Synthetic HTTP download time (ms)", timings.download),
+            ];
+            for (metric, description, value) in phases {
+                if value > 0.0 {
+                    let mut h = Histogram::default();
+                    h.add(value);
+                    out.push(point(metric, description, timing_tags.clone(), PointValue::Distribution(h)));
+                }
+            }
+        }
     }
     out
 }
@@ -1358,7 +1380,8 @@ pub async fn results(State(st): State<AppState>, ctx: AuthContext, Path(id): Pat
     let (from, to) = (req.range.from as f64 / 1000.0, req.range.to as f64 / 1000.0);
     let results: Vec<SyntheticResultSummary> = sqlx::query_as(
         "SELECT id, location, (extract(epoch FROM started_at) * 1000)::bigint AS started_at, duration_ms, passed, status_code, error, attempts, trigger, \
-         (SELECT count(*) FROM jsonb_array_elements(details->'assertions') a WHERE (a->>'passed') = 'false') AS failed_assertions \
+         (SELECT count(*) FROM jsonb_array_elements(details->'assertions') a WHERE (a->>'passed') = 'false') AS failed_assertions, \
+         NULLIF(details->'timings', 'null'::jsonb) AS timings \
          FROM synthetic_results WHERE org_id = $1 AND test_id = $2::uuid AND started_at >= to_timestamp($3) AND started_at <= to_timestamp($4) \
          ORDER BY started_at DESC, id DESC LIMIT $5",
     )
@@ -1645,6 +1668,9 @@ mod tests {
         assert_eq!(points[1].metric, "synthetics.http.response.time");
         assert_eq!(tag(&points[1], "result"), None);
         assert!(matches!(&points[1].value, PointValue::Distribution(h) if h.count == 1 && h.sum == 240.0));
+        let timed = SyntheticRunDetail { timings: Some(exec::SyntheticTimings { dns: 7.0, tcp: 4.0, first_byte: 10.0, download: 0.4, total: 21.4, ..Default::default() }), ..run.clone() };
+        let names: Vec<String> = metric_points("default", &t, &timed, 1_000, Retention::default(), LOCATION_ID).into_iter().map(|p| p.metric).collect();
+        assert_eq!(names[2..], ["synthetics.http.dns.time", "synthetics.http.connect.time", "synthetics.http.firstbyte.time", "synthetics.http.download.time"], "no ssl or redirect phase");
         // Unanswered runs count, without a time.
         let refused = SyntheticRunDetail { error: Some("Connection refused".into()), duration_ms: 3.0, ..Default::default() };
         let points = metric_points("default", &row("tcp", "", &[]), &refused, 1_000, Retention::default(), LOCATION_ID);

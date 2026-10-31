@@ -93,6 +93,20 @@ pub mod synthetics_exec;
 pub mod synthetics_net;
 pub mod synthetics_settings;
 pub mod synthetics_suites;
+pub mod rum;
+pub mod rum_analytics;
+pub mod rum_replay;
+pub mod appsec;
+pub mod cloud_security;
+pub mod cloud_security_rules;
+pub mod security_catalog;
+pub mod security_engine;
+pub mod security_feed;
+pub mod security_overview;
+pub mod security_rules;
+pub mod security_siem;
+pub mod security_signals;
+pub mod security_suppressions;
 pub mod synthetics_explorer;
 
 use axum::routing::{delete, get, patch, post};
@@ -193,6 +207,44 @@ use crate::state::AppState;
         datadog_api::roles::list_users,
         datadog_api::roles::add_user,
         datadog_api::roles::remove_user,
+        datadog_api::rum::list,
+        datadog_api::rum::get,
+        datadog_api::rum::create,
+        datadog_api::rum::update,
+        datadog_api::rum::delete,
+        datadog_api::appsec::list_custom_rules,
+        datadog_api::appsec::get_custom_rule,
+        datadog_api::appsec::create_custom_rule,
+        datadog_api::appsec::update_custom_rule,
+        datadog_api::appsec::delete_custom_rule,
+        datadog_api::appsec::list_exclusion_filters,
+        datadog_api::appsec::get_exclusion_filter,
+        datadog_api::appsec::create_exclusion_filter,
+        datadog_api::appsec::update_exclusion_filter,
+        datadog_api::appsec::delete_exclusion_filter,
+        datadog_api::appsec::list_policies,
+        datadog_api::appsec::get_policy,
+        datadog_api::appsec::create_policy,
+        datadog_api::appsec::update_policy,
+        datadog_api::appsec::delete_policy,
+        datadog_api::security_monitoring::list_rules,
+        datadog_api::security_monitoring::create_rule,
+        datadog_api::security_monitoring::validate_rule,
+        datadog_api::security_monitoring::get_rule,
+        datadog_api::security_monitoring::update_rule,
+        datadog_api::security_monitoring::delete_rule,
+        datadog_api::security_monitoring::list_signals,
+        datadog_api::security_monitoring::search_signals,
+        datadog_api::security_monitoring::get_signal,
+        datadog_api::security_monitoring::signal_state,
+        datadog_api::security_monitoring::signal_assignee,
+        datadog_api::security_monitoring::signal_incidents,
+        datadog_api::security_monitoring::list_suppressions,
+        datadog_api::security_monitoring::create_suppression,
+        datadog_api::security_monitoring::validate_suppression,
+        datadog_api::security_monitoring::get_suppression,
+        datadog_api::security_monitoring::update_suppression,
+        datadog_api::security_monitoring::delete_suppression,
         datadog_api::teams::list,
         datadog_api::teams::get,
         datadog_api::teams::create,
@@ -566,6 +618,71 @@ use crate::state::AppState;
         synthetics::try_request,
         synthetics::results,
         synthetics::result,
+        rum::list_applications,
+        rum::get_application,
+        rum::create_application,
+        rum::update_application,
+        rum::delete_application,
+        rum::search_events,
+        rum::facets,
+        rum::summary,
+        rum_analytics::report,
+        rum_replay::session_replay,
+        rum_replay::watched,
+        rum_replay::history,
+        rum_replay::list_playlists,
+        rum_replay::get_playlist,
+        rum_replay::create_playlist,
+        rum_replay::update_playlist,
+        rum_replay::delete_playlist,
+        rum_replay::add_session,
+        rum_replay::remove_session,
+        rum_replay::heatmap,
+        security_rules::list,
+        security_rules::get,
+        security_rules::create,
+        security_rules::update,
+        security_rules::delete,
+        security_rules::set_enabled,
+        security_suppressions::list,
+        security_suppressions::create,
+        security_suppressions::update,
+        security_suppressions::delete,
+        security_signals::search,
+        security_signals::get,
+        security_signals::state,
+        security_signals::assignee,
+        security_signals::bulk,
+        security_siem::packs,
+        security_siem::set_pack,
+        security_siem::overview,
+        security_overview::overview,
+        security_overview::inbox,
+        security_feed::feed,
+        appsec::traces,
+        appsec::attackers,
+        appsec::users,
+        appsec::findings,
+        appsec::endpoints,
+        appsec::services,
+        appsec::overview,
+        appsec::business_logic,
+        appsec::denylist,
+        appsec::block,
+        appsec::unblock,
+        appsec::policies,
+        appsec::waf_list,
+        appsec::waf_create,
+        appsec::waf_update,
+        appsec::waf_delete,
+        appsec::setting,
+        appsec::set_setting,
+        cloud_security::summary,
+        cloud_security::misconfigurations,
+        cloud_security::vulnerabilities,
+        cloud_security::resources,
+        cloud_security::packages,
+        cloud_security::cves,
         synthetics_suites::search_suites,
         synthetics_suites::get_suite,
         synthetics_suites::create_suite,
@@ -1162,6 +1279,56 @@ pub fn router() -> Router<AppState> {
             post(status_pages::update_notice),
         )
         .route("/api/v1/synthetics/locations", get(synthetics::locations))
+        .route("/api/v1/rum/applications", get(rum::list_applications).post(rum::create_application))
+        .route("/api/v1/rum/applications/:id", get(rum::get_application).put(rum::update_application).delete(rum::delete_application))
+        .route("/api/v1/rum/events/search", post(rum::search_events))
+        .route("/api/v1/rum/facets", post(rum::facets))
+        .route("/api/v1/rum/summary", post(rum::summary))
+        .route("/api/v1/product-analytics/report", post(rum_analytics::report))
+        .route("/api/v1/rum/replay/sessions/:id", post(rum_replay::session_replay))
+        .route("/api/v1/rum/replay/sessions/:id/watched", axum::routing::put(rum_replay::watched))
+        .route("/api/v1/rum/replay/history", get(rum_replay::history))
+        .route("/api/v1/rum/replay/playlists", get(rum_replay::list_playlists).post(rum_replay::create_playlist))
+        .route("/api/v1/rum/replay/playlists/:id", get(rum_replay::get_playlist).put(rum_replay::update_playlist).delete(rum_replay::delete_playlist))
+        .route("/api/v1/rum/replay/playlists/:id/sessions", post(rum_replay::add_session))
+        .route("/api/v1/rum/replay/playlists/:id/sessions/:session_id", axum::routing::delete(rum_replay::remove_session))
+        .route("/api/v1/rum/replay/heatmap", post(rum_replay::heatmap))
+        .route("/api/v1/security/overview", get(security_overview::overview))
+        .route("/api/v1/security/inbox", get(security_overview::inbox))
+        .route("/api/v1/security/feed", get(security_feed::feed))
+        .route("/api/v1/security/rules", get(security_rules::list).post(security_rules::create))
+        .route("/api/v1/security/rules/:id", get(security_rules::get).put(security_rules::update).delete(security_rules::delete))
+        .route("/api/v1/security/rules/:id/enabled", axum::routing::put(security_rules::set_enabled))
+        .route("/api/v1/security/suppressions", get(security_suppressions::list).post(security_suppressions::create))
+        .route("/api/v1/security/suppressions/:id", axum::routing::put(security_suppressions::update).delete(security_suppressions::delete))
+        .route("/api/v1/security/signals/search", post(security_signals::search))
+        .route("/api/v1/security/signals/bulk", post(security_signals::bulk))
+        .route("/api/v1/security/signals/:id", get(security_signals::get))
+        .route("/api/v1/security/signals/:id/state", axum::routing::put(security_signals::state))
+        .route("/api/v1/security/signals/:id/assignee", axum::routing::put(security_signals::assignee))
+        .route("/api/v1/security/siem/packs", get(security_siem::packs))
+        .route("/api/v1/security/siem/packs/:id", axum::routing::put(security_siem::set_pack))
+        .route("/api/v1/security/siem/overview", post(security_siem::overview))
+        .route("/api/v1/cloud-security/summary", get(cloud_security::summary))
+        .route("/api/v1/appsec/traces", post(appsec::traces))
+        .route("/api/v1/appsec/attackers", post(appsec::attackers))
+        .route("/api/v1/appsec/users", post(appsec::users))
+        .route("/api/v1/appsec/findings", get(appsec::findings))
+        .route("/api/v1/appsec/endpoints", get(appsec::endpoints))
+        .route("/api/v1/appsec/services", get(appsec::services))
+        .route("/api/v1/appsec/overview", post(appsec::overview))
+        .route("/api/v1/appsec/business-logic", get(appsec::business_logic))
+        .route("/api/v1/appsec/denylist", get(appsec::denylist).post(appsec::block))
+        .route("/api/v1/appsec/denylist/:kind/:value", axum::routing::delete(appsec::unblock))
+        .route("/api/v1/appsec/policies", get(appsec::policies))
+        .route("/api/v1/appsec/waf/:kind", get(appsec::waf_list).post(appsec::waf_create))
+        .route("/api/v1/appsec/waf/:kind/:id", axum::routing::put(appsec::waf_update).delete(appsec::waf_delete))
+        .route("/api/v1/appsec/settings/:key", get(appsec::setting).put(appsec::set_setting))
+        .route("/api/v1/cloud-security/misconfigurations", post(cloud_security::misconfigurations))
+        .route("/api/v1/cloud-security/vulnerabilities", post(cloud_security::vulnerabilities))
+        .route("/api/v1/cloud-security/resources", get(cloud_security::resources))
+        .route("/api/v1/cloud-security/packages", get(cloud_security::packages))
+        .route("/api/v1/cloud-security/cves", get(cloud_security::cves))
         .route("/api/v1/synthetics/suites", post(synthetics_suites::create_suite))
         .route("/api/v1/synthetics/suites/search", post(synthetics_suites::search_suites))
         .route(
@@ -1479,6 +1646,7 @@ mod tests {
             include_str!("datadog_api/users.rs"),
             include_str!("datadog_api/roles.rs"),
             include_str!("datadog_api/teams.rs"),
+            include_str!("datadog_api/rum.rs"),
             include_str!("datadog_api/keys.rs"),
             include_str!("datadog_api/permissions.rs"),
             include_str!("data_jobs.rs"),
@@ -1510,6 +1678,22 @@ mod tests {
             include_str!("synthetics_exec.rs"),
             include_str!("synthetics_net.rs"),
             include_str!("synthetics_suites.rs"),
+            include_str!("rum.rs"),
+            include_str!("rum_analytics.rs"),
+            include_str!("rum_replay.rs"),
+            include_str!("cloud_security.rs"),
+            include_str!("appsec.rs"),
+            include_str!("cloud_security_rules.rs"),
+            include_str!("security_catalog.rs"),
+            include_str!("security_engine.rs"),
+            include_str!("security_feed.rs"),
+            include_str!("security_overview.rs"),
+            include_str!("security_rules.rs"),
+            include_str!("security_siem.rs"),
+            include_str!("security_signals.rs"),
+            include_str!("security_suppressions.rs"),
+            include_str!("datadog_api/security_monitoring.rs"),
+            include_str!("datadog_api/appsec.rs"),
             include_str!("synthetics_explorer.rs"),
             include_str!("synthetics_settings.rs"),
             include_str!("scorecards.rs"),
@@ -1601,6 +1785,20 @@ mod tests {
             ("synthetics_exec.rs", include_str!("synthetics_exec.rs")),
             ("synthetics_net.rs", include_str!("synthetics_net.rs")),
             ("synthetics_suites.rs", include_str!("synthetics_suites.rs")),
+            ("rum_analytics.rs", include_str!("rum_analytics.rs")),
+            ("rum_replay.rs", include_str!("rum_replay.rs")),
+            ("cloud_security.rs", include_str!("cloud_security.rs")),
+            ("appsec.rs", include_str!("appsec.rs")),
+            ("cloud_security_rules.rs", include_str!("cloud_security_rules.rs")),
+            ("security_catalog.rs", include_str!("security_catalog.rs")),
+            ("security_engine.rs", include_str!("security_engine.rs")),
+            ("security_feed.rs", include_str!("security_feed.rs")),
+            ("security_overview.rs", include_str!("security_overview.rs")),
+            ("security_rules.rs", include_str!("security_rules.rs")),
+            ("security_siem.rs", include_str!("security_siem.rs")),
+            ("security_signals.rs", include_str!("security_signals.rs")),
+            ("security_suppressions.rs", include_str!("security_suppressions.rs")),
+            ("rum.rs", include_str!("rum.rs")),
             ("synthetics_explorer.rs", include_str!("synthetics_explorer.rs")),
             ("synthetics_settings.rs", include_str!("synthetics_settings.rs")),
             ("scorecards.rs", include_str!("scorecards.rs")),
@@ -1729,6 +1927,7 @@ mod tests {
             ("datadog_api/downtimes.rs", include_str!("datadog_api/downtimes.rs")),
             ("datadog_api/users.rs", include_str!("datadog_api/users.rs")),
             ("datadog_api/roles.rs", include_str!("datadog_api/roles.rs")),
+            ("datadog_api/rum.rs", include_str!("datadog_api/rum.rs")),
             ("datadog_api/teams.rs", include_str!("datadog_api/teams.rs")),
             ("datadog_api/keys.rs", include_str!("datadog_api/keys.rs")),
             ("datadog_api/permissions.rs", include_str!("datadog_api/permissions.rs")),
@@ -1795,6 +1994,22 @@ mod tests {
             ("synthetics.rs", include_str!("synthetics.rs")),
             ("synthetics_exec.rs", include_str!("synthetics_exec.rs")),
             ("synthetics_net.rs", include_str!("synthetics_net.rs")),
+            ("rum_analytics.rs", include_str!("rum_analytics.rs")),
+            ("rum_replay.rs", include_str!("rum_replay.rs")),
+            ("cloud_security.rs", include_str!("cloud_security.rs")),
+            ("appsec.rs", include_str!("appsec.rs")),
+            ("cloud_security_rules.rs", include_str!("cloud_security_rules.rs")),
+            ("security_catalog.rs", include_str!("security_catalog.rs")),
+            ("security_engine.rs", include_str!("security_engine.rs")),
+            ("security_feed.rs", include_str!("security_feed.rs")),
+            ("security_overview.rs", include_str!("security_overview.rs")),
+            ("security_rules.rs", include_str!("security_rules.rs")),
+            ("security_siem.rs", include_str!("security_siem.rs")),
+            ("security_signals.rs", include_str!("security_signals.rs")),
+            ("security_suppressions.rs", include_str!("security_suppressions.rs")),
+            ("datadog_api/security_monitoring.rs", include_str!("datadog_api/security_monitoring.rs")),
+            ("datadog_api/appsec.rs", include_str!("datadog_api/appsec.rs")),
+            ("rum.rs", include_str!("rum.rs")),
             ("synthetics_suites.rs", include_str!("synthetics_suites.rs")),
             ("synthetics_explorer.rs", include_str!("synthetics_explorer.rs")),
             ("synthetics_settings.rs", include_str!("synthetics_settings.rs")),
@@ -1952,11 +2167,11 @@ mod tests {
     }
 
     /// `LogAccess::org_background()` reads every log of the org: only the monitor engine's own
-    /// evaluation (and backfill) and the scorecards' per-service log counts may use it, never to
-    /// serve log events.
+    /// evaluation (and backfill), the scorecards' per-service log counts and Cloud SIEM's detection
+    /// engine may use it, never to serve log events.
     #[test]
     fn unrestricted_log_access_is_only_for_background_jobs() {
-        const ALLOWED: &[(&str, usize)] = &[("monitors.rs", 2), ("scorecards.rs", 1)];
+        const ALLOWED: &[(&str, usize)] = &[("monitors.rs", 2), ("scorecards.rs", 1), ("security_engine.rs", 1)];
         for (file, src) in server_sources() {
             if file == "../log_access.rs" {
                 continue;
