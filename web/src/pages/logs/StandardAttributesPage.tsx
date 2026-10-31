@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, RotateCcw, Search, Trash2, X } from 'lucide-react';
+import { Database, Info, LineChart, Pencil, Plus, RotateCcw, Search, Shield, Trash2, Workflow, X } from 'lucide-react';
 import {
   createStandardAttribute,
   deleteStandardAttribute,
@@ -15,6 +15,7 @@ import {
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
 import { useProfile } from '../settings/queries';
+import { Columns, ConfigTitle, FlowStep } from './config/configUi';
 
 const KEY = ['standard-attributes'];
 const MAX_ALIASES = 20;
@@ -71,99 +72,92 @@ export function StandardAttributesPage() {
         ? `Remove ${a.path}? Its aliases stop being remapped; "Reset to defaults" brings it back. Logs already stored keep their attributes.`
         : `Delete ${a.path}? Its aliases stop being remapped. Logs already stored keep their attributes.`,
     ) && remove.mutate(a.path);
+  const rows = groups.flatMap(([, list]) => list).sort((a, b) => a.path.localeCompare(b.path));
+  const template = 'minmax(180px, 1fr) 80px minmax(240px, 2fr) minmax(200px, 1.4fr) 70px';
   return (
-    <div className="settings-pad">
-      <div className="settings-title-row">
-        <h1 className="settings-title">Standard Attributes</h1>
-        {canEdit && (
-          <div className="pl-title-actions">
-            <button
-              className="btn"
-              disabled={reset.isPending}
-              title={changed ? 'Drop your changes and use the default list' : 'The list is the default one'}
-              onClick={() => window.confirm('Reset to the default standard attributes? Attributes you added or edited are lost.') && reset.mutate()}
-            >
-              <RotateCcw size={14} /> Reset to defaults
-            </button>
-            <button className="btn btn-primary" onClick={() => setEditing('new')}>
-              <Plus size={14} /> New Attribute
-            </button>
-          </div>
-        )}
+    <div className="lc-page">
+      <ConfigTitle
+        title="Standard Attributes"
+        actions={
+          canEdit && (
+            <>
+              <button
+                className="btn"
+                disabled={reset.isPending}
+                title={changed ? 'Drop your changes and use the default list' : 'The list is the default one'}
+                onClick={() => window.confirm('Reset to the default standard attributes? Attributes you added or edited are lost.') && reset.mutate()}
+              >
+                <RotateCcw size={14} /> Reset to defaults
+              </button>
+              <button className="btn btn-primary" onClick={() => setEditing('new')}>
+                <Plus size={14} /> New Standard Attribute
+              </button>
+            </>
+          )
+        }
+      />
+      <div className="lc-search">
+        <Search size={14} className="muted" />
+        <input placeholder="Filter Attributes" aria-label="Filter attributes" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
-      <p className="muted">
-        One name per kind of value, whatever your services call it. Every ingested log that has an alias but not the standard attribute gets the alias&apos;s value copied to it, cast to its type,
-        after <Link to="/logs/pipelines">pipelines</Link> and before <Link to="/logs/generate-metrics">generated metrics</Link> and <Link to="/logs/indexes">indexes</Link>. The first alias present
-        wins; a standard value the log already has is kept. Standard attributes are listed first when you add a facet.
-      </p>
+      <div
+        className="lc-count"
+        title="Every ingested log that has an alias but not the standard attribute gets the alias's value copied to it, cast to its type. The first alias present wins; a standard value the log already has is kept."
+      >
+        <b>{q.data.length}</b> attributes defined <Info size={13} className="muted" />
+      </div>
+      <div className="lc-flow">
+        <div className="lc-flow-box">
+          <FlowStep icon={<Workflow size={15} />} label="Pipelines" to="/logs/pipelines" last />
+        </div>
+        <div className="lc-flow-link" />
+      </div>
       {(remove.error || reset.error) && <p className="form-error">{((remove.error ?? reset.error) as Error).message}</p>}
-      <label className="settings-search wide">
-        <Search size={16} />
-        <input placeholder="Search attributes, aliases or descriptions" value={search} onChange={(e) => setSearch(e.target.value)} />
-      </label>
-      {groups.length === 0 ? (
-        <section className="settings-card settings-empty">
-          <p className="muted">{q.data.length ? 'No attribute matches the search.' : 'No standard attributes. Reset to defaults to get the default list back.'}</p>
-        </section>
-      ) : (
-        groups.map(([namespace, list]) => (
-          <section key={namespace} className="sa-group">
-            <h2 className="sa-group-title">
-              {namespace} <span className="muted">{list.length}</span>
-            </h2>
-            <table className="settings-table ix-table sa-table">
-              <thead>
-                <tr>
-                  <th>ATTRIBUTE</th>
-                  <th>TYPE</th>
-                  <th>ALIASES</th>
-                  <th>DESCRIPTION</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((a) => (
-                  <tr key={a.path}>
-                    <td>
-                      <Link className="mono" to={`/logs?query=${encodeURIComponent(`@${a.path}:*`)}`} title="Logs with this attribute">
-                        @{a.path}
-                      </Link>
-                      {!a.isDefault && <span className="pill-chip small">custom</span>}
-                      {a.modified && <span className="pill-chip small">edited</span>}
-                    </td>
-                    <td>{a.type}</td>
-                    <td>
-                      {a.aliases.length === 0 ? (
-                        <span className="muted">—</span>
-                      ) : (
-                        a.aliases.map((x) => (
-                          <code key={x} className="tag-chip sa-alias">
-                            {x}
-                          </code>
-                        ))
-                      )}
-                      {a.aliases.length > 0 && !a.preserveSource && <span className="muted sa-moved"> (moved)</span>}
-                    </td>
-                    <td className="sa-description">{a.description}</td>
-                    <td className="ix-actions">
-                      {canEdit && (
-                        <>
-                          <button className="icon-plain" title="Edit" onClick={() => setEditing(a)}>
-                            <Pencil size={15} />
-                          </button>
-                          <button className="icon-plain" title={a.isDefault ? 'Remove (until a reset)' : 'Delete'} onClick={() => confirmRemove(a)}>
-                            <Trash2 size={15} />
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        ))
-      )}
+      <section className="lc-section">
+        <Columns template={template} cols={['Attribute', 'Type', 'Description', 'Remapping', '']} />
+        {rows.map((a) => (
+          <div key={a.path} className="lc-row" style={{ gridTemplateColumns: template }}>
+            <span className="lc-cell-name">
+              <Link className="mono" to={`/logs?query=${encodeURIComponent(`@${a.path}:*`)}`} title="Logs with this attribute">
+                {a.path}
+              </Link>
+              {!a.isDefault && <span className="pill-chip small">custom</span>}
+              {a.modified && <span className="pill-chip small">edited</span>}
+            </span>
+            <span className="muted">{a.type}</span>
+            <span className="lc-cell-name muted" title={a.description}>
+              {a.description}
+            </span>
+            <span className="lc-cell-name mono" title={a.aliases.length ? `${a.aliases.join(', ')}${a.preserveSource ? '' : ' (moved)'}` : 'No rules defined'}>
+              {a.aliases.length === 0 ? <span className="muted">No rules defined</span> : a.aliases.join(',')}
+            </span>
+            <span className="lc-actions">
+              {canEdit && (
+                <>
+                  <button className="icon-plain" title="Edit" onClick={() => setEditing(a)}>
+                    <Pencil size={15} />
+                  </button>
+                  <button className="icon-plain" title={a.isDefault ? 'Remove (until a reset)' : 'Delete'} onClick={() => confirmRemove(a)}>
+                    <Trash2 size={15} />
+                  </button>
+                </>
+              )}
+            </span>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="lc-empty">{q.data.length ? 'No attribute matches.' : 'No standard attributes. Reset to defaults to get the default list back.'}</p>}
+        <button className="lc-add-row" disabled={!canEdit} onClick={() => setEditing('new')}>
+          <Plus size={14} /> Add a new standard attribute
+        </button>
+      </section>
+      <div className="lc-flow">
+        <div className="lc-flow-link" />
+        <div className="lc-flow-box">
+          <FlowStep icon={<LineChart size={15} />} label="Generate Metrics" to="/logs/generate-metrics" />
+          <FlowStep icon={<Shield size={15} />} label="Security Rules" to="/security/siem/rules" />
+          <FlowStep icon={<Database size={15} />} label="Indexes" to="/logs/indexes" last />
+        </div>
+      </div>
       {editing && <AttributeModal attribute={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={() => (setEditing(null), void refresh())} />}
     </div>
   );

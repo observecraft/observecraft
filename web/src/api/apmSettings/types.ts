@@ -1,0 +1,22 @@
+import type { components } from '../generated/schema';
+
+type S = components['schemas'];
+export type ApmFlow = S['ApmFlow'];
+export type ApmPoint = S['ApmPoint'];
+export type SpanVolume = S['SpanVolume'];
+export type Ingestion = S['Ingestion'];
+export type IngestionService = S['IngestionService'];
+export type IngestionOverTime = S['IngestionOverTime'];
+export type ApmDefaults = S['ApmDefaults'];
+export type ApmEnvOption = S['ApmEnvOption'];
+export type ApmDefaultsInput = S['ApmDefaultsInput'];
+export type RetentionFilters = S['RetentionFilters'];
+export type RetentionFilter = S['RetentionFilter'];
+export type RetentionFilterInput = S['RetentionFilterInput'];
+export type SpansMetric = S['SpansMetric'];
+export type SpansMetricInput = S['SpansMetricInput'];
+export type SpanMetricGroupBy = S['SpanMetricGroupBy'];
+export type SpanPipeline = S['SpanPipeline'];
+export type SpanPipelineInput = S['SpanPipelineInput'];
+export type SpanProcessor = S['SpanProcessor'];
+export type TimeRange = { from: number; to: number };

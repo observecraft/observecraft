@@ -735,8 +735,19 @@
   color: var(--link);
 }
 
-.logs-config-nav {
-  width: 280px;
+.settings-nav.org-nav.logs-config-nav {
+  width: 220px;
+  padding: 16px 10px;
+}
+
+.logs-config-nav .settings-link {
+  min-height: 32px;
+  padding: 0 14px;
+  font-size: var(--fs-md);
+}
+
+.logs-config-nav .org-nav-section {
+  font-size: 12px;
 }
 
 .logs-config-nav .org-nav-group:first-child {
@@ -744,7 +755,7 @@
 }
 
 .org-body:not(.nav-hidden) .logs-config-toggle {
-  left: 284px;
+  left: 224px;
 }
 
 .linked-trace {

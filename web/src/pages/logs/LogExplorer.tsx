@@ -45,7 +45,8 @@ export function LogExplorer() {
   // Deep links (e.g. Error Tracking → "View All Errors") seed the query via ?query=…
   const [params] = useSearchParams();
   const [query, setQuery] = useState(() => params.get('query') ?? '');
-  const [viz, setViz] = useState<VizMode>('list');
+  // ?viz= (e.g. from Migration → Translate) opens an analytics view.
+  const [viz, setViz] = useState<VizMode>(() => (['timeseries', 'toplist', 'table'] as const).find((v) => v === params.get('viz')) ?? 'list');
   const [groupInto, setGroupInto] = useState<'fields' | 'patterns'>('fields');
   const [tableOptions, setTableOptions] = useState<LogTableOptions>(DEFAULT_TABLE_OPTIONS);
   const [optionsOpen, setOptionsOpen] = useState(false);

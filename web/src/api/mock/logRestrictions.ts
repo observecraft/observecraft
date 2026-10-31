@@ -141,6 +141,7 @@ async function view(r: Row): Promise<LogRestrictionQuery> {
       .filter((h) => teams.has(h))
       .map((handle) => ({ handle, name: teams.get(handle)! }))
       .sort(byName),
+    userCount: (r.roleIds.length * 7 + r.teamHandles.length * 4) % 40,
     createdBy: 'Alex Morgan',
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,

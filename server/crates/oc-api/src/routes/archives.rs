@@ -134,6 +134,14 @@ pub struct LogArchive {
     /// Newest archived hour (epoch ms).
     pub last_hour: Option<i64>,
     pub last_error: Option<String>,
+    /// `s3`, `gcs` or `azure` (archives created through Datadog's API keep theirs).
+    pub destination_type: String,
+    /// Keys are set (archives created through Datadog's API have none until they are).
+    pub has_credentials: bool,
+    pub include_tags: bool,
+    #[sqlx(json)]
+    pub rehydration_tags: Vec<String>,
+    pub rehydration_max_scan_size_gb: Option<i64>,
 }
 
 const ARCHIVE_SUMMARY: &str = "SELECT a.id::text, a.name, a.endpoint, a.region, a.bucket, a.prefix, a.path_style, a.access_key, a.query, a.enabled, \
@@ -141,12 +149,14 @@ const ARCHIVE_SUMMARY: &str = "SELECT a.id::text, a.name, a.endpoint, a.region, 
     count(r.hour) FILTER (WHERE r.status = 'done') AS hours_done, count(r.hour) FILTER (WHERE r.status = 'failed') AS hours_failed, \
     COALESCE(sum(r.rows), 0)::bigint AS rows, COALESCE(sum(r.bytes), 0)::bigint AS bytes, \
     (extract(epoch FROM max(r.hour) FILTER (WHERE r.status = 'done')) * 1000)::bigint AS last_hour, \
-    (array_agg(r.error ORDER BY r.finished_at DESC) FILTER (WHERE r.status = 'failed'))[1] AS last_error \
+    (array_agg(r.error ORDER BY r.finished_at DESC) FILTER (WHERE r.status = 'failed'))[1] AS last_error, \
+    COALESCE(a.destination->>'type', 's3') AS destination_type, (a.endpoint <> '' AND a.secret_key_enc <> '') AS has_credentials, \
+    a.include_tags, a.rehydration_tags, a.rehydration_max_scan_size_gb \
     FROM log_archives a LEFT JOIN archive_runs r ON r.archive_id = a.id";
 
 #[utoipa::path(get, path = "/api/v1/logs/archives", operation_id = "list_log_archives", responses((status = 200, body = Vec<LogArchive>)), tag = "archives")]
 pub async fn list(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<Vec<LogArchive>> {
-    let rows = sqlx::query_as(&format!("{ARCHIVE_SUMMARY} WHERE a.org_id = $1 GROUP BY a.id ORDER BY a.created_at"))
+    let rows = sqlx::query_as(&format!("{ARCHIVE_SUMMARY} WHERE a.org_id = $1 GROUP BY a.id ORDER BY a.position, a.created_at"))
         .bind(&org)
         .fetch_all(&st.postgres)
         .await?;
@@ -250,8 +260,8 @@ pub async fn create(State(st): State<AppState>, Admin(ctx): Admin, Json(req): Js
 async fn insert_archive(st: &AppState, org: &str, name: &str, t: &ArchiveTarget, query: &str, backfill_days: i64, created_by: Option<&str>) -> Result<String, ApiError> {
     let start = (now_ms() / HOUR_MS) * HOUR_MS - backfill_days * 24 * HOUR_MS;
     let (id,): (String,) = sqlx::query_as(
-        "INSERT INTO log_archives (org_id, name, endpoint, region, bucket, prefix, path_style, access_key, secret_key_enc, query, start_hour, created_by) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, to_timestamp($11 / 1000.0), $12::uuid) RETURNING id::text",
+        "INSERT INTO log_archives (org_id, name, endpoint, region, bucket, prefix, path_style, access_key, secret_key_enc, query, start_hour, created_by, position) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, to_timestamp($11 / 1000.0), $12::uuid, (SELECT COALESCE(max(position), -1) + 1 FROM log_archives WHERE org_id = $1)) RETURNING id::text",
     )
     .bind(org)
     .bind(name)
@@ -288,11 +298,34 @@ pub struct ArchivePatch {
     pub name: Option<String>,
     pub enabled: Option<bool>,
     pub query: Option<String>,
+    /// New bucket and keys (checked by writing to the bucket); e.g. for an archive created through
+    /// Datadog's API, which carries no secrets.
+    pub target: Option<ArchiveTarget>,
 }
 
 #[utoipa::path(patch, path = "/api/v1/logs/archives/{id}", operation_id = "update_log_archive", params(("id" = String, Path)), request_body = ArchivePatch, responses((status = 200, body = LogArchive)), tag = "archives")]
 pub async fn update(State(st): State<AppState>, Admin(ctx): Admin, Path(id): Path<String>, Json(p): Json<ArchivePatch>) -> ApiResult<LogArchive> {
     let a = load_archive(&st, &ctx.org_id, &id).await?;
+    if let Some(t) = &p.target {
+        t.validate()?;
+        t.store()?.probe(&t.prefix).await?;
+        sqlx::query(
+            "UPDATE log_archives SET endpoint = $3, region = $4, bucket = $5, prefix = $6, path_style = $7, access_key = $8, secret_key_enc = $9, updated_at = now() \
+             WHERE org_id = $1 AND id::text = $2",
+        )
+        .bind(&ctx.org_id)
+        .bind(&id)
+        .bind(t.endpoint.trim_end_matches('/'))
+        .bind(&t.region)
+        .bind(&t.bucket)
+        .bind(t.prefix.trim_matches('/'))
+        .bind(t.path_style)
+        .bind(&t.access_key)
+        .bind(st.secrets.encrypt(&t.secret_key))
+        .execute(&st.postgres)
+        .await?;
+        ctx.audit(&st, "log_archive.credentials_changed", &a.name, &format!("{}/{}", t.bucket, t.prefix)).await;
+    }
     let name = p.name.as_deref().map(str::trim).filter(|n| !n.is_empty() && n.chars().count() <= 100);
     sqlx::query("UPDATE log_archives SET name = COALESCE($3, name), enabled = COALESCE($4, enabled), query = COALESCE($5, query), updated_at = now() WHERE org_id = $1 AND id::text = $2")
         .bind(&ctx.org_id)
@@ -760,14 +793,19 @@ pub struct Rehydration {
     /// running | done | failed | expired
     pub status: String,
     pub rows: i64,
+    /// Bytes of archive files the rehydration reads.
+    pub bytes_scanned: i64,
     pub error: Option<String>,
     pub expires_at: i64,
     pub created_at: i64,
+    /// Who started it.
+    pub created_by: Option<String>,
 }
 
 const REHYDRATION_SELECT: &str = "SELECT r.id::text, r.archive_id::text, a.name AS archive_name, r.name, r.query, (extract(epoch FROM r.range_from) * 1000)::bigint AS from, \
-    (extract(epoch FROM r.range_to) * 1000)::bigint AS to, r.status, r.rows, r.error, (extract(epoch FROM r.expires_at) * 1000)::bigint AS expires_at, \
-    (extract(epoch FROM r.created_at) * 1000)::bigint AS created_at FROM rehydrations r JOIN log_archives a ON a.id = r.archive_id";
+    (extract(epoch FROM r.range_to) * 1000)::bigint AS to, r.status, r.rows, r.bytes_scanned, r.error, (extract(epoch FROM r.expires_at) * 1000)::bigint AS expires_at, \
+    (extract(epoch FROM r.created_at) * 1000)::bigint AS created_at, u.name AS created_by FROM rehydrations r JOIN log_archives a ON a.id = r.archive_id \
+    LEFT JOIN users u ON u.id = r.created_by";
 
 /// Loads archived logs back into ClickHouse; search them in the Log Explorer with `index:rehydrated`.
 #[utoipa::path(post, path = "/api/v1/logs/rehydrations", operation_id = "create_rehydration", request_body = RehydrateRequest, responses((status = 200, body = Rehydration)), tag = "archives")]
@@ -823,8 +861,15 @@ async fn get_rehydration(st: &AppState, org: &str, id: &str) -> Result<Rehydrati
 
 async fn run_rehydration(st: &AppState, id: &str, a: &ArchiveRow, query: &str, range: TimeRange) -> Result<i64, ApiError> {
     let store = a.store(st)?;
+    let objects = objects_in_range(&store, a, range).await?;
+    let scan: u64 = objects.iter().map(|o| o.size).sum();
+    let cap: Option<i64> = sqlx::query_scalar("SELECT rehydration_max_scan_size_gb FROM log_archives WHERE id::text = $1").bind(&a.id).fetch_one(&st.postgres).await?;
+    if let Some(gb) = cap.filter(|gb| scan > *gb as u64 * 1_000_000_000) {
+        return Err(ApiError::BadRequest(format!("This range scans {:.1} GB of archives, over the archive's {gb} GB limit", scan as f64 / 1e9)));
+    }
+    sqlx::query("UPDATE rehydrations SET bytes_scanned = $2 WHERE id = $1::uuid").bind(id).bind(scan as i64).execute(&st.postgres).await?;
     let mut files = Vec::new();
-    for o in objects_in_range(&store, a, range).await? {
+    for o in objects {
         files.push(cached(st, &store, a, &o).await?);
     }
     if files.is_empty() {
@@ -946,7 +991,8 @@ async fn archiver_tick(st: &AppState) -> Result<(), ApiError> {
         return Ok(());
     }
     let result = async {
-        let archives: Vec<ArchiveRow> = sqlx::query_as(&format!("SELECT {ARCHIVE_COLS} FROM log_archives a JOIN orgs o ON o.id = a.org_id WHERE a.enabled AND o.status = 'active'"))
+        let archives: Vec<ArchiveRow> = sqlx::query_as(&format!("SELECT {ARCHIVE_COLS} FROM log_archives a JOIN orgs o ON o.id = a.org_id \
+             WHERE a.enabled AND o.status = 'active' AND a.endpoint <> '' AND a.secret_key_enc <> ''"))
             .fetch_all(&st.postgres)
             .await?;
         for a in &archives {

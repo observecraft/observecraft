@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, ShieldAlert, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Plus, Search, ShieldAlert, Trash2, Users, X } from 'lucide-react';
 import {
   createRestrictionQuery,
   deleteRestrictionQuery,
@@ -16,7 +16,8 @@ import {
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
 import { compact } from '../../lib/format';
-import { useProfile, useRoles, useTeams } from '../settings/queries';
+import { useProfile, useRoles, useTeams, useUsers } from '../settings/queries';
+import { Avatar, Columns, ConfigTitle, FilterQuery, fmtDate, SectionHead } from './config/configUi';
 
 const KEY = ['log-restrictions'];
 const TEAMS_REQUEST = { offset: 0, limit: 100, sort: 'name' } as const;
@@ -56,6 +57,14 @@ export function DataAccessPage() {
   const isAdmin = me.data?.roles.some((r) => r.id === `${org}-admin`) ?? false;
   const q = useQuery({ queryKey: KEY, queryFn: listRestrictionQueries, enabled: isAdmin });
   const [editing, setEditing] = useState<LogRestrictionQuery | 'new' | null>(null);
+  const [roleFilter, setRoleFilter] = useState('');
+  const [viewAs, setViewAs] = useState('');
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const roles = useRoles();
+  const users = useUsers({ limit: 200, offset: 0, statuses: ['active'] });
+  const needle = search.trim().toLowerCase();
   const refresh = () => qc.invalidateQueries({ queryKey: KEY });
   const remove = useMutation({ mutationFn: deleteRestrictionQuery, onSuccess: refresh });
   const dropRole = useMutation({ mutationFn: ({ id, roleId }: { id: string; roleId: string }) => unassignRole(id, roleId), onSuccess: refresh });
@@ -77,18 +86,75 @@ export function DataAccessPage() {
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const queries = q.data;
   const error = remove.error ?? dropRole.error ?? dropTeam.error;
+  const viewer = viewAs ? users.data?.users.find((u) => u.id === viewAs) : undefined;
+  const viewerRoles = new Set((viewer?.roles ?? []).map((r) => r.id));
+  const isViewerAdmin = viewer?.roles.some((r) => r.id === `${org}-admin`) ?? false;
+  const shown = queries.filter(
+    (r) =>
+      (!roleFilter || r.roles.some((x) => x.id === roleFilter)) &&
+      (!viewer || isViewerAdmin || r.roles.some((x) => viewerRoles.has(x.id))) &&
+      (!needle || r.name.toLowerCase().includes(needle) || r.query.toLowerCase().includes(needle)),
+  );
+  const template = '20px minmax(320px, 3fr) 90px 90px 110px 130px 34px 64px';
   return (
-    <div className="settings-pad">
-      <div className="settings-title-row">
-        <h1 className="settings-title">Data Access</h1>
-        <button className="btn btn-primary" onClick={() => setEditing('new')}>
-          <Plus size={14} /> New Restriction Query
-        </button>
+    <div className="lc-page">
+      <ConfigTitle
+        title="Data Access"
+        actions={
+          <button className="btn btn-primary" onClick={() => setEditing('new')}>
+            <Plus size={14} /> New Query
+          </button>
+        }
+      />
+      <div className="lc-view">
+        <label className="lc-view-select da-filter">
+          <span>Role</span>
+          <select value={roleFilter} onChange={(e) => (setRoleFilter(e.target.value), setViewAs(''))} aria-label="Filter by role">
+            <option value="">Select roles to filter the list</option>
+            {(roles.data ?? []).map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="muted da-or">OR</span>
+        <label className="lc-view-select">
+          <span>
+            <Users size={13} /> View As
+          </span>
+          <select value={viewAs} onChange={(e) => (setViewAs(e.target.value), setRoleFilter(''))} aria-label="View as user">
+            <option value="">Anyone</option>
+            {(users.data?.users ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name || u.email}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
-      <p className="muted">
-        Restriction queries are log searches assigned to <Link to="/organization-settings/roles">roles</Link> and <Link to="/teams">teams</Link>. They decide which logs their users can search, chart,
-        tail and export.
-      </p>
+      <div className="lc-count">
+        <b>{queries.length}</b> restriction queries defined
+      </div>
+      {viewer && (
+        <p className="lc-banner">
+          {isViewerAdmin ? (
+            <>
+              <b>{viewer.name || viewer.email}</b> is an org admin and reads every log.
+            </>
+          ) : queries.length === 0 ? (
+            <>No restriction queries: {viewer.name || viewer.email} reads every log.</>
+          ) : shown.length === 0 ? (
+            <>
+              <b>{viewer.name || viewer.email}</b> reads <b>no logs</b>: none of their roles has a restriction query (team assignments also count, not shown here).
+            </>
+          ) : (
+            <>
+              <b>{viewer.name || viewer.email}</b> reads the logs matching any of the {shown.length} queries below (through their roles; team assignments add to it).
+            </>
+          )}
+        </p>
+      )}
       <Rules />
       {queries.length > 0 && (
         <p className="log-restricted-notice">
@@ -96,68 +162,87 @@ export function DataAccessPage() {
         </p>
       )}
       {error && <p className="form-error">{(error as Error).message}</p>}
-      {queries.length === 0 ? (
-        <section className="settings-card settings-empty">
-          <p className="muted">No restriction queries: everyone sees all logs.</p>
-        </section>
-      ) : (
-        <table className="settings-table ix-table">
-          <thead>
-            <tr>
-              <th>NAME</th>
-              <th>QUERY</th>
-              <th>ROLES</th>
-              <th>TEAMS</th>
-              <th>LOGS (LAST HOUR)</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {queries.map((r) => (
-              <tr key={r.id}>
-                <td>
-                  <b>{r.name}</b>
-                  {r.description && <div className="muted">{r.description}</div>}
-                </td>
-                <td className="mono">
-                  <Link to={`/logs?query=${encodeURIComponent(r.query)}`}>{r.query}</Link>
-                </td>
-                <td>
-                  <Assignees
-                    items={r.roles.map((x) => ({ key: x.id, label: x.name }))}
-                    onRemove={(roleId, label) => window.confirm(`Unassign role "${label}" from "${r.name}"?`) && dropRole.mutate({ id: r.id, roleId })}
-                  />
-                </td>
-                <td>
-                  <Assignees
-                    items={r.teams.map((x) => ({ key: x.handle, label: x.name }))}
-                    onRemove={(handle, label) => window.confirm(`Unassign team "${label}" from "${r.name}"?`) && dropTeam.mutate({ id: r.id, handle })}
-                  />
-                </td>
-                <td>
-                  <MatchCount query={r.query} />
-                </td>
-                <td className="ix-actions">
-                  <button className="icon-plain" title="Edit" onClick={() => setEditing(r)}>
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    className="icon-plain"
-                    title="Delete"
-                    onClick={() =>
-                      window.confirm(
-                        `Delete restriction query "${r.name}"? Its users lose the access it grants${queries.length === 1 ? '; with no queries left, everyone sees all logs again' : ''}.`,
-                      ) && remove.mutate(r.id)
-                    }
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <section className="lc-section">
+        <SectionHead open={open} onToggle={() => setOpen((o) => !o)} label={`RESTRICTED ACCESS (${queries.length})`} />
+        {open && (
+          <>
+            <div className="lc-detail da-search">
+              <div className="lc-search">
+                <Search size={14} className="muted" />
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="filter list" aria-label="Filter restriction queries" />
+              </div>
+            </div>
+            <Columns template={template} cols={['', 'Query', '# of roles', '# of users', 'Logs (1h)', 'Last modified', '', '']} />
+            {shown.map((r) => {
+              const isOpen = expanded === r.id;
+              return (
+                <div key={r.id}>
+                  <div className="lc-row" style={{ gridTemplateColumns: template }}>
+                    <button className="icon-plain" onClick={() => setExpanded(isOpen ? null : r.id)} aria-expanded={isOpen} title="Roles and teams">
+                      {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                    </button>
+                    <span className="lc-cell-name" title={r.name === r.query ? r.query : `${r.name}: ${r.query}`}>
+                      <Link to={`/logs?query=${encodeURIComponent(r.query)}`}>
+                        <FilterQuery query={r.query} />
+                      </Link>
+                      {r.name !== r.query && <span className="muted">{r.name}</span>}
+                    </span>
+                    <span>{r.roles.length + r.teams.length}</span>
+                    <span>{r.userCount}</span>
+                    <MatchCount query={r.query} />
+                    <span className="muted">{fmtDate(r.updatedAt)}</span>
+                    <Avatar name={r.createdBy} />
+                    <span className="lc-actions">
+                      <button className="icon-plain" title="Edit" onClick={() => setEditing(r)}>
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        className="icon-plain"
+                        title="Delete"
+                        onClick={() =>
+                          window.confirm(
+                            `Delete restriction query "${r.name}"? Its users lose the access it grants${queries.length === 1 ? '; with no queries left, everyone sees all logs again' : ''}.`,
+                          ) && remove.mutate(r.id)
+                        }
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </span>
+                  </div>
+                  {isOpen && (
+                    <div className="lc-detail">
+                      <dl className="lc-kv">
+                        {r.description && (
+                          <>
+                            <dt>Description</dt>
+                            <dd>{r.description}</dd>
+                          </>
+                        )}
+                        <dt>Roles</dt>
+                        <dd>
+                          <Assignees
+                            items={r.roles.map((x) => ({ key: x.id, label: x.name }))}
+                            onRemove={(roleId, label) => window.confirm(`Unassign role "${label}" from "${r.name}"?`) && dropRole.mutate({ id: r.id, roleId })}
+                          />
+                        </dd>
+                        <dt>Teams</dt>
+                        <dd>
+                          <Assignees
+                            items={r.teams.map((x) => ({ key: x.handle, label: x.name }))}
+                            onRemove={(handle, label) => window.confirm(`Unassign team "${label}" from "${r.name}"?`) && dropTeam.mutate({ id: r.id, handle })}
+                          />
+                        </dd>
+                      </dl>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {queries.length === 0 && <p className="lc-empty">No restriction queries: everyone sees all logs.</p>}
+            {queries.length > 0 && shown.length === 0 && !viewer && <p className="lc-empty">No restriction query matches.</p>}
+          </>
+        )}
+      </section>
       {editing && (
         <RestrictionModal restriction={editing === 'new' ? null : editing} first={queries.length === 0} onClose={() => setEditing(null)} onSaved={() => (setEditing(null), void refresh())} />
       )}

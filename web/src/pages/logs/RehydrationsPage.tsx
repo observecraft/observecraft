@@ -1,16 +1,20 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { History, Plus, X } from 'lucide-react';
+import { Archive as ArchiveIcon, Download, History, Plus, Search, X } from 'lucide-react';
 import { expireRehydration, listRehydrations, rehydrate, type Rehydration } from '../../api/archives/client';
 import { searchLogPage } from '../../api/client';
 import type { LogEvent } from '../../api/types';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
-import { formatRange, RangeFields, useArchives } from './archiveBits';
+import { formatRange, formatSize, RangeFields, useArchives } from './archiveBits';
+import { Avatar, Columns, ConfigTitle, downloadCsv, FilterQuery, FlowStep, SectionHead } from './config/configUi';
 import { LogDetail } from './LogDetail';
 import { LogTable } from './LogTable';
 
 const HOUR = 3_600_000;
+
+const STATUS: Record<string, [string, string]> = { running: ['LOADING', 'info'], done: ['READY', 'ok'], failed: ['FAILED', 'error'], expired: ['EXPIRED', 'muted'] };
 
 /** Log Configuration → Rehydrations: archived logs loaded back for the Log Explorer (`index:rehydrated`). */
 export function RehydrationsPage() {
@@ -19,73 +23,145 @@ export function RehydrationsPage() {
   const expire = useMutation({ mutationFn: expireRehydration, onSuccess: () => qc.invalidateQueries({ queryKey: ['rehydrations'] }) });
   const [creating, setCreating] = useState(false);
   const [viewing, setViewing] = useState<Rehydration | null>(null);
+  const [view, setView] = useState('current');
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(true);
+  const all = list.data ?? [];
+  const needle = search.trim().toLowerCase();
+  const shown = all.filter(
+    (r) => (view === 'all' || (view === 'current' ? r.status !== 'expired' : r.status === 'expired')) && (!needle || r.name.toLowerCase().includes(needle) || r.query.toLowerCase().includes(needle)),
+  );
+  const template = '96px minmax(180px, 1.2fr) minmax(260px, 2fr) 90px 100px 130px 34px 120px';
+  const csv = () =>
+    downloadCsv('rehydrations.csv', [
+      ['name', 'archive', 'query', 'from', 'to', 'status', 'scan bytes', 'events', 'created', 'by'],
+      ...shown.map((r) => [
+        r.name,
+        r.archiveName,
+        r.query,
+        new Date(r.from).toISOString(),
+        new Date(r.to).toISOString(),
+        r.status,
+        r.bytesScanned,
+        r.rows,
+        new Date(r.createdAt).toISOString(),
+        r.createdBy ?? '',
+      ]),
+    ]);
   return (
-    <div className="settings-pad">
-      <div className="settings-title-row">
-        <h1 className="settings-title">Rehydrations</h1>
-        <button className="btn btn-primary" onClick={() => setCreating(true)}>
-          <Plus size={14} /> Rehydrate From Archive
-        </button>
+    <div className="lc-page">
+      <section className="lc-banner">
+        <Link to="/logs/archive-search">Archive Search</Link> queries archived logs where they are, without loading them: try it first, and rehydrate when you need dashboards, facets or the Log
+        Explorer on the results.
+      </section>
+      <ConfigTitle
+        title="Rehydrations"
+        actions={
+          <button className="btn btn-primary" onClick={() => setCreating(true)}>
+            <Plus size={14} /> New Historical View
+          </button>
+        }
+      />
+      <div className="lc-view">
+        <label className="lc-view-select">
+          <span>View</span>
+          <select value={view} onChange={(e) => setView(e.target.value)} aria-label="View">
+            <option value="current">Current historical views</option>
+            <option value="expired">Expired historical views</option>
+            <option value="all">All historical views</option>
+          </select>
+        </label>
+        <div className="lc-search">
+          <Search size={14} className="muted" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter Historical Views" aria-label="Filter historical views" />
+        </div>
       </div>
-      <p className="muted">
-        Loads archived logs back into the live store for a few days, so dashboards, facets and the Log Explorer work on them. Search them with <code>index:rehydrated</code>.
-      </p>
+      <div className="lc-count">
+        <b>{all.length}</b> historical views defined
+      </div>
+      <div className="lc-flow">
+        <div className="lc-flow-box">
+          <FlowStep icon={<ArchiveIcon size={15} />} label="Archives" to="/logs/archives" last />
+        </div>
+        <div className="lc-flow-link" />
+      </div>
       {expire.error && <p className="form-error">{(expire.error as Error).message}</p>}
       {list.isPending ? (
         <Loading />
       ) : list.isError ? (
         <ErrorState error={list.error} onRetry={() => list.refetch()} />
-      ) : list.data.length === 0 ? (
-        <section className="settings-card settings-empty">
-          <History size={28} />
-          <p className="muted">Nothing rehydrated yet.</p>
-        </section>
       ) : (
-        <table className="settings-table">
-          <thead>
-            <tr>
-              <th>NAME</th>
-              <th>ARCHIVE</th>
-              <th>QUERY</th>
-              <th>TIME RANGE</th>
-              <th>STATUS</th>
-              <th className="num">LOGS</th>
-              <th>EXPIRES</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {list.data.map((r) => (
-              <tr key={r.id} className={r.status === 'expired' ? 'row-muted' : ''}>
-                <td>
-                  {r.status === 'done' ? (
-                    <button className="link-btn" onClick={() => setViewing(r)}>
-                      {r.name}
-                    </button>
-                  ) : (
-                    r.name
-                  )}
-                </td>
-                <td>{r.archiveName}</td>
-                <td className="mono">{r.query || <span className="muted">all logs</span>}</td>
-                <td className="muted">{formatRange(r.from, r.to)}</td>
-                <td title={r.error ?? ''}>
-                  {r.status === 'running' ? 'Loading…' : r.status === 'failed' ? <span className="ar-status bad">Failed</span> : r.status === 'expired' ? 'Expired' : 'Ready'}
-                </td>
-                <td className="num">{r.rows.toLocaleString()}</td>
-                <td className="muted">{r.status === 'done' ? new Date(r.expiresAt).toLocaleDateString() : '—'}</td>
-                <td className="num">
-                  {r.status === 'done' && (
-                    <button className="btn btn-sm" onClick={() => window.confirm(`Remove the rehydrated logs of "${r.name}" now?`) && expire.mutate(r.id)}>
-                      Expire now
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <section className="lc-section">
+          <SectionHead
+            open={open}
+            onToggle={() => setOpen((o) => !o)}
+            label="HISTORICAL VIEW"
+            right={
+              <button className="link-btn" onClick={csv} disabled={shown.length === 0}>
+                <Download size={13} /> Download CSV
+              </button>
+            }
+          >
+            <span>
+              <b>{shown.length}</b> view{shown.length === 1 ? '' : 's'}
+            </span>
+          </SectionHead>
+          {open && (
+            <>
+              <Columns template={template} cols={['', 'Name', 'Query', 'Scan size', '# of events', 'Created', 'By', '']} />
+              {shown.map((r) => {
+                const [label, tone] = STATUS[r.status] ?? [r.status.toUpperCase(), 'muted'];
+                return (
+                  <div key={r.id} className={`lc-row${r.status === 'expired' ? ' dim' : ''}`} style={{ gridTemplateColumns: template }}>
+                    <span className="lc-keep" title={r.error ?? (r.status === 'done' ? `Searchable until ${new Date(r.expiresAt).toLocaleString()}` : '')}>
+                      <span className={`lc-pill ${tone}`}>{label}</span>
+                    </span>
+                    <span className="lc-cell-name">
+                      {r.status === 'done' ? (
+                        <button className="link-btn" onClick={() => setViewing(r)} title={r.name}>
+                          {r.name}
+                        </button>
+                      ) : (
+                        <span title={r.name}>{r.name}</span>
+                      )}
+                    </span>
+                    <span className="lc-stack" title={`${r.archiveName}: ${r.query || '*'}`}>
+                      <FilterQuery query={r.query} />
+                      <span className="muted">
+                        {r.archiveName} · {formatRange(r.from, r.to)}
+                      </span>
+                    </span>
+                    <span>{formatSize(r.bytesScanned)}</span>
+                    <span>{r.rows.toLocaleString()}</span>
+                    <span className="muted">{new Date(r.createdAt).toLocaleString(undefined, { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    <Avatar name={r.createdBy} />
+                    <span className="lc-actions lc-keep">
+                      {r.status === 'done' && (
+                        <button className="btn btn-sm" onClick={() => window.confirm(`Remove the rehydrated logs of "${r.name}" now?`) && expire.mutate(r.id)}>
+                          Expire now
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+              {all.length === 0 && (
+                <p className="lc-empty">
+                  <History size={22} />
+                  <br />
+                  Nothing rehydrated yet.
+                </p>
+              )}
+              <button className="lc-add-row" onClick={() => setCreating(true)}>
+                <Plus size={14} /> Add a new historical view
+              </button>
+            </>
+          )}
+        </section>
       )}
+      <p className="muted lc-note">
+        A historical view loads archived logs back into the live store for a few days, so dashboards, facets and the Log Explorer work on them. Search them with <code>index:rehydrated</code>.
+      </p>
       {viewing && <RehydratedLogs r={viewing} onClose={() => setViewing(null)} />}
       {creating && <RehydrateModal onClose={() => setCreating(false)} onDone={() => (setCreating(false), void qc.invalidateQueries({ queryKey: ['rehydrations'] }))} />}
     </div>
@@ -145,7 +221,7 @@ function RehydrateModal({ onClose, onDone }: { onClose: () => void; onDone: () =
         }}
       >
         <div className="modal-title-row">
-          <h3>Rehydrate From Archive</h3>
+          <h3>New Historical View</h3>
           <button type="button" className="icon-plain" onClick={onClose} title="Close">
             <X size={18} />
           </button>

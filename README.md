@@ -52,8 +52,10 @@ visibility in one place, built on OpenTelemetry and ClickHouse.**
 | | Area | Highlights |
 |---|---|---|
 | 📜 | **Logs** | Query language with facets, histogram, live tail (SSE), anomaly insights, list/timeseries/top-list/table/tree-map/pie visualizations, trace ↔ log links |
+| 🔀 | **Splunk migration** | Translate SPL searches step by step (filters, stats, timechart, top, macros) and import exported alerts and dashboards as log monitors and dashboards after a review |
 | 🗂️ | **Log indexes** | Per-org indexes (Datadog model): filters route each log to the first matching index, each with its own retention, daily quota and sampled exclusion filters; Live Tail and archives still get every log |
-| 🗄️ | **Log archives** | Hourly Parquet archives in your own S3-compatible bucket, Archive Search with DuckDB (no rehydration needed), rehydration back into the explorer |
+| 🗄️ | **Log archives** | Hourly Parquet archives in your own S3-compatible bucket, Archive Search with DuckDB (no rehydration needed), rehydration back into the explorer with scan limits |
+| 📤 | **Log forwarding** | Custom destinations: logs matching a query, after pipelines, forwarded to an HTTP endpoint, Splunk HEC or Elasticsearch with tag filtering; Flex Logs tier for longer index retention; all Logs Configuration resources managed with Datadog's Terraform provider (`datadog_logs_*`) |
 | 🧭 | **APM** | Service catalog, endpoints, recommendations (N+1 queries, error hot spots), deployments, service pages with latency/error breakdowns |
 | 🌐 | **Cloud Network Monitoring** | Traffic between clients and servers grouped by any tag (service, availability zone, namespace, pod, host, IP, port): volume, throughput, TCP retransmits, latency and jitter, connections; DNS view (requests, response time, timeouts, SERVFAIL, NXDOMAIN by domain); summary graphs, client/server facets, flow side panel, network map |
 | 🔥 | **Continuous Profiler** | Datadog profiler uploads: CPU and memory per service over time, merged flame graphs with endpoint and package breakdowns, profile list, A/B comparison with differences coloured, CPU-burst insights with review status |
@@ -318,6 +320,7 @@ most important ones:
 | `OC_COOKIE_SECURE` | `false` | Set `true` when served over HTTPS |
 | `OC_SESSION_HOURS` | `12` | Idle session lifetime (sessions also end 7 days after sign-in) |
 | `OC_WEB_DIST` | — | Serve the built web app from the API (production-style) |
+| `OC_LOG_FORWARD_ALLOW_PRIVATE` | `false` | Custom destinations may forward logs to private and loopback addresses |
 | `OC_KEV_URL` | CISA's catalog | Known Exploited Vulnerabilities JSON the Security research feed reads every six hours (`off` without internet access) |
 | `OC_SEED_DEMO` | `true` | Fictional demo users, teams, monitors and incidents, a demo ingest key and archive. **Set `false` in production.** |
 
@@ -351,6 +354,7 @@ releases.
 | Helm charts (platform; OpenTelemetry Collector agent), Datadog Agent / Operator examples | ✅ Live |
 | Logs, live tail, log indexes (retention, quotas, exclusions), archives, Archive Search, rehydration, trace ↔ log links | ✅ Live (ClickHouse, S3 + DuckDB) |
 | APM, trace explorer, metrics (all OTLP types), dashboards, infrastructure | ✅ Live (ClickHouse) |
+| APM settings: span flow overview, default environment and primary tags, ingestion per service, span-based metrics and retention filters (Terraform `datadog_spans_metric`, `datadog_apm_retention_filter` / `_order`), span pipelines | ✅ Live (ClickHouse, Postgres); retention filters and pipelines not applied to incoming spans yet |
 | Monitors (metric, APM, log) with webhook / Slack / email notifications, downtimes, incidents | ✅ Live (Postgres) |
 | Identity, SSO, audit trail | ✅ Live (Postgres) |
 | CI visibility, flaky tests, DORA metrics | ✅ Live (ClickHouse) |

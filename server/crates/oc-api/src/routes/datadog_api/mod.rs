@@ -26,9 +26,11 @@ pub mod dashboards;
 pub mod downtimes;
 pub mod monitors;
 pub mod keys;
+pub mod logs;
 pub mod permissions;
 pub mod roles;
 pub mod ai_guard;
+pub mod apm_config;
 pub mod appsec;
 pub mod csm_threats;
 pub mod rum;
@@ -74,6 +76,7 @@ pub fn router() -> Router<AppState> {
         .merge(monitors_and_downtimes())
         .merge(iam_router())
         .merge(cost_router())
+        .merge(logs::router())
         .route("/api/v2/rum/applications", get(rum::list).post(rum::create))
         .route("/api/v2/rum/applications/:id", get(rum::get).patch(rum::update).delete(rum::delete))
         .route("/api/v2/remote_config/products/cws/policy", get(csm_threats::list_policies).post(csm_threats::create_policy))
@@ -87,6 +90,11 @@ pub fn router() -> Router<AppState> {
         .route("/api/v2/csm/onboarding/coverage_analysis/serverless", get(csm_threats::coverage_serverless))
         .route("/api/v2/csm/onboarding/coverage_analysis/cloud_accounts", get(csm_threats::coverage_cloud_accounts))
         .route("/api/v2/ai-guard/evaluate", post(ai_guard::evaluate))
+        .route("/api/v2/apm/config/retention-filters", get(apm_config::list_filters).post(apm_config::create_filter))
+        .route("/api/v2/apm/config/retention-filters/:id", get(apm_config::get_filter).put(apm_config::update_filter).delete(apm_config::delete_filter))
+        .route("/api/v2/apm/config/retention-filters-execution-order", axum::routing::put(apm_config::reorder_filters))
+        .route("/api/v2/apm/config/metrics", get(apm_config::list_metrics).post(apm_config::create_metric))
+        .route("/api/v2/apm/config/metrics/:id", get(apm_config::get_metric).patch(apm_config::update_metric).delete(apm_config::delete_metric))
         .route("/api/v2/remote_config/products/asm/waf/custom_rules", get(appsec::list_custom_rules).post(appsec::create_custom_rule))
         .route("/api/v2/remote_config/products/asm/waf/custom_rules/:id", get(appsec::get_custom_rule).put(appsec::update_custom_rule).delete(appsec::delete_custom_rule))
         .route("/api/v2/remote_config/products/asm/waf/exclusion_filters", get(appsec::list_exclusion_filters).post(appsec::create_exclusion_filter))

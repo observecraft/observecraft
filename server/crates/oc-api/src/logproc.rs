@@ -7,7 +7,8 @@
 //! `OC_LOGPROC_ADDR`) after writing it to `oc.logs_raw`. Each log goes to the first of its org's
 //! indexes whose filter matches; that index's exclusion filters may drop it (sampled
 //! deterministically by log id) and its daily quota may cap it. Kept logs are written to `oc.logs`
-//! with their index name and retention, which the table's TTL uses.
+//! with their index name and retention, which the table's TTL uses. With Flex Logs on, an index's
+//! flex retention (its total time, standard + flex tier) is the retention written.
 //!
 //! Logs no index keeps are not lost: live tail and archives get every log (they read before this step).
 //!
@@ -20,7 +21,10 @@
 //! After the pipelines and before routing, every log is counted in the org's generated metrics (see
 //! `log_metrics`), so logs an index excludes still count; their buckets are flushed every 10 s.
 //!
-//! Index rules, pipelines, standard attributes and generated metrics are reloaded from Postgres every 10 s; quota counters are local and
+//! After the pipelines, logs matching a custom destination's query are queued for forwarding (see
+//! `log_forwarding`), whether an index keeps them or not.
+//!
+//! Index rules, pipelines, standard attributes, custom destinations and generated metrics are reloaded from Postgres every 10 s; quota counters are local and
 //! re-synced from ClickHouse every 30 s, so several servers sharing the work stay close to the quota.
 
 use std::collections::HashMap;
@@ -38,6 +42,7 @@ use oc_query::{matches, parse_query, Fields, Term};
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::log_forwarding::{self, Forwarder};
 use crate::log_metrics::{self, Aggregator, Definition, OrgMetrics, Retention};
 use crate::pipelines::{self, Pipeline};
 use crate::standard_attributes::{self, Override, Remapper, StoredRow};
@@ -85,6 +90,8 @@ pub struct Indexer {
     /// Each org's generated metrics, and their buckets not flushed yet.
     log_metrics: RwLock<HashMap<String, Arc<OrgMetrics>>>,
     metric_buckets: Mutex<Aggregator>,
+    /// Each org's custom destinations and the logs queued for them.
+    forwarder: Arc<Forwarder>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -140,8 +147,11 @@ fn now_ms() -> i64 {
 impl Indexer {
     async fn reload(&self, st: &AppState) -> Result<(), sqlx::Error> {
         let rows: Vec<RuleRow> = sqlx::query_as(
-            "SELECT i.org_id, i.name, i.filter, i.retention_days, i.daily_quota, i.quota_reset_hour, i.exclusion_filters \
-             FROM log_indexes i JOIN orgs o ON o.id = i.org_id WHERE o.status = 'active' ORDER BY i.org_id, i.position, i.created_at",
+            "SELECT i.org_id, i.name, i.filter, \
+             CASE WHEN COALESCE(f.flex_enabled, false) AND i.flex_retention_days IS NOT NULL THEN GREATEST(i.retention_days, i.flex_retention_days) ELSE i.retention_days END AS retention_days, \
+             i.daily_quota, i.quota_reset_hour, i.exclusion_filters \
+             FROM log_indexes i JOIN orgs o ON o.id = i.org_id LEFT JOIN org_logs_settings f ON f.org_id = i.org_id \
+             WHERE o.status = 'active' ORDER BY i.org_id, i.position, i.created_at",
         )
         .fetch_all(&st.postgres)
         .await?;
@@ -185,6 +195,7 @@ impl Indexer {
         }
         *self.pipelines.write().unwrap() = by_org.into_iter().map(|(k, v)| (k, Arc::new(v))).collect();
         self.reload_standard_attributes(st).await?;
+        self.forwarder.reload(st).await?;
         self.reload_log_metrics(st).await
     }
 
@@ -333,6 +344,7 @@ fn route_batch(ix: &Indexer, body: &[u8]) -> (Vec<u8>, usize, usize) {
             let ts = ev.get("ts_ms").and_then(Value::as_i64).unwrap_or(now);
             ix.metric_buckets.lock().unwrap().record(&org, &m, &f, ts, now);
         }
+        ix.forwarder.record(&org, &f, &ev);
         let Some((index, retention)) = ix.route(&org, &id, &f, now) else { continue };
         if let Some(o) = ev.as_object_mut() {
             o.insert("index_name".into(), Value::String(index));
@@ -401,6 +413,7 @@ async fn internal_metrics(State(st): State<AppState>, headers: HeaderMap) -> Res
 pub async fn serve(st: AppState) -> anyhow::Result<()> {
     let ix = Arc::new(Indexer::default());
     ix.reload(&st).await?;
+    log_forwarding::spawn(st.clone(), ix.forwarder.clone());
     let (st2, ix2) = (st.clone(), ix.clone());
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_secs(10));
