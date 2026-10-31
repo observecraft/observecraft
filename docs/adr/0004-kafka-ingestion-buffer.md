@@ -192,6 +192,12 @@ extrapolation is roughly 1.3 GB for seven days at one million admissions per day
 replicas, vacuum/bloat and operational headroom. This is a storage microbenchmark, not an ingestion
 capacity result; high-volume quota tenants need measured metadata throughput and cleanup capacity.
 
+The isolated [JSON ingestion benchmark](../benchmarks/ingestion.md) exercises the actual intake,
+Kafka, Vector, API indexers, quota coordinator and metric outbox with explicit resource caps.
+It separates Kafka ACK latency from indexed visibility, verifies retained counts after delayed/held
+storage, and records sampled lag, resources, spool size and Postgres WAL. Its short synthetic runs
+are a repeatable local baseline, not a production capacity ceiling.
+
 Generated log metrics retain one contribution per source event, metric, series and 10-second
 bucket, including logs excluded from indexes. Duplicate identities inside a request contribute
 once. Before acknowledging the source request, the indexer commits these metric contributions
