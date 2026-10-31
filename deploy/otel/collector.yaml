@@ -216,6 +216,7 @@ exporters:
     timeout: 10s
     retry_on_failure:
       enabled: true
+      max_elapsed_time: 0s
     sending_queue: *queue
   clickhouse/replay:
     endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
@@ -227,6 +228,7 @@ exporters:
     timeout: 10s
     retry_on_failure:
       enabled: true
+      max_elapsed_time: 0s
     sending_queue: *queue
   clickhouse/ci:
     endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
