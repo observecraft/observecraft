@@ -139,22 +139,58 @@ Remaining boundaries: legacy Kafka records and trusted agents bypassing intake w
 normalization, so their replay is not deduplicated by identity. A sender retry accepted as a new request
 also gets new IDs; there is no client idempotency-key contract.
 
-For organizations with daily index quotas, the indexer looks up already indexed identities before
-admission (tenant-scoped batches of at most 1,000 IDs, pruned to the processed event timestamps).
-Persisted rows keep their index/retention without spending another slot, including after a restart
-with a full quota. Duplicate identities within a batch reserve one slot. Failed and cancelled writes
-release their local reservations; a retry checks storage first in case the failed response hid a
-successful write. Startup restores counters before accepting quota-bearing traffic. Admission and
-storage are serialized per organization on each replica, and reconciliation waits for in-flight
-quota writes; different organizations can ingest concurrently. Unlimited organizations skip the
-extra storage lookup. A lookup failure returns 503 and leaves delivery ownership with Kafka.
+For organizations with daily index quotas, every quota-bearing chunk (at most 512 events) acquires
+transaction-scoped Postgres advisory locks in organization order. The indexer loads shared daily
+counters and admitted IDs, routes the chunk, and commits new reservations and ID/retention metadata
+atomically **before** writing ClickHouse. `synchronous_commit=on` requires WAL durability for the
+admission transaction. No log bodies enter this journal. Unlimited organizations skip quota storage;
+within mixed organizations, unlimited indexes do not create quota receipts.
 
-Quotas remain approximate across API replicas: they reconcile every 30 seconds, and visibility can
-lag on ClickHouse replicas. An ambiguous write can also leave local totals below the persisted total
-until reconciliation. This is not a global transactional quota or a durable receipt for rejected
-events. Restored daily totals still use event timestamps; late events and changed reset hours can
-make those totals differ from ingestion-day accounting. Admission reuse lasts only while the indexed
-row is retained and requires the same immutable identity fields as storage deduplication above.
+A failed, cancelled or ambiguously acknowledged storage write keeps its durable reservation. It
+must not release a slot that another replica could spend while the first write may have succeeded.
+A retry/restart reuses the admitted identity, including when a ClickHouse replica has not seen the
+write yet. Storage and the generated metric outbox must still succeed before source acknowledgement;
+otherwise HTTP 503 leaves ownership with Kafka. Per-org local locks protect the process's working
+copy; Postgres advisory locks, counters and receipts are the cross-replica source of truth. There is
+no periodic whole-history ClickHouse counter reconciliation. Locks have a five-second timeout,
+admission has a twenty-second deadline, and storage HTTP writes have a thirty-second deadline.
+
+The first use of each quota-bearing index bootstraps its current-day count once from deduplicated
+ClickHouse rows. Stop old writers, drain Kafka/outboxes, and synchronize ClickHouse replicas before
+cutover: old writers do not participate in shared admission. This cutover baseline uses event
+timestamps, so it cannot reconstruct historical ingestion-day counts for late/future logs. Later
+quota days start at zero and count first admissions on the configured UTC reset schedule, regardless
+of event timestamp. A replay of an admitted prior-day event spends no new-day slot. A newly admitted
+log consumes capacity even if delivery is pending or its old event timestamp is already outside TTL.
+The UI's indexed volume continues to report stored event-time volume; pending reservations can make
+available quota smaller than that volume suggests during an outage.
+
+Receipts default to seven days, exceeding the bundled 72-hour Kafka retention; counters retain eight
+days and small per-index bootstrap markers remain for the organization lifetime. Cleanup discovers expired state,
+deletes up to 10,000 receipts per transaction and performs at most sixteen passes per organization
+per ten-second sweep. It uses the same org lock and never decrements a daily counter. Expiration is a
+cleanup target, not a hard disk bound under sustained overload. Longer supported replay requires
+extending the `log_quota_admissions.expires_at` default before accepting those records and sizing the
+metadata store accordingly. After receipt expiry, retained ClickHouse rows still allow best-effort
+admission reuse, but stale reads can charge a replay again. Source records without stable IDs and
+newly accepted sender retries remain outside identity reuse.
+
+For a fixed loaded policy, healthy durable Postgres and retained receipts, replicas cannot allocate
+more fresh slots than the shared daily cap. Policies still reload every ten seconds; changes are not
+an atomic barrier across replicas. Rejected events have no receipt and can be admitted if replayed
+on a later day or after policy changes. Postgres unavailability fails quota admission closed, without
+acknowledging those source requests. Restoring/failing over Postgres must preserve committed quota
+metadata, as well as the generated metric outbox. The cost is one small receipt per distinct admitted
+quota event plus WAL/index/vacuum work; benchmark this traffic and cleanup before sizing a large
+installation. This is a deliberate durability cost restricted to organizations that enable quotas,
+not evidence of Datadog-scale ingestion capacity.
+
+`scripts/bench-quota-metadata.sql` measures receipt storage in a temporary table and rolls back.
+On local Postgres 16 (2026-10-31), 100,000 fresh receipts with 36-character org IDs and a short
+index name used 18,735,104 bytes including heap/indexes, about 187 bytes per receipt. A linear
+extrapolation is roughly 1.3 GB for seven days at one million admissions per day, before WAL,
+replicas, vacuum/bloat and operational headroom. This is a storage microbenchmark, not an ingestion
+capacity result; high-volume quota tenants need measured metadata throughput and cleanup capacity.
 
 Generated log metrics retain one contribution per source event, metric, series and 10-second
 bucket, including logs excluded from indexes. Duplicate identities inside a request contribute

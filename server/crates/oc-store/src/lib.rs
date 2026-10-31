@@ -127,8 +127,8 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
         include_str!("../../../migrations/clickhouse/0019_log_replay_storage.sql"),
     ),
     (
-        "0017_log_metric_identities",
-        include_str!("../../../migrations/clickhouse/0017_log_metric_identities.sql"),
+        "0020_log_metric_identities",
+        include_str!("../../../migrations/clickhouse/0020_log_metric_identities.sql"),
     ),
 ];
 
