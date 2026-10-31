@@ -1,6 +1,53 @@
 # Unit tests of the `normalize` transform (normalize.vrl):
 #   docker compose -f deploy/docker-compose.yml run --rm --entrypoint vector vector-aggregator test /etc/vector/aggregator.yaml /etc/vector/tests.yaml
 tests:
+  - name: resource service labels and version retain priority over workload metadata
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "opentelemetry"
+          .resources = {
+            "oc.org_id": "example-org", "service.name": "billing", "service.version": "1",
+            "deployment.environment.name": "staging", "k8s.deployment.name": "catalog-service",
+            "k8s.pod.labels.tags.datadoghq.com/service": "order-service",
+            "k8s.pod.labels.tags.datadoghq.com/version": "2",
+            "k8s.pod.labels.tags.datadoghq.com/env": "benchmark", "example.custom": "retained"
+          }
+          .message = "order accepted"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.service, "order-service")
+              assert_eq!(.tags.version, "2")
+              assert_eq!(.tags.env, "benchmark")
+              assert_eq!(.tags.kube_deployment, "catalog-service")
+              assert_eq!(.tags."example.custom", "retained")
+
+  - name: tenant-only resources keep JSON FireLens and explicit environment tags
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "example-org"
+          .resources = { "oc.org_id": "example-org", "oc.retention_days": "7" }
+          .tags = { "env": "benchmark" }
+          .ecs_task_definition = "order-service:17"
+          .message = "order accepted"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.service, "order-service")
+              assert_eq!(.tags.task_version, "17")
+              assert_eq!(.tags.env, "benchmark")
+              assert!(!exists(.tags."oc.org_id"))
+              assert!(!exists(.tags."oc.retention_days"))
+
   - name: accepted OTLP log retains its ID and event time through replay
     inputs:
       - insert_at: normalize

@@ -1,6 +1,7 @@
 # JSON log ingestion benchmark
 
 Measured examples and identified capacity gaps: [2026-10-31 results](2026-10-31-ingestion.md).
+First optimization and paired comparison: [Vector normalization](2026-10-31-normalization.md).
 
 Run `node scripts/ingestion-benchmark.mjs` after building the current application image
 (`observecraft:local` by default). Docker is required. The harness creates a private network,
@@ -55,6 +56,8 @@ Container limits, also included in the report:
 
 Kafka has one broker and twelve partitions; ClickHouse has one node. The report records application
 revision, exact container image IDs, harness hash, Docker host CPU/RAM and the configured limits.
+New reports also include `vectorConfigSha256` for the mounted aggregator and normalization files:
+the application image revision alone does not identify a change to the external Vector configuration.
 Other workloads can share the host; limits do not reserve dedicated CPUs or eliminate contention.
 Kafka's Java observation CLI runs in its own capped container, so its startup CPU is not charged
 to the broker's budget or misreported as broker saturation.

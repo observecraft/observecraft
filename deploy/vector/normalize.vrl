@@ -199,27 +199,30 @@ if !match(span_id, r'^[0-9a-f]{16}$') { span_id = "" }
 # ---------------------------------------------------------------- Datadog tags from resources
 r = map_values(res) -> |v| { to_string(v) ?? encode_json(v) }
 dd = {}
-mapping = {
-  "k8s.namespace.name": "kube_namespace", "k8s.pod.name": "pod_name", "k8s.pod.uid": "pod_uid",
-  "k8s.container.name": "kube_container_name", "k8s.deployment.name": "kube_deployment",
-  "k8s.replicaset.name": "kube_replica_set", "k8s.daemonset.name": "kube_daemon_set",
-  "k8s.statefulset.name": "kube_stateful_set", "k8s.job.name": "kube_job", "k8s.cronjob.name": "kube_cronjob",
-  "k8s.node.name": "kube_node", "k8s.cluster.name": "kube_cluster_name", "container.id": "container_id",
-  "container.name": "container_name", "container.image.name": "image_name", "container.image.tag": "image_tag",
-  "k8s.pod.labels.app.kubernetes.io/name": "kube_app_name", "k8s.pod.labels.app.kubernetes.io/instance": "kube_app_instance",
-  "k8s.pod.labels.app.kubernetes.io/version": "kube_app_version", "k8s.pod.labels.app.kubernetes.io/component": "kube_app_component",
-  "k8s.pod.labels.app.kubernetes.io/part-of": "kube_app_part_of", "k8s.pod.labels.app.kubernetes.io/managed-by": "kube_app_managed_by",
-  "aws.ecs.task.family": "task_family", "aws.ecs.task.revision": "task_version", "aws.ecs.task.arn": "task_arn",
-  "aws.ecs.launchtype": "task_launch_type", "aws.ecs.container.arn": "container_arn",
-  "cloud.region": "region", "cloud.availability_zone": "availability-zone", "cloud.account.id": "aws_account",
-  "host.name": "host"
+# JSON senders commonly have no resource attributes. Avoid all resource lookups in that case.
+if length(r) > 0 {
+  mapping = {
+    "k8s.namespace.name": "kube_namespace", "k8s.pod.name": "pod_name", "k8s.pod.uid": "pod_uid",
+    "k8s.container.name": "kube_container_name", "k8s.deployment.name": "kube_deployment",
+    "k8s.replicaset.name": "kube_replica_set", "k8s.daemonset.name": "kube_daemon_set",
+    "k8s.statefulset.name": "kube_stateful_set", "k8s.job.name": "kube_job", "k8s.cronjob.name": "kube_cronjob",
+    "k8s.node.name": "kube_node", "k8s.cluster.name": "kube_cluster_name", "container.id": "container_id",
+    "container.name": "container_name", "container.image.name": "image_name", "container.image.tag": "image_tag",
+    "k8s.pod.labels.app.kubernetes.io/name": "kube_app_name", "k8s.pod.labels.app.kubernetes.io/instance": "kube_app_instance",
+    "k8s.pod.labels.app.kubernetes.io/version": "kube_app_version", "k8s.pod.labels.app.kubernetes.io/component": "kube_app_component",
+    "k8s.pod.labels.app.kubernetes.io/part-of": "kube_app_part_of", "k8s.pod.labels.app.kubernetes.io/managed-by": "kube_app_managed_by",
+    "aws.ecs.task.family": "task_family", "aws.ecs.task.revision": "task_version", "aws.ecs.task.arn": "task_arn",
+    "aws.ecs.launchtype": "task_launch_type", "aws.ecs.container.arn": "container_arn",
+    "cloud.region": "region", "cloud.availability_zone": "availability-zone", "cloud.account.id": "aws_account",
+    "host.name": "host"
+  }
+  for_each(mapping) -> |from, to| {
+    v = (to_string(get(r, [from]) ?? null) ?? "")
+    if v != "" { dd = set!(dd, [to], v) }
+  }
+  cluster_arn = (to_string(get(r, ["aws.ecs.cluster.arn"]) ?? null) ?? "")
+  if cluster_arn != "" { dd.ecs_cluster = replace(cluster_arn, r'^.*/', "") }
 }
-for_each(mapping) -> |from, to| {
-  v = (to_string(get(r, [from]) ?? null) ?? "")
-  if v != "" { dd = set!(dd, [to], v) }
-}
-cluster_arn = (to_string(get(r, ["aws.ecs.cluster.arn"]) ?? null) ?? "")
-if cluster_arn != "" { dd.ecs_cluster = replace(cluster_arn, r'^.*/', "") }
 # FireLens (Fluent Bit) puts ECS metadata on the record itself.
 fl_cluster = (to_string(get(attrs, ["ecs_cluster"]) ?? null) ?? "")
 if fl_cluster != "" { dd.ecs_cluster = replace(fl_cluster, r'^.*/', "") }
@@ -239,15 +242,17 @@ if exists(dd.image_name) {
 if exists(dd.kube_container_name) { dd.display_container_name = string!(dd.kube_container_name) }
 
 # Unified service tagging.
-env = to_string(get(r, ["deployment.environment.name"]) ?? null) ?? ""
-if env == "" { env = to_string(get(r, ["deployment.environment"]) ?? null) ?? "" }
-lenv = (to_string(get(r, ["k8s.pod.labels.tags.datadoghq.com/env"]) ?? null) ?? "")
-if lenv != "" { env = lenv }
-if env != "" && !exists(root_tags.env) { dd.env = env }
-version = (to_string(get(r, ["service.version"]) ?? null) ?? "")
-lversion = (to_string(get(r, ["k8s.pod.labels.tags.datadoghq.com/version"]) ?? null) ?? "")
-if lversion != "" { version = lversion }
-if version != "" { dd.version = version }
+if length(r) > 0 {
+  env = to_string(get(r, ["deployment.environment.name"]) ?? null) ?? ""
+  if env == "" { env = to_string(get(r, ["deployment.environment"]) ?? null) ?? "" }
+  lenv = (to_string(get(r, ["k8s.pod.labels.tags.datadoghq.com/env"]) ?? null) ?? "")
+  if lenv != "" { env = lenv }
+  if env != "" && !exists(root_tags.env) { dd.env = env }
+  version = (to_string(get(r, ["service.version"]) ?? null) ?? "")
+  lversion = (to_string(get(r, ["k8s.pod.labels.tags.datadoghq.com/version"]) ?? null) ?? "")
+  if lversion != "" { version = lversion }
+  if version != "" { dd.version = version }
+}
 
 svc = null
 for_each(["service", "syslog.appname", "dd.service"]) -> |_i, k| {
@@ -256,7 +261,7 @@ for_each(["service", "syslog.appname", "dd.service"]) -> |_i, k| {
     if is_string(v) && v != "" { svc = v; used = push(used, k) }
   }
 }
-if is_null(svc) {
+if is_null(svc) && length(r) > 0 {
   for_each([
     "k8s.pod.labels.tags.datadoghq.com/service", "service.name", "k8s.pod.labels.app.kubernetes.io/name",
     "k8s.deployment.name", "k8s.statefulset.name", "k8s.daemonset.name", "k8s.cronjob.name", "k8s.job.name",
@@ -308,9 +313,9 @@ attrs = filter(attrs) -> |k, _v| { !includes(used, k) }
 attr = map_values(flatten(attrs)) -> |v| { to_string(v) ?? encode_json(v) }
 scope = (to_string(get(., ["scope", "name"]) ?? "") ?? "")
 
-id = uuid_v7(ts)
-if match(ingest_id, r'^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') {
-  id = ingest_id
+id = ingest_id
+if !match(ingest_id, r'^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') {
+  id = uuid_v7(ts)
 }
 
 . = {
