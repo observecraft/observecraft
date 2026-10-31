@@ -791,10 +791,10 @@ async fn run_ssl(r: &SyntheticRequest, allow_private: bool, out: &mut SyntheticR
 }
 
 async fn run_dns(r: &SyntheticRequest, allow_private: bool, timeout: Duration, out: &mut SyntheticRunDetail) -> Result<(), String> {
-    use hickory_resolver::config::{NameServerConfigGroup, ResolverConfig, ResolverOpts};
-    use hickory_resolver::name_server::TokioConnectionProvider;
+    use hickory_resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
+    use hickory_resolver::net::runtime::TokioRuntimeProvider;
     use hickory_resolver::proto::rr::RecordType;
-    use hickory_resolver::{ResolveErrorKind, Resolver};
+    use hickory_resolver::Resolver;
     let domain = r.host.trim().trim_end_matches('.').to_string();
     let mut opts = ResolverOpts::default();
     opts.timeout = timeout.min(Duration::from_secs(10));
@@ -802,14 +802,18 @@ async fn run_dns(r: &SyntheticRequest, allow_private: bool, timeout: Duration, o
     opts.cache_size = 0;
     let resolver = if r.dns_server.trim().is_empty() {
         out.dns_server = Some("system resolver".into());
-        Resolver::builder_tokio().map_err(|e| format!("No system resolver: {e}"))?.with_options(opts).build()
+        Resolver::builder_tokio().map_err(|e| format!("No system resolver: {e}"))?.with_options(opts).build().map_err(|e| format!("DNS resolver: {e}"))?
     } else {
         let ip: IpAddr = r.dns_server.trim().parse().map_err(|_| "The DNS server must be an IP address".to_string())?;
         check_addr(ip, allow_private)?;
         let port = r.dns_server_port.unwrap_or(53);
         out.dns_server = Some(format!("{ip}:{port}"));
-        let config = ResolverConfig::from_parts(None, vec![], NameServerConfigGroup::from_ips_clear(&[ip], port, true));
-        Resolver::builder_with_config(config, TokioConnectionProvider::default()).with_options(opts).build()
+        let mut server = NameServerConfig::udp_and_tcp(ip);
+        for c in &mut server.connections {
+            c.port = port;
+        }
+        let config = ResolverConfig::from_parts(None, vec![], vec![server]);
+        Resolver::builder_with_config(config, TokioRuntimeProvider::default()).with_options(opts).build().map_err(|e| format!("DNS resolver: {e}"))?
     };
     let started = Instant::now();
     let types = [RecordType::A, RecordType::AAAA, RecordType::CNAME, RecordType::MX, RecordType::TXT, RecordType::NS];
@@ -819,13 +823,13 @@ async fn run_dns(r: &SyntheticRequest, allow_private: bool, timeout: Duration, o
     for (t, res) in types.iter().zip(lookups) {
         match res {
             Ok(lookup) => {
-                for rec in lookup.record_iter().filter(|rec| rec.record_type() == *t) {
-                    let value = rec.data().to_string();
+                for rec in lookup.answers().iter().filter(|rec| rec.record_type() == *t) {
+                    let value = rec.data.to_string();
                     let value = if matches!(t, RecordType::CNAME | RecordType::NS | RecordType::MX) { value.trim_end_matches('.').to_string() } else { value };
-                    out.records.push(SyntheticDnsRecord { kind: t.to_string(), value, ttl: rec.ttl() });
+                    out.records.push(SyntheticDnsRecord { kind: t.to_string(), value, ttl: rec.ttl });
                 }
             }
-            Err(e) if matches!(e.kind(), ResolveErrorKind::Proto(p) if p.is_no_records_found()) => {}
+            Err(e) if e.is_no_records_found() => {}
             Err(e) => failures.push(format!("{t}: {e}")),
         }
     }
@@ -852,6 +856,20 @@ async fn run_tcp(r: &SyntheticRequest, allow_private: bool, out: &mut SyntheticR
 mod tests {
     use super::*;
     use SyntheticAssertionType as K;
+
+    /// A real lookup through the system resolver and through a named server (`OC_TEST_DNS=1`: needs network).
+    #[tokio::test]
+    async fn dns_lookups_resolve_records() {
+        if std::env::var("OC_TEST_DNS").is_err() {
+            return;
+        }
+        for server in ["", "1.1.1.1"] {
+            let r: SyntheticRequest = serde_json::from_value(serde_json::json!({ "host": "example.com", "dnsServer": server })).unwrap();
+            let mut out = SyntheticRunDetail::default();
+            run_dns(&r, false, Duration::from_secs(5), &mut out).await.unwrap_or_else(|e| panic!("{server}: {e}"));
+            assert!(out.records.iter().any(|x| x.kind == "A"), "{server}: {:?}", out.records);
+        }
+    }
     use SyntheticOperator as Op;
 
     fn a(kind: SyntheticAssertionType, operator: SyntheticOperator, property: &str, target: &str) -> SyntheticAssertion {

@@ -1010,6 +1010,29 @@ mod tests {
         assert_eq!(hour_parts(951_782_400_000), ("2000-02-29".into(), "00".into()));
     }
 
+    /// Archive search runs DuckDB over Parquet files shaped like the archived `oc.logs_raw` rows.
+    #[test]
+    fn archive_search_reads_parquet_with_duckdb() {
+        let dir = std::env::temp_dir().join(format!("oc-archive-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("part.parquet");
+        let conn = duckdb::Connection::open_in_memory().unwrap();
+        conn.execute_batch(&format!(
+            "COPY (SELECT * FROM (VALUES \
+               ('id1', TIMESTAMP '2026-10-25 14:00:01', 'error', 'billing', 'i-0a1b2c3d4e5f60001', 'python', 'payment failed', MAP {{'env': 'prod'}}, MAP {{'order_id': '42'}}, '{{\"order_id\":42}}', 'abc', ''), \
+               ('id2', TIMESTAMP '2026-10-25 14:00:02', 'info', 'storefront-api', 'i-0a1b2c3d4e5f60002', 'java', 'page served', MAP {{'env': 'prod'}}, MAP {{}}::MAP(VARCHAR, VARCHAR), '{{}}', '', '') \
+             ) AS t(id, timestamp, status, service, host, source, message, tags, attr, attributes, trace_id, span_id)) TO '{}' (FORMAT parquet)",
+            file.display()
+        ))
+        .unwrap();
+        let range = TimeRange { from: 1_792_936_800_000, to: 1_792_936_900_000 };
+        let (events, total) = duck_search(std::slice::from_ref(&file), &parse_query("service:billing status:error"), None, range, 10).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(total, 1);
+        assert_eq!(events[0]["message"], "payment failed");
+        assert_eq!(events[0]["tags"]["env"], "prod");
+    }
+
     #[test]
     fn file_lists_escape_quotes() {
         assert_eq!(file_list(&[PathBuf::from("/tmp/a'b.parquet")]), "['/tmp/a''b.parquet']");

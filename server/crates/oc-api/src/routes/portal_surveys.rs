@@ -958,12 +958,20 @@ mod tests {
 
     #[test]
     fn respondent_keys_are_per_survey_and_per_user() {
-        let k = respondent_key("salt-a", "0b6f6f0e-7c1d-4b55-9a35-6d2d2d1f0001");
+        // Surveys get random salts, as created.
+        let salt = || {
+            use rand::RngCore;
+            let mut bytes = [0u8; 16];
+            rand::rngs::OsRng.fill_bytes(&mut bytes);
+            bytes.iter().map(|x| format!("{x:02x}")).collect::<String>()
+        };
+        let (a, b) = (salt(), salt());
+        let k = respondent_key(&a, "0b6f6f0e-7c1d-4b55-9a35-6d2d2d1f0001");
         assert_eq!(k.len(), 64);
         assert!(k.chars().all(|c| c.is_ascii_hexdigit()));
-        assert_eq!(k, respondent_key("salt-a", "0b6f6f0e-7c1d-4b55-9a35-6d2d2d1f0001"), "the same user maps to the same key");
-        assert_ne!(k, respondent_key("salt-b", "0b6f6f0e-7c1d-4b55-9a35-6d2d2d1f0001"), "another survey gives another key");
-        assert_ne!(k, respondent_key("salt-a", "0b6f6f0e-7c1d-4b55-9a35-6d2d2d1f0002"));
+        assert_eq!(k, respondent_key(&a, "0b6f6f0e-7c1d-4b55-9a35-6d2d2d1f0001"), "the same user maps to the same key");
+        assert_ne!(k, respondent_key(&b, "0b6f6f0e-7c1d-4b55-9a35-6d2d2d1f0001"), "another survey gives another key");
+        assert_ne!(k, respondent_key(&a, "0b6f6f0e-7c1d-4b55-9a35-6d2d2d1f0002"));
         assert!(!k.contains("0b6f6f0e"), "the key doesn't reveal the user");
     }
 

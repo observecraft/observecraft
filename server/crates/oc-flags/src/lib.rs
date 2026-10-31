@@ -245,11 +245,12 @@ impl EvalError {
 
 // ================================================================ bucketing
 
-/// The subject's bucket in `[0, BUCKETS)` for `salt` (the flag key): the first 8 bytes of
-/// SHA-256(`salt` + "." + `targeting_key`), big-endian, modulo [`BUCKETS`].
-pub fn bucket(salt: &str, targeting_key: &str) -> u32 {
+/// The subject's bucket in `[0, BUCKETS)` for `seed` (the flag key, or its rollout's seed): the first
+/// 8 bytes of SHA-256(`seed` + "." + `targeting_key`), big-endian, modulo [`BUCKETS`]. Hashing here only
+/// spreads subjects evenly and stably; nothing secret goes in or comes out.
+pub fn bucket(seed: &str, targeting_key: &str) -> u32 {
     let mut h = Sha256::new();
-    h.update(salt.as_bytes());
+    h.update(seed.as_bytes());
     h.update(b".");
     h.update(targeting_key.as_bytes());
     let digest = h.finalize();
@@ -275,8 +276,8 @@ pub fn pick(split: &[FlagSplit], b: u32) -> Option<&str> {
     split.last().map(|s| s.variant.as_str())
 }
 
-/// The salt of a flag's rollout, so the rollout's subjects are independent of its splits.
-fn rollout_salt(flag_key: &str) -> String {
+/// The bucketing seed of a flag's rollout, so the rollout's subjects are independent of its splits.
+fn rollout_seed(flag_key: &str) -> String {
     format!("{flag_key}/rollout")
 }
 
@@ -417,7 +418,7 @@ pub fn evaluate(flag_key: &str, variants: &[FlagVariant], cfg: &FlagEnvConfig, c
         }
         if percent > 0.0 {
             let tk = tk.ok_or(EvalError::TargetingKeyMissing)?;
-            if bucket(&rollout_salt(flag_key), tk) < buckets_of(percent) {
+            if bucket(&rollout_seed(flag_key), tk) < buckets_of(percent) {
                 return served(variants, &r.variant, Reason::Split);
             }
         }
