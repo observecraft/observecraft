@@ -1,0 +1,2 @@
+# Reproducible machine reports; keep the implementation and analysis visible in PR reviews.
+docs/benchmarks/results/*.json linguist-generated=true
