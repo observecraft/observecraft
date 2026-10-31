@@ -35,6 +35,7 @@ function VarSelect({ tv, value, onChange }: { tv: TemplateVariable; value: strin
       value={value}
       options={[{ value: '*', label: '*' }, ...(values.data ?? []).map((v) => ({ value: v, label: v }))]}
       onChange={onChange}
+      searchable
       triggerClassName={`dd-trigger tv-trigger${value !== '*' ? ' tv-active' : ''}`}
     />
   );
@@ -144,7 +145,12 @@ export function TemplateVarEditor({ variables, onSave, onClose }: { variables: T
         {rows.map((r, i) => (
           <div key={i} className="tv-edit-row">
             <input placeholder="name" value={r.name} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, name: e.target.value.replace(/\W/g, '_') } : x)))} />
-            <Select value={r.prefix} options={keys.map((k) => ({ value: k, label: k }))} onChange={(prefix) => setRows(rows.map((x, j) => (j === i ? { ...x, prefix, name: x.name || prefix } : x)))} />
+            <Select
+              searchable
+              value={r.prefix}
+              options={keys.map((k) => ({ value: k, label: k }))}
+              onChange={(prefix) => setRows(rows.map((x, j) => (j === i ? { ...x, prefix, name: x.name || prefix } : x)))}
+            />
             <input placeholder="default (*)" value={r.default} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, default: e.target.value || '*' } : x)))} />
             <button className="icon-plain" onClick={() => setRows(rows.filter((_, j) => j !== i))} title="Remove">
               <X size={15} />

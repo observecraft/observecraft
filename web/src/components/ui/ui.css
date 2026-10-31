@@ -61,6 +61,8 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-pop);
   white-space: nowrap;
+  max-height: min(360px, 60vh);
+  overflow-y: auto;
 }
 
 .dd-left {
@@ -265,4 +267,24 @@
 
 .usage-ok > span {
   background: var(--status-ok);
+}
+
+/* Search box of a searchable Select: stays on top while the options scroll. */
+.dd-menu .dd-search {
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  margin-top: -4px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.dd-menu .dd-search input {
+  width: 100%;
+  min-width: 180px;
+}
+.dd-menu .dd-empty {
+  padding: 6px 12px;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
 }
