@@ -10,6 +10,7 @@ const BOUNDS_US: [u64; 11] = [1_000, 5_000, 10_000, 50_000, 100_000, 500_000, 1_
 #[derive(Clone, Copy)]
 pub enum Stage {
     Request,
+    RequestSlot,
     OrgGate,
     PersistedLookup,
     Admission,
@@ -17,8 +18,8 @@ pub enum Stage {
     IndexedInsert,
     OutboxEnqueue,
 }
-const NAMES: [&str; 7] = ["request", "org_gate", "persisted_lookup", "admission", "quota_lock", "indexed_insert", "outbox_enqueue"];
-static HISTOGRAMS: [Histogram; 7] = [const { Histogram::new() }; 7];
+const NAMES: [&str; 8] = ["request", "request_slot", "org_gate", "persisted_lookup", "admission", "quota_lock", "indexed_insert", "outbox_enqueue"];
+static HISTOGRAMS: [Histogram; 8] = [const { Histogram::new() }; 8];
 
 struct Histogram {
     count: AtomicU64,
