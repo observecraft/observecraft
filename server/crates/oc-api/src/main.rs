@@ -101,6 +101,7 @@ async fn main() -> anyhow::Result<()> {
 
     let secrets = auth::crypto::SecretBox::new(&cfg.secret_key);
     let state = AppState(Arc::new(Inner {
+        ingest_http: reqwest::Client::new(),
         clickhouse: oc_store::clickhouse(&ch_cfg),
         org_clients: org_limits::OrgClients::new(&ch_cfg, cfg.org_query.clone()),
         tables: ch_cfg,

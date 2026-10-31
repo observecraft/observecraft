@@ -48,6 +48,7 @@ pub async fn replicas_with(count: usize, configure: impl Fn(&mut crate::config::
     let states = (0..count)
         .map(|_| {
             AppState(Arc::new(Inner {
+                ingest_http: reqwest::Client::new(),
                 config: {
                     let mut config = crate::config::Config::from_env();
                     configure(&mut config);
