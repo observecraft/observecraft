@@ -486,6 +486,8 @@ pub fn metric_points(org: &str, m: &MetricRow, rows: &[MetricBucketRow], retenti
     series
         .into_iter()
         .map(|((t, values), value)| Point {
+            // These are span aggregates, not per-log replay contributions.
+            event_id: String::new(),
             org: org.to_string(),
             metric: m.id.clone(),
             description: description.clone(),
