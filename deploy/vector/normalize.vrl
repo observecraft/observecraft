@@ -19,6 +19,13 @@ res = object(.resources) ?? {}
 attrs = object(.attributes) ?? {}
 root_tags = object(.tags) ?? {}
 
+# Reserved metadata was assigned by the authenticated intake before Kafka. Consume it only on
+# the JSON intake path, before user fields become attributes. Legacy records keep generated IDs.
+identity = if kind == "kafka" || kind == "http_server" { object(._oc_ingest) ?? {} } else { {} }
+del(._oc_ingest)
+ingest_id = to_string(identity.id) ?? ""
+received_at = parse_timestamp(to_string(identity.received_at) ?? "", "%+") ?? null
+
 # ---------------------------------------------------------------- organization
 # Set by oc-intake (JSON over HTTP, or the record headers of Kafka oc.logs.json) or the Collector (OTLP
 # resource); trusted agents set org_id themselves. From Kafka, only the intake's header counts: a field
@@ -168,6 +175,7 @@ for_each(["@timestamp", "timestamp", "_timestamp", "Timestamp", "eventTime", "da
   }
 }
 if is_null(ts) && is_string(.timestamp) { ts = parse_timestamp(string!(.timestamp), "%+") ?? null }
+if is_null(ts) && received_at != null { ts = received_at }
 if is_null(ts) { ts = timestamp(.timestamp) ?? now() }
 ts = timestamp(ts) ?? now()
 
@@ -296,9 +304,14 @@ attrs = filter(attrs) -> |k, _v| { !includes(used, k) }
 attr = map_values(flatten(attrs)) -> |v| { to_string(v) ?? encode_json(v) }
 scope = (to_string(get(., ["scope", "name"]) ?? "") ?? "")
 
+id = uuid_v7(ts)
+if match(ingest_id, r'^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') {
+  id = ingest_id
+}
+
 . = {
   "org_id": org,
-  "id": uuid_v7(ts),
+  "id": id,
   "timestamp": ts,
   "ts_ms": to_unix_timestamp(ts, unit: "milliseconds"),
   "status": status,

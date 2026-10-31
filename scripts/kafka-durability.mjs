@@ -175,8 +175,15 @@ try {
   kafka(['kafka-console-producer', '--bootstrap-server', 'kafka:9092', '--topic', topic, '--property', 'parse.headers=true'], `x-oc-org:${org}\t${JSON.stringify(payload)}\n`);
   const logs = { resourceLogs: [{ scopeLogs: [{ logRecords: [{ timeUnixNano: start.toString(), body: { stringValue: 'order-service OTLP durability probe' }, severityText: 'INFO' }] }] }] };
   const metrics = { resourceMetrics: [{ scopeMetrics: [{ metrics: [{ name: 'system.cpu.user', gauge: { dataPoints: [{ timeUnixNano: start.toString(), asDouble: 42 }] } }] }] }] };
+  // The authenticated intake serializes this reserved metadata before Kafka. Equal events have
+  // distinct IDs; replay must preserve both identities and the original fallback timestamp.
+  const receivedAt = new Date().toISOString();
+  const jsonLogs = [1, 2].map((n) => ({
+    message: 'order-service JSON durability probe', service: 'order-service',
+    _oc_ingest: { id: `019a4000-0000-7000-8000-00000000000${n}`, received_at: receivedAt },
+  }));
   for (const [name, body] of [
-    ['oc.logs.json', { message: 'order-service JSON durability probe', service: 'order-service', timestamp: new Date().toISOString() }],
+    ['oc.logs.json', jsonLogs],
     ['oc.otlp-json.logs', logs],
     ['oc.otlp-json.metrics', metrics],
   ])
@@ -198,10 +205,25 @@ try {
   pending();
   status(true);
   await until(() => Number(sql(`SELECT count() FROM otel.otel_traces WHERE OrgId='${org}'`)) >= 1, 'trace exported after consumer replacement');
-  await until(() => Number(sql(`SELECT count() FROM oc.logs_raw WHERE org_id='${org}'`)) >= 2 && status().indexed >= 2, 'both log paths delivered to both sinks');
+  await until(() => Number(sql(`SELECT count() FROM oc.logs_raw WHERE org_id='${org}'`)) >= 3 && status().indexed >= 3, 'both log paths delivered to both sinks');
   await until(() => Number(sql(`SELECT count() FROM otel.metrics_samples WHERE OrgId='${org}' AND Value=42`)) >= 1, 'metrics delivered');
   for (const [name, consumerGroup] of streams) await until(() => committed(name, consumerGroup) === 1, `${name}: offset committed after export`);
+  const identities = () => sql(`SELECT toString(id), min(toUnixTimestamp64Milli(timestamp)), max(toUnixTimestamp64Milli(timestamp)) FROM oc.logs_raw WHERE org_id='${org}' AND message='order-service JSON durability probe' GROUP BY id ORDER BY id`);
+  const beforeReplay = identities();
+  assert.equal(beforeReplay.split('\n').length, 2, 'equal events retain distinct IDs');
+  for (const event of jsonLogs) assert.ok(beforeReplay.includes(`${event._oc_ingest.id}\t${Date.parse(receivedAt)}\t${Date.parse(receivedAt)}`));
+  docker(['stop', names.vector]);
+  docker(['rm', names.vector]);
+  await until(() => {
+    const output = kafka(['kafka-consumer-groups', '--bootstrap-server', 'kafka:9092', '--group', 'oc-vector', '--topic', 'oc.logs.json', '--reset-offsets', '--to-earliest', '--execute'], undefined, true);
+    return /oc-vector\s+oc.logs.json\s+0\s+0/.test(output);
+  }, 'JSON consumer offsets reset while inactive');
+  const indexedBefore = status().indexed;
+  vector();
+  await until(() => status().indexed >= indexedBefore + 2 && committed('oc.logs.json', 'oc-vector') === 1, 'JSON logs replayed through replacement consumer');
+  assert.equal(identities(), beforeReplay, 'replay preserves IDs and fallback timestamps');
   console.log('PASS: traces, metrics, OTLP/JSON logs, both log sinks, outage, consumer volume loss, replay and tenant stamping');
+  console.log('PASS: equal JSON events remain distinct and retain their IDs/timestamps after an explicit Kafka offset reset (storage remains at-least-once)');
 } catch (error) {
   console.error(docker(['logs', '--tail', '25', names.collector], undefined, true));
   console.error(docker(['logs', '--tail', '25', names.vector], undefined, true));

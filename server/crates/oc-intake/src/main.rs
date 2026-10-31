@@ -64,6 +64,7 @@ mod datadog_tags;
 mod grpc;
 mod host_tags;
 mod kafka;
+mod log_identity;
 mod metric_rules;
 mod ofrep;
 mod otlp;
@@ -445,10 +446,19 @@ async fn send_with(
     org: &KeyOrg,
     sink: Sink,
     content_type: Option<&HeaderValue>,
-    content_encoding: Option<&HeaderValue>,
-    body: Bytes,
+    mut content_encoding: Option<&HeaderValue>,
+    mut body: Bytes,
     extra: &[(&str, &str)],
 ) -> Result<Upstream, Rejection> {
+    if sink == Sink::JsonLogs {
+        let mut headers = HeaderMap::new();
+        if let Some(encoding) = content_encoding {
+            headers.insert(header::CONTENT_ENCODING, encoding.clone());
+        }
+        let decoded = datadog::inflate(&headers, &body).map_err(|_| Rejection::new(StatusCode::BAD_REQUEST, "cannot decompress body"))?;
+        body = log_identity::prepare(&decoded).map_err(|message| Rejection::new(StatusCode::BAD_REQUEST, message))?.into();
+        content_encoding = None;
+    }
     if let Some(kafka) = &st.kafka {
         return produce(kafka, org, sink, content_type, content_encoding, body, extra).await;
     }
@@ -492,7 +502,7 @@ async fn send_with(
     }
 }
 
-/// Authenticates, rate limits and forwards one request body to `target` unchanged.
+/// Authenticates, rate limits and forwards one request body; JSON logs gain ingestion identities.
 async fn forward(st: Shared, headers: HeaderMap, body: Bytes, target: Sink) -> Response {
     let org = match admit(&st, &headers, body.len()).await {
         Ok(org) => org,

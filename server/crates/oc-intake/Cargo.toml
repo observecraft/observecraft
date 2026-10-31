@@ -17,6 +17,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # Datadog payloads: zlib/deflate, gzip and zstd bodies; protobuf series (agent-payload).
 flate2 = "1"
 prost = "0.13"
+rand = "0.8"
 oc-flags.workspace = true
 oc-query.workspace = true
 reqwest.workspace = true
