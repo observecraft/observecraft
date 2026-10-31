@@ -81,6 +81,7 @@ node scripts/ingestion-benchmark.mjs
 | `OC_BENCH_MODE` | `all` | `throughput` skips faults; `faults` runs only delayed/paused storage |
 | `OC_BENCH_ORGS` | `4` | Organizations per phase, 1–16 |
 | `OC_BENCH_API_REPLICAS` | `2` | Independent API processes, 1–4 |
+| `OC_BENCH_VECTOR_REPLICAS` | `1` | Independent consumers sharing `oc-vector`, 1–4; each gets the listed Vector CPU/RAM cap |
 | `OC_BENCH_BATCH` | `500` | Logs per authenticated sender request, 10–2,000 |
 | `OC_BENCH_CONCURRENCY` | `16` | Maximum in-flight sender requests, 1–128 |
 | `OC_BENCH_MESSAGE_BYTES` | `128` | Repetitive message suffix length, 32–4,096 |
@@ -117,6 +118,10 @@ the actual release timestamp includes observation overhead and is recorded.
 - **Resource peaks and spool size** are sampled; they are not continuous high-water marks.
   Docker CPU percent uses 100% per CPU. Memory is Docker's reported working set, not Rust heap
   size. The sampler itself runs Docker/Kafka/SQL commands and adds observation overhead.
+- **Stage timings**, on application images exposing `oc_log_ingest_stage_seconds`, subtract
+  post-warmup counters from the final scrape and aggregate API replicas. Counts, elapsed sums and
+  means include failed/cancelled operations. Request/admission stages contain other stages, so
+  their sums overlap and are not CPU time. Older images without these metrics report no stages.
 - **Postgres WAL bytes** cover the isolated database server over the phase, including receipt,
   counter and outbox work, full-page images, checkpoints and background jobs. They are not solely
   receipt payload bytes. Table growth includes page allocation, indexes and churn; short phases

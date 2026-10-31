@@ -62,6 +62,9 @@ test('invalid rates and excessive request counts fail before starting any contai
   for (const rates of ['', '1000,1000', 'abc', '0', '100001']) assert.throws(() => configFrom({ OC_BENCH_RATES: rates }));
   assert.throws(() => configFrom({ OC_BENCH_SECONDS: '300', OC_BENCH_RATES: '100000', OC_BENCH_BATCH: '10' }));
   assert.throws(() => configFrom({ OC_BENCH_API_REPLICAS: '0' }));
+  assert.throws(() => configFrom({ OC_BENCH_VECTOR_REPLICAS: '5' }));
+  assert.equal(configFrom({}).vectorReplicas, 1);
+  assert.equal(configFrom({ OC_BENCH_VECTOR_REPLICAS: '2' }).vectorReplicas, 2);
 });
 test('throughput ramps and fault experiments can run independently', () => {
   assert.equal(phases(configFrom({ OC_BENCH_MODE: 'throughput' })).length, 5);
