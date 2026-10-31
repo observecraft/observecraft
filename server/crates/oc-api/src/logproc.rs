@@ -46,6 +46,7 @@ use oc_query::{matches, parse_query, Fields, Term};
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::ingest_stats::{self, Stage};
 use crate::log_forwarding::{self, Forwarder};
 use crate::log_metrics::{self, Aggregator, Definition, OrgMetrics, Retention};
 use crate::pipelines::{self, Pipeline};
@@ -167,7 +168,10 @@ impl Indexer {
                 .unwrap_or_default()
                 .into_iter()
                 .filter(|e| e.enabled)
-                .map(|e| Exclusion { terms: parse_query(&e.query), rate: e.sample_rate.clamp(0.0, 100.0) })
+                .map(|e| Exclusion {
+                    terms: parse_query(&e.query),
+                    rate: e.sample_rate.clamp(0.0, 100.0),
+                })
                 .collect();
             by_org.entry(r.org_id).or_default().push(IndexRule {
                 name: r.name,
@@ -235,7 +239,11 @@ impl Indexer {
         .await?;
         let mut by_org: HashMap<String, OrgMetrics> = HashMap::new();
         for r in rows {
-            let retention = Retention { raw: r.raw, rollup_5m: r.rollup_5m, rollup_1h: r.rollup_1h };
+            let retention = Retention {
+                raw: r.raw,
+                rollup_5m: r.rollup_5m,
+                rollup_1h: r.rollup_1h,
+            };
             let definition = Definition::stored(&r.name, &r.query, &r.aggregation, r.path.as_deref(), &r.group_by);
             by_org.entry(r.org_id).or_insert_with(|| OrgMetrics { definitions: Vec::new(), retention }).definitions.push(definition);
         }
@@ -351,7 +359,9 @@ async fn persisted_admissions(st: &AppState, rows: &[&Value]) -> Result<Admissio
 }
 
 fn string_map(v: Option<&Value>) -> HashMap<String, String> {
-    v.and_then(Value::as_object).map(|o| o.iter().map(|(k, v)| (k.clone(), v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string()))).collect()).unwrap_or_default()
+    v.and_then(Value::as_object)
+        .map(|o| o.iter().map(|(k, v)| (k.clone(), v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string()))).collect())
+        .unwrap_or_default()
 }
 
 /// Process pipelines once, before looking up the persisted event identities and timestamps.
@@ -427,6 +437,7 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
     if !internal_authorized(st.config.internal_token.as_deref(), &headers) {
         return StatusCode::UNAUTHORIZED;
     }
+    let _request_timer = ingest_stats::timer(Stage::Request);
     let now = now_ms();
     let rules = ix.rules.read().unwrap().clone();
     let prepared = prepare_batch(&ix, &body, now);
@@ -448,9 +459,12 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
         orgs.into_iter().map(|org| gates.entry(org.to_string()).or_default().clone()).collect()
     };
     let mut _org_guards = Vec::with_capacity(locks.len());
+    let gate_timer = ingest_stats::timer(Stage::OrgGate);
     for lock in locks {
         _org_guards.push(lock.lock_owned().await);
     }
+    drop(gate_timer);
+    let lookup_timer = ingest_stats::timer(Stage::PersistedLookup);
     let mut existing = match persisted_admissions(&st, &quota_rows).await {
         Ok(existing) => existing,
         Err(e) => {
@@ -458,6 +472,7 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
             return StatusCode::SERVICE_UNAVAILABLE;
         }
     };
+    drop(lookup_timer);
     let mut reservations = Reservations::new(&ix);
     let has_metrics = prepared
         .iter()
@@ -471,7 +486,9 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
         if chunk.is_empty() {
             break;
         }
+        let admission_timer = ingest_stats::timer(Stage::Admission);
         let admission = tokio::time::timeout(Duration::from_secs(20), quota::admit(&st, &ix, chunk, &mut existing, &mut reservations, now_ms(), &rules)).await;
+        drop(admission_timer);
         let (rows, _seen, kept) = match admission {
             Ok(Ok(result)) => result,
             failure => {
@@ -489,11 +506,13 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
         for ((org, metric), logs) in dropped {
             tracing::warn!(%org, %metric, logs, max_series = log_metrics::MAX_SERIES_PER_METRIC, "generated metric has too many series: logs of new series not counted");
         }
+        let outbox_timer = ingest_stats::timer(Stage::OutboxEnqueue);
         if let Err(e) = crate::log_metric_outbox::enqueue(&st, points).await {
             tracing::warn!(error = %e, "persisting generated metric exports failed");
             // Both log storage and the durable metric spool must succeed before Vector can commit.
             return StatusCode::SERVICE_UNAVAILABLE;
         }
+        drop(outbox_timer);
         reservations.counts.clear();
         existing.extend(reservations.admitted.drain());
     }
@@ -502,6 +521,7 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
 
 /// `INSERT INTO <table> … FORMAT JSONEachRow` of NDJSON rows.
 pub(crate) async fn insert_rows(st: &AppState, table: &str, rows: Vec<u8>) -> Result<(), String> {
+    let _timer = (table == "oc.logs_dedup").then(|| ingest_stats::timer(Stage::IndexedInsert));
     let query = format!("INSERT INTO {table} SETTINGS input_format_skip_unknown_fields = 1, date_time_input_format = 'best_effort', insert_distributed_sync = 1 FORMAT JSONEachRow");
     let res = reqwest::Client::new()
         .post(&st.config.clickhouse_url)
@@ -531,7 +551,7 @@ async fn internal_metrics(State(st): State<AppState>, headers: HeaderMap) -> Res
     if !internal_authorized(st.config.internal_token.as_deref(), &headers) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    ([(header::CONTENT_TYPE, "text/plain; version=0.0.4")], st.cache.render_metrics()).into_response()
+    ([(header::CONTENT_TYPE, "text/plain; version=0.0.4")], st.cache.render_metrics() + &ingest_stats::render()).into_response()
 }
 
 /// Starts the internal indexer listener and its refresh loops.

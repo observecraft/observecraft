@@ -10,6 +10,7 @@ mod cache;
 mod config;
 mod demo;
 mod error;
+mod ingest_stats;
 mod live_feed;
 mod log_access;
 mod log_forwarding;

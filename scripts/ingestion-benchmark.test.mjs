@@ -1,6 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { configFrom, phases, distribution, kafkaOffsets, totalLag, memoryBytes, percentile } from './ingestion-benchmark/model.mjs';
+import { configFrom, phases, distribution, kafkaOffsets, totalLag, memoryBytes, percentile, stageMetrics, stageDelta } from './ingestion-benchmark/model.mjs';
+
+test('ingestion stage timings aggregate replicas and subtract warmup without inventing absent metrics', () => {
+  const parsed = stageMetrics({
+    api1: 'oc_log_ingest_stage_seconds_count{stage="admission"} 3\noc_log_ingest_stage_seconds_sum{stage="admission"} 0.75\n',
+    api2: 'oc_log_ingest_stage_seconds_count{stage="admission"} 2\noc_log_ingest_stage_seconds_sum{stage="admission"} 0.25\n# ignored',
+  });
+  assert.deepEqual(stageDelta({ admission: { count: 1, seconds: 0.2 } }, parsed), { admission: { count: 4, seconds: 0.8, meanMs: 200 } });
+  assert.deepEqual(stageMetrics({ oldApi: 'oc_cache_hits_total 1' }), {});
+  assert.deepEqual(stageDelta({}, { admission: { count: 0, seconds: 0 } }).admission.meanMs, null);
+});
+test('counter resets and invalid ingestion stage observations fail instead of reporting a speedup', () => {
+  assert.throws(() => stageDelta({ admission: { count: 5, seconds: 1 } }, { admission: { count: 1, seconds: 0.2 } }));
+  assert.throws(() => stageMetrics({ api1: 'oc_log_ingest_stage_seconds_sum{stage="admission"} 1e999' }));
+});
 
 test('latency percentiles use actual nearest-rank observations without mutating samples', () => {
   const values = Array.from({ length: 20 }, (_, n) => 20 - n);
