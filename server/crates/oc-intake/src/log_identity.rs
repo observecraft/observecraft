@@ -4,13 +4,17 @@
 use chrono::{DateTime, Utc};
 use serde_json::{Map, Value};
 
-fn stamp(event: &mut Map<String, Value>, received_at: DateTime<Utc>) {
+pub(super) fn new_id(received_at: DateTime<Utc>) -> String {
     // UUIDv7: the acceptance time followed by random bits, with the version and variant set.
     let mut bits = ((received_at.timestamp_millis() as u128 & 0xffff_ffff_ffff) << 80) | (rand::random::<u128>() & 0xffff_ffff_ffff_ffff_ffff);
     bits = (bits & !(0xf << 76)) | (7 << 76);
     bits = (bits & !(3 << 62)) | (2 << 62);
     let hex = format!("{bits:032x}");
-    let id = format!("{}-{}-{}-{}-{}", &hex[..8], &hex[8..12], &hex[12..16], &hex[16..20], &hex[20..]);
+    format!("{}-{}-{}-{}-{}", &hex[..8], &hex[8..12], &hex[12..16], &hex[16..20], &hex[20..])
+}
+
+fn stamp(event: &mut Map<String, Value>, received_at: DateTime<Utc>) {
+    let id = new_id(received_at);
     // This field is reserved: callers cannot choose another accepted event's identity.
     event.insert("_oc_ingest".into(), serde_json::json!({"id": id, "received_at": received_at.to_rfc3339()}));
 }

@@ -20,8 +20,11 @@ attrs = object(.attributes) ?? {}
 root_tags = object(.tags) ?? {}
 
 # Reserved metadata was assigned by the authenticated intake before Kafka. Consume it only on
-# the JSON intake path, before user fields become attributes. Legacy records keep generated IDs.
-identity = if kind == "kafka" || kind == "http_server" { object(._oc_ingest) ?? {} } else { {} }
+# intake paths, before user fields become attributes. Legacy records keep generated IDs.
+identity = if kind == "kafka" || kind == "http_server" { object(._oc_ingest) ?? {} } else if otlp {
+  { "id": get(attrs, ["oc.ingest_id"]) ?? null, "received_at": get(attrs, ["oc.ingest_received_at"]) ?? null }
+} else { {} }
+attrs = filter(attrs) -> |k, _v| { k != "oc.ingest_id" && k != "oc.ingest_received_at" }
 del(._oc_ingest)
 ingest_id = to_string(identity.id) ?? ""
 received_at = parse_timestamp(to_string(identity.received_at) ?? "", "%+") ?? null
@@ -175,6 +178,7 @@ for_each(["@timestamp", "timestamp", "_timestamp", "Timestamp", "eventTime", "da
   }
 }
 if is_null(ts) && is_string(.timestamp) { ts = parse_timestamp(string!(.timestamp), "%+") ?? null }
+if is_null(ts) && otlp && is_timestamp(.timestamp) { ts = .timestamp }
 if is_null(ts) && received_at != null { ts = received_at }
 if is_null(ts) { ts = timestamp(.timestamp) ?? now() }
 ts = timestamp(ts) ?? now()

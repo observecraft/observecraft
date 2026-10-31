@@ -65,6 +65,7 @@ mod grpc;
 mod host_tags;
 mod kafka;
 mod log_identity;
+mod otlp_log_identity;
 mod metric_rules;
 mod ofrep;
 mod otlp;
@@ -450,13 +451,24 @@ async fn send_with(
     mut body: Bytes,
     extra: &[(&str, &str)],
 ) -> Result<Upstream, Rejection> {
-    if sink == Sink::JsonLogs {
+    if sink == Sink::JsonLogs || sink == Sink::Logs {
         let mut headers = HeaderMap::new();
         if let Some(encoding) = content_encoding {
             headers.insert(header::CONTENT_ENCODING, encoding.clone());
         }
         let decoded = datadog::inflate(&headers, &body).map_err(|_| Rejection::new(StatusCode::BAD_REQUEST, "cannot decompress body"))?;
-        body = log_identity::prepare(&decoded).map_err(|message| Rejection::new(StatusCode::BAD_REQUEST, message))?.into();
+        let prepared = if sink == Sink::JsonLogs {
+            log_identity::prepare(&decoded)
+        } else {
+            let json = content_type.and_then(|v| v.to_str().ok()).is_some_and(|v| v.contains("json"));
+            otlp_log_identity::prepare_limited(&decoded, json, st.cfg.max_body)
+        };
+        body = prepared
+            .map_err(|message| {
+                let status = if message == otlp_log_identity::TOO_LARGE { StatusCode::PAYLOAD_TOO_LARGE } else { StatusCode::BAD_REQUEST };
+                Rejection::new(status, message)
+            })?
+            .into();
         content_encoding = None;
     }
     if let Some(kafka) = &st.kafka {

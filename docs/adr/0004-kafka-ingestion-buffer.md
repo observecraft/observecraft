@@ -93,6 +93,16 @@ event timestamp, the same fallback time. Equal events in one batch or separate r
 Invalid JSON and arrays containing non-objects are rejected before Kafka acceptance. Compressed requests are
 decoded before stamping on both the Kafka and direct HTTP paths.
 
+OTLP logs (`/v1/logs`, HTTP JSON/protobuf and gRPC, including gzip/zstd) also receive a UUIDv7
+before Kafka, in reserved log attributes `oc.ingest_id` and `oc.ingest_received_at`. Sender values
+are replaced. Vector extracts these before parsing the body and removes them from user attributes.
+The intake preserves unknown protobuf fields, resource/scope schema URLs, trace/span IDs and
+structured bodies without re-encoding them through its partial Datadog conversion model.
+When event time is missing or zero, it sets it to the supplied observed time, or to acceptance time
+if both are absent. The persisted timestamp therefore survives replay, including logs without a
+timestamp. OTLP metadata expansion is bounded by the intake body limit (default 16 MiB); oversized
+batches receive HTTP 413 / gRPC ResourceExhausted before Kafka and must be split.
+
 New writes go to `oc.logs_dedup` and `oc.logs_raw_dedup`, both ReplacingMergeTree tables.
 Their sort key includes org, service, timestamp and ID; the shard key is `cityHash64(org_id, id)`.
 `oc.logs_read` and `oc.logs_raw_read` apply FINAL, so search, monitors, index volumes and archives
@@ -125,7 +135,7 @@ and FINAL adds read work; benchmark these costs before sizing a large installati
 installations must set `insert_distributed_sync=1`, `wait_for_async_insert=1` and
 `http_wait_end_of_query=1` for the ingestion user's profile, as the bundled chart does.
 
-Remaining boundaries: OTLP logs and legacy Kafka records without the envelope still receive new IDs at
+Remaining boundaries: legacy Kafka records and trusted agents bypassing intake without identities still receive new IDs at
 normalization, so their replay is not deduplicated by identity. A sender retry accepted as a new request
 also gets new IDs; there is no client idempotency-key contract.
 
@@ -178,8 +188,8 @@ later failure. Source acknowledgement still waits for the whole request, and the
 per metric is shared across all its chunks. Requests without generated metrics retain one bulk write.
 
 Deduplication requires stable source IDs and immutable metric definitions, processed fields, labels,
-event time and retention. Modern JSON UUIDv7 IDs also supply a stable acceptance clock for the
-20-minute lateness policy, including delayed Kafka replay. OTLP/legacy records without stable
+event time and retention. Intake-issued JSON/OTLP UUIDv7 IDs also supply a stable acceptance clock for the
+20-minute lateness policy, including delayed Kafka replay. Legacy records without stable
 normalization identities still get new IDs on source replay; a newly accepted sender retry also
 gets new IDs. Changing configuration is a rebuild operation, not immutable replay. The guarantee
 lasts while the canonical event state is retained; resharding must move existing identities and
@@ -201,9 +211,13 @@ does not open or drain old file-backed queues. Resume ingestion after the upgrad
 It holds the storage/indexer unavailable for 310 seconds, verifies that offsets remain uncommitted, destroys both
 consumers and their local queues, then checks that replacements export traces, metrics and OTLP/JSON logs with
 the correct tenant before committing. The indexer is an HTTP test endpoint; raw log storage uses real ClickHouse. The test also resets JSON
-consumer offsets and checks raw read deduplication, then inserts indexed events in changed batches to
+and OTLP consumer offsets and checks raw read deduplication, then inserts indexed events in changed batches to
 verify search/error/facet counts before background merges, tenant isolation and repeated legacy backfill.
 `OC_DURABILITY_OUTAGE_SECONDS=15` is a shorter smoke test, not verification of the former five-minute retry limit.
+Set `OC_DURABILITY_INTAKE_IMAGE=observecraft:local` after building the current image to additionally
+run the actual intake against disposable Postgres/Kafka. This sends both JSON and protobuf OTLP
+logs through authentication, stamps two identical events independently, destroys/recreates consumers,
+then resets both OTLP log topics and verifies stable identities and event/fallback timestamps in ClickHouse.
 The test uses the shipped Collector configuration. It does not stop or reuse the application stack.
 
 Metric replay also needs rollup repair. `otel.metrics_arrivals` records arrival minutes and event-time buckets
