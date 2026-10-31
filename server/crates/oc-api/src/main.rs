@@ -117,6 +117,9 @@ async fn main() -> anyhow::Result<()> {
     routes::ingest_keys::ensure_demo_key(&state)
         .await
         .context("demo ingest key")?;
+    routes::ingest_keys::ensure_demo_app_key(&state)
+        .await
+        .context("demo application key")?;
     routes::rum::ensure_demo_application(&state)
         .await
         .context("demo RUM application")?;
@@ -160,6 +163,9 @@ async fn main() -> anyhow::Result<()> {
         }
         if let Err(e) = routes::appsec::seed_demo(&state, &state.config.dev_org).await {
             tracing::warn!(error = %e, "seeding demo App & API Protection data failed");
+        }
+        if let Err(e) = routes::ai_guard::seed_demo(&state, &state.config.dev_org).await {
+            tracing::warn!(error = %e, "seeding demo AI Guard settings failed");
         }
         if let Err(e) = routes::cloud_security::seed_demo_advisories(&state).await {
             tracing::warn!(error = %e, "seeding demo Cloud Security advisories failed");

@@ -24,6 +24,8 @@ clickhouse.workspace = true
 data-encoding = "2"
 # Log pipelines: grok patterns use atomic groups and lookarounds, which `regex` lacks.
 fancy-regex = "0.20"
+# AI Guard's evaluator and sensitive data scanners (linear-time matching on untrusted prompts).
+regex = "1"
 # Archive search over Parquet files (C++ engine compiled in; Parquet reader included).
 duckdb = { version = "=1.20000.1", features = ["bundled", "parquet"] }
 # Profiles: gzip-compressed pprof uploads.

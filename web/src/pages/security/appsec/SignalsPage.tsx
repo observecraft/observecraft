@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { EChartsOption } from 'echarts';
 import { AlertTriangle, ArrowRight, ChevronDown, ChevronRight, Filter, Globe, Hand, Inbox, Pencil, Plus, Search, Siren, UserPlus, Users, X } from 'lucide-react';
-import type { SecuritySignal, SignalEntity } from '../../../api/security/client';
+import type { SecuritySignal, SignalEntity, SignalFacet } from '../../../api/security/client';
 import { Chart } from '../../../components/charts/Chart';
 import { TimePicker } from '../../../components/shell/PageHeader';
 import { TimeProvider, useTime } from '../../../components/shell/TimeContext';
@@ -20,7 +20,7 @@ import { useBlock, useSecurityTraces } from './queries';
 import './findings.css';
 
 const MIN = 60_000;
-const SCOPE = '@workflow.rule.type:application_security';
+const SCOPE = '@workflow.rule.type:application_security -ai_guard:true';
 const SEVERITIES = ['critical', 'high', 'medium', 'low', 'info'];
 
 /** The security activity a signal's rule looks for, from its query (`@appsec.type:sql_injection` → sql_injection). */
@@ -30,10 +30,10 @@ function activityOf(s: SecuritySignal): string {
   return m ? m[1] : 'other';
 }
 
-const entity = (s: SecuritySignal, k: string) => (s.entities as unknown as Record<string, SignalEntity | undefined>)[k];
+export const entity = (s: SecuritySignal, k: string) => (s.entities as unknown as Record<string, SignalEntity | undefined>)[k];
 
 /** A dropdown with its label above the value. */
-function LabeledSelect({ label, value, options, onChange }: { label: string; value: string; options: [string, string][]; onChange: (v: string) => void }) {
+export function LabeledSelect({ label, value, options, onChange }: { label: string; value: string; options: [string, string][]; onChange: (v: string) => void }) {
   return (
     <label className="fi-select">
       <span>{label}</span>
@@ -49,22 +49,79 @@ function LabeledSelect({ label, value, options, onChange }: { label: string; val
   );
 }
 
+/** A dropdown of the signals list, filtering on the server (`query`) or in the page (`match`). */
+export interface SignalsFilter {
+  key: string;
+  label: string;
+  options: (all: SecuritySignal[], facets: SignalFacet[]) => [string, string][];
+  query?: (value: string) => string;
+  match?: (s: SecuritySignal, value: string) => boolean;
+}
+
+export type SignalsCard = 'critical' | 'open' | 'mine';
+
+/** What a product's signals page shows: its rules, filters, cards and columns, and the signal panel. */
+export interface SignalsConfig {
+  /** The search scope, e.g. `@workflow.rule.type:application_security`. */
+  scope: string;
+  filters: SignalsFilter[];
+  /** Severities selected until the user picks another value, comma-separated (`critical,high,medium`). */
+  defaultSeverity?: string;
+  cards: SignalsCard[];
+  searchPlaceholder: string;
+  emptyHint: string;
+  where: (s: SecuritySignal) => ReactNode;
+  who: (s: SecuritySignal) => ReactNode;
+  panel: (id: string, onClose: () => void) => ReactNode;
+}
+
+const AAP_SIGNALS: SignalsConfig = {
+  scope: SCOPE,
+  filters: [
+    { key: 'service', label: 'Service', options: (_all, facets) => (facets.find((f) => f.key === 'service')?.values ?? []).map((v) => [v.value, v.value]), query: (v) => `service:${v}` },
+    { key: 'activity', label: 'Security Activity', options: (all) => [...new Set(all.map(activityOf))].sort().map((a) => [a, a]), match: (s, v) => activityOf(s) === v },
+  ],
+  cards: ['critical', 'open', 'mine'],
+  searchPlaceholder: 'Search signals: @workflow.rule.name:… @http.client_ip:…',
+  emptyHint: 'Signals appear when the application security detection rules match your security traces.',
+  where: (s) => (
+    <>
+      {s.services.slice(0, 1).map((x) => (
+        <span key={x} className="fi-service">
+          <Globe size={12} /> {x}
+        </span>
+      ))}
+      {s.env && <span className="tag-chip">env:{s.env}</span>}
+    </>
+  ),
+  who: (s) => {
+    const ip = entity(s, 'ip');
+    return ip && ip.count > 1 ? <span className="fi-chip">{compact(ip.count)} IPs</span> : ip?.top[0] ? <span className="fi-chip mono">{ip.top[0]}</span> : null;
+  },
+  panel: (id, onClose) => <AppsecSignalPanel id={id} onClose={onClose} />,
+};
+
 /** App & API Protection → Signals: the signals of the application security detection rules, over the past week by default. */
 export function AppsecSignalsPage() {
   return (
     <TimeProvider initial="1w">
-      <Signals />
+      <SignalsExplorer config={AAP_SIGNALS} />
     </TimeProvider>
   );
 }
 
-function Signals() {
+const CARD_LABEL: Record<SignalsCard, [string, string]> = { critical: ['Critical & High', 'fi-card-critical'], open: ['Open signals', ''], mine: ['Assigned to you', 'fi-card-mine'] };
+
+/** A product's signals: filters, the Critical & High / Open / Assigned cards, the list and the signal panel. Inside a TimeProvider. */
+export function SignalsExplorer({ config }: { config: SignalsConfig }) {
   const [params, setParams] = useSearchParams();
   const { range } = useTime();
   const me = useMe();
-  const severity = params.get('severity') ?? '';
-  const service = params.get('service') ?? '';
-  const activity = params.get('activity') ?? '';
+  const rawSeverity = params.get('severity') ?? config.defaultSeverity ?? '';
+  const severity = rawSeverity === 'all' ? '' : rawSeverity;
+  // One severity narrows the search; several are kept in the page.
+  const severities = severity.includes(',') ? severity.split(',') : null;
+  const values = Object.fromEntries(config.filters.map((f) => [f.key, params.get(f.key) ?? '']));
   const card = params.get('card') ?? '';
   const query = params.get('q') ?? '';
   const open = params.get('signal');
@@ -82,7 +139,12 @@ function Signals() {
       { replace: k !== 'signal' },
     );
   const r = useMemo(() => ({ from: Math.floor(range.from / MIN) * MIN, to: Math.ceil(range.to / MIN) * MIN }), [range.from, range.to]);
-  const signals = useSignals({ range: r, query: [SCOPE, severity && `status:${severity}`, service && `service:${service}`, query].filter(Boolean).join(' '), state: '', limit: 200 });
+  const signals = useSignals({
+    range: r,
+    query: [config.scope, !severities && severity && `status:${severity}`, ...config.filters.map((f) => f.query && values[f.key] && f.query(values[f.key])), query].filter(Boolean).join(' '),
+    state: '',
+    limit: 200,
+  });
   const all = signals.data?.signals ?? [];
   const bulk = useBulkSignals();
   const mine = (s: SecuritySignal) => !!me.data && s.assignee?.email === me.data.email;
@@ -93,13 +155,17 @@ function Signals() {
   };
   const rows = all.filter(
     (s) =>
-      (!activity || activityOf(s) === activity) &&
+      (!severities || severities.includes(s.severity)) &&
+      config.filters.every((f) => !f.match || !values[f.key] || f.match(s, values[f.key])) &&
       (card !== 'critical' || (s.state !== 'archived' && (s.severity === 'critical' || s.severity === 'high'))) &&
       (card !== 'open' || s.state === 'open') &&
       (card !== 'mine' || (s.state !== 'archived' && mine(s))),
   );
-  const services = (signals.data?.facets.find((f) => f.key === 'service')?.values ?? []).map((v) => [v.value, v.value] as [string, string]);
-  const activities = [...new Set(all.map(activityOf))].sort().map((a) => [a, a] as [string, string]);
+  const facets = signals.data?.facets ?? [];
+  const severityOptions: [string, string][] = [
+    ...(config.defaultSeverity ? [[config.defaultSeverity, config.defaultSeverity.split(',').join(', ')] as [string, string]] : []),
+    ...SEVERITIES.map((s) => [s, s[0].toUpperCase() + s.slice(1)] as [string, string]),
+  ];
   const toggle = (id: string) =>
     setSelected((s) => {
       const n = new Set(s);
@@ -108,11 +174,7 @@ function Signals() {
       return n;
     });
   const bulkState = (state: string, archiveReason?: string) => bulk.mutate({ ids: [...selected], state: { state, archiveReason } }, { onSuccess: () => setSelected(new Set()) });
-  const cards: [string, string, number, string][] = [
-    ['critical', 'Critical & High', counts.critical, 'fi-card-critical'],
-    ['open', 'Open signals', counts.open, ''],
-    ['mine', 'Assigned to you', counts.mine, 'fi-card-mine'],
-  ];
+  const cards: [string, string, number, string][] = config.cards.map((k) => [k, CARD_LABEL[k][0], counts[k], CARD_LABEL[k][1]]);
   return (
     <div className="sec-page fi-page">
       <div className="fi-top">
@@ -137,13 +199,14 @@ function Signals() {
             }}
           >
             <Search size={14} />
-            <input placeholder="Search signals: @workflow.rule.name:… @http.client_ip:…" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => set('q', draft.trim() || null)} />
+            <input placeholder={config.searchPlaceholder} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => set('q', draft.trim() || null)} />
           </form>
         ) : (
           <>
-            <LabeledSelect label="Severity" value={severity} options={SEVERITIES.map((s) => [s, s[0].toUpperCase() + s.slice(1)])} onChange={(v) => set('severity', v || null)} />
-            <LabeledSelect label="Service" value={service} options={services} onChange={(v) => set('service', v || null)} />
-            <LabeledSelect label="Security Activity" value={activity} options={activities} onChange={(v) => set('activity', v || null)} />
+            <LabeledSelect label="Severity" value={severity} options={severityOptions} onChange={(v) => set('severity', v || (config.defaultSeverity ? 'all' : null))} />
+            {config.filters.map((f) => (
+              <LabeledSelect key={f.key} label={f.label} value={values[f.key]} options={f.options(all, facets)} onChange={(v) => set(f.key, v || null)} />
+            ))}
             <button className="btn" onClick={() => setSearching(true)}>
               <Plus size={14} /> Filter
             </button>
@@ -194,7 +257,7 @@ function Signals() {
           <div className="fi-empty">
             <Search size={40} />
             <p>No signals match.</p>
-            <span className="muted">Signals appear when the application security detection rules match your security traces.</span>
+            <span className="muted">{config.emptyHint}</span>
           </div>
         ) : (
           <table className="mon-table syn-table fi-signals">
@@ -212,7 +275,6 @@ function Signals() {
             </thead>
             <tbody>
               {rows.map((s) => {
-                const ip = entity(s, 'ip');
                 return (
                   <tr key={s.id} className={s.id === open ? 'selected' : ''} onClick={() => set('signal', s.id)}>
                     <td className="sec-check" onClick={(e) => e.stopPropagation()}>
@@ -234,15 +296,8 @@ function Signals() {
                       )}
                       <b className="sec-title">{s.title}</b>
                     </td>
-                    <td className="nowrap fi-where">
-                      {s.services.slice(0, 1).map((x) => (
-                        <span key={x} className="fi-service">
-                          <Globe size={12} /> {x}
-                        </span>
-                      ))}
-                      {s.env && <span className="tag-chip">env:{s.env}</span>}
-                    </td>
-                    <td className="nowrap">{ip && ip.count > 1 ? <span className="fi-chip">{compact(ip.count)} IPs</span> : ip?.top[0] ? <span className="fi-chip mono">{ip.top[0]}</span> : null}</td>
+                    <td className="nowrap fi-where">{config.where(s)}</td>
+                    <td className="nowrap">{config.who(s)}</td>
                   </tr>
                 );
               })}
@@ -250,7 +305,11 @@ function Signals() {
           </table>
         )}
       </div>
-      {open && createPortal(<AppsecSignalPanel id={open} onClose={() => set('signal', null)} />, document.body)}
+      {open &&
+        createPortal(
+          config.panel(open, () => set('signal', null)),
+          document.body,
+        )}
     </div>
   );
 }

@@ -82,6 +82,13 @@ fn not_replayed(version: &str, feature: &str) -> Option<NotReplayed> {
             "Upload Custom Costs File returns \"Accepted\" response",
             "Upload Custom Costs file returns \"Bad Request\" response",
         ])),
+        // Workload Protection's agent rules and policies; not the delete recordings answered 404
+        // upstream. (The legacy cloud workload security endpoints' US1-FED recordings have no
+        // cassette under their scenarios' names, so they aren't replayed either.)
+        ("v2", "CSM Threats") => Some(NotReplayed::Containing(&[
+            "Delete a Workload Protection agent rule returns \"OK\" response",
+            "Delete a Workload Protection policy returns \"OK\" response",
+        ])),
         // RUM applications; not events search and aggregation, source maps or repository information.
         // (Creating is replayed by the scenarios' given steps: its own cassettes were recorded under
         // other names than its scenarios.)
@@ -596,8 +603,11 @@ mod tests {
     }
 
     /// The features the tests replay (what `scripts/datadog-fixtures/fetch.sh` downloads).
-    const FEATURES: [&str; 17] = [
+    const FEATURES: [&str; 20] = [
         "v1/authentication",
+        "v2/csm_threats",
+        "v2/csm_agents",
+        "v2/csm_coverage_analysis",
         "v2/application_security",
         "v2/rum",
         "v2/security_monitoring",

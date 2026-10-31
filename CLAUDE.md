@@ -78,6 +78,9 @@ or SDK features.
   - orchestrator manifests `/api/v2/orchmanif`, which feed the Kubernetes Explorer;
   - feature flag evaluation over OpenFeature's OFREP (`/ofrep/v1/evaluate/flags[/{key}]`, `oc-intake/src/ofrep.rs`,
     model in `oc-flags`), for any OpenFeature SDK with the OFREP provider; also takes the key as `X-API-Key`;
+  - the Agent's runtime security events `/api/v2/secruntime` and `/api/v2/secinfo` (logs payloads,
+    `source:runtime-security-agent`), stored as logs (Workload Protection); its inventory `/api/v1/metadata` in
+    `datadog_hosts.agent_inventory`;
   - `/api/v1/validate`. The API key is also accepted as `?api_key=`.
 - **Management API (server, `server/crates/oc-api/src/routes/datadog_api`):** Datadog's configuration endpoints for
   its Terraform provider and API clients (ADR-0003, `docs/datadog-api.md`), with Datadog's `{"errors": [...]}` shape
@@ -96,6 +99,19 @@ or SDK features.
   (`/api/v2/remote_config/products/asm/waf/...`, Postgres `appsec_waf_objects`); the denylist is `appsec_denylist`;
   API findings are our own rules mapped to the OWASP API Top 10; `application_security` detection rules run in
   `security_engine.rs`.
+- **Workload Protection** (`workload_protection.rs`, `workload_catalog.rs`, `datadog_api/csm_threats.rs`): agent
+  policies and agent rules are `datadog_csm_threats_policy` / `_agent_rule` (`/api/v2/remote_config/products/cws/...`,
+  Postgres `cws_policies` / `cws_agent_rules`; the default ones are our catalog, installed per org); Agents and coverage
+  are `/api/v2/csm/onboarding/...` from `datadog_hosts`; events are logs (`source:runtime-security-agent`), monitored
+  counts the Agent's `datadog.runtime_security.perf_buffer.events.write`; `workload_security` detection rules run in
+  `security_engine.rs`; findings are `workload_activity` rules evaluated over the events. Without Remote Configuration,
+  Agents load the downloaded policy files (`/policy/download`).
+- **AI Guard** (`ai_guard.rs`, `ai_guard_engine.rs`, `datadog_api/ai_guard.rs`): the tracers' AI Guard SDKs call
+  `POST /api/v2/ai-guard/evaluate` on the API (`DD_AI_GUARD_ENDPOINT`, app + API key); the evaluator is our own
+  (weighted patterns per attack category, tool-call rules, sensitive data scanners, per-org threshold and per-service
+  blocking in Postgres `ai_guard_settings`); the server writes each evaluation to ClickHouse `otel.ai_guard_evaluations`
+  itself. The SDK's `ai_guard` spans (client IP, user) are joined from `otel_traces`; Discover reads LLM spans
+  (`llm_attrs`); AI Guard's detection rules are `application_security` rules on `@ai_guard.*` queries (tag `ai_guard:true`).
 - **New features start from the Terraform provider.** Before designing the API of a product area, check whether
   [`DataDog/terraform-provider-datadog`](https://github.com/DataDog/terraform-provider-datadog) (MPL-2.0: read it,
   don't copy it) has resources for it (`datadog_<area>_*`). If it does, the configuration lives under the Datadog
@@ -130,7 +146,11 @@ or SDK features.
     costs are the cost metrics `all.cost`, `aws.cost.amortized`, …, `cloud_cost.rs`);
   - Cloud Security's cloud account scanning (provider APIs: misconfigurations of cloud resources, identity risks,
     attack paths), compliance frameworks and the resource map (its misconfigurations cover hosts and Kubernetes,
-    `cloud_security_rules.rs`); Workload Protection, the live debugger and remote configuration;
+    `cloud_security_rules.rs`); the live debugger and remote configuration;
+  - Workload Protection's delivery of policies to Agents (Remote Configuration; policy files are downloaded instead),
+    blocking and kill actions, security profiles and its dashboards (threats, findings, FIM, IMDS, sessions);
+  - AI Guard's LLM-based judging (an optional OpenAI-compatible judge is not built), redaction replacements, the
+    Supply Chain Firewall verdicts and its Datadog API cassettes (the pinned client commit predates them);
   - App & API Protection's delivery to the tracers (Remote Configuration: WAF rules, blocking, denylist), the managed
     WAF ruleset itself, DAST and its dashboards (attack summary, account takeover, OWASP);
   - Cloud SIEM's other detection methods (new value, anomaly, impossible travel, sequences), signal correlation rules,

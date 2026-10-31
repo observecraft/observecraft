@@ -2835,6 +2835,7 @@ dependencies = [
  "prost",
  "rand 0.8.8",
  "redis",
+ "regex",
  "reqwest",
  "rmp-serde",
  "rskafka",

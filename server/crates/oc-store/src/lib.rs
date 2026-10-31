@@ -114,6 +114,10 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
         "0016_rum_replay",
         include_str!("../../../migrations/clickhouse/0016_rum_replay.sql"),
     ),
+    (
+        "0017_ai_guard",
+        include_str!("../../../migrations/clickhouse/0017_ai_guard.sql"),
+    ),
 ];
 
 /// Migrations of the schema before 0001_schema (no org-first sort keys, no cluster support).
