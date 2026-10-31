@@ -146,31 +146,50 @@ events. Restored daily totals still use event timestamps; late events and change
 make those totals differ from ingestion-day accounting. Admission reuse lasts only while the indexed
 row is retained and requires the same immutable identity fields as storage deduplication above.
 
-Generated log metrics aggregate each internal request into 10-second event-time buckets, including
-logs excluded from indexes. Before acknowledging that request, the indexer commits the aggregate
-payloads to Postgres `log_metric_outbox`. No per-log payloads or IDs are journaled there. A background
-worker exports the saved count/distribution rows into the existing OpenTelemetry metric ingest
-tables. Row locks with `SKIP LOCKED` let replicas share work and release unfinished work on restart.
-Successful sink payloads are cleared even when the other sink fails, and an export attempt is
-bounded to 30 seconds per sink. Up to four organizations export concurrently per API replica.
+Generated log metrics retain one contribution per source event, metric, series and 10-second
+bucket, including logs excluded from indexes. Duplicate identities inside a request contribute
+once. Before acknowledging the source request, the indexer commits these metric contributions
+to the bounded Postgres `log_metric_outbox`; no raw log bodies or permanent per-event receipt
+journal are added to Postgres. A background worker exports through `metrics_log_ingest_sum` /
+`metrics_log_ingest_exponential_histogram`, feeding the existing normalized OpenTelemetry points,
+series and tag catalog. The reserved `oc.log_event_id` attribute does not become a series label.
 
-The spool is bounded per organization to 64 MiB of pending payloads and 4,096 batches; reaching
-either limit or losing Postgres returns 503 to the source instead of dropping metric points.
-Kafka retains the unacknowledged source delivery. This adds Postgres writes only for requests that
-produce generated metrics, one compact batch per organization per request, and increases series
-metadata writes relative to the previous 10-second in-memory flush. The series cap is 1,000 per
-metric per request. Size Postgres/WAL and benchmark this bounded spool before enabling generated
-metrics at high volume; a Kafka-backed derived stream is the next scaling option if needed.
-Modern JSON UUIDv7 IDs supply a stable acceptance clock for the existing 20-minute lateness policy,
-so delayed delivery/replay does not make an originally eligible event too old. Legacy/OTLP IDs
-without that clock retain the processing-time fallback.
+ClickHouse stores event-bearing scalar/distribution samples in `metrics_log_samples` /
+`metrics_log_dist_samples` (ReplacingMergeTree, deterministically routed by series). Shard-local
+read views apply FINAL before aggregating unique contributions into 10-second points; histogram
+bucket indexes are aligned before combining their counts. The common `metrics_samples_read` /
+`metrics_dist_samples_read` views combine these with ordinary metric samples. Explorers, dashboards,
+other metric readers and rollups use these common views. Arrival markers on the new tables schedule
+late rollup repair just as ordinary samples do. Correctness does not depend on background merges,
+outbox batch boundaries or exporter deduplication windows: a lost insert acknowledgement, worker
+restart or source replay may write more physical rows, but retained identities contribute once.
 
-This closes the acknowledged-but-only-in-memory loss window; exports remain at least once.
-Source replay can enqueue another contribution, and a crash/timeout after ClickHouse accepted an
-insert but before its outbox transaction committed can duplicate it. Neither an outbox nor an
-in-memory seen-ID cache supplies end-to-end deduplication. That still requires canonical event
-contributions and idempotent metric storage/aggregation; ordinary delta samples cannot simply
-be overwritten by bucket, because independently delivered contributions must all count.
+Outbox row locks with SKIP LOCKED share work across replicas. Successful sink payloads are cleared
+even when another fails. Each sink attempt is bounded to 30 seconds, and up to four organizations
+export concurrently per API replica. The spool remains bounded per organization to 64 MiB of pending
+payloads and 4,096 batches. A full spool or unavailable Postgres returns 503, retaining source ownership
+with Kafka. Per-event payloads cost more than the former per-request aggregates: benchmark outbox/WAL,
+ClickHouse event-state volume, FINAL/grouping reads and Vector batch sizes at the intended log rate.
+If one request expands beyond the spool cap, reduce its batch size or generated metric definitions;
+a Kafka-backed derived stream is a scaling option for replacing the Postgres retry spool.
+Requests for organizations with generated metrics are processed in chunks of 512 events so event contributions
+do not accumulate for an entire Vector batch. Completed prefixes can safely be replayed after a
+later failure. Source acknowledgement still waits for the whole request, and the 1,000-series budget
+per metric is shared across all its chunks. Requests without generated metrics retain one bulk write.
+
+Deduplication requires stable source IDs and immutable metric definitions, processed fields, labels,
+event time and retention. Modern JSON UUIDv7 IDs also supply a stable acceptance clock for the
+20-minute lateness policy, including delayed Kafka replay. OTLP/legacy records without stable
+normalization identities still get new IDs on source replay; a newly accepted sender retry also
+gets new IDs. Changing configuration is a rebuild operation, not immutable replay. The guarantee
+lasts while the canonical event state is retained; resharding must move existing identities and
+series consistently. It applies to contributions produced by this
+version: historical aggregate samples and older pending payloads have no event IDs and cannot be
+deduplicated retroactively. Drain Kafka and the old outbox before upgrading; replaying pre-upgrade
+history across that boundary requires rebuilding the corresponding generated metric history.
+Before downgrading, drain the new outbox and preserve/export the new sample tables; older binaries
+read only the legacy sample tables. Outbox transport itself remains at least once, while the new
+metric sample reads and rollups deduplicate stable contributions.
 Raw metric samples, traces and live tail retain at-least-once semantics.
 
 Before upgrading from file-backed Collector/Vector queues, stop new ingestion, leave the old consumers running

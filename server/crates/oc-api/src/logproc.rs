@@ -315,6 +315,8 @@ struct Reservations<'a> {
     ix: &'a Indexer,
     counts: HashMap<(String, String, i64), u64>,
     metrics: Aggregator,
+    admitted: Admissions,
+    metric_definitions: HashMap<String, Arc<OrgMetrics>>,
 }
 
 impl<'a> Reservations<'a> {
@@ -323,6 +325,8 @@ impl<'a> Reservations<'a> {
             ix,
             counts: HashMap::new(),
             metrics: Aggregator::default(),
+            admitted: Admissions::new(),
+            metric_definitions: ix.log_metrics.read().unwrap().clone(),
         }
     }
 }
@@ -395,7 +399,8 @@ fn prepare_batch(ix: &Indexer, body: &[u8], now: i64) -> Vec<Value> {
         let Ok(mut ev) = serde_json::from_slice::<Value>(line) else { continue };
         let org_id = ev.get("org_id").and_then(Value::as_str).unwrap_or("").to_string();
         let org_pipelines = ix.pipelines.read().unwrap().get(&org_id).cloned().unwrap_or_default();
-        pipelines::process_row(&org_pipelines, &ix.standard_for(&org_id), &mut ev, now);
+        let clock = ev.get("id").and_then(Value::as_str).map(|id| log_metrics::processing_clock(id, now)).unwrap_or(now);
+        pipelines::process_row(&org_pipelines, &ix.standard_for(&org_id), &mut ev, clock);
         rows.push(ev);
     }
     rows
@@ -420,10 +425,10 @@ fn admit_batch(ix: &Indexer, rows: Vec<Value>, existing: &Admissions, reservatio
             attr: &attr,
             index: None,
         };
-        let org_metrics = ix.log_metrics.read().unwrap().get(&org).cloned();
+        let org_metrics = reservations.metric_definitions.get(&org).cloned();
         if let Some(m) = org_metrics {
             let ts = ev.get("ts_ms").and_then(Value::as_i64).unwrap_or(now);
-            reservations.metrics.record(&org, &m, &f, ts, log_metrics::processing_clock(&id, now));
+            reservations.metrics.record_event(&org, &m, &f, ts, log_metrics::processing_clock(&id, now), &id);
         }
         ix.forwarder.record(&org, &f, &ev);
         // Duplicate identities in one batch spend one slot, including before any row is persisted.
@@ -432,6 +437,7 @@ fn admit_batch(ix: &Indexer, rows: Vec<Value>, existing: &Admissions, reservatio
             .entry(key.clone())
             .or_insert_with(|| existing.get(&key).cloned().or_else(|| ix.route(&org, &id, &f, now, reservations, rules)));
         let Some((index, retention)) = decision else { continue };
+        reservations.admitted.insert((org, id), (index.clone(), *retention));
         if let Some(o) = ev.as_object_mut() {
             o.insert("index_name".into(), Value::String(index.clone()));
             o.insert("retention_days".into(), Value::from(*retention));
@@ -484,7 +490,7 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
     for lock in locks {
         _org_guards.push(lock.lock_owned().await);
     }
-    let existing = match persisted_admissions(&st, &quota_rows).await {
+    let mut existing = match persisted_admissions(&st, &quota_rows).await {
         Ok(existing) => existing,
         Err(e) => {
             tracing::warn!(error = %e, "checking persisted log admissions failed");
@@ -492,23 +498,37 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
         }
     };
     let mut reservations = Reservations::new(&ix);
-    let (rows, _seen, kept) = admit_batch(&ix, prepared, &existing, &mut reservations, now, &rules);
-    if kept > 0 {
-        if let Err(e) = insert_rows(&st, "oc.logs_dedup", rows).await {
-            tracing::warn!(error = %e, "indexing logs failed");
+    let has_metrics = prepared
+        .iter()
+        .any(|ev| ev.get("org_id").and_then(Value::as_str).is_some_and(|org| reservations.metric_definitions.contains_key(org)));
+    let chunk_size = if has_metrics { 512 } else { usize::MAX };
+    let mut input = prepared.into_iter();
+    loop {
+        // Per-event identity must survive transport, but its expansion must not accumulate for
+        // an entire Vector batch. Committed prefixes are safe to repeat after a later failure.
+        let chunk: Vec<_> = input.by_ref().take(chunk_size).collect();
+        if chunk.is_empty() {
+            break;
+        }
+        let (rows, _seen, kept) = admit_batch(&ix, chunk, &existing, &mut reservations, now_ms(), &rules);
+        if kept > 0 {
+            if let Err(e) = insert_rows(&st, "oc.logs_dedup", rows).await {
+                tracing::warn!(error = %e, "indexing logs failed");
+                return StatusCode::SERVICE_UNAVAILABLE;
+            }
+        }
+        let (points, dropped) = reservations.metrics.take_contributions();
+        for ((org, metric), logs) in dropped {
+            tracing::warn!(%org, %metric, logs, max_series = log_metrics::MAX_SERIES_PER_METRIC, "generated metric has too many series: logs of new series not counted");
+        }
+        if let Err(e) = crate::log_metric_outbox::enqueue(&st, points).await {
+            tracing::warn!(error = %e, "persisting generated metric exports failed");
+            // Both log storage and the durable metric spool must succeed before Vector can commit.
             return StatusCode::SERVICE_UNAVAILABLE;
         }
+        reservations.counts.clear();
+        existing.extend(reservations.admitted.drain());
     }
-    let (points, dropped) = reservations.metrics.drain();
-    for ((org, metric), logs) in dropped {
-        tracing::warn!(%org, %metric, logs, max_series = log_metrics::MAX_SERIES_PER_METRIC, "generated metric has too many series: logs of new series not counted");
-    }
-    if let Err(e) = crate::log_metric_outbox::enqueue(&st, points).await {
-        tracing::warn!(error = %e, "persisting generated metric exports failed");
-        // Both log storage and the durable metric spool must succeed before Vector can commit.
-        return StatusCode::SERVICE_UNAVAILABLE;
-    }
-    reservations.counts.clear();
     StatusCode::OK
 }
 
@@ -906,6 +926,59 @@ mod tests {
         let r = IndexRule { reset_hour: 14, ..rule("main", "", Some(1), vec![]) };
         // 2026-10-25T13:00Z belongs to the day that started 2026-10-24T14:00Z.
         assert_eq!(r.day_start(1_792_933_200_000), 1_792_850_400_000);
+    }
+
+    #[tokio::test]
+    async fn chunked_metric_delivery_reuses_admissions_without_spending_quota_twice() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let Some((_, states)) = crate::test_support::replicas_with(1, |cfg| cfg.clickhouse_url = url.clone()).await else {
+            return;
+        };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "metric-chunks").await;
+        let ix = Arc::new(Indexer::default());
+        ix.rules.write().unwrap().insert(org.clone(), Arc::new(vec![rule("main", "", Some(3), vec![])]));
+        ix.log_metrics.write().unwrap().insert(
+            org.clone(),
+            Arc::new(OrgMetrics {
+                definitions: vec![Definition::new("logs.requests", "", Aggregation::Count, &[])],
+                retention: Retention::default(),
+            }),
+        );
+        let writes = Arc::new(Mutex::new(Vec::new()));
+        let captured = writes.clone();
+        let server = tokio::spawn(async move {
+            let app = Router::new().route(
+                "/",
+                post(move |body: Bytes| {
+                    let captured = captured.clone();
+                    async move {
+                        captured.lock().unwrap().push(body.split(|b| *b == b'\n').filter(|l| !l.is_empty()).count());
+                        ""
+                    }
+                }),
+            );
+            axum::serve(listener, app).await.unwrap();
+        });
+        let now = now_ms();
+        let event = |n: usize| {
+            let mut ev: Value = serde_json::from_str(&line(&org, &format!("00000000-0000-4000-8000-{n:012}"), "order-service", "info")).unwrap();
+            ev["ts_ms"] = now.into();
+            format!("{ev}\n")
+        };
+        let mut body = (1..=513).map(event).collect::<String>();
+        body.push_str(&event(1));
+        assert_eq!(ingest(State((st.clone(), ix.clone())), HeaderMap::new(), Bytes::from(body)).await, StatusCode::OK);
+        assert_eq!(*writes.lock().unwrap(), vec![3, 1], "the later chunk still delivers a previously admitted identity at full quota");
+        assert_eq!(ix.counters.lock().unwrap()[&(org.clone(), "main".into())].n, 3);
+        let batches: i64 = sqlx::query_scalar("SELECT count(*) FROM log_metric_outbox WHERE org_id = $1")
+            .bind(&org)
+            .fetch_one(&st.postgres)
+            .await
+            .unwrap();
+        assert_eq!(batches, 2, "contributions are durably spooled in bounded chunks");
+        server.abort();
     }
 
     #[tokio::test]

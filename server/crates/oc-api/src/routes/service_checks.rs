@@ -207,7 +207,7 @@ pub async fn detail(State(st): State<AppState>, ctx: AuthContext, Json(req): Jso
     let points = ch
         .query(&format!(
             "SELECT s.host AS host, s.tags AS tags, toInt64(toUnixTimestamp(toStartOfInterval(x.TimeUnix, INTERVAL {step_s} SECOND, 'UTC'))) * 1000 AS t, groupUniqArray(toUInt8(least(greatest(x.Value, 0), 3))) AS statuses \
-             FROM otel.metrics_samples AS x INNER JOIN ({SERIES}) AS s ON x.SeriesId = s.SeriesId \
+             FROM otel.metrics_samples_read AS x INNER JOIN ({SERIES}) AS s ON x.SeriesId = s.SeriesId \
              WHERE x.OrgId = {{oc_org:String}} AND x.MetricName = ? AND x.TimeUnix >= fromUnixTimestamp64Milli(?) AND x.TimeUnix <= fromUnixTimestamp64Milli(?) \
              GROUP BY host, tags, t ORDER BY host, tags, t"
         ))
@@ -221,7 +221,7 @@ pub async fn detail(State(st): State<AppState>, ctx: AuthContext, Json(req): Jso
     let latest = ch
         .query(&format!(
             "SELECT s.host AS host, s.tags AS tags, argMax(x.Value, x.TimeUnix) AS status \
-             FROM otel.metrics_samples AS x INNER JOIN ({SERIES}) AS s ON x.SeriesId = s.SeriesId \
+             FROM otel.metrics_samples_read AS x INNER JOIN ({SERIES}) AS s ON x.SeriesId = s.SeriesId \
              WHERE x.OrgId = {{oc_org:String}} AND x.MetricName = ? AND x.TimeUnix >= fromUnixTimestamp64Milli(?) AND x.TimeUnix <= fromUnixTimestamp64Milli(?) \
              GROUP BY host, tags"
         ))

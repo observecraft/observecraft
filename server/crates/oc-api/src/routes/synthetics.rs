@@ -631,6 +631,7 @@ fn metric_points(org: &str, test: &TestRow, run: &SyntheticRunDetail, at: i64, r
         }
     }
     let point = |metric: &str, description: &str, tags: Vec<(String, String)>, value: PointValue| Point {
+        event_id: String::new(),
         org: org.to_string(),
         metric: metric.to_string(),
         description: Arc::from(description),

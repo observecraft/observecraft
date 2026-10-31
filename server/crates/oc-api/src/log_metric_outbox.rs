@@ -69,7 +69,7 @@ async fn export_one(st: &AppState, org: &str) -> Result<bool, String> {
     let Some((id, mut sums, mut histograms)) = batch else { return Ok(false) };
     let mut failure = None;
     let mut changed = false;
-    for (table, rows) in [("otel.metrics_ingest_sum", &mut sums), ("otel.metrics_ingest_exponential_histogram", &mut histograms)] {
+    for (table, rows) in [("otel.metrics_log_ingest_sum", &mut sums), ("otel.metrics_log_ingest_exponential_histogram", &mut histograms)] {
         if rows.is_empty() {
             continue;
         }
@@ -164,6 +164,7 @@ mod tests {
 
     fn points(org: &str) -> Vec<Point> {
         let count = Point {
+            event_id: String::new(),
             org: org.into(),
             metric: "logs.checkout".into(),
             description: "Log count".into(),
@@ -183,6 +184,186 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn replay_and_lost_export_acknowledgements_preserve_counts_distributions_and_rollups() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let Some((_, backend)) = crate::test_support::replicas(1).await else { return };
+        let Some((_, workers)) = crate::test_support::replicas_with(2, |cfg| cfg.clickhouse_url = url.clone()).await else {
+            return;
+        };
+        let st = &backend[0];
+        let org = crate::test_support::new_org(st, "metric-identity").await;
+        let other = crate::test_support::new_org(st, "metric-identity-other").await;
+        let backend_state = st.clone();
+        let lost = Arc::new(AtomicUsize::new(0));
+        let server = tokio::spawn(async move {
+            let app = Router::new().route(
+                "/",
+                post(move |Query(q): Query<std::collections::HashMap<String, String>>, body: axum::body::Bytes| {
+                    let st = backend_state.clone();
+                    let lost = lost.clone();
+                    async move {
+                        let table = if q["query"].contains("metrics_log_ingest_sum") {
+                            "otel.metrics_log_ingest_sum"
+                        } else {
+                            "otel.metrics_log_ingest_exponential_histogram"
+                        };
+                        crate::logproc::insert_rows(&st, table, body.to_vec()).await.unwrap();
+                        if lost.fetch_add(1, Ordering::SeqCst) == 0 {
+                            (StatusCode::SERVICE_UNAVAILABLE, "response lost after durable write")
+                        } else {
+                            (StatusCode::OK, "")
+                        }
+                    }
+                }),
+            );
+            axum::serve(listener, app).await.unwrap();
+        });
+        for table in ["metrics_log_samples", "metrics_log_dist_samples"] {
+            let sql = format!("SYSTEM STOP MERGES ${{ON_CLUSTER}} otel.{table}${{LOCAL}}");
+            for sql in oc_store::render(&sql, st.tables.cluster.as_deref()) {
+                st.clickhouse.query(&sql).execute().await.unwrap();
+            }
+        }
+        let at = (crate::routes::metrics::now_ms() - 15 * 60_000).div_euclid(300_000) * 300_000 + 10_000;
+        let event = |org: &str, id: &str, value: f64| {
+            let mut points = points(org);
+            let mut histogram = Histogram::default();
+            histogram.add(value);
+            points[0].value = PointValue::Count(1);
+            points[1].value = PointValue::Distribution(histogram);
+            for point in &mut points {
+                point.event_id = id.to_string();
+                point.time_ms = at;
+            }
+            points
+        };
+        let initial = [event(&org, "event-a", 10.0), event(&org, "event-b", 20.0)].concat();
+        enqueue(st, initial).await.unwrap();
+        assert!(export_one(&workers[0], &org).await.is_err(), "the first insert committed, but its acknowledgement was lost");
+        assert!(export_one(&workers[1], &org).await.unwrap(), "a replacement worker repeats that committed insert");
+        let regrouped = [event(&org, "event-b", 20.0), event(&org, "event-c", -5.0), event(&org, "event-a", 10.0)].concat();
+        enqueue(st, regrouped).await.unwrap();
+        export_one(&workers[0], &org).await.unwrap();
+        enqueue(st, event(&other, "event-a", 10.0)).await.unwrap();
+        export_one(&workers[1], &other).await.unwrap();
+        assert_eq!(
+            st.ch(&org)
+                .query("SELECT sum(Value) FROM otel.metrics_samples_read WHERE OrgId = {oc_org:String}")
+                .fetch_one::<f64>()
+                .await
+                .unwrap(),
+            3.0
+        );
+        assert_eq!(
+            st.ch(&other)
+                .query("SELECT sum(Value) FROM otel.metrics_samples_read WHERE OrgId = {oc_org:String}")
+                .fetch_one::<f64>()
+                .await
+                .unwrap(),
+            1.0
+        );
+        #[derive(clickhouse::Row, serde::Deserialize)]
+        struct Distribution {
+            n: u64,
+            sum: f64,
+            min: f64,
+            max: f64,
+            positive: u64,
+            negative: u64,
+            offset: i32,
+            buckets: Vec<u64>,
+        }
+        let distribution = st.ch(&org).query("SELECT Count AS n, Sum AS sum, Min AS min, Max AS max, arraySum(PositiveBucketCounts) AS positive, arraySum(NegativeBucketCounts) AS negative, PositiveOffset AS offset, PositiveBucketCounts AS buckets FROM otel.metrics_dist_samples_read WHERE OrgId = {oc_org:String}")
+            .fetch_one::<Distribution>().await.unwrap();
+        assert_eq!(
+            (distribution.n, distribution.sum, distribution.min, distribution.max, distribution.positive, distribution.negative),
+            (3, 25.0, -5.0, 20.0, 2, 1)
+        );
+        assert_eq!(distribution.offset, crate::log_metrics::bucket_index(10.0));
+        assert_eq!(distribution.buckets.len(), 65, "histogram bucket indexes must be aligned, not summed by array position");
+        assert_eq!((distribution.buckets[0], distribution.buckets[64]), (1, 1));
+        assert!(
+            st.ch(&org)
+                .query("SELECT count() FROM otel.metrics_arrivals WHERE OrgId = {oc_org:String}")
+                .fetch_one::<u64>()
+                .await
+                .unwrap()
+                > 0
+        );
+        let physical = st
+            .ch(&org)
+            .query("SELECT count() FROM otel.metrics_log_samples WHERE OrgId = {oc_org:String}")
+            .fetch_one::<u64>()
+            .await
+            .unwrap();
+        assert!(physical > 3, "the test leaves physical duplicates: correctness must not wait for merges");
+        let range = crate::routes::logs::TimeRange {
+            from: at.div_euclid(300_000) * 300_000,
+            to: at.div_euclid(300_000) * 300_000 + 300_000,
+        };
+        let query = oc_query::parse_metric_query("sum:logs.checkout{*}").unwrap();
+        let (groups, step) = crate::routes::metrics::evaluate_query_stepped(st, &org, &query, range, 1).await.unwrap();
+        assert_eq!(
+            groups.iter().flat_map(|g| &g.points).map(|p| p.1).sum::<f64>() * step as f64 / 1000.0,
+            3.0,
+            "the ordinary metrics API reads the canonical contributions"
+        );
+        for _ in 0..2 {
+            crate::metric_rollups::roll(&st.ch(&org), st.tables.cluster.is_some(), crate::metric_rollups::Tier::FiveMinutes, range.from, range.to)
+                .await
+                .unwrap();
+            assert_eq!(
+                st.ch(&org)
+                    .query("SELECT sum(Sum) FROM otel.metrics_rollup_5m FINAL WHERE OrgId = {oc_org:String}")
+                    .fetch_one::<f64>()
+                    .await
+                    .unwrap(),
+                3.0
+            );
+            assert_eq!(
+                st.ch(&org)
+                    .query("SELECT sum(CountTotal) FROM otel.metrics_dist_rollup_5m FINAL WHERE OrgId = {oc_org:String}")
+                    .fetch_one::<u64>()
+                    .await
+                    .unwrap(),
+                3
+            );
+        }
+        assert_eq!(
+            st.ch(&org)
+                .query("SELECT uniqExact(SeriesId) FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND MetricName = 'logs.checkout'")
+                .fetch_one::<u64>()
+                .await
+                .unwrap(),
+            1
+        );
+        let legacy = crate::test_support::new_org(st, "metric-legacy-payload").await;
+        let mut legacy_points = points(&legacy);
+        for point in &mut legacy_points {
+            point.time_ms = at;
+        }
+        enqueue(st, legacy_points).await.unwrap();
+        export_one(&workers[0], &legacy).await.unwrap();
+        assert_eq!(
+            st.ch(&legacy)
+                .query("SELECT sum(Value) FROM otel.metrics_samples WHERE OrgId = {oc_org:String}")
+                .fetch_one::<f64>()
+                .await
+                .unwrap(),
+            2.0,
+            "older queued aggregates keep their ordinary storage path"
+        );
+        for table in ["metrics_log_samples", "metrics_log_dist_samples"] {
+            let sql = format!("SYSTEM START MERGES ${{ON_CLUSTER}} otel.{table}${{LOCAL}}");
+            for sql in oc_store::render(&sql, st.tables.cluster.as_deref()) {
+                st.clickhouse.query(&sql).execute().await.unwrap();
+            }
+        }
+        server.abort();
+    }
+
+    #[tokio::test]
     async fn retry_after_restart_keeps_only_the_failed_sink() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
@@ -199,7 +380,7 @@ mod tests {
                 post(move |Query(q): Query<std::collections::HashMap<String, String>>| {
                     let (sums, hist) = (sum_calls.clone(), hist_calls.clone());
                     async move {
-                        if q["query"].contains("metrics_ingest_sum") {
+                        if q["query"].contains("metrics_log_ingest_sum") {
                             sums.fetch_add(1, Ordering::SeqCst);
                             (StatusCode::OK, "")
                         } else if hist.fetch_add(1, Ordering::SeqCst) == 0 {

@@ -101,7 +101,7 @@ pub(crate) fn rollup_sql(tier: Tier) -> [&'static str; 2] {
             "INSERT INTO otel.metrics_rollup_5m (OrgId, MetricName, SeriesId, Bucket, Min, Max, Sum, Count, First, Last, Start, End, RetentionDays, Retention1hDays) \
              SELECT OrgId, MetricName, SeriesId, toStartOfFiveMinutes(TimeUnix) AS b, min(Value), max(Value), sum(Value), count(), \
                     argMin(Value, TimeUnix), argMax(Value, TimeUnix), min(TimeUnix), max(TimeUnix), Retention5mDays, max(Retention1hDays) \
-             FROM otel.metrics_samples \
+             FROM otel.metrics_samples_read \
              WHERE OrgId = {oc_org:String} AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix < fromUnixTimestamp64Milli(?) \
              GROUP BY OrgId, MetricName, SeriesId, b, Retention5mDays",
             "INSERT INTO otel.metrics_dist_rollup_5m (OrgId, MetricName, SeriesId, Bucket, CountFirst, CountLast, CountTotal, SumFirst, SumLast, SumTotal, Min, Max, \
@@ -113,7 +113,7 @@ pub(crate) fn rollup_sql(tier: Tier) -> [&'static str; 2] {
                     argMax(ExplicitBounds, TimeUnix), argMax(Scale, TimeUnix), argMax(PositiveOffset, TimeUnix), \
                     argMax(`ValueAtQuantiles.Quantile`, TimeUnix), sumForEach(`ValueAtQuantiles.Value`), \
                     count(), min(TimeUnix), max(TimeUnix), Retention5mDays, max(Retention1hDays) \
-             FROM otel.metrics_dist_samples \
+             FROM otel.metrics_dist_samples_read \
              WHERE OrgId = {oc_org:String} AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix < fromUnixTimestamp64Milli(?) \
              GROUP BY OrgId, MetricName, SeriesId, b, Retention5mDays",
         ],
@@ -141,7 +141,7 @@ pub(crate) fn rollup_sql(tier: Tier) -> [&'static str; 2] {
 /// Rolls up `[from, to)` of `tier` with `ch`, an org's client (`AppState::ch`). In a cluster each
 /// shard rolls up its own series (series, samples and rollups share the shard).
 pub(crate) async fn roll(ch: &clickhouse::Client, cluster: bool, tier: Tier, from: i64, to: i64) -> Result<(), clickhouse::error::Error> {
-    let ch = if cluster { ch.clone().with_option("parallel_distributed_insert_select", "2") } else { ch.clone() };
+    let ch = if cluster { ch.clone().with_option("parallel_distributed_insert_select", "2").with_option("insert_distributed_sync", "1") } else { ch.clone() };
     for sql in rollup_sql(tier) {
         ch.query(sql).bind(from).bind(to).execute().await?;
     }
@@ -160,7 +160,7 @@ pub(crate) fn replicas_caught_up(delay_secs: u64, lateness_secs: i64) -> bool {
 pub(crate) async fn replica_delay(ch: &clickhouse::Client, cluster: &str) -> Result<u64, clickhouse::error::Error> {
     ch.query(
         "SELECT toUInt64(max(absolute_delay)) FROM clusterAllReplicas({cluster:String}, system.replicas) \
-         WHERE database = 'otel' AND table IN ('metrics_samples_local', 'metrics_dist_samples_local', 'metrics_rollup_5m_local', 'metrics_dist_rollup_5m_local', 'metrics_arrivals_local')",
+         WHERE database = 'otel' AND table IN ('metrics_samples_local', 'metrics_log_samples_local', 'metrics_log_dist_samples_local', 'metrics_dist_samples_local', 'metrics_rollup_5m_local', 'metrics_dist_rollup_5m_local', 'metrics_arrivals_local')",
     )
     .with_option("param_cluster", cluster)
     .fetch_one()

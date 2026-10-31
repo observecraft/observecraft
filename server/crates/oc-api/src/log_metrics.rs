@@ -1,7 +1,7 @@
 //! Logs-based metrics (Logs → Configuration → Generate Metrics): the indexer matches every log,
 //! after pipelines and before index routing (so excluded or unindexed logs count too), against its
-//! org's metric definitions and aggregates each request's matches into short buckets per (org,
-//! metric, group-by values). The indexer persists these buckets to a bounded outbox before source
+//! org's metric definitions and keeps event contributions in short buckets per (org, metric,
+//! group-by values). The indexer persists these contributions to a bounded outbox before source
 //! acknowledgement; its worker writes the metric ingest tables as the Collector would:
 //!   count        → delta, monotonic sum (as Datadog `count` series are stored by the intake);
 //!   distribution → delta exponential histogram (as Datadog distributions are), percentiles included.
@@ -139,9 +139,11 @@ pub enum PointValue {
     Distribution(Histogram),
 }
 
-/// An aggregated bucket of one series, ready to be written.
+/// One event contribution or aggregate of a series, ready to be written.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Point {
+    /// Stable source event ID for replay-safe log contributions; empty for ordinary aggregates.
+    pub event_id: String,
     pub org: String,
     pub metric: String,
     pub description: Arc<str>,
@@ -155,8 +157,8 @@ pub struct Point {
 
 /// (org, metric name).
 pub type MetricKey = (String, String);
-/// (org, metric name, group-by values, bucket start).
-type SeriesKey = (String, String, Vec<String>, i64);
+/// (org, metric name, group-by values, bucket start, event identity).
+type SeriesKey = (String, String, Vec<String>, i64, String);
 
 struct Pending {
     description: Arc<str>,
@@ -178,7 +180,12 @@ pub struct Aggregator {
 impl Aggregator {
     /// Counts one log (dated `ts_ms`) in every definition of its org that it matches.
     /// A log dated in the future counts now; one older than [`MAX_LATENESS_MS`] doesn't count.
+    #[cfg(test)]
     pub fn record(&mut self, org: &str, metrics: &OrgMetrics, f: &Fields<'_>, ts_ms: i64, now_ms: i64) {
+        self.record_event(org, metrics, f, ts_ms, now_ms, "");
+    }
+
+    pub fn record_event(&mut self, org: &str, metrics: &OrgMetrics, f: &Fields<'_>, ts_ms: i64, now_ms: i64, event_id: &str) {
         let ts = ts_ms.min(now_ms);
         if ts < now_ms - MAX_LATENESS_MS {
             return;
@@ -206,7 +213,11 @@ impl Aggregator {
                 }
                 seen.insert(values.clone());
             }
-            let pending = self.pending.entry((metric.0, metric.1, values, bucket)).or_insert_with(|| Pending {
+            let key = (metric.0, metric.1, values, bucket, event_id.to_string());
+            if !event_id.is_empty() && self.pending.contains_key(&key) {
+                continue;
+            }
+            let pending = self.pending.entry(key).or_insert_with(|| Pending {
                 description: d.description.clone(),
                 retention: metrics.retention,
                 tag_names: d.group_by.iter().map(|(_, tag)| tag.clone()).collect(),
@@ -226,7 +237,8 @@ impl Aggregator {
         let points = self
             .pending
             .drain()
-            .map(|((org, metric, values, time_ms), p)| Point {
+            .map(|((org, metric, values, time_ms, event_id), p)| Point {
+                event_id,
                 org,
                 metric,
                 description: p.description,
@@ -238,6 +250,14 @@ impl Aggregator {
             .collect();
         self.series.clear();
         (points, self.dropped.drain().collect())
+    }
+
+    /// Bound pending event contributions while keeping one series budget for the entire request.
+    pub fn take_contributions(&mut self) -> (Vec<Point>, Vec<(MetricKey, u64)>) {
+        let series = std::mem::take(&mut self.series);
+        let result = self.drain();
+        self.series = series;
+        result
     }
 }
 
@@ -265,6 +285,9 @@ fn placed(p: &Point) -> (String, Map<String, Value>, Map<String, Value>) {
     let mut resource = Map::new();
     let mut attrs = Map::new();
     resource.insert("oc.org_id".into(), Value::from(p.org.as_str()));
+    if !p.event_id.is_empty() {
+        resource.insert("oc.log_event_id".into(), Value::from(p.event_id.as_str()));
+    }
     let r = p.retention;
     for (k, days) in [("oc.metrics_retention_days", r.raw), ("oc.metrics_retention_5m_days", r.rollup_5m), ("oc.metrics_retention_1h_days", r.rollup_1h)] {
         resource.insert(k.into(), Value::from(days.to_string()));
@@ -344,6 +367,67 @@ mod tests {
     use super::*;
 
     const NOW: i64 = 1_792_933_205_000;
+
+    #[test]
+    fn contributions_keep_distinct_event_identities_and_deduplicate_within_a_batch() {
+        let definitions = vec![Definition::new("logs.events", "", Aggregation::Count, &[])];
+        let metrics = OrgMetrics {
+            definitions,
+            retention: Retention::default(),
+        };
+        let tags = HashMap::new();
+        let f = Fields {
+            service: "order-service",
+            status: "info",
+            host: "",
+            source: "",
+            message: "same content",
+            tags: &tags,
+            attr: &tags,
+            index: None,
+        };
+        let mut agg = Aggregator::default();
+        for id in ["event-a", "event-b", "event-a"] {
+            agg.record_event("acme", &metrics, &f, NOW, NOW, id);
+        }
+        let (points, _) = agg.drain();
+        assert_eq!(points.len(), 2);
+        assert!(points.iter().all(|p| p.value == PointValue::Count(1)));
+        let (rows, _) = rows(&points);
+        let events: Vec<Value> = rows.split(|b| *b == b'\n').filter(|r| !r.is_empty()).map(|r| serde_json::from_slice(r).unwrap()).collect();
+        assert!(events.iter().all(|r| r["ResourceAttributes"]["oc.log_event_id"].as_str().is_some()));
+    }
+
+    #[test]
+    fn chunking_preserves_the_request_series_budget() {
+        let metrics = OrgMetrics {
+            definitions: vec![Definition::new("logs.customers", "", Aggregation::Count, &[("@customer".into(), "customer".into())])],
+            retention: Retention::default(),
+        };
+        let mut agg = Aggregator::default();
+        let tags = HashMap::new();
+        let mut total = 0;
+        for i in 0..=MAX_SERIES_PER_METRIC {
+            let attrs = HashMap::from([("customer".into(), i.to_string())]);
+            let f = Fields {
+                service: "order-service",
+                status: "info",
+                host: "",
+                source: "",
+                message: "",
+                tags: &tags,
+                attr: &attrs,
+                index: None,
+            };
+            agg.record_event("acme", &metrics, &f, NOW, NOW, &format!("event-{i}"));
+            if i == 511 {
+                total += agg.take_contributions().0.len();
+            }
+        }
+        let (points, dropped) = agg.take_contributions();
+        assert_eq!(total + points.len(), MAX_SERIES_PER_METRIC);
+        assert_eq!(dropped, vec![(("acme".into(), "logs.customers".into()), 1)]);
+    }
 
     #[test]
     fn acceptance_clock_is_stable_across_replay_and_legacy_ids_keep_the_fallback() {
@@ -509,6 +593,7 @@ mod tests {
         }
         let points = [
             Point {
+                event_id: String::new(),
                 org: "acme".into(),
                 metric: "logs.checkout.errors".into(),
                 description: "Generated from logs matching: status:error".into(),
@@ -518,6 +603,7 @@ mod tests {
                 value: PointValue::Count(3),
             },
             Point {
+                event_id: String::new(),
                 org: "acme".into(),
                 metric: "logs.checkout.latency".into(),
                 description: "d".into(),
