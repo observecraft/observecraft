@@ -13,6 +13,8 @@ use crate::error::ApiError;
 pub struct AppState(pub Arc<Inner>);
 
 pub struct Inner {
+    /// Storage connections share this server runtime, not a process-global test/worker runtime.
+    pub ingest_http: reqwest::Client,
     pub config: Config,
     pub clickhouse: clickhouse::Client,
     /// Each org's ClickHouse client, with the org's query limits.

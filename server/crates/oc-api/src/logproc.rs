@@ -564,8 +564,7 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
 pub(crate) async fn insert_rows(st: &AppState, table: &str, rows: Vec<u8>) -> Result<(), String> {
     let _timer = (table == "oc.logs_dedup").then(|| ingest_stats::timer(Stage::IndexedInsert));
     let query = format!("INSERT INTO {table} SETTINGS input_format_skip_unknown_fields = 1, date_time_input_format = 'best_effort', insert_distributed_sync = 1 FORMAT JSONEachRow");
-    static CLIENT: std::sync::LazyLock<reqwest::Client> = std::sync::LazyLock::new(reqwest::Client::new);
-    let res = CLIENT
+    let res = st.ingest_http
         .post(&st.config.clickhouse_url)
         .timeout(Duration::from_secs(30))
         .basic_auth(&st.config.clickhouse_user, Some(&st.config.clickhouse_password))
@@ -717,9 +716,15 @@ mod tests {
             ).layer(axum::extract::DefaultBodyLimit::max(64 * 1024 * 1024));
             axum::serve(listener, app).await.unwrap();
         });
+        let now = now_ms();
         let body = Bytes::from(
             (1..=total)
-                .map(|n| line(&org, &format!("00000000-0000-4000-8000-{n:012}"), "order-service", "info"))
+                .map(|n| {
+                    let mut row: Value = serde_json::from_str(&line(&org, &format!("00000000-0000-4000-8000-{n:012}"), "order-service", "info")).unwrap();
+                    row["ts_ms"] = now.into();
+                    row["timestamp"] = chrono::DateTime::from_timestamp_millis(now).unwrap().to_rfc3339().into();
+                    format!("{row}\n")
+                })
                 .collect::<String>(),
         );
         assert_eq!(ingest(State((st.clone(), ix.clone())), HeaderMap::new(), body.clone()).await, StatusCode::SERVICE_UNAVAILABLE);
