@@ -359,7 +359,13 @@ mod tests {
     #[tokio::test]
     async fn every_query_of_an_org_carries_its_limits() {
         let Some(live) = crate::test_support::live_clickhouse().await else { return };
-        let limits = OrgQueryLimits { timeout_secs: 17, max_memory_bytes: 3 << 30, max_rows_to_read: 123_456_789, concurrency: 4, queue_timeout: Duration::from_secs(1) };
+        let limits = OrgQueryLimits {
+            timeout_secs: 17,
+            max_memory_bytes: 3 << 30,
+            max_rows_to_read: 123_456_789,
+            concurrency: 4,
+            queue_timeout: Duration::from_secs(1),
+        };
         let clients = OrgClients::new(&live.cfg, limits);
         #[derive(clickhouse::Row, serde::Deserialize, Debug, PartialEq)]
         struct Settings {
@@ -367,13 +373,24 @@ mod tests {
             memory: String,
             rows: String,
             overflow: String,
+            ordered: String,
             org: String,
         }
         let sql = "SELECT toString(getSetting('max_execution_time')) AS timeout, toString(getSetting('max_memory_usage')) AS memory, toString(getSetting('max_rows_to_read')) AS rows, \
-                   toString(getSetting('read_overflow_mode')) AS overflow, {oc_org:String} AS org";
+                   toString(getSetting('read_overflow_mode')) AS overflow, toString(toUInt8(getSetting('optimize_aggregation_in_order'))) AS ordered, {oc_org:String} AS org";
         for client in [clients.client("acme"), background(async { clients.client("acme") }).await] {
             let got: Settings = client.query(sql).fetch_one().await.expect("settings");
-            assert_eq!(got, Settings { timeout: "17".into(), memory: (3u64 << 30).to_string(), rows: "123456789".into(), overflow: "throw".into(), org: "acme".into() });
+            assert_eq!(
+                got,
+                Settings {
+                    timeout: "17".into(),
+                    memory: (3u64 << 30).to_string(),
+                    rows: "123456789".into(),
+                    overflow: "throw".into(),
+                    ordered: "1".into(),
+                    org: "acme".into()
+                }
+            );
         }
     }
 }

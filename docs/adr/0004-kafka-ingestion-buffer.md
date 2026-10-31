@@ -101,7 +101,11 @@ states at read time. Retried inserts with different batching and order therefore
 This is logical deduplication of immutable normalized events; it does not promise one physical row per event.
 Aggregate read views finalize the exact states on each shard and use ordered aggregation, so only counts
 and sample states cross the network. Unique counts from the shards are additive because an identity always
-belongs to one shard.
+belongs to one shard. Query clients explicitly send `optimize_aggregation_in_order=1`: a SETTINGS clause
+inside a view alone does not enable it for the caller. Direct SQL clients should send it too.
+On the local development stack (2026-10-31), a whole-history facet count representing about 23.1 million
+logs exceeded a 1 GiB query limit without that setting. With it, the count completed in about one second
+with 438 MiB peak query memory. This checks a failure mode on demo data; it is not a capacity benchmark.
 
 Migration 0016 preserves the legacy tables, installs forwarding views for legacy writers, and backfills
 both new tables after their aggregate views exist. Backfill can be retried without inflating reads or
@@ -109,6 +113,8 @@ aggregates. Pause ingestion, drain old consumers and stop them before upgrading;
 legacy tables' replicas before backfill. Budget disk space and migration time for copying the existing
 indexed/raw logs and building the exact aggregate states. Legacy copies expire under their original TTL;
 new writes use only the new tables. Retention changes and organization deletion cover both generations.
+The new raw table uses the maximum supported raw TTL (30 days) during backfill; startup then applies the
+configured raw retention, so installations keeping more than 72 hours retain their older copied logs.
 Do not roll back to an older server that reads only the legacy tables after new writes have started.
 
 The deduplication contract requires the same org, ID, timestamp, service, routing dimensions and retention

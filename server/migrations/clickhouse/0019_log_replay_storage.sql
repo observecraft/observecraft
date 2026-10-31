@@ -19,6 +19,11 @@ ORDER BY (org_id, service, timestamp, id)
 TTL toDateTime(timestamp) + INTERVAL 72 HOUR
 SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
 ${DISTRIBUTED oc.logs_raw_dedup cityHash64(org_id, id)};
+-- Raw retention is installation-specific. Use the maximum supported raw retention during backfill
+-- (Config.raw_logs_hours is capped at 30 days), rather than expiring copied parts after 72 hours.
+-- MODIFY is retry-safe, including an interrupted backfill; startup then applies the configured TTL.
+ALTER TABLE oc.logs_raw_dedup${LOCAL} ${ON_CLUSTER}
+    MODIFY TTL toDateTime(timestamp) + INTERVAL 30 DAY;
 
 CREATE VIEW IF NOT EXISTS oc.logs_read ${ON_CLUSTER} AS
 SELECT *, error_kind, error_key FROM oc.logs_dedup FINAL;

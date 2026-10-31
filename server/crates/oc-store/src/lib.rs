@@ -166,7 +166,14 @@ pub fn clickhouse(cfg: &ClickHouseConfig) -> Client {
 /// Sets up `client` as [`clickhouse`] does, e.g. one made with its own HTTP client
 /// (`Client::with_http_client`).
 pub fn configure(client: Client, cfg: &ClickHouseConfig) -> Client {
-    let client = client.with_url(&cfg.url).with_user(&cfg.user).with_password(&cfg.password).with_database(&cfg.database);
+    // Exact log aggregate states must be finalized in sort order. A view's SETTINGS clause is
+    // not inherited by its caller; without this, long ranges retain all UUID sets in memory.
+    let client = client
+        .with_url(&cfg.url)
+        .with_user(&cfg.user)
+        .with_password(&cfg.password)
+        .with_database(&cfg.database)
+        .with_option("optimize_aggregation_in_order", "1");
     match cfg.cluster {
         Some(_) => client.with_option("distributed_product_mode", "global"),
         None => client,
