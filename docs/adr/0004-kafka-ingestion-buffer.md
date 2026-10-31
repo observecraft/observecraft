@@ -151,7 +151,11 @@ must not release a slot that another replica could spend while the first write m
 A retry/restart reuses the admitted identity, including when a ClickHouse replica has not seen the
 write yet. Storage and the generated metric outbox must still succeed before source acknowledgement;
 otherwise HTTP 503 leaves ownership with Kafka. Per-org local locks protect the process's working
-copy; Postgres advisory locks, counters and receipts are the cross-replica source of truth. There is
+copy for one admission chunk, including rollback on failure/cancellation. Local locks are released
+after durable admission, before indexed storage and outbox I/O; PostgreSQL remains authoritative
+when other requests overlap. Four actively decoded requests per indexer bound concurrent metric
+expansion and pending indexed buffers. Postgres advisory locks, counters and receipts are the
+cross-replica source of truth. There is
 no periodic whole-history ClickHouse counter reconciliation. Locks have a five-second timeout,
 admission has a twenty-second deadline, and storage HTTP writes have a thirty-second deadline.
 
@@ -165,7 +169,7 @@ including logs excluded from indexing. Failure or cancellation leaves committed 
 and source ownership with Kafka.
 
 The internal authenticated `/metrics` endpoint exports `oc_log_ingest_stage_seconds` histograms
-with fixed stage labels: `request`, `org_gate`, `persisted_lookup`, `admission`, `quota_lock`,
+with fixed stage labels: `request`, `request_slot`, `org_gate`, `persisted_lookup`, `admission`, `quota_lock`,
 `indexed_insert`, `outbox_enqueue`. Timings include failed/cancelled operations and overlapping
 stages, not disjoint CPU time. No organization IDs, event IDs or query strings become labels.
 

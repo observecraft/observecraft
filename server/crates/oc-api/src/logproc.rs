@@ -86,6 +86,8 @@ struct Counter {
 
 #[derive(Default)]
 pub struct Indexer {
+    /// Bound decoded requests and pending rows while admission/storage overlap.
+    ingest_slots: std::sync::OnceLock<tokio::sync::Semaphore>,
     rules: RwLock<HashMap<String, Arc<Vec<IndexRule>>>>,
     counters: Mutex<HashMap<(String, String), Counter>>,
     quota_orgs: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
@@ -287,6 +289,8 @@ struct Reservations<'a> {
     metrics: Aggregator,
     admitted: Admissions,
     metric_definitions: HashMap<String, Arc<OrgMetrics>>,
+    // Drop rolls back uncommitted working counters BEFORE releasing these local locks.
+    guards: Vec<tokio::sync::OwnedMutexGuard<()>>,
 }
 
 impl<'a> Reservations<'a> {
@@ -297,6 +301,7 @@ impl<'a> Reservations<'a> {
             metrics: Aggregator::default(),
             admitted: Admissions::new(),
             metric_definitions: ix.log_metrics.read().unwrap().clone(),
+            guards: Vec::new(),
         }
     }
 }
@@ -474,6 +479,11 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
         return StatusCode::UNAUTHORIZED;
     }
     let _request_timer = ingest_stats::timer(Stage::Request);
+    let slot_timer = ingest_stats::timer(Stage::RequestSlot);
+    let Ok(_slot) = ix.ingest_slots.get_or_init(|| tokio::sync::Semaphore::new(4)).acquire().await else {
+        return StatusCode::SERVICE_UNAVAILABLE;
+    };
+    drop(slot_timer);
     let now = now_ms();
     let rules = ix.rules.read().unwrap().clone();
     let prepared = prepare_batch(&ix, &body, now);
@@ -488,18 +498,6 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
             })
             .collect()
     };
-    // Stable order prevents deadlocks in internal batches containing more than one organization.
-    let orgs: std::collections::BTreeSet<_> = quota_rows.iter().filter_map(|ev| ev.get("org_id").and_then(Value::as_str)).collect();
-    let locks: Vec<_> = {
-        let mut gates = ix.quota_orgs.lock().unwrap();
-        orgs.into_iter().map(|org| gates.entry(org.to_string()).or_default().clone()).collect()
-    };
-    let mut _org_guards = Vec::with_capacity(locks.len());
-    let gate_timer = ingest_stats::timer(Stage::OrgGate);
-    for lock in locks {
-        _org_guards.push(lock.lock_owned().await);
-    }
-    drop(gate_timer);
     let lookup_timer = ingest_stats::timer(Stage::PersistedLookup);
     let mut existing = match persisted_admissions(&st, &quota_rows).await {
         Ok(existing) => existing,
@@ -525,6 +523,20 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
         if chunk.is_empty() {
             break;
         }
+        // Only the admission transaction needs the working-counter locks. Never retain them
+        // through ClickHouse/outbox I/O. Stable org order also applies to mixed chunks.
+        let orgs: std::collections::BTreeSet<_> = chunk.iter().filter_map(|ev| {
+            ev.get("org_id").and_then(Value::as_str).filter(|org| rules.get(*org).is_some_and(|rs| rs.iter().any(|r| r.daily_quota.is_some())))
+        }).collect();
+        let locks: Vec<_> = {
+            let mut gates = ix.quota_orgs.lock().unwrap();
+            orgs.into_iter().map(|org| gates.entry(org.to_string()).or_default().clone()).collect()
+        };
+        let gate_timer = ingest_stats::timer(Stage::OrgGate);
+        for lock in locks {
+            reservations.guards.push(lock.lock_owned().await);
+        }
+        drop(gate_timer);
         let admission_timer = ingest_stats::timer(Stage::Admission);
         let admission = tokio::time::timeout(Duration::from_secs(20), quota::admit(&st, &ix, chunk, &mut existing, &mut reservations, now_ms(), &rules)).await;
         drop(admission_timer);
@@ -535,6 +547,9 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
                 return StatusCode::SERVICE_UNAVAILABLE;
             }
         };
+        // A committed admission has cleared counts; cancellation/errors instead drop Reservations
+        // with the guards still held, so rollback cannot clobber another request's working copy.
+        reservations.guards.clear();
         if let Err(e) = pending.push(&st, rows, kept).await {
             tracing::warn!(error = %e, "indexing logs failed");
             return StatusCode::SERVICE_UNAVAILABLE;
@@ -680,6 +695,74 @@ mod tests {
         task.abort();
     }
 
+    #[tokio::test]
+    async fn same_org_admission_can_finish_while_another_storage_write_is_waiting() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let Some((_, states)) = crate::test_support::replicas_with(1, |cfg| cfg.clickhouse_url = url.clone()).await else {
+            return;
+        };
+        let st = states[0].clone();
+        let org = crate::test_support::new_org(&st, "quota-interleaved-io").await;
+        let ix = Arc::new(Indexer::default());
+        ix.rules.write().unwrap().insert(org.clone(), Arc::new(vec![rule("main", "", Some(2), vec![])]));
+        let arrived = Arc::new(tokio::sync::Notify::new());
+        let release = Arc::new(tokio::sync::Notify::new());
+        let delivered = Arc::new(Mutex::new(Vec::new()));
+        let (handler_arrived, handler_release, handler_delivered) = (arrived.clone(), release.clone(), delivered.clone());
+        let server = tokio::spawn(async move {
+            let app = Router::new().route(
+                "/",
+                post(move |body: Bytes| {
+                    let (arrived, release, delivered) = (handler_arrived.clone(), handler_release.clone(), handler_delivered.clone());
+                    async move {
+                        let row: Value = serde_json::from_slice(body.trim_ascii_end()).unwrap();
+                        let id = row["id"].as_str().unwrap().to_owned();
+                        if id.ends_with("000000000001") {
+                            arrived.notify_one();
+                            release.notified().await;
+                        }
+                        delivered.lock().unwrap().push(id);
+                        ""
+                    }
+                }),
+            );
+            axum::serve(listener, app).await.unwrap();
+        });
+        let now = now_ms();
+        let body = |n| {
+            Bytes::from(format!(
+                "{}\n",
+                serde_json::json!({"org_id":org,"id":format!("00000000-0000-4000-8000-{n:012}"),
+            "ts_ms":now,"timestamp":chrono::DateTime::from_timestamp_millis(now).unwrap().to_rfc3339(),"service":"order-service","status":"info","message":"interleaved storage"})
+            ))
+        };
+        let (first_state, first_indexer, first_body) = (st.clone(), ix.clone(), body(1));
+        let first = tokio::spawn(async move { ingest(State((first_state, first_indexer)), HeaderMap::new(), first_body).await });
+        tokio::time::timeout(Duration::from_secs(5), arrived.notified()).await.unwrap();
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(5), ingest(State((st.clone(), ix.clone())), HeaderMap::new(), body(2)))
+                .await
+                .unwrap(),
+            StatusCode::OK
+        );
+        assert_eq!(ingest(State((st.clone(), ix.clone())), HeaderMap::new(), body(3)).await, StatusCode::OK);
+        assert_eq!(
+            delivered.lock().unwrap().len(),
+            1,
+            "the second write finishes while the first remains blocked; the third spends no extra slot"
+        );
+        let reserved: i64 = sqlx::query_scalar("SELECT sum(n)::bigint FROM log_quota_counters WHERE org_id = $1")
+            .bind(&org)
+            .fetch_one(&st.postgres)
+            .await
+            .unwrap();
+        assert_eq!(reserved, 2);
+        release.notify_one();
+        assert_eq!(tokio::time::timeout(Duration::from_secs(5), first).await.unwrap().unwrap(), StatusCode::OK);
+        assert_eq!(delivered.lock().unwrap().len(), 2);
+        server.abort();
+    }
     #[tokio::test]
     async fn coalesced_partial_writes_replay_without_spending_fresh_quota() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
