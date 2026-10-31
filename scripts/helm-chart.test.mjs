@@ -2,16 +2,17 @@
 // finds nothing) and checks where the bundled Valkey's password comes from. Skipped without helm.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-const chart = new URL('../deploy/helm/observecraft', import.meta.url).pathname;
+const chart = fileURLToPath(new URL('../deploy/helm/observecraft', import.meta.url));
 const hasHelm = spawnSync('helm', ['version', '--short']).status === 0;
 
 /** `helm template` with `--set` values; returns { ok, out, err }. */
 function render(set = [], only = []) {
   const args = ['template', 'oc', chart, ...set.flatMap((s) => ['--set', s]), ...only.flatMap((t) => ['--show-only', `templates/${t}.yaml`])];
   const r = spawnSync('helm', args, { encoding: 'utf8' });
-  return { ok: r.status === 0, out: r.stdout, err: r.stderr };
+  return { ok: r.status === 0, out: r.stdout?.replaceAll('\r\n', '\n'), err: r.stderr };
 }
 
 /** The rendered document of `kind` named `name`. */
