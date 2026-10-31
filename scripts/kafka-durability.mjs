@@ -136,12 +136,21 @@ try {
   for (const file of readdirSync(`${root}server/migrations/clickhouse`)
     .filter((f) => f.endsWith('.sql'))
     .sort()) {
+    if (file === '0016_log_replay_storage.sql') {
+      sql('ALTER TABLE oc.logs_raw MODIFY TTL toDateTime(timestamp) + INTERVAL 30 DAY');
+      sql(`INSERT INTO oc.logs_raw (org_id, timestamp, service, message) VALUES ('${org}-retention', now() - INTERVAL 10 DAY, 'order-service', 'extended raw retention')`);
+    }
     const ddl = readFileSync(`${root}server/migrations/clickhouse/${file}`, 'utf8')
       .replace(/^.*\$\{DISTRIBUTED .*$/gm, '')
       .replaceAll('${ON_CLUSTER}', '')
       .replaceAll('${LOCAL}', '')
       .replaceAll('${REPLICATED}', '');
     docker(['exec', '-i', names.clickhouse, 'clickhouse-client', '--multiquery'], ddl);
+    if (file === '0016_log_replay_storage.sql') {
+      sql('OPTIMIZE TABLE oc.logs_raw_dedup FINAL');
+      assert.equal(sql(`SELECT count() FROM oc.logs_raw_read WHERE org_id='${org}-retention'`), '1', 'backfill preserves raw logs older than the default TTL');
+      sql('ALTER TABLE oc.logs_raw_dedup MODIFY TTL toDateTime(timestamp) + INTERVAL 30 DAY');
+    }
   }
   await until(() => kafka(['kafka-broker-api-versions', '--bootstrap-server', 'kafka:9092'], undefined, true).includes('kafka:9092'), 'Kafka startup');
   for (const encoding of ['otlp', 'otlp-json'])
