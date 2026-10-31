@@ -13,6 +13,21 @@ use crate::state::AppState;
 const MAX_BYTES_PER_ORG: i64 = 64 * 1024 * 1024;
 const MAX_BATCHES_PER_ORG: i64 = 4096;
 const EXPORT_TIMEOUT: Duration = Duration::from_secs(30);
+const EXPORT_BATCHES: i64 = 32;
+const EXPORT_BYTES: i64 = 8 * 1024 * 1024;
+
+fn export_ids(candidates: Vec<(String, i64)>) -> Vec<String> {
+    let (mut ids, mut bytes) = (Vec::new(), 0);
+    for (id, size) in candidates {
+        // A single oversized spool entry must still make progress, without a second payload.
+        if !ids.is_empty() && size > EXPORT_BYTES - bytes {
+            break;
+        }
+        ids.push(id);
+        bytes += size;
+    }
+    ids
+}
 
 /// One transaction covers all orgs in an internal request; a full spool fails the entire request.
 /// Locks are acquired in org order. Only configured log metrics put traffic through this spool.
@@ -61,12 +76,29 @@ async fn enqueue_with_limit(st: &AppState, points: Vec<Point>, max_bytes: i64, m
 /// releases the lock without deleting its payload. Commit successful sinks even if another fails.
 async fn export_one(st: &AppState, org: &str) -> Result<bool, String> {
     let mut tx = st.postgres.begin().await.map_err(|e| e.to_string())?;
-    let batch: Option<(String, Vec<u8>, Vec<u8>)> = sqlx::query_as("SELECT id::text, sums, histograms FROM log_metric_outbox WHERE org_id = $1 ORDER BY created_at, id FOR UPDATE SKIP LOCKED LIMIT 1")
+    // Claim only metadata first: fetching 32 maximum-size payloads could exhaust a worker's RAM.
+    let candidates: Vec<(String, i64)> =
+        sqlx::query_as("SELECT id::text, octet_length(sums)::bigint + octet_length(histograms) FROM log_metric_outbox WHERE org_id = $1 ORDER BY created_at, id FOR UPDATE SKIP LOCKED LIMIT $2")
+            .bind(org)
+            .bind(EXPORT_BATCHES)
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+    let ids = export_ids(candidates);
+    if ids.is_empty() {
+        return Ok(false);
+    }
+    let batches: Vec<(Vec<u8>, Vec<u8>)> = sqlx::query_as("SELECT sums, histograms FROM log_metric_outbox WHERE org_id = $1 AND id = ANY(SELECT unnest($2::text[])::uuid) ORDER BY created_at, id")
         .bind(org)
-        .fetch_optional(&mut *tx)
+        .bind(&ids)
+        .fetch_all(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
-    let Some((id, mut sums, mut histograms)) = batch else { return Ok(false) };
+    let (mut sums, mut histograms) = (Vec::new(), Vec::new());
+    for (s, h) in batches {
+        sums.extend(s);
+        histograms.extend(h);
+    }
     let mut failure = None;
     let mut changed = false;
     for (table, rows) in [("otel.metrics_log_ingest_sum", &mut sums), ("otel.metrics_log_ingest_exponential_histogram", &mut histograms)] {
@@ -90,17 +122,27 @@ async fn export_one(st: &AppState, org: &str) -> Result<bool, String> {
         }
     }
     if sums.is_empty() && histograms.is_empty() {
-        sqlx::query("DELETE FROM log_metric_outbox WHERE org_id = $1 AND id = $2::uuid")
+        sqlx::query("DELETE FROM log_metric_outbox WHERE org_id = $1 AND id = ANY(SELECT unnest($2::text[])::uuid)")
             .bind(org)
-            .bind(&id)
+            .bind(&ids)
             .execute(&mut *tx)
             .await
             .map_err(|e| e.to_string())?;
     } else if changed {
-        // Keep failed payload columns untouched: retrying an outage must not rewrite their TOAST/WAL.
-        sqlx::query("UPDATE log_metric_outbox SET sums = CASE WHEN $3 THEN ''::bytea ELSE sums END, histograms = CASE WHEN $4 THEN ''::bytea ELSE histograms END WHERE org_id = $1 AND id = $2::uuid")
+        // Some entries contain only the successful sink. Delete those before clearing columns,
+        // so the per-row CHECK never sees a row with both payloads empty.
+        sqlx::query("DELETE FROM log_metric_outbox WHERE org_id = $1 AND id = ANY(SELECT unnest($2::text[])::uuid) AND ($3 OR octet_length(sums) = 0) AND ($4 OR octet_length(histograms) = 0)")
             .bind(org)
-            .bind(&id)
+            .bind(&ids)
+            .bind(sums.is_empty())
+            .bind(histograms.is_empty())
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        // Keep failed payload columns untouched: retrying an outage must not rewrite their TOAST/WAL.
+        sqlx::query("UPDATE log_metric_outbox SET sums = CASE WHEN $3 THEN ''::bytea ELSE sums END, histograms = CASE WHEN $4 THEN ''::bytea ELSE histograms END WHERE org_id = $1 AND id = ANY(SELECT unnest($2::text[])::uuid)")
+            .bind(org)
+            .bind(&ids)
             .bind(sums.is_empty())
             .bind(histograms.is_empty())
             .execute(&mut *tx)
@@ -134,7 +176,9 @@ pub async fn run(st: AppState) {
             .map(|org| {
                 let st = &st;
                 async move {
-                    for _ in 0..64 {
+                    // At most 256 normal spool entries per org per pass, with eight bounded
+                    // storage round trips. Yield to other orgs rather than draining indefinitely.
+                    for _ in 0..8 {
                         match export_one(st, &org).await {
                             Ok(true) => {}
                             Ok(false) => break,
@@ -161,6 +205,68 @@ mod tests {
         atomic::{AtomicUsize, Ordering},
         Arc,
     };
+
+    #[test]
+    fn export_selection_bounds_bytes_and_makes_progress_for_one_oversized_entry() {
+        assert_eq!(export_ids(vec![("a".into(), EXPORT_BYTES / 2), ("b".into(), EXPORT_BYTES / 2), ("c".into(), 1)]), vec!["a", "b"]);
+        assert_eq!(export_ids(vec![("large".into(), EXPORT_BYTES + 1), ("next".into(), 1)]), vec!["large"]);
+        assert!(export_ids(Vec::new()).is_empty());
+    }
+
+    #[tokio::test]
+    async fn coalesced_export_retains_only_failed_payloads_across_mixed_entries() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let Some((_, states)) = crate::test_support::replicas_with(2, |cfg| cfg.clickhouse_url = url.clone()).await else {
+            return;
+        };
+        let org = crate::test_support::new_org(&states[0], "outbox-coalesced").await;
+        let other = crate::test_support::new_org(&states[0], "outbox-coalesced-other").await;
+        let counts = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let failed = Arc::new(AtomicUsize::new(0));
+        let handler_counts = counts.clone();
+        let server = tokio::spawn(async move {
+            let app = Router::new().route(
+                "/",
+                post(move |Query(q): Query<std::collections::HashMap<String, String>>, body: axum::body::Bytes| {
+                    let (counts, failed) = (handler_counts.clone(), failed.clone());
+                    async move {
+                        let hist = q["query"].contains("exponential_histogram");
+                        counts.lock().unwrap().push((hist, body.split(|b| *b == b'\n').filter(|l| !l.is_empty()).count()));
+                        if hist && failed.fetch_add(1, Ordering::SeqCst) == 0 {
+                            StatusCode::SERVICE_UNAVAILABLE
+                        } else {
+                            StatusCode::OK
+                        }
+                    }
+                }),
+            );
+            axum::serve(listener, app).await.unwrap();
+        });
+        for _ in 0..2 {
+            enqueue(&states[0], points(&org)).await.unwrap();
+        }
+        enqueue(&states[0], vec![points(&org).remove(0)]).await.unwrap();
+        enqueue(&states[0], points(&other)).await.unwrap();
+        assert!(export_one(&states[0], &org).await.is_err());
+        let pending: Vec<(i32, i32)> = sqlx::query_as("SELECT octet_length(sums), octet_length(histograms) FROM log_metric_outbox WHERE org_id = $1")
+            .bind(&org)
+            .fetch_all(&states[0].postgres)
+            .await
+            .unwrap();
+        assert_eq!(pending.len(), 2, "the completed sum-only entry is deleted before clearing successful columns");
+        assert!(pending.iter().all(|(s, h)| *s == 0 && *h > 0));
+        assert!(export_one(&states[1], &org).await.unwrap());
+        assert!(!export_one(&states[0], &org).await.unwrap());
+        assert_eq!(*counts.lock().unwrap(), vec![(false, 3), (true, 2), (true, 2)], "coalesced retry does not resend the successful sink");
+        let other_pending: i64 = sqlx::query_scalar("SELECT count(*) FROM log_metric_outbox WHERE org_id = $1")
+            .bind(&other)
+            .fetch_one(&states[0].postgres)
+            .await
+            .unwrap();
+        assert_eq!(other_pending, 1);
+        server.abort();
+    }
 
     fn points(org: &str) -> Vec<Point> {
         let count = Point {

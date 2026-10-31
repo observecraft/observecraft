@@ -714,7 +714,7 @@ mod tests {
                         StatusCode::OK
                     }
                 }),
-            );
+            ).layer(axum::extract::DefaultBodyLimit::max(64 * 1024 * 1024));
             axum::serve(listener, app).await.unwrap();
         });
         let body = Bytes::from(
