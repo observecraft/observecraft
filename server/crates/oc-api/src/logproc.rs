@@ -25,8 +25,11 @@
 //! After the pipelines, logs matching a custom destination's query are queued for forwarding (see
 //! `log_forwarding`), whether an index keeps them or not.
 //!
-//! Index rules, pipelines, standard attributes, custom destinations and generated metrics are reloaded from Postgres every 10 s; quota counters are local and
-//! re-synced from ClickHouse every 30 s, so several servers sharing the work stay close to the quota.
+//! Index rules, pipelines, standard attributes, custom destinations and generated metrics are reloaded every 10 s.
+//! Quota-bearing indexes reserve shared, durable admissions in Postgres before storage delivery.
+
+#[path = "log_quota.rs"]
+mod quota;
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -84,8 +87,6 @@ struct Counter {
 pub struct Indexer {
     rules: RwLock<HashMap<String, Arc<Vec<IndexRule>>>>,
     counters: Mutex<HashMap<(String, String), Counter>>,
-    /// Reconciliation excludes in-flight quota writes; different orgs can still ingest concurrently.
-    quota_gate: tokio::sync::RwLock<()>,
     quota_orgs: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     /// Each org's enabled log pipelines, in order.
     pipelines: RwLock<HashMap<String, Arc<Vec<Pipeline>>>>,
@@ -242,45 +243,6 @@ impl Indexer {
         Ok(())
     }
 
-    /// Brings quota counters up to what ClickHouse holds (other servers index too).
-    async fn sync_counts(&self, st: &AppState) -> Result<(), clickhouse::error::Error> {
-        #[derive(clickhouse::Row, Deserialize)]
-        struct HourCount {
-            org_id: String,
-            index_name: String,
-            hour: i64,
-            n: u64,
-        }
-        let rows = st
-            .clickhouse
-            .query(
-                "SELECT org_id, toString(index_name) AS index_name, toInt64(toUnixTimestamp(toStartOfHour(timestamp))) * 1000 AS hour, count() AS n \
-                 FROM logs_read WHERE timestamp >= now() - INTERVAL 25 HOUR GROUP BY org_id, index_name, hour",
-            )
-            .fetch_all::<HourCount>()
-            .await?;
-        let now = now_ms();
-        let rules = self.rules.read().unwrap().clone();
-        let mut totals: HashMap<(String, String), (i64, u64)> = HashMap::new();
-        for r in rows {
-            let Some(rule) = rules.get(&r.org_id).and_then(|rs| rs.iter().find(|x| x.name == r.index_name)).filter(|x| x.daily_quota.is_some()) else { continue };
-            let start = rule.day_start(now);
-            if r.hour >= start {
-                let e = totals.entry((r.org_id, r.index_name)).or_insert((start, 0));
-                e.1 += r.n;
-            }
-        }
-        let mut counters = self.counters.lock().unwrap();
-        for (key, (start, n)) in totals {
-            let c = counters.entry(key).or_default();
-            if c.day_start != start {
-                *c = Counter { day_start: start, n: 0 };
-            }
-            c.n = c.n.max(n);
-        }
-        Ok(())
-    }
-
     /// The index that keeps this log (and its retention), or None when it isn't indexed.
     fn route(&self, org: &str, id: &str, f: &Fields<'_>, now: i64, reservations: &mut Reservations<'_>, rules: &HashMap<String, Arc<Vec<IndexRule>>>) -> Option<(String, u16)> {
         let rules = rules.get(org)?;
@@ -309,8 +271,8 @@ impl Indexer {
     }
 }
 
-/// A failed or cancelled request must not spend quota for rows it has not acknowledged.
-/// The quota gate prevents reconciliation from incorporating an in-flight write before rollback.
+/// Roll back local routing changes until the shared admission transaction commits.
+/// Durable reservations are cleared from this guard before attempting storage delivery.
 struct Reservations<'a> {
     ix: &'a Indexer,
     counts: HashMap<(String, String, i64), u64>,
@@ -479,7 +441,6 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
             })
             .collect()
     };
-    let _gate = if quota_rows.is_empty() { None } else { Some(ix.quota_gate.read().await) };
     // Stable order prevents deadlocks in internal batches containing more than one organization.
     let orgs: std::collections::BTreeSet<_> = quota_rows.iter().filter_map(|ev| ev.get("org_id").and_then(Value::as_str)).collect();
     let locks: Vec<_> = {
@@ -501,7 +462,7 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
     let has_metrics = prepared
         .iter()
         .any(|ev| ev.get("org_id").and_then(Value::as_str).is_some_and(|org| reservations.metric_definitions.contains_key(org)));
-    let chunk_size = if has_metrics { 512 } else { usize::MAX };
+    let chunk_size = if has_metrics || !quota_rows.is_empty() { 512 } else { usize::MAX };
     let mut input = prepared.into_iter();
     loop {
         // Per-event identity must survive transport, but its expansion must not accumulate for
@@ -510,7 +471,14 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
         if chunk.is_empty() {
             break;
         }
-        let (rows, _seen, kept) = admit_batch(&ix, chunk, &existing, &mut reservations, now_ms(), &rules);
+        let admission = tokio::time::timeout(Duration::from_secs(20), quota::admit(&st, &ix, chunk, &mut existing, &mut reservations, now_ms(), &rules)).await;
+        let (rows, _seen, kept) = match admission {
+            Ok(Ok(result)) => result,
+            failure => {
+                tracing::warn!(error = ?failure, "reserving shared log quota failed");
+                return StatusCode::SERVICE_UNAVAILABLE;
+            }
+        };
         if kept > 0 {
             if let Err(e) = insert_rows(&st, "oc.logs_dedup", rows).await {
                 tracing::warn!(error = %e, "indexing logs failed");
@@ -537,6 +505,7 @@ pub(crate) async fn insert_rows(st: &AppState, table: &str, rows: Vec<u8>) -> Re
     let query = format!("INSERT INTO {table} SETTINGS input_format_skip_unknown_fields = 1, date_time_input_format = 'best_effort', insert_distributed_sync = 1 FORMAT JSONEachRow");
     let res = reqwest::Client::new()
         .post(&st.config.clickhouse_url)
+        .timeout(Duration::from_secs(30))
         .basic_auth(&st.config.clickhouse_user, Some(&st.config.clickhouse_password))
         .query(&[("query", query.as_str()), ("wait_end_of_query", "1")])
         .body(rows)
@@ -570,30 +539,18 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
     let ix = Arc::new(Indexer::default());
     ix.reload(&st).await?;
     log_forwarding::spawn(st.clone(), ix.forwarder.clone());
-    // Do not accept fresh admissions with empty counters after restarting a quota-bearing replica.
-    let has_quotas = ix.rules.read().unwrap().values().any(|rs| rs.iter().any(|r| r.daily_quota.is_some()));
-    if has_quotas {
-        ix.sync_counts(&st).await?;
-    }
     let (st2, ix2) = (st.clone(), ix.clone());
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_secs(10));
-        let mut n = 0u64;
         loop {
             tick.tick().await;
             if let Err(e) = ix2.reload(&st2).await {
                 tracing::warn!(error = %e, "reloading log indexes failed");
             }
-            if n.is_multiple_of(3) {
-                let _gate = ix2.quota_gate.write().await;
-                if let Err(e) = ix2.sync_counts(&st2).await {
-                    tracing::warn!(error = %e, "syncing index quotas failed");
-                }
-            }
-            n += 1;
         }
     });
     tokio::spawn(crate::log_metric_outbox::run(st.clone()));
+    tokio::spawn(quota::run(st.clone()));
     let addr = st.config.logproc_addr.clone();
     let profiles = Router::new()
         .route("/ingest/profiles", post(crate::routes::profiles::ingest))
@@ -742,7 +699,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn failed_and_cancelled_storage_requests_leave_quota_available() {
+    async fn failed_and_cancelled_storage_requests_preserve_durable_quota_for_retry() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         let Some((_, states)) = crate::test_support::replicas_with(1, |cfg| cfg.clickhouse_url = url.clone()).await else {
@@ -778,15 +735,14 @@ mod tests {
             "timestamp": chrono::DateTime::from_timestamp_millis(now).unwrap().to_rfc3339(), "service": "api-gateway", "message": "retry"});
         let body = Bytes::from(format!("{ev}\n"));
         assert_eq!(ingest(State((st.clone(), ix.clone())), HeaderMap::new(), body.clone()).await, StatusCode::SERVICE_UNAVAILABLE);
-        assert_eq!(ix.counters.lock().unwrap()[&(org.clone(), "main".into())].n, 0);
+        assert_eq!(ix.counters.lock().unwrap()[&(org.clone(), "main".into())].n, 1);
         let pending_ix = ix.clone();
         let request = tokio::spawn(async move { ingest(State((st, pending_ix)), HeaderMap::new(), body).await });
         tokio::time::timeout(Duration::from_secs(5), arrived.notified()).await.unwrap();
         assert_eq!(ix.counters.lock().unwrap()[&(org.clone(), "main".into())].n, 1);
         request.abort();
         assert!(request.await.unwrap_err().is_cancelled());
-        assert_eq!(ix.counters.lock().unwrap()[&(org, "main".into())].n, 0);
-        assert!(ix.quota_gate.try_write().is_ok(), "cancelled request releases reconciliation gate too");
+        assert_eq!(ix.counters.lock().unwrap()[&(org, "main".into())].n, 1, "cancellation must not free a slot that another replica could reuse");
         server.abort();
     }
 
@@ -813,10 +769,8 @@ mod tests {
         };
         let first = [row(&org, &ids[0]), row(&org, &ids[1])].concat();
         assert_eq!(ingest(State((st.clone(), make_indexer())), HeaderMap::new(), Bytes::from(first.clone())).await, StatusCode::OK);
-        // New process: rebuild counters from the deduplicated storage before accepting traffic.
+        // A new process loads shared counters and receipts when admitting its first request.
         let restarted = make_indexer();
-        restarted.sync_counts(st).await.unwrap();
-        assert_eq!(restarted.counters.lock().unwrap()[&(org.clone(), "main".into())].n, 2);
         let retry = [row(&org, &ids[1]), row(&org, &ids[2]), row(&org, &ids[0])].concat();
         assert_eq!(ingest(State((st.clone(), restarted.clone())), HeaderMap::new(), Bytes::from(retry)).await, StatusCode::OK);
         assert_eq!(restarted.counters.lock().unwrap()[&(org.clone(), "main".into())].n, 2, "replay spends no fresh slots");

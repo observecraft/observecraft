@@ -1992,6 +1992,7 @@ mod tests {
             ("slos.rs", include_str!("slos.rs")),
             ("spans.rs", include_str!("spans.rs")),
             ("../logproc.rs", include_str!("../logproc.rs")),
+            ("../log_quota.rs", include_str!("../log_quota.rs")),
             ("../live_feed.rs", include_str!("../live_feed.rs")),
             ("../metric_rollups.rs", include_str!("../metric_rollups.rs")),
         ];
@@ -2217,6 +2218,7 @@ mod tests {
             ("../log_access.rs", include_str!("../log_access.rs")),
             ("../log_metrics.rs", include_str!("../log_metrics.rs")),
             ("../log_metric_outbox.rs", include_str!("../log_metric_outbox.rs")),
+            ("../log_quota.rs", include_str!("../log_quota.rs")),
             ("../logproc.rs", include_str!("../logproc.rs")),
             ("../live_feed.rs", include_str!("../live_feed.rs")),
             ("../main.rs", include_str!("../main.rs")),
@@ -2335,9 +2337,9 @@ mod tests {
                 "per-org volumes for instance admins (counts)",
             ),
             (
-                "../logproc.rs",
-                "FROM logs_read WHERE timestamp >= now() - INTERVAL 25 HOUR GROUP BY org_id, index_name, hour",
-                "the indexer's daily quotas (background)",
+                "../log_quota.rs",
+                "SELECT count() FROM logs_read WHERE org_id = ? AND index_name = ?",
+                "one-time per-org/index cutover quota baseline (count only)",
             ),
             (
                 "../logproc.rs",
