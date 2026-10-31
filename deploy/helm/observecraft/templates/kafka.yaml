@@ -89,6 +89,8 @@ spec:
             - { name: KAFKA_REPLICA_FETCH_MAX_BYTES, value: "67108864" }
             - { name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS, value: "3000" }
             - { name: KAFKA_HEAP_OPTS, value: {{ .Values.kafka.heapOpts | quote }} }
+            # The root filesystem is read-only: the broker's own logs (and GC log) go to the /tmp volume.
+            - { name: LOG_DIR, value: /tmp/kafka-logs }
           {{- include "oc.containerSecurity" . | nindent 10 }}
           ports:
             - { name: kafka, containerPort: 9092 }
