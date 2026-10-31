@@ -2,6 +2,8 @@
 
 Measured examples and identified capacity gaps: [2026-10-31 results](2026-10-31-ingestion.md).
 First optimization and paired comparison: [Vector normalization](2026-10-31-normalization.md).
+Indexed batching, quota concurrency and longer runs:
+[2026-11-01 optimization results](2026-11-01-ingestion-optimization.md).
 
 Run `node scripts/ingestion-benchmark.mjs` after building the current application image
 (`observecraft:local` by default). Docker is required. The harness creates a private network,

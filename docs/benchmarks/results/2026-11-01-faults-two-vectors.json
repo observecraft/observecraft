@@ -1,0 +1,3009 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-10-31T23:24:15.773Z",
+  "config": {
+    "seconds": 15,
+    "rates": [
+      5000
+    ],
+    "orgs": 4,
+    "replicas": 2,
+    "vectorReplicas": 2,
+    "batch": 500,
+    "concurrency": 16,
+    "messageBytes": 128,
+    "delayMs": 250,
+    "image": "observecraft:ingestion-parallel",
+    "output": "2026-11-01-faults-two-vectors.json",
+    "mode": "faults"
+  },
+  "caps": {
+    "clickhouse": [
+      4,
+      "3g"
+    ],
+    "postgres": [
+      2,
+      "1g"
+    ],
+    "kafka": [
+      2,
+      "2g"
+    ],
+    "observer": [
+      1,
+      "512m"
+    ],
+    "valkey": [
+      0.5,
+      "256m"
+    ],
+    "proxy": [
+      1,
+      "256m"
+    ],
+    "intake": [
+      2,
+      "512m"
+    ],
+    "vector": [
+      2,
+      "512m"
+    ],
+    "vector2": [
+      2,
+      "512m"
+    ],
+    "driver": [
+      1,
+      "256m"
+    ],
+    "api1": [
+      2,
+      "768m"
+    ],
+    "api2": [
+      2,
+      "768m"
+    ]
+  },
+  "phases": [
+    {
+      "stageTimings": {
+        "request": {
+          "count": 26,
+          "seconds": 11.125807,
+          "meanMs": 427.9156538461539
+        },
+        "request_slot": {
+          "count": 26,
+          "seconds": 1e-05,
+          "meanMs": 0.0003846153846153846
+        },
+        "org_gate": {
+          "count": 52,
+          "seconds": 6e-05,
+          "meanMs": 0.001153846153846154
+        },
+        "persisted_lookup": {
+          "count": 26,
+          "seconds": 0.7699560000000001,
+          "meanMs": 29.61369230769231
+        },
+        "admission": {
+          "count": 52,
+          "seconds": 1.161999,
+          "meanMs": 22.346134615384617
+        },
+        "quota_lock": {
+          "count": 98,
+          "seconds": 0.022699999999999998,
+          "meanMs": 0.2316326530612245
+        },
+        "indexed_insert": {
+          "count": 26,
+          "seconds": 8.926281000000001,
+          "meanMs": 343.31850000000003
+        },
+        "outbox_enqueue": {
+          "count": 52,
+          "seconds": 7.9e-05,
+          "meanMs": 0.0015192307692307692
+        }
+      },
+      "name": "slow-5000",
+      "orgs": [
+        "bench-0-org-0",
+        "bench-0-org-1",
+        "bench-0-org-2",
+        "bench-0-org-3"
+      ],
+      "quota": true,
+      "metrics": false,
+      "offeredRate": 5000,
+      "durationSeconds": 15,
+      "storageDelayMs": 250,
+      "holdSeconds": 0,
+      "load": {
+        "startedAt": "2026-10-31T23:24:37.428Z",
+        "runToken": "8073cd1a-a992-49d4-beba-d070d51000ae",
+        "acknowledgedBatches": {
+          "8073cd1a-a992-49d4-beba-d070d51000ae-0": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-1": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-2": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-3": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-4": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-5": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-6": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-7": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-8": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-9": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-10": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-11": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-12": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-13": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-14": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-15": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-16": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-17": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-18": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-19": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-20": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-21": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-22": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-23": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-24": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-25": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-26": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-27": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-28": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-29": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-30": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-31": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-32": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-33": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-34": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-35": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-36": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-37": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-38": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-39": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-40": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-41": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-42": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-43": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-44": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-45": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-46": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-47": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-48": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-49": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-50": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-51": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-52": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-53": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-54": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-55": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-56": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-57": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-58": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-59": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-60": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-61": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-62": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-63": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-64": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-65": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-66": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-67": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-68": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-69": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-70": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-71": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-72": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-73": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-74": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-75": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-76": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-77": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-78": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-79": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-80": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-81": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-82": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-83": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-84": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-85": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-86": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-87": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-88": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-89": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-90": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-91": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-92": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-93": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-94": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-95": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-96": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-97": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-98": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-99": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-100": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-101": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-102": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-103": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-104": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-105": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-106": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-107": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-108": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-109": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-110": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-111": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-112": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-113": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-114": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-115": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-116": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-117": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-118": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-119": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-120": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-121": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-122": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-123": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-124": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-125": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-126": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-127": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-128": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-129": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-130": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-131": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-132": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-133": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-134": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-135": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-136": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-137": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-138": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-139": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-140": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-141": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-142": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-143": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-144": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-145": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-146": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-147": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-148": 500,
+          "8073cd1a-a992-49d4-beba-d070d51000ae-149": 500
+        },
+        "sendFinishedAt": "2026-10-31T23:24:52.427Z",
+        "offered": 75000,
+        "accepted": 75000,
+        "failed": 0,
+        "payloadBytes": 27950790,
+        "sendSeconds": 14.999264513,
+        "acceptedPerSecond": 5000.245174354836,
+        "statuses": {
+          "200": 150
+        },
+        "peakInFlight": 1,
+        "intakeAckMs": {
+          "samples": 150,
+          "p50": 10.774352000000135,
+          "p95": 11.562705000000278,
+          "p99": 12.881469999999993,
+          "max": 16.667063
+        },
+        "scheduleLagMs": {
+          "samples": 150,
+          "p50": 0,
+          "p95": 0.284416999998939,
+          "p99": 0.3296500000001288,
+          "max": 20.166796000000005
+        },
+        "indexedProbeVisibilityMs": {
+          "samples": 150,
+          "p50": 1258.05602,
+          "p95": 1841.7433949999995,
+          "p99": 1937.6435980000006,
+          "max": 1964.33844
+        },
+        "missingAcceptedProbes": 0,
+        "probeReadsFailed": 0
+      },
+      "totalToCommitSeconds": 23.983,
+      "drainedAfterSenderSeconds": 8.862,
+      "peakLagRecords": 52,
+      "sampledPeakOutboxBytes": 0,
+      "sampledResourcePeaks": {
+        "clickhouse": {
+          "cpuPercent": 27.09,
+          "memoryBytes": 256586547.2
+        },
+        "postgres": {
+          "cpuPercent": 6.82,
+          "memoryBytes": 168925593.6
+        },
+        "kafka": {
+          "cpuPercent": 20.73,
+          "memoryBytes": 350329241.6
+        },
+        "observer": {
+          "cpuPercent": 101.69,
+          "memoryBytes": 122997964.8
+        },
+        "valkey": {
+          "cpuPercent": 0.13,
+          "memoryBytes": 4505731.072
+        },
+        "proxy": {
+          "cpuPercent": 4.34,
+          "memoryBytes": 49901731.84
+        },
+        "intake": {
+          "cpuPercent": 1.93,
+          "memoryBytes": 12970885.12
+        },
+        "vector": {
+          "cpuPercent": 22.74,
+          "memoryBytes": 79146516.48
+        },
+        "vector2": {
+          "cpuPercent": 22.27,
+          "memoryBytes": 84588625.92
+        },
+        "driver": {
+          "cpuPercent": 4.29,
+          "memoryBytes": 43369103.36
+        },
+        "api1": {
+          "cpuPercent": 4.16,
+          "memoryBytes": 47867494.4
+        },
+        "api2": {
+          "cpuPercent": 3.56,
+          "memoryBytes": 48496640
+        }
+      },
+      "walBytes": 27324864,
+      "unacknowledgedStored": 0,
+      "walBytesPerAcceptedLog": 364.33152,
+      "admissionTableGrowthBytes": 11534336,
+      "baseline": {
+        "raw": 2000,
+        "indexed": 2000,
+        "metrics": null,
+        "receipts": 2000,
+        "reserved": 2000,
+        "outboxBatches": 0,
+        "outboxBytes": 0,
+        "admissionTableBytes": 385024,
+        "outboxTableBytes": 24576,
+        "walLsn": "0/21A8FD8"
+      },
+      "final": {
+        "raw": 77000,
+        "indexed": 77000,
+        "metrics": null,
+        "receipts": 77000,
+        "reserved": 77000,
+        "outboxBatches": 0,
+        "outboxBytes": 0,
+        "admissionTableBytes": 11919360,
+        "outboxTableBytes": 24576,
+        "walLsn": "0/3BB8198"
+      },
+      "samples": [
+        {
+          "at": "2026-10-31T23:24:39.451Z",
+          "elapsedSeconds": 2.145,
+          "lagRecords": 17,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 2,
+              "committed": 2,
+              "end": 11,
+              "lag": 9
+            },
+            {
+              "partition": 3,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 10,
+              "committed": 2,
+              "end": 10,
+              "lag": 8
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 2000,
+            "indexed": 2000,
+            "metrics": null,
+            "receipts": 2000,
+            "reserved": 2000,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 385024,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/21A8FD8"
+          },
+          "proxy": {
+            "delayMs": 250,
+            "hold": false,
+            "active": 0,
+            "peakActive": 0,
+            "held": 0,
+            "inserts": 0,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 25.29,
+              "memoryBytes": 220725248
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 6.03,
+              "memoryBytes": 138307174.4
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 20.73,
+              "memoryBytes": 337746329.6
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 101.69,
+              "memoryBytes": 66584576
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.12,
+              "memoryBytes": 4247781.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 4.34,
+              "memoryBytes": 46735032.32
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 1.77,
+              "memoryBytes": 10800332.8
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 20.08,
+              "memoryBytes": 63470305.28
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 21.49,
+              "memoryBytes": 69342330.88
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 3.7,
+              "memoryBytes": 37937479.68
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 4.16,
+              "memoryBytes": 30492590.08
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 3.56,
+              "memoryBytes": 35053895.68
+            }
+          ]
+        },
+        {
+          "at": "2026-10-31T23:24:42.655Z",
+          "elapsedSeconds": 5.349,
+          "lagRecords": 49,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 2,
+              "committed": 2,
+              "end": 27,
+              "lag": 25
+            },
+            {
+              "partition": 3,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 10,
+              "committed": 2,
+              "end": 26,
+              "lag": 24
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 14000,
+            "indexed": 14000,
+            "metrics": null,
+            "receipts": 14000,
+            "reserved": 14000,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 2228224,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/25C3BE0"
+          },
+          "proxy": {
+            "delayMs": 250,
+            "hold": false,
+            "active": 0,
+            "peakActive": 6,
+            "held": 0,
+            "inserts": 8,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 22.99,
+              "memoryBytes": 236663603.2
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 6.59,
+              "memoryBytes": 147324928
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 12.64,
+              "memoryBytes": 341835776
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 74.4,
+              "memoryBytes": 99803463.68
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.13,
+              "memoryBytes": 4247781.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 2.19,
+              "memoryBytes": 46756003.84
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 1.93,
+              "memoryBytes": 12100567.04
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 22.74,
+              "memoryBytes": 79146516.48
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 21.11,
+              "memoryBytes": 79293317.12
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 4.29,
+              "memoryBytes": 39332085.76
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 3.67,
+              "memoryBytes": 45990543.36
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 3.14,
+              "memoryBytes": 45812285.44
+            }
+          ]
+        },
+        {
+          "at": "2026-10-31T23:24:45.820Z",
+          "elapsedSeconds": 8.514,
+          "lagRecords": 39,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 2,
+              "committed": 26,
+              "end": 43,
+              "lag": 17
+            },
+            {
+              "partition": 3,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 10,
+              "committed": 20,
+              "end": 42,
+              "lag": 22
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 31500,
+            "indexed": 26000,
+            "metrics": null,
+            "receipts": 32000,
+            "reserved": 32000,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 5021696,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/2BE8F90"
+          },
+          "proxy": {
+            "delayMs": 250,
+            "hold": false,
+            "active": 4,
+            "peakActive": 6,
+            "held": 0,
+            "inserts": 20,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 23.66,
+              "memoryBytes": 247988224
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 4.7,
+              "memoryBytes": 153721241.6
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 11.63,
+              "memoryBytes": 341521203.2
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 77.06,
+              "memoryBytes": 98073313.28
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.12,
+              "memoryBytes": 4247781.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 3.34,
+              "memoryBytes": 49901731.84
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 1.72,
+              "memoryBytes": 12394168.32
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 20.07,
+              "memoryBytes": 77594624
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 22.27,
+              "memoryBytes": 84232110.08
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 2.54,
+              "memoryBytes": 41471180.8
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 2.81,
+              "memoryBytes": 47867494.4
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 0.72,
+              "memoryBytes": 48496640
+            }
+          ]
+        },
+        {
+          "at": "2026-10-31T23:24:49.056Z",
+          "elapsedSeconds": 11.75,
+          "lagRecords": 20,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 2,
+              "committed": 49,
+              "end": 59,
+              "lag": 10
+            },
+            {
+              "partition": 3,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 10,
+              "committed": 48,
+              "end": 58,
+              "lag": 10
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 43500,
+            "indexed": 43500,
+            "metrics": null,
+            "receipts": 48500,
+            "reserved": 48500,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 7618560,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/318E670"
+          },
+          "proxy": {
+            "delayMs": 250,
+            "hold": false,
+            "active": 2,
+            "peakActive": 6,
+            "held": 0,
+            "inserts": 29,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 26.05,
+              "memoryBytes": 244527923.2
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 3.51,
+              "memoryBytes": 160012697.6
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 15.22,
+              "memoryBytes": 344352358.4
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 73.22,
+              "memoryBytes": 94183096.32
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.11,
+              "memoryBytes": 4505731.072
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 1.09,
+              "memoryBytes": 47710208
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 1.78,
+              "memoryBytes": 12362711.04
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 20.93,
+              "memoryBytes": 73924608
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 20.5,
+              "memoryBytes": 84588625.92
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 3.6,
+              "memoryBytes": 39950745.6
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 0.48,
+              "memoryBytes": 46451916.8
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 2.37,
+              "memoryBytes": 47993323.52
+            }
+          ]
+        },
+        {
+          "at": "2026-10-31T23:24:52.239Z",
+          "elapsedSeconds": 14.933,
+          "lagRecords": 52,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 2,
+              "committed": 49,
+              "end": 75,
+              "lag": 26
+            },
+            {
+              "partition": 3,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 10,
+              "committed": 48,
+              "end": 74,
+              "lag": 26
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 61000,
+            "indexed": 60000,
+            "metrics": null,
+            "receipts": 63000,
+            "reserved": 63000,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 9748480,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/36EFBA8"
+          },
+          "proxy": {
+            "delayMs": 250,
+            "hold": false,
+            "active": 0,
+            "peakActive": 6,
+            "held": 0,
+            "inserts": 40,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 27.09,
+              "memoryBytes": 256586547.2
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 6.82,
+              "memoryBytes": 166618726.4
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 11.79,
+              "memoryBytes": 345400934.4
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 70.74,
+              "memoryBytes": 95776931.84
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.13,
+              "memoryBytes": 4247781.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 1.59,
+              "memoryBytes": 47972352
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 1.77,
+              "memoryBytes": 12970885.12
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 21.78,
+              "memoryBytes": 73169633.28
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 18.89,
+              "memoryBytes": 81075896.32
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 2.47,
+              "memoryBytes": 43369103.36
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 2.87,
+              "memoryBytes": 45917143.04
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 2.97,
+              "memoryBytes": 48203038.72
+            }
+          ]
+        },
+        {
+          "at": "2026-10-31T23:24:56.479Z",
+          "elapsedSeconds": 19.173,
+          "lagRecords": 11,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 2,
+              "committed": 72,
+              "end": 77,
+              "lag": 5
+            },
+            {
+              "partition": 3,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 10,
+              "committed": 71,
+              "end": 77,
+              "lag": 6
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 77000,
+            "indexed": 77000,
+            "metrics": null,
+            "receipts": 77000,
+            "reserved": 77000,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 11919360,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/3BB8198"
+          },
+          "proxy": {
+            "delayMs": 250,
+            "hold": false,
+            "active": 0,
+            "peakActive": 6,
+            "held": 0,
+            "inserts": 52,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 18.66,
+              "memoryBytes": 250714521.6
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 0.32,
+              "memoryBytes": 167772160
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 3.33,
+              "memoryBytes": 346868940.8
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 98.22,
+              "memoryBytes": 121005670.4
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.12,
+              "memoryBytes": 4247781.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 0.01,
+              "memoryBytes": 47521464.32
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 0,
+              "memoryBytes": 12928942.08
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 0.47,
+              "memoryBytes": 69730304
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 0.4,
+              "memoryBytes": 76619448.32
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 0,
+              "memoryBytes": 1708130.304
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 0.12,
+              "memoryBytes": 46210744.32
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 0.11,
+              "memoryBytes": 47678750.72
+            }
+          ]
+        },
+        {
+          "at": "2026-10-31T23:25:00.456Z",
+          "elapsedSeconds": 23.15,
+          "lagRecords": 0,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 2,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 3,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 10,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 77000,
+            "indexed": 77000,
+            "metrics": null,
+            "receipts": 77000,
+            "reserved": 77000,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 11919360,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/3BB8198"
+          },
+          "proxy": {
+            "delayMs": 0,
+            "hold": false,
+            "active": 0,
+            "peakActive": 6,
+            "held": 0,
+            "inserts": 52,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 6.64,
+              "memoryBytes": 249141657.6
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 0.24,
+              "memoryBytes": 168925593.6
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 4.94,
+              "memoryBytes": 350329241.6
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 97.41,
+              "memoryBytes": 122997964.8
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.13,
+              "memoryBytes": 4247781.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 0.14,
+              "memoryBytes": 47720693.76
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 0,
+              "memoryBytes": 12677283.84
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 0.61,
+              "memoryBytes": 70023905.28
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 0.61,
+              "memoryBytes": 76944506.88
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 0,
+              "memoryBytes": 1687158.784
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 0.11,
+              "memoryBytes": 46472888.32
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 0.12,
+              "memoryBytes": 47930408.96
+            }
+          ]
+        }
+      ],
+      "samplingErrors": []
+    },
+    {
+      "stageTimings": {
+        "request": {
+          "count": 22,
+          "seconds": 27.027062,
+          "meanMs": 1228.5028181818182
+        },
+        "request_slot": {
+          "count": 22,
+          "seconds": 9.999999999999999e-06,
+          "meanMs": 0.0004545454545454545
+        },
+        "org_gate": {
+          "count": 48,
+          "seconds": 6.7e-05,
+          "meanMs": 0.0013958333333333333
+        },
+        "persisted_lookup": {
+          "count": 22,
+          "seconds": 0.8775570000000001,
+          "meanMs": 39.88895454545455
+        },
+        "admission": {
+          "count": 48,
+          "seconds": 1.17935,
+          "meanMs": 24.569791666666664
+        },
+        "quota_lock": {
+          "count": 93,
+          "seconds": 0.015478000000000006,
+          "meanMs": 0.16643010752688178
+        },
+        "indexed_insert": {
+          "count": 24,
+          "seconds": 24.674620000000004,
+          "meanMs": 1028.1091666666669
+        },
+        "outbox_enqueue": {
+          "count": 48,
+          "seconds": 6.9e-05,
+          "meanMs": 0.0014374999999999998
+        }
+      },
+      "name": "paused-5000",
+      "orgs": [
+        "bench-1-org-0",
+        "bench-1-org-1",
+        "bench-1-org-2",
+        "bench-1-org-3"
+      ],
+      "quota": true,
+      "metrics": false,
+      "offeredRate": 5000,
+      "durationSeconds": 15,
+      "storageDelayMs": 0,
+      "holdSeconds": 5,
+      "load": {
+        "startedAt": "2026-10-31T23:25:11.445Z",
+        "runToken": "bd638930-c1e8-4052-afa9-7bfcf888a9c7",
+        "acknowledgedBatches": {
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-0": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-1": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-2": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-3": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-4": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-5": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-6": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-7": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-8": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-9": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-10": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-11": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-12": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-13": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-14": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-15": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-16": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-17": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-18": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-19": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-20": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-21": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-22": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-23": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-24": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-25": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-26": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-27": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-28": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-29": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-30": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-31": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-32": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-33": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-34": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-35": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-36": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-37": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-38": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-39": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-40": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-41": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-42": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-43": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-44": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-45": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-46": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-47": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-48": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-49": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-50": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-51": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-52": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-53": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-54": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-55": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-56": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-57": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-58": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-59": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-60": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-61": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-62": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-63": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-64": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-65": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-66": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-67": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-68": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-69": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-70": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-71": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-72": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-73": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-74": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-75": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-76": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-77": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-78": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-79": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-80": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-81": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-82": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-83": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-84": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-85": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-86": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-87": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-88": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-89": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-90": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-91": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-92": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-93": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-94": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-95": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-96": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-97": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-98": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-99": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-100": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-101": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-102": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-103": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-104": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-105": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-106": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-107": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-108": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-109": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-110": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-111": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-112": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-113": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-114": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-115": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-116": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-117": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-118": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-119": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-120": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-121": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-122": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-123": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-124": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-125": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-126": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-127": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-128": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-129": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-130": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-131": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-132": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-133": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-134": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-135": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-136": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-137": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-138": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-139": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-140": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-141": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-142": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-143": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-144": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-145": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-146": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-147": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-148": 500,
+          "bd638930-c1e8-4052-afa9-7bfcf888a9c7-149": 500
+        },
+        "sendFinishedAt": "2026-10-31T23:25:26.444Z",
+        "offered": 75000,
+        "accepted": 75000,
+        "failed": 0,
+        "payloadBytes": 27950790,
+        "sendSeconds": 15.000164557,
+        "acceptedPerSecond": 4999.945148268416,
+        "statuses": {
+          "200": 150
+        },
+        "peakInFlight": 1,
+        "intakeAckMs": {
+          "samples": 150,
+          "p50": 10.589101999999912,
+          "p95": 11.617547999999942,
+          "p99": 20.252384999999776,
+          "max": 22.063778000000006
+        },
+        "scheduleLagMs": {
+          "samples": 150,
+          "p50": 0,
+          "p95": 0.6161730000003445,
+          "p99": 0.7497199999997974,
+          "max": 24.394861999999996
+        },
+        "indexedProbeVisibilityMs": {
+          "samples": 150,
+          "p50": 1603.4233590000003,
+          "p95": 6931.670417,
+          "p99": 7532.375234,
+          "max": 7606.907209000001
+        },
+        "missingAcceptedProbes": 0,
+        "probeReadsFailed": 0
+      },
+      "totalToCommitSeconds": 20.218,
+      "drainedAfterSenderSeconds": 5.113,
+      "peakLagRecords": 85,
+      "sampledPeakOutboxBytes": 0,
+      "sampledResourcePeaks": {
+        "clickhouse": {
+          "cpuPercent": 172.25,
+          "memoryBytes": 336697753.6
+        },
+        "postgres": {
+          "cpuPercent": 26.71,
+          "memoryBytes": 195873996.8
+        },
+        "kafka": {
+          "cpuPercent": 12.71,
+          "memoryBytes": 380003942.4
+        },
+        "observer": {
+          "cpuPercent": 101.64,
+          "memoryBytes": 124256256
+        },
+        "valkey": {
+          "cpuPercent": 0.12,
+          "memoryBytes": 4509925.376
+        },
+        "proxy": {
+          "cpuPercent": 13.14,
+          "memoryBytes": 58374225.92
+        },
+        "intake": {
+          "cpuPercent": 2.03,
+          "memoryBytes": 13673431.04
+        },
+        "vector": {
+          "cpuPercent": 24.81,
+          "memoryBytes": 128555417.6
+        },
+        "vector2": {
+          "cpuPercent": 32.1,
+          "memoryBytes": 130023424
+        },
+        "driver": {
+          "cpuPercent": 4.19,
+          "memoryBytes": 44784680.96
+        },
+        "api1": {
+          "cpuPercent": 16.96,
+          "memoryBytes": 79639347.2
+        },
+        "api2": {
+          "cpuPercent": 16.01,
+          "memoryBytes": 88248156.16
+        }
+      },
+      "walBytes": 26924152,
+      "unacknowledgedStored": 0,
+      "walBytesPerAcceptedLog": 358.98869333333334,
+      "admissionTableGrowthBytes": 11591680,
+      "baseline": {
+        "raw": 2000,
+        "indexed": 2000,
+        "metrics": null,
+        "receipts": 2000,
+        "reserved": 2000,
+        "outboxBatches": 0,
+        "outboxBytes": 0,
+        "admissionTableBytes": 12238848,
+        "outboxTableBytes": 24576,
+        "walLsn": "0/3CA44C0"
+      },
+      "final": {
+        "raw": 77000,
+        "indexed": 77000,
+        "metrics": null,
+        "receipts": 77000,
+        "reserved": 77000,
+        "outboxBatches": 0,
+        "outboxBytes": 0,
+        "admissionTableBytes": 23830528,
+        "outboxTableBytes": 24576,
+        "walLsn": "0/5649708"
+      },
+      "release": {
+        "at": "2026-10-31T23:25:18.771Z",
+        "offsets": [
+          {
+            "partition": 0,
+            "committed": null,
+            "end": 0,
+            "lag": 0
+          },
+          {
+            "partition": 1,
+            "committed": 1,
+            "end": 18,
+            "lag": 17
+          },
+          {
+            "partition": 2,
+            "committed": 77,
+            "end": 77,
+            "lag": 0
+          },
+          {
+            "partition": 3,
+            "committed": 1,
+            "end": 18,
+            "lag": 17
+          },
+          {
+            "partition": 4,
+            "committed": null,
+            "end": 0,
+            "lag": 0
+          },
+          {
+            "partition": 5,
+            "committed": null,
+            "end": 0,
+            "lag": 0
+          },
+          {
+            "partition": 6,
+            "committed": null,
+            "end": 0,
+            "lag": 0
+          },
+          {
+            "partition": 7,
+            "committed": 1,
+            "end": 18,
+            "lag": 17
+          },
+          {
+            "partition": 8,
+            "committed": null,
+            "end": 0,
+            "lag": 0
+          },
+          {
+            "partition": 9,
+            "committed": 1,
+            "end": 18,
+            "lag": 17
+          },
+          {
+            "partition": 10,
+            "committed": 77,
+            "end": 77,
+            "lag": 0
+          },
+          {
+            "partition": 11,
+            "committed": null,
+            "end": 0,
+            "lag": 0
+          }
+        ],
+        "proxy": {
+          "delayMs": 0,
+          "hold": false,
+          "active": 12,
+          "peakActive": 12,
+          "held": 8,
+          "inserts": 8,
+          "failures": 0
+        }
+      },
+      "samples": [
+        {
+          "at": "2026-10-31T23:25:13.483Z",
+          "elapsedSeconds": 2.144,
+          "lagRecords": 17,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": 1,
+              "end": 5,
+              "lag": 4
+            },
+            {
+              "partition": 2,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 3,
+              "committed": 1,
+              "end": 5,
+              "lag": 4
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": 1,
+              "end": 6,
+              "lag": 5
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": 1,
+              "end": 5,
+              "lag": 4
+            },
+            {
+              "partition": 10,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 2000,
+            "indexed": 2000,
+            "metrics": null,
+            "receipts": 2000,
+            "reserved": 2000,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 12238848,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/3CA44C0"
+          },
+          "proxy": {
+            "delayMs": 0,
+            "hold": true,
+            "active": 0,
+            "peakActive": 0,
+            "held": 0,
+            "inserts": 0,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 12.61,
+              "memoryBytes": 253965107.2
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 5.92,
+              "memoryBytes": 174483046.4
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 12.71,
+              "memoryBytes": 364170444.8
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 69.29,
+              "memoryBytes": 3809476.608
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.12,
+              "memoryBytes": 4247781.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 1.69,
+              "memoryBytes": 48695869.44
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 1.88,
+              "memoryBytes": 13673431.04
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 22.67,
+              "memoryBytes": 69992448
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 20.54,
+              "memoryBytes": 73117204.48
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 3.9,
+              "memoryBytes": 39007027.2
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 2.51,
+              "memoryBytes": 48947527.68
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 0.12,
+              "memoryBytes": 47710208
+            }
+          ]
+        },
+        {
+          "at": "2026-10-31T23:25:16.658Z",
+          "elapsedSeconds": 5.319,
+          "lagRecords": 48,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": 1,
+              "end": 13,
+              "lag": 12
+            },
+            {
+              "partition": 2,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 3,
+              "committed": 1,
+              "end": 13,
+              "lag": 12
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": 1,
+              "end": 13,
+              "lag": 12
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": 1,
+              "end": 13,
+              "lag": 12
+            },
+            {
+              "partition": 10,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 2000,
+            "indexed": 2000,
+            "metrics": null,
+            "receipts": 13500,
+            "reserved": 13500,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 14049280,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/4096FA0"
+          },
+          "proxy": {
+            "delayMs": 0,
+            "hold": true,
+            "active": 12,
+            "peakActive": 12,
+            "held": 8,
+            "inserts": 8,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 5.37,
+              "memoryBytes": 256586547.2
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 0.02,
+              "memoryBytes": 175741337.6
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 10.14,
+              "memoryBytes": 377801932.8
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 84.93,
+              "memoryBytes": 110100480
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.11,
+              "memoryBytes": 4509925.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 0,
+              "memoryBytes": 50405048.32
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 1.81,
+              "memoryBytes": 13390315.52
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 15.38,
+              "memoryBytes": 81348526.08
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 22.13,
+              "memoryBytes": 90397736.96
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 4.19,
+              "memoryBytes": 39657144.32
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 0,
+              "memoryBytes": 51904512
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 0,
+              "memoryBytes": 53141831.68
+            }
+          ]
+        },
+        {
+          "at": "2026-10-31T23:25:20.254Z",
+          "elapsedSeconds": 8.915,
+          "lagRecords": 85,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": 1,
+              "end": 22,
+              "lag": 21
+            },
+            {
+              "partition": 2,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 3,
+              "committed": 1,
+              "end": 22,
+              "lag": 21
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": 1,
+              "end": 23,
+              "lag": 22
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": 1,
+              "end": 22,
+              "lag": 21
+            },
+            {
+              "partition": 10,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 2000,
+            "indexed": 2000,
+            "metrics": null,
+            "receipts": 13500,
+            "reserved": 13500,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 14049280,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/4096FD8"
+          },
+          "proxy": {
+            "delayMs": 0,
+            "hold": true,
+            "active": 12,
+            "peakActive": 12,
+            "held": 8,
+            "inserts": 8,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 172.25,
+              "memoryBytes": 266023731.2
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 26.71,
+              "memoryBytes": 183500800
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 9.03,
+              "memoryBytes": 375075635.2
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 101.26,
+              "memoryBytes": 90492108.8
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.12,
+              "memoryBytes": 4247781.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 13.14,
+              "memoryBytes": 56465817.6
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 2.03,
+              "memoryBytes": 13337886.72
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 24.81,
+              "memoryBytes": 128555417.6
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 32.1,
+              "memoryBytes": 130023424
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 2.83,
+              "memoryBytes": 42897244.16
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 16.96,
+              "memoryBytes": 79639347.2
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 16.01,
+              "memoryBytes": 88248156.16
+            }
+          ]
+        },
+        {
+          "at": "2026-10-31T23:25:23.451Z",
+          "elapsedSeconds": 12.112,
+          "lagRecords": 18,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": 26,
+              "end": 30,
+              "lag": 4
+            },
+            {
+              "partition": 2,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 3,
+              "committed": 26,
+              "end": 30,
+              "lag": 4
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": 26,
+              "end": 31,
+              "lag": 5
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": 25,
+              "end": 30,
+              "lag": 5
+            },
+            {
+              "partition": 10,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 47500,
+            "indexed": 46000,
+            "metrics": null,
+            "receipts": 48500,
+            "reserved": 48500,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 19415040,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/4C7BDA0"
+          },
+          "proxy": {
+            "delayMs": 0,
+            "hold": false,
+            "active": 1,
+            "peakActive": 12,
+            "held": 8,
+            "inserts": 26,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 51.65,
+              "memoryBytes": 281123225.6
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 6.02,
+              "memoryBytes": 187590246.4
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 9.29,
+              "memoryBytes": 374446489.6
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 69.16,
+              "memoryBytes": 99876864
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.12,
+              "memoryBytes": 4509925.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 1.56,
+              "memoryBytes": 54861496.32
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 1.91,
+              "memoryBytes": 13652459.52
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 18.28,
+              "memoryBytes": 98524200.96
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 22.24,
+              "memoryBytes": 112302489.6
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 4,
+              "memoryBytes": 42530242.56
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 3.13,
+              "memoryBytes": 51002736.64
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 3.2,
+              "memoryBytes": 80362864.64
+            }
+          ]
+        },
+        {
+          "at": "2026-10-31T23:25:26.628Z",
+          "elapsedSeconds": 15.289,
+          "lagRecords": 50,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": 26,
+              "end": 38,
+              "lag": 12
+            },
+            {
+              "partition": 2,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 3,
+              "committed": 26,
+              "end": 38,
+              "lag": 12
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": 26,
+              "end": 39,
+              "lag": 13
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": 25,
+              "end": 38,
+              "lag": 13
+            },
+            {
+              "partition": 10,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 62500,
+            "indexed": 63500,
+            "metrics": null,
+            "receipts": 63500,
+            "reserved": 63500,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 21749760,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/519C880"
+          },
+          "proxy": {
+            "delayMs": 0,
+            "hold": false,
+            "active": 0,
+            "peakActive": 12,
+            "held": 8,
+            "inserts": 36,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 82.12,
+              "memoryBytes": 272420044.8
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 7.08,
+              "memoryBytes": 191784550.4
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 8.75,
+              "memoryBytes": 380003942.4
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 78.99,
+              "memoryBytes": 95714017.28
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.11,
+              "memoryBytes": 3985637.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 1.98,
+              "memoryBytes": 55836672
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 1.63,
+              "memoryBytes": 13306429.44
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 24.8,
+              "memoryBytes": 76986449.92
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 21.69,
+              "memoryBytes": 89936363.52
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 2.98,
+              "memoryBytes": 44784680.96
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 3.28,
+              "memoryBytes": 51904512
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 2.91,
+              "memoryBytes": 80436264.96
+            }
+          ]
+        },
+        {
+          "at": "2026-10-31T23:25:30.899Z",
+          "elapsedSeconds": 19.56,
+          "lagRecords": 0,
+          "partitions": [
+            {
+              "partition": 0,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 1,
+              "committed": 39,
+              "end": 39,
+              "lag": 0
+            },
+            {
+              "partition": 2,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 3,
+              "committed": 38,
+              "end": 38,
+              "lag": 0
+            },
+            {
+              "partition": 4,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 5,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 6,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 7,
+              "committed": 39,
+              "end": 39,
+              "lag": 0
+            },
+            {
+              "partition": 8,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            },
+            {
+              "partition": 9,
+              "committed": 38,
+              "end": 38,
+              "lag": 0
+            },
+            {
+              "partition": 10,
+              "committed": 77,
+              "end": 77,
+              "lag": 0
+            },
+            {
+              "partition": 11,
+              "committed": null,
+              "end": 0,
+              "lag": 0
+            }
+          ],
+          "storage": {
+            "raw": 77000,
+            "indexed": 77000,
+            "metrics": null,
+            "receipts": 77000,
+            "reserved": 77000,
+            "outboxBatches": 0,
+            "outboxBytes": 0,
+            "admissionTableBytes": 23830528,
+            "outboxTableBytes": 24576,
+            "walLsn": "0/5643528"
+          },
+          "proxy": {
+            "delayMs": 0,
+            "hold": false,
+            "active": 0,
+            "peakActive": 12,
+            "held": 8,
+            "inserts": 48,
+            "failures": 0
+          },
+          "resources": [
+            {
+              "component": "clickhouse",
+              "cpuPercent": 116.62,
+              "memoryBytes": 336697753.6
+            },
+            {
+              "component": "postgres",
+              "cpuPercent": 5.93,
+              "memoryBytes": 195873996.8
+            },
+            {
+              "component": "kafka",
+              "cpuPercent": 2.9,
+              "memoryBytes": 375599923.2
+            },
+            {
+              "component": "observer",
+              "cpuPercent": 101.64,
+              "memoryBytes": 124256256
+            },
+            {
+              "component": "valkey",
+              "cpuPercent": 0.12,
+              "memoryBytes": 4509925.376
+            },
+            {
+              "component": "proxy",
+              "cpuPercent": 10.87,
+              "memoryBytes": 58374225.92
+            },
+            {
+              "component": "intake",
+              "cpuPercent": 0,
+              "memoryBytes": 12845056
+            },
+            {
+              "component": "vector",
+              "cpuPercent": 0.44,
+              "memoryBytes": 72750202.88
+            },
+            {
+              "component": "vector2",
+              "cpuPercent": 0.51,
+              "memoryBytes": 78632714.24
+            },
+            {
+              "component": "driver",
+              "cpuPercent": 0,
+              "memoryBytes": 1978662.912
+            },
+            {
+              "component": "api1",
+              "cpuPercent": 0.12,
+              "memoryBytes": 51652853.76
+            },
+            {
+              "component": "api2",
+              "cpuPercent": 12.87,
+              "memoryBytes": 81862328.32
+            }
+          ]
+        }
+      ],
+      "samplingErrors": []
+    }
+  ],
+  "applicationRevision": "367ac0e50462c96a06b78cb1ae1f530b920b2961",
+  "host": {
+    "cpus": 32,
+    "memoryBytes": 15994150912,
+    "os": "Docker Desktop",
+    "architecture": "x86_64",
+    "dockerVersion": "29.8.2"
+  },
+  "harnessSha256": "db3421bf5183073effaa076bea8cf187897a86bb327821120b95ddcd5d1227f6",
+  "vectorConfigSha256": {
+    "aggregator.yaml": "014a90b76b33f304270bfd10113335a00c0c03def92d579da1ef1eda9d700bdf",
+    "normalize.vrl": "c74c7cac52f60de537eaec2c08702691e642a9751eafdb77a83f7548bc9cce3d"
+  },
+  "images": [
+    {
+      "component": "clickhouse",
+      "digest": "sha256:d426d2f612e1e189c90f9a3f8dcd85a03c6851273833817a296bb327e63aa7a7",
+      "reference": "clickhouse/clickhouse-server:26.8"
+    },
+    {
+      "component": "postgres",
+      "digest": "sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c",
+      "reference": "postgres:16"
+    },
+    {
+      "component": "kafka",
+      "digest": "sha256:bff074a5d0051dbc0bbbcd25b045bb1fe84833ec0d3c7c965d1797dd289ec88f",
+      "reference": "apache/kafka:4.1.0"
+    },
+    {
+      "component": "observer",
+      "digest": "sha256:bff074a5d0051dbc0bbbcd25b045bb1fe84833ec0d3c7c965d1797dd289ec88f",
+      "reference": "apache/kafka:4.1.0"
+    },
+    {
+      "component": "valkey",
+      "digest": "sha256:2602ace2be6569bc2bbb06f873776516ab9089821525be34f4305c67eb9db02a",
+      "reference": "valkey/valkey:8.1.11-alpine"
+    },
+    {
+      "component": "proxy",
+      "digest": "sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c",
+      "reference": "node:24-bookworm-slim"
+    },
+    {
+      "component": "migrate",
+      "digest": "sha256:c4835c9075f3b1e547b3f8420e4cb2a2c582604be3206204f03cc12754848d31",
+      "reference": "observecraft:ingestion-parallel"
+    },
+    {
+      "component": "intake",
+      "digest": "sha256:c4835c9075f3b1e547b3f8420e4cb2a2c582604be3206204f03cc12754848d31",
+      "reference": "observecraft:ingestion-parallel"
+    },
+    {
+      "component": "driver",
+      "digest": "sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c",
+      "reference": "node:24-bookworm-slim"
+    },
+    {
+      "component": "vector",
+      "digest": "sha256:60fda41b3830c5b34627581f9c6826df181efe8a18ea2b9718098924e6226d50",
+      "reference": "timberio/vector:0.42.0-debian"
+    },
+    {
+      "component": "vector2",
+      "digest": "sha256:60fda41b3830c5b34627581f9c6826df181efe8a18ea2b9718098924e6226d50",
+      "reference": "timberio/vector:0.42.0-debian"
+    },
+    {
+      "component": "api1",
+      "digest": "sha256:c4835c9075f3b1e547b3f8420e4cb2a2c582604be3206204f03cc12754848d31",
+      "reference": "observecraft:ingestion-parallel"
+    },
+    {
+      "component": "api2",
+      "digest": "sha256:c4835c9075f3b1e547b3f8420e4cb2a2c582604be3206204f03cc12754848d31",
+      "reference": "observecraft:ingestion-parallel"
+    }
+  ],
+  "completedAt": "2026-10-31T23:25:32.035Z"
+}
