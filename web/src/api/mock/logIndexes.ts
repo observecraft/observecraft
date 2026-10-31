@@ -24,7 +24,19 @@ function db(): State {
   const filter = (name: string, query: string, sampleRate: number, enabled = true): S['ExclusionFilter'] => ({ name, query, sampleRate, enabled });
   state = {
     indexes: [
-      { id: 'ix-0001', name: 'billing-audit', filter: 'service:billing', retentionDays: 30, dailyQuota: null, quotaResetHour: 0, exclusionFilters: [], position: 0, indexedToday: 48_210 },
+      {
+        id: 'ix-0001',
+        name: 'billing-audit',
+        filter: 'service:billing',
+        retentionDays: 30,
+        flexRetentionDays: 180,
+        dailyQuota: null,
+        quotaResetHour: 0,
+        exclusionFilters: [],
+        position: 0,
+        indexedToday: 48_210,
+        tags: ['team:payments'],
+      },
       {
         id: 'ix-0002',
         name: 'checkout',
@@ -35,6 +47,8 @@ function db(): State {
         exclusionFilters: [filter('Health checks', '@http.url_details.path:/healthz', 100)],
         position: 1,
         indexedToday: 412_903,
+        flexRetentionDays: null,
+        tags: ['team:checkout'],
       },
       {
         id: 'ix-0003',
@@ -46,6 +60,8 @@ function db(): State {
         exclusionFilters: [filter('Debug logs', 'status:debug', 90), filter('api-gateway access logs', 'service:api-gateway status:info', 50, false)],
         position: 2,
         indexedToday: 1_874_550,
+        flexRetentionDays: null,
+        tags: [],
       },
     ],
     settings: {
@@ -90,6 +106,8 @@ function validate(input: S['LogIndexInput'], exceptId?: string): Omit<S['LogInde
   if (filters.length > 20) fail('At most 20 exclusion filters per index');
   if (filters.some((f) => !Number.isFinite(f.sampleRate) || f.sampleRate < 0 || f.sampleRate > 100)) fail('Exclusion rates are 0–100 %');
   if (db().indexes.some((i) => i.name === name && i.id !== exceptId)) fail(`An index named '${name}' already exists`);
+  const flex = input.flexRetentionDays;
+  if (flex != null && (flex < input.retentionDays || flex > 450)) fail(`The flex retention is the total time in the index: ${input.retentionDays}–450 days`);
   return {
     name,
     filter: (input.filter ?? '').trim(),
@@ -97,6 +115,8 @@ function validate(input: S['LogIndexInput'], exceptId?: string): Omit<S['LogInde
     dailyQuota: input.dailyQuota ?? null,
     quotaResetHour: hour,
     exclusionFilters: filters.map((f) => ({ ...f, name: [...f.name.trim()].slice(0, 100).join('') })),
+    flexRetentionDays: input.flexRetentionDays ?? null,
+    tags: input.tags ?? [],
   };
 }
 

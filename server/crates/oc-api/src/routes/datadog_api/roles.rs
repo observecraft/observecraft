@@ -55,7 +55,7 @@ pub fn role_doc(r: &RoleRow, org: &str) -> Value {
     json!({
         "type": "roles",
         "id": r.id,
-        "attributes": { "name": r.name, "created_at": created, "modified_at": created, "user_count": r.user_count },
+        "attributes": { "name": r.name, "created_at": created, "modified_at": created, "user_count": r.user_count, "team_count": 0 },
         "relationships": { "permissions": { "data": rels } },
     })
 }

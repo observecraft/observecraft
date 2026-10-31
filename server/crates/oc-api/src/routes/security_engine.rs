@@ -59,7 +59,7 @@ pub async fn run(st: AppState) {
                 continue;
             }
         };
-        if !sqlx::query_scalar::<_, bool>("SELECT pg_try_advisory_lock(7302)").fetch_one(&mut *conn).await.unwrap_or(false) {
+        if !sqlx::query_scalar::<_, bool>("SELECT pg_try_advisory_lock(7312)").fetch_one(&mut *conn).await.unwrap_or(false) {
             continue;
         }
         match sqlx::query_scalar::<_, String>("SELECT id FROM orgs WHERE status = 'active'").fetch_all(&st.postgres).await {
@@ -72,7 +72,7 @@ pub async fn run(st: AppState) {
             }
             Err(e) => tracing::warn!(error = %e, "security rules: listing orgs failed"),
         }
-        let _ = sqlx::query("SELECT pg_advisory_unlock(7302)").execute(&mut *conn).await;
+        let _ = sqlx::query("SELECT pg_advisory_unlock(7312)").execute(&mut *conn).await;
     }
 }
 

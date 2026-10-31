@@ -98,6 +98,7 @@ const MAP = {
   mongodb: 'mongodb-icon',
   mysql: 'mysql-icon',
   elasticsearch: 'elasticsearch',
+  splunk: 'splunk',
   apachecassandra: 'cassandra',
   'tile:memcached': 'memcached',
   apachekafka: 'kafka-icon',

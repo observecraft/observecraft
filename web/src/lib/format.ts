@@ -27,9 +27,17 @@ export function formatLogDate(ts: number): string {
   return `${MONTHS[d.getMonth()]} ${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
 }
 
-/** "Oct 25, 2026 at 10:05:38.379 am" — the log side panel header. */
+let clock24 = false;
+
+/** Personal Settings → Time Preferences: 24-hour times in long dates. */
+export function setClockFormat(format: '12h' | '24h') {
+  clock24 = format === '24h';
+}
+
+/** "Oct 25, 2026 at 10:05:38.379 am" — the log side panel header (24-hour clock if preferred). */
 export function formatLongDate(ts: number): string {
   const d = new Date(ts);
+  if (clock24) return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} at ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
   const h = d.getHours() % 12 || 12;
   return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} at ${pad(h)}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)} ${d.getHours() < 12 ? 'am' : 'pm'}`;
 }

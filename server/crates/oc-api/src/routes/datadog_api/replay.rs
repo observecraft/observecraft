@@ -85,6 +85,9 @@ fn not_replayed(version: &str, feature: &str) -> Option<NotReplayed> {
         // Workload Protection's agent rules and policies; not the delete recordings answered 404
         // upstream. (The legacy cloud workload security endpoints' US1-FED recordings have no
         // cassette under their scenarios' names, so they aren't replayed either.)
+        // Retention filters; not the re-order recording, which lists the recording org's own
+        // default filters by id (re-ordering is covered by the tf-compat fixture).
+        ("v2", "APM Retention Filters") => Some(NotReplayed::Containing(&["Re-order retention filters returns \"OK\" response"])),
         ("v2", "CSM Threats") => Some(NotReplayed::Containing(&[
             "Delete a Workload Protection agent rule returns \"OK\" response",
             "Delete a Workload Protection policy returns \"OK\" response",
@@ -603,7 +606,13 @@ mod tests {
     }
 
     /// The features the tests replay (what `scripts/datadog-fixtures/fetch.sh` downloads).
-    const FEATURES: [&str; 20] = [
+    const FEATURES: [&str; 26] = [
+        "v1/logs_pipelines",
+        "v2/logs_metrics",
+        "v2/logs_restriction_queries",
+        "v2/logs_custom_destinations",
+        "v2/apm_retention_filters",
+        "v2/spans_metrics",
         "v1/authentication",
         "v2/csm_threats",
         "v2/csm_agents",

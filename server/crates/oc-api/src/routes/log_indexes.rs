@@ -31,6 +31,9 @@ pub struct ExclusionFilter {
     /// …at this rate (0–100 %).
     pub sample_rate: f64,
     pub enabled: bool,
+    /// Logs sharing this attribute's value are excluded or kept together (`@request_id`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sample_attribute: Option<String>,
 }
 
 #[derive(Serialize, ToSchema, sqlx::FromRow)]
@@ -45,6 +48,10 @@ pub struct LogIndex {
     #[sqlx(json)]
     pub exclusion_filters: Vec<ExclusionFilter>,
     pub position: i32,
+    /// Total days logs stay in the index (standard + flex tier) while the org has Flex Logs on.
+    pub flex_retention_days: Option<i32>,
+    #[sqlx(json)]
+    pub tags: Vec<String>,
     /// Logs indexed since the current quota day started.
     #[sqlx(skip)]
     pub indexed_today: u64,
@@ -99,7 +106,7 @@ pub(crate) async fn provision(st: &AppState, org: &str) -> Result<(), ApiError> 
     Ok(())
 }
 
-const INDEX_COLS: &str = "id::text, name, filter, retention_days, daily_quota, quota_reset_hour, exclusion_filters, position";
+const INDEX_COLS: &str = "id::text, name, filter, retention_days, daily_quota, quota_reset_hour, exclusion_filters, position, flex_retention_days, tags";
 
 #[derive(clickhouse::Row, Deserialize)]
 struct HourCount {
@@ -150,9 +157,16 @@ pub struct LogIndexInput {
     pub quota_reset_hour: i16,
     #[serde(default)]
     pub exclusion_filters: Vec<ExclusionFilter>,
+    #[serde(default)]
+    pub flex_retention_days: Option<i32>,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
-fn validate(input: &mut LogIndexInput, max_retention: i32) -> Result<(), ApiError> {
+/// Longest flex tier (15 months).
+pub(crate) const MAX_FLEX_DAYS: i32 = 450;
+
+pub(crate) fn validate(input: &mut LogIndexInput, max_retention: i32) -> Result<(), ApiError> {
     input.name = input.name.trim().to_lowercase();
     let n = &input.name;
     if n.is_empty() || n.len() > 64 || !n.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_') || n == "rehydrated" {
@@ -176,6 +190,15 @@ fn validate(input: &mut LogIndexInput, max_retention: i32) -> Result<(), ApiErro
             return Err(ApiError::BadRequest("Exclusion rates are 0–100 %".into()));
         }
         parse_query(&e.query);
+    }
+    if let Some(flex) = input.flex_retention_days {
+        if !(input.retention_days..=MAX_FLEX_DAYS).contains(&flex) {
+            return Err(ApiError::BadRequest(format!("The flex retention is the total time in the index: {}–{MAX_FLEX_DAYS} days", input.retention_days)));
+        }
+    }
+    input.tags.retain(|t| !t.trim().is_empty());
+    if let Some(t) = input.tags.iter().find(|t| !t.contains(':')) {
+        return Err(ApiError::BadRequest(format!("Index tags are key:value ('{t}')")));
     }
     parse_query(&input.filter);
     Ok(())
@@ -206,8 +229,8 @@ pub async fn create(State(st): State<AppState>, Admin(ctx): Admin, Json(mut inpu
         return Err(ApiError::BadRequest(format!("This organization can have at most {} indexes", settings.max_indexes)));
     }
     let (id,): (String,) = sqlx::query_as(
-        "INSERT INTO log_indexes (org_id, name, filter, retention_days, daily_quota, quota_reset_hour, exclusion_filters, position) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT COALESCE(max(position), -1) + 1 FROM log_indexes WHERE org_id = $1)) RETURNING id::text",
+        "INSERT INTO log_indexes (org_id, name, filter, retention_days, daily_quota, quota_reset_hour, exclusion_filters, flex_retention_days, tags, position) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, (SELECT COALESCE(max(position), -1) + 1 FROM log_indexes WHERE org_id = $1)) RETURNING id::text",
     )
     .bind(&ctx.org_id)
     .bind(&input.name)
@@ -216,6 +239,8 @@ pub async fn create(State(st): State<AppState>, Admin(ctx): Admin, Json(mut inpu
     .bind(input.daily_quota)
     .bind(input.quota_reset_hour)
     .bind(serde_json::to_value(&input.exclusion_filters).unwrap_or(Value::Array(vec![])))
+    .bind(input.flex_retention_days)
+    .bind(serde_json::to_value(&input.tags).unwrap_or(Value::Array(vec![])))
     .fetch_one(&st.postgres)
     .await
     .map_err(|e| unique(e, &input.name))?;
@@ -228,8 +253,8 @@ pub async fn update(State(st): State<AppState>, Admin(ctx): Admin, Path(id): Pat
     let settings = data_settings(&st, &ctx.org_id).await?;
     validate(&mut input, settings.max_log_retention_days)?;
     let n = sqlx::query(
-        "UPDATE log_indexes SET name = $3, filter = $4, retention_days = $5, daily_quota = $6, quota_reset_hour = $7, exclusion_filters = $8, updated_at = now() \
-         WHERE org_id = $1 AND id::text = $2",
+        "UPDATE log_indexes SET name = $3, filter = $4, retention_days = $5, daily_quota = $6, quota_reset_hour = $7, exclusion_filters = $8, \
+         flex_retention_days = $9, tags = $10, updated_at = now() WHERE org_id = $1 AND id::text = $2",
     )
     .bind(&ctx.org_id)
     .bind(&id)
@@ -239,6 +264,8 @@ pub async fn update(State(st): State<AppState>, Admin(ctx): Admin, Path(id): Pat
     .bind(input.daily_quota)
     .bind(input.quota_reset_hour)
     .bind(serde_json::to_value(&input.exclusion_filters).unwrap_or(Value::Array(vec![])))
+    .bind(input.flex_retention_days)
+    .bind(serde_json::to_value(&input.tags).unwrap_or(Value::Array(vec![])))
     .execute(&st.postgres)
     .await
     .map_err(|e| unique(e, &input.name))?
@@ -467,7 +494,7 @@ mod tests {
     }
 
     fn input(name: &str, days: i32) -> LogIndexInput {
-        LogIndexInput { name: name.into(), filter: String::new(), retention_days: days, daily_quota: None, quota_reset_hour: 0, exclusion_filters: vec![] }
+        LogIndexInput { name: name.into(), filter: String::new(), retention_days: days, daily_quota: None, quota_reset_hour: 0, exclusion_filters: vec![], flex_retention_days: None, tags: vec![] }
     }
 
     #[test]
@@ -477,7 +504,7 @@ mod tests {
         assert!(validate(&mut input("rehydrated", 7), 30).is_err());
         assert!(validate(&mut input("bad name", 7), 30).is_err());
         let mut i = input("x", 7);
-        i.exclusion_filters.push(ExclusionFilter { name: "debug".into(), query: "status:debug".into(), sample_rate: 120.0, enabled: true });
+        i.exclusion_filters.push(ExclusionFilter { name: "debug".into(), query: "status:debug".into(), sample_rate: 120.0, enabled: true, sample_attribute: None });
         assert!(validate(&mut i, 30).is_err());
     }
 }

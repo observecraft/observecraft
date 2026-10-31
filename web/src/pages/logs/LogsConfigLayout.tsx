@@ -20,14 +20,14 @@ export const LOGS_CONFIG_NAV: { section: string; isNew?: boolean; items: Item[] 
     items: [
       { slug: 'pipelines', label: 'Pipelines' },
       { slug: 'attributes', label: 'Standard Attributes' },
-      { slug: 'sensitive-data-scanner', label: 'Sensitive Data Scanner', href: '/organization-settings/sensitive-data-scanner', soon: true },
+      { slug: 'sensitive-data-scanner', label: 'Sensitive Data Scanner', href: '/security/appsec/policies/sensitive-data' },
     ],
   },
   {
     section: 'ROUTING',
     items: [
       { slug: 'indexes', label: 'Indexes' },
-      { slug: 'flex-controls', label: 'Flex Logs Controls', soon: true },
+      { slug: 'flex-controls', label: 'Flex Logs Controls' },
       { slug: 'archives', label: 'Archiving & Forwarding' },
       { slug: 'rehydrations', label: 'Rehydrations' },
     ],
@@ -38,8 +38,8 @@ export const LOGS_CONFIG_NAV: { section: string; isNew?: boolean; items: Item[] 
     section: 'MIGRATION',
     isNew: true,
     items: [
-      { slug: 'migration/import', label: 'Import', soon: true },
-      { slug: 'migration/translate', label: 'Translate', soon: true },
+      { slug: 'import', label: 'Import' },
+      { slug: 'translate', label: 'Translate' },
     ],
   },
 ];

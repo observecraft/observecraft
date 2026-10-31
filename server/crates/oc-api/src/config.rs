@@ -71,6 +71,8 @@ pub struct Config {
     /// addresses, over http too (`OC_PORTAL_ALLOW_PRIVATE`; off by default, for self-hosted
     /// instances inside the network).
     pub portal_allow_private: bool,
+    /// Custom destinations may forward logs to private or loopback addresses (`OC_LOG_FORWARD_ALLOW_PRIVATE`).
+    pub log_forward_allow_private: bool,
     /// The Datadog-compatible API may create application keys when the caller is itself an
     /// application key (`OC_DATADOG_API_ALLOW_APP_KEY_CREATION`, off by default): Terraform's
     /// `datadog_application_key` needs it, but a leaked key could then mint keys that outlive its
@@ -191,6 +193,7 @@ impl Config {
             smtp_from: var("OC_SMTP_FROM", "ObserveCraft <alerts@observecraft.local>"),
             synthetics_allow_private: var("OC_SYNTHETICS_ALLOW_PRIVATE", "false") == "true",
             portal_allow_private: var("OC_PORTAL_ALLOW_PRIVATE", "false") == "true",
+            log_forward_allow_private: var("OC_LOG_FORWARD_ALLOW_PRIVATE", "false") == "true",
             datadog_api_allow_app_key_creation: var("OC_DATADOG_API_ALLOW_APP_KEY_CREATION", "false") == "true",
             cache: CacheSettings {
                 url: env::var("OC_CACHE_URL").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),

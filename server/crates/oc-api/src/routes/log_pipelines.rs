@@ -44,6 +44,13 @@ pub struct LogPipeline {
     pub source: String,
     /// Integration pipelines can only be enabled, disabled, moved or deleted; clone one to edit it.
     pub read_only: bool,
+    pub description: String,
+    /// `key:value` tags (set through Datadog's API).
+    #[sqlx(json)]
+    pub tags: Vec<String>,
+    /// Epoch ms of the last change, and who made it.
+    pub updated_at: i64,
+    pub updated_by: Option<String>,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -181,7 +188,7 @@ fn now_ms() -> i64 {
 }
 
 /// Trims and checks a pipeline; every processor of a supported type must compile.
-fn validate(input: &mut LogPipelineInput) -> Result<(), ApiError> {
+pub(crate) fn validate(input: &mut LogPipelineInput) -> Result<(), ApiError> {
     input.name = input.name.trim().to_string();
     input.filter = input.filter.trim().to_string();
     if input.name.is_empty() || input.name.chars().count() > 100 {
@@ -251,10 +258,12 @@ fn grok_test(req: &GrokTestRequest, now_ms: i64) -> GrokTestResult {
     GrokTestResult { error: None, samples }
 }
 
-const COLS: &str = "id::text AS id, name, enabled, filter, processors, position, source, source <> 'custom' AS read_only";
+const COLS: &str = "p.id::text AS id, p.name, p.enabled, p.filter, p.processors, p.position, p.source, p.source <> 'custom' AS read_only, p.description, p.tags, \
+    (extract(epoch FROM p.updated_at) * 1000)::bigint AS updated_at, u.name AS updated_by";
+const FROM: &str = "FROM log_pipelines p LEFT JOIN users u ON u.id = p.updated_by";
 
 async fn get_pipeline(st: &AppState, org: &str, id: &str) -> Result<LogPipeline, ApiError> {
-    sqlx::query_as(&format!("SELECT {COLS} FROM log_pipelines WHERE org_id = $1 AND id::text = $2"))
+    sqlx::query_as(&format!("SELECT {COLS} {FROM} WHERE p.org_id = $1 AND p.id::text = $2"))
         .bind(org)
         .bind(id)
         .fetch_optional(&st.postgres)
@@ -268,7 +277,7 @@ async fn count(st: &AppState, org: &str) -> Result<i64, ApiError> {
 }
 
 /// Inserts a pipeline at the end of the org's list.
-async fn insert(st: &AppState, org: &str, input: &LogPipelineInput, source: &str) -> Result<Option<String>, ApiError> {
+pub(crate) async fn insert(st: &AppState, org: &str, input: &LogPipelineInput, source: &str) -> Result<Option<String>, ApiError> {
     if count(st, org).await? >= MAX_PIPELINES {
         return Err(ApiError::BadRequest(format!("An organization can have at most {MAX_PIPELINES} pipelines")));
     }
@@ -288,9 +297,15 @@ async fn insert(st: &AppState, org: &str, input: &LogPipelineInput, source: &str
     Ok(row.map(|(id,)| id))
 }
 
+/// Records who last changed a pipeline.
+async fn edited_by(st: &AppState, ctx: &AuthContext, id: &str) -> Result<(), ApiError> {
+    sqlx::query("UPDATE log_pipelines SET updated_by = $3::uuid WHERE org_id = $1 AND id::text = $2").bind(&ctx.org_id).bind(id).bind(&ctx.user_id).execute(&st.postgres).await?;
+    Ok(())
+}
+
 #[utoipa::path(get, path = "/api/v1/logs/pipelines", operation_id = "list_log_pipelines", responses((status = 200, body = Vec<LogPipeline>)), tag = "logs")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<LogPipeline>> {
-    let rows = sqlx::query_as(&format!("SELECT {COLS} FROM log_pipelines WHERE org_id = $1 ORDER BY position, created_at")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows = sqlx::query_as(&format!("SELECT {COLS} {FROM} WHERE p.org_id = $1 ORDER BY p.position, p.created_at")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows))
 }
 
@@ -298,6 +313,7 @@ pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec
 pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut input): Json<LogPipelineInput>) -> ApiResult<LogPipeline> {
     validate(&mut input)?;
     let id = insert(&st, &ctx.org_id, &input, "custom").await?.ok_or_else(|| ApiError::BadRequest("The pipeline could not be created".into()))?;
+    edited_by(&st, &ctx, &id).await?;
     ctx.audit(&st, "log_pipeline.created", &input.name, &input.filter).await;
     Ok(Json(get_pipeline(&st, &ctx.org_id, &id).await?))
 }
@@ -317,6 +333,7 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
         .bind(Value::Array(input.processors.clone()))
         .execute(&st.postgres)
         .await?;
+    edited_by(&st, &ctx, &id).await?;
     ctx.audit(&st, "log_pipeline.updated", &input.name, &format!("{} processors", input.processors.len())).await;
     Ok(Json(get_pipeline(&st, &ctx.org_id, &id).await?))
 }
@@ -334,6 +351,7 @@ pub async fn set_enabled(State(st): State<AppState>, Writer(ctx): Writer, Path(i
     if n == 0 {
         return Err(ApiError::NotFound("Pipeline not found".into()));
     }
+    edited_by(&st, &ctx, &id).await?;
     let pipeline = get_pipeline(&st, &ctx.org_id, &id).await?;
     ctx.audit(&st, if p.enabled { "log_pipeline.enabled" } else { "log_pipeline.disabled" }, &pipeline.name, "").await;
     Ok(Json(pipeline))

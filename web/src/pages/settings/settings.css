@@ -1208,3 +1208,51 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Personal Settings: preference sections. */
+.pref-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.pref-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.pref-inline {
+  display: flex;
+  gap: 8px;
+  max-width: 480px;
+  margin-left: 24px;
+}
+.pref-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+}
+.pref-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.pref-toggle input {
+  margin-top: 3px;
+}
+.pref-toggle span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-card .link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  cursor: pointer;
+  font: inherit;
+}

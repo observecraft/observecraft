@@ -33,6 +33,7 @@ function db(): State {
     aggregation: path ? 'distribution' : 'count',
     path,
     groupBy,
+    includePercentiles: !!path,
     maxSeries: MAX_SERIES,
   });
   state = {
@@ -79,7 +80,7 @@ function validate(input: LogMetricInput): Omit<LogMetric, 'id' | 'maxSeries'> {
     tags.add(tagName);
     return { path: p, tagName };
   });
-  return { name, query, aggregation: input.aggregation, path, groupBy: normalized };
+  return { name, query, aggregation: input.aggregation, path, groupBy: normalized, includePercentiles: input.aggregation === 'distribution' && !!input.includePercentiles };
 }
 
 const find = (id: string) => db().metrics.find((m) => m.id === id) ?? fail('Generated metric not found');

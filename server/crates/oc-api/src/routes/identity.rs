@@ -126,6 +126,10 @@ pub struct Profile {
     pub teams: Vec<TeamRef>,
     /// May create and manage organizations (Instance Admin).
     pub is_instance_admin: bool,
+    /// Last change to the profile (name, title, time zone).
+    pub modified_at: Option<i64>,
+    /// The address was confirmed through a verification link.
+    pub email_verified: bool,
 }
 
 async fn profile(st: &AppState, org: &str, user: &str) -> Result<Profile, ApiError> {
@@ -139,8 +143,10 @@ async fn profile(st: &AppState, org: &str, user: &str) -> Result<Profile, ApiErr
         .fetch_all(&st.postgres)
         .await?;
     let (is_instance_admin,): (bool,) = sqlx::query_as("SELECT a.is_instance_admin FROM users u JOIN accounts a ON a.id = u.account_id WHERE u.id = $1::uuid").bind(user).fetch_one(&st.postgres).await?;
+    let (modified_at, email_verified): (Option<i64>, bool) =
+        sqlx::query_as("SELECT (extract(epoch FROM modified_at) * 1000)::bigint, email_verified_at IS NOT NULL FROM users WHERE org_id = $1 AND id = $2::uuid").bind(org).bind(user).fetch_one(&st.postgres).await?;
     let timezone = row.timezone.clone();
-    Ok(Profile { user: row.summary(), timezone, org: OrgRef { id: org_ref.0, name: org_ref.1 }, teams, is_instance_admin })
+    Ok(Profile { user: row.summary(), timezone, org: OrgRef { id: org_ref.0, name: org_ref.1 }, teams, is_instance_admin, modified_at, email_verified })
 }
 
 #[utoipa::path(get, path = "/api/v1/me", responses((status = 200, body = Profile)), tag = "identity")]
@@ -167,7 +173,7 @@ fn check_name(s: &str, what: &str, max: usize) -> Result<String, ApiError> {
 pub async fn update_me(State(st): State<AppState>, OrgId(org): OrgId, CurrentUser(user): CurrentUser, Json(p): Json<ProfilePatch>) -> ApiResult<Profile> {
     let name = p.name.as_deref().map(|n| check_name(n, "name", 120)).transpose()?;
     let title = p.title.map(|t| t.trim().chars().take(120).collect::<String>());
-    sqlx::query("UPDATE users SET name = COALESCE($3, name), title = COALESCE($4, title), timezone = COALESCE($5, timezone) WHERE org_id = $1 AND id = $2::uuid")
+    sqlx::query("UPDATE users SET name = COALESCE($3, name), title = COALESCE($4, title), timezone = COALESCE($5, timezone), modified_at = now() WHERE org_id = $1 AND id = $2::uuid")
         .bind(&org)
         .bind(&user)
         .bind(name)

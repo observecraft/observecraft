@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LineChart, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { LineChart, Pencil, Plus, Search, Trash2, Workflow, X } from 'lucide-react';
 import { logFields, logHistogram } from '../../api/client';
 import { createLogMetric, deleteLogMetric, listLogMetrics, updateLogMetric, type LogMetric, type LogMetricAggregation, type LogMetricGroupBy, type LogMetricInput } from '../../api/logMetrics/client';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
@@ -9,6 +9,7 @@ import { Modal } from '../../components/ui/Modal';
 import { compact } from '../../lib/format';
 import { Sparkline } from '../errors/issueVisuals';
 import { useProfile } from '../settings/queries';
+import { Columns, ConfigTitle, FilterQuery, FlowStep, SectionHead, TagChips } from './config/configUi';
 
 const KEY = ['log-metrics'];
 const MAX_GROUP_BYS = 10;
@@ -28,74 +29,66 @@ export function GenerateMetricsPage() {
   const canEdit = me.data?.roles.some((r) => r.id === `${org}-admin` || r.id === `${org}-standard`) ?? false;
   const q = useQuery({ queryKey: KEY, queryFn: listLogMetrics });
   const [editing, setEditing] = useState<LogMetric | 'new' | null>(null);
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(true);
   const refresh = () => qc.invalidateQueries({ queryKey: KEY });
   const remove = useMutation({ mutationFn: deleteLogMetric, onSuccess: refresh });
 
   if (q.isPending) return <Loading />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const metrics = q.data;
+  const needle = search.trim().toLowerCase();
+  const shown = metrics.filter((m) => !needle || m.name.toLowerCase().includes(needle) || m.query.toLowerCase().includes(needle));
+  const template = 'minmax(200px, 1.3fr) 110px minmax(240px, 2fr) minmax(160px, 1fr) 92px';
   return (
-    <div className="settings-pad">
-      <div className="settings-title-row">
-        <h1 className="settings-title">Generate Metrics</h1>
-        {canEdit && (
-          <button className="btn btn-primary" onClick={() => setEditing('new')}>
-            <Plus size={14} /> New Metric
-          </button>
-        )}
+    <div className="lc-page">
+      <ConfigTitle
+        title="Generate Metrics"
+        actions={
+          canEdit && (
+            <button className="btn btn-primary" onClick={() => setEditing('new')}>
+              <Plus size={14} /> New Metric
+            </button>
+          )
+        }
+      />
+      <div className="lc-search">
+        <Search size={14} className="muted" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter Metrics" aria-label="Filter metrics" />
       </div>
-      <p className="muted">
-        Count the logs matching a search, or measure a numeric attribute, as a metric you can graph, put on dashboards and alert on. Every ingested log counts, after{' '}
-        <Link to="/logs/pipelines">pipelines</Link> and before <Link to="/logs/indexes">indexes</Link>: logs an index excludes are counted too. Metrics start from the moment they are created.
-      </p>
+      <div className="lc-count">
+        <b>{metrics.length}</b> custom metrics defined
+      </div>
+      <div className="lc-flow">
+        <div className="lc-flow-box">
+          <FlowStep icon={<Workflow size={15} />} label="Pipelines" to="/logs/pipelines" last />
+        </div>
+        <div className="lc-flow-link" />
+      </div>
       {remove.error && <p className="form-error">{(remove.error as Error).message}</p>}
-      {metrics.length === 0 ? (
-        <section className="settings-card settings-empty">
-          <p className="muted">No generated metrics yet.</p>
-        </section>
-      ) : (
-        <table className="settings-table ix-table">
-          <thead>
-            <tr>
-              <th>METRIC</th>
-              <th>QUERY</th>
-              <th>AGGREGATION</th>
-              <th>GROUP BY</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {metrics.map((m) => (
-              <tr key={m.id}>
-                <td>
+      <section className="lc-section">
+        <SectionHead open={open} onToggle={() => setOpen((o) => !o)} label="LOG METRICS">
+          <span className="muted">Every ingested log counts, after pipelines and before indexes: logs an index excludes are counted too.</span>
+        </SectionHead>
+        {open && (
+          <>
+            <Columns template={template} cols={['Metric name', 'Type', 'Filter', 'Dimensions', '']} />
+            {shown.map((m) => (
+              <div key={m.id} className="lc-row" style={{ gridTemplateColumns: template }}>
+                <span className="lc-cell-name">
                   <Link className="mono" to={explorerLink(m)} title="Open in Metrics Explorer">
                     {m.name}
                   </Link>
-                </td>
-                <td className="mono">
-                  <Link to={`/logs?query=${encodeURIComponent(m.query)}`}>{m.query || <span className="muted">all logs</span>}</Link>
-                </td>
-                <td>
-                  {m.aggregation === 'count' ? (
-                    'Count'
-                  ) : (
-                    <>
-                      Distribution of <code>{m.path}</code>
-                    </>
-                  )}
-                </td>
-                <td>
-                  {m.groupBy.length === 0 ? (
-                    <span className="muted">—</span>
-                  ) : (
-                    m.groupBy.map((g) => (
-                      <code key={g.path} className="lm-tag">
-                        {tagOf(g)}
-                      </code>
-                    ))
-                  )}
-                </td>
-                <td className="ix-actions">
+                </span>
+                <span title={m.path ? `Distribution of ${m.path}` : 'Count of matching logs'}>
+                  {m.aggregation}
+                  {m.path && <span className="muted mono"> {m.path}</span>}
+                </span>
+                <Link to={`/logs?query=${encodeURIComponent(m.query)}`} className="lc-cell-name">
+                  <FilterQuery query={m.query} />
+                </Link>
+                <TagChips tags={m.groupBy.map(tagOf)} max={3} />
+                <span className="lc-actions">
                   <Link className="icon-plain" to={explorerLink(m)} title="Open in Metrics Explorer">
                     <LineChart size={15} />
                   </Link>
@@ -113,12 +106,15 @@ export function GenerateMetricsPage() {
                       </button>
                     </>
                   )}
-                </td>
-              </tr>
+                </span>
+              </div>
             ))}
-          </tbody>
-        </table>
-      )}
+            {metrics.length === 0 && <p className="lc-empty">No generated metrics yet.</p>}
+            {metrics.length > 0 && shown.length === 0 && <p className="lc-empty">No metric matches.</p>}
+          </>
+        )}
+      </section>
+      <p className="muted lc-note">Generated metrics are kept with the organization's metric retention and start from the moment they are created.</p>
       {editing && <MetricModal metric={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={() => (setEditing(null), void refresh())} />}
     </div>
   );
@@ -163,6 +159,7 @@ function MetricModal({ metric, onClose, onSaved }: { metric: LogMetric | null; o
   const [query, setQuery] = useState(metric?.query ?? '');
   const [aggregation, setAggregation] = useState<LogMetricAggregation>(metric?.aggregation ?? 'count');
   const [path, setPath] = useState(metric?.path ?? '');
+  const [percentiles, setPercentiles] = useState(metric?.includePercentiles ?? true);
   const [groupBy, setGroupBy] = useState<LogMetricGroupBy[]>(metric?.groupBy ?? []);
   const [adding, setAdding] = useState('');
   const fields = useQuery({
@@ -175,7 +172,7 @@ function MetricModal({ metric, onClose, onSaved }: { metric: LogMetric | null; o
   });
   const known = fields.data?.map((f) => f.key) ?? [];
   const attributes = known.filter((k) => k.startsWith('@'));
-  const input: LogMetricInput = { name, query, aggregation, path: aggregation === 'distribution' ? path : null, groupBy };
+  const input: LogMetricInput = { name, query, aggregation, path: aggregation === 'distribution' ? path : null, groupBy, includePercentiles: aggregation === 'distribution' && percentiles };
   const save = useMutation({ mutationFn: () => (metric ? updateLogMetric(metric.id, input) : createLogMetric(input)), onSuccess: onSaved });
   const addGroupBy = () => {
     const p = adding.trim();
@@ -222,6 +219,11 @@ function MetricModal({ metric, onClose, onSaved }: { metric: LogMetric | null; o
                   <option key={a} value={a} />
                 ))}
               </datalist>
+            </label>
+          )}
+          {aggregation === 'distribution' && (
+            <label className="ar-check">
+              <input type="checkbox" checked={percentiles} onChange={(e) => setPercentiles(e.target.checked)} /> Include percentiles (p50, p75, p90, p95, p99)
             </label>
           )}
         </div>

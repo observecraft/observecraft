@@ -609,6 +609,668 @@
         }
       }
     },
+    "/api/v1/apm/settings/defaults": {
+      "get": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "get_apm_defaults",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApmDefaults"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "update_apm_defaults",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApmDefaultsInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApmDefaults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apm/settings/ingestion": {
+      "get": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "apm_ingestion",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Epoch ms.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Epoch ms.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ingestion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apm/settings/metrics": {
+      "get": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "list_apm_spans_metrics",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpansMetric"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "create_apm_spans_metric",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpansMetricInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpansMetric"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apm/settings/metrics/{id}": {
+      "delete": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "delete_apm_spans_metric",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "update_apm_spans_metric",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpansMetricInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpansMetric"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apm/settings/overview": {
+      "get": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "apm_settings_overview",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Epoch ms.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Epoch ms.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApmFlow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apm/settings/pipelines": {
+      "get": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "list_apm_span_pipelines",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpanPipeline"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "create_apm_span_pipeline",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpanPipelineInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpanPipeline"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apm/settings/pipelines/{id}": {
+      "put": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "update_apm_span_pipeline",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpanPipelineInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpanPipeline"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "delete_apm_span_pipeline",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apm/settings/retention-filters": {
+      "get": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "list_apm_retention_filters",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Epoch ms.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Epoch ms.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetentionFilters"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "create_apm_retention_filter",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetentionFilterInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetentionFilter"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apm/settings/retention-filters-order": {
+      "put": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "reorder_apm_retention_filters",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilterOrder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apm/settings/retention-filters/{id}": {
+      "put": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "update_apm_retention_filter",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetentionFilterInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetentionFilter"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "delete_apm_retention_filter",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apm/settings/volume": {
+      "get": {
+        "tags": [
+          "apm"
+        ],
+        "operationId": "apm_span_volume",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Epoch ms.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Epoch ms.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpanVolume"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apm/spans/analytics": {
       "post": {
         "tags": [
@@ -2107,6 +2769,30 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify-email/{token}": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "The link of the verification email: marks the address verified and opens Personal Settings.",
+        "operationId": "verify_email",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": ""
           }
         }
       }
@@ -8919,6 +9605,187 @@
         }
       }
     },
+    "/api/v1/logs/custom-destinations": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "list_log_custom_destinations",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomDestination"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "create_log_custom_destination",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomDestinationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomDestination"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/custom-destinations/{id}": {
+      "put": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "update_log_custom_destination",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomDestinationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomDestination"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "delete_log_custom_destination",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "set_log_custom_destination_enabled",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DestinationEnabled"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomDestination"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/custom-destinations/{id}/test": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Sends one test log to the destination.",
+        "operationId": "test_log_custom_destination",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestinationTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/logs/facets": {
       "post": {
         "tags": [
@@ -8987,6 +9854,55 @@
         }
       }
     },
+    "/api/v1/logs/flex-settings": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "get_log_flex_settings",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlexSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Turns the flex tier on or off (applies to logs indexed from then on) and picks the compute.",
+        "operationId": "update_log_flex_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlexSettingsInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlexSettings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/logs/histogram": {
       "post": {
         "tags": [
@@ -9014,6 +9930,148 @@
                   "items": {
                     "$ref": "#/components/schemas/HistogramBucket"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/imports": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "list_log_imports",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogImport"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "create_log_import",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogImportDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/imports/{id}": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "get_log_import",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogImportDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "delete_log_import",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/logs/imports/{id}/migrate": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "migrate_log_import",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogImportDetail"
                 }
               }
             }
@@ -9548,6 +10606,29 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PipelineTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/pipelines/usage": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "log_pipelines_usage",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PipelineUsage"
+                  }
                 }
               }
             }
@@ -10387,6 +11468,36 @@
         }
       }
     },
+    "/api/v1/logs/translate": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "operationId": "translate_log_query",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplTranslation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me": {
       "get": {
         "tags": [
@@ -10515,6 +11626,50 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/me/email-subscriptions": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "get_my_email_subscriptions",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailSubscriptions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/email-subscriptions/reports/{id}": {
+      "delete": {
+        "tags": [
+          "identity"
+        ],
+        "summary": "Stops a dashboard report from being sent to the member.",
+        "operationId": "unsubscribe_my_report",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
           }
         }
       }
@@ -10678,6 +11833,54 @@
         }
       }
     },
+    "/api/v1/me/preferences": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "get_my_preferences",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "set_my_preferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Preferences"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me/security": {
       "get": {
         "tags": [
@@ -10776,6 +11979,36 @@
             "description": ""
           },
           "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/verify-email": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "send_email_verification",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationSent"
+                }
+              }
+            }
+          },
+          "400": {
             "description": "",
             "content": {
               "application/json": {
@@ -22358,6 +23591,447 @@
         }
       }
     },
+    "/api/v2/apm/config/metrics": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_spans_metrics",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_create_spans_metric",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/apm/config/metrics/{metric_id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_get_spans_metric",
+        "parameters": [
+          {
+            "name": "metric_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_delete_spans_metric",
+        "parameters": [
+          {
+            "name": "metric_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_update_spans_metric",
+        "parameters": [
+          {
+            "name": "metric_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/apm/config/retention-filters": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_apm_retention_filters",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_create_apm_retention_filter",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/apm/config/retention-filters-execution-order": {
+      "put": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_reorder_apm_retention_filters",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/apm/config/retention-filters/{filter_id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_get_apm_retention_filter",
+        "parameters": [
+          {
+            "name": "filter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_update_apm_retention_filter",
+        "parameters": [
+          {
+            "name": "filter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_delete_apm_retention_filter",
+        "parameters": [
+          {
+            "name": "filter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/application_keys": {
       "get": {
         "tags": [
@@ -29292,6 +30966,224 @@
           }
         }
       },
+      "ApmDefaults": {
+        "type": "object",
+        "required": [
+          "envs",
+          "primaryTags",
+          "tagCandidates"
+        ],
+        "properties": {
+          "defaultEnv": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The org's choice (null: automatically detected)."
+          },
+          "defaultPrimaryTag": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "detectedEnv": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The environment with the most active services."
+          },
+          "envs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApmEnvOption"
+            }
+          },
+          "primaryTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tag names added to APM metrics as dimensions."
+          },
+          "tagCandidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Host and container tags seen on spans (candidates for primary tags)."
+          }
+        }
+      },
+      "ApmDefaultsInput": {
+        "type": "object",
+        "properties": {
+          "defaultEnv": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "null: automatically detected."
+          },
+          "defaultPrimaryTag": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "primaryTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ApmEnvOption": {
+        "type": "object",
+        "required": [
+          "env",
+          "services"
+        ],
+        "properties": {
+          "env": {
+            "type": "string"
+          },
+          "services": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Services seen in the past day.",
+            "minimum": 0
+          }
+        }
+      },
+      "ApmFlow": {
+        "type": "object",
+        "required": [
+          "sdks",
+          "agents",
+          "otelSources",
+          "services",
+          "spansGenerated",
+          "spansIngested",
+          "spansIndexed",
+          "generated",
+          "ingested",
+          "indexed",
+          "pipelines",
+          "serviceRemappings",
+          "metrics",
+          "retentionFilters",
+          "retentionDays"
+        ],
+        "properties": {
+          "agents": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hosts sending spans through a Datadog Agent.",
+            "minimum": 0
+          },
+          "generated": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApmPoint"
+            }
+          },
+          "indexed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApmPoint"
+            }
+          },
+          "ingested": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApmPoint"
+            }
+          },
+          "metrics": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Span-based metrics.",
+            "minimum": 0
+          },
+          "otelSources": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hosts sending OpenTelemetry spans.",
+            "minimum": 0
+          },
+          "pipelines": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Enabled span pipelines.",
+            "minimum": 0
+          },
+          "retentionDays": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "retentionFilters": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Enabled retention filters.",
+            "minimum": 0
+          },
+          "sdks": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Tracer instances (service × host × language).",
+            "minimum": 0
+          },
+          "serviceRemappings": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Service remapping rules (none yet in ObserveCraft).",
+            "minimum": 0
+          },
+          "services": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "spansGenerated": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Spans the tracers created, estimated from the sampling rates of the kept traces.",
+            "minimum": 0
+          },
+          "spansIndexed": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Spans the retention filters keep.",
+            "minimum": 0
+          },
+          "spansIngested": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ApmPoint": {
+        "type": "object",
+        "required": [
+          "t",
+          "v"
+        ],
+        "properties": {
+          "t": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bucket start, epoch ms."
+          },
+          "v": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "ApmRequest": {
         "type": "object",
         "required": [
@@ -29779,6 +31671,17 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ArchiveTarget",
+                "description": "New bucket and keys (checked by writing to the bucket); e.g. for an archive created through\nDatadog's API, which carries no secrets."
+              }
             ]
           }
         }
@@ -33094,6 +34997,42 @@
           }
         }
       },
+      "CreateImport": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "alerts": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Saved searches and alerts export (CSV)."
+          },
+          "dashboards": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Dashboards export (CSV with the Simple XML in `eai:data`)."
+          },
+          "macros": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Macros export (CSV with `title,definition,args`)."
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "splunk"
+          }
+        }
+      },
       "CreateIngestKey": {
         "type": "object",
         "required": [
@@ -33548,6 +35487,115 @@
               "type": "string"
             },
             "description": "The host's `key:value` tags."
+          }
+        }
+      },
+      "CustomDestination": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "query",
+          "enabled",
+          "forwardTags",
+          "tagsList",
+          "tagsListType",
+          "destination",
+          "forwarded",
+          "updatedAt"
+        ],
+        "properties": {
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "destination": {
+            "type": "object",
+            "description": "Datadog's `forwarder_destination` without its secrets (`type`: http, splunk_hec, elasticsearch, microsoft_sentinel)."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "forwardTags": {
+            "type": "boolean"
+          },
+          "forwarded": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Logs forwarded since it was created."
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastErrorAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "description": "Logs matching this search are forwarded; '' = every log."
+          },
+          "tagsList": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tag keys kept (`ALLOW_LIST`) or dropped (`BLOCK_LIST`); empty = every tag."
+          },
+          "tagsListType": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "CustomDestinationInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "destination"
+        ],
+        "properties": {
+          "destination": {
+            "type": "object",
+            "description": "Datadog's `forwarder_destination`, secrets included (left out on a change: kept)."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "forwardTags": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "tagsList": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tagsListType": {
+            "type": "string"
           }
         }
       },
@@ -35800,6 +37848,34 @@
           }
         }
       },
+      "DestinationEnabled": {
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DestinationTestResult": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
       "Detection": {
         "type": "string",
         "enum": [
@@ -36572,6 +38648,42 @@
           "canceled"
         ]
       },
+      "EmailSubscriptions": {
+        "type": "object",
+        "required": [
+          "email",
+          "verified",
+          "emailEnabled",
+          "reports",
+          "monitors"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "emailEnabled": {
+            "type": "boolean",
+            "description": "Email can be sent from this install (`OC_SMTP_URL`)."
+          },
+          "monitors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonitorSubscription"
+            },
+            "description": "Monitors whose message mentions `@<this address>`."
+          },
+          "reports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportSubscription"
+            },
+            "description": "Scheduled dashboard reports sent to this address."
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        }
+      },
       "EndpointPage": {
         "type": "object",
         "required": [
@@ -37236,6 +39348,13 @@
             "type": "string",
             "description": "Logs matching this search are excluded…"
           },
+          "sampleAttribute": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Logs sharing this attribute's value are excluded or kept together (`@request_id`)."
+          },
           "sampleRate": {
             "type": "number",
             "format": "double",
@@ -37858,6 +39977,21 @@
           },
           "vendor": {
             "type": "string"
+          }
+        }
+      },
+      "FilterOrder": {
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every retention filter id, in the new execution order."
           }
         }
       },
@@ -38977,6 +41111,63 @@
               "null"
             ],
             "description": "null for agents that don't report their version."
+          }
+        }
+      },
+      "FlexSettings": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "compute",
+          "flexIndexes",
+          "maxFlexDays"
+        ],
+        "properties": {
+          "compute": {
+            "type": "string",
+            "description": "`starter` or `scalable`."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Indexes keep logs for their flex retention (standard + flex tier)."
+          },
+          "flexIndexes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Indexes with a flex retention."
+          },
+          "maxFlexDays": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Longest flex retention allowed, in days."
+          },
+          "size": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "With scalable compute: xs, xs+, s, m or l."
+          }
+        }
+      },
+      "FlexSettingsInput": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "compute"
+        ],
+        "properties": {
+          "compute": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "size": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -40827,6 +43018,200 @@
           }
         }
       },
+      "ImportAlert": {
+        "type": "object",
+        "description": "What a migrated alert becomes.",
+        "required": [
+          "windowMinutes",
+          "recipients"
+        ],
+        "properties": {
+          "comparator": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "above | above_or_equal | below | below_or_equal"
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "schedule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The original schedule (`*/5 * * * *`), for reference: monitors evaluate every minute."
+          },
+          "threshold": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "windowMinutes": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ImportAsset": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "status",
+          "searches",
+          "issues"
+        ],
+        "properties": {
+          "alert": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ImportAlert"
+              }
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Why it can't be migrated as is."
+          },
+          "kind": {
+            "type": "string",
+            "description": "alert | dashboard | search"
+          },
+          "migratedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "searches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportSearch"
+            }
+          },
+          "status": {
+            "type": "string",
+            "description": "ready | partial | unsupported | migrated | failed"
+          },
+          "targetId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "targetKind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "ImportCounts": {
+        "type": "object",
+        "required": [
+          "total",
+          "alerts",
+          "dashboards",
+          "searches",
+          "ready",
+          "partial",
+          "unsupported",
+          "migrated",
+          "failed"
+        ],
+        "properties": {
+          "alerts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "dashboards": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "migrated": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "partial": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ready": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "searches": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unsupported": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ImportSearch": {
+        "type": "object",
+        "required": [
+          "title",
+          "spl",
+          "translation"
+        ],
+        "properties": {
+          "spl": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "description": "The panel title (dashboards) or the asset's title."
+          },
+          "translation": {
+            "$ref": "#/components/schemas/SplTranslation"
+          }
+        }
+      },
       "ImportantPatch": {
         "type": "object",
         "required": [
@@ -41564,6 +43949,137 @@
             ],
             "format": "int64",
             "description": "Set once revoked: the key no longer authenticates."
+          }
+        }
+      },
+      "Ingestion": {
+        "type": "object",
+        "required": [
+          "services",
+          "bytesIngested",
+          "spansIngested",
+          "overTime"
+        ],
+        "properties": {
+          "bytesIngested": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes ingested over the range.",
+            "minimum": 0
+          },
+          "overTime": {
+            "$ref": "#/components/schemas/IngestionOverTime",
+            "description": "Bytes per bucket by who decides the sampling."
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IngestionService"
+            }
+          },
+          "spansIngested": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "IngestionOverTime": {
+        "type": "object",
+        "required": [
+          "apm",
+          "other",
+          "otel"
+        ],
+        "properties": {
+          "apm": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApmPoint"
+            }
+          },
+          "otel": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApmPoint"
+            }
+          },
+          "other": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApmPoint"
+            }
+          }
+        }
+      },
+      "IngestionService": {
+        "type": "object",
+        "required": [
+          "service",
+          "kind",
+          "env",
+          "language",
+          "downstreamBytesPerSecond",
+          "ingestedBytesPerSecond",
+          "trafficShare",
+          "ingestedTracesPerSecond",
+          "spansPerSecond",
+          "root",
+          "configurations",
+          "managedBy"
+        ],
+        "properties": {
+          "configurations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Where sampling is decided: APM AGENT, APM LOCAL, MANUAL, REMOTE, APP & API PROTECTION, RUM, SYNTHETICS, OTEL."
+          },
+          "downstreamBytesPerSecond": {
+            "type": "number",
+            "format": "double",
+            "description": "Bytes per second of the traces this service starts (it decides their sampling)."
+          },
+          "env": {
+            "type": "string"
+          },
+          "ingestedBytesPerSecond": {
+            "type": "number",
+            "format": "double",
+            "description": "Bytes per second of this service's own spans."
+          },
+          "ingestedTracesPerSecond": {
+            "type": "number",
+            "format": "double"
+          },
+          "kind": {
+            "type": "string",
+            "description": "web | db | cache | queue | serverless | custom (from the entry spans' kind and attributes)"
+          },
+          "language": {
+            "type": "string",
+            "description": "Tracer language (`telemetry.sdk.language`)."
+          },
+          "managedBy": {
+            "type": "string",
+            "description": "apm | other | otel"
+          },
+          "root": {
+            "type": "boolean",
+            "description": "Root of at least one trace."
+          },
+          "service": {
+            "type": "string"
+          },
+          "spansPerSecond": {
+            "type": "number",
+            "format": "double"
+          },
+          "trafficShare": {
+            "type": "number",
+            "format": "double",
+            "description": "Ingested share of the downstream traffic (0..1)."
           }
         }
       },
@@ -45255,7 +47771,11 @@
           "hoursDone",
           "hoursFailed",
           "rows",
-          "bytes"
+          "bytes",
+          "destinationType",
+          "hasCredentials",
+          "includeTags",
+          "rehydrationTags"
         ],
         "properties": {
           "accessKey": {
@@ -45272,11 +47792,19 @@
             "type": "integer",
             "format": "int64"
           },
+          "destinationType": {
+            "type": "string",
+            "description": "`s3`, `gcs` or `azure` (archives created through Datadog's API keep theirs)."
+          },
           "enabled": {
             "type": "boolean"
           },
           "endpoint": {
             "type": "string"
+          },
+          "hasCredentials": {
+            "type": "boolean",
+            "description": "Keys are set (archives created through Datadog's API have none until they are)."
           },
           "hoursDone": {
             "type": "integer",
@@ -45289,6 +47817,9 @@
           },
           "id": {
             "type": "string"
+          },
+          "includeTags": {
+            "type": "boolean"
           },
           "lastError": {
             "type": [
@@ -45318,6 +47849,19 @@
           },
           "region": {
             "type": "string"
+          },
+          "rehydrationMaxScanSizeGb": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "rehydrationTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "rows": {
             "type": "integer",
@@ -45434,6 +47978,67 @@
           }
         }
       },
+      "LogImport": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "source",
+          "createdAt",
+          "macros",
+          "counts"
+        ],
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/ImportCounts"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "macros": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "splunk"
+          }
+        }
+      },
+      "LogImportDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LogImport"
+          },
+          {
+            "type": "object",
+            "required": [
+              "assets"
+            ],
+            "properties": {
+              "assets": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImportAsset"
+                }
+              }
+            }
+          }
+        ]
+      },
       "LogIndex": {
         "type": "object",
         "required": [
@@ -45444,6 +48049,7 @@
           "quotaResetHour",
           "exclusionFilters",
           "position",
+          "tags",
           "indexedToday"
         ],
         "properties": {
@@ -45462,6 +48068,14 @@
           },
           "filter": {
             "type": "string"
+          },
+          "flexRetentionDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Total days logs stay in the index (standard + flex tier) while the org has Flex Logs on."
           },
           "id": {
             "type": "string"
@@ -45486,6 +48100,12 @@
           "retentionDays": {
             "type": "integer",
             "format": "int32"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -45512,6 +48132,13 @@
           "filter": {
             "type": "string"
           },
+          "flexRetentionDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
           "name": {
             "type": "string"
           },
@@ -45522,6 +48149,12 @@
           "retentionDays": {
             "type": "integer",
             "format": "int32"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -45593,7 +48226,8 @@
           "query",
           "aggregation",
           "groupBy",
-          "maxSeries"
+          "maxSeries",
+          "includePercentiles"
         ],
         "properties": {
           "aggregation": {
@@ -45607,6 +48241,10 @@
           },
           "id": {
             "type": "string"
+          },
+          "includePercentiles": {
+            "type": "boolean",
+            "description": "A distribution's percentiles (p50, p75, p90, p95, p99) can be queried."
           },
           "maxSeries": {
             "type": "integer",
@@ -45668,6 +48306,9 @@
             "items": {
               "$ref": "#/components/schemas/LogMetricGroupBy"
             }
+          },
+          "includePercentiles": {
+            "type": "boolean"
           },
           "name": {
             "type": "string"
@@ -45748,9 +48389,15 @@
           "processors",
           "position",
           "source",
-          "readOnly"
+          "readOnly",
+          "description",
+          "tags",
+          "updatedAt"
         ],
         "properties": {
+          "description": {
+            "type": "string"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -45782,6 +48429,24 @@
           "source": {
             "type": "string",
             "description": "`custom`, or `integration:<name>` for a pipeline installed from an integration."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`key:value` tags (set through Datadog's API)."
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms of the last change, and who made it."
+          },
+          "updatedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -45842,6 +48507,7 @@
           "query",
           "roles",
           "teams",
+          "userCount",
           "createdAt",
           "updatedAt"
         ],
@@ -45886,6 +48552,11 @@
           "updatedAt": {
             "type": "integer",
             "format": "int64"
+          },
+          "userCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Users who read through it (members of its roles and teams)."
           }
         }
       },
@@ -46563,6 +49234,18 @@
           "secret": {
             "type": "string",
             "description": "Base32 secret for manual entry."
+          }
+        }
+      },
+      "MigrateRequest": {
+        "type": "object",
+        "properties": {
+          "assetIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The assets to migrate; empty: every ready or partial one not migrated yet."
           }
         }
       },
@@ -47550,6 +50233,22 @@
           "alert",
           "nodata"
         ]
+      },
+      "MonitorSubscription": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
       },
       "MonitorSummary": {
         "type": "object",
@@ -49864,6 +52563,30 @@
           }
         }
       },
+      "PipelineUsage": {
+        "type": "object",
+        "required": [
+          "id",
+          "matched",
+          "share"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "matched": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Indexed logs of the last hour matching the pipeline's filter.",
+            "minimum": 0
+          },
+          "share": {
+            "type": "number",
+            "format": "double",
+            "description": "Share of the last hour's indexed logs (0–1)."
+          }
+        }
+      },
       "PlaylistSession": {
         "type": "object",
         "required": [
@@ -51780,6 +54503,46 @@
           "merged"
         ]
       },
+      "Preferences": {
+        "type": "object",
+        "properties": {
+          "colorBlindPalette": {
+            "type": "boolean",
+            "description": "Charts use a palette told apart without red/green.",
+            "default": false
+          },
+          "highContrast": {
+            "type": "boolean",
+            "default": false
+          },
+          "homePage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The page opened at `/` (an app path such as `/apm` or `/dashboards/abc-123`).",
+            "default": null
+          },
+          "reducedMotion": {
+            "type": "boolean",
+            "default": false
+          },
+          "timeFormat": {
+            "type": "string",
+            "description": "12h | 24h",
+            "default": "12h"
+          },
+          "underlineLinks": {
+            "type": "boolean",
+            "default": false
+          },
+          "weekStart": {
+            "type": "string",
+            "description": "monday | sunday",
+            "default": "monday"
+          }
+        }
+      },
       "PresetList": {
         "type": "string",
         "enum": [
@@ -51921,12 +54684,25 @@
             "required": [
               "org",
               "teams",
-              "isInstanceAdmin"
+              "isInstanceAdmin",
+              "emailVerified"
             ],
             "properties": {
+              "emailVerified": {
+                "type": "boolean",
+                "description": "The address was confirmed through a verification link."
+              },
               "isInstanceAdmin": {
                 "type": "boolean",
                 "description": "May create and manage organizations (Instance Admin)."
+              },
+              "modifiedAt": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "description": "Last change to the profile (name, title, time zone)."
               },
               "org": {
                 "$ref": "#/components/schemas/OrgRef"
@@ -52958,6 +55734,7 @@
           "to",
           "status",
           "rows",
+          "bytesScanned",
           "expiresAt",
           "createdAt"
         ],
@@ -52968,9 +55745,21 @@
           "archiveName": {
             "type": "string"
           },
+          "bytesScanned": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes of archive files the rehydration reads."
+          },
           "createdAt": {
             "type": "integer",
             "format": "int64"
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Who started it."
           },
           "error": {
             "type": [
@@ -53256,6 +56045,34 @@
               "null"
             ],
             "format": "double"
+          }
+        }
+      },
+      "ReportSubscription": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "dashboardId",
+          "dashboardTitle",
+          "schedule"
+        ],
+        "properties": {
+          "dashboardId": {
+            "type": "string"
+          },
+          "dashboardTitle": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "schedule": {
+            "type": "object",
+            "description": "{\"frequency\": \"weekly\", \"time\": \"09:00\", …}"
           }
         }
       },
@@ -54095,6 +56912,142 @@
         "properties": {
           "handle": {
             "type": "string"
+          }
+        }
+      },
+      "RetentionFilter": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "query",
+          "filterType",
+          "rate",
+          "traceRate",
+          "enabled",
+          "isDefault",
+          "executionOrder",
+          "createdBy",
+          "createdAt",
+          "modifiedBy",
+          "modifiedAt",
+          "spansMatched",
+          "spansIndexed"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch seconds (0 for the defaults)."
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "executionOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "filterType": {
+            "type": "string",
+            "description": "spans-sampling-processor | spans-errors-sampling-processor | spans-appsec-sampling-processor"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "One of the org's default filters (can be changed, not deleted)."
+          },
+          "modifiedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "modifiedBy": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "spansIndexed": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Of those, what its rate keeps.",
+            "minimum": 0
+          },
+          "spansMatched": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Spans over the range this filter matches first (in execution order).",
+            "minimum": 0
+          },
+          "traceRate": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "RetentionFilterInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "rate",
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "traceRate": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "RetentionFilters": {
+        "type": "object",
+        "required": [
+          "filters",
+          "spansIngested",
+          "spansIndexed"
+        ],
+        "properties": {
+          "filters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RetentionFilter"
+            }
+          },
+          "spansIndexed": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Spans the enabled filters keep over the range.",
+            "minimum": 0
+          },
+          "spansIngested": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Spans ingested over the range.",
+            "minimum": 0
           }
         }
       },
@@ -58383,6 +61336,21 @@
           }
         ]
       },
+      "SpanCategory": {
+        "type": "object",
+        "required": [
+          "name",
+          "query"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          }
+        }
+      },
       "SpanErrorGroup": {
         "type": "object",
         "required": [
@@ -58531,6 +61499,24 @@
           "max"
         ]
       },
+      "SpanMetricGroupBy": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "tagName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Defaults to the path without `@`."
+          }
+        }
+      },
       "SpanPercentile": {
         "type": "object",
         "required": [
@@ -58573,6 +61559,111 @@
           },
           "service": {
             "type": "string"
+          }
+        }
+      },
+      "SpanPipeline": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "query",
+          "enabled",
+          "processors",
+          "position",
+          "updatedBy",
+          "updatedAt"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "processors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanProcessor"
+            }
+          },
+          "query": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "updatedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "SpanPipelineInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "processors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanProcessor"
+            }
+          },
+          "query": {
+            "type": "string"
+          }
+        }
+      },
+      "SpanProcessor": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanCategory"
+            },
+            "description": "category: (name, query) pairs; the first matching query's name is written."
+          },
+          "name": {
+            "type": "string"
+          },
+          "preserveSource": {
+            "type": "boolean"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "remapper: source attribute paths."
+          },
+          "target": {
+            "type": "string",
+            "description": "remapper / category: the attribute written."
+          },
+          "type": {
+            "type": "string",
+            "description": "remapper (copy an attribute to another name) | category (set an attribute from queries)"
           }
         }
       },
@@ -58819,6 +61910,296 @@
             "items": {
               "type": "integer",
               "format": "int64"
+            }
+          }
+        }
+      },
+      "SpanVolume": {
+        "type": "object",
+        "required": [
+          "spansIngested",
+          "bytesIngested",
+          "spansLive",
+          "spansIndexed",
+          "retentionDays"
+        ],
+        "properties": {
+          "bytesIngested": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Estimated bytes of the spans ingested.",
+            "minimum": 0
+          },
+          "retentionDays": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Days spans are kept for search (the org's span retention)."
+          },
+          "spansIndexed": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Spans the retention filters keep over the range.",
+            "minimum": 0
+          },
+          "spansIngested": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "spansLive": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Spans of the last 15 minutes (live search).",
+            "minimum": 0
+          }
+        }
+      },
+      "SpansMetric": {
+        "type": "object",
+        "required": [
+          "id",
+          "query",
+          "aggregationType",
+          "includePercentiles",
+          "groupBy"
+        ],
+        "properties": {
+          "aggregationType": {
+            "type": "string",
+            "description": "count | distribution"
+          },
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanMetricGroupBy"
+            }
+          },
+          "id": {
+            "type": "string",
+            "description": "The metric name."
+          },
+          "includePercentiles": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Distributions: the numeric path (`@duration`, in ns)."
+          },
+          "query": {
+            "type": "string"
+          }
+        }
+      },
+      "SpansMetricInput": {
+        "type": "object",
+        "properties": {
+          "aggregationType": {
+            "type": "string",
+            "description": "count | distribution (create only)."
+          },
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanMetricGroupBy"
+            }
+          },
+          "id": {
+            "type": "string",
+            "description": "The metric name (create only)."
+          },
+          "includePercentiles": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "query": {
+            "type": "string"
+          }
+        }
+      },
+      "SplAggregation": {
+        "type": "object",
+        "required": [
+          "viz",
+          "measures",
+          "groupBy",
+          "ascending"
+        ],
+        "properties": {
+          "ascending": {
+            "type": "boolean",
+            "description": "Smallest groups first (`rare`, `sort count`)."
+          },
+          "condition": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SplCondition",
+                "description": "A `where <measure> > N` after the aggregation: the alert condition of a migrated alert."
+              }
+            ]
+          },
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "interval": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Rollup interval of a timeseries (`5m`, `1h`)."
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "measures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SplMeasure"
+            }
+          },
+          "viz": {
+            "type": "string",
+            "description": "timeseries | toplist | table | value"
+          }
+        }
+      },
+      "SplCondition": {
+        "type": "object",
+        "required": [
+          "measure",
+          "op",
+          "value"
+        ],
+        "properties": {
+          "measure": {
+            "type": "string",
+            "description": "The measure's SPL name (`count`)."
+          },
+          "op": {
+            "type": "string",
+            "description": "> | >= | < | <= | = | !="
+          },
+          "value": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "SplMeasure": {
+        "type": "object",
+        "required": [
+          "function",
+          "name"
+        ],
+        "properties": {
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The attribute measured (none for `count`)."
+          },
+          "function": {
+            "type": "string",
+            "description": "count | avg | sum | min | max | cardinality | pc50 | pc75 | pc90 | pc95 | pc99"
+          },
+          "name": {
+            "type": "string",
+            "description": "The SPL name of the result (`count`, `avg(duration)`, or its `as` alias)."
+          }
+        }
+      },
+      "SplStep": {
+        "type": "object",
+        "required": [
+          "spl",
+          "result",
+          "note"
+        ],
+        "properties": {
+          "note": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string",
+            "description": "What it became (empty when it was dropped)."
+          },
+          "spl": {
+            "type": "string",
+            "description": "The SPL this step is about."
+          }
+        }
+      },
+      "SplTranslation": {
+        "type": "object",
+        "required": [
+          "query",
+          "columns",
+          "explanation",
+          "warnings",
+          "complete"
+        ],
+        "properties": {
+          "aggregation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SplAggregation"
+              }
+            ]
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Attributes listed by `table` / `fields`."
+          },
+          "complete": {
+            "type": "boolean",
+            "description": "Every part was translated (no warnings)."
+          },
+          "earliest": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`earliest=` of the search (`-24h`), if it set one."
+          },
+          "explanation": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SplStep"
+            }
+          },
+          "query": {
+            "type": "string",
+            "description": "The search, in our search syntax."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }
@@ -63293,6 +66674,28 @@
           }
         }
       },
+      "TranslateRequest": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "macros": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The macros export (CSV with `title,definition,args`), if the query uses macros."
+          },
+          "query": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "spl"
+          }
+        }
+      },
       "TrendCount": {
         "type": "object",
         "required": [
@@ -63841,6 +67244,17 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "VerificationSent": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
           }
         }
       },
