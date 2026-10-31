@@ -786,7 +786,7 @@ mod tests {
             params.extend(metrics.iter().cloned().map(Param::Str));
             params.extend([Param::Int(range.from), Param::Int(range.to)]);
             (
-                "otel.metrics_samples AS x".to_string(),
+                "otel.metrics_samples_read AS x".to_string(),
                 format!(
                     "WHERE x.OrgId = {{oc_org:String}} AND x.MetricName IN ({}) AND x.TimeUnix >= toStartOfInterval(fromUnixTimestamp64Milli(?), INTERVAL 1 SECOND) AND x.TimeUnix <= fromUnixTimestamp64Milli(?)",
                     vec!["?"; metrics.len()].join(",")

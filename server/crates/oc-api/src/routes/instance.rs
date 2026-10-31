@@ -32,6 +32,8 @@ const TELEMETRY_TABLES: &[(&str, &str)] = &[
     ("otel.metrics_tags", "OrgId"),
     ("otel.metrics_tag_values", "OrgId"),
     ("otel.metrics_samples", "OrgId"),
+    ("otel.metrics_log_samples", "OrgId"),
+    ("otel.metrics_log_dist_samples", "OrgId"),
     ("otel.metrics_rollup_5m", "OrgId"),
     ("otel.metrics_rollup_1h", "OrgId"),
     ("otel.metrics_dist_samples", "OrgId"),

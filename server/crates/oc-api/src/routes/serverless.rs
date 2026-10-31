@@ -1391,6 +1391,6 @@ mod tests {
         }
         assert!(dist_sql(None).contains("'aws.lambda.enhanced.duration'"));
         // The metrics storage, not the exporter's tables (dropped).
-        assert!(dist_sql(None).contains("otel.metrics_dist_samples AS x") && !dist_sql(None).contains("otel_metrics_"));
+        assert!(dist_sql(None).contains("otel.metrics_dist_samples_read AS x") && !dist_sql(None).contains("otel_metrics_"));
     }
 }

@@ -126,6 +126,10 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
         "0019_log_replay_storage",
         include_str!("../../../migrations/clickhouse/0019_log_replay_storage.sql"),
     ),
+    (
+        "0017_log_metric_identities",
+        include_str!("../../../migrations/clickhouse/0017_log_metric_identities.sql"),
+    ),
 ];
 
 /// Migrations of the schema before 0001_schema (no org-first sort keys, no cluster support).
@@ -375,6 +379,8 @@ pub const COLD_STORAGE_POLICY: &str = "observecraft_tiered";
 /// The metric storage tables that move to cold storage (not the series table: small, read by every query).
 const COLD_TABLES: &[&str] = &[
     "otel.metrics_samples",
+    "otel.metrics_log_samples",
+    "otel.metrics_log_dist_samples",
     "otel.metrics_rollup_5m",
     "otel.metrics_rollup_1h",
     "otel.metrics_dist_samples",
@@ -407,6 +413,8 @@ fn delete_ttls(r: RetentionDays) -> Vec<(&'static str, String)> {
         ("otel.otel_traces_trace_id_ts", format!("toDate(Start) + INTERVAL {} DAY", r.traces_max)),
         ("otel.otel_ci_traces", format!("toDate(Timestamp) + INTERVAL {} DAY", r.ci)),
         ("otel.otel_ci_traces_trace_id_ts", format!("toDate(Start) + INTERVAL {} DAY", r.ci)),
+        ("otel.metrics_log_samples", format!("toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics)),
+        ("otel.metrics_log_dist_samples", format!("toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics)),
         ("otel.metrics_samples", format!("toDateTime(TimeUnix) + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics)),
         ("otel.metrics_rollup_5m", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_5m)),
         ("otel.metrics_rollup_1h", format!("Bucket + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.metrics_1h)),

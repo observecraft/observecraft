@@ -453,7 +453,7 @@ fn dist_points_query(
             "(SELECT x.OrgId AS OrgId, x.MetricName AS MetricName, x.SeriesId AS SeriesId, s.g AS g, s.temporality AS AggregationTemporality, \
                      x.TimeUnix AS TimeUnix, x.Count AS Count, x.Sum AS Sum, x.Min AS Min, x.Max AS Max, x.BucketCounts AS BucketCounts, x.ExplicitBounds AS ExplicitBounds, \
                      x.Scale AS Scale, x.PositiveOffset AS PositiveOffset, x.PositiveBucketCounts AS PositiveBucketCounts, \
-                     x.`ValueAtQuantiles.Quantile` AS `ValueAtQuantiles.Quantile`, x.`ValueAtQuantiles.Value` AS `ValueAtQuantiles.Value` FROM otel.metrics_dist_samples AS x \
+                     x.`ValueAtQuantiles.Quantile` AS `ValueAtQuantiles.Quantile`, x.`ValueAtQuantiles.Value` AS `ValueAtQuantiles.Value` FROM otel.metrics_dist_samples_read AS x \
               INNER JOIN {series} AS s ON x.SeriesId = s.SeriesId \
               WHERE x.OrgId = {{oc_org:String}} AND x.MetricName = ? AND x.TimeUnix >= fromUnixTimestamp64Milli(?) AND x.TimeUnix <= fromUnixTimestamp64Milli(?){only_sql})"
         );
@@ -659,7 +659,7 @@ fn rollup_rows(source: Source, dist: bool, names: &[String], range: TimeRange, d
         let part = match (what, dist) {
             ("raw", false) => format!(
                 "SELECT SeriesId, toDateTime({bucket_of}(TimeUnix)) AS Bucket, min(Value) AS Min, max(Value) AS Max, sum(Value) AS Sum, count() AS Count, \
-                 argMin(Value, TimeUnix) AS First, argMax(Value, TimeUnix) AS Last, min(TimeUnix) AS Start, max(TimeUnix) AS End FROM otel.metrics_samples \
+                 argMin(Value, TimeUnix) AS First, argMax(Value, TimeUnix) AS Last, min(TimeUnix) AS Start, max(TimeUnix) AS End FROM otel.metrics_samples_read \
                  WHERE OrgId = {{oc_org:String}} AND MetricName IN ({marks}) AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix < fromUnixTimestamp64Milli(?){only_sql} GROUP BY SeriesId, Bucket"
             ),
             ("raw", true) => format!(
@@ -669,7 +669,7 @@ fn rollup_rows(source: Source, dist: bool, names: &[String], range: TimeRange, d
                  argMax(sc, TimeUnix) AS Scale, argMax(po, TimeUnix) AS PositiveOffset, argMax(qs, TimeUnix) AS Quantiles, sumForEach(qv) AS QuantileTotals, \
                  count() AS Points, min(TimeUnix) AS Start, max(TimeUnix) AS End \
                  FROM (SELECT SeriesId, TimeUnix, Count AS c, Sum AS s, Min AS mn, Max AS mx, if(empty(BucketCounts), PositiveBucketCounts, BucketCounts) AS bk, \
-                              ExplicitBounds AS eb, Scale AS sc, PositiveOffset AS po, `ValueAtQuantiles.Quantile` AS qs, `ValueAtQuantiles.Value` AS qv FROM otel.metrics_dist_samples \
+                              ExplicitBounds AS eb, Scale AS sc, PositiveOffset AS po, `ValueAtQuantiles.Quantile` AS qs, `ValueAtQuantiles.Value` AS qv FROM otel.metrics_dist_samples_read \
                        WHERE OrgId = {{oc_org:String}} AND MetricName IN ({marks}) AND TimeUnix >= fromUnixTimestamp64Milli(?) AND TimeUnix < fromUnixTimestamp64Milli(?){only_sql}) \
                  GROUP BY SeriesId, Bucket"
             ),
@@ -910,7 +910,7 @@ pub(crate) fn points_subquery(kind: &str, names: &[&str]) -> String {
     let names = name_list(names);
     format!(
         "(SELECT x.OrgId AS OrgId, x.MetricName AS MetricName, s.ServiceName AS ServiceName, s.ResourceAttributes AS ResourceAttributes, s.Attributes AS Attributes, \
-                 x.TimeUnix AS TimeUnix, x.Value AS Value, s.Temporality AS Temporality, s.Monotonic AS Monotonic FROM otel.metrics_samples AS x \
+                 x.TimeUnix AS TimeUnix, x.Value AS Value, s.Temporality AS Temporality, s.Monotonic AS Monotonic FROM otel.metrics_samples_read AS x \
           INNER JOIN (SELECT SeriesId, any(ServiceName) AS ServiceName, any(ResourceAttributes) AS ResourceAttributes, any(Attributes) AS Attributes, \
                              any(AggregationTemporality) AS Temporality, any(IsMonotonic) AS Monotonic FROM otel.metrics_series \
                       WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) AND MetricType = '{kind}' AND LastSeen >= toStartOfHour(toDateTime(intDiv({{oc_from:Int64}}, 1000))) \
@@ -929,7 +929,7 @@ pub(crate) fn exp_histogram_subquery(names: &[&str]) -> String {
     format!(
         "(SELECT x.OrgId AS OrgId, x.MetricName AS MetricName, s.ResourceAttributes AS ResourceAttributes, s.Attributes AS Attributes, s.AggregationTemporality AS AggregationTemporality, \
                  x.TimeUnix AS TimeUnix, x.Count AS Count, x.Sum AS Sum, x.Min AS Min, x.Max AS Max, x.Scale AS Scale, x.ZeroCount AS ZeroCount, \
-                 x.PositiveOffset AS PositiveOffset, x.PositiveBucketCounts AS PositiveBucketCounts FROM otel.metrics_dist_samples AS x \
+                 x.PositiveOffset AS PositiveOffset, x.PositiveBucketCounts AS PositiveBucketCounts FROM otel.metrics_dist_samples_read AS x \
           INNER JOIN (SELECT SeriesId, any(ResourceAttributes) AS ResourceAttributes, any(Attributes) AS Attributes, any(AggregationTemporality) AS AggregationTemporality \
                       FROM otel.metrics_series WHERE OrgId = {{oc_org:String}} AND MetricName IN ({names}) AND MetricType = 'exponential_histogram' \
                         AND LastSeen >= toStartOfHour(toDateTime(intDiv({{oc_from:Int64}}, 1000))) GROUP BY SeriesId) AS s ON x.SeriesId = s.SeriesId \
@@ -1029,7 +1029,7 @@ fn points_query(kind: Kind, source: Source, q: &MetricQuery, range: TimeRange, s
             None => String::new(),
         };
         format!(
-            "SELECT s.g AS g, toStartOfInterval(x.TimeUnix, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid, {v} AS v{cov} FROM otel.metrics_samples AS x \
+            "SELECT s.g AS g, toStartOfInterval(x.TimeUnix, INTERVAL {step_s} SECOND) AS t, x.SeriesId AS sid, {v} AS v{cov} FROM otel.metrics_samples_read AS x \
              INNER JOIN {series} AS s ON x.SeriesId = s.SeriesId \
              WHERE x.OrgId = {{oc_org:String}} AND x.MetricName = ? \
                AND x.TimeUnix >= toStartOfInterval(fromUnixTimestamp64Milli(?), INTERVAL 1 SECOND) AND x.TimeUnix <= fromUnixTimestamp64Milli(?){only_sql} \

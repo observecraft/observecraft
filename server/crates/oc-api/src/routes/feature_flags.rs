@@ -932,7 +932,16 @@ fn evaluation_points(org: &str, counts: &[EvaluationCount], at_ms: i64, retentio
                 .filter(|(_, v)| !v.is_empty())
                 .map(|(k, v)| (k.to_string(), v.chars().take(200).collect::<String>()))
                 .collect();
-            Point { org: org.to_string(), metric: "feature_flag.evaluations".into(), description: description.clone(), retention, tags, time_ms: minute, value: PointValue::Count(c.count) }
+            Point {
+                event_id: String::new(),
+                org: org.to_string(),
+                metric: "feature_flag.evaluations".into(),
+                description: description.clone(),
+                retention,
+                tags,
+                time_ms: minute,
+                value: PointValue::Count(c.count),
+            }
         })
         .collect()
 }
