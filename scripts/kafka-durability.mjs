@@ -7,11 +7,15 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const prefix = `oc-durability-${process.pid}-${Date.now()}`;
 const network = `${prefix}-net`;
-const names = Object.fromEntries(['kafka', 'clickhouse', 'proxy', 'collector', 'vector'].map((name) => [name, `${prefix}-${name}`]));
+// Opt in to exercising the actual intake binary as well (build the local image first).
+const intakeImage = process.env.OC_DURABILITY_INTAKE_IMAGE;
+const names = Object.fromEntries(['kafka', 'clickhouse', 'proxy', 'collector', 'vector', ...(intakeImage ? ['postgres', 'intake'] : [])].map((name) => [name, `${prefix}-${name}`]));
+const ingestKey = 'ocik_disposable_durability_fixture';
 const topic = 'oc.otlp-json.traces';
 const group = 'oc-collector-json';
 const org = 'example-org-durability';
@@ -61,6 +65,7 @@ const streams = [
   ['oc.otlp-json.logs', group],
   ['oc.logs.json', 'oc-vector'],
 ];
+if (intakeImage) streams.push(['oc.otlp.logs', 'oc-collector']);
 function pending() {
   for (const [name, consumerGroup] of streams) assert.equal(committed(name, consumerGroup), 0, `${name}: Kafka retains ownership until delivery`);
 }
@@ -158,6 +163,27 @@ try {
       kafka(['kafka-topics', '--bootstrap-server', 'kafka:9092', '--create', '--topic', `oc.${encoding}.${signal}`, '--partitions', '1', '--replication-factor', '1']);
     }
   for (const name of ['oc.logs.json', 'oc.logs.live']) kafka(['kafka-topics', '--bootstrap-server', 'kafka:9092', '--create', '--topic', name, '--partitions', '1', '--replication-factor', '1']);
+  if (intakeImage) {
+    run('postgres', ['-e', 'POSTGRES_PASSWORD=fixture', 'postgres:16']);
+    await until(() => docker(['exec', names.postgres, 'pg_isready', '-U', 'postgres'], undefined, true).includes('accepting connections'), 'fixture Postgres startup');
+    const hash = createHash('sha256').update(ingestKey).digest('hex');
+    docker(
+      ['exec', '-i', names.postgres, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'],
+      `
+      CREATE TABLE orgs (id text PRIMARY KEY, status text);
+      CREATE TABLE ingest_keys (org_id text, key_hash bytea, revoked_at timestamptz, last_used_at timestamptz, flag_environment_id uuid);
+      CREATE TABLE org_data_settings (org_id text, span_retention_days int, metrics_retention_days int, metrics_5m_days int, metrics_1h_days int);
+      INSERT INTO orgs VALUES ('${org}', 'active');
+      INSERT INTO ingest_keys (org_id, key_hash) VALUES ('${org}', decode('${hash}', 'hex'));
+    `,
+    );
+    run('intake', ['-e', 'OC_KAFKA_BROKERS=kafka:9092', '-e', 'OC_POSTGRES_URL=postgres://postgres:fixture@postgres:5432/postgres', '--entrypoint', '/usr/local/bin/oc-intake', intakeImage]);
+    await until(
+      () =>
+        docker(['exec', names.proxy, 'node', '-e', "fetch('http://intake:4318/healthz').then(r=>{if(!r.ok)process.exit(1);console.log('ok')}).catch(()=>process.exit(1))"], undefined, true) === 'ok',
+      'intake startup',
+    );
+  }
   vector();
   collector();
   console.log('Isolated Kafka, Collector and ClickHouse started');
@@ -182,20 +208,59 @@ try {
     ],
   };
   kafka(['kafka-console-producer', '--bootstrap-server', 'kafka:9092', '--topic', topic, '--property', 'parse.headers=true'], `x-oc-org:${org}\t${JSON.stringify(payload)}\n`);
-  const logs = { resourceLogs: [{ scopeLogs: [{ logRecords: [{ timeUnixNano: start.toString(), body: { stringValue: 'order-service OTLP durability probe' }, severityText: 'INFO' }] }] }] };
+  const logs = {
+    resourceLogs: [
+      {
+        scopeLogs: [
+          {
+            logRecords: [4, 5].map((n) => ({
+              timeUnixNano: start.toString(),
+              body: { stringValue: 'order-service OTLP durability probe' },
+              severityText: 'INFO',
+              attributes: [
+                { key: 'oc.ingest_id', value: { stringValue: intakeImage ? 'forged' : `019a4000-0000-7000-8000-00000000000${n}` } },
+                { key: 'oc.ingest_received_at', value: { stringValue: new Date().toISOString() } },
+              ],
+            })),
+          },
+        ],
+      },
+    ],
+  };
   const metrics = { resourceMetrics: [{ scopeMetrics: [{ metrics: [{ name: 'system.cpu.user', gauge: { dataPoints: [{ timeUnixNano: start.toString(), asDouble: 42 }] } }] }] }] };
   // The authenticated intake serializes this reserved metadata before Kafka. Equal events have
   // distinct IDs; replay must preserve both identities and the original fallback timestamp.
   const receivedAt = new Date().toISOString();
   const jsonLogs = [1, 2].map((n) => ({
-    message: 'order-service JSON durability probe', service: 'order-service',
+    message: 'order-service JSON durability probe',
+    service: 'order-service',
     _oc_ingest: { id: `019a4000-0000-7000-8000-00000000000${n}`, received_at: receivedAt },
   }));
-  for (const [name, body] of [
-    ['oc.logs.json', jsonLogs],
-    ['oc.otlp-json.logs', logs],
-    ['oc.otlp-json.metrics', metrics],
-  ])
+  if (intakeImage) {
+    const post = (contentType, bytes) =>
+      docker([
+        'exec',
+        names.proxy,
+        'node',
+        '-e',
+        `fetch('http://intake:4318/v1/logs', {method:'POST',headers:{'content-type':${JSON.stringify(contentType)},authorization:'Bearer ${ingestKey}'},body:Buffer.from(${JSON.stringify(bytes.toString('base64'))},'base64')}).then(async r=>{if(!r.ok)throw Error(await r.text())}).catch(e=>{console.error(e);process.exit(1)})`,
+      ]);
+    post('application/json', Buffer.from(JSON.stringify(logs)));
+    // Two empty-timestamp protobuf records: body + forged ID, encoded using OTLP's wire tags.
+    const message = (tag, bytes) => {
+      const length = [];
+      let n = bytes.length;
+      do {
+        length.push((n & 127) | (n >= 128 ? 128 : 0));
+        n >>>= 7;
+      } while (n);
+      return Buffer.concat([Buffer.from([tag * 8 + 2, ...length]), bytes]);
+    };
+    const attr = message(6, Buffer.concat([message(1, Buffer.from('oc.ingest_id')), message(2, message(1, Buffer.from('forged')))]));
+    const record = Buffer.concat([message(5, message(1, Buffer.from('order-service OTLP protobuf durability probe'))), attr]);
+    post('application/x-protobuf', message(1, message(2, Buffer.concat([message(2, record), message(2, record)]))));
+  }
+  for (const [name, body] of [['oc.logs.json', jsonLogs], ...(!intakeImage ? [['oc.otlp-json.logs', logs]] : []), ['oc.otlp-json.metrics', metrics]])
     kafka(['kafka-console-producer', '--bootstrap-server', 'kafka:9092', '--topic', name, '--property', 'parse.headers=true'], `x-oc-org:${org}\t${JSON.stringify(body)}\n`);
   await until(() => status().blocked > 0, 'export attempted against the unavailable destination');
   await until(() => status().indexerBlocked > 0, 'logs attempted against the unavailable indexer');
@@ -217,14 +282,21 @@ try {
   await until(() => Number(sql(`SELECT count() FROM oc.logs_raw_read WHERE org_id='${org}'`)) >= 3 && status().indexed >= 3, 'both log paths delivered to both sinks');
   await until(() => Number(sql(`SELECT count() FROM otel.metrics_samples WHERE OrgId='${org}' AND Value=42`)) >= 1, 'metrics delivered');
   for (const [name, consumerGroup] of streams) await until(() => committed(name, consumerGroup) === 1, `${name}: offset committed after export`);
-  const identities = () => sql(`SELECT toString(id), min(toUnixTimestamp64Milli(timestamp)), max(toUnixTimestamp64Milli(timestamp)) FROM oc.logs_raw_read WHERE org_id='${org}' AND message='order-service JSON durability probe' GROUP BY id ORDER BY id`);
+  const identities = () =>
+    sql(
+      `SELECT toString(id), min(toUnixTimestamp64Milli(timestamp)), max(toUnixTimestamp64Milli(timestamp)) FROM oc.logs_raw_read WHERE org_id='${org}' AND message='order-service JSON durability probe' GROUP BY id ORDER BY id`,
+    );
   const beforeReplay = identities();
   assert.equal(beforeReplay.split('\n').length, 2, 'equal events retain distinct IDs');
   for (const event of jsonLogs) assert.ok(beforeReplay.includes(`${event._oc_ingest.id}\t${Date.parse(receivedAt)}\t${Date.parse(receivedAt)}`));
   docker(['stop', names.vector]);
   docker(['rm', names.vector]);
   await until(() => {
-    const output = kafka(['kafka-consumer-groups', '--bootstrap-server', 'kafka:9092', '--group', 'oc-vector', '--topic', 'oc.logs.json', '--reset-offsets', '--to-earliest', '--execute'], undefined, true);
+    const output = kafka(
+      ['kafka-consumer-groups', '--bootstrap-server', 'kafka:9092', '--group', 'oc-vector', '--topic', 'oc.logs.json', '--reset-offsets', '--to-earliest', '--execute'],
+      undefined,
+      true,
+    );
     return /oc-vector\s+oc.logs.json\s+0\s+0/.test(output);
   }, 'JSON consumer offsets reset while inactive');
   const indexedBefore = status().indexed;
@@ -232,6 +304,35 @@ try {
   await until(() => status().indexed >= indexedBefore + 2 && committed('oc.logs.json', 'oc-vector') === 1, 'JSON logs replayed through replacement consumer');
   assert.equal(identities(), beforeReplay, 'replay preserves IDs and fallback timestamps');
   assert.equal(sql(`SELECT count() FROM oc.logs_raw_read WHERE org_id='${org}' AND message='order-service JSON durability probe'`), '2', 'raw/archive reads deduplicate replay');
+  const otlpIdentities = () =>
+    sql(`SELECT toString(id), toUnixTimestamp64Milli(timestamp), message FROM oc.logs_raw_read WHERE org_id='${org}' AND startsWith(message, 'order-service OTLP') ORDER BY id`);
+  await until(() => otlpIdentities().split('\n').length === (intakeImage ? 4 : 2), 'distinct OTLP log identities delivered');
+  const otlpBefore = otlpIdentities();
+  assert.equal(
+    sql(`SELECT count() FROM oc.logs_raw_read WHERE org_id='${org}' AND startsWith(message, 'order-service OTLP') AND position(attributes, 'oc.ingest_') > 0`),
+    '0',
+    'reserved OTLP metadata does not become user attributes',
+  );
+  docker(['stop', names.collector]);
+  docker(['rm', names.collector]);
+  for (const [signalTopic, signalGroup] of streams.filter(([name]) => name.endsWith('.logs'))) {
+    await until(() => {
+      const output = kafka(
+        ['kafka-consumer-groups', '--bootstrap-server', 'kafka:9092', '--group', signalGroup, '--topic', signalTopic, '--reset-offsets', '--to-earliest', '--execute'],
+        undefined,
+        true,
+      );
+      return output.split('\n').some((line) => {
+        const fields = line.trim().split(/\s+/);
+        return fields[0] === signalGroup && fields[1] === signalTopic && fields[3] === '0';
+      });
+    }, `${signalTopic}: reset inactive consumer offsets`);
+  }
+  const otlpIndexedBefore = status().indexed;
+  collector();
+  await until(() => status().indexed >= otlpIndexedBefore + (intakeImage ? 4 : 2), 'OTLP logs replayed through replacement Collector');
+  for (const [name, consumerGroup] of streams.filter(([name]) => name.endsWith('.logs'))) await until(() => committed(name, consumerGroup) === 1, `${name}: replay committed`);
+  assert.equal(otlpIdentities(), otlpBefore, 'OTLP replay preserves distinct IDs and explicit/fallback timestamps');
   // Simulate indexed delivery with changed batch boundaries and ordering, before background merges.
   sql('SYSTEM STOP MERGES oc.logs_dedup');
   const indexed = `INSERT INTO oc.logs_dedup (org_id, id, timestamp, service, status, message, index_name, retention_days)
@@ -248,8 +349,13 @@ try {
   sql(`INSERT INTO oc.logs (org_id, id, timestamp, service, status, message) VALUES ('${org}', '019a4000-0000-7000-8000-000000000003', now64(3), 'order-service', 'error', 'legacy writer')`);
   assert.equal(sql(`SELECT count() FROM oc.logs_read WHERE org_id='${org}'`), '3', 'legacy writers remain visible through forwarding');
   const migration = readFileSync(`${root}server/migrations/clickhouse/0016_log_replay_storage.sql`, 'utf8')
-    .split('\n').filter((line) => !line.trimStart().startsWith('--')).join('\n')
-    .replaceAll(/\$\{DISTRIBUTED [^}]+\};/g, '').replaceAll('${ON_CLUSTER}', '').replaceAll('${LOCAL}', '').replaceAll('${REPLICATED}', '');
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('--'))
+    .join('\n')
+    .replaceAll(/\$\{DISTRIBUTED [^}]+\};/g, '')
+    .replaceAll('${ON_CLUSTER}', '')
+    .replaceAll('${LOCAL}', '')
+    .replaceAll('${REPLICATED}', '');
   for (let attempt = 0; attempt < 2; attempt++) docker(['exec', '-i', names.clickhouse, 'clickhouse-client', '--multiquery'], migration);
   assert.equal(sql(`SELECT count() FROM oc.logs_read WHERE org_id='${org}'`), '3', 'backfill can be retried without duplicate reads');
   assert.equal(sql(`SELECT sum(n) FROM oc.error_groups_1m_read WHERE org_id='${org}'`), '3', 'backfill can be retried without duplicate errors');

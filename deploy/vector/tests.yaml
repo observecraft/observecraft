@@ -1,6 +1,31 @@
 # Unit tests of the `normalize` transform (normalize.vrl):
 #   docker compose -f deploy/docker-compose.yml run --rm --entrypoint vector vector-aggregator test /etc/vector/aggregator.yaml /etc/vector/tests.yaml
 tests:
+  - name: accepted OTLP log retains its ID and event time through replay
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "opentelemetry"
+          .timestamp = t'2026-10-20T12:00:00Z'
+          .resources = { "oc.org_id": "example-org" }
+          .attributes = {
+            "oc.ingest_id": "019a4000-0000-7000-8000-000000000004",
+            "oc.ingest_received_at": "2026-10-25T18:00:00Z", "order.id": "42"
+          }
+          .message = "order accepted"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.id, "019a4000-0000-7000-8000-000000000004")
+              assert_eq!(.timestamp, t'2026-10-20T12:00:00Z')
+              assert_eq!(.attr."order.id", "42")
+              assert!(!contains(string!(.attributes), "oc.ingest_"))
+              assert!(!exists(.attr."oc.ingest_id"))
+              assert!(!exists(.tags."oc.ingest_id"))
+
   - name: accepted JSON log retains its ID and fallback time through replay
     inputs:
       - insert_at: normalize

@@ -1,6 +1,6 @@
 //! OTLP/gRPC: the three OTLP `Export` services. Messages are passed through as bytes and posted to
-//! the collector's OTLP/HTTP endpoint as protobuf (the same bytes), so only gRPC framing,
-//! compression and status codes are handled here.
+//! the shared intake path as protobuf. That path stamps log identities before Kafka; this module
+//! handles gRPC framing, compression and status codes.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -115,4 +115,97 @@ pub fn router(st: Shared) -> Router {
         .route("/opentelemetry.proto.collector.metrics.v1.MetricsService/Export", post(|State(st): State<Shared>, req: Request| export(st, "/v1/metrics", req)))
         .route("/opentelemetry.proto.collector.logs.v1.LogsService/Export", post(|State(st): State<Shared>, req: Request| export(st, "/v1/logs", req)))
         .with_state(st)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::otlp::{self, ExportLogsServiceRequest, LogRecord, ResourceLogs, ScopeLogs};
+    use prost::Message;
+    use sha2::{Digest, Sha256};
+    use std::{io::Write, time::Instant};
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn grpc_logs_receive_server_identities_after_framing_and_decompression() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mut cfg = crate::Config::from_env();
+        cfg.collector_url = format!("http://{}", listener.local_addr().unwrap());
+        let task = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                Router::new().route(
+                    "/v1/logs",
+                    post(|headers: axum::http::HeaderMap, body: Bytes| async move {
+                        assert_eq!(headers["x-oc-org"], "example-org");
+                        body
+                    }),
+                ),
+            )
+            .await
+            .unwrap();
+        });
+        let st = crate::test_state(cfg);
+        st.keys.lock().unwrap().insert(
+            Sha256::digest(b"ocik_grpc_identity_test").to_vec(),
+            crate::CachedKey {
+                org: Some(crate::KeyOrg {
+                    org_id: "example-org".into(),
+                    span_retention_days: 15,
+                    metrics_retention_days: 30,
+                    metrics_5m_days: 90,
+                    metrics_1h_days: 395,
+                    flag_environment_id: None,
+                }),
+                at: Instant::now(),
+                touched: Some(Instant::now()),
+            },
+        );
+        let record = LogRecord {
+            attributes: vec![otlp::kv("oc.ingest_id", "forged")],
+            ..Default::default()
+        };
+        let input = ExportLogsServiceRequest {
+            resource_logs: vec![ResourceLogs {
+                resource: None,
+                scope_logs: vec![ScopeLogs {
+                    scope: None,
+                    log_records: vec![record.clone(), record],
+                }],
+            }],
+        }
+        .encode_to_vec();
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gzip.write_all(&input).unwrap();
+        for (encoding, bytes) in [
+            ("identity", input.clone()),
+            ("gzip", gzip.finish().unwrap()),
+            ("zstd", zstd::stream::encode_all(&input[..], 1).unwrap()),
+        ] {
+            let mut frame = vec![u8::from(encoding != "identity")];
+            frame.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
+            frame.extend_from_slice(&bytes);
+            let req = Request::builder()
+                .method("POST")
+                .uri("/opentelemetry.proto.collector.logs.v1.LogsService/Export")
+                .version(axum::http::Version::HTTP_2)
+                .header("content-type", "application/grpc")
+                .header("grpc-encoding", encoding)
+                .header("authorization", "Bearer ocik_grpc_identity_test")
+                .body(Body::from(frame))
+                .unwrap();
+            let result = router(st.clone()).oneshot(req).await.unwrap();
+            assert_eq!(result.status(), StatusCode::OK);
+            let bytes = axum::body::to_bytes(result.into_body(), 1024 * 1024).await.unwrap();
+            assert_eq!(bytes[0], 0);
+            let length = u32::from_be_bytes(bytes[1..5].try_into().unwrap()) as usize;
+            let result = ExportLogsServiceRequest::decode(&bytes[5..5 + length]).unwrap();
+            let records = &result.resource_logs[0].scope_logs[0].log_records;
+            let id = |r: &LogRecord| otlp::text(r.attributes.iter().find(|a| a.key == "oc.ingest_id").unwrap()).to_owned();
+            assert_ne!(id(&records[0]), "forged");
+            assert_ne!(id(&records[0]), id(&records[1]));
+            assert_ne!(records[0].time_unix_nano, 0);
+        }
+        task.abort();
+    }
 }
