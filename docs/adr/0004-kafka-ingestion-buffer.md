@@ -155,6 +155,20 @@ copy; Postgres advisory locks, counters and receipts are the cross-replica sourc
 no periodic whole-history ClickHouse counter reconciliation. Locks have a five-second timeout,
 admission has a twenty-second deadline, and storage HTTP writes have a thirty-second deadline.
 
+Quota-only requests admit up to 2,048 events per transaction. Requests with generated metrics keep
+512-event admission/expansion chunks. Indexed rows from those chunks are coalesced into a pending
+buffer of at most 8,192 events / 8 MiB before storage; an individually oversized chunk is sent
+directly rather than retained alongside that buffer. Storage and metric export HTTP writes reuse
+pooled connections. The final indexed flush must succeed before returning success. Metric
+contributions may reach their durable outbox or native storage before buffered indexed rows,
+including logs excluded from indexing. Failure or cancellation leaves committed reservations intact
+and source ownership with Kafka.
+
+The internal authenticated `/metrics` endpoint exports `oc_log_ingest_stage_seconds` histograms
+with fixed stage labels: `request`, `org_gate`, `persisted_lookup`, `admission`, `quota_lock`,
+`indexed_insert`, `outbox_enqueue`. Timings include failed/cancelled operations and overlapping
+stages, not disjoint CPU time. No organization IDs, event IDs or query strings become labels.
+
 The first use of each quota-bearing index bootstraps its current-day count once from deduplicated
 ClickHouse rows. Stop old writers, drain Kafka/outboxes, and synchronize ClickHouse replicas before
 cutover: old writers do not participate in shared admission. This cutover baseline uses event
@@ -218,7 +232,13 @@ restart or source replay may write more physical rows, but retained identities c
 
 Outbox row locks with SKIP LOCKED share work across replicas. Successful sink payloads are cleared
 even when another fails. Each sink attempt is bounded to 30 seconds, and up to four organizations
-export concurrently per API replica. The spool remains bounded per organization to 64 MiB of pending
+export concurrently per API replica. Workers claim metadata for up to 32 rows, then fetch only a
+prefix fitting 8 MiB of combined sink payloads; one larger entry is allowed alone so it can make
+progress. Each sink receives concatenated NDJSON with the original event identities. A pass makes
+at most eight grouped attempts per organization before yielding to other organizations. Successful
+sink columns are cleared transactionally; fully completed rows are deleted before clearing columns,
+including mixed sum-only and histogram-bearing entries, preserving the nonempty-payload constraint.
+Failed payloads and cancelled transactions remain replayable. The spool stays bounded to 64 MiB of pending
 payloads and 4,096 batches. A full spool or unavailable Postgres returns 503, retaining source ownership
 with Kafka. Per-event payloads cost more than the former per-request aggregates: benchmark outbox/WAL,
 ClickHouse event-state volume, FINAL/grouping reads and Vector batch sizes at the intended log rate.
@@ -227,7 +247,8 @@ a Kafka-backed derived stream is a scaling option for replacing the Postgres ret
 Requests for organizations with generated metrics are processed in chunks of 512 events so event contributions
 do not accumulate for an entire Vector batch. Completed prefixes can safely be replayed after a
 later failure. Source acknowledgement still waits for the whole request, and the 1,000-series budget
-per metric is shared across all its chunks. Requests without generated metrics retain one bulk write.
+per metric is shared across all its chunks. Indexed writes are grouped independently of that
+expansion limit; requests without quotas or generated metrics retain their existing bulk write.
 
 Deduplication requires stable source IDs and immutable metric definitions, processed fields, labels,
 event time and retention. Intake-issued JSON/OTLP UUIDv7 IDs also supply a stable acceptance clock for the

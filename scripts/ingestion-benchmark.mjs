@@ -16,7 +16,8 @@ const scripts = fileURLToPath(new URL('./ingestion-benchmark', import.meta.url))
 const prefix = `oc-bench-${process.pid}-${Date.now()}`;
 const network = `${prefix}-net`;
 const apiNames = Array.from({ length: cfg.replicas }, (_, n) => `api${n + 1}`);
-const names = Object.fromEntries(['clickhouse', 'postgres', 'kafka', 'observer', 'valkey', 'proxy', 'migrate', 'intake', 'vector', 'driver', ...apiNames].map((n) => [n, `${prefix}-${n}`]));
+const vectorNames = Array.from({ length: cfg.vectorReplicas }, (_, n) => (n === 0 ? 'vector' : `vector${n + 1}`));
+const names = Object.fromEntries(['clickhouse', 'postgres', 'kafka', 'observer', 'valkey', 'proxy', 'migrate', 'intake', 'driver', ...vectorNames, ...apiNames].map((n) => [n, `${prefix}-${n}`]));
 const caps = {
   clickhouse: [4, '3g'],
   postgres: [2, '1g'],
@@ -25,7 +26,7 @@ const caps = {
   valkey: [0.5, '256m'],
   proxy: [1, '256m'],
   intake: [2, '512m'],
-  vector: [2, '512m'],
+  ...Object.fromEntries(vectorNames.map((n) => [n, [2, '512m']])),
   driver: [1, '256m'],
   ...Object.fromEntries(apiNames.map((n) => [n, [2, '768m']])),
 };
@@ -419,24 +420,28 @@ try {
     cfg.image,
   );
   await until(async () => (await fetch(`${admin}/ready`)).ok, 'APIs and intake');
-  await run(
-    'vector',
-    [
-      '-v',
-      `${root}deploy/vector:/etc/vector:ro`,
-      '-e',
-      'CLICKHOUSE_USER=default',
-      '-e',
-      'CLICKHOUSE_PASSWORD=',
-      '-e',
-      'OC_CLICKHOUSE_HTTP_ENDPOINT=http://proxy:8123',
-      '-e',
-      'OC_LOGPROC_URL=http://proxy:8080/ingest/logs',
-      '-e',
-      'OC_INTERNAL_TOKEN=disposable-benchmark-token',
-    ],
-    'timberio/vector:0.42.0-debian',
-    ['--config', '/etc/vector/aggregator.yaml'],
+  await Promise.all(
+    vectorNames.map((name) =>
+      run(
+        name,
+        [
+          '-v',
+          `${root}deploy/vector:/etc/vector:ro`,
+          '-e',
+          'CLICKHOUSE_USER=default',
+          '-e',
+          'CLICKHOUSE_PASSWORD=',
+          '-e',
+          'OC_CLICKHOUSE_HTTP_ENDPOINT=http://proxy:8123',
+          '-e',
+          'OC_LOGPROC_URL=http://proxy:8080/ingest/logs',
+          '-e',
+          'OC_INTERNAL_TOKEN=disposable-benchmark-token',
+        ],
+        'timberio/vector:0.42.0-debian',
+        ['--config', '/etc/vector/aggregator.yaml'],
+      ),
+    ),
   );
   report.images = (await docker(['inspect', '--format', '{{.Name}} {{.Image}} {{.Config.Image}}', ...Object.values(names)])).split('\n').map((line) => {
     const [name, digest, reference] = line.split(' ');
@@ -452,7 +457,7 @@ try {
 } catch (e) {
   report.error = String(e.stack ?? e);
   console.error(report.error);
-  for (const name of ['vector', ...apiNames, 'proxy']) console.error(await docker(['logs', '--tail', '12', names[name]], undefined, true));
+  for (const name of [...vectorNames, ...apiNames, 'proxy']) console.error(await docker(['logs', '--tail', '12', names[name]], undefined, true));
   process.exitCode = 1;
 } finally {
   try {

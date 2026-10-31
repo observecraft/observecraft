@@ -64,6 +64,7 @@ export function configFrom(env) {
     rates,
     orgs: number('OC_BENCH_ORGS', 4, 1, 16),
     replicas: number('OC_BENCH_API_REPLICAS', 2, 1, 4),
+    vectorReplicas: number('OC_BENCH_VECTOR_REPLICAS', 1, 1, 4),
     batch: number('OC_BENCH_BATCH', 500, 10, 2000),
     concurrency: number('OC_BENCH_CONCURRENCY', 16, 1, 128),
     messageBytes: number('OC_BENCH_MESSAGE_BYTES', 128, 32, 4096),
