@@ -1,0 +1,31 @@
+/* Personal Settings → Accessibility, applied app-wide through attributes on <html>. */
+:root[data-reduced-motion] *,
+:root[data-reduced-motion] *::before,
+:root[data-reduced-motion] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
+:root[data-high-contrast] {
+  --text-muted: var(--text);
+  --border: var(--border-strong);
+}
+:root[data-high-contrast] :focus-visible {
+  outline: 3px solid var(--border-focus) !important;
+  outline-offset: 2px;
+}
+:root[data-underline-links] a {
+  text-decoration: underline;
+}
+/* Okabe–Ito: told apart with every common color vision deficiency. */
+:root[data-color-blind] {
+  --chart-1: #0072b2;
+  --chart-2: #e69f00;
+  --chart-3: #56b4e9;
+  --chart-4: #d55e00;
+  --chart-5: #cc79a7;
+  --chart-6: #009e73;
+  --chart-7: #f0e442;
+  --chart-8: #7f7f7f;
+}

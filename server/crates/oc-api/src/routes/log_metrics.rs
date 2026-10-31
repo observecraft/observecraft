@@ -33,7 +33,7 @@ pub enum LogMetricAggregation {
 }
 
 impl LogMetricAggregation {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             LogMetricAggregation::Count => "count",
             LogMetricAggregation::Distribution => "distribution",
@@ -64,6 +64,8 @@ pub struct LogMetric {
     pub group_by: Vec<LogMetricGroupBy>,
     /// Distinct group-by value sets counted per 10 s; logs of further series are dropped.
     pub max_series: u32,
+    /// A distribution's percentiles (p50, p75, p90, p95, p99) can be queried.
+    pub include_percentiles: bool,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -77,6 +79,8 @@ pub struct LogMetricInput {
     pub path: Option<String>,
     #[serde(default)]
     pub group_by: Vec<LogMetricGroupBy>,
+    #[serde(default)]
+    pub include_percentiles: bool,
 }
 
 #[derive(sqlx::FromRow)]
@@ -87,6 +91,7 @@ struct Row {
     aggregation: String,
     path: Option<String>,
     group_by: Value,
+    include_percentiles: bool,
 }
 
 impl From<Row> for LogMetric {
@@ -99,6 +104,7 @@ impl From<Row> for LogMetric {
             path: r.path,
             group_by: serde_json::from_value(r.group_by).unwrap_or_default(),
             max_series: MAX_SERIES_PER_METRIC as u32,
+            include_percentiles: r.include_percentiles,
         }
     }
 }
@@ -120,7 +126,7 @@ fn valid_tag(t: &str) -> bool {
 }
 
 /// Trims and checks a definition.
-fn validate(input: &mut LogMetricInput) -> Result<(), String> {
+pub(crate) fn validate(input: &mut LogMetricInput) -> Result<(), String> {
     input.name = input.name.trim().to_string();
     input.query = input.query.trim().to_string();
     let name = &input.name;
@@ -163,7 +169,7 @@ fn validate(input: &mut LogMetricInput) -> Result<(), String> {
     Ok(())
 }
 
-const COLS: &str = "id::text AS id, name, query, aggregation, path, group_by";
+const COLS: &str = "id::text AS id, name, query, aggregation, path, group_by, include_percentiles";
 
 async fn get_metric(st: &AppState, org: &str, id: &str) -> Result<LogMetric, ApiError> {
     let row: Option<Row> = sqlx::query_as(&format!("SELECT {COLS} FROM log_metrics WHERE org_id = $1 AND id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
@@ -194,13 +200,14 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(mut in
     if count >= MAX_METRICS {
         return Err(ApiError::BadRequest(format!("An organization can have at most {MAX_METRICS} generated metrics")));
     }
-    let (id,): (String,) = sqlx::query_as("INSERT INTO log_metrics (org_id, name, query, aggregation, path, group_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id::text")
+    let (id,): (String,) = sqlx::query_as("INSERT INTO log_metrics (org_id, name, query, aggregation, path, group_by, include_percentiles) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id::text")
         .bind(&ctx.org_id)
         .bind(&input.name)
         .bind(&input.query)
         .bind(input.aggregation.as_str())
         .bind(&input.path)
         .bind(group_by_json(&input.group_by))
+        .bind(input.include_percentiles)
         .fetch_one(&st.postgres)
         .await
         .map_err(|e| unique(e, &input.name))?;
@@ -216,13 +223,14 @@ pub async fn update(State(st): State<AppState>, Writer(ctx): Writer, Path(id): P
     if current.name != input.name {
         return Err(ApiError::BadRequest("A generated metric can't be renamed: create a new one".into()));
     }
-    sqlx::query("UPDATE log_metrics SET query = $3, aggregation = $4, path = $5, group_by = $6, updated_at = now() WHERE org_id = $1 AND id::text = $2")
+    sqlx::query("UPDATE log_metrics SET query = $3, aggregation = $4, path = $5, group_by = $6, include_percentiles = $7, updated_at = now() WHERE org_id = $1 AND id::text = $2")
         .bind(&ctx.org_id)
         .bind(&id)
         .bind(&input.query)
         .bind(input.aggregation.as_str())
         .bind(&input.path)
         .bind(group_by_json(&input.group_by))
+        .bind(input.include_percentiles && input.aggregation == LogMetricAggregation::Distribution)
         .execute(&st.postgres)
         .await?;
     ctx.audit(&st, "log_metric.updated", &input.name, &input.query).await;
@@ -249,6 +257,7 @@ mod tests {
             aggregation,
             path: path.map(str::to_string),
             group_by: group_by.iter().map(|p| LogMetricGroupBy { path: p.to_string(), tag_name: String::new() }).collect(),
+            include_percentiles: false,
         }
     }
 

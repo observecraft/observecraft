@@ -40,6 +40,10 @@ spec:
       containerCollectAll: true
     orchestratorExplorer:
       enabled: true
+    # Workload Protection: the runtime security module and its events. Agent rules come from the
+    # policy files mounted in the security agent (Workload Protection → Policies → Download).
+    cws:
+      enabled: true
     # Products ObserveCraft doesn't have yet.
     remoteConfiguration:
       enabled: false
@@ -68,6 +72,9 @@ spec:
         - { name: DD_SBOM_HOST_ENABLED, value: "true" }
         - { name: DD_SBOM_CONTAINER_IMAGE_ENABLED, value: "true" }
         - { name: DD_SBOM_DD_URL, value: http://observecraft-intake.observecraft.svc:4318 }
+        # Workload Protection's events (the runtime security track of the logs pipeline).
+        - { name: DD_RUNTIME_SECURITY_CONFIG_ENDPOINTS_LOGS_DD_URL, value: observecraft-intake.observecraft.svc:4318 }
+        - { name: DD_RUNTIME_SECURITY_CONFIG_ENDPOINTS_LOGS_NO_SSL, value: "true" }
         # Products that would send to Datadog's own intakes (not to ObserveCraft): keep them off so nothing
         # leaves for Datadog.
         - { name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED, value: "false" }

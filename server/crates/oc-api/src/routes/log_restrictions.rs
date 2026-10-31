@@ -34,6 +34,8 @@ pub struct LogRestrictionQuery {
     pub query: String,
     pub roles: Vec<RoleRef>,
     pub teams: Vec<TeamRef>,
+    /// Users who read through it (members of its roles and teams).
+    pub user_count: i64,
     /// Name of the user who created it.
     pub created_by: Option<String>,
     /// Epoch milliseconds.
@@ -135,6 +137,7 @@ struct Row {
     updated_at: i64,
     roles: Value,
     teams: Value,
+    user_count: i64,
 }
 
 impl From<Row> for LogRestrictionQuery {
@@ -146,6 +149,7 @@ impl From<Row> for LogRestrictionQuery {
             query: r.query,
             roles: serde_json::from_value::<Vec<NamedRole>>(r.roles).unwrap_or_default().into_iter().map(|x| RoleRef { id: x.id, name: x.name }).collect(),
             teams: serde_json::from_value::<Vec<NamedTeam>>(r.teams).unwrap_or_default().into_iter().map(|x| TeamRef { handle: x.handle, name: x.name }).collect(),
+            user_count: r.user_count,
             created_by: r.created_by,
             created_at: r.created_at,
             updated_at: r.updated_at,
@@ -170,7 +174,10 @@ const SELECT: &str = "SELECT q.id::text AS id, q.name, q.description, q.query, u
     COALESCE((SELECT json_agg(json_build_object('id', r.id, 'name', r.name) ORDER BY r.name) FROM log_restriction_roles a \
       JOIN roles r ON r.org_id = a.org_id AND r.id = a.role_id WHERE a.org_id = q.org_id AND a.restriction_id = q.id), '[]'::json) AS roles, \
     COALESCE((SELECT json_agg(json_build_object('handle', t.handle, 'name', t.name) ORDER BY t.name) FROM log_restriction_teams a \
-      JOIN teams t ON t.org_id = a.org_id AND t.handle = a.team_handle WHERE a.org_id = q.org_id AND a.restriction_id = q.id), '[]'::json) AS teams \
+      JOIN teams t ON t.org_id = a.org_id AND t.handle = a.team_handle WHERE a.org_id = q.org_id AND a.restriction_id = q.id), '[]'::json) AS teams, \
+    (SELECT count(DISTINCT m.user_id) FROM ( \
+      SELECT ur.user_id FROM log_restriction_roles a JOIN user_roles ur ON ur.role_id = a.role_id WHERE a.org_id = q.org_id AND a.restriction_id = q.id \
+      UNION SELECT tm.user_id FROM log_restriction_teams a JOIN team_members tm ON tm.org_id = a.org_id AND tm.handle = a.team_handle WHERE a.org_id = q.org_id AND a.restriction_id = q.id) m) AS user_count \
     FROM log_restriction_queries q LEFT JOIN users u ON u.id = q.created_by";
 
 async fn get_query(st: &AppState, org: &str, id: &str) -> Result<LogRestrictionQuery, ApiError> {

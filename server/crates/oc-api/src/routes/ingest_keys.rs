@@ -96,6 +96,25 @@ pub async fn revoke(State(st): State<AppState>, Admin(ctx): Admin, Path(id): Pat
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Development only (`OC_SEED_DEMO`): makes `OC_DEMO_APP_KEY` an application key of the dev user, so
+/// oc-tracegen can call AI Guard's evaluate endpoint as the tracers' SDKs do.
+pub async fn ensure_demo_app_key(st: &AppState) -> anyhow::Result<()> {
+    let Some(key) = st.config.demo_app_key.as_deref() else { return Ok(()) };
+    let exists: Option<(String,)> = sqlx::query_as("SELECT org_id FROM app_keys WHERE key_hash = $1").bind(crypto::sha256(key)).fetch_optional(&st.postgres).await?;
+    if exists.is_none() {
+        let prefix: String = key.chars().take(10).collect();
+        sqlx::query("INSERT INTO app_keys (org_id, user_id, name, key_hash, prefix) SELECT $1, id, 'Local demo generators', $3, $4 FROM users WHERE org_id = $1 AND id = $2::uuid")
+            .bind(&st.config.dev_org)
+            .bind(&st.config.dev_user)
+            .bind(crypto::sha256(key))
+            .bind(&prefix)
+            .execute(&st.postgres)
+            .await?;
+        tracing::info!("created the demo application key (OC_DEMO_APP_KEY) for the dev user");
+    }
+    Ok(())
+}
+
 /// Development only (`OC_SEED_DEMO`): makes `OC_DEMO_INGEST_KEY` a key of the install's org, so the
 /// synthetic data generators can send through the intake without a manual step.
 pub async fn ensure_demo_key(st: &AppState) -> anyhow::Result<()> {

@@ -32,6 +32,12 @@ datadog:
     enabled: true
   processAgent:
     processCollection: false
+  # Workload Protection: the runtime security module (system-probe + security-agent) and its events.
+  # Agent rules come from the policy files mounted in the security agent (Workload Protection →
+  # Policies → Download), since ObserveCraft doesn't serve Remote Configuration.
+  securityAgent:
+    runtime:
+      enabled: true
   # Products ObserveCraft doesn't have yet.
   remoteConfiguration:
     enabled: false
@@ -52,6 +58,9 @@ datadog:
     - { name: DD_SBOM_HOST_ENABLED, value: "true" }
     - { name: DD_SBOM_CONTAINER_IMAGE_ENABLED, value: "true" }
     - { name: DD_SBOM_DD_URL, value: *intake }
+    # Workload Protection's events (the runtime security track of the logs pipeline).
+    - { name: DD_RUNTIME_SECURITY_CONFIG_ENDPOINTS_LOGS_DD_URL, value: *logsIntake }
+    - { name: DD_RUNTIME_SECURITY_CONFIG_ENDPOINTS_LOGS_NO_SSL, value: "true" }
     # Products that would send to Datadog's own intakes (not to ObserveCraft): keep them off so nothing
     # leaves for Datadog.
     - { name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED, value: "false" }

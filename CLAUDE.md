@@ -78,6 +78,9 @@ or SDK features.
   - orchestrator manifests `/api/v2/orchmanif`, which feed the Kubernetes Explorer;
   - feature flag evaluation over OpenFeature's OFREP (`/ofrep/v1/evaluate/flags[/{key}]`, `oc-intake/src/ofrep.rs`,
     model in `oc-flags`), for any OpenFeature SDK with the OFREP provider; also takes the key as `X-API-Key`;
+  - the Agent's runtime security events `/api/v2/secruntime` and `/api/v2/secinfo` (logs payloads,
+    `source:runtime-security-agent`), stored as logs (Workload Protection); its inventory `/api/v1/metadata` in
+    `datadog_hosts.agent_inventory`;
   - `/api/v1/validate`. The API key is also accepted as `?api_key=`.
 - **Management API (server, `server/crates/oc-api/src/routes/datadog_api`):** Datadog's configuration endpoints for
   its Terraform provider and API clients (ADR-0003, `docs/datadog-api.md`), with Datadog's `{"errors": [...]}` shape
@@ -90,12 +93,43 @@ or SDK features.
   default rules are our own catalog (`security_catalog.rs`); `security_engine.rs` evaluates `log_detection` threshold
   rules (count, cardinality) every minute into Postgres `security_signals`; the research feed reads CISA's KEV catalog
   (`OC_KEV_URL`).
+- **Logs → Configuration** (`datadog_api/logs/`, `logs_config.rs`): indexes (with a flex tier), archives, custom and
+  integration pipelines, log-based metrics, restriction queries and custom destinations are `datadog_logs_index` /
+  `_index_order`, `_archive` / `_archive_order`, `_custom_pipeline` / `_integration_pipeline` / `_pipeline_order`,
+  `_metric`, `_restriction_query` and `_custom_destination` (`/api/v1|v2/logs/config/...`) on the tables the UI edits;
+  pipelines store the UI's processor keys and answer Datadog's. Custom destinations are forwarded by the log indexer
+  (`log_forwarding.rs`: HTTP, Splunk HEC, Elasticsearch). Archives created through the API need their bucket keys set
+  in the UI (Datadog's API carries no secrets).
+- **APM → Settings** (`apm_settings.rs`, `datadog_api/apm_config.rs`): retention filters and span-based metrics are
+  `datadog_apm_retention_filter` / `_order` and `datadog_spans_metric` (`/api/v2/apm/config/...`, Postgres
+  `apm_retention_filters`, `apm_spans_metrics`); span-based metrics are computed every minute from `otel.otel_traces`
+  into the metric ingest tables (`run_spans_metrics`); retention filters are evaluated (indexed counts), not applied;
+  span pipelines are stored only; ingestion per service reads the tracers' sampling decision (`_dd.p.dm`).
 - **App & API Protection** (`appsec.rs`, `datadog_api/appsec.rs`): security traces are the tracers' entry spans with
   `_dd.appsec.json`, login tracking tags or `appsec.blocked` in `otel.otel_traces`; the In-App WAF's custom rules,
   exclusion filters and policies are `datadog_appsec_waf_custom_rule` / `_exclusion_filter`
   (`/api/v2/remote_config/products/asm/waf/...`, Postgres `appsec_waf_objects`); the denylist is `appsec_denylist`;
   API findings are our own rules mapped to the OWASP API Top 10; `application_security` detection rules run in
   `security_engine.rs`.
+- **Workload Protection** (`workload_protection.rs`, `workload_catalog.rs`, `datadog_api/csm_threats.rs`): agent
+  policies and agent rules are `datadog_csm_threats_policy` / `_agent_rule` (`/api/v2/remote_config/products/cws/...`,
+  Postgres `cws_policies` / `cws_agent_rules`; the default ones are our catalog, installed per org); Agents and coverage
+  are `/api/v2/csm/onboarding/...` from `datadog_hosts`; events are logs (`source:runtime-security-agent`), monitored
+  counts the Agent's `datadog.runtime_security.perf_buffer.events.write`; `workload_security` detection rules run in
+  `security_engine.rs`; findings are `workload_activity` rules evaluated over the events. Without Remote Configuration,
+  Agents load the downloaded policy files (`/policy/download`).
+- **AI Guard** (`ai_guard.rs`, `ai_guard_engine.rs`, `datadog_api/ai_guard.rs`): the tracers' AI Guard SDKs call
+  `POST /api/v2/ai-guard/evaluate` on the API (`DD_AI_GUARD_ENDPOINT`, app + API key); the evaluator is our own
+  (weighted patterns per attack category, tool-call rules, sensitive data scanners, per-org threshold and per-service
+  blocking in Postgres `ai_guard_settings`); the server writes each evaluation to ClickHouse `otel.ai_guard_evaluations`
+  itself. The SDK's `ai_guard` spans (client IP, user) are joined from `otel_traces`; Discover reads LLM spans
+  (`llm_attrs`); AI Guard's detection rules are `application_security` rules on `@ai_guard.*` queries (tag `ai_guard:true`).
+- **Splunk migration** (`spl.rs`, `routes/log_migration.rs`; Logs → Configuration → Import / Translate): SPL is
+  translated to our search syntax plus an aggregation (stats/timechart/top/chart), with macros from an uploaded
+  macros file; imports of exported alerts and Simple XML dashboards become log monitors and log-stream dashboards.
+  Unsupported SPL (eval, rex, join, OR across fields, numeric comparisons) is reported, not guessed.
+- **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, accessibility) in
+  Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **New features start from the Terraform provider.** Before designing the API of a product area, check whether
   [`DataDog/terraform-provider-datadog`](https://github.com/DataDog/terraform-provider-datadog) (MPL-2.0: read it,
   don't copy it) has resources for it (`datadog_<area>_*`). If it does, the configuration lives under the Datadog
@@ -124,19 +158,27 @@ or SDK features.
   - Keep their copyright and LICENSE text with anything copied, and note the source path and version.
 - **Still missing:**
   - Cloud Network Monitoring's network paths;
+  - Logs: forwarding to Microsoft Sentinel (needs Azure credentials), Azure Blob archives, archive readers (roles), the
+    pipeline processors the engine doesn't run yet (array, decoder, schema, span id remapper: stored and skipped);
   - the profiler's Thread Timeline and Call Graph views, and Event Management's saved work item states, intelligent (learned) correlation, projects and event pipelines (correlators, maintenance windows and work item attributes exist);
   - Cloud Cost Management's provider bills (`datadog_aws_cur_config`, `datadog_azure_uc_config`, `datadog_gcp_uc_config`),
     tag pipelines and custom allocation rules (budgets, custom forecasts and custom costs files exist, `datadog_api/cost.rs`;
     costs are the cost metrics `all.cost`, `aws.cost.amortized`, …, `cloud_cost.rs`);
   - Cloud Security's cloud account scanning (provider APIs: misconfigurations of cloud resources, identity risks,
     attack paths), compliance frameworks and the resource map (its misconfigurations cover hosts and Kubernetes,
-    `cloud_security_rules.rs`); Workload Protection, the live debugger and remote configuration;
+    `cloud_security_rules.rs`); the live debugger and remote configuration;
+  - Workload Protection's delivery of policies to Agents (Remote Configuration; policy files are downloaded instead),
+    blocking and kill actions, security profiles and its dashboards (threats, findings, FIM, IMDS, sessions);
+  - AI Guard's LLM-based judging (an optional OpenAI-compatible judge is not built), redaction replacements, the
+    Supply Chain Firewall verdicts and its Datadog API cassettes (the pinned client commit predates them);
   - App & API Protection's delivery to the tracers (Remote Configuration: WAF rules, blocking, denylist), the managed
     WAF ruleset itself, DAST and its dashboards (attack summary, account takeover, OWASP);
   - Cloud SIEM's other detection methods (new value, anomaly, impossible travel, sequences), signal correlation rules,
     notification rules, threat intelligence enrichment and the investigator; rule case notifications aren't sent yet;
   - Data Streams Monitoring's pathway checkpoints from the tracers (`/api/v0.1/pipeline_stats`, DDSketch in msgpack): its map,
     pipelines and Kafka Console are built from messaging spans and Kafka metrics (`data_streams.rs`, `kafka_console.rs`);
+  - APM: applying retention filters and span pipelines to incoming spans (the Collector writes spans directly),
+    adaptive sampling and remote Agent ingestion settings (Remote Configuration), service remapping and tag enrichment;
   - RUM's mobile Session Replay, replay retention and privacy settings, Operations, source maps and debug symbols, generated metrics, retention filters and the
     events search and aggregation API (`/api/v2/rum/events`); the error-focused processing mode keeps every session.
 

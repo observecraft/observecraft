@@ -59,7 +59,7 @@ pub async fn run(st: AppState) {
                 continue;
             }
         };
-        if !sqlx::query_scalar::<_, bool>("SELECT pg_try_advisory_lock(7302)").fetch_one(&mut *conn).await.unwrap_or(false) {
+        if !sqlx::query_scalar::<_, bool>("SELECT pg_try_advisory_lock(7312)").fetch_one(&mut *conn).await.unwrap_or(false) {
             continue;
         }
         match sqlx::query_scalar::<_, String>("SELECT id FROM orgs WHERE status = 'active'").fetch_all(&st.postgres).await {
@@ -72,7 +72,7 @@ pub async fn run(st: AppState) {
             }
             Err(e) => tracing::warn!(error = %e, "security rules: listing orgs failed"),
         }
-        let _ = sqlx::query("SELECT pg_advisory_unlock(7302)").execute(&mut *conn).await;
+        let _ = sqlx::query("SELECT pg_advisory_unlock(7312)").execute(&mut *conn).await;
     }
 }
 
@@ -99,6 +99,10 @@ struct GroupRow {
 /// The terms of a rule query, with the rule's filters and the suppressions' data exclusions.
 fn query_terms(query: &str, rule: &SecurityRule, suppressions: &[&Suppression]) -> Vec<Term> {
     let mut terms = parse_query(query);
+    // Workload Protection's rules query the Agent's runtime security events.
+    if rule.kind == "workload_security" {
+        terms.push(Term::Tag { key: "source".into(), values: vec![super::workload_protection::SOURCE.into()], negate: false });
+    }
     for f in &rule.filters {
         let t = parse_query(&f.query);
         match f.action.as_str() {
@@ -164,7 +168,9 @@ pub async fn evaluate_rule(st: &AppState, org: &str, access: &LogAccess, rule: &
     for (q, name) in rule.queries.iter().zip(&names) {
         let terms = query_terms(&q.query, rule, &applicable);
         // Every query groups by the first query's fields, so their values line up.
-        let values = if rule.kind == "application_security" {
+        let values = if rule.kind == "application_security" && super::ai_guard::is_ai_guard_query(&q.query) {
+            super::ai_guard::group_counts(st, org, &q.query, &group_by, range).await?
+        } else if rule.kind == "application_security" {
             super::appsec::group_counts(st, org, &q.query, &group_by, range).await?
         } else {
             group_values(st, org, access, &terms, &group_by, q, range).await?
@@ -303,7 +309,10 @@ async fn upsert_signal(st: &AppState, org: &str, access: &LogAccess, rule: &Secu
     // The first query's logs: what the signal is about.
     let mut terms = rule.queries.first().map(|q| query_terms(&q.query, rule, suppressions)).unwrap_or_default();
     terms.extend(group_terms(group));
-    let (events, ents, first) = if rule.kind == "application_security" {
+    let first_query = rule.queries.first().map_or("", |q| q.query.as_str());
+    let (events, ents, first) = if rule.kind == "application_security" && super::ai_guard::is_ai_guard_query(first_query) {
+        super::ai_guard::entities(st, org, first_query, group, TimeRange { from: started, to: now }).await?
+    } else if rule.kind == "application_security" {
         super::appsec::entities(st, org, rule.queries.first().map_or("", |q| q.query.as_str()), group, TimeRange { from: started, to: now }).await?
     } else {
         entities(st, org, access, &terms, TimeRange { from: started, to: now }).await?

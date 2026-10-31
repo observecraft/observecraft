@@ -22,6 +22,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai-guard/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ai_guard_categories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-guard/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ai_guard_discover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-guard/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ai_guard_evaluations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-guard/evaluations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ai_guard_evaluation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-guard/playground": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ai_guard_playground"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-guard/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ai_guard_settings"];
+        put: operations["ai_guard_update_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-guard/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ai_guard_summary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apm/anomalies": {
         parameters: {
             query?: never;
@@ -186,6 +298,182 @@ export interface paths {
         put?: never;
         /** Every service seen in the range: instrumented (entry spans) and inferred (peers of client spans). */
         post: operations["services"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apm/settings/defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_apm_defaults"];
+        put: operations["update_apm_defaults"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apm/settings/ingestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["apm_ingestion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apm/settings/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_apm_spans_metrics"];
+        put?: never;
+        post: operations["create_apm_spans_metric"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apm/settings/metrics/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_apm_spans_metric"];
+        options?: never;
+        head?: never;
+        patch: operations["update_apm_spans_metric"];
+        trace?: never;
+    };
+    "/api/v1/apm/settings/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["apm_settings_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apm/settings/pipelines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_apm_span_pipelines"];
+        put?: never;
+        post: operations["create_apm_span_pipeline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apm/settings/pipelines/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_apm_span_pipeline"];
+        post?: never;
+        delete: operations["delete_apm_span_pipeline"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apm/settings/retention-filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_apm_retention_filters"];
+        put?: never;
+        post: operations["create_apm_retention_filter"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apm/settings/retention-filters-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["reorder_apm_retention_filters"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apm/settings/retention-filters/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_apm_retention_filter"];
+        post?: never;
+        delete: operations["delete_apm_retention_filter"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apm/settings/volume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["apm_span_volume"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -774,6 +1062,23 @@ export interface paths {
          *     depend on whether the account exists (the install's org is used when the email is unknown), so it
          *     can't be used to probe for users. */
         post: operations["discover_sso"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/verify-email/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The link of the verification email: marks the address verified and opens Personal Settings. */
+        get: operations["verify_email"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3245,6 +3550,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/custom-destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_log_custom_destinations"];
+        put?: never;
+        post: operations["create_log_custom_destination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/custom-destinations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_log_custom_destination"];
+        post?: never;
+        delete: operations["delete_log_custom_destination"];
+        options?: never;
+        head?: never;
+        patch: operations["set_log_custom_destination_enabled"];
+        trace?: never;
+    };
+    "/api/v1/logs/custom-destinations/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends one test log to the destination. */
+        post: operations["test_log_custom_destination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/facets": {
         parameters: {
             query?: never;
@@ -3281,6 +3635,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/flex-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_log_flex_settings"];
+        /** Turns the flex tier on or off (applies to logs indexed from then on) and picks the compute. */
+        put: operations["update_log_flex_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logs/histogram": {
         parameters: {
             query?: never;
@@ -3292,6 +3663,54 @@ export interface paths {
         put?: never;
         /** Status-stacked log counts over time. */
         post: operations["histogram"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_log_imports"];
+        put?: never;
+        post: operations["create_log_import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/imports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_log_import"];
+        put?: never;
+        post?: never;
+        delete: operations["delete_log_import"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/imports/{id}/migrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["migrate_log_import"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3526,6 +3945,22 @@ export interface paths {
         put?: never;
         /** Runs processors (and optionally a filter) on a sample log and returns the processed log. */
         post: operations["test_log_pipeline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/pipelines/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["log_pipelines_usage"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3785,6 +4220,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/translate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["translate_log_query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -3828,6 +4279,39 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["revoke_app_key"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/email-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_my_email_subscriptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/email-subscriptions/reports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Stops a dashboard report from being sent to the member. */
+        delete: operations["unsubscribe_my_report"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3933,6 +4417,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_my_preferences"];
+        put: operations["set_my_preferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/security": {
         parameters: {
             query?: never;
@@ -3994,6 +4494,22 @@ export interface paths {
          *     Sessions started with single sign-on are bound to that organization; an org that requires SSO can
          *     only be entered through its identity provider (admins excepted). */
         post: operations["switch_org"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["send_email_verification"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7466,6 +7982,167 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workload-protection/agent-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["workload_protection_agent_rules"];
+        put?: never;
+        post: operations["workload_protection_create_agent_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workload-protection/agent-rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["workload_protection_delete_agent_rule"];
+        options?: never;
+        head?: never;
+        patch: operations["workload_protection_update_agent_rule"];
+        trace?: never;
+    };
+    "/api/v1/workload-protection/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["workload_protection_agents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workload-protection/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["workload_protection_events"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workload-protection/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["workload_protection_findings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workload-protection/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["workload_protection_policies"];
+        put?: never;
+        post: operations["workload_protection_create_policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workload-protection/policies/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The enabled policies as Agent policy files (a zip), for Agents without Remote Configuration. */
+        get: operations["workload_protection_download_policies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workload-protection/policies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["workload_protection_delete_policy"];
+        options?: never;
+        head?: never;
+        patch: operations["workload_protection_update_policy"];
+        trace?: never;
+    };
+    "/api/v1/workload-protection/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["workload_protection_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/ai-guard/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["datadog_ai_guard_evaluate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/api_keys": {
         parameters: {
             query?: never;
@@ -7501,6 +8178,86 @@ export interface paths {
         head?: never;
         /** Renames an API key (Datadog-compatible). */
         patch: operations["datadog_update_api_key"];
+        trace?: never;
+    };
+    "/api/v2/apm/config/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_spans_metrics"];
+        put?: never;
+        post: operations["datadog_create_spans_metric"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/apm/config/metrics/{metric_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_spans_metric"];
+        put?: never;
+        post?: never;
+        delete: operations["datadog_delete_spans_metric"];
+        options?: never;
+        head?: never;
+        patch: operations["datadog_update_spans_metric"];
+        trace?: never;
+    };
+    "/api/v2/apm/config/retention-filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_apm_retention_filters"];
+        put?: never;
+        post: operations["datadog_create_apm_retention_filter"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/apm/config/retention-filters-execution-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["datadog_reorder_apm_retention_filters"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/apm/config/retention-filters/{filter_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_apm_retention_filter"];
+        put: operations["datadog_update_apm_retention_filter"];
+        post?: never;
+        delete: operations["datadog_delete_apm_retention_filter"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v2/application_keys": {
@@ -7674,6 +8431,87 @@ export interface paths {
         post?: never;
         /** Delete a custom costs file and its costs (Datadog-compatible). */
         delete: operations["datadog_delete_custom_costs_file"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/csm/onboarding/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_csm_agents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/csm/onboarding/coverage_analysis/cloud_accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cloud accounts aren't scanned (Cloud Security's account scanning is still missing): no resources. */
+        get: operations["datadog_csm_cloud_accounts_coverage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/csm/onboarding/coverage_analysis/hosts_and_containers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_csm_hosts_coverage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/csm/onboarding/coverage_analysis/serverless": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_csm_serverless_coverage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/csm/onboarding/serverless/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_csm_serverless_agents"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -7918,6 +8756,86 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v2/remote_config/products/cws/agent_rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_cws_agent_rules"];
+        put?: never;
+        post: operations["datadog_create_cws_agent_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/remote_config/products/cws/agent_rules/{agent_rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_cws_agent_rule"];
+        put?: never;
+        post?: never;
+        delete: operations["datadog_delete_cws_agent_rule"];
+        options?: never;
+        head?: never;
+        patch: operations["datadog_update_cws_agent_rule"];
+        trace?: never;
+    };
+    "/api/v2/remote_config/products/cws/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_cws_policies"];
+        put?: never;
+        post: operations["datadog_create_cws_policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/remote_config/products/cws/policy/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_download_cws_policy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/remote_config/products/cws/policy/{policy_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_cws_policy"];
+        put?: never;
+        post?: never;
+        delete: operations["datadog_delete_cws_policy"];
+        options?: never;
+        head?: never;
+        patch: operations["datadog_update_cws_policy"];
         trace?: never;
     };
     "/api/v2/roles": {
@@ -8643,6 +9561,222 @@ export interface components {
             introduced: string;
             last_affected?: string;
         };
+        AiDiscover: {
+            providers: components["schemas"]["AiProvider"][];
+            services: components["schemas"]["AiService"][];
+        };
+        AiDiscoverRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
+        /** @description Category list for the UI. */
+        AiGuardCategory: {
+            category: string;
+            description: string;
+        };
+        AiGuardCategoryScore: {
+            category: string;
+            /** Format: double */
+            confidence: number;
+            description: string;
+            /** @description At or above the threshold: reported as an attack category. */
+            flagged: boolean;
+        };
+        AiGuardEvaluationDetail: components["schemas"]["AiGuardEvaluationRow"] & {
+            blockingEnabled: boolean;
+            /** @description From the SDK's `ai_guard` span, when it reached APM. */
+            clientIp: string;
+            /** @description Messages before the first evaluated step of the run. */
+            context: Record<string, never>[];
+            language: string;
+            /** @description The request's messages, as sent. */
+            messages: Record<string, never>[];
+            reason: string;
+            scores: components["schemas"]["AiGuardCategoryScore"][];
+            sdsFindings: Record<string, never>[];
+            source: string;
+            spanId: string;
+            /** @description Every evaluated step of the run, oldest first (this one included). */
+            steps: components["schemas"]["AiGuardStep"][];
+            /** Format: double */
+            threshold: number;
+            traceId: string;
+            userEmail: string;
+            userId: string;
+        };
+        AiGuardEvaluationPage: {
+            rows: components["schemas"]["AiGuardEvaluationRow"][];
+            /** Format: int64 */
+            total: number;
+        };
+        AiGuardEvaluationRow: {
+            /** @description ALLOW | DENY | ABORT */
+            action: string;
+            /** Format: int32 */
+            blocked: number;
+            content: string;
+            conversation: string;
+            /** @description input | output */
+            direction: string;
+            /** Format: double */
+            durationMs: number;
+            env: string;
+            id: string;
+            sdsCategories: string[];
+            sdsTags: string[];
+            service: string;
+            tags: string[];
+            /** @description prompt | tool */
+            target: string;
+            /** Format: int64 */
+            timestamp: number;
+            toolName: string;
+        };
+        /** @description A pattern that matched, for the UI's "rule match" line. */
+        AiGuardMatch: {
+            category: string;
+            rule: string;
+            /** Format: double */
+            weight: number;
+        };
+        AiGuardPlaygroundRequest: {
+            messages: Record<string, never>[];
+            meta?: Record<string, never>;
+        };
+        AiGuardPlaygroundResult: {
+            action: string;
+            blockingEnabled: boolean;
+            direction: string;
+            matches: components["schemas"]["AiGuardMatch"][];
+            reason: string;
+            scores: components["schemas"]["AiGuardCategoryScore"][];
+            sdsFindings: components["schemas"]["AiGuardSdsFinding"][];
+            target: string;
+            /** Format: double */
+            threshold: number;
+            toolName: string;
+        };
+        /** @description The filters of the Investigate page. */
+        AiGuardQuery: {
+            /** @description safe | unsafe */
+            assessment?: string | null;
+            blocked?: boolean | null;
+            category?: string | null;
+            env?: string | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+            service?: string | null;
+            /** @description prompt | tool */
+            target?: string | null;
+        };
+        AiGuardSdsFinding: {
+            category: string;
+            location: components["schemas"]["AiGuardSdsLocation"];
+            rule_display_name: string;
+            rule_tag: string;
+        };
+        AiGuardSdsLocation: {
+            /** Format: int64 */
+            end_index_exclusive: number;
+            path: string;
+            /** Format: int64 */
+            start_index: number;
+        };
+        AiGuardSearchRequest: components["schemas"]["AiGuardQuery"] & {
+            /** @description Oldest first. */
+            ascending?: boolean;
+            /** Format: int64 */
+            limit?: number | null;
+            /** Format: int64 */
+            offset?: number | null;
+        };
+        AiGuardSeriesPoint: {
+            /** Format: double */
+            avg: number;
+            /** Format: int64 */
+            blocked: number;
+            /** Format: double */
+            p75: number;
+            /** Format: double */
+            p95: number;
+            /** Format: double */
+            p99: number;
+            /** Format: int64 */
+            safe: number;
+            /** Format: int64 */
+            t: number;
+            /** Format: int64 */
+            unsafeCount: number;
+        };
+        AiGuardSettings: {
+            /** @description Block unsafe steps of every service. */
+            blockingEnabled: boolean;
+            /** @description Services in blocking mode when `blocking_enabled` is off. */
+            blockingServices?: string[];
+            disabledCategories: string[];
+            sdsEnabled: boolean;
+            /** Format: double */
+            threshold: number;
+        };
+        /** @description One evaluated step of the conversation timeline. */
+        AiGuardStep: {
+            action: string;
+            blocked: boolean;
+            direction: string;
+            id: string;
+            /** @description The step's message (the last one of its request). */
+            message: Record<string, never>;
+            tags: string[];
+            target: string;
+            /** Format: int64 */
+            timestamp: number;
+            toolName: string;
+        };
+        AiGuardSummary: {
+            /** Format: int64 */
+            blocked: number;
+            blockingEnabled: boolean;
+            categories: string[];
+            envs: string[];
+            /** Format: int64 */
+            sensitive: number;
+            series: components["schemas"]["AiGuardSeriesPoint"][];
+            /** @description Values for the filter dropdowns. */
+            services: string[];
+            /** Format: int64 */
+            stepMs: number;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            unsafeCount: number;
+            /** Format: int64 */
+            unsafeNotBlocked: number;
+        };
+        AiProvider: {
+            /** @description Normalized provider key (openai, anthropic, google, deepseek, azureopenai, bedrock, vertexai, mistral, cohere, meta, …). */
+            provider: string;
+            /** Format: int64 */
+            requests: number;
+            services: string[];
+            /** Format: double */
+            tokens: number;
+        };
+        AiService: {
+            /** Format: int64 */
+            evaluations: number;
+            models: string[];
+            /** @description Calls AI Guard (evaluations in the range). */
+            protected: boolean;
+            providers: string[];
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            sensitive: number;
+            service: string;
+            /** Format: double */
+            tokens: number;
+            /** Format: int64 */
+            unsafeCount: number;
+        };
         AnalyticsItem: {
             name: string;
             /** Format: double */
@@ -8782,6 +9916,97 @@ export interface components {
             owasp: components["schemas"]["NamedCount"][];
             rules: components["schemas"]["FindingRuleStatus"][];
         };
+        ApmDefaults: {
+            /** @description The org's choice (null: automatically detected). */
+            defaultEnv?: string | null;
+            defaultPrimaryTag?: string | null;
+            /** @description The environment with the most active services. */
+            detectedEnv?: string | null;
+            envs: components["schemas"]["ApmEnvOption"][];
+            /** @description Tag names added to APM metrics as dimensions. */
+            primaryTags: string[];
+            /** @description Host and container tags seen on spans (candidates for primary tags). */
+            tagCandidates: string[];
+        };
+        ApmDefaultsInput: {
+            /** @description null: automatically detected. */
+            defaultEnv?: string | null;
+            defaultPrimaryTag?: string | null;
+            primaryTags?: string[];
+        };
+        ApmEnvOption: {
+            env: string;
+            /**
+             * Format: int64
+             * @description Services seen in the past day.
+             */
+            services: number;
+        };
+        ApmFlow: {
+            /**
+             * Format: int64
+             * @description Hosts sending spans through a Datadog Agent.
+             */
+            agents: number;
+            generated: components["schemas"]["ApmPoint"][];
+            indexed: components["schemas"]["ApmPoint"][];
+            ingested: components["schemas"]["ApmPoint"][];
+            /**
+             * Format: int64
+             * @description Span-based metrics.
+             */
+            metrics: number;
+            /**
+             * Format: int64
+             * @description Hosts sending OpenTelemetry spans.
+             */
+            otelSources: number;
+            /**
+             * Format: int64
+             * @description Enabled span pipelines.
+             */
+            pipelines: number;
+            /** Format: int64 */
+            retentionDays: number;
+            /**
+             * Format: int64
+             * @description Enabled retention filters.
+             */
+            retentionFilters: number;
+            /**
+             * Format: int64
+             * @description Tracer instances (service × host × language).
+             */
+            sdks: number;
+            /**
+             * Format: int64
+             * @description Service remapping rules (none yet in ObserveCraft).
+             */
+            serviceRemappings: number;
+            /** Format: int64 */
+            services: number;
+            /**
+             * Format: int64
+             * @description Spans the tracers created, estimated from the sampling rates of the kept traces.
+             */
+            spansGenerated: number;
+            /**
+             * Format: int64
+             * @description Spans the retention filters keep.
+             */
+            spansIndexed: number;
+            /** Format: int64 */
+            spansIngested: number;
+        };
+        ApmPoint: {
+            /**
+             * Format: int64
+             * @description Bucket start, epoch ms.
+             */
+            t: number;
+            /** Format: double */
+            v: number;
+        };
         ApmRequest: {
             /** @description `deployment.environment`; empty or `*` for all. */
             env?: string | null;
@@ -8919,6 +10144,7 @@ export interface components {
             enabled?: boolean | null;
             name?: string | null;
             query?: string | null;
+            target?: null | components["schemas"]["ArchiveTarget"];
         };
         ArchiveRun: {
             /** Format: int32 */
@@ -9884,6 +11110,17 @@ export interface components {
             title: string;
             url: string;
         };
+        CreateImport: {
+            /** @description Saved searches and alerts export (CSV). */
+            alerts?: string | null;
+            /** @description Dashboards export (CSV with the Simple XML in `eai:data`). */
+            dashboards?: string | null;
+            /** @description Macros export (CSV with `title,definition,args`). */
+            macros?: string | null;
+            name: string;
+            /** @description splunk */
+            source?: string;
+        };
         CreateIngestKey: {
             name: string;
         };
@@ -9990,6 +11227,73 @@ export interface components {
              * @default
              */
             status: string;
+        };
+        /** @description An Agent as the `csm/onboarding` endpoints describe it, from its host metadata and inventory. */
+        CsmAgent: {
+            agentVersion: string;
+            /** @description ECS or EKS for Fargate tasks, empty otherwise. */
+            awsFargate: string;
+            clusterName: string[];
+            ecsFargateTaskArn: string;
+            envs: string[];
+            /** Format: int64 */
+            hostId: number;
+            hostname: string;
+            id: string;
+            installMethodInstallerVersion: string;
+            installMethodTool: string;
+            isCsmVmContainersEnabled: boolean;
+            isCsmVmHostsEnabled: boolean;
+            isCspmEnabled: boolean;
+            isCwsEnabled: boolean;
+            isCwsRemoteConfigurationEnabled: boolean;
+            isRemoteConfigurationEnabled: boolean;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last host metadata.
+             */
+            lastSeen: number;
+            os: string;
+            /** @description The OS's brand logo key (`web/src/assets/brandLogos.generated.ts`): linux, windows or darwin. */
+            osLogo: string;
+            /** @description Where the Agent runs, as a brand logo key: amazonecs / amazoneks (Fargate), kubernetes, or "". */
+            platformLogo: string;
+            /** @description The host's `key:value` tags. */
+            tags: string[];
+        };
+        CustomDestination: {
+            createdBy?: string | null;
+            /** @description Datadog's `forwarder_destination` without its secrets (`type`: http, splunk_hec, elasticsearch, microsoft_sentinel). */
+            destination: Record<string, never>;
+            enabled: boolean;
+            forwardTags: boolean;
+            /**
+             * Format: int64
+             * @description Logs forwarded since it was created.
+             */
+            forwarded: number;
+            id: string;
+            lastError?: string | null;
+            /** Format: int64 */
+            lastErrorAt?: number | null;
+            name: string;
+            /** @description Logs matching this search are forwarded; '' = every log. */
+            query: string;
+            /** @description Tag keys kept (`ALLOW_LIST`) or dropped (`BLOCK_LIST`); empty = every tag. */
+            tagsList: string[];
+            tagsListType: string;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        CustomDestinationInput: {
+            /** @description Datadog's `forwarder_destination`, secrets included (left out on a change: kept). */
+            destination: Record<string, never>;
+            enabled?: boolean;
+            forwardTags?: boolean;
+            name: string;
+            query?: string;
+            tagsList?: string[];
+            tagsListType?: string;
         };
         CvePage: {
             rows: components["schemas"]["CveRow"][];
@@ -10622,6 +11926,13 @@ export interface components {
             name: string;
             queries: string[];
         };
+        DestinationEnabled: {
+            enabled: boolean;
+        };
+        DestinationTestResult: {
+            error?: string | null;
+            ok: boolean;
+        };
         /** @enum {string} */
         Detection: "threshold" | "change";
         DiscoverRequest: {
@@ -10882,6 +12193,16 @@ export interface components {
         };
         /** @enum {string} */
         DowntimeStatus: "active" | "scheduled" | "ended" | "canceled";
+        EmailSubscriptions: {
+            email: string;
+            /** @description Email can be sent from this install (`OC_SMTP_URL`). */
+            emailEnabled: boolean;
+            /** @description Monitors whose message mentions `@<this address>`. */
+            monitors: components["schemas"]["MonitorSubscription"][];
+            /** @description Scheduled dashboard reports sent to this address. */
+            reports: components["schemas"]["ReportSubscription"][];
+            verified: boolean;
+        };
         EndpointPage: {
             endpoints: components["schemas"]["ApiEndpointView"][];
         };
@@ -11085,6 +12406,8 @@ export interface components {
             name: string;
             /** @description Logs matching this search are excluded… */
             query: string;
+            /** @description Logs sharing this attribute's value are excluded or kept together (`@request_id`). */
+            sampleAttribute?: string | null;
             /**
              * Format: double
              * @description …at this rate (0–100 %).
@@ -11282,6 +12605,10 @@ export interface components {
             title: string;
             url: string;
             vendor: string;
+        };
+        FilterOrder: {
+            /** @description Every retention filter id, in the new execution order. */
+            ids: string[];
         };
         FindingFilter: components["schemas"]["CsFilter"] & {
             /**
@@ -11632,6 +12959,29 @@ export interface components {
             outdated: boolean;
             /** @description null for agents that don't report their version. */
             version?: string | null;
+        };
+        FlexSettings: {
+            /** @description `starter` or `scalable`. */
+            compute: string;
+            /** @description Indexes keep logs for their flex retention (standard + flex tier). */
+            enabled: boolean;
+            /**
+             * Format: int64
+             * @description Indexes with a flex retention.
+             */
+            flexIndexes: number;
+            /**
+             * Format: int32
+             * @description Longest flex retention allowed, in days.
+             */
+            maxFlexDays: number;
+            /** @description With scalable compute: xs, xs+, s, m or l. */
+            size?: string | null;
+        };
+        FlexSettingsInput: {
+            compute: string;
+            enabled: boolean;
+            size?: string | null;
         };
         Flow: {
             /** Format: int64 */
@@ -12174,6 +13524,62 @@ export interface components {
             /** Format: int64 */
             startAt: number;
         };
+        /** @description What a migrated alert becomes. */
+        ImportAlert: {
+            /** @description above | above_or_equal | below | below_or_equal */
+            comparator?: string | null;
+            recipients: string[];
+            /** @description The original schedule (`*\/5 * * * *`), for reference: monitors evaluate every minute. */
+            schedule?: string | null;
+            /** Format: double */
+            threshold?: number | null;
+            /** Format: int64 */
+            windowMinutes: number;
+        };
+        ImportAsset: {
+            alert?: null | components["schemas"]["ImportAlert"];
+            description?: string | null;
+            error?: string | null;
+            id: string;
+            /** @description Why it can't be migrated as is. */
+            issues: string[];
+            /** @description alert | dashboard | search */
+            kind: string;
+            /** Format: int64 */
+            migratedAt?: number | null;
+            searches: components["schemas"]["ImportSearch"][];
+            /** @description ready | partial | unsupported | migrated | failed */
+            status: string;
+            targetId?: string | null;
+            targetKind?: string | null;
+            title: string;
+        };
+        ImportCounts: {
+            /** Format: int64 */
+            alerts: number;
+            /** Format: int64 */
+            dashboards: number;
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            migrated: number;
+            /** Format: int64 */
+            partial: number;
+            /** Format: int64 */
+            ready: number;
+            /** Format: int64 */
+            searches: number;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            unsupported: number;
+        };
+        ImportSearch: {
+            spl: string;
+            /** @description The panel title (dashboards) or the asset's title. */
+            title: string;
+            translation: components["schemas"]["SplTranslation"];
+        };
         ImportantPatch: {
             important: boolean;
         };
@@ -12374,6 +13780,56 @@ export interface components {
              * @description Set once revoked: the key no longer authenticates.
              */
             revokedAt?: number | null;
+        };
+        Ingestion: {
+            /**
+             * Format: int64
+             * @description Bytes ingested over the range.
+             */
+            bytesIngested: number;
+            /** @description Bytes per bucket by who decides the sampling. */
+            overTime: components["schemas"]["IngestionOverTime"];
+            services: components["schemas"]["IngestionService"][];
+            /** Format: int64 */
+            spansIngested: number;
+        };
+        IngestionOverTime: {
+            apm: components["schemas"]["ApmPoint"][];
+            otel: components["schemas"]["ApmPoint"][];
+            other: components["schemas"]["ApmPoint"][];
+        };
+        IngestionService: {
+            /** @description Where sampling is decided: APM AGENT, APM LOCAL, MANUAL, REMOTE, APP & API PROTECTION, RUM, SYNTHETICS, OTEL. */
+            configurations: string[];
+            /**
+             * Format: double
+             * @description Bytes per second of the traces this service starts (it decides their sampling).
+             */
+            downstreamBytesPerSecond: number;
+            env: string;
+            /**
+             * Format: double
+             * @description Bytes per second of this service's own spans.
+             */
+            ingestedBytesPerSecond: number;
+            /** Format: double */
+            ingestedTracesPerSecond: number;
+            /** @description web | db | cache | queue | serverless | custom (from the entry spans' kind and attributes) */
+            kind: string;
+            /** @description Tracer language (`telemetry.sdk.language`). */
+            language: string;
+            /** @description apm | other | otel */
+            managedBy: string;
+            /** @description Root of at least one trace. */
+            root: boolean;
+            service: string;
+            /** Format: double */
+            spansPerSecond: number;
+            /**
+             * Format: double
+             * @description Ingested share of the downstream traffic (0..1).
+             */
+            trafficShare: number;
         };
         InstanceAuditEvent: {
             action: string;
@@ -13425,8 +14881,12 @@ export interface components {
             bytes: number;
             /** Format: int64 */
             createdAt: number;
+            /** @description `s3`, `gcs` or `azure` (archives created through Datadog's API keep theirs). */
+            destinationType: string;
             enabled: boolean;
             endpoint: string;
+            /** @description Keys are set (archives created through Datadog's API have none until they are). */
+            hasCredentials: boolean;
             /**
              * Format: int64
              * @description Archived hours (with or without logs).
@@ -13435,6 +14895,7 @@ export interface components {
             /** Format: int64 */
             hoursFailed: number;
             id: string;
+            includeTags: boolean;
             lastError?: string | null;
             /**
              * Format: int64
@@ -13446,6 +14907,9 @@ export interface components {
             prefix: string;
             query: string;
             region: string;
+            /** Format: int64 */
+            rehydrationMaxScanSizeGb?: number | null;
+            rehydrationTags: string[];
             /** Format: int64 */
             rows: number;
         };
@@ -13486,11 +14950,30 @@ export interface components {
             /** @description One of the org's standard attributes (Logs → Configuration → Standard Attributes). */
             standard: boolean;
         };
+        LogImport: {
+            counts: components["schemas"]["ImportCounts"];
+            /** Format: int64 */
+            createdAt: number;
+            createdBy?: string | null;
+            id: string;
+            macros: number;
+            name: string;
+            /** @description splunk */
+            source: string;
+        };
+        LogImportDetail: components["schemas"]["LogImport"] & {
+            assets: components["schemas"]["ImportAsset"][];
+        };
         LogIndex: {
             /** Format: int64 */
             dailyQuota?: number | null;
             exclusionFilters: components["schemas"]["ExclusionFilter"][];
             filter: string;
+            /**
+             * Format: int32
+             * @description Total days logs stay in the index (standard + flex tier) while the org has Flex Logs on.
+             */
+            flexRetentionDays?: number | null;
             id: string;
             /**
              * Format: int64
@@ -13504,17 +14987,21 @@ export interface components {
             quotaResetHour: number;
             /** Format: int32 */
             retentionDays: number;
+            tags: string[];
         };
         LogIndexInput: {
             /** Format: int64 */
             dailyQuota?: number | null;
             exclusionFilters?: components["schemas"]["ExclusionFilter"][];
             filter?: string;
+            /** Format: int32 */
+            flexRetentionDays?: number | null;
             name: string;
             /** Format: int32 */
             quotaResetHour?: number;
             /** Format: int32 */
             retentionDays: number;
+            tags?: string[];
         };
         LogIndexes: {
             indexes: components["schemas"]["LogIndex"][];
@@ -13541,6 +15028,8 @@ export interface components {
             aggregation: components["schemas"]["LogMetricAggregation"];
             groupBy: components["schemas"]["LogMetricGroupBy"][];
             id: string;
+            /** @description A distribution's percentiles (p50, p75, p90, p95, p99) can be queried. */
+            includePercentiles: boolean;
             /**
              * Format: int32
              * @description Distinct group-by value sets counted per 10 s; logs of further series are dropped.
@@ -13563,6 +15052,7 @@ export interface components {
         LogMetricInput: {
             aggregation: components["schemas"]["LogMetricAggregation"];
             groupBy?: components["schemas"]["LogMetricGroupBy"][];
+            includePercentiles?: boolean;
             name: string;
             path?: string | null;
             query?: string;
@@ -13588,6 +15078,7 @@ export interface components {
             range: components["schemas"]["TimeRange"];
         };
         LogPipeline: {
+            description: string;
             enabled: boolean;
             /** @description Logs matching this search go through the pipeline; '' = every log. */
             filter: string;
@@ -13601,6 +15092,14 @@ export interface components {
             readOnly: boolean;
             /** @description `custom`, or `integration:<name>` for a pipeline installed from an integration. */
             source: string;
+            /** @description `key:value` tags (set through Datadog's API). */
+            tags: string[];
+            /**
+             * Format: int64
+             * @description Epoch ms of the last change, and who made it.
+             */
+            updatedAt: number;
+            updatedBy?: string | null;
         };
         LogPipelineInput: {
             enabled?: boolean;
@@ -13632,6 +15131,11 @@ export interface components {
             teams: components["schemas"]["TeamRef"][];
             /** Format: int64 */
             updatedAt: number;
+            /**
+             * Format: int64
+             * @description Users who read through it (members of its roles and teams).
+             */
+            userCount: number;
         };
         LogSearchPage: {
             logs: components["schemas"]["LogEvent"][];
@@ -13856,6 +15360,10 @@ export interface components {
             otpauthUrl: string;
             /** @description Base32 secret for manual entry. */
             secret: string;
+        };
+        MigrateRequest: {
+            /** @description The assets to migrate; empty: every ready or partial one not migrated yet. */
+            assetIds?: string[];
         };
         MisconfigFinding: {
             account?: string | null;
@@ -14146,6 +15654,11 @@ export interface components {
         };
         /** @enum {string} */
         MonitorStatus: "ok" | "warn" | "alert" | "nodata";
+        MonitorSubscription: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+        };
         MonitorSummary: {
             counts: components["schemas"]["MonitorCounts"];
             monitors: components["schemas"]["MonitorRef"][];
@@ -14837,6 +16350,19 @@ export interface components {
             repository: string;
             revision: string;
         };
+        PipelineUsage: {
+            id: string;
+            /**
+             * Format: int64
+             * @description Indexed logs of the last hour matching the pipeline's filter.
+             */
+            matched: number;
+            /**
+             * Format: double
+             * @description Share of the last hour's indexed logs (0–1).
+             */
+            share: number;
+        };
         PlaylistSession: {
             sessionId: string;
             /** Format: int64 */
@@ -15434,6 +16960,34 @@ export interface components {
          * @enum {string}
          */
         PrGroup: "needs_review" | "returned" | "approved" | "waiting" | "drafts" | "merged";
+        Preferences: {
+            /**
+             * @description Charts use a palette told apart without red/green.
+             * @default false
+             */
+            colorBlindPalette: boolean;
+            /** @default false */
+            highContrast: boolean;
+            /**
+             * @description The page opened at `/` (an app path such as `/apm` or `/dashboards/abc-123`).
+             * @default null
+             */
+            homePage: string | null;
+            /** @default false */
+            reducedMotion: boolean;
+            /**
+             * @description 12h | 24h
+             * @default 12h
+             */
+            timeFormat: string;
+            /** @default false */
+            underlineLinks: boolean;
+            /**
+             * @description monday | sunday
+             * @default monday
+             */
+            weekStart: string;
+        };
         /** @enum {string} */
         PresetList: "all" | "custom" | "integrations" | "mine" | "starred" | "deleted";
         PreviewSeries: {
@@ -15470,8 +17024,15 @@ export interface components {
         /** @enum {string} */
         Product: "apm" | "infra" | "logs" | "processes";
         Profile: components["schemas"]["UserSummary"] & {
+            /** @description The address was confirmed through a verification link. */
+            emailVerified: boolean;
             /** @description May create and manage organizations (Instance Admin). */
             isInstanceAdmin: boolean;
+            /**
+             * Format: int64
+             * @description Last change to the profile (name, title, time zone).
+             */
+            modifiedAt?: number | null;
             org: components["schemas"]["OrgRef"];
             teams: components["schemas"]["TeamRef"][];
             timezone?: string | null;
@@ -15795,8 +17356,15 @@ export interface components {
         Rehydration: {
             archiveId: string;
             archiveName: string;
+            /**
+             * Format: int64
+             * @description Bytes of archive files the rehydration reads.
+             */
+            bytesScanned: number;
             /** Format: int64 */
             createdAt: number;
+            /** @description Who started it. */
+            createdBy?: string | null;
             error?: string | null;
             /** Format: int64 */
             expiresAt: number;
@@ -15891,6 +17459,14 @@ export interface components {
             max?: number | null;
             /** Format: double */
             min?: number | null;
+        };
+        ReportSubscription: {
+            dashboardId: string;
+            dashboardTitle: string;
+            id: string;
+            name: string;
+            /** @description {"frequency": "weekly", "time": "09:00", …} */
+            schedule: Record<string, never>;
         };
         ReportWidgetSummary: {
             /** @description Why the widget's queries couldn't be summarized. */
@@ -16138,6 +17714,63 @@ export interface components {
         };
         RestrictionTeamInput: {
             handle: string;
+        };
+        RetentionFilter: {
+            /**
+             * Format: int64
+             * @description Epoch seconds (0 for the defaults).
+             */
+            createdAt: number;
+            createdBy: string;
+            enabled: boolean;
+            /** Format: int32 */
+            executionOrder: number;
+            /** @description spans-sampling-processor | spans-errors-sampling-processor | spans-appsec-sampling-processor */
+            filterType: string;
+            id: string;
+            /** @description One of the org's default filters (can be changed, not deleted). */
+            isDefault: boolean;
+            /** Format: int64 */
+            modifiedAt: number;
+            modifiedBy: string;
+            name: string;
+            query: string;
+            /** Format: double */
+            rate: number;
+            /**
+             * Format: int64
+             * @description Of those, what its rate keeps.
+             */
+            spansIndexed: number;
+            /**
+             * Format: int64
+             * @description Spans over the range this filter matches first (in execution order).
+             */
+            spansMatched: number;
+            /** Format: double */
+            traceRate: number;
+        };
+        RetentionFilterInput: {
+            enabled: boolean;
+            name: string;
+            query?: string;
+            /** Format: double */
+            rate: number;
+            /** Format: double */
+            traceRate?: number;
+        };
+        RetentionFilters: {
+            filters: components["schemas"]["RetentionFilter"][];
+            /**
+             * Format: int64
+             * @description Spans the enabled filters keep over the range.
+             */
+            spansIndexed: number;
+            /**
+             * Format: int64
+             * @description Spans ingested over the range.
+             */
+            spansIngested: number;
         };
         Role: {
             description: string;
@@ -17421,6 +19054,10 @@ export interface components {
             /** @description Number of groups to keep (default 10). */
             top?: number | null;
         };
+        SpanCategory: {
+            name: string;
+            query: string;
+        };
         SpanErrorGroup: {
             /** Format: int64 */
             count: number;
@@ -17463,6 +19100,11 @@ export interface components {
         };
         /** @enum {string} */
         SpanMeasure: "count" | "errors" | "avg" | "p50" | "p95" | "p99" | "max";
+        SpanMetricGroupBy: {
+            path: string;
+            /** @description Defaults to the path without `@`. */
+            tagName?: string | null;
+        };
         SpanPercentile: {
             /** Format: int64 */
             peers: number;
@@ -17482,6 +19124,39 @@ export interface components {
             durationMs: number;
             resource: string;
             service: string;
+        };
+        SpanPipeline: {
+            enabled: boolean;
+            id: string;
+            name: string;
+            /** Format: int32 */
+            position: number;
+            processors: components["schemas"]["SpanProcessor"][];
+            query: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+            updatedBy: string;
+        };
+        SpanPipelineInput: {
+            enabled: boolean;
+            name: string;
+            processors?: components["schemas"]["SpanProcessor"][];
+            query?: string;
+        };
+        SpanProcessor: {
+            /** @description category: (name, query) pairs; the first matching query's name is written. */
+            categories?: components["schemas"]["SpanCategory"][];
+            name?: string;
+            preserveSource?: boolean;
+            /** @description remapper: source attribute paths. */
+            sources?: string[];
+            /** @description remapper / category: the attribute written. */
+            target?: string;
+            /** @description remapper (copy an attribute to another name) | category (set an attribute from queries) */
+            type: string;
         };
         SpanQuery: {
             /** @description Facet selections: dimension → accepted values (see the facets response for dimension names). */
@@ -17551,6 +19226,100 @@ export interface components {
             /** Format: int64 */
             stepMs: number;
             times: number[];
+        };
+        SpanVolume: {
+            /**
+             * Format: int64
+             * @description Estimated bytes of the spans ingested.
+             */
+            bytesIngested: number;
+            /**
+             * Format: int64
+             * @description Days spans are kept for search (the org's span retention).
+             */
+            retentionDays: number;
+            /**
+             * Format: int64
+             * @description Spans the retention filters keep over the range.
+             */
+            spansIndexed: number;
+            /** Format: int64 */
+            spansIngested: number;
+            /**
+             * Format: int64
+             * @description Spans of the last 15 minutes (live search).
+             */
+            spansLive: number;
+        };
+        SpansMetric: {
+            /** @description count | distribution */
+            aggregationType: string;
+            groupBy: components["schemas"]["SpanMetricGroupBy"][];
+            /** @description The metric name. */
+            id: string;
+            includePercentiles: boolean;
+            /** @description Distributions: the numeric path (`@duration`, in ns). */
+            path?: string | null;
+            query: string;
+        };
+        SpansMetricInput: {
+            /** @description count | distribution (create only). */
+            aggregationType?: string;
+            groupBy?: components["schemas"]["SpanMetricGroupBy"][];
+            /** @description The metric name (create only). */
+            id?: string;
+            includePercentiles?: boolean;
+            path?: string | null;
+            query?: string;
+        };
+        SplAggregation: {
+            /** @description Smallest groups first (`rare`, `sort count`). */
+            ascending: boolean;
+            condition?: null | components["schemas"]["SplCondition"];
+            groupBy: string[];
+            /** @description Rollup interval of a timeseries (`5m`, `1h`). */
+            interval?: string | null;
+            /** Format: int32 */
+            limit?: number | null;
+            measures: components["schemas"]["SplMeasure"][];
+            /** @description timeseries | toplist | table | value */
+            viz: string;
+        };
+        SplCondition: {
+            /** @description The measure's SPL name (`count`). */
+            measure: string;
+            /** @description > | >= | < | <= | = | != */
+            op: string;
+            /** Format: double */
+            value: number;
+        };
+        SplMeasure: {
+            /** @description The attribute measured (none for `count`). */
+            field?: string | null;
+            /** @description count | avg | sum | min | max | cardinality | pc50 | pc75 | pc90 | pc95 | pc99 */
+            function: string;
+            /** @description The SPL name of the result (`count`, `avg(duration)`, or its `as` alias). */
+            name: string;
+        };
+        SplStep: {
+            note: string;
+            /** @description What it became (empty when it was dropped). */
+            result: string;
+            /** @description The SPL this step is about. */
+            spl: string;
+        };
+        SplTranslation: {
+            aggregation?: null | components["schemas"]["SplAggregation"];
+            /** @description Attributes listed by `table` / `fields`. */
+            columns: string[];
+            /** @description Every part was translated (no warnings). */
+            complete: boolean;
+            /** @description `earliest=` of the search (`-24h`), if it set one. */
+            earliest?: string | null;
+            explanation: components["schemas"]["SplStep"][];
+            /** @description The search, in our search syntax. */
+            query: string;
+            warnings: string[];
         };
         Spreadsheet: {
             author?: null | components["schemas"]["UserRef"];
@@ -19095,6 +20864,13 @@ export interface components {
             /** Format: int64 */
             warn: number;
         };
+        TranslateRequest: {
+            /** @description The macros export (CSV with `title,definition,args`), if the query uses macros. */
+            macros?: string | null;
+            query: string;
+            /** @description spl */
+            source?: string;
+        };
         TrendCount: {
             /**
              * Format: double
@@ -19106,7 +20882,8 @@ export interface components {
             name: string;
         };
         TriageRequest: {
-            /** @description `vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>` or `iast:<hash>`. */
+            /** @description `vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>`, `iast:<hash>`, `api-finding:…` (App & API
+             *     Protection) or `workload-finding:<rule>:<resource>` (Workload Protection). */
             key: string;
             reason?: string;
             /** @description open | muted */
@@ -19272,6 +21049,9 @@ export interface components {
             roles: components["schemas"]["RoleRef"][];
             status: components["schemas"]["UserStatus"];
             title?: string | null;
+        };
+        VerificationSent: {
+            email: string;
         };
         VolumePoint: {
             /**
@@ -19646,6 +21426,241 @@ export interface components {
         };
         /** @enum {string} */
         WorkflowTriggerKind: "manual" | "monitor" | "schedule" | "incident" | "api" | "app";
+        WpAgentCounts: {
+            hosts: number;
+            hostsEnabled: number;
+            serverless: number;
+            serverlessEnabled: number;
+        };
+        WpAgentRule: {
+            actions: unknown;
+            blocking: boolean;
+            /** @description File Activity | Process Activity | Network Activity | Kernel Activity */
+            category: string;
+            /** Format: int64 */
+            createdAt: number;
+            description: string;
+            enabled: boolean;
+            expression: string;
+            id: string;
+            isDefault: boolean;
+            /**
+             * Format: int64
+             * @description Events that matched it in the range.
+             */
+            matches: number;
+            name: string;
+            pack: string;
+            policyId: string;
+            policyName: string;
+            productTags: string[];
+            /** @description The severity of the default detection rule on it ("" for custom rules). */
+            severity: string;
+            silent: boolean;
+            tactic: string;
+            technique: string;
+            /** @description A readable name: the catalog's for default rules, the description's first sentence otherwise. */
+            title: string;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy: string;
+        };
+        WpAgentRuleInput: {
+            description?: string | null;
+            enabled?: boolean | null;
+            expression?: string | null;
+            name?: string | null;
+            policyId?: string | null;
+            productTags?: string[] | null;
+            silent?: boolean | null;
+        };
+        WpAgents: {
+            hosts: components["schemas"]["CsmAgent"][];
+            serverless: components["schemas"]["CsmAgent"][];
+        };
+        WpCount: {
+            /** Format: int64 */
+            count: number;
+            name: string;
+        };
+        WpEvent: {
+            /** @description The event as the Agent sent it. */
+            attributes: unknown;
+            category: string;
+            containerId: string;
+            containerName: string;
+            env: string;
+            /** @description The event type (exec, open, dns, …). */
+            event: string;
+            file: string;
+            host: string;
+            id: string;
+            image: string;
+            outcome: string;
+            process: string;
+            processArgs: string;
+            ruleId: string;
+            service: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            timestamp: number;
+            title: string;
+            user: string;
+        };
+        WpEventsPage: {
+            events: components["schemas"]["WpEvent"][];
+            facets: components["schemas"]["WpFacet"][];
+            /** @description Matching events per bucket and category. */
+            series: components["schemas"]["WpSeries"];
+            /** Format: int64 */
+            total: number;
+        };
+        WpEventsRequest: {
+            /** Format: int64 */
+            limit?: number | null;
+            query?: string;
+            range: components["schemas"]["TimeRange"];
+        };
+        WpFacet: {
+            /** @description The search key (`@agent.rule_id`, `host`, …). */
+            key: string;
+            label: string;
+            values: components["schemas"]["WpCount"][];
+        };
+        WpFinding: {
+            agentRules: string[];
+            containerId: string;
+            env: string;
+            /**
+             * Format: int64
+             * @description Matching agent events in the range.
+             */
+            events: number;
+            /** Format: int64 */
+            firstSeen: number;
+            host: string;
+            image: string;
+            /** @description The triage key (`workload-finding:<rule>:<resource>`). */
+            key: string;
+            /** Format: int64 */
+            lastSeen: number;
+            /** @description The host name, or the container's name (its id when unnamed). */
+            resource: string;
+            /** @description host | container */
+            resourceType: string;
+            ruleId: string;
+            ruleName: string;
+            service: string;
+            severity: string;
+            /** @description open | muted */
+            status: string;
+        };
+        WpFindingRule: {
+            agentRules: string[];
+            description: string;
+            failing: number;
+            id: string;
+            muted: number;
+            name: string;
+            passing: number;
+            resourceType: string;
+            severity: string;
+        };
+        WpFindings: {
+            findings: components["schemas"]["WpFinding"][];
+            rules: components["schemas"]["WpFindingRule"][];
+        };
+        WpPack: {
+            description: string;
+            enabledRules: number;
+            id: string;
+            name: string;
+            rules: number;
+            /** @description active (some rules enabled) | available */
+            status: string;
+        };
+        WpPolicy: {
+            /** @description Agents with Workload Protection whose tags match the policy. */
+            agents: number;
+            /** Format: int64 */
+            blocking: number;
+            description: string;
+            /** Format: int64 */
+            disabled: number;
+            enabled: boolean;
+            /** @description Inner lists ANDed, outer list ORed; empty: every host. */
+            hostTagsLists: string[][];
+            id: string;
+            isDefault: boolean;
+            /** Format: int64 */
+            monitoring: number;
+            name: string;
+            /** Format: int64 */
+            updatedAt: number;
+            updatedBy: string;
+            /** Format: int32 */
+            version: number;
+        };
+        WpPolicyCard: {
+            description: string;
+            id: string;
+            name: string;
+            rules: number;
+        };
+        WpPolicyInput: {
+            description?: string | null;
+            enabled?: boolean | null;
+            hostTagsLists?: string[][] | null;
+            name?: string | null;
+        };
+        WpSeries: {
+            groups: components["schemas"]["WpSeriesGroup"][];
+            /** @description Bucket starts, epoch ms. */
+            times: number[];
+        };
+        WpSeriesGroup: {
+            name: string;
+            values: number[];
+        };
+        WpSummary: {
+            agentPolicies: components["schemas"]["WpPolicyCard"][];
+            agentRules: number;
+            agents: components["schemas"]["WpAgentCounts"];
+            /** @description Events that matched an agent rule and were sent, per category. */
+            captured: {
+                [key: string]: number;
+            };
+            capturedSeries: components["schemas"]["WpSeries"];
+            detectionRules: number;
+            findingRules: number;
+            /** @description Failing findings by severity. */
+            findings: {
+                [key: string]: number;
+            };
+            /** @description Events the Agents' probes saw, per category (file, process, network, kernel). */
+            monitored: {
+                [key: string]: number;
+            };
+            monitoredSeries: components["schemas"]["WpSeries"];
+            packs: components["schemas"]["WpPack"][];
+            policies: number;
+            signalSeries: components["schemas"]["WpSeries"];
+            /** @description Signals of `workload_security` rules raised in the range, by severity. */
+            signals: {
+                [key: string]: number;
+            };
+            tactics: components["schemas"]["WpTactic"][];
+            /** @description Archived signals by archive reason, and the open and under review ones. */
+            triage: components["schemas"]["WpCount"][];
+        };
+        WpTactic: {
+            id: string;
+            name: string;
+            /** @description Enabled agent rules with this tactic. */
+            rules: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -19682,6 +21697,186 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    ai_guard_categories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiGuardCategory"][];
+                };
+            };
+        };
+    };
+    ai_guard_discover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiDiscoverRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiDiscover"];
+                };
+            };
+        };
+    };
+    ai_guard_evaluations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiGuardSearchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiGuardEvaluationPage"];
+                };
+            };
+        };
+    };
+    ai_guard_evaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiGuardEvaluationDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ai_guard_playground: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiGuardPlaygroundRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiGuardPlaygroundResult"];
+                };
+            };
+        };
+    };
+    ai_guard_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiGuardSettings"];
+                };
+            };
+        };
+    };
+    ai_guard_update_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiGuardSettings"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiGuardSettings"];
+                };
+            };
+        };
+    };
+    ai_guard_summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiGuardQuery"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiGuardSummary"];
                 };
             };
         };
@@ -19912,6 +22107,492 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServiceStats"][];
+                };
+            };
+        };
+    };
+    get_apm_defaults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApmDefaults"];
+                };
+            };
+        };
+    };
+    update_apm_defaults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApmDefaultsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApmDefaults"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    apm_ingestion: {
+        parameters: {
+            query: {
+                /** @description Epoch ms. */
+                from: number;
+                /** @description Epoch ms. */
+                to: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingestion"];
+                };
+            };
+        };
+    };
+    list_apm_spans_metrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpansMetric"][];
+                };
+            };
+        };
+    };
+    create_apm_spans_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpansMetricInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpansMetric"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_apm_spans_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_apm_spans_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpansMetricInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpansMetric"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    apm_settings_overview: {
+        parameters: {
+            query: {
+                /** @description Epoch ms. */
+                from: number;
+                /** @description Epoch ms. */
+                to: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApmFlow"];
+                };
+            };
+        };
+    };
+    list_apm_span_pipelines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpanPipeline"][];
+                };
+            };
+        };
+    };
+    create_apm_span_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpanPipelineInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpanPipeline"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_apm_span_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpanPipelineInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpanPipeline"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_apm_span_pipeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_apm_retention_filters: {
+        parameters: {
+            query: {
+                /** @description Epoch ms. */
+                from: number;
+                /** @description Epoch ms. */
+                to: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionFilters"];
+                };
+            };
+        };
+    };
+    create_apm_retention_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetentionFilterInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionFilter"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    reorder_apm_retention_filters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FilterOrder"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_apm_retention_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetentionFilterInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionFilter"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_apm_retention_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    apm_span_volume: {
+        parameters: {
+            query: {
+                /** @description Epoch ms. */
+                from: number;
+                /** @description Epoch ms. */
+                to: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpanVolume"];
                 };
             };
         };
@@ -21002,6 +23683,25 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DiscoverResult"];
                 };
+            };
+        };
+    };
+    verify_email: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -25944,6 +28644,138 @@ export interface operations {
             };
         };
     };
+    list_log_custom_destinations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomDestination"][];
+                };
+            };
+        };
+    };
+    create_log_custom_destination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomDestinationInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomDestination"];
+                };
+            };
+        };
+    };
+    update_log_custom_destination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomDestinationInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomDestination"];
+                };
+            };
+        };
+    };
+    delete_log_custom_destination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_log_custom_destination_enabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DestinationEnabled"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomDestination"];
+                };
+            };
+        };
+    };
+    test_log_custom_destination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DestinationTestResult"];
+                };
+            };
+        };
+    };
     facets: {
         parameters: {
             query?: never;
@@ -25990,6 +28822,48 @@ export interface operations {
             };
         };
     };
+    get_log_flex_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlexSettings"];
+                };
+            };
+        };
+    };
+    update_log_flex_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlexSettingsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlexSettings"];
+                };
+            };
+        };
+    };
     histogram: {
         parameters: {
             query?: never;
@@ -26009,6 +28883,113 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistogramBucket"][];
+                };
+            };
+        };
+    };
+    list_log_imports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogImport"][];
+                };
+            };
+        };
+    };
+    create_log_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateImport"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogImportDetail"];
+                };
+            };
+        };
+    };
+    get_log_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogImportDetail"];
+                };
+            };
+        };
+    };
+    delete_log_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    migrate_log_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MigrateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogImportDetail"];
                 };
             };
         };
@@ -26420,6 +29401,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PipelineTestResult"];
+                };
+            };
+        };
+    };
+    log_pipelines_usage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineUsage"][];
                 };
             };
         };
@@ -27027,6 +30027,29 @@ export interface operations {
             };
         };
     };
+    translate_log_query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TranslateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplTranslation"];
+                };
+            };
+        };
+    };
     me: {
         parameters: {
             query?: never;
@@ -27135,6 +30158,44 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
+            };
+        };
+    };
+    get_my_email_subscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailSubscriptions"];
+                };
+            };
+        };
+    };
+    unsubscribe_my_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -27280,6 +30341,48 @@ export interface operations {
             };
         };
     };
+    get_my_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
+                };
+            };
+        };
+    };
+    set_my_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Preferences"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
+                };
+            };
+        };
+    };
     security: {
         parameters: {
             query?: never;
@@ -27365,6 +30468,33 @@ export interface operations {
                 content?: never;
             };
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    send_email_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationSent"];
+                };
+            };
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -35272,6 +38402,322 @@ export interface operations {
             };
         };
     };
+    workload_protection_agent_rules: {
+        parameters: {
+            query?: {
+                policy_id?: string;
+                from?: number;
+                to?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WpAgentRule"][];
+                };
+            };
+        };
+    };
+    workload_protection_create_agent_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WpAgentRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WpAgentRule"];
+                };
+            };
+        };
+    };
+    workload_protection_delete_agent_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    workload_protection_update_agent_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WpAgentRuleInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WpAgentRule"];
+                };
+            };
+        };
+    };
+    workload_protection_agents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WpAgents"];
+                };
+            };
+        };
+    };
+    workload_protection_events: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WpEventsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WpEventsPage"];
+                };
+            };
+        };
+    };
+    workload_protection_findings: {
+        parameters: {
+            query?: {
+                /** @description Epoch ms; defaults to 7 days before `to`. */
+                from?: number;
+                /** @description Epoch ms; defaults to now. */
+                to?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WpFindings"];
+                };
+            };
+        };
+    };
+    workload_protection_policies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WpPolicy"][];
+                };
+            };
+        };
+    };
+    workload_protection_create_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WpPolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WpPolicy"];
+                };
+            };
+        };
+    };
+    workload_protection_download_policies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": number[];
+                };
+            };
+        };
+    };
+    workload_protection_delete_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    workload_protection_update_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WpPolicyInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WpPolicy"];
+                };
+            };
+        };
+    };
+    workload_protection_summary: {
+        parameters: {
+            query?: {
+                /** @description Epoch ms; defaults to 7 days before `to`. */
+                from?: number;
+                /** @description Epoch ms; defaults to now. */
+                to?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WpSummary"];
+                };
+            };
+        };
+    };
+    datadog_ai_guard_evaluate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
     datadog_list_api_keys: {
         parameters: {
             query?: never;
@@ -35423,6 +38869,349 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_spans_metrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_spans_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_spans_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                metric_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_delete_spans_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                metric_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_spans_metric: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                metric_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_list_apm_retention_filters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_apm_retention_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_reorder_apm_retention_filters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_apm_retention_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                filter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_apm_retention_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                filter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_delete_apm_retention_filter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                filter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };
@@ -35917,6 +39706,111 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_csm_agents: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+                query?: string;
+                order_direction?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_csm_cloud_accounts_coverage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_csm_hosts_coverage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_csm_serverless_coverage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_list_csm_serverless_agents: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+                query?: string;
+                order_direction?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };
@@ -36908,6 +40802,341 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_list_cws_agent_rules: {
+        parameters: {
+            query?: {
+                policy_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_cws_agent_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_cws_agent_rule: {
+        parameters: {
+            query?: {
+                policy_id?: string;
+            };
+            header?: never;
+            path: {
+                agent_rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_delete_cws_agent_rule: {
+        parameters: {
+            query?: {
+                policy_id?: string;
+            };
+            header?: never;
+            path: {
+                agent_rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_cws_agent_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_list_cws_policies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_cws_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_download_cws_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": number[];
+                };
+            };
+        };
+    };
+    datadog_get_cws_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_delete_cws_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_cws_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             404: {
                 headers: {

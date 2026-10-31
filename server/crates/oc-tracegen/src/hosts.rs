@@ -13,7 +13,7 @@ pub struct Host {
     pub(super) mem_gib: f64,
     region: &'static str,
     zone: &'static str,
-    env: &'static str,
+    pub(super) env: &'static str,
     team: &'static str,
     pub(super) cluster: Option<&'static str>,
     collector: &'static str,

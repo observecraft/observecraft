@@ -1,4 +1,5 @@
 pub mod apm;
+pub mod apm_settings;
 pub mod apps;
 pub mod archives;
 pub mod auth;
@@ -40,6 +41,7 @@ pub mod log_indexes;
 pub mod log_metrics;
 pub mod log_pipelines;
 pub mod log_restrictions;
+pub mod logs_config;
 pub mod log_aggregates;
 pub mod logs;
 pub mod metric_catalog;
@@ -97,6 +99,12 @@ pub mod rum;
 pub mod rum_analytics;
 pub mod rum_replay;
 pub mod appsec;
+pub mod log_migration;
+pub mod personal;
+pub mod ai_guard;
+pub mod ai_guard_engine;
+pub mod workload_catalog;
+pub mod workload_protection;
 pub mod cloud_security;
 pub mod cloud_security_rules;
 pub mod security_catalog;
@@ -212,6 +220,34 @@ use crate::state::AppState;
         datadog_api::rum::create,
         datadog_api::rum::update,
         datadog_api::rum::delete,
+        datadog_api::csm_threats::list_policies,
+        datadog_api::csm_threats::get_policy,
+        datadog_api::csm_threats::create_policy,
+        datadog_api::csm_threats::update_policy,
+        datadog_api::csm_threats::delete_policy,
+        datadog_api::csm_threats::download,
+        datadog_api::csm_threats::list_rules,
+        datadog_api::csm_threats::get_rule,
+        datadog_api::csm_threats::create_rule,
+        datadog_api::csm_threats::update_rule,
+        datadog_api::csm_threats::delete_rule,
+        datadog_api::csm_threats::list_agents,
+        datadog_api::csm_threats::list_serverless_agents,
+        datadog_api::csm_threats::coverage_hosts,
+        datadog_api::csm_threats::coverage_serverless,
+        datadog_api::csm_threats::coverage_cloud_accounts,
+        datadog_api::ai_guard::evaluate,
+        datadog_api::apm_config::list_filters,
+        datadog_api::apm_config::get_filter,
+        datadog_api::apm_config::create_filter,
+        datadog_api::apm_config::update_filter,
+        datadog_api::apm_config::delete_filter,
+        datadog_api::apm_config::reorder_filters,
+        datadog_api::apm_config::list_metrics,
+        datadog_api::apm_config::get_metric,
+        datadog_api::apm_config::create_metric,
+        datadog_api::apm_config::update_metric,
+        datadog_api::apm_config::delete_metric,
         datadog_api::appsec::list_custom_rules,
         datadog_api::appsec::get_custom_rule,
         datadog_api::appsec::create_custom_rule,
@@ -589,6 +625,15 @@ use crate::state::AppState;
         log_restrictions::assign_team,
         log_restrictions::unassign_team,
         log_restrictions::preview,
+        logs_config::list_destinations,
+        logs_config::create_destination,
+        logs_config::update_destination,
+        logs_config::set_destination_enabled,
+        logs_config::delete_destination,
+        logs_config::test_destination,
+        logs_config::get_flex,
+        logs_config::update_flex,
+        logs_config::pipelines_usage,
         standard_attributes::list,
         standard_attributes::create,
         standard_attributes::update,
@@ -659,6 +704,57 @@ use crate::state::AppState;
         security_overview::overview,
         security_overview::inbox,
         security_feed::feed,
+        workload_protection::summary,
+        workload_protection::events,
+        workload_protection::findings,
+        workload_protection::agents,
+        workload_protection::list_policies,
+        workload_protection::create_policy,
+        workload_protection::update_policy,
+        workload_protection::delete_policy,
+        workload_protection::download,
+        workload_protection::list_rules,
+        workload_protection::create_rule,
+        workload_protection::update_rule,
+        workload_protection::delete_rule,
+        apm_settings::overview,
+        apm_settings::volume,
+        apm_settings::ingestion,
+        apm_settings::get_defaults,
+        apm_settings::update_defaults,
+        apm_settings::list_filters,
+        apm_settings::create_filter,
+        apm_settings::update_filter,
+        apm_settings::delete_filter,
+        apm_settings::reorder_filters,
+        apm_settings::list_metrics,
+        apm_settings::create_metric,
+        apm_settings::update_metric,
+        apm_settings::delete_metric,
+        apm_settings::list_pipelines,
+        apm_settings::create_pipeline,
+        apm_settings::update_pipeline,
+        apm_settings::delete_pipeline,
+        ai_guard::settings,
+        ai_guard::update_settings,
+        ai_guard::summary,
+        ai_guard::evaluations,
+        ai_guard::evaluation,
+        ai_guard::playground,
+        ai_guard::discover,
+        ai_guard::categories,
+        log_migration::translate,
+        log_migration::list,
+        log_migration::get_one,
+        log_migration::create,
+        log_migration::delete,
+        log_migration::migrate,
+        personal::get_preferences,
+        personal::set_preferences,
+        personal::email_subscriptions,
+        personal::unsubscribe_report,
+        personal::send_verification,
+        personal::verify,
         appsec::traces,
         appsec::attackers,
         appsec::users,
@@ -1190,6 +1286,14 @@ pub fn router() -> Router<AppState> {
         )
         .route("/api/v1/logs/pipelines/reorder", post(log_pipelines::reorder))
         .route("/api/v1/logs/pipelines/test", post(log_pipelines::test))
+        .route("/api/v1/logs/pipelines/usage", get(logs_config::pipelines_usage))
+        .route("/api/v1/logs/custom-destinations", get(logs_config::list_destinations).post(logs_config::create_destination))
+        .route(
+            "/api/v1/logs/custom-destinations/:id",
+            axum::routing::put(logs_config::update_destination).patch(logs_config::set_destination_enabled).delete(logs_config::delete_destination),
+        )
+        .route("/api/v1/logs/custom-destinations/:id/test", post(logs_config::test_destination))
+        .route("/api/v1/logs/flex-settings", get(logs_config::get_flex).put(logs_config::update_flex))
         .route("/api/v1/logs/pipelines/grok", post(log_pipelines::grok))
         .route(
             "/api/v1/logs/pipelines/:id",
@@ -1310,6 +1414,42 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/security/siem/packs/:id", axum::routing::put(security_siem::set_pack))
         .route("/api/v1/security/siem/overview", post(security_siem::overview))
         .route("/api/v1/cloud-security/summary", get(cloud_security::summary))
+        .route("/api/v1/workload-protection/summary", get(workload_protection::summary))
+        .route("/api/v1/workload-protection/events", post(workload_protection::events))
+        .route("/api/v1/workload-protection/findings", get(workload_protection::findings))
+        .route("/api/v1/workload-protection/agents", get(workload_protection::agents))
+        .route("/api/v1/workload-protection/policies", get(workload_protection::list_policies).post(workload_protection::create_policy))
+        .route("/api/v1/workload-protection/policies/download", get(workload_protection::download))
+        .route("/api/v1/workload-protection/policies/:id", axum::routing::patch(workload_protection::update_policy).delete(workload_protection::delete_policy))
+        .route("/api/v1/workload-protection/agent-rules", get(workload_protection::list_rules).post(workload_protection::create_rule))
+        .route("/api/v1/workload-protection/agent-rules/:id", axum::routing::patch(workload_protection::update_rule).delete(workload_protection::delete_rule))
+        .route("/api/v1/apm/settings/overview", get(apm_settings::overview))
+        .route("/api/v1/apm/settings/volume", get(apm_settings::volume))
+        .route("/api/v1/apm/settings/ingestion", get(apm_settings::ingestion))
+        .route("/api/v1/apm/settings/defaults", get(apm_settings::get_defaults).put(apm_settings::update_defaults))
+        .route("/api/v1/apm/settings/retention-filters", get(apm_settings::list_filters).post(apm_settings::create_filter))
+        .route("/api/v1/apm/settings/retention-filters/:id", axum::routing::put(apm_settings::update_filter).delete(apm_settings::delete_filter))
+        .route("/api/v1/apm/settings/retention-filters-order", axum::routing::put(apm_settings::reorder_filters))
+        .route("/api/v1/apm/settings/metrics", get(apm_settings::list_metrics).post(apm_settings::create_metric))
+        .route("/api/v1/apm/settings/metrics/:id", axum::routing::patch(apm_settings::update_metric).delete(apm_settings::delete_metric))
+        .route("/api/v1/apm/settings/pipelines", get(apm_settings::list_pipelines).post(apm_settings::create_pipeline))
+        .route("/api/v1/apm/settings/pipelines/:id", axum::routing::put(apm_settings::update_pipeline).delete(apm_settings::delete_pipeline))
+        .route("/api/v1/ai-guard/settings", get(ai_guard::settings).put(ai_guard::update_settings))
+        .route("/api/v1/ai-guard/summary", post(ai_guard::summary))
+        .route("/api/v1/ai-guard/evaluations", post(ai_guard::evaluations))
+        .route("/api/v1/ai-guard/evaluations/:id", get(ai_guard::evaluation))
+        .route("/api/v1/ai-guard/playground", post(ai_guard::playground))
+        .route("/api/v1/ai-guard/discover", post(ai_guard::discover))
+        .route("/api/v1/ai-guard/categories", get(ai_guard::categories))
+        .route("/api/v1/logs/translate", post(log_migration::translate))
+        .route("/api/v1/logs/imports", get(log_migration::list).post(log_migration::create))
+        .route("/api/v1/logs/imports/:id", get(log_migration::get_one).delete(log_migration::delete))
+        .route("/api/v1/logs/imports/:id/migrate", post(log_migration::migrate))
+        .route("/api/v1/me/preferences", get(personal::get_preferences).put(personal::set_preferences))
+        .route("/api/v1/me/email-subscriptions", get(personal::email_subscriptions))
+        .route("/api/v1/me/email-subscriptions/reports/:id", delete(personal::unsubscribe_report))
+        .route("/api/v1/me/verify-email", post(personal::send_verification))
+        .route("/api/v1/auth/verify-email/:token", get(personal::verify))
         .route("/api/v1/appsec/traces", post(appsec::traces))
         .route("/api/v1/appsec/attackers", post(appsec::attackers))
         .route("/api/v1/appsec/users", post(appsec::users))
@@ -1647,6 +1787,13 @@ mod tests {
             include_str!("datadog_api/roles.rs"),
             include_str!("datadog_api/teams.rs"),
             include_str!("datadog_api/rum.rs"),
+            include_str!("datadog_api/logs/indexes.rs"),
+            include_str!("datadog_api/logs/archives.rs"),
+            include_str!("datadog_api/logs/pipelines.rs"),
+            include_str!("datadog_api/logs/metrics.rs"),
+            include_str!("datadog_api/logs/restrictions.rs"),
+            include_str!("datadog_api/logs/destinations.rs"),
+            include_str!("logs_config.rs"),
             include_str!("datadog_api/keys.rs"),
             include_str!("datadog_api/permissions.rs"),
             include_str!("data_jobs.rs"),
@@ -1683,6 +1830,11 @@ mod tests {
             include_str!("rum_replay.rs"),
             include_str!("cloud_security.rs"),
             include_str!("appsec.rs"),
+            include_str!("log_migration.rs"),
+            include_str!("personal.rs"),
+            include_str!("ai_guard.rs"),
+            include_str!("ai_guard_engine.rs"),
+            include_str!("datadog_api/ai_guard.rs"),
             include_str!("cloud_security_rules.rs"),
             include_str!("security_catalog.rs"),
             include_str!("security_engine.rs"),
@@ -1694,6 +1846,11 @@ mod tests {
             include_str!("security_suppressions.rs"),
             include_str!("datadog_api/security_monitoring.rs"),
             include_str!("datadog_api/appsec.rs"),
+            include_str!("workload_protection.rs"),
+            include_str!("workload_catalog.rs"),
+            include_str!("datadog_api/csm_threats.rs"),
+            include_str!("apm_settings.rs"),
+            include_str!("datadog_api/apm_config.rs"),
             include_str!("synthetics_explorer.rs"),
             include_str!("synthetics_settings.rs"),
             include_str!("scorecards.rs"),
@@ -1789,6 +1946,16 @@ mod tests {
             ("rum_replay.rs", include_str!("rum_replay.rs")),
             ("cloud_security.rs", include_str!("cloud_security.rs")),
             ("appsec.rs", include_str!("appsec.rs")),
+            ("log_migration.rs", include_str!("log_migration.rs")),
+            ("personal.rs", include_str!("personal.rs")),
+            ("ai_guard.rs", include_str!("ai_guard.rs")),
+            ("ai_guard_engine.rs", include_str!("ai_guard_engine.rs")),
+            ("datadog_api/ai_guard.rs", include_str!("datadog_api/ai_guard.rs")),
+            ("workload_protection.rs", include_str!("workload_protection.rs")),
+            ("workload_catalog.rs", include_str!("workload_catalog.rs")),
+            ("datadog_api/csm_threats.rs", include_str!("datadog_api/csm_threats.rs")),
+            ("apm_settings.rs", include_str!("apm_settings.rs")),
+            ("datadog_api/apm_config.rs", include_str!("datadog_api/apm_config.rs")),
             ("cloud_security_rules.rs", include_str!("cloud_security_rules.rs")),
             ("security_catalog.rs", include_str!("security_catalog.rs")),
             ("security_engine.rs", include_str!("security_engine.rs")),
@@ -1811,6 +1978,9 @@ mod tests {
             ("llm.rs", include_str!("llm.rs")),
             ("llm_attrs.rs", include_str!("llm_attrs.rs")),
             ("log_indexes.rs", include_str!("log_indexes.rs")),
+            ("datadog_api/logs/indexes.rs", include_str!("datadog_api/logs/indexes.rs")),
+            ("logs_config.rs", include_str!("logs_config.rs")),
+            ("../log_forwarding.rs", include_str!("../log_forwarding.rs")),
             ("log_pipelines.rs", include_str!("log_pipelines.rs")),
             ("log_metrics.rs", include_str!("log_metrics.rs")),
             ("log_aggregates.rs", include_str!("log_aggregates.rs")),
@@ -1928,6 +2098,15 @@ mod tests {
             ("datadog_api/users.rs", include_str!("datadog_api/users.rs")),
             ("datadog_api/roles.rs", include_str!("datadog_api/roles.rs")),
             ("datadog_api/rum.rs", include_str!("datadog_api/rum.rs")),
+            ("datadog_api/logs/mod.rs", include_str!("datadog_api/logs/mod.rs")),
+            ("datadog_api/logs/indexes.rs", include_str!("datadog_api/logs/indexes.rs")),
+            ("datadog_api/logs/archives.rs", include_str!("datadog_api/logs/archives.rs")),
+            ("datadog_api/logs/pipelines.rs", include_str!("datadog_api/logs/pipelines.rs")),
+            ("datadog_api/logs/metrics.rs", include_str!("datadog_api/logs/metrics.rs")),
+            ("datadog_api/logs/restrictions.rs", include_str!("datadog_api/logs/restrictions.rs")),
+            ("datadog_api/logs/destinations.rs", include_str!("datadog_api/logs/destinations.rs")),
+            ("logs_config.rs", include_str!("logs_config.rs")),
+            ("../log_forwarding.rs", include_str!("../log_forwarding.rs")),
             ("datadog_api/teams.rs", include_str!("datadog_api/teams.rs")),
             ("datadog_api/keys.rs", include_str!("datadog_api/keys.rs")),
             ("datadog_api/permissions.rs", include_str!("datadog_api/permissions.rs")),
@@ -1998,6 +2177,16 @@ mod tests {
             ("rum_replay.rs", include_str!("rum_replay.rs")),
             ("cloud_security.rs", include_str!("cloud_security.rs")),
             ("appsec.rs", include_str!("appsec.rs")),
+            ("log_migration.rs", include_str!("log_migration.rs")),
+            ("personal.rs", include_str!("personal.rs")),
+            ("ai_guard.rs", include_str!("ai_guard.rs")),
+            ("ai_guard_engine.rs", include_str!("ai_guard_engine.rs")),
+            ("datadog_api/ai_guard.rs", include_str!("datadog_api/ai_guard.rs")),
+            ("workload_protection.rs", include_str!("workload_protection.rs")),
+            ("workload_catalog.rs", include_str!("workload_catalog.rs")),
+            ("datadog_api/csm_threats.rs", include_str!("datadog_api/csm_threats.rs")),
+            ("apm_settings.rs", include_str!("apm_settings.rs")),
+            ("datadog_api/apm_config.rs", include_str!("datadog_api/apm_config.rs")),
             ("cloud_security_rules.rs", include_str!("cloud_security_rules.rs")),
             ("security_catalog.rs", include_str!("security_catalog.rs")),
             ("security_engine.rs", include_str!("security_engine.rs")),
@@ -2021,6 +2210,7 @@ mod tests {
             ("../auth/password.rs", include_str!("../auth/password.rs")),
             ("../auth/totp.rs", include_str!("../auth/totp.rs")),
             ("../config.rs", include_str!("../config.rs")),
+            ("../spl.rs", include_str!("../spl.rs")),
             ("../cache.rs", include_str!("../cache.rs")),
             ("../demo.rs", include_str!("../demo.rs")),
             ("../error.rs", include_str!("../error.rs")),
@@ -2127,6 +2317,11 @@ mod tests {
                 "log_indexes.rs",
                 "SELECT count() FROM logs_raw WHERE org_id = ?",
                 "today's ingested volume (a count)",
+            ),
+            (
+                "datadog_api/logs/indexes.rs",
+                "SELECT count() FROM logs WHERE org_id = ? AND index_name = ?",
+                "whether an index reached its daily quota (a count)",
             ),
             (
                 "archives.rs",

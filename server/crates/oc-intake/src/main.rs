@@ -9,6 +9,7 @@
 //! - `POST /v1/traces | /v1/logs | /v1/metrics`  OTLP/HTTP (protobuf or JSON, optionally gzip) → Collector
 //! - OTLP/gRPC on OC_INTAKE_GRPC_ADDR             the same three services (passed through undecoded) → Collector
 //! - `POST /api/v2/logs`                         JSON log events (object or array; Datadog's format) → Vector
+//! - `POST /api/v2/secruntime`, `/api/v2/secinfo` the Agent's runtime security events (Workload Protection), as logs
 //! - `POST /api/v2/series`, `/api/v1/series`     Datadog metrics (JSON or the Agent's protobuf) → OTLP → Collector
 //! - `POST /api/beta/sketches`                   Datadog distribution metrics (DDSketch) → OTLP exponential histograms
 //! - `POST /api/v0.2/traces`, `/api/v0.2/stats`  the Datadog Agent's APM traces (dd-trace libraries) → OTLP spans
@@ -729,6 +730,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/metrics", post(metrics))
         .route("/v1/logs", post(otlp_logs))
         .route("/api/v2/logs", post(json_logs))
+        // The Agent's runtime security (Workload Protection) events and remediation results: logs
+        // payloads on their own tracks (`runtime_security_config.endpoints`).
+        .route("/api/v2/secruntime", post(json_logs))
+        .route("/api/v2/secinfo", post(json_logs))
         .route("/api/v2/series", post(datadog::series_v2))
         .route("/api/v1/series", post(datadog::series_v1))
         .route("/api/v1/validate", get(datadog::validate))

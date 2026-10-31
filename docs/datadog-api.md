@@ -100,6 +100,8 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 | `datadog_cost_custom_forecast` | `PUT /api/v2/cost/budget/custom-forecast`, `GET`/`DELETE /api/v2/cost/budget/{id}/custom-forecast` | ✅ [details](#cloud-cost) |
 | Custom costs files (API clients) | `PUT`/`GET /api/v2/cost/custom_costs`, `GET`/`DELETE /api/v2/cost/custom_costs/{id}` | ✅ [details](#cloud-cost) |
 | `datadog_aws_cur_config`, `datadog_azure_uc_config`, `datadog_gcp_uc_config`, `datadog_tag_pipeline_ruleset(s)`, `datadog_custom_allocation_rule(s)` | `/api/v2/cost/*_config`, `/api/v2/tags/enrichment`, `/api/v2/cost/arbitrary_rule` | Not yet |
+| `datadog_apm_retention_filter`, `datadog_apm_retention_filter_order` | `/api/v2/apm/config/retention-filters` (create, list, get, update, delete), `PUT /api/v2/apm/config/retention-filters-execution-order` | ✅ [details](#apm-retention-filters-and-span-based-metrics) |
+| `datadog_spans_metric` | `/api/v2/apm/config/metrics` (create, list, get, update, delete) | ✅ [details](#apm-retention-filters-and-span-based-metrics) |
 
 ## Cloud cost
 
@@ -119,6 +121,21 @@ the query's `by {…}` once, and each tag combination has an entry for every mon
 `/validate` answers `valid: false` with the problems, and an upsert with them answers 400. `GET …/budget/{id}` with
 `actual=true` or `forecast=true` adds each entry's `costs`: what the month cost so far and, for the current month, the
 cost at the pace so far (or the custom forecast).
+
+## APM retention filters and span-based metrics
+
+APM → Settings reads and writes the same records.
+
+- Every organization has two default retention filters with fixed ids, `errors-default` (`status:error`) and
+  `appsec-default` (App & API Protection traces). They can be changed and disabled but not deleted, and a
+  `datadog_apm_retention_filter_order` lists them with the others. New filters are `spans-sampling-processor`.
+- Retention filters are evaluated, not applied: every ingested span stays searchable for the organization's span
+  retention. APM → Settings shows the spans each filter matches first and what its rate keeps.
+- A span-based metric is computed every minute from the stored spans (two minutes behind, so late spans count) and
+  queried like any other metric: `count` as a count, `distribution` of `@duration` (nanoseconds) or another numeric
+  attribute as a distribution. The name is the id; characters outside `[A-Za-z0-9_.]` become `_`.
+- Queries take Datadog's span search keys: `service`, `env`, `resource_name`, `operation_name`, `status`,
+  `@duration`, `@_top_level`, `@http.status_code`, `@http.method` and any `@attribute`.
 
 ## Service level objectives
 

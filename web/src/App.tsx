@@ -8,6 +8,7 @@ import { MonitorSettingsPage } from './pages/monitors/MonitorSettingsPage';
 import { ArchiveSearchPage } from './pages/logs/ArchiveSearchPage';
 import { ArchivesPage } from './pages/logs/ArchivesPage';
 import { RehydrationsPage } from './pages/logs/RehydrationsPage';
+import { FlexLogsPage } from './pages/logs/FlexLogsPage';
 import { MetricsLayout } from './pages/metrics/MetricsLayout';
 import { MetricsExplorer } from './pages/metrics/MetricsExplorer';
 import { MetricsCatalog } from './pages/metrics/MetricsCatalog';
@@ -28,6 +29,13 @@ import { Sidebar, useNavMode } from './components/shell/Sidebar';
 import { TimeProvider } from './components/shell/TimeContext';
 import { TopBar } from './components/shell/TopBar';
 import { ApmComingSoon, ApmLayout } from './pages/apm/ApmLayout';
+import { ApmSettingsLayout } from './pages/apm/settings/ApmSettingsLayout';
+import { ApmSettingsOverviewPage } from './pages/apm/settings/OverviewPage';
+import { ApmDefaultSettingsPage } from './pages/apm/settings/DefaultSettingsPage';
+import { IngestionControlPage } from './pages/apm/settings/IngestionControlPage';
+import { SpanPipelinesPage } from './pages/apm/settings/PipelinesPage';
+import { GenerateSpanMetricsPage } from './pages/apm/settings/GenerateMetricsPage';
+import { RetentionFiltersPage } from './pages/apm/settings/RetentionFiltersPage';
 import { ApmHome } from './pages/apm/ApmHome';
 import { ServicePage } from './pages/apm/service/ServicePage';
 import { InstrumentPage } from './pages/apm/InstrumentPage';
@@ -98,6 +106,19 @@ import { RuleEditorPage, RulesPage } from './pages/security/RulesPage';
 import { SiemSettingsPage } from './pages/security/SiemSettingsPage';
 import { CloudSecurityLayout } from './pages/security/cloud/CloudSecurityLayout';
 import { AppsecLayout } from './pages/security/appsec/AppsecLayout';
+import { WorkloadLayout } from './pages/security/workload/WorkloadLayout';
+import { WorkloadOverviewPage } from './pages/security/workload/OverviewPage';
+import { WorkloadSignalsPage } from './pages/security/workload/SignalsPage';
+import { AgentEventsPage } from './pages/security/workload/InvestigatePage';
+import { WorkloadFindingsPage } from './pages/security/workload/FindingsPage';
+import { CoveragePage, HostsContainersPage, ServerlessPage as WpServerlessPage } from './pages/security/workload/InventoryPages';
+import { AgentConfigurationPage, FindingRulesPage, WorkloadDetectionRulesPage } from './pages/security/workload/PoliciesPages';
+import { AiGuardLayout } from './pages/security/aiGuard/AiGuardLayout';
+import { AiGuardInvestigatePage } from './pages/security/aiGuard/InvestigatePage';
+import { AiGuardSignalsPage } from './pages/security/aiGuard/SignalsPage';
+import { AiGuardDiscoverPage } from './pages/security/aiGuard/DiscoverPage';
+import { AiGuardPlaygroundPage } from './pages/security/aiGuard/PlaygroundPage';
+import { AiGuardSettingsPage } from './pages/security/aiGuard/SettingsPage';
 import { AppsecOverviewPage } from './pages/security/appsec/OverviewPage';
 import { ApiFindingsPage, CompliancePage } from './pages/security/appsec/FindingsPages';
 import { AppsecUsersPage, AttackersPage, SecurityTracesPage } from './pages/security/appsec/InvestigatePages';
@@ -211,6 +232,9 @@ import { ReferenceTablesPage } from './pages/integrations/ReferenceTablesPage';
 import { LiveTail } from './pages/logs/LiveTail';
 import { LogExplorer } from './pages/logs/LogExplorer';
 import { LOGS_CONFIG_SLUGS, LogsConfigComingSoon, LogsConfigLayout } from './pages/logs/LogsConfigLayout';
+import { ImportDetailPage, ImportsPage, NewImportPage } from './pages/logs/migration/ImportPages';
+import { TranslatePage } from './pages/logs/migration/TranslatePage';
+import { HomeRedirect, PreferencesEffects } from './pages/settings/preferences';
 import { LogsLayout } from './pages/logs/LogsLayout';
 import { EventExplorer } from './pages/events/EventExplorer';
 import { EventsLayout, EventsSummary } from './pages/events/EventsLayout';
@@ -273,9 +297,10 @@ function Shell() {
       <div className="app" data-nav={nav}>
         <Sidebar mode={nav} setMode={setNav} />
         <TopBar onShowNav={nav === 'hidden' ? () => setNav('expanded') : undefined} />
+        <PreferencesEffects />
         <main className="app-content">
           <Routes>
-            <Route path="/" element={<Navigate to="/logs" replace />} />
+            <Route path="/" element={<HomeRedirect />} />
             <Route path="/logs" element={<LogsLayout />}>
               <Route index element={<LogExplorer />} />
               <Route path="livetail" element={<LiveTail />} />
@@ -290,7 +315,30 @@ function Shell() {
               <Route path="/logs/attributes" element={<StandardAttributesPage />} />
               <Route path="/logs/data-access" element={<DataAccessPage />} />
               <Route path="/logs/rehydrations" element={<RehydrationsPage />} />
-              {LOGS_CONFIG_SLUGS.filter((slug) => !['archives', 'rehydrations', 'indexes', 'pipelines', 'generate-metrics', 'attributes', 'data-access'].includes(slug)).map((slug) => (
+              <Route path="/logs/flex-controls" element={<FlexLogsPage />} />
+              <Route path="/logs/import" element={<ImportsPage />} />
+              <Route path="/logs/import/new" element={<NewImportPage />} />
+              <Route path="/logs/import/:id" element={<ImportDetailPage />} />
+              <Route path="/logs/translate" element={<TranslatePage />} />
+              <Route path="/logs/migration/import" element={<Navigate to="/logs/import" replace />} />
+              <Route path="/logs/migration/translate" element={<Navigate to="/logs/translate" replace />} />
+              {LOGS_CONFIG_SLUGS.filter(
+                (slug) =>
+                  ![
+                    'archives',
+                    'rehydrations',
+                    'indexes',
+                    'pipelines',
+                    'generate-metrics',
+                    'attributes',
+                    'data-access',
+                    'flex-controls',
+                    'import',
+                    'translate',
+                    'migration/import',
+                    'migration/translate',
+                  ].includes(slug),
+              ).map((slug) => (
                 <Route key={slug} path={`/logs/${slug}`} element={<LogsConfigComingSoon />} />
               ))}
             </Route>
@@ -324,7 +372,14 @@ function Shell() {
                 <Route path="insights" element={<ProfileInsights />} />
               </Route>
               <Route path="debugger/*" element={<ApmComingSoon title="Live Debugger" />} />
-              <Route path="settings" element={<ApmComingSoon title="APM Settings" />} />
+              <Route path="settings" element={<ApmSettingsLayout />}>
+                <Route index element={<ApmSettingsOverviewPage />} />
+                <Route path="defaults" element={<ApmDefaultSettingsPage />} />
+                <Route path="ingestion" element={<IngestionControlPage />} />
+                <Route path="pipelines" element={<SpanPipelinesPage />} />
+                <Route path="metrics" element={<GenerateSpanMetricsPage />} />
+                <Route path="retention-filters" element={<RetentionFiltersPage />} />
+              </Route>
             </Route>
             <Route path="/infrastructure" element={<HostsPage />} />
             <Route path="/infrastructure/map" element={<Navigate to="/infrastructure?view=map" replace />} />
@@ -520,6 +575,25 @@ function Shell() {
               <Route path="policies/denylist" element={<DenylistPage />} />
               <Route path="policies/passlist" element={<PasslistPage />} />
               <Route path="policies/sensitive-data" element={<SensitiveDataPage />} />
+            </Route>
+            <Route path="/security/workload-protection" element={<WorkloadLayout />}>
+              <Route index element={<WorkloadOverviewPage />} />
+              <Route path="signals" element={<WorkloadSignalsPage />} />
+              <Route path="investigate" element={<AgentEventsPage />} />
+              <Route path="findings" element={<WorkloadFindingsPage />} />
+              <Route path="inventory" element={<HostsContainersPage />} />
+              <Route path="inventory/serverless" element={<WpServerlessPage />} />
+              <Route path="inventory/coverage" element={<CoveragePage />} />
+              <Route path="policies" element={<AgentConfigurationPage />} />
+              <Route path="policies/detection-rules" element={<WorkloadDetectionRulesPage />} />
+              <Route path="policies/finding-rules" element={<FindingRulesPage />} />
+            </Route>
+            <Route path="/security/ai-guard" element={<AiGuardLayout />}>
+              <Route index element={<AiGuardInvestigatePage />} />
+              <Route path="signals" element={<AiGuardSignalsPage />} />
+              <Route path="discover" element={<AiGuardDiscoverPage />} />
+              <Route path="playground" element={<AiGuardPlaygroundPage />} />
+              <Route path="settings" element={<AiGuardSettingsPage />} />
             </Route>
             <Route path="/security/cloud" element={<CloudSecurityLayout />}>
               <Route index element={<CloudSummaryPage />} />

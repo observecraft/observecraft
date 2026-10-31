@@ -395,8 +395,8 @@ function ThreatProtection({ keep, services, env, service }: { keep: Keep; servic
   const r = useMemo(() => ({ from: Math.floor(range.from / MIN) * MIN, to: Math.ceil(range.to / MIN) * MIN }), [range.from, range.to]);
   const prev = useMemo(() => ({ from: r.from - (r.to - r.from), to: r.from }), [r]);
   const q = useAppsecOverview(r);
-  const now = useSignals({ range: r, query: '@workflow.rule.type:application_security', limit: 500 });
-  const before = useSignals({ range: prev, query: '@workflow.rule.type:application_security', limit: 500 });
+  const now = useSignals({ range: r, query: '@workflow.rule.type:application_security -ai_guard:true', limit: 500 });
+  const before = useSignals({ range: prev, query: '@workflow.rule.type:application_security -ai_guard:true', limit: 500 });
   if (q.isLoading) return <Loading />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const o = q.data!;

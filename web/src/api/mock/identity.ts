@@ -376,8 +376,11 @@ export async function getProfile(): Promise<S['Profile']> {
     .teams.filter((t) => t.members.some((m) => m.userId === ME_ID))
     .sort(byName)
     .map(({ handle, name }) => ({ handle, name }));
-  return { ...summary(u), timezone: u.timezone, org: { ...MOCK_ORG }, teams, isInstanceAdmin: true };
+  return { ...summary(u), timezone: u.timezone, org: { ...MOCK_ORG }, teams, isInstanceAdmin: true, modifiedAt: profileModifiedAt, emailVerified: false };
 }
+
+/** Last profile edit (Personal Settings → Activity and Login). */
+let profileModifiedAt: number | null = Date.now() - 41 * 86_400_000;
 
 function checkName(s: string, what: string, max: number): string {
   const t = s.trim();
@@ -390,6 +393,7 @@ export async function updateProfile(p: S['ProfilePatch']): Promise<S['Profile']>
   if (p.name != null) u.name = checkName(p.name, 'name', 120);
   if (p.title != null) u.title = [...p.title.trim()].slice(0, 120).join('');
   if (p.timezone != null) u.timezone = p.timezone;
+  profileModifiedAt = Date.now();
   return getProfile();
 }
 

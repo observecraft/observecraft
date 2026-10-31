@@ -1107,7 +1107,7 @@ export function BusinessLogicPage() {
   const q = useBusinessLogic();
   const rules = useSecurityRules();
   const navigate = useNavigate();
-  const appRules = (rules.data ?? []).filter((r) => r.type === 'application_security');
+  const appRules = (rules.data ?? []).filter((r) => r.type === 'application_security' && !r.tags?.includes('ai_guard:true'));
   const ruleCounts = (event: string) => {
     const hits = appRules.filter((r) => r.queries.some((x) => (x.query ?? '').includes(event)));
     return [hits.filter((r) => r.isEnabled).length, hits.filter((r) => !r.isEnabled).length];
@@ -1206,7 +1206,7 @@ export function AppsecRulesPage() {
   const [params, setParams] = useSearchParams();
   const view = params.get('view') ?? 'detection';
   const rules = useSecurityRules();
-  const app = (rules.data ?? []).filter((r) => r.type === 'application_security');
+  const app = (rules.data ?? []).filter((r) => r.type === 'application_security' && !r.tags?.includes('ai_guard:true'));
   const card = (title: string, list: typeof app) => (
     <div className="aapp-card" key={title}>
       <h5>

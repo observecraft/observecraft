@@ -1442,7 +1442,8 @@ pub async fn pull_requests(State(st): State<AppState>, OrgId(org): OrgId) -> Api
 #[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TriageRequest {
-    /// `vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>` or `iast:<hash>`.
+    /// `vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>`, `iast:<hash>`, `api-finding:…` (App & API
+    /// Protection) or `workload-finding:<rule>:<resource>` (Workload Protection).
     pub key: String,
     /// open | muted
     pub status: String,
@@ -1455,7 +1456,8 @@ pub async fn triage(State(st): State<AppState>, Writer(ctx): Writer, Json(req): 
     if !["open", "muted"].contains(&req.status.as_str()) {
         return Err(ApiError::BadRequest("status must be open or muted".into()));
     }
-    if !(req.key.starts_with("vuln:") || req.key.starts_with("finding:") || req.key.starts_with("iast:")) || req.key.len() > 512 {
+    let known = ["vuln:", "finding:", "iast:", "api-finding:", "workload-finding:"];
+    if !known.iter().any(|p| req.key.starts_with(p)) || req.key.len() > 512 {
         return Err(ApiError::BadRequest("unknown key".into()));
     }
     sqlx::query(

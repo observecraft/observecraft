@@ -41,6 +41,9 @@ pub struct Config {
     pub seed_demo: bool,
     /// With `seed_demo`: an ingest key of the install's org for the local data generators.
     pub demo_ingest_key: Option<String>,
+    /// With `seed_demo`: an application key of the install's dev user, for generators that call the
+    /// management API as an SDK would (AI Guard's evaluate endpoint).
+    pub demo_app_key: Option<String>,
     /// With `seed_demo`: a local S3-compatible store (RustFS) the install's org archives logs to.
     pub demo_archive: Option<DemoArchive>,
     /// Local working files (archive download cache, search scratch space).
@@ -68,6 +71,8 @@ pub struct Config {
     /// addresses, over http too (`OC_PORTAL_ALLOW_PRIVATE`; off by default, for self-hosted
     /// instances inside the network).
     pub portal_allow_private: bool,
+    /// Custom destinations may forward logs to private or loopback addresses (`OC_LOG_FORWARD_ALLOW_PRIVATE`).
+    pub log_forward_allow_private: bool,
     /// The Datadog-compatible API may create application keys when the caller is itself an
     /// application key (`OC_DATADOG_API_ALLOW_APP_KEY_CREATION`, off by default): Terraform's
     /// `datadog_application_key` needs it, but a leaked key could then mint keys that outlive its
@@ -188,6 +193,7 @@ impl Config {
             smtp_from: var("OC_SMTP_FROM", "ObserveCraft <alerts@observecraft.local>"),
             synthetics_allow_private: var("OC_SYNTHETICS_ALLOW_PRIVATE", "false") == "true",
             portal_allow_private: var("OC_PORTAL_ALLOW_PRIVATE", "false") == "true",
+            log_forward_allow_private: var("OC_LOG_FORWARD_ALLOW_PRIVATE", "false") == "true",
             datadog_api_allow_app_key_creation: var("OC_DATADOG_API_ALLOW_APP_KEY_CREATION", "false") == "true",
             cache: CacheSettings {
                 url: env::var("OC_CACHE_URL").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
@@ -210,6 +216,7 @@ impl Config {
                 metrics_cold_after_days: var("OC_METRICS_COLD_AFTER_DAYS", "0").parse().unwrap_or(0),
             },
             demo_ingest_key: env::var("OC_DEMO_INGEST_KEY").ok().filter(|k| k.starts_with("ocik_") && k.len() >= 20 && var("OC_SEED_DEMO", "true") == "true"),
+            demo_app_key: env::var("OC_DEMO_APP_KEY").ok().filter(|k| k.starts_with("ocak_") && k.len() >= 20 && var("OC_SEED_DEMO", "true") == "true"),
         }
     }
 }

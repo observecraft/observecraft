@@ -24,7 +24,9 @@ URL="https://codeload.github.com/DataDog/datadog-api-client-go/tar.gz/$COMMIT"
 # Features replayed by the tests (`Feature::load` paths).
 FEATURES="v1/authentication v1/monitors v1/downtimes v1/dashboards v1/dashboard_lists v1/service_level_objectives
 v1/service_level_objective_corrections v2/downtimes v2/dashboard_lists v2/users v2/roles v2/teams v2/key_management
-v2/cloud_cost_management v2/rum v2/security_monitoring v2/application_security"
+v2/cloud_cost_management v2/rum v2/security_monitoring v2/application_security v2/csm_threats v2/csm_agents
+v2/csm_coverage_analysis v2/apm_retention_filters v2/spans_metrics v1/logs_pipelines
+v2/logs_metrics v2/logs_restriction_queries v2/logs_custom_destinations"
 
 DEST="${OC_DATADOG_FIXTURES:-${XDG_CACHE_HOME:-$HOME/.cache}/observecraft/datadog-api-client-go/$COMMIT}"
 

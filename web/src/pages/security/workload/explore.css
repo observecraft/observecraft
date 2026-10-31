@@ -1,0 +1,369 @@
+/* Workload Protection: Signals, Investigate (Agent Events Explorer) and Findings. Builds on the App & API Protection
+   explorer (appsec/investigate.css) and findings (appsec/findings.css) styles. */
+.wpx-host {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 6px;
+  padding: 1px 8px 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+.wpx-host svg {
+  flex: none;
+  color: var(--text-muted);
+}
+.fi-chip svg {
+  flex: none;
+}
+.wpx-evt {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+.wpx-ellipsis {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- Agent Events Explorer */
+.wpx-page {
+  gap: 10px;
+}
+.wpx-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.wpx-views {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.wpx-title {
+  font-size: var(--fs-md);
+}
+.wpx-rows {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+  margin-left: 14px;
+}
+.wpx-rows .inv-seg button:disabled {
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.6;
+}
+.wpx-rows .inv-seg button.active {
+  background: var(--primary);
+  color: #fff;
+}
+.wpx-by {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.wpx-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 460px;
+  margin: 60px auto;
+  text-align: center;
+}
+.wpx-empty > svg {
+  color: #9a5bd0;
+}
+.wpx-empty h3 {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: var(--fw-medium);
+}
+.wpx-empty p {
+  margin: 0 0 8px;
+}
+.wpx-chart {
+  padding: 12px 0;
+}
+.wpx-mini {
+  margin-bottom: 4px;
+}
+.wpx-toplist {
+  padding: 12px 0;
+}
+.wpx-toplist li {
+  grid-template-columns: 60px 1fr;
+  cursor: pointer;
+}
+.wpx-toplist li:hover .inv-toplist-bar i {
+  background: #a9c6ef;
+}
+.wpx-table td {
+  vertical-align: middle;
+}
+.wpx-content b,
+.wpx-content span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wpx-content b {
+  font-weight: var(--fw-medium);
+}
+.wpx-content span {
+  font-size: var(--fs-xs);
+}
+.wpx-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px 1px 5px;
+  border-radius: 10px;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+.wpx-cat.c-file {
+  background: #e3edfb;
+  color: #2a5db0;
+}
+.wpx-cat.c-process {
+  background: #efe6fb;
+  color: #6a3db8;
+}
+.wpx-cat.c-network {
+  background: #def3e7;
+  color: #1f7a45;
+}
+.wpx-cat.c-kernel {
+  background: #fbefdc;
+  color: #9a5a00;
+}
+.wpx-more {
+  margin: 8px 0;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------- event panel */
+.wpx-drawer .inv-drawer-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.wpx-section {
+  margin-bottom: 18px;
+}
+.wpx-section h4 {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+}
+.wpx-rule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.wpx-tree {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  list-style: none;
+}
+.wpx-tree li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  font-size: var(--fs-sm);
+}
+.wpx-tree li svg {
+  color: var(--text-muted);
+}
+.wpx-tree li.self {
+  color: var(--text);
+}
+.wpx-tree li.self b {
+  color: #6a3db8;
+}
+.wpx-args {
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--bg);
+  word-break: break-all;
+}
+.wpx-attrs {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+.wpx-attrs td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  word-break: break-all;
+}
+.wpx-attrs td:first-child {
+  width: 34%;
+}
+.wpx-attrs td:last-child {
+  width: 28px;
+}
+.wpx-json {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.wpx-json pre {
+  align-self: stretch;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  font-size: var(--fs-sm);
+}
+
+/* ---------------------------------------------------------------- findings */
+.wpx-groupby-row {
+  display: flex;
+  align-items: center;
+}
+.wpx-groupby-row .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.wpx-status {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+.wpx-status.open {
+  background: #e3edfb;
+  color: #2a5db0;
+}
+.wpx-status.muted {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+.wpx-graphs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.wpx-graphs h5 {
+  margin: 0 0 8px;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+.wpx-bar.sev-critical {
+  background: var(--sev-critical);
+  opacity: 0.35;
+}
+.wpx-bar.sev-high {
+  background: var(--sev-high);
+  opacity: 0.35;
+}
+.wpx-bar.sev-medium {
+  background: var(--sev-medium);
+  opacity: 0.35;
+}
+.wpx-bar.sev-low {
+  background: var(--sev-low);
+  opacity: 0.35;
+}
+.wpx-bar.sev-info {
+  background: var(--sev-info);
+  opacity: 0.35;
+}
+.wpx-types {
+  display: flex;
+  gap: 32px;
+  padding-top: 8px;
+}
+.wpx-types div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wpx-types b {
+  font-size: 26px;
+  font-weight: var(--fw-medium);
+}
+.wpx-types span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+}
+
+/* Signals list: the host and the actors fit their fixed columns. */
+.fi-where .wpx-host {
+  font-family: inherit;
+}
+.wpx-who {
+  display: inline-flex;
+  max-width: 100%;
+  gap: 4px;
+  overflow: hidden;
+}
+.wpx-who .fi-chip {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Findings tables: six columns instead of the three of App & API Protection's. */
+.wpx-findings > thead th {
+  white-space: nowrap;
+}
+.wpx-findings,
+.wpx-nested {
+  table-layout: auto;
+}
+.wpx-findings > thead th:first-child {
+  width: 40%;
+}
+.wpx-nested td {
+  white-space: nowrap;
+}
+.wpx-nested .wpx-host {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wpx-content {
+  max-width: 380px;
+}

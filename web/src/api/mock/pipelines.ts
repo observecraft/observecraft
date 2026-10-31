@@ -30,6 +30,10 @@ function seed(): LogPipeline[] {
     enabled,
     source: 'custom',
     readOnly: false,
+    description: '',
+    tags: [],
+    updatedAt: Date.now() - 86_400_000 * (3 + id.charCodeAt(id.length - 1) * 7),
+    updatedBy: ['Jane Doe', 'Sam Rivera', 'Alex Chen', 'Priya Patel'][id.charCodeAt(id.length - 1) % 4],
   });
   const nginx = libraryPipeline('nginx');
   const pipelines: Omit<LogPipeline, 'position'>[] = [
@@ -103,7 +107,19 @@ function seed(): LogPipeline[] {
       ],
       false,
     ),
-    { id: 'pl-0005', name: nginx.name, filter: nginx.filter, processors: nginx.processors, enabled: true, source: 'integration:nginx', readOnly: true },
+    {
+      id: 'pl-0005',
+      name: nginx.name,
+      filter: nginx.filter,
+      processors: nginx.processors,
+      enabled: true,
+      source: 'integration:nginx',
+      readOnly: true,
+      description: '',
+      tags: [],
+      updatedAt: Date.now() - 86_400_000 * 40,
+      updatedBy: null,
+    },
   ];
   return pipelines.map((p, position) => ({ ...p, position }));
 }
@@ -142,7 +158,7 @@ export async function listPipelines(): Promise<LogPipeline[]> {
 export async function createPipeline(input: LogPipelineInput): Promise<LogPipeline> {
   const fields = validate(input);
   if (db().pipelines.length >= MAX_PIPELINES) fail(`An organization can have at most ${MAX_PIPELINES} pipelines`);
-  const p: LogPipeline = { id: newId(), ...fields, position: nextPosition(), source: 'custom', readOnly: false };
+  const p: LogPipeline = { id: newId(), ...fields, position: nextPosition(), source: 'custom', readOnly: false, description: '', tags: [], updatedAt: Date.now(), updatedBy: 'Jane Doe' };
   db().pipelines.push(p);
   return copy(p);
 }
@@ -151,13 +167,15 @@ export async function updatePipeline(id: string, input: LogPipelineInput): Promi
   const fields = validate(input);
   const p = find(id);
   if (p.readOnly) fail('Integration pipelines are read-only: clone it to make changes');
-  Object.assign(p, fields);
+  Object.assign(p, fields, { updatedAt: Date.now(), updatedBy: 'Jane Doe' });
   return copy(p);
 }
 
 export async function setPipelineEnabled(id: string, enabled: boolean): Promise<LogPipeline> {
   const p = find(id);
   p.enabled = enabled;
+  p.updatedAt = Date.now();
+  p.updatedBy = 'Jane Doe';
   return copy(p);
 }
 
@@ -182,7 +200,20 @@ export async function installLibraryPipeline(id: string): Promise<LogPipeline> {
   const lib = libraryPipeline(id);
   const source = `integration:${lib.id}`;
   if (db().pipelines.some((p) => p.source === source)) fail(`The ${lib.name} pipeline is already installed`);
-  const p: LogPipeline = { id: newId(), name: lib.name, filter: lib.filter, processors: copy(lib.processors), enabled: true, position: nextPosition(), source, readOnly: true };
+  const p: LogPipeline = {
+    id: newId(),
+    name: lib.name,
+    filter: lib.filter,
+    processors: copy(lib.processors),
+    enabled: true,
+    position: nextPosition(),
+    source,
+    readOnly: true,
+    description: '',
+    tags: [],
+    updatedAt: Date.now(),
+    updatedBy: null,
+  };
   db().pipelines.push(p);
   return copy(p);
 }

@@ -16,8 +16,8 @@ export function ApmLayout() {
   return (
     <TimeProvider initial="1h">
       <div className="apm-layout">
-        {/* A service page has its own breadcrumb header in place of the product tabs. */}
-        {!pathname.startsWith('/apm/services/') && (
+        {/* A service page and the settings have their own breadcrumb header in place of the product tabs. */}
+        {!pathname.startsWith('/apm/services/') && !pathname.startsWith('/apm/settings') && (
           <header className="product-header">
             <div className="product-title">
               <Network size={20} />
