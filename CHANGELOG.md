@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/observecraft/observecraft/compare/v0.7.0...v0.7.1) (2026-10-31)
+
+
+### Bug fixes
+
+* **helm:** keep Kafka data out of the volume root ([#55](https://github.com/observecraft/observecraft/issues/55)) ([59f07b1](https://github.com/observecraft/observecraft/commit/59f07b11b04a09fc9a8d940e6a44f82eae37320a))
+
 ## [0.7.0](https://github.com/observecraft/observecraft/compare/v0.6.0...v0.7.0) (2026-10-31)
 
 
