@@ -433,6 +433,42 @@ fn route_batch(ix: &Indexer, body: &[u8]) -> (Vec<u8>, usize, usize) {
     result
 }
 
+// Keep metric expansion bounded independently of indexed storage batching. Each admission is
+// durable before reaching this buffer; a failure/cancellation leaves Kafka as the source owner.
+const INDEX_WRITE_EVENTS: usize = 8192;
+const INDEX_WRITE_BYTES: usize = 8 * 1024 * 1024;
+
+#[derive(Default)]
+struct PendingRows {
+    bytes: Vec<u8>,
+    events: usize,
+}
+impl PendingRows {
+    async fn flush(&mut self, st: &AppState) -> Result<(), String> {
+        if self.events == 0 {
+            return Ok(());
+        }
+        self.events = 0;
+        insert_rows(st, "oc.logs_dedup", std::mem::take(&mut self.bytes)).await
+    }
+
+    async fn push(&mut self, st: &AppState, rows: Vec<u8>, kept: usize) -> Result<(), String> {
+        if kept == 0 {
+            return Ok(());
+        }
+        if self.events + kept > INDEX_WRITE_EVENTS || self.bytes.len() + rows.len() > INDEX_WRITE_BYTES {
+            self.flush(st).await?;
+        }
+        // One oversized admission chunk is delivered directly, never retained alongside a buffer.
+        if kept >= INDEX_WRITE_EVENTS || rows.len() >= INDEX_WRITE_BYTES {
+            return insert_rows(st, "oc.logs_dedup", rows).await;
+        }
+        self.bytes.extend_from_slice(&rows);
+        self.events += kept;
+        Ok(())
+    }
+}
+
 async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: HeaderMap, body: Bytes) -> StatusCode {
     if !internal_authorized(st.config.internal_token.as_deref(), &headers) {
         return StatusCode::UNAUTHORIZED;
@@ -477,7 +513,10 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
     let has_metrics = prepared
         .iter()
         .any(|ev| ev.get("org_id").and_then(Value::as_str).is_some_and(|org| reservations.metric_definitions.contains_key(org)));
-    let chunk_size = if has_metrics || !quota_rows.is_empty() { 512 } else { usize::MAX };
+    // Quota metadata does not expand per-event metric series, so it can amortize transactions
+    // over larger chunks. Keep generated metric expansion at its existing memory bound.
+    let chunk_size = if has_metrics { 512 } else if !quota_rows.is_empty() { 2048 } else { usize::MAX };
+    let mut pending = PendingRows::default();
     let mut input = prepared.into_iter();
     loop {
         // Per-event identity must survive transport, but its expansion must not accumulate for
@@ -496,11 +535,9 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
                 return StatusCode::SERVICE_UNAVAILABLE;
             }
         };
-        if kept > 0 {
-            if let Err(e) = insert_rows(&st, "oc.logs_dedup", rows).await {
-                tracing::warn!(error = %e, "indexing logs failed");
-                return StatusCode::SERVICE_UNAVAILABLE;
-            }
+        if let Err(e) = pending.push(&st, rows, kept).await {
+            tracing::warn!(error = %e, "indexing logs failed");
+            return StatusCode::SERVICE_UNAVAILABLE;
         }
         let (points, dropped) = reservations.metrics.take_contributions();
         for ((org, metric), logs) in dropped {
@@ -516,6 +553,10 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
         reservations.counts.clear();
         existing.extend(reservations.admitted.drain());
     }
+    if let Err(e) = pending.flush(&st).await {
+        tracing::warn!(error = %e, "flushing indexed logs failed");
+        return StatusCode::SERVICE_UNAVAILABLE;
+    }
     StatusCode::OK
 }
 
@@ -523,7 +564,8 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
 pub(crate) async fn insert_rows(st: &AppState, table: &str, rows: Vec<u8>) -> Result<(), String> {
     let _timer = (table == "oc.logs_dedup").then(|| ingest_stats::timer(Stage::IndexedInsert));
     let query = format!("INSERT INTO {table} SETTINGS input_format_skip_unknown_fields = 1, date_time_input_format = 'best_effort', insert_distributed_sync = 1 FORMAT JSONEachRow");
-    let res = reqwest::Client::new()
+    static CLIENT: std::sync::LazyLock<reqwest::Client> = std::sync::LazyLock::new(reqwest::Client::new);
+    let res = CLIENT
         .post(&st.config.clickhouse_url)
         .timeout(Duration::from_secs(30))
         .basic_auth(&st.config.clickhouse_user, Some(&st.config.clickhouse_password))
@@ -609,12 +651,16 @@ mod tests {
         };
         let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let handler_calls = calls.clone();
+        let peers = Arc::new(Mutex::new(Vec::new()));
+        let handler_peers = peers.clone();
         let task = tokio::spawn(async move {
             let app = Router::new().route(
                 "/",
-                post(move |axum::extract::Query(query): axum::extract::Query<HashMap<String, String>>| {
+                post(move |axum::extract::ConnectInfo(peer): axum::extract::ConnectInfo<std::net::SocketAddr>, axum::extract::Query(query): axum::extract::Query<HashMap<String, String>>| {
                     let calls = handler_calls.clone();
+                    let peers = handler_peers.clone();
                     async move {
+                        peers.lock().unwrap().push(peer);
                         assert_eq!(query["wait_end_of_query"], "1");
                         assert!(query["query"].contains("insert_distributed_sync = 1"));
                         if calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 {
@@ -625,13 +671,111 @@ mod tests {
                     }
                 }),
             );
-            axum::serve(listener, app).await.unwrap();
+            axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>()).await.unwrap();
         });
         assert!(insert_rows(&states[0], "oc.logs_dedup", vec![]).await.is_err(), "HTTP 200 alone is not delivery");
         assert!(insert_rows(&states[0], "oc.logs_dedup", vec![]).await.is_ok());
+        let connections = peers.lock().unwrap();
+        assert_eq!(connections[0], connections[1], "sequential storage writes reuse their TCP connection");
+        drop(connections);
         task.abort();
     }
 
+    #[tokio::test]
+    async fn coalesced_partial_writes_replay_without_spending_fresh_quota() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let Some((_, states)) = crate::test_support::replicas_with(1, |cfg| cfg.clickhouse_url = url.clone()).await else {
+            return;
+        };
+        let st = states[0].clone();
+        let org = crate::test_support::new_org(&st, "coalesced-replay").await;
+        let ix = Arc::new(Indexer::default());
+        let total = INDEX_WRITE_EVENTS * 2 + 1;
+        ix.rules.write().unwrap().insert(org.clone(), Arc::new(vec![rule("main", "", Some(total as u64), vec![])]));
+        let writes = Arc::new(Mutex::new(Vec::new()));
+        let delivered = Arc::new(Mutex::new(std::collections::HashSet::new()));
+        let (handler_writes, handler_delivered) = (writes.clone(), delivered.clone());
+        let server = tokio::spawn(async move {
+            let app = Router::new().route(
+                "/",
+                post(move |body: Bytes| {
+                    let (writes, delivered) = (handler_writes.clone(), handler_delivered.clone());
+                    async move {
+                        let rows: Vec<Value> = body.split(|b| *b == b'\n').filter(|l| !l.is_empty()).map(|l| serde_json::from_slice(l).unwrap()).collect();
+                        let mut writes = writes.lock().unwrap();
+                        writes.push(rows.len());
+                        if writes.len() == 2 {
+                            return StatusCode::SERVICE_UNAVAILABLE;
+                        }
+                        for row in rows {
+                            delivered.lock().unwrap().insert(row["id"].as_str().unwrap().to_owned());
+                        }
+                        StatusCode::OK
+                    }
+                }),
+            );
+            axum::serve(listener, app).await.unwrap();
+        });
+        let body = Bytes::from(
+            (1..=total)
+                .map(|n| line(&org, &format!("00000000-0000-4000-8000-{n:012}"), "order-service", "info"))
+                .collect::<String>(),
+        );
+        assert_eq!(ingest(State((st.clone(), ix.clone())), HeaderMap::new(), body.clone()).await, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(delivered.lock().unwrap().len(), INDEX_WRITE_EVENTS);
+        let reserved: i64 = sqlx::query_scalar("SELECT sum(n)::bigint FROM log_quota_counters WHERE org_id = $1")
+            .bind(&org)
+            .fetch_one(&st.postgres)
+            .await
+            .unwrap();
+        assert_eq!(reserved, total as i64, "even the undelivered prefix retains its durable reservation");
+        assert_eq!(ingest(State((st.clone(), ix.clone())), HeaderMap::new(), body).await, StatusCode::OK);
+        assert_eq!(*writes.lock().unwrap(), vec![INDEX_WRITE_EVENTS, INDEX_WRITE_EVENTS, INDEX_WRITE_EVENTS, INDEX_WRITE_EVENTS, 1]);
+        assert_eq!(delivered.lock().unwrap().len(), total);
+        let receipts: i64 = sqlx::query_scalar("SELECT count(*) FROM log_quota_admissions WHERE org_id = $1")
+            .bind(&org)
+            .fetch_one(&st.postgres)
+            .await
+            .unwrap();
+        assert_eq!(receipts, total as i64);
+        assert_eq!(ix.counters.lock().unwrap()[&(org, "main".into())].n, total as u64);
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn indexed_write_buffer_flushes_on_bytes_and_delivers_oversized_chunks_directly() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let Some((_, states)) = crate::test_support::replicas_with(1, |cfg| cfg.clickhouse_url = url.clone()).await else {
+            return;
+        };
+        let sizes = Arc::new(Mutex::new(Vec::new()));
+        let handler_sizes = sizes.clone();
+        let server = tokio::spawn(async move {
+            let app = Router::new()
+                .route(
+                    "/",
+                    post(move |body: Bytes| {
+                        handler_sizes.lock().unwrap().push(body.len());
+                        async { "" }
+                    }),
+                )
+                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024 * 1024));
+            axum::serve(listener, app).await.unwrap();
+        });
+        let mut pending = PendingRows::default();
+        let size = INDEX_WRITE_BYTES / 2 + 1;
+        pending.push(&states[0], vec![b'x'; size], 1).await.unwrap();
+        assert!(sizes.lock().unwrap().is_empty());
+        pending.push(&states[0], vec![b'x'; size], 1).await.unwrap();
+        assert_eq!(pending.bytes.len(), size);
+        pending.push(&states[0], vec![b'x'; INDEX_WRITE_BYTES + 1], 1).await.unwrap();
+        assert!(pending.bytes.is_empty());
+        pending.flush(&states[0]).await.unwrap();
+        assert_eq!(*sizes.lock().unwrap(), vec![size, size, INDEX_WRITE_BYTES + 1]);
+        server.abort();
+    }
     fn indexer(rules: Vec<IndexRule>) -> Indexer {
         let ix = Indexer::default();
         ix.rules.write().unwrap().insert("acme".into(), Arc::new(rules));
@@ -944,7 +1088,7 @@ mod tests {
         let mut body = (1..=513).map(event).collect::<String>();
         body.push_str(&event(1));
         assert_eq!(ingest(State((st.clone(), ix.clone())), HeaderMap::new(), Bytes::from(body)).await, StatusCode::OK);
-        assert_eq!(*writes.lock().unwrap(), vec![3, 1], "the later chunk still delivers a previously admitted identity at full quota");
+        assert_eq!(*writes.lock().unwrap(), vec![4], "indexed writes coalesce while the later chunk still reuses a previously admitted identity at full quota");
         assert_eq!(ix.counters.lock().unwrap()[&(org.clone(), "main".into())].n, 3);
         let batches: i64 = sqlx::query_scalar("SELECT count(*) FROM log_metric_outbox WHERE org_id = $1")
             .bind(&org)
