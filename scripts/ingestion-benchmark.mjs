@@ -310,6 +310,14 @@ try {
     .update(readFileSync(join(scripts, 'proxy.mjs')))
     .update(readFileSync(join(scripts, 'load.mjs')))
     .digest('hex');
+  report.vectorConfigSha256 = Object.fromEntries(
+    ['aggregator.yaml', 'normalize.vrl'].map((name) => [
+      name,
+      createHash('sha256')
+        .update(readFileSync(join(root, 'deploy/vector', name)))
+        .digest('hex'),
+    ]),
+  );
   await docker(['network', 'create', network]);
   await Promise.all([
     run('clickhouse', ['-e', 'CLICKHOUSE_SKIP_USER_SETUP=1'], 'clickhouse/clickhouse-server:26.8'),
