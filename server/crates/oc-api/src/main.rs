@@ -13,6 +13,7 @@ mod error;
 mod live_feed;
 mod log_access;
 mod log_forwarding;
+mod log_metric_outbox;
 mod log_metrics;
 mod logproc;
 mod metric_rollups;
