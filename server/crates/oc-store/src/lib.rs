@@ -121,7 +121,10 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
     (
         "0018_metric_arrivals",
         include_str!("../../../migrations/clickhouse/0018_metric_arrivals.sql"),
-
+    ),
+    (
+        "0019_log_replay_storage",
+        include_str!("../../../migrations/clickhouse/0019_log_replay_storage.sql"),
     ),
 ];
 
@@ -390,7 +393,9 @@ fn delete_ttls(r: RetentionDays) -> Vec<(&'static str, String)> {
     // Rehydrated logs (oc.logs_rehydrated) expire with their rehydration, not by age.
     vec![
         ("oc.logs", "toDateTime(timestamp) + toIntervalDay(retention_days)".into()),
+        ("oc.logs_dedup", "toDateTime(timestamp) + toIntervalDay(retention_days)".into()),
         ("oc.logs_raw", format!("toDateTime(timestamp) + INTERVAL {} HOUR", r.raw_logs_hours)),
+        ("oc.logs_raw_dedup", format!("toDateTime(timestamp) + INTERVAL {} HOUR", r.raw_logs_hours)),
         ("otel.otel_traces", format!("toDate(Timestamp) + toIntervalDay(if(RetentionDays = 0, {}, RetentionDays))", r.traces)),
         ("otel.otel_traces_trace_id_ts", format!("toDate(Start) + INTERVAL {} DAY", r.traces_max)),
         ("otel.otel_ci_traces", format!("toDate(Timestamp) + INTERVAL {} DAY", r.ci)),
@@ -494,7 +499,7 @@ mod tests {
         assert!(stmts.iter().all(|s| !s.contains("${")));
         let creates: Vec<&String> = stmts
             .iter()
-            .filter(|s| s.starts_with("CREATE TABLE"))
+            .filter(|s| s.starts_with("CREATE TABLE") || s.starts_with("CREATE VIEW"))
             .collect();
         let name = |s: &str| s.split_whitespace().nth(5).unwrap_or_default().to_string();
         let distributed: Vec<String> = creates

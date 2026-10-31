@@ -465,13 +465,13 @@ async fn archive_hour(st: &AppState, a: &ArchiveRow, store: &Store, hour: i64) -
     let clause = format!("org_id = ? AND timestamp >= fromUnixTimestamp64Milli(?) AND timestamp < fromUnixTimestamp64Milli(?) AND ({})", f.clause);
     let mut params = vec![Param::Str(a.org_id.clone()), Param::Int(hour), Param::Int(hour + HOUR_MS)];
     params.extend(f.params);
-    let rows: u64 = bind(st.clickhouse.query(&format!("SELECT count() FROM logs_raw WHERE {clause}")), &params).fetch_one().await?;
+    let rows: u64 = bind(st.clickhouse.query(&format!("SELECT count() FROM logs_raw_read WHERE {clause}")), &params).fetch_one().await?;
     if rows == 0 {
         return Ok((0, 0, None));
     }
     // Strings as UTF-8 strings (not binary) so every Parquet reader sees text.
     let ch = st.clickhouse.clone().with_option("output_format_parquet_string_as_string", "1").with_option("output_format_parquet_compression_method", "zstd");
-    let mut cursor = bind(ch.query(&format!("SELECT {ARCHIVE_SELECT} FROM logs_raw WHERE {clause} ORDER BY timestamp")), &params).fetch_bytes("Parquet")?;
+    let mut cursor = bind(ch.query(&format!("SELECT {ARCHIVE_SELECT} FROM logs_raw_read WHERE {clause} ORDER BY timestamp")), &params).fetch_bytes("Parquet")?;
     let mut body = Vec::new();
     while let Some(chunk) = cursor.next().await? {
         body.extend_from_slice(&chunk);

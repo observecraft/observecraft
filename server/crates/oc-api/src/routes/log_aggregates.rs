@@ -23,7 +23,7 @@ pub(crate) struct Aggregate {
 
 /// Error logs per issue key (Error Tracking). Every row is an error log, so `status` is constant.
 pub(crate) const ERROR_GROUPS: Aggregate = Aggregate {
-    table: "oc.error_groups_1m",
+    table: "oc.error_groups_1m_read",
     columns: &[
         ("service", "service"),
         ("status", "'error'"),
@@ -38,7 +38,7 @@ pub(crate) const ERROR_GROUPS: Aggregate = Aggregate {
 
 /// Log counts of the standard facets (Log Explorer).
 pub(crate) const LOG_FACETS: Aggregate = Aggregate {
-    table: "oc.log_facets_1m",
+    table: "oc.log_facets_1m_read",
     columns: &[
         ("service", "service"),
         ("status", "status"),
@@ -103,7 +103,7 @@ pub(crate) struct Plan {
 pub(crate) fn plan(org: &str, access: &LogAccess, agg: &Aggregate, range: TimeRange, terms: &[Term], skip_key: Option<&str>, since: Option<i64>, keys: &[&str]) -> Plan {
     let mut logs = scope(org, access, range, terms, skip_key);
     let restriction_covered = access.searches().is_none_or(|searches| searches.iter().all(|s| agg.covers(s, None)));
-    let usable = logs.table == "logs" && agg.covers(terms, skip_key) && restriction_covered && keys.iter().all(|k| agg.column(k).is_some());
+    let usable = logs.table == "logs_read" && agg.covers(terms, skip_key) && restriction_covered && keys.iter().all(|k| agg.column(k).is_some());
     let Some((from, to)) = window(range, since).filter(|_| usable) else {
         return Plan { agg: None, logs };
     };
@@ -246,7 +246,7 @@ mod tests {
         let all = LogAccess::org_background();
         let p = plan("acme", &all, &LOG_FACETS, range, &parse_query("service:billing"), None, Some(T0), &[]);
         let agg = p.agg.expect("the aggregate answers");
-        assert_eq!(agg.table, "oc.log_facets_1m");
+        assert_eq!(agg.table, "oc.log_facets_1m_read");
         assert_eq!(agg.clause, "org_id = ? AND minute >= toDateTime(?) AND minute < toDateTime(?) AND ((service = ?))");
         assert_eq!(agg.params, vec![Param::Str("acme".into()), Param::Int((T0 + MINUTE_MS) / 1000), Param::Int((T0 + 10 * MINUTE_MS) / 1000), Param::Str("billing".into())]);
         // The logs outside the window, with the same search.

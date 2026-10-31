@@ -205,10 +205,10 @@ try {
   pending();
   status(true);
   await until(() => Number(sql(`SELECT count() FROM otel.otel_traces WHERE OrgId='${org}'`)) >= 1, 'trace exported after consumer replacement');
-  await until(() => Number(sql(`SELECT count() FROM oc.logs_raw WHERE org_id='${org}'`)) >= 3 && status().indexed >= 3, 'both log paths delivered to both sinks');
+  await until(() => Number(sql(`SELECT count() FROM oc.logs_raw_read WHERE org_id='${org}'`)) >= 3 && status().indexed >= 3, 'both log paths delivered to both sinks');
   await until(() => Number(sql(`SELECT count() FROM otel.metrics_samples WHERE OrgId='${org}' AND Value=42`)) >= 1, 'metrics delivered');
   for (const [name, consumerGroup] of streams) await until(() => committed(name, consumerGroup) === 1, `${name}: offset committed after export`);
-  const identities = () => sql(`SELECT toString(id), min(toUnixTimestamp64Milli(timestamp)), max(toUnixTimestamp64Milli(timestamp)) FROM oc.logs_raw WHERE org_id='${org}' AND message='order-service JSON durability probe' GROUP BY id ORDER BY id`);
+  const identities = () => sql(`SELECT toString(id), min(toUnixTimestamp64Milli(timestamp)), max(toUnixTimestamp64Milli(timestamp)) FROM oc.logs_raw_read WHERE org_id='${org}' AND message='order-service JSON durability probe' GROUP BY id ORDER BY id`);
   const beforeReplay = identities();
   assert.equal(beforeReplay.split('\n').length, 2, 'equal events retain distinct IDs');
   for (const event of jsonLogs) assert.ok(beforeReplay.includes(`${event._oc_ingest.id}\t${Date.parse(receivedAt)}\t${Date.parse(receivedAt)}`));
@@ -222,8 +222,31 @@ try {
   vector();
   await until(() => status().indexed >= indexedBefore + 2 && committed('oc.logs.json', 'oc-vector') === 1, 'JSON logs replayed through replacement consumer');
   assert.equal(identities(), beforeReplay, 'replay preserves IDs and fallback timestamps');
+  assert.equal(sql(`SELECT count() FROM oc.logs_raw_read WHERE org_id='${org}' AND message='order-service JSON durability probe'`), '2', 'raw/archive reads deduplicate replay');
+  // Simulate indexed delivery with changed batch boundaries and ordering, before background merges.
+  sql('SYSTEM STOP MERGES oc.logs_dedup');
+  const indexed = `INSERT INTO oc.logs_dedup (org_id, id, timestamp, service, status, message, index_name, retention_days)
+    SELECT org_id, id, timestamp, service, 'error', message, 'main', 15 FROM oc.logs_raw_read
+    WHERE org_id='${org}' AND message='order-service JSON durability probe'`;
+  sql(indexed);
+  for (const event of jsonLogs.toReversed()) sql(`${indexed} AND id=toUUID('${event._oc_ingest.id}')`);
+  assert.equal(sql(`SELECT count() FROM oc.logs_dedup WHERE org_id='${org}'`), '4', 'fixture contains physical duplicates');
+  assert.equal(sql(`SELECT count() FROM oc.logs_read WHERE org_id='${org}'`), '2', 'indexed reads deduplicate before merges');
+  assert.equal(sql(`SELECT sum(n) FROM oc.error_groups_1m_read WHERE org_id='${org}'`), '2', 'error counts are idempotent across insert blocks');
+  assert.equal(sql(`SELECT sum(n) FROM oc.log_facets_1m_read WHERE org_id='${org}'`), '2', 'facet counts are idempotent across insert blocks');
+  sql(`INSERT INTO oc.logs_dedup (org_id, id, timestamp, service, status, message) SELECT '${org}-other', id, timestamp, service, status, message FROM oc.logs_read WHERE org_id='${org}' LIMIT 1`);
+  assert.equal(sql(`SELECT count() FROM oc.logs_read WHERE org_id='${org}-other'`), '1', 'the same ID in another org is independent');
+  sql(`INSERT INTO oc.logs (org_id, id, timestamp, service, status, message) VALUES ('${org}', '019a4000-0000-7000-8000-000000000003', now64(3), 'order-service', 'error', 'legacy writer')`);
+  assert.equal(sql(`SELECT count() FROM oc.logs_read WHERE org_id='${org}'`), '3', 'legacy writers remain visible through forwarding');
+  const migration = readFileSync(`${root}server/migrations/clickhouse/0016_log_replay_storage.sql`, 'utf8')
+    .split('\n').filter((line) => !line.trimStart().startsWith('--')).join('\n')
+    .replaceAll(/\$\{DISTRIBUTED [^}]+\};/g, '').replaceAll('${ON_CLUSTER}', '').replaceAll('${LOCAL}', '').replaceAll('${REPLICATED}', '');
+  for (let attempt = 0; attempt < 2; attempt++) docker(['exec', '-i', names.clickhouse, 'clickhouse-client', '--multiquery'], migration);
+  assert.equal(sql(`SELECT count() FROM oc.logs_read WHERE org_id='${org}'`), '3', 'backfill can be retried without duplicate reads');
+  assert.equal(sql(`SELECT sum(n) FROM oc.error_groups_1m_read WHERE org_id='${org}'`), '3', 'backfill can be retried without duplicate errors');
+  assert.equal(sql(`SELECT sum(n) FROM oc.log_facets_1m_read WHERE org_id='${org}'`), '3', 'backfill can be retried without duplicate facets');
   console.log('PASS: traces, metrics, OTLP/JSON logs, both log sinks, outage, consumer volume loss, replay and tenant stamping');
-  console.log('PASS: equal JSON events remain distinct and retain their IDs/timestamps after an explicit Kafka offset reset (storage remains at-least-once)');
+  console.log('PASS: Kafka offset replay preserves distinct event identities; raw/indexed reads and error/facet counts deduplicate across changed batch boundaries');
 } catch (error) {
   console.error(docker(['logs', '--tail', '25', names.collector], undefined, true));
   console.error(docker(['logs', '--tail', '25', names.vector], undefined, true));

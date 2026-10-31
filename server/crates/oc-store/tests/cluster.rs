@@ -184,6 +184,9 @@ async fn schema_on_a_cluster() {
         ("otel", "metrics_dist_samples_local", "OrgId"),
         ("otel", "k8s_inventory_local", "OrgId"),
         ("oc", "logs_local", "org_id"),
+        ("oc", "logs_dedup_local", "org_id"),
+        ("oc", "error_groups_1m_dedup_local", "org_id"),
+        ("oc", "log_facets_1m_dedup_local", "org_id"),
         ("oc", "error_groups_1m_local", "org_id"),
         ("oc", "log_facets_1m_local", "org_id"),
     ] {

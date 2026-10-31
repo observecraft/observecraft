@@ -93,12 +93,38 @@ event timestamp, the same fallback time. Equal events in one batch or separate r
 Invalid JSON and arrays containing non-objects are rejected before Kafka acceptance. Compressed requests are
 decoded before stamping on both the Kafka and direct HTTP paths.
 
-This establishes event identity, not storage deduplication: `oc.logs_raw`, indexed logs, incremental views,
-quota counters and generated log metrics can still count a replay again. OTLP logs and legacy Kafka records
-without the envelope still receive new IDs at normalization. A sender retry accepted as a new request also gets
-new IDs; there is no client idempotency-key contract. The next storage change must use these identities across
-changed batch boundaries and protect aggregates and both durable sinks. Replacing rows during background merges
-alone does not retract duplicates already counted by incremental materialized views.
+New writes go to `oc.logs_dedup` and `oc.logs_raw_dedup`, both ReplacingMergeTree tables.
+Their sort key includes org, service, timestamp and ID; the shard key is `cityHash64(org_id, id)`.
+`oc.logs_read` and `oc.logs_raw_read` apply FINAL, so search, monitors, index volumes and archives
+see one copy even before merges. Indexed error/facet aggregates use `uniqExactState(id)` and merge those
+states at read time. Retried inserts with different batching and order therefore do not inflate these counts.
+This is logical deduplication of immutable normalized events; it does not promise one physical row per event.
+Aggregate read views finalize the exact states on each shard and use ordered aggregation, so only counts
+and sample states cross the network. Unique counts from the shards are additive because an identity always
+belongs to one shard.
+
+Migration 0016 preserves the legacy tables, installs forwarding views for legacy writers, and backfills
+both new tables after their aggregate views exist. Backfill can be retried without inflating reads or
+aggregates. Pause ingestion, drain old consumers and stop them before upgrading; on a cluster, sync the
+legacy tables' replicas before backfill. Budget disk space and migration time for copying the existing
+indexed/raw logs and building the exact aggregate states. Legacy copies expire under their original TTL;
+new writes use only the new tables. Retention changes and organization deletion cover both generations.
+Do not roll back to an older server that reads only the legacy tables after new writes have started.
+
+The deduplication contract requires the same org, ID, timestamp, service, routing dimensions and retention
+on replay. Reprocessing with changed pipelines/index rules is a reindex/rebuild operation, not an immutable
+retry: old aggregate groups must be rebuilt as well. Changing the number of shards also requires moving
+existing identities consistently. Exact UUID states consume memory/storage proportional to distinct events,
+and FINAL adds read work; benchmark these costs before sizing a large installation. External ClickHouse
+installations must set `insert_distributed_sync=1`, `wait_for_async_insert=1` and
+`http_wait_end_of_query=1` for the ingestion user's profile, as the bundled chart does.
+
+Remaining boundaries: OTLP logs and legacy Kafka records without the envelope still receive new IDs at
+normalization, so their replay is not deduplicated by identity. A sender retry accepted as a new request
+also gets new IDs; there is no client idempotency-key contract. The indexer's local quota counters and
+in-memory generated log metrics are still updated per delivery, before the storage write, and are not
+protected by storage deduplication. They need a separate durable processing/aggregation design before
+claiming end-to-end idempotency. Raw metric samples, traces and live tail retain at-least-once semantics.
 
 Before upgrading from file-backed Collector/Vector queues, stop new ingestion, leave the old consumers running
 with healthy destinations until every exporter queue and Vector disk buffer is empty, and check Kafka consumer lag. Do not remove a volume
@@ -108,7 +134,9 @@ does not open or drain old file-backed queues. Resume ingestion after the upgrad
 `node scripts/kafka-durability.mjs` starts a disposable Kafka, Collector, Vector and ClickHouse on their own network.
 It holds the storage/indexer unavailable for 310 seconds, verifies that offsets remain uncommitted, destroys both
 consumers and their local queues, then checks that replacements export traces, metrics and OTLP/JSON logs with
-the correct tenant before committing. The indexer is an HTTP test endpoint; raw log storage uses real ClickHouse.
+the correct tenant before committing. The indexer is an HTTP test endpoint; raw log storage uses real ClickHouse. The test also resets JSON
+consumer offsets and checks raw read deduplication, then inserts indexed events in changed batches to
+verify search/error/facet counts before background merges, tenant isolation and repeated legacy backfill.
 `OC_DURABILITY_OUTAGE_SECONDS=15` is a shorter smoke test, not verification of the former five-minute retry limit.
 The test uses the shipped Collector configuration. It does not stop or reuse the application stack.
 

@@ -1455,7 +1455,7 @@ mod tests {
         // The aggregate answers the searches and restrictions it can express (4 of 6).
         assert_eq!(check(since).await, 4);
         // Logs from before the aggregate (here: its first minutes dropped) come from the logs.
-        let (table, on) = (live.cfg.local("oc.error_groups_1m"), live.cfg.on_cluster());
+        let (table, on) = (live.cfg.local("oc.error_groups_1m_dedup"), live.cfg.on_cluster());
         ch.query(&format!("ALTER TABLE {table}{on} DELETE WHERE org_id = ? AND minute < fromUnixTimestamp64Milli(?) SETTINGS mutations_sync = 2"))
             .bind(&org)
             .bind(t0 + 4 * 60_000)
