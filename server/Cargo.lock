@@ -2886,6 +2886,7 @@ dependencies = [
  "oc-flags",
  "oc-query",
  "prost",
+ "rand 0.8.8",
  "reqwest",
  "rskafka",
  "serde",

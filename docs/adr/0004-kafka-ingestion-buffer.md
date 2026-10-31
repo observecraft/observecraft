@@ -86,6 +86,20 @@ move to Kafka topics the same way later.
 
 ## Recovery and verification
 
+JSON logs (`/api/v2/logs`) now receive a server-generated UUIDv7 per event and an acceptance timestamp
+before being serialized to Kafka. The reserved `_oc_ingest` envelope is overwritten at the authenticated intake;
+Vector consumes and removes it before normalization. A replay keeps the same ID and, for logs without a valid
+event timestamp, the same fallback time. Equal events in one batch or separate requests receive distinct IDs.
+Invalid JSON and arrays containing non-objects are rejected before Kafka acceptance. Compressed requests are
+decoded before stamping on both the Kafka and direct HTTP paths.
+
+This establishes event identity, not storage deduplication: `oc.logs_raw`, indexed logs, incremental views,
+quota counters and generated log metrics can still count a replay again. OTLP logs and legacy Kafka records
+without the envelope still receive new IDs at normalization. A sender retry accepted as a new request also gets
+new IDs; there is no client idempotency-key contract. The next storage change must use these identities across
+changed batch boundaries and protect aggregates and both durable sinks. Replacing rows during background merges
+alone does not retract duplicates already counted by incremental materialized views.
+
 Before upgrading from file-backed Collector/Vector queues, stop new ingestion, leave the old consumers running
 with healthy destinations until every exporter queue and Vector disk buffer is empty, and check Kafka consumer lag. Do not remove a volume
 that still contains queued data: older consumers may already have committed those records. The new configuration

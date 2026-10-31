@@ -1,6 +1,45 @@
 # Unit tests of the `normalize` transform (normalize.vrl):
 #   docker compose -f deploy/docker-compose.yml run --rm --entrypoint vector vector-aggregator test /etc/vector/aggregator.yaml /etc/vector/tests.yaml
 tests:
+  - name: accepted JSON log retains its ID and fallback time through replay
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "kafka"
+          ._oc_kafka_headers = { "x-oc-org": "example-org" }
+          ._oc_ingest = { "id": "019a4000-0000-7000-8000-000000000001", "received_at": "2026-10-25T18:00:00Z" }
+          .timestamp = t'2026-10-31T00:00:00Z'
+          .message = "order accepted"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.id, "019a4000-0000-7000-8000-000000000001")
+              assert_eq!(.timestamp, t'2026-10-25T18:00:00Z')
+              assert!(!exists(.attr._oc_ingest))
+              assert!(!contains(string!(.attributes), "_oc_ingest"))
+
+  - name: accepted JSON log keeps explicit event time and hides reserved metadata
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "example-org"
+          ._oc_ingest = { "id": "019a4000-0000-7000-8000-000000000002", "received_at": "2026-10-25T18:00:00Z" }
+          .timestamp = "2026-10-20T12:00:00Z"
+          .message = "order accepted"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.id, "019a4000-0000-7000-8000-000000000002")
+              assert_eq!(.timestamp, t'2026-10-20T12:00:00Z')
+              assert!(!exists(.attr._oc_ingest))
+
   - name: kubernetes container log with a JSON line (OTLP from the Collector)
     inputs:
       - insert_at: normalize
