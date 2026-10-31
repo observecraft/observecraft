@@ -127,10 +127,29 @@ installations must set `insert_distributed_sync=1`, `wait_for_async_insert=1` an
 
 Remaining boundaries: OTLP logs and legacy Kafka records without the envelope still receive new IDs at
 normalization, so their replay is not deduplicated by identity. A sender retry accepted as a new request
-also gets new IDs; there is no client idempotency-key contract. The indexer's local quota counters and
-in-memory generated log metrics are still updated per delivery, before the storage write, and are not
-protected by storage deduplication. They need a separate durable processing/aggregation design before
-claiming end-to-end idempotency. Raw metric samples, traces and live tail retain at-least-once semantics.
+also gets new IDs; there is no client idempotency-key contract.
+
+For organizations with daily index quotas, the indexer looks up already indexed identities before
+admission (tenant-scoped batches of at most 1,000 IDs, pruned to the processed event timestamps).
+Persisted rows keep their index/retention without spending another slot, including after a restart
+with a full quota. Duplicate identities within a batch reserve one slot. Failed and cancelled writes
+release their local reservations; a retry checks storage first in case the failed response hid a
+successful write. Startup restores counters before accepting quota-bearing traffic. Admission and
+storage are serialized per organization on each replica, and reconciliation waits for in-flight
+quota writes; different organizations can ingest concurrently. Unlimited organizations skip the
+extra storage lookup. A lookup failure returns 503 and leaves delivery ownership with Kafka.
+
+Quotas remain approximate across API replicas: they reconcile every 30 seconds, and visibility can
+lag on ClickHouse replicas. An ambiguous write can also leave local totals below the persisted total
+until reconciliation. This is not a global transactional quota or a durable receipt for rejected
+events. Restored daily totals still use event timestamps; late events and changed reset hours can
+make those totals differ from ingestion-day accounting. Admission reuse lasts only while the indexed
+row is retained and requires the same immutable identity fields as storage deduplication above.
+
+Generated log metrics still update per delivery in memory before storage and drop flushed points
+on export failure. They need durable, idempotent aggregation before claiming end-to-end idempotency;
+an in-memory seen-ID cache would not survive a restart or close the crash window around export.
+Raw metric samples, traces and live tail retain at-least-once semantics.
 
 Before upgrading from file-backed Collector/Vector queues, stop new ingestion, leave the old consumers running
 with healthy destinations until every exporter queue and Vector disk buffer is empty, and check Kafka consumer lag. Do not remove a volume
