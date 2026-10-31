@@ -1,7 +1,9 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ChevronDown, Plus, Radar, Settings } from 'lucide-react';
 import { Menu } from '../../components/ui/Dropdown';
+import { useDashboardSearch } from '../dashboards/queries';
+import { NewTestModal } from './NewTest';
 import '../monitors/monitors.css';
 import './synthetics.css';
 import './syntheticsProduct.css';
@@ -17,6 +19,9 @@ const TABS = [
 /** Synthetic Monitoring & Testing frame: product switcher, tabs, settings and the New Test split button. */
 export function SyntheticsLayout() {
   const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
+  // The Dashboards menu: dashboards about synthetics (the built-in one and the org's own).
+  const dashboards = useDashboardSearch({ query: 'synthetics', preset: 'all', listId: null, team: null, sort: { field: 'title', dir: 'asc' }, offset: 0, limit: 10 });
   return (
     <div className="mon-layout">
       <header className="product-header syn-product-header">
@@ -41,20 +46,32 @@ export function SyntheticsLayout() {
               {t.label}
             </NavLink>
           ))}
+          <Menu
+            triggerClassName="product-tab syn-tab-menu"
+            trigger={
+              <>
+                Dashboards <ChevronDown size={15} />
+              </>
+            }
+            items={[
+              ...(dashboards.data?.dashboards ?? []).map((d) => ({ label: d.title, onClick: () => navigate(`/dashboards/${d.id}`) })),
+              { label: 'All synthetics dashboards', onClick: () => navigate('/dashboards?q=synthetics') },
+            ]}
+          />
         </nav>
         <div className="mon-header-actions">
           <Link className="link-muted mon-header-link" to="/synthetics/settings/default">
             <Settings size={15} /> Settings
           </Link>
           <div className="mon-split">
-            <button className="btn btn-primary" onClick={() => navigate('/synthetics/create')}>
+            <button className="btn btn-primary" onClick={() => setCreating(true)}>
               <Plus size={15} /> New Test
             </button>
             <Menu
               triggerClassName="btn btn-primary mon-split-caret"
               trigger={<ChevronDown size={15} aria-label="More create options" />}
               items={[
-                { label: 'New API Test', onClick: () => navigate('/synthetics/create') },
+                { label: 'New API Test', onClick: () => navigate('/synthetics/templates') },
                 { label: 'New Suite', onClick: () => navigate('/synthetics/suites/new') },
               ]}
             />
@@ -64,6 +81,7 @@ export function SyntheticsLayout() {
       <div className="mon-section">
         <Outlet />
       </div>
+      {creating && <NewTestModal onClose={() => setCreating(false)} />}
     </div>
   );
 }

@@ -68,6 +68,27 @@ impl Schema for SpansSchema {
     }
 }
 
+/// `otel.otel_rum` (RUM events): `@path` → the event's flattened field, `type` the event type, `service`,
+/// `env` and `version` as Datadog's RUM facets name them; other keys are event fields too (`application.id`,
+/// `session.type`, …), since RUM events carry no separate tags.
+pub struct RumSchema;
+
+impl Schema for RumSchema {
+    fn field(&self, key: &str) -> (String, Option<Param>) {
+        let attr = |k: &str| ("LogAttributes[?]".to_string(), Some(Param::Str(k.to_string())));
+        match key {
+            "type" | "@type" => ("EventType".into(), None),
+            "service" | "@service" => ("ServiceName".into(), None),
+            "env" => ("ResourceAttributes[?]".into(), Some(Param::Str("deployment.environment".into()))),
+            "version" | "@version" => ("ResourceAttributes[?]".into(), Some(Param::Str("service.version".into()))),
+            k => attr(k.strip_prefix('@').unwrap_or(k)),
+        }
+    }
+    fn text_expr(&self) -> &'static str {
+        "lower(Body)"
+    }
+}
+
 /// `*` wildcards → SQL LIKE pattern, with LIKE metacharacters escaped.
 pub(crate) fn like_pattern(p: &str) -> String {
     let mut out = String::with_capacity(p.len() + 2);
@@ -144,6 +165,15 @@ pub(crate) fn any_of(filters: Vec<SqlFilter>, none: &str) -> SqlFilter {
 mod tests {
     use super::*;
     use crate::parse_query;
+
+    #[test]
+    fn rum_fields_are_event_attributes() {
+        let f = build_where(&RumSchema, &crate::parse_query("@type:view @view.name:/checkout* service:storefront-web -@session.type:synthetics"), None);
+        assert_eq!(f.clause, "(EventType = ?) AND (LogAttributes[?] ILIKE ?) AND (ServiceName = ?) AND NOT (LogAttributes[?] = ?)");
+        assert_eq!(f.params[0], Param::Str("view".into()));
+        assert_eq!(f.params[1], Param::Str("view.name".into()));
+        assert_eq!(f.params[5], Param::Str("synthetics".into()));
+    }
 
     #[test]
     fn builds_bound_sql() {

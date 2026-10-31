@@ -42,6 +42,56 @@ export function matchesSuiteTerms(s: Parameters<typeof matchesSuiteQuery>[0], qu
   });
 }
 
+// ---------------------------------------------------------------- tests list
+
+/** What the tests list filters on. */
+export interface TestFacts {
+  name: string;
+  domain: string;
+  type: string;
+  env: string;
+  team: string;
+  tags: string[];
+  status: MonitorStatus;
+  paused: boolean;
+  createdBy?: string | null;
+}
+
+/** One `key:value` of the tests list: type, status (paused counts as its own status), env, team, creator or a tag. */
+function testCondition(t: TestFacts, key: string, value: string): boolean {
+  const v = value.toLowerCase();
+  switch (key.toLowerCase()) {
+    case 'type':
+    case 'subtype':
+      return t.type === v;
+    case 'status':
+      return (t.paused ? 'paused' : t.status) === v || (v === 'no_data' && !t.paused && t.status === 'nodata');
+    case 'env':
+      return t.env.toLowerCase() === v;
+    case 'team':
+      return t.team.toLowerCase() === v;
+    case 'creator':
+      return (t.createdBy ?? '').toLowerCase() === v;
+    default:
+      return t.tags.some((x) => x.toLowerCase() === `${key.toLowerCase()}:${v}`);
+  }
+}
+
+/** The tests list's query: words match name, domain and tags; facets add unions and negations. */
+export function matchesTestTerms(t: TestFacts, query: string): boolean {
+  return parseQuery(query).every((term) => {
+    const hit =
+      term.kind === 'text'
+        ? term.text
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean)
+            .every((w) => t.name.toLowerCase().includes(w) || t.domain.toLowerCase().includes(w) || t.tags.some((x) => x.toLowerCase().includes(w)))
+        : term.values.some((v) => testCondition(t, term.key, v));
+    return term.negate ? !hit : hit;
+  });
+}
+
 // ---------------------------------------------------------------- results explorer
 
 /** What the explorer's query filters on (a stored run and its test). */

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Check, ChevronRight, MapPin, Plus, Radar, Send, Sparkles, Trash2, X } from 'lucide-react';
 import type { SyntheticAssertion, SyntheticAssertionResult, SyntheticRequest, SyntheticTest, SyntheticTestInput, SyntheticTestType } from '../../api/synthetics/client';
 import {
@@ -13,6 +13,7 @@ import {
   SNIPPETS,
   SNIPPET_CATEGORIES,
   SOON_TYPES,
+  TEST_TEMPLATES,
   TEST_TYPES,
   TYPE_LABEL,
   assertionUnit,
@@ -45,18 +46,47 @@ const list = (s: string) =>
 /** New API Test / Edit: a numbered form of request, assertions, location, retries, schedule, downtimes and monitor. */
 export function SyntheticTestEditor() {
   const { id } = useParams();
+  const [params] = useSearchParams();
+  const cloneId = id ? undefined : (params.get('clone') ?? undefined);
   const q = useSyntheticTest(id);
+  const source = useSyntheticTest(cloneId);
   // New tests start from Settings → Default Settings (the built-in defaults if they can't be read).
   const settings = useSyntheticSettings();
   if (id && q.isPending) return <Loading label="Loading test…" />;
   if (id && q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
+  if (cloneId && source.isPending) return <Loading label="Loading the test to clone…" />;
+  if (cloneId && source.isError) return <ErrorState error={source.error} onRetry={() => source.refetch()} />;
   if (!id && settings.isPending) return <Loading label="Loading default settings…" />;
-  return <EditorForm key={id ?? 'new'} test={q.data} defaults={fullSettings(settings.data).defaults} />;
+  const defaults = fullSettings(settings.data).defaults;
+  return <EditorForm key={id ?? `new-${params.toString()}`} test={q.data} start={id ? undefined : startDraft(params, defaults, source.data)} defaults={defaults} />;
 }
 
-function EditorForm({ test, defaults }: { test?: SyntheticTest; defaults: DraftDefaults }) {
+/**
+ * What New API Test starts from: a clone of a test (`?clone=`), a template (`?template=`), an endpoint
+ * without a test (`?method=&url=&service=` from Coverage gaps) or the default settings.
+ */
+function startDraft(params: URLSearchParams, defaults: DraftDefaults, source?: SyntheticTest): TestDraft {
+  if (source) return { ...draftOf(source), name: `${source.name} (clone)`, paused: false };
+  const base = newDraft('http', defaults);
+  const template = TEST_TEMPLATES.find((t) => t.id === params.get('template') && !t.soon);
+  if (template) return template.apply(base);
+  const path = params.get('url');
+  if (path) {
+    const method = (params.get('method') ?? 'GET').toUpperCase();
+    const service = params.get('service');
+    return {
+      ...base,
+      name: `${service ? `[${service}] ` : ''}${method} ${path}`,
+      request: { ...base.request, method: METHODS.includes(method) ? method : 'GET', url: /^https?:\/\//.test(path) ? path : 'https://' },
+      tags: service ? [...new Set([...base.tags, `service:${service}`])] : base.tags,
+    };
+  }
+  return base;
+}
+
+function EditorForm({ test, start, defaults }: { test?: SyntheticTest; start?: TestDraft; defaults: DraftDefaults }) {
   const navigate = useNavigate();
-  const [d, setD] = useState<TestDraft>(() => (test ? draftOf(test) : newDraft('http', defaults)));
+  const [d, setD] = useState<TestDraft>(() => (test ? draftOf(test) : (start ?? newDraft('http', defaults))));
   const [tags, setTags] = useState(() => d.tags.join(', '));
   const [advanced, setAdvanced] = useState(() => !!test && (test.request.headers.length > 0 || !!test.request.body || !!test.request.basicAuth));
   const send = useTrySyntheticRequest();

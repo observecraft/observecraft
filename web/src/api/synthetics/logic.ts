@@ -536,6 +536,122 @@ export const SNIPPETS: Snippet[] = [
   },
 ];
 
+/** A starting point of New API Test: a whole draft, shown as a card on the templates page. */
+export interface TestTemplate {
+  id: string;
+  group: 'Availability' | 'Security Checks';
+  title: string;
+  description: string;
+  /** Request types ObserveCraft can't run yet: shown, not chosen. */
+  soon?: boolean;
+  apply: (d: TestDraft) => TestDraft;
+}
+
+const H = (property: string, operator: SyntheticAssertion['operator'], target: string): SyntheticAssertion => ({ type: 'header', operator, property, target });
+
+export const TEST_TEMPLATES: TestTemplate[] = [
+  {
+    id: 'latency',
+    group: 'Availability',
+    title: 'Latency / Response Time',
+    description: 'Alert on slow answers, with the time split into DNS, connection, TLS, time to first byte and download on every run.',
+    apply: (d) =>
+      withAssertions({ ...withType(d, 'http'), name: d.name || 'Response time' }, [
+        { type: 'statusCode', operator: 'is', property: '', target: '200' },
+        { type: 'responseTime', operator: 'lessThan', property: '', target: '1000' },
+      ]),
+  },
+  {
+    id: 'ssl',
+    group: 'Availability',
+    title: 'SSL Validity',
+    description: 'Check that a TLS certificate is trusted and alert weeks before it expires.',
+    apply: (d) =>
+      withAssertions({ ...withType(d, 'ssl'), frequencySeconds: Math.max(d.frequencySeconds, 3600), name: d.name || 'Certificate validity' }, [
+        { type: 'certificate', operator: 'isInMoreThan', property: '', target: '30' },
+      ]),
+  },
+  {
+    id: 'dns',
+    group: 'Availability',
+    title: 'DNS Resolution',
+    description: 'Resolve a domain with your resolver or a chosen server and check its A records and lookup time.',
+    apply: (d) =>
+      withAssertions({ ...withType(d, 'dns'), name: d.name || 'DNS resolution' }, [
+        { type: 'recordSome', operator: 'matches', property: 'A', target: '.+' },
+        { type: 'responseTime', operator: 'lessThan', property: '', target: '500' },
+      ]),
+  },
+  {
+    id: 'tcp',
+    group: 'Availability',
+    title: 'TCP Port Reachability',
+    description: 'Open a TCP connection to a host and port, such as a database or a message broker, within a time limit.',
+    apply: (d) => withAssertions({ ...withType(d, 'tcp'), name: d.name || 'Port reachability' }, [{ type: 'responseTime', operator: 'lessThan', property: '', target: '300' }]),
+  },
+  {
+    id: 'grpc',
+    group: 'Availability',
+    title: 'gRPC Health Check',
+    description: 'Call the standard gRPC health service of a server.',
+    soon: true,
+    apply: (d) => d,
+  },
+  {
+    id: 'websocket',
+    group: 'Availability',
+    title: 'WebSocket Connection',
+    description: 'Open a WebSocket, send a message and check the answer.',
+    soon: true,
+    apply: (d) => d,
+  },
+  {
+    id: 'icmp',
+    group: 'Availability',
+    title: 'ICMP Packet Loss',
+    description: 'Ping a host for packet loss and round-trip times.',
+    soon: true,
+    apply: (d) => d,
+  },
+  {
+    id: 'security-headers',
+    group: 'Security Checks',
+    title: 'Security Headers',
+    description: 'Expect HSTS, content type sniffing protection, framing protection and a content security policy on the response.',
+    apply: (d) =>
+      withAssertions({ ...withType(d, 'http'), name: d.name || 'Security headers' }, [
+        H('strict-transport-security', 'contains', 'max-age'),
+        H('x-content-type-options', 'is', 'nosniff'),
+        H('x-frame-options', 'matches', '^(DENY|SAMEORIGIN|deny|sameorigin)$'),
+        H('content-security-policy', 'matches', '.+'),
+      ]),
+  },
+  {
+    id: 'secure-cookie',
+    group: 'Security Checks',
+    title: 'Secure Cookie',
+    description: 'Check that the cookies a response sets are Secure, HttpOnly and SameSite.',
+    apply: (d) =>
+      withAssertions({ ...withType(d, 'http'), name: d.name || 'Secure cookies' }, [
+        H('set-cookie', 'contains', 'Secure'),
+        H('set-cookie', 'contains', 'HttpOnly'),
+        H('set-cookie', 'contains', 'SameSite'),
+      ]),
+  },
+  {
+    id: 'disclosure',
+    group: 'Security Checks',
+    title: 'Information Disclosure in Headers',
+    description: 'Fail when headers reveal the server software version or the framework behind it.',
+    apply: (d) =>
+      withAssertions({ ...withType(d, 'http'), name: d.name || 'Header information disclosure' }, [
+        H('server', 'doesNotMatch', '[0-9]'),
+        H('x-powered-by', 'doesNotMatch', '.+'),
+        H('x-aspnet-version', 'doesNotMatch', '.+'),
+      ]),
+  },
+];
+
 /** The request part the editor can send: what's missing before Send / Save. */
 export function requestProblem(type: SyntheticTestType, r: SyntheticRequest): string | null {
   // Global variables (`{{ NAME }}`) are checked once filled in, when the request is sent.

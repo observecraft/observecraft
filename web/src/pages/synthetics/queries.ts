@@ -85,6 +85,22 @@ export function useRunSyntheticTest() {
   return useMutation({ mutationFn: runSyntheticTest, onSuccess: done });
 }
 
+/** Bulk actions of the tests list: one request per test. */
+export function useUpdateSyntheticTests() {
+  const done = useInvalidate();
+  return useMutation({ mutationFn: (changes: { id: string; input: SyntheticTestInput }[]) => Promise.all(changes.map((c) => updateSyntheticTest(c.id, c.input))), onSuccess: done });
+}
+
+export function useDeleteSyntheticTests() {
+  const done = useInvalidate();
+  return useMutation({ mutationFn: (ids: string[]) => Promise.all(ids.map((id) => deleteSyntheticTest(id))), onSuccess: done });
+}
+
+export function useRunSyntheticTests() {
+  const done = useInvalidate();
+  return useMutation({ mutationFn: (ids: string[]) => Promise.all(ids.map((id) => runSyntheticTest(id))), onSuccess: done });
+}
+
 export const useTrySyntheticRequest = () => useMutation({ mutationFn: trySyntheticRequest });
 
 // ---------------------------------------------------------------- suites

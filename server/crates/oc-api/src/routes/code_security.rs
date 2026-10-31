@@ -49,7 +49,7 @@ fn now_ms() -> i64 {
 }
 
 /// The org of a request from the intake's internal listener (checked like the other `/ingest/*`).
-fn internal_org(st: &AppState, headers: &HeaderMap) -> Result<String, StatusCode> {
+pub(crate) fn internal_org(st: &AppState, headers: &HeaderMap) -> Result<String, StatusCode> {
     if let Some(token) = &st.config.internal_token {
         let ok = headers.get("authorization").and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")) == Some(token.as_str());
         if !ok {
@@ -59,7 +59,7 @@ fn internal_org(st: &AppState, headers: &HeaderMap) -> Result<String, StatusCode
     headers.get("x-oc-org").and_then(|v| v.to_str().ok()).filter(|o| !o.is_empty()).map(str::to_string).ok_or(StatusCode::BAD_REQUEST)
 }
 
-fn gunzip_if(headers: &HeaderMap, body: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn gunzip_if(headers: &HeaderMap, body: &[u8]) -> Option<Vec<u8>> {
     let gz = headers.get("content-encoding").and_then(|v| v.to_str().ok()).is_some_and(|v| v.contains("gzip")) || body.starts_with(&[0x1f, 0x8b]);
     if !gz {
         return Some(body.to_vec());
@@ -292,9 +292,9 @@ pub async fn upload_sbom(State(st): State<AppState>, DdAuth(ctx): DdAuth, raw: B
 
 // ================================================================ advisories (OSV)
 
-struct AdvisoryWrite<'a>(pub &'a model::Advisory, pub &'a str);
+pub(crate) struct AdvisoryWrite<'a>(pub &'a model::Advisory, pub &'a str);
 
-async fn store_advisory(pg: &sqlx::PgPool, AdvisoryWrite(a, source): AdvisoryWrite<'_>) -> Result<(), sqlx::Error> {
+pub(crate) async fn store_advisory(pg: &sqlx::PgPool, AdvisoryWrite(a, source): AdvisoryWrite<'_>) -> Result<(), sqlx::Error> {
     let mut tx = pg.begin().await?;
     sqlx::query(
         "INSERT INTO cs_advisories (id, aliases, summary, details, severity, score, vector, cwes, refs, published, modified, withdrawn, source, fetched_at) \
@@ -335,10 +335,11 @@ async fn store_advisory(pg: &sqlx::PgPool, AdvisoryWrite(a, source): AdvisoryWri
 
 /// One pass of the OSV lookup: the packages some org uses that weren't looked up recently.
 async fn sync_osv(st: &AppState, base: &str, http: &reqwest::Client) -> anyhow::Result<usize> {
-    // Package names only (no org data leaves the server, and none is read per org here).
+    // Package names only (no org data leaves the server, and none is read per org here): the
+    // libraries of Code Security and the packages of Cloud Security's SBOMs.
     let due: Vec<(String, String)> = sqlx::query_as(
-        "SELECT DISTINCT l.ecosystem, l.name FROM cs_libraries l LEFT JOIN cs_osv_packages o ON o.ecosystem = l.ecosystem AND o.package = l.name \
-         WHERE o.checked_at IS NULL OR o.checked_at < now() - make_interval(hours => $1) LIMIT $2",
+        "SELECT DISTINCT l.ecosystem, l.name FROM (SELECT ecosystem, name FROM cs_libraries UNION SELECT ecosystem, name FROM csm_packages) l \
+         LEFT JOIN cs_osv_packages o ON o.ecosystem = l.ecosystem AND o.package = l.name WHERE o.checked_at IS NULL OR o.checked_at < now() - make_interval(hours => $1) LIMIT $2",
     )
     .bind(OSV_REFRESH_HOURS)
     .bind(OSV_BATCH as i64)
@@ -605,7 +606,7 @@ async fn library_vulnerabilities(st: &AppState, org: &str) -> Result<Vec<Library
     Ok(list)
 }
 
-async fn triage_map(st: &AppState, org: &str) -> Result<HashMap<String, String>, ApiError> {
+pub(crate) async fn triage_map(st: &AppState, org: &str) -> Result<HashMap<String, String>, ApiError> {
     let rows: Vec<(String, String)> = sqlx::query_as("SELECT key, status FROM cs_triage WHERE org_id = $1").bind(org).fetch_all(&st.postgres).await?;
     Ok(rows.into_iter().collect())
 }
@@ -1512,9 +1513,9 @@ pub async fn setup(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<C
 
 /// A fictional advisory against a fictional package, for the demo: id, CVE, summary, CVSS vector,
 /// CWE, ecosystem, package, introduced, fixed, days since published.
-type DemoAdvisory<'a> = (&'a str, &'a str, &'a str, &'a str, &'a str, &'a str, &'a str, &'a str, &'a str, i64);
+pub(crate) type DemoAdvisory<'a> = (&'a str, &'a str, &'a str, &'a str, &'a str, &'a str, &'a str, &'a str, &'a str, i64);
 
-fn demo_advisory((id, cve, summary, vector, cwe, ecosystem, package, introduced, fixed, days_ago): DemoAdvisory) -> model::Advisory {
+pub(crate) fn demo_advisory((id, cve, summary, vector, cwe, ecosystem, package, introduced, fixed, days_ago): DemoAdvisory) -> model::Advisory {
     let score = model::cvss3_score(vector);
     model::Advisory {
         id: id.into(),

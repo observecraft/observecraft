@@ -16,6 +16,10 @@
 //! Submitted orders flow on through Kafka topics (`orders.created` → billing and inventory-service
 //! → `payments.authorized` / `inventory.reserved` → …), for Data Streams Monitoring.
 //!
+//! Every 5 s it also sends the browser sessions of the shop's web front end, as Datadog's browser
+//! SDK sends RUM events (see `rum`), and the Session Replay recordings of its desktop sessions
+//! (see `replay`).
+//!
 //! Every other second it also sends an LLM conversation of `support-assistant` with OpenTelemetry
 //! GenAI attributes (see `llm`), for LLM Observability.
 //!
@@ -26,6 +30,7 @@
 //! CLICKHOUSE_HTTP (default http://localhost:8123), CLICKHOUSE_USER / CLICKHOUSE_PASSWORD (observecraft).
 
 mod appmetrics;
+mod appsec;
 mod ci;
 mod hosts;
 mod kafka;
@@ -34,6 +39,10 @@ mod llm;
 mod load;
 mod network;
 mod profiles;
+mod replay;
+mod rum;
+mod sbom;
+mod security;
 mod serverless;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -45,7 +54,7 @@ const CLIENT: i32 = 3;
 const PRODUCER: i32 = 4;
 const CONSUMER: i32 = 5;
 
-struct Rng(u64);
+pub(crate) struct Rng(pub(crate) u64);
 impl Rng {
     fn next(&mut self) -> u64 {
         self.0 ^= self.0 << 13;
@@ -213,7 +222,7 @@ impl<'a> Trace<'a> {
     }
 }
 
-fn attrs_json(attrs: &[(String, Value)]) -> Vec<Value> {
+pub(crate) fn attrs_json(attrs: &[(String, Value)]) -> Vec<Value> {
     attrs
         .iter()
         .map(|(k, v)| {
@@ -922,6 +931,10 @@ async fn main() -> anyhow::Result<()> {
     let profile_url = format!("{endpoint}/api/v2/profile");
     let events_url = format!("{endpoint}/api/v1/events");
     let series_url = format!("{endpoint}/api/v2/series");
+    let rum_url = format!("{endpoint}/api/v2/rum");
+    let replay_url = format!("{endpoint}/api/v2/replay");
+    let dd_logs_url = format!("{endpoint}/api/v2/logs");
+    let sbom_url = format!("{endpoint}/api/v2/sbom");
     let mut headers = reqwest::header::HeaderMap::new();
     if let Ok(key) = std::env::var("OC_INGEST_KEY") {
         headers.insert(
@@ -957,6 +970,7 @@ async fn main() -> anyhow::Result<()> {
 
     let mut host_state = hosts::initial_state(&mut rng, now_ns());
     let mut app_metrics = appmetrics::AppMetrics::new(now_ns());
+    let mut rum_sessions = rum::Sessions::default();
     let mut tick = tokio::time::interval(Duration::from_secs(1));
     let mut seconds = 0u64;
     loop {
@@ -1022,6 +1036,18 @@ async fn main() -> anyhow::Result<()> {
         }
         if seconds % 30 == 15 {
             send_network(&http, &logs_url, &mut rng, now_ns(), true).await;
+        }
+        if seconds % 600 == 3 {
+            sbom::send(&http, &sbom_url).await;
+        }
+        if let Err(e) = http.post(&url).json(&appsec::tick(&mut rng, now_ns(), seconds)).send().await.and_then(|r| r.error_for_status()) {
+            tracing::warn!(error = %e, "security traces export failed");
+        }
+        security::send(&http, &dd_logs_url, security::tick(&mut rng, (now_ns() / 1_000_000) as i64, seconds)).await;
+        if seconds % 5 == 2 {
+            let batches = rum::tick(&mut rng, &mut rum_sessions, now_ns() / 1_000_000, 5_000);
+            rum::send(&http, &rum_url, batches).await;
+            replay::send(&http, &replay_url, rum::CLIENT_TOKEN, rum::take_segments()).await;
         }
         seconds += 1;
         let n = rng.range(per_sec * 7 / 10, per_sec * 13 / 10 + 1);

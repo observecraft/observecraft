@@ -100,6 +100,12 @@ connectors:
       # Network connections (Datadog system-probe) → otel.otel_network.
       - statement: route() where attributes["oc.signal"] == "dd.connections"
         pipelines: [logs/network]
+      # Real User Monitoring events (browser and mobile SDKs) → otel.otel_rum.
+      - statement: route() where attributes["oc.signal"] == "dd.rum"
+        pipelines: [logs/rum]
+      # Session Replay segments (browser SDK) → otel.otel_rum_replay.
+      - statement: route() where attributes["oc.signal"] == "dd.replay"
+        pipelines: [logs/replay]
   # CI/CD pipeline runs arrive as traces (pipeline → jobs → steps/tests) using the OTel cicd.* and
   # vcs.* attributes. They get their own table so they don't show up as APM services.
   routing/ci:
@@ -189,6 +195,28 @@ exporters:
     retry_on_failure:
       enabled: true
     sending_queue: *queue
+  clickhouse/rum:
+    endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
+    database: otel
+    username: ${env:CLICKHOUSE_USER}
+    password: ${env:CLICKHOUSE_PASSWORD}
+    create_schema: false
+    logs_table_name: otel_rum
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+    sending_queue: *queue
+  clickhouse/replay:
+    endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
+    database: otel
+    username: ${env:CLICKHOUSE_USER}
+    password: ${env:CLICKHOUSE_PASSWORD}
+    create_schema: false
+    logs_table_name: otel_rum_replay
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+    sending_queue: *queue
   clickhouse/ci:
     endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
     database: otel
@@ -230,6 +258,12 @@ service:
     logs/network:
       receivers: [routing/logs]
       exporters: [clickhouse/network]
+    logs/rum:
+      receivers: [routing/logs]
+      exporters: [clickhouse/rum]
+    logs/replay:
+      receivers: [routing/logs]
+      exporters: [clickhouse/replay]
     traces:
       receivers: [kafka/otlp, kafka/otlp_json, otlp]
       processors: [memory_limiter, resource/org, resourcedetection]

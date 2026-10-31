@@ -82,6 +82,46 @@ fn not_replayed(version: &str, feature: &str) -> Option<NotReplayed> {
             "Upload Custom Costs File returns \"Accepted\" response",
             "Upload Custom Costs file returns \"Bad Request\" response",
         ])),
+        // RUM applications; not events search and aggregation, source maps or repository information.
+        // (Creating is replayed by the scenarios' given steps: its own cassettes were recorded under
+        // other names than its scenarios.)
+        ("v2", "RUM") => Some(NotReplayed::AllBut(&[
+            "Delete a RUM application returns \"No Content\" response",
+            "Delete a RUM application returns \"Not Found\" response",
+            "Get a RUM application returns \"Not Found\" response",
+            "Get a RUM application returns \"OK\" response",
+            "List all the RUM applications returns \"OK\" response",
+            "Update a RUM application returns \"OK\" response",
+            "Update a RUM application with Product Scales returns \"OK\" response",
+        ])),
+        // Detection rules (log detection), suppressions and signals that aren't recordings of
+        // Datadog's own signals; not the other rule types, notification, mute, due date or inbox
+        // rules, findings, jobs, version histories or Terraform conversion.
+        ("v2", "Security Monitoring") => Some(NotReplayed::AllBut(&[
+            "Create a detection rule returns \"Bad Request\" response",
+            "Create a detection rule returns \"OK\" response",
+            "Delete an existing rule returns \"OK\" response",
+            "Get a rule's details returns \"Not Found\" response",
+            "Get a rule's details returns \"OK\" response",
+            "List rules returns \"OK\" response",
+            "Update an existing rule returns \"Bad Request\" response",
+            "Update an existing rule returns \"Not Found\" response",
+            "Update an existing rule returns \"OK\" response",
+            "Validate a detection rule returns \"OK\" response",
+            "Validate a detection rule returns \"Bad Request\" response",
+            "Get a signal's details returns \"Not Found\" response",
+            "Create a suppression rule returns \"OK\" response",
+            "Create a suppression rule with an exclusion query returns \"OK\" response",
+            "Delete a suppression rule returns \"OK\" response",
+            "Get a suppression rule returns \"OK\" response",
+            "Get a suppression rule returns \"Not Found\" response",
+            "Get all suppression rules returns \"OK\" response with pagination",
+            "Get all suppression rules returns \"OK\" response with sort ascending",
+            "Get all suppression rules returns \"OK\" response with sort descending",
+            "Update a suppression rule returns \"OK\" response",
+            "Validate a suppression rule returns \"OK\" response",
+            "Validate a suppression rule returns \"Bad Request\" response",
+        ])),
         ("v2", "Teams") => Some(NotReplayed::AllBut(&[
             "Add a user to a team returns \"Represents a user's association to a team\" response",
             "Create a team returns \"CREATED\" response",
@@ -409,8 +449,10 @@ fn urlencode(s: &str) -> String {
     url::form_urlencoded::byte_serialize(s.as_bytes()).collect()
 }
 
+/// Datadog's error bodies: `{"errors": ["…"]}`, or `{"errors": [{"title": "…", …}]}` (the
+/// Remote Configuration endpoints).
 fn is_error_body(v: &Value) -> bool {
-    v.get("errors").and_then(Value::as_array).is_some_and(|e| !e.is_empty() && e.iter().all(Value::is_string))
+    v.get("errors").and_then(Value::as_array).is_some_and(|e| !e.is_empty() && e.iter().all(|x| x.is_string() || x.get("title").is_some_and(Value::is_string)))
 }
 
 fn kind(v: &Value) -> &'static str {
@@ -554,8 +596,11 @@ mod tests {
     }
 
     /// The features the tests replay (what `scripts/datadog-fixtures/fetch.sh` downloads).
-    const FEATURES: [&str; 14] = [
+    const FEATURES: [&str; 17] = [
         "v1/authentication",
+        "v2/application_security",
+        "v2/rum",
+        "v2/security_monitoring",
         "v1/monitors",
         "v1/downtimes",
         "v1/dashboards",

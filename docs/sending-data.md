@@ -137,6 +137,22 @@ Code Security (Security → Code Security) reads what Datadog's tools already se
 Libraries are matched against the [OSV.dev](https://osv.dev) advisories of the packages in use: the server looks the
 package names up in `OC_OSV_URL` (`https://api.osv.dev`; `off` for instances without internet access).
 
+### SBOMs for Cloud Security
+
+The Datadog Agent scans hosts and container images and sends their software bills of materials to `/api/v2/sbom`:
+set `DD_SBOM_ENABLED`, `DD_SBOM_HOST_ENABLED` and `DD_SBOM_CONTAINER_IMAGE_ENABLED` to `true` and `DD_SBOM_DD_URL`
+to the intake (the examples in `deploy/examples/datadog` do). Their packages are matched against the same OSV.dev
+advisories as Code Security's libraries; Kubernetes objects sent by the orchestrator explorer are checked for
+misconfigurations.
+
+### Security logs for Cloud SIEM
+
+Cloud SIEM's detection rules read your logs as they arrive, by `source`: send CloudTrail with the Datadog Forwarder
+(`source:cloudtrail`), the Okta system log (`source:okta`), the GitHub audit log (`source:github`), the Kubernetes API
+server's audit log through the Datadog Agent (`source:kubernetes.audit`), nginx access logs (`source:nginx`), and so on;
+Security → Cloud SIEM → Content Packs lists the sources, their rules and whether their logs arrive. The research feed
+reads CISA's Known Exploited Vulnerabilities catalog from `OC_KEV_URL` (`off` for instances without internet access).
+
 **What isn't supported yet:**
 - Some payloads are acknowledged so the Agent doesn't keep retrying them, but they aren't stored: the Agent's
   inventories (`/api/v1/metadata`) and the orchestrator's summaries (`/api/v2/orch`).

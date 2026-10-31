@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, Search, Trash2 } from 'lucide-react';
 import type { SyntheticSuite } from '../../api/synthetics/client';
 import { fmtUptime, matchesTestQuery } from '../../api/synthetics/logic';
@@ -25,12 +25,14 @@ export function SuiteEditorPage() {
 
 function SuiteForm({ suite }: { suite?: SyntheticSuite }) {
   const navigate = useNavigate();
+  // The tests list's Create Suite passes the selected tests (`?tests=a,b`).
+  const [params] = useSearchParams();
   const [name, setName] = useState(suite?.name ?? '');
   const [description, setDescription] = useState(suite?.description ?? '');
   const [env, setEnv] = useState(suite?.env ?? '');
   const [team, setTeam] = useState(suite?.team ?? '');
   const [tags, setTags] = useState((suite?.tags ?? []).join(', '));
-  const [picked, setPicked] = useState<string[]>(suite?.tests.map((t) => t.id) ?? []);
+  const [picked, setPicked] = useState<string[]>(suite?.tests.map((t) => t.id) ?? (params.get('tests') ?? '').split(',').filter(Boolean));
   const [filter, setFilter] = useState('');
   const [range] = useState(() => ({ from: Math.floor(Date.now() / 60_000) * 60_000 - 86_400_000, to: Math.floor(Date.now() / 60_000) * 60_000 }));
   const tests = useSyntheticTests({ query: '', range });

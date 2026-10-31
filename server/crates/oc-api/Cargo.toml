@@ -34,6 +34,8 @@ hmac = "0.12"
 # hands out an org's connections only with one of its permits (org_limits.rs).
 hyper = "1"
 hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
+# Synthetic HTTP tests send their request over a connection they open and time themselves.
+http-body-util = "0.1"
 tower-service = "0.3"
 # Synthetic DNS tests: record lookups (A, AAAA, CNAME, MX, TXT, NS) with the system's or a chosen server.
 hickory-resolver = { version = "0.26.2", default-features = false, features = ["system-config", "tokio"] }

@@ -64,7 +64,15 @@ or SDK features.
     `datadog-ci sbom upload` goes to the management API (`/api/v2/static-analysis-sca/dependencies`); IAST findings
     are read from the spans' `_dd.iast.json`; advisories come from OSV.dev (`OC_OSV_URL`);
   - events `/api/v1/events`, `/api/v2/events` and the events inside `/intake/`, stored in `otel.otel_events`;
+  - RUM events of the browser and mobile SDKs `/api/v2/rum` (with the application's client token `pub…`, or through
+    the SDK's `proxy` option as `?ddforward=`), stored in `otel.otel_rum` (`datadog_rum.rs`); applications are
+    `datadog_rum_application` (`datadog_api/rum.rs`, `routes/rum.rs`); Product Analytics reads the same events
+    (`rum_analytics.rs`);
+  - Session Replay segments of the browser SDK `/api/v2/replay` (multipart, deflate), stored in `otel.otel_rum_replay`
+    (`datadog_replay.rs`); the player, playlists, watch history and heatmaps are `routes/rum_replay.rs`;
   - host metadata `/intake/` and `/api/v2/host_metadata`, stored in Postgres `datadog_hosts`;
+  - SBOMs of hosts and container images `/api/v2/sbom` (agent-payload protobuf, `datadog_sbom.rs`), passed to the
+    server and stored in Postgres `csm_sbom_entities` / `csm_packages` (Cloud Security, `cloud_security.rs`);
   - live processes and containers `/api/v1/collector` and `/api/v1/container`, stored as `process.*` / `container.*` metrics;
   - network connections and DNS stats `/api/v1/connections`, stored in `otel.otel_network` (Cloud Network Monitoring);
   - orchestrator manifests `/api/v2/orchmanif`, which feed the Kubernetes Explorer;
@@ -77,6 +85,17 @@ or SDK features.
   `datadog-api-client-go` are downloaded at test time by `make datadog-fixtures`, never vendored (replayed by
   `datadog_api::replay`; `oc-api/tests/datadog_api/README.md`); `make tf-compat`
   runs the real provider. Add a cassette replay test and a `scripts/tf-compat/fixtures/<resource>/` per resource.
+- **Cloud SIEM** (`security_*.rs`, `datadog_api/security_monitoring.rs`): detection rules and suppressions are
+  `datadog_security_monitoring_rule` / `_suppression` (`/api/v2/security_monitoring/...`); content packs and their
+  default rules are our own catalog (`security_catalog.rs`); `security_engine.rs` evaluates `log_detection` threshold
+  rules (count, cardinality) every minute into Postgres `security_signals`; the research feed reads CISA's KEV catalog
+  (`OC_KEV_URL`).
+- **App & API Protection** (`appsec.rs`, `datadog_api/appsec.rs`): security traces are the tracers' entry spans with
+  `_dd.appsec.json`, login tracking tags or `appsec.blocked` in `otel.otel_traces`; the In-App WAF's custom rules,
+  exclusion filters and policies are `datadog_appsec_waf_custom_rule` / `_exclusion_filter`
+  (`/api/v2/remote_config/products/asm/waf/...`, Postgres `appsec_waf_objects`); the denylist is `appsec_denylist`;
+  API findings are our own rules mapped to the OWASP API Top 10; `application_security` detection rules run in
+  `security_engine.rs`.
 - **New features start from the Terraform provider.** Before designing the API of a product area, check whether
   [`DataDog/terraform-provider-datadog`](https://github.com/DataDog/terraform-provider-datadog) (MPL-2.0: read it,
   don't copy it) has resources for it (`datadog_<area>_*`). If it does, the configuration lives under the Datadog
@@ -109,10 +128,17 @@ or SDK features.
   - Cloud Cost Management's provider bills (`datadog_aws_cur_config`, `datadog_azure_uc_config`, `datadog_gcp_uc_config`),
     tag pipelines and custom allocation rules (budgets, custom forecasts and custom costs files exist, `datadog_api/cost.rs`;
     costs are the cost metrics `all.cost`, `aws.cost.amortized`, …, `cloud_cost.rs`);
-  - Cloud Security, the live debugger and remote configuration;
+  - Cloud Security's cloud account scanning (provider APIs: misconfigurations of cloud resources, identity risks,
+    attack paths), compliance frameworks and the resource map (its misconfigurations cover hosts and Kubernetes,
+    `cloud_security_rules.rs`); Workload Protection, the live debugger and remote configuration;
+  - App & API Protection's delivery to the tracers (Remote Configuration: WAF rules, blocking, denylist), the managed
+    WAF ruleset itself, DAST and its dashboards (attack summary, account takeover, OWASP);
+  - Cloud SIEM's other detection methods (new value, anomaly, impossible travel, sequences), signal correlation rules,
+    notification rules, threat intelligence enrichment and the investigator; rule case notifications aren't sent yet;
   - Data Streams Monitoring's pathway checkpoints from the tracers (`/api/v0.1/pipeline_stats`, DDSketch in msgpack): its map,
     pipelines and Kafka Console are built from messaging spans and Kafka metrics (`data_streams.rs`, `kafka_console.rs`);
-  - RUM (`browser-sdk`, Apache-2.0), which needs a RUM product first.
+  - RUM's mobile Session Replay, replay retention and privacy settings, Operations, source maps and debug symbols, generated metrics, retention filters and the
+    events search and aggregation API (`/api/v2/rum/events`); the error-focused processing mode keeps every session.
 
 ## Repository layout
 

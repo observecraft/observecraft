@@ -24,4 +24,4 @@ pub use metrics::{
     IndexFilter, MetricQuery, Rollup, SpaceAgg, TagFilter, TAG_EFFECTIVE, TAG_POINT, TAG_RESOURCE, TAG_SERVICE,
 };
 pub use parse::{parse_query, tokenize, Term};
-pub use sql::{build_any, build_where, LogsSchema, Param, Schema, SpansSchema, SqlFilter};
+pub use sql::{build_any, build_where, LogsSchema, Param, RumSchema, Schema, SpansSchema, SqlFilter};

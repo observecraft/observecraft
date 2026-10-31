@@ -16,6 +16,7 @@ export const RELATIVE_RANGES: RelativeRange[] = [
   { key: '1d', short: '1d', label: 'Past 1 Day', ms: 24 * 3600e3 },
   { key: '2d', short: '2d', label: 'Past 2 Days', ms: 2 * 24 * 3600e3 },
   { key: '1w', short: '1w', label: 'Past 7 Days', ms: 7 * 24 * 3600e3 },
+  { key: '1mo', short: '1mo', label: 'Past 1 Month', ms: 30 * 24 * 3600e3 },
 ];
 
 interface TimeState {

@@ -431,6 +431,7 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
         .route("/ingest/profiles", post(crate::routes::profiles::ingest))
         .route("/ingest/feature-flag-evaluations", post(crate::routes::feature_flags::ingest_evaluations))
         .route("/ingest/apm-telemetry", post(crate::routes::code_security::ingest_telemetry))
+        .route("/ingest/sbom", post(crate::routes::cloud_security::ingest_sbom))
         .route("/ingest/code-scans", post(crate::routes::code_security::ingest_sarif))
         .route("/metrics", get(internal_metrics))
         .with_state(st.clone());

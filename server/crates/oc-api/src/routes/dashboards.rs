@@ -747,6 +747,10 @@ const SEEDS: &[(&str, &str)] = &[
         "service-overview-prod",
         include_str!("../../../../seeds/dashboards/service-overview-prod.json"),
     ),
+    (
+        "synthetics-api-tests",
+        include_str!("../../../../seeds/dashboards/synthetics-api-tests.json"),
+    ),
 ];
 
 // Generated from the pinned integrations-core revision recorded on each document.

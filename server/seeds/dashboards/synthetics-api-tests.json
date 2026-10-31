@@ -1,0 +1,939 @@
+{
+ "id": "synthetics-api-tests",
+ "title": "Synthetics - API Test Performance",
+ "description": "Response times, results and per-phase timings of synthetic API tests, from the synthetics.* metrics.",
+ "kind": "integration",
+ "logo": "tile:synthetics",
+ "teams": [],
+ "layoutType": "grid",
+ "templateVariables": [
+  {
+   "name": "subtype",
+   "prefix": "subtype",
+   "default": "*"
+  },
+  {
+   "name": "test_id",
+   "prefix": "test_id",
+   "default": "*"
+  },
+  {
+   "name": "location",
+   "prefix": "location",
+   "default": "*"
+  },
+  {
+   "name": "env",
+   "prefix": "env",
+   "default": "*"
+  }
+ ],
+ "widgets": [
+  {
+   "id": "syn-1",
+   "definition": {
+    "type": "note",
+    "content": "# API Test Performance\n\nResponse times, results and the timing of each phase of your synthetic API tests, from the `synthetics.*` metrics every scheduled run writes.\n\n- Narrow it down with the **subtype**, **test_id**, **location** and **env** variables above.\n- Every HTTP run splits its time into DNS, connection, TLS, time to first byte and download.\n- Clone this dashboard to rearrange it or add your own widgets.\n\n*No data?* [Create an API test](/synthetics/templates) to start monitoring.",
+    "background": "white",
+    "align": "left",
+    "fontSize": "md"
+   },
+   "layout": {
+    "x": 0,
+    "y": 0,
+    "w": 6,
+    "h": 8
+   }
+  },
+  {
+   "id": "syn-2",
+   "definition": {
+    "type": "integration",
+    "title": "Synthetic API test runs",
+    "original": {
+     "type": "query_value",
+     "title": "Synthetic API test runs",
+     "title_size": "16",
+     "title_align": "left",
+     "precision": 0,
+     "requests": [
+      {
+       "response_format": "scalar",
+       "queries": [
+        {
+         "data_source": "metrics",
+         "name": "query1",
+         "query": "sum:synthetics.test_runs{$subtype,$test_id,$location,$env}.as_count()",
+         "aggregator": "sum"
+        }
+       ],
+       "formulas": [
+        {
+         "formula": "query1"
+        }
+       ]
+      }
+     ],
+     "custom_unit": "runs"
+    }
+   },
+   "layout": {
+    "x": 6,
+    "y": 0,
+    "w": 3,
+    "h": 4
+   }
+  },
+  {
+   "id": "syn-3",
+   "definition": {
+    "type": "integration",
+    "title": "Synthetic API test success rate",
+    "original": {
+     "type": "query_value",
+     "title": "Synthetic API test success rate",
+     "title_size": "16",
+     "title_align": "left",
+     "precision": 2,
+     "requests": [
+      {
+       "response_format": "scalar",
+       "queries": [
+        {
+         "data_source": "metrics",
+         "name": "query1",
+         "query": "sum:synthetics.test_runs{result:passed,$subtype,$test_id,$location,$env}.as_count()",
+         "aggregator": "sum"
+        },
+        {
+         "data_source": "metrics",
+         "name": "query2",
+         "query": "sum:synthetics.test_runs{$subtype,$test_id,$location,$env}.as_count()",
+         "aggregator": "sum"
+        }
+       ],
+       "formulas": [
+        {
+         "formula": "100 * query1 / query2"
+        }
+       ],
+       "conditional_formats": [
+        {
+         "comparator": ">=",
+         "value": 99,
+         "palette": "white_on_green"
+        },
+        {
+         "comparator": ">=",
+         "value": 95,
+         "palette": "white_on_yellow"
+        },
+        {
+         "comparator": "<",
+         "value": 95,
+         "palette": "white_on_red"
+        }
+       ]
+      }
+     ],
+     "custom_unit": "%"
+    }
+   },
+   "layout": {
+    "x": 9,
+    "y": 0,
+    "w": 3,
+    "h": 4
+   }
+  },
+  {
+   "id": "syn-4",
+   "definition": {
+    "type": "integration",
+    "title": "API test runs by type",
+    "original": {
+     "type": "sunburst",
+     "title": "API test runs by type",
+     "title_size": "16",
+     "title_align": "left",
+     "hide_total": false,
+     "requests": [
+      {
+       "response_format": "scalar",
+       "queries": [
+        {
+         "data_source": "metrics",
+         "name": "query1",
+         "query": "sum:synthetics.test_runs{$subtype,$test_id,$location,$env} by {subtype}.as_count()",
+         "aggregator": "sum"
+        }
+       ],
+       "formulas": [
+        {
+         "formula": "query1"
+        }
+       ]
+      }
+     ],
+     "legend": {
+      "type": "automatic"
+     }
+    }
+   },
+   "layout": {
+    "x": 6,
+    "y": 4,
+    "w": 6,
+    "h": 4
+   }
+  },
+  {
+   "id": "syn-5",
+   "definition": {
+    "type": "integration",
+    "title": "Synthetic API test failure trend",
+    "original": {
+     "type": "timeseries",
+     "title": "Synthetic API test failure trend",
+     "title_size": "16",
+     "title_align": "left",
+     "show_legend": true,
+     "legend_layout": "auto",
+     "requests": [
+      {
+       "response_format": "timeseries",
+       "queries": [
+        {
+         "data_source": "metrics",
+         "name": "query1",
+         "query": "sum:synthetics.test_runs{result:failed,$subtype,$test_id,$location,$env} by {subtype}.as_count()"
+        }
+       ],
+       "formulas": [
+        {
+         "formula": "query1"
+        }
+       ],
+       "display_type": "bars"
+      }
+     ]
+    }
+   },
+   "layout": {
+    "x": 0,
+    "y": 8,
+    "w": 12,
+    "h": 4
+   }
+  },
+  {
+   "id": "syn-11",
+   "definition": {
+    "type": "group",
+    "title": "HTTP",
+    "color": "blue",
+    "widgets": [
+     {
+      "id": "syn-6",
+      "definition": {
+       "type": "note",
+       "content": "HTTP tests send a request to an API endpoint or a page and check the answer: status code, headers, body and response time. [Create an HTTP test](/synthetics/create?template=latency).",
+       "background": "blue",
+       "align": "left",
+       "fontSize": "sm"
+      },
+      "layout": {
+       "x": 0,
+       "y": 0,
+       "w": 12,
+       "h": 2
+      }
+     },
+     {
+      "id": "syn-7",
+      "definition": {
+       "type": "integration",
+       "title": "Average HTTP response time",
+       "original": {
+        "type": "query_value",
+        "title": "Average HTTP response time",
+        "title_size": "16",
+        "title_align": "left",
+        "precision": 1,
+        "requests": [
+         {
+          "response_format": "scalar",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.http.response.time{subtype:http,$subtype,$test_id,$location,$env}",
+            "aggregator": "avg"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ]
+         }
+        ],
+        "custom_unit": "ms"
+       }
+      },
+      "layout": {
+       "x": 0,
+       "y": 2,
+       "w": 4,
+       "h": 4
+      }
+     },
+     {
+      "id": "syn-8",
+      "definition": {
+       "type": "integration",
+       "title": "Average HTTP response time by location",
+       "original": {
+        "type": "timeseries",
+        "title": "Average HTTP response time by location",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "auto",
+        "requests": [
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.http.response.time{subtype:http,$subtype,$test_id,$location,$env} by {location}"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ],
+          "display_type": "line"
+         }
+        ]
+       }
+      },
+      "layout": {
+       "x": 4,
+       "y": 2,
+       "w": 8,
+       "h": 4
+      }
+     },
+     {
+      "id": "syn-9",
+      "definition": {
+       "type": "integration",
+       "title": "HTTP transaction average timings",
+       "original": {
+        "type": "timeseries",
+        "title": "HTTP transaction average timings",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "auto",
+        "requests": [
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.http.dns.time{subtype:http,$subtype,$test_id,$location,$env}"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1",
+            "alias": "DNS time"
+           }
+          ],
+          "display_type": "area"
+         },
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.http.connect.time{subtype:http,$subtype,$test_id,$location,$env}"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1",
+            "alias": "Connect time"
+           }
+          ],
+          "display_type": "area"
+         },
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.http.ssl.time{subtype:http,$subtype,$test_id,$location,$env}"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1",
+            "alias": "SSL time"
+           }
+          ],
+          "display_type": "area"
+         },
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.http.firstbyte.time{subtype:http,$subtype,$test_id,$location,$env}"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1",
+            "alias": "Time to first byte"
+           }
+          ],
+          "display_type": "area"
+         },
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.http.download.time{subtype:http,$subtype,$test_id,$location,$env}"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1",
+            "alias": "Download time"
+           }
+          ],
+          "display_type": "area"
+         }
+        ],
+        "style": {
+         "display": {
+          "type": "stacked"
+         }
+        }
+       }
+      },
+      "layout": {
+       "x": 0,
+       "y": 6,
+       "w": 12,
+       "h": 5
+      }
+     },
+     {
+      "id": "syn-10",
+      "definition": {
+       "type": "integration",
+       "title": "HTTP runs by result",
+       "original": {
+        "type": "timeseries",
+        "title": "HTTP runs by result",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "auto",
+        "requests": [
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:synthetics.test_runs{subtype:http,$subtype,$test_id,$location,$env} by {result}.as_count()"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ],
+          "display_type": "bars"
+         }
+        ]
+       }
+      },
+      "layout": {
+       "x": 0,
+       "y": 11,
+       "w": 12,
+       "h": 4
+      }
+     }
+    ]
+   },
+   "layout": {
+    "x": 0,
+    "y": 12,
+    "w": 6,
+    "h": 16
+   }
+  },
+  {
+   "id": "syn-16",
+   "definition": {
+    "type": "group",
+    "title": "SSL",
+    "color": "purple",
+    "widgets": [
+     {
+      "id": "syn-12",
+      "definition": {
+       "type": "note",
+       "content": "SSL tests open a TLS connection and check the certificate: who issued it, whether it is trusted and how long until it expires. [Create an SSL test](/synthetics/create?template=ssl).",
+       "background": "purple",
+       "align": "left",
+       "fontSize": "sm"
+      },
+      "layout": {
+       "x": 0,
+       "y": 0,
+       "w": 12,
+       "h": 2
+      }
+     },
+     {
+      "id": "syn-13",
+      "definition": {
+       "type": "integration",
+       "title": "Average SSL handshake time",
+       "original": {
+        "type": "query_value",
+        "title": "Average SSL handshake time",
+        "title_size": "16",
+        "title_align": "left",
+        "precision": 1,
+        "requests": [
+         {
+          "response_format": "scalar",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.ssl.handshake.time{subtype:ssl,$subtype,$test_id,$location,$env}",
+            "aggregator": "avg"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ]
+         }
+        ],
+        "custom_unit": "ms"
+       }
+      },
+      "layout": {
+       "x": 0,
+       "y": 2,
+       "w": 4,
+       "h": 4
+      }
+     },
+     {
+      "id": "syn-14",
+      "definition": {
+       "type": "integration",
+       "title": "Average SSL handshake time by location",
+       "original": {
+        "type": "timeseries",
+        "title": "Average SSL handshake time by location",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "auto",
+        "requests": [
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.ssl.handshake.time{subtype:ssl,$subtype,$test_id,$location,$env} by {location}"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ],
+          "display_type": "line"
+         }
+        ]
+       }
+      },
+      "layout": {
+       "x": 4,
+       "y": 2,
+       "w": 8,
+       "h": 4
+      }
+     },
+     {
+      "id": "syn-15",
+      "definition": {
+       "type": "integration",
+       "title": "SSL runs by result",
+       "original": {
+        "type": "timeseries",
+        "title": "SSL runs by result",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "auto",
+        "requests": [
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:synthetics.test_runs{subtype:ssl,$subtype,$test_id,$location,$env} by {result}.as_count()"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ],
+          "display_type": "bars"
+         }
+        ]
+       }
+      },
+      "layout": {
+       "x": 0,
+       "y": 6,
+       "w": 12,
+       "h": 4
+      }
+     }
+    ]
+   },
+   "layout": {
+    "x": 6,
+    "y": 12,
+    "w": 6,
+    "h": 11
+   }
+  },
+  {
+   "id": "syn-21",
+   "definition": {
+    "type": "group",
+    "title": "DNS",
+    "color": "orange",
+    "widgets": [
+     {
+      "id": "syn-17",
+      "definition": {
+       "type": "note",
+       "content": "DNS tests resolve a domain with your resolver or a chosen name server and check the records and the lookup time. [Create a DNS test](/synthetics/create?template=dns).",
+       "background": "yellow",
+       "align": "left",
+       "fontSize": "sm"
+      },
+      "layout": {
+       "x": 0,
+       "y": 0,
+       "w": 12,
+       "h": 2
+      }
+     },
+     {
+      "id": "syn-18",
+      "definition": {
+       "type": "integration",
+       "title": "Average DNS lookup time",
+       "original": {
+        "type": "query_value",
+        "title": "Average DNS lookup time",
+        "title_size": "16",
+        "title_align": "left",
+        "precision": 1,
+        "requests": [
+         {
+          "response_format": "scalar",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.dns.response.time{subtype:dns,$subtype,$test_id,$location,$env}",
+            "aggregator": "avg"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ]
+         }
+        ],
+        "custom_unit": "ms"
+       }
+      },
+      "layout": {
+       "x": 0,
+       "y": 2,
+       "w": 4,
+       "h": 4
+      }
+     },
+     {
+      "id": "syn-19",
+      "definition": {
+       "type": "integration",
+       "title": "Average DNS lookup time by location",
+       "original": {
+        "type": "timeseries",
+        "title": "Average DNS lookup time by location",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "auto",
+        "requests": [
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.dns.response.time{subtype:dns,$subtype,$test_id,$location,$env} by {location}"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ],
+          "display_type": "line"
+         }
+        ]
+       }
+      },
+      "layout": {
+       "x": 4,
+       "y": 2,
+       "w": 8,
+       "h": 4
+      }
+     },
+     {
+      "id": "syn-20",
+      "definition": {
+       "type": "integration",
+       "title": "DNS runs by result",
+       "original": {
+        "type": "timeseries",
+        "title": "DNS runs by result",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "auto",
+        "requests": [
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:synthetics.test_runs{subtype:dns,$subtype,$test_id,$location,$env} by {result}.as_count()"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ],
+          "display_type": "bars"
+         }
+        ]
+       }
+      },
+      "layout": {
+       "x": 0,
+       "y": 6,
+       "w": 12,
+       "h": 4
+      }
+     }
+    ]
+   },
+   "layout": {
+    "x": 0,
+    "y": 28,
+    "w": 6,
+    "h": 11
+   }
+  },
+  {
+   "id": "syn-26",
+   "definition": {
+    "type": "group",
+    "title": "TCP",
+    "color": "green",
+    "widgets": [
+     {
+      "id": "syn-22",
+      "definition": {
+       "type": "note",
+       "content": "TCP tests open a connection to a host and port, such as a database or a broker, and check how long it takes. [Create a TCP test](/synthetics/create?template=tcp).",
+       "background": "green",
+       "align": "left",
+       "fontSize": "sm"
+      },
+      "layout": {
+       "x": 0,
+       "y": 0,
+       "w": 12,
+       "h": 2
+      }
+     },
+     {
+      "id": "syn-23",
+      "definition": {
+       "type": "integration",
+       "title": "Average TCP connection time",
+       "original": {
+        "type": "query_value",
+        "title": "Average TCP connection time",
+        "title_size": "16",
+        "title_align": "left",
+        "precision": 1,
+        "requests": [
+         {
+          "response_format": "scalar",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.tcp.connect.time{subtype:tcp,$subtype,$test_id,$location,$env}",
+            "aggregator": "avg"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ]
+         }
+        ],
+        "custom_unit": "ms"
+       }
+      },
+      "layout": {
+       "x": 0,
+       "y": 2,
+       "w": 4,
+       "h": 4
+      }
+     },
+     {
+      "id": "syn-24",
+      "definition": {
+       "type": "integration",
+       "title": "Average TCP connection time by location",
+       "original": {
+        "type": "timeseries",
+        "title": "Average TCP connection time by location",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "auto",
+        "requests": [
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:synthetics.tcp.connect.time{subtype:tcp,$subtype,$test_id,$location,$env} by {location}"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ],
+          "display_type": "line"
+         }
+        ]
+       }
+      },
+      "layout": {
+       "x": 4,
+       "y": 2,
+       "w": 8,
+       "h": 4
+      }
+     },
+     {
+      "id": "syn-25",
+      "definition": {
+       "type": "integration",
+       "title": "TCP runs by result",
+       "original": {
+        "type": "timeseries",
+        "title": "TCP runs by result",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "auto",
+        "requests": [
+         {
+          "response_format": "timeseries",
+          "queries": [
+           {
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:synthetics.test_runs{subtype:tcp,$subtype,$test_id,$location,$env} by {result}.as_count()"
+           }
+          ],
+          "formulas": [
+           {
+            "formula": "query1"
+           }
+          ],
+          "display_type": "bars"
+         }
+        ]
+       }
+      },
+      "layout": {
+       "x": 0,
+       "y": 6,
+       "w": 12,
+       "h": 4
+      }
+     }
+    ]
+   },
+   "layout": {
+    "x": 6,
+    "y": 23,
+    "w": 6,
+    "h": 11
+   }
+  }
+ ]
+}

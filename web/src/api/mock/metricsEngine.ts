@@ -45,7 +45,31 @@ function build<T extends Tags>(n: number, seed: number, make: (r: () => number, 
   return Array.from({ length: n }, (_, i) => make(r, i));
 }
 
+// The synthetic tests of the synthetics mock (mock/synthetics.ts): [id suffix, subtype, env, typical ms].
+const SYN_TESTS: [string, string, string, number][] = [
+  ['a001', 'http', 'prod', 180],
+  ['a002', 'http', 'prod', 95],
+  ['a003', 'http', 'prod', 420],
+  ['a004', 'ssl', 'prod', 48],
+  ['a005', 'dns', 'prod', 14],
+  ['a007', 'http', 'prod', 130],
+  ['a008', 'http', 'prod', 160],
+];
+const SYN_BASE = new Map(SYN_TESTS.map(([id, , , ms]) => [`f1d2c3b4-0${id.slice(1)}-4a00-8000-00000000${id}`, ms]));
+const synTest = ([id, subtype, env]: (typeof SYN_TESTS)[number]) => ({ test_id: `f1d2c3b4-0${id.slice(1)}-4a00-8000-00000000${id}`, subtype, env, location: 'observecraft-server', test_type: 'api' });
+const SYN_RUNS = SYN_TESTS.flatMap((t) => ['passed', 'failed'].map((result) => ({ ...synTest(t), result })));
+const synOf = (subtype: string) => SYN_TESTS.filter((t) => t[1] === subtype).map(synTest);
+/** A phase of a synthetic HTTP run: its share of the test's typical response time. */
+const synPhase = (share: number, https = true): Pick<MetricDef, 'set' | 'unit' | 'base' | 'noise' | 'entities'> => ({
+  set: 'synthetics',
+  unit: 'ms',
+  entities: synOf('http'),
+  base: (e) => (https ? (SYN_BASE.get(e.test_id) ?? 100) * share : 0),
+  noise: 0.25,
+});
+
 const SETS: Record<string, Tags[]> = {
+  synthetics: SYN_RUNS,
   deployments: build(140, 11, (r, i) => {
     const cluster = pick(r, CLUSTERS);
     const ns = pick(r, NAMESPACES);
@@ -187,6 +211,23 @@ const METRICS: Record<string, MetricDef> = {
   'kubernetes_state.node.count': { set: 'nodes', description: 'Nodes', unit: 'node', base: () => 1, noise: 0, integer: true },
   'kubernetes.containers.running': { set: 'containers', description: 'Running containers', base: (_e, r) => 1 + Math.floor(r() * 6), noise: 0, integer: true },
   'kubernetes_state.node.status': { set: 'nodes', description: 'Nodes by status', base: () => 1, noise: 0, integer: true },
+  // Synthetic API tests: runs by result, response times and the phases of HTTP runs.
+  'synthetics.test_runs': {
+    set: 'synthetics',
+    description: 'Synthetic test runs',
+    entities: SYN_RUNS,
+    // Checkout API health (a002) fails; the others pass nearly always.
+    base: (e) => (e.result === 'passed' ? (e.test_id.endsWith('a002') ? 0.8 : 1) : e.test_id.endsWith('a002') ? 0.25 : 0),
+    noise: 0.2,
+  },
+  'synthetics.http.response.time': { ...synPhase(1), description: 'Synthetic test response time (ms)' },
+  'synthetics.http.dns.time': { ...synPhase(0.12), description: 'Synthetic HTTP DNS lookup time (ms)' },
+  'synthetics.http.connect.time': { ...synPhase(0.08), description: 'Synthetic HTTP connection time (ms)' },
+  'synthetics.http.ssl.time': { ...synPhase(0.1), description: 'Synthetic HTTP TLS handshake time (ms)' },
+  'synthetics.http.firstbyte.time': { ...synPhase(0.6), description: 'Synthetic HTTP time to first byte (ms)' },
+  'synthetics.http.download.time': { ...synPhase(0.02), description: 'Synthetic HTTP download time (ms)' },
+  'synthetics.ssl.handshake.time': { set: 'synthetics', description: 'Synthetic test response time (ms)', unit: 'ms', entities: synOf('ssl'), base: (e) => SYN_BASE.get(e.test_id) ?? 50, noise: 0.2 },
+  'synthetics.dns.response.time': { set: 'synthetics', description: 'Synthetic test response time (ms)', unit: 'ms', entities: synOf('dns'), base: (e) => SYN_BASE.get(e.test_id) ?? 15, noise: 0.3 },
   'observecraft.monitor.notifications': {
     set: 'monitors',
     description: 'Monitor notifications sent',
