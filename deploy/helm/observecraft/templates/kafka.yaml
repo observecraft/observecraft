@@ -64,6 +64,14 @@ spec:
             - |
               export KAFKA_NODE_ID="${HOSTNAME##*-}"
               export KAFKA_ADVERTISED_LISTENERS="INTERNAL://${HOSTNAME}.{{ $headless }}.${POD_NAMESPACE}.svc:9092"
+              # Kafka treats every directory in a log dir as a partition, and the root of an ext4 volume
+              # has lost+found, so the data lives in a subdirectory. A volume whose root already holds a
+              # working broker's data stays there; one with lost+found could never have started from it.
+              if [ -f /var/lib/kafka/data/meta.properties ] && [ ! -e /var/lib/kafka/data/lost+found ]; then
+                export KAFKA_LOG_DIRS=/var/lib/kafka/data
+              else
+                export KAFKA_LOG_DIRS=/var/lib/kafka/data/logs
+              fi
               exec /etc/kafka/docker/run
           env:
             - name: POD_NAMESPACE
@@ -76,7 +84,6 @@ spec:
             - { name: KAFKA_CONTROLLER_LISTENER_NAMES, value: CONTROLLER }
             - name: KAFKA_CONTROLLER_QUORUM_VOTERS
               value: "{{ range $i, $_ := until $n }}{{ if $i }},{{ end }}{{ $i }}@{{ $fullname }}-kafka-{{ $i }}.{{ $headless }}.{{ $.Release.Namespace }}.svc:9093{{ end }}"
-            - { name: KAFKA_LOG_DIRS, value: /var/lib/kafka/data }
             - { name: KAFKA_AUTO_CREATE_TOPICS_ENABLE, value: "false" }
             - { name: KAFKA_DEFAULT_REPLICATION_FACTOR, value: {{ $rf | quote }} }
             - { name: KAFKA_MIN_INSYNC_REPLICAS, value: {{ $isr | quote }} }
