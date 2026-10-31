@@ -34,8 +34,8 @@ sources:
       codec: json
     headers: ["x-oc-org"]
 
-  # docs/adr/0004-kafka-ingestion-buffer.md: offsets are committed once the storage sinks' disk buffers
-  # hold the events (their `acknowledgements`), so a restart replays what wasn't stored.
+  # Offsets remain uncommitted until both storage sinks deliver. Disk buffers acknowledge on local
+  # persistence, which would transfer durability away from Kafka to one pod's volume.
   kafka:
     type: kafka
     bootstrap_servers: "${OC_KAFKA_BROKERS:-kafka:9092}"
@@ -79,10 +79,10 @@ sinks:
     batch:
       timeout_secs: 1
       max_events: 20000
-    # Survives ClickHouse restarts without dropping logs.
+    # Kafka (or the waiting OTLP sender) owns these events until ClickHouse acknowledges them.
     buffer:
-      type: disk
-      max_size: 536870912
+      type: memory
+      max_events: 10000
       when_full: block
 
   # Index routing, exclusion filters and quotas happen in the server (OC_LOGPROC_URL).
@@ -104,10 +104,10 @@ sinks:
     batch:
       timeout_secs: 1
       max_events: 10000
-    # Survives server restarts without losing logs.
+    # Do not acknowledge to Kafka/OTLP merely because this pod buffered an event on disk.
     buffer:
-      type: disk
-      max_size: 536870912
+      type: memory
+      max_events: 10000
       when_full: block
 
   live:

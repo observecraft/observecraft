@@ -15,6 +15,11 @@
 //!
 //! Each rollup row keeps the tier retention its samples carry (the org's choice when they were
 //! written, 0 = the install's default), as the samples do.
+//!
+//! Arrival markers in ClickHouse record ingestion time as well as the sample's bucket. Before
+//! advancing rollups, scan settled arrival minutes and rewind both tiers for late samples. The
+//! scan cursor and rewinds commit together, so a crash cannot acknowledge a repair before it is
+//! scheduled. Markers expire after 30 days; a longer worker outage requires an explicit rebuild.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -31,6 +36,11 @@ const CHUNK_MS: i64 = HOUR_MS;
 const CHUNKS_PER_RUN: usize = 12;
 /// How long a claimed org is held before another server may take it over.
 const CLAIM_SECONDS: f64 = 300.0;
+const MINUTE_MS: i64 = 60_000;
+const ARRIVAL_RETENTION_MS: i64 = 30 * 24 * HOUR_MS;
+// Automatic repair covers the default Kafka replay window. Older samples need an explicit
+// rebuild with verified raw coverage: blindly replacing aggregates after raw TTL expiry loses history.
+const REPAIR_HORIZON_MS: i64 = 72 * HOUR_MS;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Tier {
@@ -150,7 +160,7 @@ pub(crate) fn replicas_caught_up(delay_secs: u64, lateness_secs: i64) -> bool {
 pub(crate) async fn replica_delay(ch: &clickhouse::Client, cluster: &str) -> Result<u64, clickhouse::error::Error> {
     ch.query(
         "SELECT toUInt64(max(absolute_delay)) FROM clusterAllReplicas({cluster:String}, system.replicas) \
-         WHERE database = 'otel' AND table IN ('metrics_samples_local', 'metrics_dist_samples_local', 'metrics_rollup_5m_local', 'metrics_dist_rollup_5m_local')",
+         WHERE database = 'otel' AND table IN ('metrics_samples_local', 'metrics_dist_samples_local', 'metrics_rollup_5m_local', 'metrics_dist_rollup_5m_local', 'metrics_arrivals_local')",
     )
     .with_option("param_cluster", cluster)
     .fetch_one()
@@ -174,9 +184,15 @@ pub(crate) async fn progress(st: &AppState, org: &str) -> Result<Progress, ApiEr
 }
 
 async fn read_progress(pg: &sqlx::PgPool, org: &str) -> Result<Progress, sqlx::Error> {
-    let rows: Vec<(String, i64)> = sqlx::query_as("SELECT tier, (extract(epoch FROM done_until) * 1000)::bigint FROM metric_rollups WHERE org_id = $1").bind(org).fetch_all(pg).await?;
+    let rows: Vec<(String, i64)> = sqlx::query_as("SELECT tier, (extract(epoch FROM done_until) * 1000)::bigint FROM metric_rollups WHERE org_id = $1")
+        .bind(org)
+        .fetch_all(pg)
+        .await?;
     let get = |tier: Tier| rows.iter().find(|(t, _)| t == tier.name()).map_or(0, |(_, ms)| *ms);
-    Ok(Progress { five_minutes: get(Tier::FiveMinutes), hour: get(Tier::Hour) })
+    Ok(Progress {
+        five_minutes: get(Tier::FiveMinutes),
+        hour: get(Tier::Hour),
+    })
 }
 
 /// Adds progress rows for active orgs that have none, starting at `start` (epoch ms).
@@ -206,7 +222,11 @@ async fn claim(pg: &sqlx::PgPool, limit: i64, lateness_ms: i64) -> Result<Vec<(S
     .fetch_all(&mut *tx)
     .await?;
     for (org, ..) in &rows {
-        sqlx::query("UPDATE metric_rollups SET claimed_until = now() + make_interval(secs => $2) WHERE org_id = $1 AND tier = '5m'").bind(org).bind(CLAIM_SECONDS).execute(&mut *tx).await?;
+        sqlx::query("UPDATE metric_rollups SET claimed_until = now() + make_interval(secs => $2) WHERE org_id = $1 AND tier = '5m'")
+            .bind(org)
+            .bind(CLAIM_SECONDS)
+            .execute(&mut *tx)
+            .await?;
     }
     tx.commit().await?;
     Ok(rows.into_iter().map(|(org, five_minutes, hour)| (org, Progress { five_minutes, hour })).collect())
@@ -238,15 +258,77 @@ async fn lag_seconds(pg: &sqlx::PgPool) -> Result<i64, sqlx::Error> {
 }
 
 async fn release(pg: &sqlx::PgPool, org: &str) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE metric_rollups SET claimed_until = NULL WHERE org_id = $1 AND tier = '5m'").bind(org).execute(pg).await?;
+    sqlx::query("UPDATE metric_rollups SET claimed_until = NULL WHERE org_id = $1 AND tier = '5m'")
+        .bind(org)
+        .execute(pg)
+        .await?;
     Ok(())
 }
 
+/// Find late samples without scanning the samples themselves. Wait at least two minutes so the
+/// current arrival minute is closed and replicated; the cluster delay check in `run` also applies.
+async fn repair_arrivals(pg: &sqlx::PgPool, ch: &clickhouse::Client, org: &str, now: i64, lateness_ms: i64) -> anyhow::Result<Progress> {
+    #[derive(clickhouse::Row, serde::Deserialize)]
+    struct Arrival {
+        bucket: Option<u32>,
+    }
+    let (from,): (i64,) = sqlx::query_as("SELECT (extract(epoch FROM arrivals_until) * 1000)::bigint FROM metric_rollups WHERE org_id = $1 AND tier = '5m'")
+        .bind(org)
+        .fetch_one(pg)
+        .await?;
+    let to = floor(now - lateness_ms.max(2 * MINUTE_MS), MINUTE_MS);
+    if from >= to {
+        return Ok(read_progress(pg, org).await?);
+    }
+    anyhow::ensure!(
+        from >= now - ARRIVAL_RETENTION_MS,
+        "metric arrival cursor is older than 30 days; rebuild rollups before resuming this organization"
+    );
+    let p = read_progress(pg, org).await?;
+    let Arrival { bucket: late } = ch
+        .query(
+            "SELECT minOrNull(toUnixTimestamp(Bucket)) AS bucket FROM otel.metrics_arrivals \
+             WHERE OrgId = {oc_org:String} AND ArrivalMinute >= toDateTime(intDiv(?, 1000)) \
+             AND ArrivalMinute < toDateTime(intDiv(?, 1000)) AND Bucket < toDateTime(intDiv(?, 1000)) \
+             AND ArrivalMinute >= Bucket + INTERVAL 5 MINUTE + toIntervalSecond(?)",
+        )
+        .bind(from)
+        .bind(to)
+        .bind(p.five_minutes)
+        // Arrival time is rounded down to a minute; keep a minute of overlap at the deadline.
+        .bind((lateness_ms - MINUTE_MS).max(0) / 1000)
+        .fetch_one()
+        .await?;
+    let mut tx = pg.begin().await?;
+    if let Some(bucket) = late {
+        let five_minutes = i64::from(bucket) * 1000;
+        anyhow::ensure!(five_minutes >= now - REPAIR_HORIZON_MS, "late metric bucket is older than 72 hours; verify raw coverage and explicitly rebuild rollups");
+        let hour = floor(five_minutes, HOUR_MS);
+        sqlx::query(
+            "UPDATE metric_rollups SET done_until = LEAST(done_until, to_timestamp(\
+             (CASE WHEN tier = '5m' THEN $2::bigint ELSE $3::bigint END)::double precision / 1000)), updated_at = now() WHERE org_id = $1",
+        )
+        .bind(org)
+        .bind(five_minutes)
+        .bind(hour)
+        .execute(&mut *tx)
+        .await?;
+    }
+    sqlx::query("UPDATE metric_rollups SET arrivals_until = to_timestamp($2::double precision / 1000) WHERE org_id = $1 AND tier = '5m'")
+        .bind(org)
+        .bind(to)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(read_progress(pg, org).await?)
+}
+
 /// Rolls up what is due for one claimed org; returns its progress after.
-async fn run_org(st: &AppState, org: &str, mut p: Progress, now: i64) -> anyhow::Result<Progress> {
+async fn run_org(st: &AppState, org: &str, now: i64) -> anyhow::Result<Progress> {
     let lateness = st.config.metrics_rollup_lateness_secs * 1000;
     let ch = st.ch(org);
     let cluster = st.tables.cluster.is_some();
+    let mut p = repair_arrivals(&st.postgres, &ch, org, now, lateness).await?;
     for tier in [Tier::FiveMinutes, Tier::Hour] {
         for _ in 0..CHUNKS_PER_RUN {
             let done = if tier == Tier::FiveMinutes { p.five_minutes } else { p.hour };
@@ -298,9 +380,9 @@ pub async fn run(st: AppState) {
                 continue;
             }
         };
-        for (org, p) in claimed {
+        for (org, _) in claimed {
             let started = Instant::now();
-            match run_org(&st, &org, p, now).await {
+            match run_org(&st, &org, now).await {
                 Ok(after) => {
                     let behind = (now - after.five_minutes) / 1000;
                     tracing::debug!(org = %org, lag_seconds = behind, ms = started.elapsed().as_millis() as u64, "metric rollups");
@@ -408,6 +490,67 @@ mod tests {
         retention: u16,
     }
 
+    /// Replay repairs both tiers automatically; the arrival cursor must not skip unsettled
+    /// minutes or move when the metadata query fails. Uses actual materialized-view markers.
+    #[tokio::test]
+    async fn arrivals_repair_closed_buckets_and_preserve_other_orgs() {
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
+        let Ok(url) = std::env::var("OC_TEST_POSTGRES_URL") else { return };
+        let pg = oc_store::postgres(&url, Duration::from_secs(5)).await.expect("postgres");
+        oc_store::migrate_postgres(&pg).await.expect("migrate");
+        let now = crate::routes::metrics::now_ms();
+        let sample_start = floor(now, HOUR_MS) - 2 * HOUR_MS;
+        let org = format!("arrival-repair-{}-{now}", std::process::id());
+        let other = format!("{org}-other");
+        for id in [&org, &other] {
+            sqlx::query("INSERT INTO orgs (id, name) VALUES ($1, $1)").bind(id).execute(&pg).await.unwrap();
+            sqlx::query("INSERT INTO metric_rollups (org_id, tier, done_until, arrivals_until) SELECT $1, tier, to_timestamp($2::double precision / 1000), to_timestamp($3::double precision / 1000) FROM (VALUES ('5m'), ('1h')) t(tier)")
+                .bind(id).bind(sample_start + HOUR_MS).bind(floor(now, MINUTE_MS)).execute(&pg).await.unwrap();
+        }
+        let ch = live.client.clone().with_option("param_oc_org", &org);
+        let insert = |at, value| {
+            ch.query("INSERT INTO otel.metrics_samples (OrgId, MetricName, SeriesId, TimeUnix, Value, RetentionDays, Retention5mDays, Retention1hDays) VALUES ({oc_org:String}, 'system.cpu.user', 1, fromUnixTimestamp64Milli(?), ?, 30, 90, 395)")
+                .bind(at).bind(value)
+        };
+        insert(sample_start + MINUTE_MS, 10.0f64).execute().await.unwrap();
+        roll(&ch, live.cluster(), Tier::FiveMinutes, sample_start, sample_start + HOUR_MS).await.unwrap();
+        roll(&ch, live.cluster(), Tier::Hour, sample_start, sample_start + HOUR_MS).await.unwrap();
+        // Kafka replay adds a point to a bucket the worker already closed.
+        insert(sample_start + 2 * MINUTE_MS, 20.0f64).execute().await.unwrap();
+        let before = read_progress(&pg, &org).await.unwrap();
+        assert_eq!(repair_arrivals(&pg, &ch, &org, now, LATE).await.unwrap(), before, "open arrival minutes are not acknowledged");
+        let broken = ch.clone().with_url("http://127.0.0.1:1");
+        assert!(repair_arrivals(&pg, &broken, &org, now + 5 * MINUTE_MS, LATE).await.is_err());
+        let (cursor,): (i64,) = sqlx::query_as("SELECT (extract(epoch FROM arrivals_until) * 1000)::bigint FROM metric_rollups WHERE org_id = $1 AND tier = '5m'")
+            .bind(&org)
+            .fetch_one(&pg)
+            .await
+            .unwrap();
+        assert_eq!(cursor, floor(now, MINUTE_MS), "failed metadata reads do not advance the cursor");
+        let p = repair_arrivals(&pg, &ch, &org, now + 5 * MINUTE_MS, LATE).await.unwrap();
+        assert_eq!(p, Progress { five_minutes: sample_start, hour: sample_start });
+        assert_eq!(read_progress(&pg, &other).await.unwrap(), before, "repair is tenant scoped");
+        roll(&ch, live.cluster(), Tier::FiveMinutes, p.five_minutes, sample_start + HOUR_MS).await.unwrap();
+        roll(&ch, live.cluster(), Tier::Hour, p.hour, sample_start + HOUR_MS).await.unwrap();
+        for tier in [Tier::FiveMinutes, Tier::Hour] {
+            assert!(advance(&pg, &org, tier, sample_start, sample_start + HOUR_MS).await.unwrap());
+            let sum: f64 = ch
+                .query(&format!("SELECT sum(Sum) FROM otel.metrics_rollup_{} FINAL WHERE OrgId = {{oc_org:String}}", tier.name()))
+                .fetch_one()
+                .await
+                .unwrap();
+            assert_eq!(sum, 30.0, "late points appear in {} exactly once", tier.name());
+        }
+        assert_eq!(
+            repair_arrivals(&pg, &ch, &org, now + 5 * MINUTE_MS, LATE).await.unwrap(),
+            before,
+            "processed arrivals do not rewind again"
+        );
+        for id in [&org, &other] {
+            sqlx::query("DELETE FROM orgs WHERE id = $1").bind(id).execute(&pg).await.unwrap();
+        }
+    }
+
     /// The job's rollups equal the same aggregation over the samples; re-rolling a bucket after a
     /// late point replaces it; rows keep the tiers' retention. Skipped unless
     /// OC_TEST_CLICKHOUSE_URL points at a ClickHouse server (user `default`, or
@@ -457,7 +600,11 @@ mod tests {
             assert_eq!(a.len(), b.len(), "{what}: rows");
             for (x, y) in a.iter().zip(b) {
                 assert!((x.sum - y.sum).abs() < 1e-9, "{what}: {x:?} vs {y:?}");
-                assert_eq!((x.bucket, x.min, x.max, x.count, x.start, x.end, x.retention), (y.bucket, y.min, y.max, y.count, y.start, y.end, y.retention), "{what}");
+                assert_eq!(
+                    (x.bucket, x.min, x.max, x.count, x.start, x.end, x.retention),
+                    (y.bucket, y.min, y.max, y.count, y.start, y.end, y.retention),
+                    "{what}"
+                );
             }
         };
         let five = fetch(rolled("metrics_rollup_5m")).await;
@@ -477,7 +624,11 @@ mod tests {
 
         // Another org's samples aren't touched.
         let other = ch.clone().with_option("param_oc_org", format!("{org}-other"));
-        let n: u64 = other.query("SELECT count() FROM otel.metrics_rollup_5m WHERE OrgId = {oc_org:String}").fetch_one().await.expect("count");
+        let n: u64 = other
+            .query("SELECT count() FROM otel.metrics_rollup_5m WHERE OrgId = {oc_org:String}")
+            .fetch_one()
+            .await
+            .expect("count");
         assert_eq!(n, 0);
     }
 
@@ -586,7 +737,11 @@ mod tests {
         let pg = oc_store::postgres(&url, Duration::from_secs(5)).await.expect("postgres");
         oc_store::migrate_postgres(&pg).await.expect("migrate");
         let org = format!("rollup-pg-{}", std::process::id());
-        sqlx::query("INSERT INTO orgs (id, name) VALUES ($1, $1) ON CONFLICT DO NOTHING").bind(&org).execute(&pg).await.expect("org");
+        sqlx::query("INSERT INTO orgs (id, name) VALUES ($1, $1) ON CONFLICT DO NOTHING")
+            .bind(&org)
+            .execute(&pg)
+            .await
+            .expect("org");
         sqlx::query("DELETE FROM metric_rollups WHERE org_id = $1").bind(&org).execute(&pg).await.expect("reset");
         let now = crate::routes::metrics::now_ms();
         let start = initial(now, 1);
@@ -603,7 +758,12 @@ mod tests {
         // Progress moves forward from where it was…
         assert!(advance(&pg, &org, Tier::FiveMinutes, start, start + HOUR_MS).await.unwrap());
         // …but not when it was moved back meanwhile (a re-roll asked for: it wins).
-        sqlx::query("UPDATE metric_rollups SET done_until = to_timestamp($2::double precision / 1000) WHERE org_id = $1 AND tier = '5m'").bind(&org).bind(start).execute(&pg).await.unwrap();
+        sqlx::query("UPDATE metric_rollups SET done_until = to_timestamp($2::double precision / 1000) WHERE org_id = $1 AND tier = '5m'")
+            .bind(&org)
+            .bind(start)
+            .execute(&pg)
+            .await
+            .unwrap();
         assert!(!advance(&pg, &org, Tier::FiveMinutes, start + HOUR_MS, start + 2 * HOUR_MS).await.unwrap());
         assert_eq!(read_progress(&pg, &org).await.unwrap().five_minutes, start);
 

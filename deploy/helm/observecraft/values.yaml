@@ -155,8 +155,8 @@ collector:
   tolerations: []
   affinity: {}
 
-# Vector: log normalization, then ClickHouse, the server's log indexer and live tail. Disk buffers
-# on a volume.
+# Vector: log normalization, then ClickHouse, the server's log indexer and live tail. Kafka retains
+# ownership until durable sinks deliver; bounded memory buffers keep local persistence out of the ack path.
 vector:
   image:
     repository: timberio/vector
