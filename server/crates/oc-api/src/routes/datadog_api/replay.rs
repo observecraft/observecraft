@@ -638,7 +638,7 @@ mod tests {
     #[test]
     fn the_fetch_script_downloads_the_replayed_features_at_the_pinned_commit() {
         let script = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../scripts/datadog-fixtures/fetch.sh")).unwrap();
-        assert!(script.contains(&format!("\nCOMMIT={FIXTURES_COMMIT}\n")), "fetch.sh pins another commit than FIXTURES_COMMIT");
+        assert!(script.replace("\r\n", "\n").contains(&format!("\nCOMMIT={FIXTURES_COMMIT}\n")), "fetch.sh pins another commit than FIXTURES_COMMIT");
         let listed = script.split("FEATURES=\"").nth(1).and_then(|s| s.split('"').next()).unwrap();
         let mut listed: Vec<&str> = listed.split_whitespace().collect();
         let mut ours = FEATURES.to_vec();

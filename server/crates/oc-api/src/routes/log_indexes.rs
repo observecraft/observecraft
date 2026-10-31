@@ -126,11 +126,11 @@ pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Log
         .clickhouse
         .query(
             "SELECT toString(index_name) AS index_name, toInt64(toUnixTimestamp(toStartOfHour(timestamp))) * 1000 AS hour, count() AS n \
-             FROM logs WHERE org_id = ? AND timestamp >= now() - INTERVAL 25 HOUR GROUP BY index_name, hour",
+             FROM logs_read WHERE org_id = ? AND timestamp >= now() - INTERVAL 25 HOUR GROUP BY index_name, hour",
         )
         .bind(&ctx.org_id)
         .fetch_all::<HourCount>();
-    let raw = st.clickhouse.query("SELECT count() FROM logs_raw WHERE org_id = ? AND timestamp >= toStartOfDay(now())").bind(&ctx.org_id).fetch_one::<u64>();
+    let raw = st.clickhouse.query("SELECT count() FROM logs_raw_read WHERE org_id = ? AND timestamp >= toStartOfDay(now())").bind(&ctx.org_id).fetch_one::<u64>();
     let (hours, ingested_today) = tokio::try_join!(hours, raw)?;
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64;
     let mut by_index: HashMap<String, Vec<(i64, u64)>> = HashMap::new();

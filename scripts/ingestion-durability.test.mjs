@@ -29,6 +29,7 @@ test('every storage exporter preserves Kafka ownership until export, with unlimi
 });
 
 test('Vector acknowledges durable log sinks after delivery and keeps live tail best effort', () => {
+  assert.equal(vector.sinks.clickhouse.table, 'logs_raw_dedup', 'raw/archive reads must use replay-safe storage');
   for (const name of ['clickhouse', 'indexer']) {
     assert.equal(vector.sinks[name].acknowledgements.enabled, true, name);
     assert.equal(vector.sinks[name].buffer.type, 'memory', `${name}: local disk persistence must not release Kafka ownership`);

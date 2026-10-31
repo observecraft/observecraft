@@ -2310,12 +2310,12 @@ mod tests {
         const ALLOWED: &[(&str, &str, &str)] = &[
             (
                 "log_indexes.rs",
-                "FROM logs WHERE org_id = ? AND timestamp >= now() - INTERVAL 25 HOUR GROUP BY index_name, hour",
+                "FROM logs_read WHERE org_id = ? AND timestamp >= now() - INTERVAL 25 HOUR GROUP BY index_name, hour",
                 "per-index volumes on the index settings (counts)",
             ),
             (
                 "log_indexes.rs",
-                "SELECT count() FROM logs_raw WHERE org_id = ?",
+                "SELECT count() FROM logs_raw_read WHERE org_id = ?",
                 "today's ingested volume (a count)",
             ),
             (
@@ -2325,17 +2325,17 @@ mod tests {
             ),
             (
                 "archives.rs",
-                "FROM logs_raw WHERE {clause}",
+                "FROM logs_raw_read WHERE {clause}",
                 "the archiver writing the org's logs to its archives (background)",
             ),
             (
                 "instance.rs",
-                "count() AS n FROM oc.logs WHERE timestamp > now() - INTERVAL 1 DAY GROUP BY org_id",
+                "count() AS n FROM oc.logs_read WHERE timestamp > now() - INTERVAL 1 DAY GROUP BY org_id",
                 "per-org volumes for instance admins (counts)",
             ),
             (
                 "../logproc.rs",
-                "FROM logs WHERE timestamp >= now() - INTERVAL 25 HOUR GROUP BY org_id, index_name, hour",
+                "FROM logs_read WHERE timestamp >= now() - INTERVAL 25 HOUR GROUP BY org_id, index_name, hour",
                 "the indexer's daily quotas (background)",
             ),
         ];

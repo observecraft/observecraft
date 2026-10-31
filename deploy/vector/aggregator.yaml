@@ -3,8 +3,8 @@
 #            (Kafka oc.logs.json, organization in the record's x-oc-org header; or HTTP :8687 when the
 #            intake runs without Kafka) and trusted in-cluster Vector agents (vector protocol :6000;
 #            events must set org_id)
-#   outputs: ClickHouse oc.logs_raw (every log, kept briefly; archives read it), the server's log
-#            indexer (routes logs to the org's indexes → oc.logs) and Kafka oc.logs.live (live tail,
+#   outputs: ClickHouse oc.logs_raw_dedup (every log; archives use oc.logs_raw_read), the server's log
+#            indexer (routes logs to the org's indexes → oc.logs_dedup) and Kafka oc.logs.live (live tail,
 #            keyed by org)
 # Events without an organization are dropped: nothing is stored that no tenant owns.
 # Endpoints come from the environment (defaults: the compose service names); the Helm chart mounts this file.
@@ -66,7 +66,7 @@ sinks:
     inputs: [normalize]
     endpoint: "${OC_CLICKHOUSE_HTTP_ENDPOINT:-http://clickhouse:8123}"
     database: oc
-    table: logs_raw
+    table: logs_raw_dedup
     acknowledgements:
       enabled: true
     auth:

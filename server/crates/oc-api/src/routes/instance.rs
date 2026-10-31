@@ -20,6 +20,10 @@ use crate::state::AppState;
 /// ClickHouse tables holding per-org telemetry, with their org column; deleting an org purges them.
 const TELEMETRY_TABLES: &[(&str, &str)] = &[
     ("oc.logs", "org_id"),
+    ("oc.logs_dedup", "org_id"),
+    ("oc.logs_raw_dedup", "org_id"),
+    ("oc.error_groups_1m_dedup", "org_id"),
+    ("oc.log_facets_1m_dedup", "org_id"),
     ("otel.otel_traces", "OrgId"),
     ("otel.otel_ci_traces", "OrgId"),
     ("otel.otel_traces_trace_id_ts", "OrgId"),
@@ -122,7 +126,7 @@ pub async fn list_orgs(State(st): State<AppState>, _: InstanceAdmin) -> ApiResul
     .fetch_all(&st.postgres)
     .await?;
     let (logs, spans) = tokio::join!(
-        volumes(&st, "SELECT org_id, count() AS n FROM oc.logs WHERE timestamp > now() - INTERVAL 1 DAY GROUP BY org_id"),
+        volumes(&st, "SELECT org_id, count() AS n FROM oc.logs_read WHERE timestamp > now() - INTERVAL 1 DAY GROUP BY org_id"),
         volumes(&st, "SELECT OrgId AS org_id, count() AS n FROM otel.otel_traces WHERE Timestamp > now() - INTERVAL 1 DAY GROUP BY org_id"),
     );
     for r in &mut rows {

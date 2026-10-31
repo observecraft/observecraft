@@ -4,9 +4,9 @@
 //! (`/metrics`, Prometheus text; see `cache`).
 //!
 //! The log indexer: Vector sends every normalized log here (NDJSON, internal listener on
-//! `OC_LOGPROC_ADDR`) after writing it to `oc.logs_raw`. Each log goes to the first of its org's
+//! `OC_LOGPROC_ADDR`) alongside writing it to `oc.logs_raw_dedup`. Each log goes to the first of its org's
 //! indexes whose filter matches; that index's exclusion filters may drop it (sampled
-//! deterministically by log id) and its daily quota may cap it. Kept logs are written to `oc.logs`
+//! deterministically by log id) and its daily quota may cap it. Kept logs are written to `oc.logs_dedup`
 //! with their index name and retention, which the table's TTL uses. With Flex Logs on, an index's
 //! flex retention (its total time, standard + flex tier) is the retention written.
 //!
@@ -267,7 +267,7 @@ impl Indexer {
             .clickhouse
             .query(
                 "SELECT org_id, toString(index_name) AS index_name, toInt64(toUnixTimestamp(toStartOfHour(timestamp))) * 1000 AS hour, count() AS n \
-                 FROM logs WHERE timestamp >= now() - INTERVAL 25 HOUR GROUP BY org_id, index_name, hour",
+                 FROM logs_read WHERE timestamp >= now() - INTERVAL 25 HOUR GROUP BY org_id, index_name, hour",
             )
             .fetch_all::<HourCount>()
             .await?;
@@ -366,11 +366,11 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
     if kept == 0 {
         return StatusCode::OK;
     }
-    match insert_rows(&st, "oc.logs", rows).await {
+    match insert_rows(&st, "oc.logs_dedup", rows).await {
         Ok(()) => StatusCode::OK,
         Err(e) => {
             tracing::warn!(error = %e, "indexing logs failed");
-            // Vector retries (and buffers on disk meanwhile).
+            // Vector retries while Kafka retains ownership of the unacknowledged records.
             StatusCode::SERVICE_UNAVAILABLE
         }
     }
@@ -378,21 +378,21 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
 
 /// `INSERT INTO <table> … FORMAT JSONEachRow` of NDJSON rows.
 pub(crate) async fn insert_rows(st: &AppState, table: &str, rows: Vec<u8>) -> Result<(), String> {
-    let query = format!("INSERT INTO {table} SETTINGS input_format_skip_unknown_fields = 1, date_time_input_format = 'best_effort' FORMAT JSONEachRow");
+    let query = format!("INSERT INTO {table} SETTINGS input_format_skip_unknown_fields = 1, date_time_input_format = 'best_effort', insert_distributed_sync = 1 FORMAT JSONEachRow");
     let res = reqwest::Client::new()
         .post(&st.config.clickhouse_url)
         .basic_auth(&st.config.clickhouse_user, Some(&st.config.clickhouse_password))
-        .query(&[("query", query)])
+        .query(&[("query", query.as_str()), ("wait_end_of_query", "1")])
         .body(rows)
         .send()
         .await
         .map_err(|e| e.to_string())?;
-    if res.status().is_success() {
+    let status = res.status();
+    let body = res.text().await.map_err(|e| e.to_string())?;
+    if status.is_success() && body.trim().is_empty() {
         return Ok(());
     }
-    let status = res.status();
-    let body: String = res.text().await.unwrap_or_default().chars().take(300).collect();
-    Err(format!("{status}: {body}"))
+    Err(format!("{status}: {}", body.chars().take(300).collect::<String>()))
 }
 
 /// Requests to the internal listener carry `Authorization: Bearer <OC_INTERNAL_TOKEN>` when it is set.
@@ -467,6 +467,38 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
 mod tests {
     use super::*;
     use crate::log_metrics::{Aggregation, PointValue};
+
+    #[tokio::test]
+    async fn insert_checks_response_body_and_waits_for_distributed_completion() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let Some((_, states)) = crate::test_support::replicas_with(1, |cfg| cfg.clickhouse_url = url.clone()).await else {
+            return;
+        };
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let handler_calls = calls.clone();
+        let task = tokio::spawn(async move {
+            let app = Router::new().route(
+                "/",
+                post(move |axum::extract::Query(query): axum::extract::Query<HashMap<String, String>>| {
+                    let calls = handler_calls.clone();
+                    async move {
+                        assert_eq!(query["wait_end_of_query"], "1");
+                        assert!(query["query"].contains("insert_distributed_sync = 1"));
+                        if calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 {
+                            "Code: 999. late insert failure"
+                        } else {
+                            ""
+                        }
+                    }
+                }),
+            );
+            axum::serve(listener, app).await.unwrap();
+        });
+        assert!(insert_rows(&states[0], "oc.logs_dedup", vec![]).await.is_err(), "HTTP 200 alone is not delivery");
+        assert!(insert_rows(&states[0], "oc.logs_dedup", vec![]).await.is_ok());
+        task.abort();
+    }
 
     fn indexer(rules: Vec<IndexRule>) -> Indexer {
         let ix = Indexer::default();

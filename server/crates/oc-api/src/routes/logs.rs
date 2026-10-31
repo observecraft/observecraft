@@ -132,7 +132,7 @@ fn index_table(terms: &[Term]) -> &'static str {
     if rehydrated {
         "logs_rehydrated"
     } else {
-        "logs"
+        "logs_read"
     }
 }
 
@@ -1048,7 +1048,7 @@ mod tests {
         let plan = log_aggregates::plan("o", &all, &LOG_FACETS, range, &parse_query("env:prod"), None, Some(T0), &[]);
         let (agg_params, logs_params) = (plan.agg.as_ref().unwrap().params.len(), plan.logs.params.len());
         let (sql, params) = shared_facets_query(&["source", "kube_namespace"], &plan, 10);
-        assert!(sql.contains("FROM oc.log_facets_1m WHERE ") && sql.contains(" UNION ALL "), "{sql}");
+        assert!(sql.contains("FROM oc.log_facets_1m_read WHERE ") && sql.contains(" UNION ALL "), "{sql}");
         // The aggregate's scope and labels, then labels, a tag parameter and the logs' scope, then the limit.
         assert_eq!(params.len(), agg_params + 2 + 2 + 1 + logs_params + 1);
         assert_eq!(params[agg_params], Param::Str("source".into()));
@@ -1056,7 +1056,7 @@ mod tests {
         let (sql, _) = shared_facets_query(&["source", "pod_name"], &plan, 10);
         assert!(!sql.contains("log_facets_1m"), "{sql}");
         let (sql, params) = values_query(&key_plan("o", &all, range, &parse_query("service:billing"), "service", true, Some(T0)), "service", Some("bill"), 10);
-        assert!(sql.starts_with("SELECT v, sum(c) AS n FROM (SELECT toString(service) AS v, sum(n) AS c FROM oc.log_facets_1m WHERE "), "{sql}");
+        assert!(sql.starts_with("SELECT v, sum(c) AS n FROM (SELECT toString(service) AS v, sum(n) AS c FROM oc.log_facets_1m_read WHERE "), "{sql}");
         assert_eq!(&params[params.len() - 2..], &[Param::Str("bill".into()), Param::Int(10)]);
         assert!(!values_query(&key_plan("o", &all, range, &[], "pod_name", true, Some(T0)), "pod_name", None, 10).0.contains("log_facets_1m"));
     }
@@ -1064,6 +1064,58 @@ mod tests {
     /// Standard facet counts from the facet aggregate (and the logs around it) are those counted from
     /// the logs alone. Skipped unless OC_TEST_CLICKHOUSE_URL points at a ClickHouse server (user
     /// `default`, or OC_TEST_CLICKHOUSE_USER / OC_TEST_CLICKHOUSE_PASSWORD).
+    #[tokio::test]
+    async fn replay_counts_match_search_facets_and_error_aggregates() {
+        let Some(live) = crate::test_support::live_clickhouse().await else { return };
+        let org = crate::test_support::org("log-replay");
+        let ch = live.client.clone().with_database("oc").with_option("param_org", &org);
+        let t0 = crate::routes::metrics::now_ms() / 60_000 * 60_000 - 600_000;
+        // Equal events have different IDs. Retry the same events in reversed order and separate inserts.
+        for id in [1, 2, 2, 1] {
+            ch.query(
+                "INSERT INTO oc.logs_dedup (org_id, id, timestamp, service, status, message, tags) \
+                 VALUES ({org:String}, toUUID(?), fromUnixTimestamp64Milli(?), 'order-service', 'error', 'order failed', map('env','prod'))",
+            )
+            .bind(format!("019a4000-0000-7000-8000-{id:012}"))
+            .bind(t0 + 1_000)
+            .execute()
+            .await
+            .unwrap();
+        }
+        let range = TimeRange { from: t0, to: t0 + 120_000 };
+        let access = LogAccess::org_background();
+        let scope = scope(&org, &access, range, &[], None);
+        let count = bind(ch.query(&format!("SELECT count() FROM {} WHERE {}", scope.table, scope.clause)), &scope.params)
+            .fetch_one::<u64>()
+            .await
+            .unwrap();
+        assert_eq!(count, 2, "search and log monitor reads see each event once");
+        for since in [None, Some(t0 - 60_000)] {
+            let plan = key_plan(&org, &access, range, &[], "service", true, since);
+            let (query, params) = values_query(&plan, "service", None, 10);
+            let rows = bind(ch.query(&query), &params).fetch_all::<ValueRow>().await.unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].n, 2, "facet parity, aggregate enabled: {}", since.is_some());
+        }
+        assert_eq!(ch.query("SELECT sum(n) FROM oc.error_groups_1m_read WHERE org_id = {org:String}").fetch_one::<u64>().await.unwrap(), 2);
+        // The same ID belongs to a different tenant independently.
+        ch.query(
+            "INSERT INTO oc.logs_dedup (org_id, id, timestamp, service, status, message) \
+                  SELECT concat({org:String}, '-other'), id, timestamp, service, status, message FROM oc.logs_read WHERE org_id = {org:String} LIMIT 1",
+        )
+        .execute()
+        .await
+        .unwrap();
+        assert_eq!(ch.query("SELECT count() FROM oc.logs_read WHERE org_id = {org:String}").fetch_one::<u64>().await.unwrap(), 2);
+        assert_eq!(
+            ch.query("SELECT count() FROM oc.logs_read WHERE org_id = concat({org:String}, '-other')")
+                .fetch_one::<u64>()
+                .await
+                .unwrap(),
+            1
+        );
+    }
+
     #[tokio::test]
     async fn facet_counts_from_the_aggregate_match_the_logs() {
         let Some(live) = crate::test_support::live_clickhouse().await else { return };

@@ -25,6 +25,14 @@ function doc(out, kind, name) {
 const valkey = (out) => doc(out, 'Deployment', 'oc-observecraft-valkey');
 const server = (out) => doc(out, 'Deployment', 'oc-observecraft-server');
 
+test('ingestion profile waits for shards and buffers HTTP errors until query completion', { skip: !hasHelm }, () => {
+  const r = render();
+  assert.ok(r.ok, r.err);
+  assert.match(r.out, /<insert_distributed_sync>1<\/insert_distributed_sync>/);
+  assert.match(r.out, /<http_wait_end_of_query>1<\/http_wait_end_of_query>/);
+  assert.match(r.out, /<wait_for_async_insert>1<\/wait_for_async_insert>/);
+});
+
 test('bundled default: a generated cache-password in the chart secret', { skip: !hasHelm }, () => {
   const r = render();
   assert.ok(r.ok, r.err);
