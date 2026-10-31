@@ -2338,6 +2338,11 @@ mod tests {
                 "FROM logs_read WHERE timestamp >= now() - INTERVAL 25 HOUR GROUP BY org_id, index_name, hour",
                 "the indexer's daily quotas (background)",
             ),
+            (
+                "../logproc.rs",
+                "retention_days FROM logs_read WHERE org_id = ?",
+                "the indexer's persisted quota admissions (internal ingestion, scoped to the org)",
+            ),
         ];
         let mut direct = Vec::new();
         for (file, src) in server_sources() {

@@ -83,6 +83,9 @@ struct Counter {
 pub struct Indexer {
     rules: RwLock<HashMap<String, Arc<Vec<IndexRule>>>>,
     counters: Mutex<HashMap<(String, String), Counter>>,
+    /// Reconciliation excludes in-flight quota writes; different orgs can still ingest concurrently.
+    quota_gate: tokio::sync::RwLock<()>,
+    quota_orgs: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     /// Each org's enabled log pipelines, in order.
     pipelines: RwLock<HashMap<String, Arc<Vec<Pipeline>>>>,
     /// The standard attributes of each org that changed the defaults; others use the defaults.
@@ -294,8 +297,8 @@ impl Indexer {
     }
 
     /// The index that keeps this log (and its retention), or None when it isn't indexed.
-    fn route(&self, org: &str, id: &str, f: &Fields<'_>, now: i64) -> Option<(String, u16)> {
-        let rules = self.rules.read().unwrap().get(org).cloned()?;
+    fn route(&self, org: &str, id: &str, f: &Fields<'_>, now: i64, reservations: &mut Reservations<'_>, rules: &HashMap<String, Arc<Vec<IndexRule>>>) -> Option<(String, u16)> {
+        let rules = rules.get(org)?;
         let rule = rules.iter().find(|r| matches(&r.terms, f))?;
         if let Some(ex) = rule.exclusions.iter().find(|e| matches(&e.terms, f)) {
             let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -315,40 +318,127 @@ impl Indexer {
                 return None;
             }
             c.n += 1;
+            *reservations.counts.entry((org.to_string(), rule.name.clone(), start)).or_default() += 1;
         }
         Some((rule.name.clone(), rule.retention_days))
     }
+}
+
+/// A failed or cancelled request must not spend quota for rows it has not acknowledged.
+/// The quota gate prevents reconciliation from incorporating an in-flight write before rollback.
+struct Reservations<'a> {
+    ix: &'a Indexer,
+    counts: HashMap<(String, String, i64), u64>,
+}
+
+impl Drop for Reservations<'_> {
+    fn drop(&mut self) {
+        let mut counters = self.ix.counters.lock().unwrap();
+        for ((org, index, day), n) in &self.counts {
+            if let Some(c) = counters.get_mut(&(org.clone(), index.clone())).filter(|c| c.day_start == *day) {
+                c.n = c.n.saturating_sub(*n);
+            }
+        }
+    }
+}
+
+type Admissions = HashMap<(String, String), (String, u16)>;
+
+/// Reuse persisted admissions after a lost response or a restart. Only quota-bearing orgs need
+/// this read. Bound each lookup and prune partitions using the processed event timestamps.
+async fn persisted_admissions(st: &AppState, rows: &[&Value]) -> Result<Admissions, String> {
+    #[derive(clickhouse::Row, Deserialize)]
+    struct Admission {
+        event_id: String,
+        index_name: String,
+        retention_days: u16,
+    }
+    let mut by_org: HashMap<&str, Vec<(&str, i64)>> = HashMap::new();
+    for ev in rows {
+        let org = ev.get("org_id").and_then(Value::as_str).ok_or("missing quota organization")?;
+        let id = ev.get("id").and_then(Value::as_str).ok_or("missing quota event ID")?;
+        let ts = ev.get("ts_ms").and_then(Value::as_i64).ok_or("missing quota event timestamp")?;
+        by_org.entry(org).or_default().push((id, ts));
+    }
+    let mut out = Admissions::new();
+    for (org, events) in by_org {
+        for chunk in events.chunks(1000) {
+            let min = chunk.iter().map(|e| e.1).min().unwrap();
+            let max = chunk.iter().map(|e| e.1).max().unwrap();
+            let ids: Vec<&str> = chunk.iter().map(|e| e.0).collect();
+            let found = st
+                .clickhouse
+                .query(
+                    "SELECT toString(id) AS event_id, toString(index_name) AS index_name, retention_days FROM logs_read WHERE org_id = ? \
+                 AND timestamp >= fromUnixTimestamp64Milli(?) AND timestamp <= fromUnixTimestamp64Milli(?) \
+                 AND id IN arrayMap(x -> toUUIDOrZero(x), ?)",
+                )
+                .bind(org)
+                .bind(min)
+                .bind(max)
+                .bind(ids)
+                .fetch_all::<Admission>()
+                .await
+                .map_err(|e| e.to_string())?;
+            for r in found {
+                out.insert((org.to_string(), r.event_id), (r.index_name, r.retention_days));
+            }
+        }
+    }
+    Ok(out)
 }
 
 fn string_map(v: Option<&Value>) -> HashMap<String, String> {
     v.and_then(Value::as_object).map(|o| o.iter().map(|(k, v)| (k.clone(), v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string()))).collect()).unwrap_or_default()
 }
 
-/// Routes one NDJSON batch; returns the kept rows as NDJSON for `INSERT … FORMAT JSONEachRow`.
-fn route_batch(ix: &Indexer, body: &[u8]) -> (Vec<u8>, usize, usize) {
-    let now = now_ms();
-    let (mut out, mut seen, mut kept) = (Vec::with_capacity(body.len()), 0, 0);
+/// Process pipelines once, before looking up the persisted event identities and timestamps.
+fn prepare_batch(ix: &Indexer, body: &[u8], now: i64) -> Vec<Value> {
+    let mut rows = Vec::new();
     for line in body.split(|b| *b == b'\n').filter(|l| !l.is_empty()) {
         let Ok(mut ev) = serde_json::from_slice::<Value>(line) else { continue };
-        seen += 1;
         let org_id = ev.get("org_id").and_then(Value::as_str).unwrap_or("").to_string();
         let org_pipelines = ix.pipelines.read().unwrap().get(&org_id).cloned().unwrap_or_default();
         pipelines::process_row(&org_pipelines, &ix.standard_for(&org_id), &mut ev, now);
+        rows.push(ev);
+    }
+    rows
+}
+
+fn admit_batch(ix: &Indexer, rows: Vec<Value>, existing: &Admissions, reservations: &mut Reservations<'_>, now: i64, rules: &HashMap<String, Arc<Vec<IndexRule>>>) -> (Vec<u8>, usize, usize) {
+    let (mut out, mut kept) = (Vec::new(), 0);
+    let seen = rows.len();
+    let mut decisions = HashMap::new();
+    for mut ev in rows {
         let s = |k: &str| ev.get(k).and_then(Value::as_str).unwrap_or("").to_string();
         let (org, id) = (s("org_id"), s("id"));
         let (service, status, host, source, message) = (s("service"), s("status"), s("host"), s("source"), s("message"));
         let (tags, attr) = (string_map(ev.get("tags")), string_map(ev.get("attr")));
-        let f = Fields { service: &service, status: &status, host: &host, source: &source, message: &message, tags: &tags, attr: &attr, index: None };
+        let f = Fields {
+            service: &service,
+            status: &status,
+            host: &host,
+            source: &source,
+            message: &message,
+            tags: &tags,
+            attr: &attr,
+            index: None,
+        };
         let org_metrics = ix.log_metrics.read().unwrap().get(&org).cloned();
         if let Some(m) = org_metrics {
             let ts = ev.get("ts_ms").and_then(Value::as_i64).unwrap_or(now);
             ix.metric_buckets.lock().unwrap().record(&org, &m, &f, ts, now);
         }
         ix.forwarder.record(&org, &f, &ev);
-        let Some((index, retention)) = ix.route(&org, &id, &f, now) else { continue };
+        // Duplicate identities in one batch spend one slot, including before any row is persisted.
+        let key = (org.clone(), id.clone());
+        let decision = decisions
+            .entry(key.clone())
+            .or_insert_with(|| existing.get(&key).cloned().or_else(|| ix.route(&org, &id, &f, now, reservations, rules)));
+        let Some((index, retention)) = decision else { continue };
         if let Some(o) = ev.as_object_mut() {
-            o.insert("index_name".into(), Value::String(index));
-            o.insert("retention_days".into(), Value::from(retention));
+            o.insert("index_name".into(), Value::String(index.clone()));
+            o.insert("retention_days".into(), Value::from(*retention));
         }
         if serde_json::to_writer(&mut out, &ev).is_ok() {
             out.push(b'\n');
@@ -358,16 +448,62 @@ fn route_batch(ix: &Indexer, body: &[u8]) -> (Vec<u8>, usize, usize) {
     (out, seen, kept)
 }
 
+#[cfg(test)]
+fn route_batch(ix: &Indexer, body: &[u8]) -> (Vec<u8>, usize, usize) {
+    let now = now_ms();
+    let mut reservations = Reservations { ix, counts: HashMap::new() };
+    let rules = ix.rules.read().unwrap().clone();
+    let result = admit_batch(ix, prepare_batch(ix, body, now), &Admissions::new(), &mut reservations, now, &rules);
+    reservations.counts.clear();
+    result
+}
+
 async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: HeaderMap, body: Bytes) -> StatusCode {
     if !internal_authorized(st.config.internal_token.as_deref(), &headers) {
         return StatusCode::UNAUTHORIZED;
     }
-    let (rows, _seen, kept) = route_batch(&ix, &body);
+    let now = now_ms();
+    let rules = ix.rules.read().unwrap().clone();
+    let prepared = prepare_batch(&ix, &body, now);
+    let quota_rows: Vec<&Value> = {
+        prepared
+            .iter()
+            .filter(|ev| {
+                ev.get("org_id")
+                    .and_then(Value::as_str)
+                    .and_then(|org| rules.get(org))
+                    .is_some_and(|rs| rs.iter().any(|r| r.daily_quota.is_some()))
+            })
+            .collect()
+    };
+    let _gate = if quota_rows.is_empty() { None } else { Some(ix.quota_gate.read().await) };
+    // Stable order prevents deadlocks in internal batches containing more than one organization.
+    let orgs: std::collections::BTreeSet<_> = quota_rows.iter().filter_map(|ev| ev.get("org_id").and_then(Value::as_str)).collect();
+    let locks: Vec<_> = {
+        let mut gates = ix.quota_orgs.lock().unwrap();
+        orgs.into_iter().map(|org| gates.entry(org.to_string()).or_default().clone()).collect()
+    };
+    let mut _org_guards = Vec::with_capacity(locks.len());
+    for lock in locks {
+        _org_guards.push(lock.lock_owned().await);
+    }
+    let existing = match persisted_admissions(&st, &quota_rows).await {
+        Ok(existing) => existing,
+        Err(e) => {
+            tracing::warn!(error = %e, "checking persisted log admissions failed");
+            return StatusCode::SERVICE_UNAVAILABLE;
+        }
+    };
+    let mut reservations = Reservations { ix: &ix, counts: HashMap::new() };
+    let (rows, _seen, kept) = admit_batch(&ix, prepared, &existing, &mut reservations, now, &rules);
     if kept == 0 {
         return StatusCode::OK;
     }
     match insert_rows(&st, "oc.logs_dedup", rows).await {
-        Ok(()) => StatusCode::OK,
+        Ok(()) => {
+            reservations.counts.clear();
+            StatusCode::OK
+        }
         Err(e) => {
             tracing::warn!(error = %e, "indexing logs failed");
             // Vector retries while Kafka retains ownership of the unacknowledged records.
@@ -414,6 +550,11 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
     let ix = Arc::new(Indexer::default());
     ix.reload(&st).await?;
     log_forwarding::spawn(st.clone(), ix.forwarder.clone());
+    // Do not accept fresh admissions with empty counters after restarting a quota-bearing replica.
+    let has_quotas = ix.rules.read().unwrap().values().any(|rs| rs.iter().any(|r| r.daily_quota.is_some()));
+    if has_quotas {
+        ix.sync_counts(&st).await?;
+    }
     let (st2, ix2) = (st.clone(), ix.clone());
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_secs(10));
@@ -424,6 +565,7 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
                 tracing::warn!(error = %e, "reloading log indexes failed");
             }
             if n.is_multiple_of(3) {
+                let _gate = ix2.quota_gate.write().await;
                 if let Err(e) = ix2.sync_counts(&st2).await {
                     tracing::warn!(error = %e, "syncing index quotas failed");
                 }
@@ -542,6 +684,142 @@ mod tests {
         let ix = indexer(vec![rule("main", "", Some(2), vec![])]);
         let body = (0..5).map(|i| line("acme", &i.to_string(), "api", "info")).collect::<String>();
         assert_eq!(route_batch(&ix, body.as_bytes()).2, 2);
+    }
+
+    #[test]
+    fn failed_or_cancelled_admission_releases_quota_and_duplicates_spend_one_slot() {
+        let ix = indexer(vec![rule("main", "", Some(2), vec![])]);
+        let rules = ix.rules.read().unwrap().clone();
+        let body = [
+            line("acme", "1", "api", "info"),
+            line("acme", "1", "api", "info"),
+            line("acme", "2", "api", "info"),
+            line("acme", "3", "api", "info"),
+        ]
+        .concat();
+        {
+            let mut reservations = Reservations { ix: &ix, counts: HashMap::new() };
+            let (_, _, kept) = admit_batch(&ix, prepare_batch(&ix, body.as_bytes(), 1), &Admissions::new(), &mut reservations, 1, &rules);
+            assert_eq!(kept, 3, "two identities, including both copies of the first");
+            assert_eq!(ix.counters.lock().unwrap()[&("acme".into(), "main".into())].n, 2);
+            // Dropping the request future on cancellation follows the same rollback path.
+        }
+        assert_eq!(ix.counters.lock().unwrap()[&("acme".into(), "main".into())].n, 0);
+        assert_eq!(route_batch(&ix, body.as_bytes()).2, 3, "the retry can still fill the quota");
+        assert_eq!(route_batch(&ix, line("acme", "4", "api", "info").as_bytes()).2, 0);
+    }
+
+    #[test]
+    fn rollback_does_not_subtract_from_a_new_quota_day() {
+        let ix = indexer(vec![rule("main", "", Some(1), vec![])]);
+        let rules = ix.rules.read().unwrap().clone();
+        let mut old = Reservations { ix: &ix, counts: HashMap::new() };
+        admit_batch(&ix, prepare_batch(&ix, line("acme", "1", "api", "info").as_bytes(), 1), &Admissions::new(), &mut old, 1, &rules);
+        let mut new = Reservations { ix: &ix, counts: HashMap::new() };
+        admit_batch(
+            &ix,
+            prepare_batch(&ix, line("acme", "2", "api", "info").as_bytes(), DAY_MS + 1),
+            &Admissions::new(),
+            &mut new,
+            DAY_MS + 1,
+            &rules,
+        );
+        drop(old);
+        assert_eq!(ix.counters.lock().unwrap()[&("acme".into(), "main".into())].n, 1);
+    }
+
+    #[tokio::test]
+    async fn failed_and_cancelled_storage_requests_leave_quota_available() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let Some((_, states)) = crate::test_support::replicas_with(1, |cfg| cfg.clickhouse_url = url.clone()).await else {
+            return;
+        };
+        let st = states[0].clone();
+        let org = crate::test_support::new_org(&st, "quota-failure").await;
+        let ix = Arc::new(Indexer::default());
+        ix.rules.write().unwrap().insert(org.clone(), Arc::new(vec![rule("main", "", Some(1), vec![])]));
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let arrived = Arc::new(tokio::sync::Notify::new());
+        let handler_calls = calls.clone();
+        let handler_arrived = arrived.clone();
+        let server = tokio::spawn(async move {
+            let app = Router::new().route(
+                "/",
+                post(move || {
+                    let calls = handler_calls.clone();
+                    let arrived = handler_arrived.clone();
+                    async move {
+                        if calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst) > 0 {
+                            arrived.notify_one();
+                            std::future::pending::<()>().await;
+                        }
+                        StatusCode::SERVICE_UNAVAILABLE
+                    }
+                }),
+            );
+            axum::serve(listener, app).await.unwrap();
+        });
+        let now = now_ms();
+        let ev = serde_json::json!({"org_id": org, "id": "00000000-0000-4000-8000-000000000001", "ts_ms": now,
+            "timestamp": chrono::DateTime::from_timestamp_millis(now).unwrap().to_rfc3339(), "service": "api-gateway", "message": "retry"});
+        let body = Bytes::from(format!("{ev}\n"));
+        assert_eq!(ingest(State((st.clone(), ix.clone())), HeaderMap::new(), body.clone()).await, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(ix.counters.lock().unwrap()[&(org.clone(), "main".into())].n, 0);
+        let pending_ix = ix.clone();
+        let request = tokio::spawn(async move { ingest(State((st, pending_ix)), HeaderMap::new(), body).await });
+        tokio::time::timeout(Duration::from_secs(5), arrived.notified()).await.unwrap();
+        assert_eq!(ix.counters.lock().unwrap()[&(org.clone(), "main".into())].n, 1);
+        request.abort();
+        assert!(request.await.unwrap_err().is_cancelled());
+        assert_eq!(ix.counters.lock().unwrap()[&(org, "main".into())].n, 0);
+        assert!(ix.quota_gate.try_write().is_ok(), "cancelled request releases reconciliation gate too");
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn persisted_admissions_survive_restart_and_replay_at_full_quota() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "quota-replay").await;
+        let other = crate::test_support::new_org(st, "quota-other").await;
+        let make_indexer = || {
+            let ix = Indexer::default();
+            for org in [&org, &other] {
+                ix.rules.write().unwrap().insert(org.clone(), Arc::new(vec![rule("main", "", Some(2), vec![])]));
+            }
+            Arc::new(ix)
+        };
+        let ids: Vec<String> = (1..=3).map(|n| format!("00000000-0000-4000-8000-{n:012}")).collect();
+        let now = now_ms();
+        let row = |org: &str, id: &str| {
+            let mut ev: Value = serde_json::from_str(&line(org, id, "api-gateway", "error")).unwrap();
+            ev["ts_ms"] = now.into();
+            ev["timestamp"] = chrono::DateTime::from_timestamp_millis(now).unwrap().to_rfc3339().into();
+            format!("{ev}\n")
+        };
+        let first = [row(&org, &ids[0]), row(&org, &ids[1])].concat();
+        assert_eq!(ingest(State((st.clone(), make_indexer())), HeaderMap::new(), Bytes::from(first.clone())).await, StatusCode::OK);
+        // New process: rebuild counters from the deduplicated storage before accepting traffic.
+        let restarted = make_indexer();
+        restarted.sync_counts(st).await.unwrap();
+        assert_eq!(restarted.counters.lock().unwrap()[&(org.clone(), "main".into())].n, 2);
+        let retry = [row(&org, &ids[1]), row(&org, &ids[2]), row(&org, &ids[0])].concat();
+        assert_eq!(ingest(State((st.clone(), restarted.clone())), HeaderMap::new(), Bytes::from(retry)).await, StatusCode::OK);
+        assert_eq!(restarted.counters.lock().unwrap()[&(org.clone(), "main".into())].n, 2, "replay spends no fresh slots");
+        let prepared = prepare_batch(&restarted, first.as_bytes(), now);
+        let references: Vec<_> = prepared.iter().collect();
+        let admissions = persisted_admissions(st, &references).await.unwrap();
+        assert_eq!(admissions.len(), 2);
+        assert_eq!(admissions[&(org.clone(), ids[0].clone())], ("main".into(), 7));
+        assert_eq!(st.clickhouse.query("SELECT count() FROM logs_read WHERE org_id = ?").bind(&org).fetch_one::<u64>().await.unwrap(), 2);
+        let other_row = row(&other, &ids[0]);
+        assert_eq!(ingest(State((st.clone(), restarted.clone())), HeaderMap::new(), Bytes::from(other_row)).await, StatusCode::OK);
+        assert_eq!(
+            restarted.counters.lock().unwrap()[&(other.clone(), "main".into())].n,
+            1,
+            "same ID in another org is a separate admission"
+        );
     }
 
     #[test]
