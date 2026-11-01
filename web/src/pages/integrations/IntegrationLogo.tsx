@@ -1,5 +1,6 @@
 // Logo registry for integrations/apps. Order: full-colour SVG Logos (generated subset, CC0) →
-// single-colour Simple Icons in the brand colour (CC0) → wordmark / coloured tile.
+// single-colour Simple Icons in the brand colour (CC0) → the integrations-core catalog's logos
+// (generated from both sets, loaded on demand) → a plain icon for system checks → wordmark / coloured tile.
 // Brands remain trademarks of their owners and are shown only to identify the integration.
 import {
   siAirtable,
@@ -79,7 +80,9 @@ import {
   siZoom,
   type SimpleIcon,
 } from 'simple-icons';
-import { BrandLogo, hasBrandLogo } from '../../components/brand/BrandLogo';
+import { useEffect, useReducer } from 'react';
+import { BrandLogo, SvgLogo, hasBrandLogo, type SvgLogoData } from '../../components/brand/BrandLogo';
+import { GENERIC_LOGOS } from './genericLogos';
 
 const ICONS: Record<string, SimpleIcon> = {
   airtable: siAirtable,
@@ -201,8 +204,39 @@ interface Props {
   size?: number;
 }
 
+// The catalog's logos (a few hundred KB) load the first time a logo isn't in the maps above.
+let catalogLogos: Record<string, SvgLogoData> | undefined;
+let loading: Promise<void> | undefined;
+const waiting = new Set<() => void>();
+
+function useCatalogLogo(key: string, wanted: boolean): SvgLogoData | undefined {
+  const [, loaded] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    if (!wanted || catalogLogos) return;
+    waiting.add(loaded);
+    loading ??= import('../../assets/integrationLogos.generated').then((m) => {
+      catalogLogos = m.INTEGRATION_LOGOS;
+      for (const done of waiting) done();
+      waiting.clear();
+    });
+    return () => void waiting.delete(loaded);
+  }, [wanted]);
+  return wanted ? catalogLogos?.[key] : undefined;
+}
+
 export function IntegrationLogo({ logo, name, size = 64 }: Props) {
+  const known = hasBrandLogo(logo) || !!ICONS[logo];
+  const catalogLogo = useCatalogLogo(logo, !known && !FALLBACK[logo]);
   if (hasBrandLogo(logo)) return <BrandLogo name={logo} size={size} title={name} maxRatio={2.8} />;
+  if (catalogLogo) return <SvgLogo logo={catalogLogo} size={size} title={name} maxRatio={2.8} />;
+  const Generic = GENERIC_LOGOS[logo];
+  if (Generic) {
+    return (
+      <span className="logo-generic" style={{ width: size * 1.25, height: size * 1.25 }} aria-label={name} title={name}>
+        <Generic size={size * 0.7} strokeWidth={1.6} />
+      </span>
+    );
+  }
   const icon = ICONS[logo];
   if (icon) {
     return (

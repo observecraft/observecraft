@@ -197,6 +197,15 @@
   font-weight: var(--fw-semibold);
 }
 
+.logo-generic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
 .logo-word {
   font-weight: 700;
   letter-spacing: 0.02em;
