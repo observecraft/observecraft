@@ -130,6 +130,10 @@ const CH_MIGRATIONS: &[(&str, &str)] = &[
         "0020_log_metric_identities",
         include_str!("../../../migrations/clickhouse/0020_log_metric_identities.sql"),
     ),
+    (
+        "0021_error_tracking_issues",
+        include_str!("../../../migrations/clickhouse/0021_error_tracking_issues.sql"),
+    ),
 ];
 
 /// Migrations of the schema before 0001_schema (no org-first sort keys, no cluster support).

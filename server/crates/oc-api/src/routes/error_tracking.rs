@@ -272,6 +272,13 @@ fn key_sql() -> String {
     key_sql_of("message")
 }
 
+/// Datadog's rule for an error log to be an Error Tracking issue: an error status (Vector maps critical,
+/// alert, emergency and fatal to `error`), a service, and an error kind (`error.kind`, `error.type` or
+/// `exception.type`: the `error_kind` column) or a stack trace (`error.stack`, or OpenTelemetry's
+/// `exception.stacktrace`). Other error logs stay errors in the Log Explorer. The aggregate's MV
+/// (migration 0021) applies the same SQL.
+pub(crate) const TRACKED_LOG_SQL: &str = "status = 'error' AND service != '' AND (error_kind != '' OR attr['error.stack'] != '' OR attr['exception.stacktrace'] != '')";
+
 /// The SQL of the error kind attribute (oc.logs' `error_kind` column).
 #[cfg(test)]
 const KIND_SQL: &str = "multiIf(attr['error.kind'] != '', attr['error.kind'], attr['error.type'] != '', attr['error.type'], attr['exception.type'])";
@@ -308,12 +315,14 @@ const SPAN_LANGUAGE_SQL: &str = "if(ResourceAttributes['telemetry.sdk.language']
 
 /// The condition (after `OrgId = {oc_org:String}`) on the error spans in range that make issues:
 /// service entry spans with an error status, as for APM's error groups (an error that crosses
-/// services counts once per service, not once more on each caller's client span).
+/// services counts once per service, not once more on each caller's client span), that carry an
+/// exception with its stack trace: Datadog tracks error spans with error.type, error.message and
+/// error.stack, which the intake maps to the exception event (a span that only failed is not one).
 fn span_scope(range: TimeRange, terms: &[Term]) -> (String, Vec<Param>) {
     let f = build_where(&SpansSchema, terms, None);
     let mut params = vec![Param::Int(range.from), Param::Int(range.to)];
     params.extend(f.params);
-    (format!("Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) AND StatusCode = 'Error' AND {ENTRY} AND ({})", f.clause), params)
+    (format!("Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?) AND StatusCode = 'Error' AND {ENTRY} AND {EXCEPTION}['exception.type'] != '' AND {EXCEPTION}['exception.stacktrace'] != '' AND ({})", f.clause), params)
 }
 
 /// One error span of an issue.
@@ -548,7 +557,7 @@ pub(crate) fn issues_query(plan: &Plan, from: i64, width: i64, only: Option<(&st
     parts.push(format!(
         "SELECT toString(service) AS service, toString(error_kind) AS kind, error_key AS key, intDiv(toUnixTimestamp64Milli(timestamp) - ?, ?) AS b, \
          count() AS c, min(timestamp) AS f, max(timestamp) AS l, argMaxState(substringUTF8(message, 1, 300), timestamp) AS state \
-         FROM {} WHERE {} AND status = 'error'{narrowing} GROUP BY service, kind, key, b",
+         FROM {} WHERE {} AND {TRACKED_LOG_SQL}{narrowing} GROUP BY service, kind, key, b",
         plan.logs.table, plan.logs.clause
     ));
     params.extend([Param::Int(from), Param::Int(width)]);
@@ -762,7 +771,7 @@ async fn issue_logs(st: &AppState, org: &str, access: &LogAccess, range: TimeRan
             "SELECT toString(id) AS id, toUnixTimestamp64Milli(timestamp) AS t, toString(service) AS service, \
              toString(error_kind) AS kind, \
              substringUTF8(message, 1, 5000) AS message, toJSONString(mapUpdate(tags, map('host', toString(host)))) AS tags_json, attributes \
-             FROM {} WHERE {} AND status = 'error' AND error_kind = ? AND error_key = ? \
+             FROM {} WHERE {} AND {TRACKED_LOG_SQL} AND error_kind = ? AND error_key = ? \
              ORDER BY timestamp {} LIMIT ?",
             s.table,
             s.clause,
@@ -981,7 +990,7 @@ pub(crate) fn issue_facets_query(plan: &Plan, limit: i64) -> (String, Vec<Param>
     }
     parts.push(format!(
         "SELECT toString(service) AS service, toString(error_kind) AS kind, error_key AS key, tags['env'] AS env, tags['version'] AS version \
-         FROM {} WHERE {} AND status = 'error' GROUP BY service, kind, key, env, version",
+         FROM {} WHERE {} AND {TRACKED_LOG_SQL} GROUP BY service, kind, key, env, version",
         plan.logs.table, plan.logs.clause
     ));
     params.extend(plan.logs.params.iter().cloned());
@@ -1156,6 +1165,32 @@ mod tests {
         let migration = include_str!("../../../../migrations/clickhouse/0007_log_error_keys.sql");
         assert!(migration.contains(&format!("MATERIALIZED if(status = 'error', {}, '')", key_sql())));
         assert!(migration.contains(&format!("MATERIALIZED if(status = 'error', {KIND_SQL}, '')")));
+    }
+
+    #[test]
+    fn log_issues_follow_datadogs_rule() {
+        // Like Datadog's Error Tracking: an error log of a service with an error kind or a stack trace.
+        // Other error logs (a Python INFO line on stderr) stay errors in the Log Explorer, not issues.
+        assert!(TRACKED_LOG_SQL.contains("status = 'error'") && TRACKED_LOG_SQL.contains("service != ''"));
+        for attr in ["error_kind != ''", "attr['error.stack'] != ''", "attr['exception.stacktrace'] != ''"] {
+            assert!(TRACKED_LOG_SQL.contains(attr), "{attr}");
+        }
+        // The aggregate holds only those logs, and the logs around it are read with the same rule.
+        let migration = include_str!("../../../../migrations/clickhouse/0021_error_tracking_issues.sql");
+        assert!(migration.contains(&format!("\nWHERE {TRACKED_LOG_SQL}\nGROUP BY ")), "the migration's MV applies TRACKED_LOG_SQL");
+        assert!(migration.contains(&format!("CREATE VIEW IF NOT EXISTS {}${{LOCAL}}", ERROR_GROUPS.table)));
+        let plan = Plan { agg: None, logs: scope("acme", &LogAccess::org_background(), TimeRange { from: 0, to: 60_000 }, &[], None) };
+        let (sql, _) = issues_query(&plan, 0, 5_000, None, 10);
+        assert!(sql.contains(&format!("AND {TRACKED_LOG_SQL}")), "{sql}");
+    }
+
+    #[test]
+    fn span_issues_need_an_exception_with_its_stack() {
+        // Datadog tracks error spans with error.type, error.message and error.stack (the intake maps them
+        // to the span's exception event, as OpenTelemetry SDKs record it): a span that only failed is not one.
+        let (clause, _) = span_scope(TimeRange { from: 0, to: 1 }, &[]);
+        assert!(clause.contains(&format!("{EXCEPTION}['exception.type'] != ''")), "{clause}");
+        assert!(clause.contains(&format!("{EXCEPTION}['exception.stacktrace'] != ''")), "{clause}");
     }
 
     #[test]
@@ -1348,7 +1383,8 @@ mod tests {
         let org = format!("error-parity-{}", std::process::id());
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
         let t0 = now / 60_000 * 60_000 - 30 * 60_000;
-        // 12 minutes of logs every 97 ms: errors of 3 services, kinds from attributes and messages, 2 envs and versions.
+        // 12 minutes of logs every 97 ms: errors of 3 services, 2 envs and versions. Issues are the errors with an
+        // error kind (error.kind) or a stack trace (error.stack); the others (timeouts here) are errors, not issues.
         ch.query(&format!(
             "INSERT INTO oc.logs (org_id, timestamp, status, service, host, source, message, tags, attr, retention_days) \
              SELECT '{org}', fromUnixTimestamp64Milli(toInt64({t0} + number * 97)), if(number % 3 = 0, 'info', 'error'), \
@@ -1356,7 +1392,7 @@ mod tests {
                     [concat('ValueError: order ', toString(number), ' not found'), concat('upstream timed out after ', toString(number % 30), 's'), \
                      concat('java.lang.IllegalStateException: invoice ', toString(number % 7), ' locked')][number % 5 % 3 + 1], \
                     map('env', if(number % 4 = 0, 'staging', 'prod'), 'version', concat('1.0.', toString(number % 2)), 'pod_name', concat('pod-', toString(number % 3))), \
-                    if(number % 5 = 2, map('error.kind', 'java.lang.IllegalStateException'), map()), 15 \
+                    multiIf(number % 5 = 2, map('error.kind', 'java.lang.IllegalStateException'), number % 5 = 0, map('error.stack', 'Traceback (most recent call last):'), map()), 15 \
              FROM numbers(7400)"
         ))
         .execute()
@@ -1406,7 +1442,7 @@ mod tests {
                     ("", LogAccess::org_background()),
                     ("env:prod", LogAccess::org_background()),
                     ("service:checkout -version:1.0.1", LogAccess::org_background()),
-                    ("service:checkout timed", LogAccess::org_background()),
+                    ("service:checkout invoice", LogAccess::org_background()),
                     ("", restricted("env:staging")),
                     ("", restricted("pod_name:pod-1")),
                 ] {
@@ -1423,11 +1459,12 @@ mod tests {
                          argMax(substringUTF8(message, 1, 300), timestamp) AS sample, count() AS n, \
                          toUnixTimestamp64Milli(min(timestamp)) AS first, toUnixTimestamp64Milli(max(timestamp)) AS last, \
                          sumMap([toUInt32(intDiv(toUnixTimestamp64Milli(timestamp) - ?, ?))], [toUInt64(1)]) AS spark, '' AS lang \
-                         FROM {} WHERE {} AND status = 'error' GROUP BY service, error_kind, error_key ORDER BY n DESC LIMIT ?",
+                         FROM {} WHERE {} AND {TRACKED_LOG_SQL} GROUP BY service, error_kind, error_key ORDER BY n DESC LIMIT ?",
                         s.table, s.clause
                     );
                     let expected = groups(reference, reference_params).await;
                     assert!(!expected.is_empty() , "{query}: no fixtures");
+                    assert!(expected.iter().all(|g| !g.3.contains("timed out")), "{query}: an error without kind or stack is an issue");
                     let (sql, params) = issues_query(&p, range.from, width, None, GROUP_LIMIT);
                     assert_eq!(groups(sql, params).await, expected, "groups of {query:?} (aggregate: {})", p.agg.is_some());
                     // One issue's own logs.
@@ -1441,7 +1478,7 @@ mod tests {
                     let reference = format!(
                         "SELECT kv.1 AS k, kv.2 AS v, uniqExact(service, error_kind, error_key) AS n \
                          FROM {} ARRAY JOIN [('service', toString(service)), ('env', tags['env']), ('version', tags['version'])] AS kv \
-                         WHERE {} AND status = 'error' GROUP BY k, v ORDER BY n DESC LIMIT ? BY k",
+                         WHERE {} AND {TRACKED_LOG_SQL} GROUP BY k, v ORDER BY n DESC LIMIT ? BY k",
                         s.table, s.clause
                     );
                     let (sql, params) = issue_facets_query(&p, FACET_VALUES);
@@ -1455,7 +1492,7 @@ mod tests {
         // The aggregate answers the searches and restrictions it can express (4 of 6).
         assert_eq!(check(since).await, 4);
         // Logs from before the aggregate (here: its first minutes dropped) come from the logs.
-        let (table, on) = (live.cfg.local("oc.error_groups_1m_dedup"), live.cfg.on_cluster());
+        let (table, on) = (live.cfg.local("oc.error_issues_1m"), live.cfg.on_cluster());
         ch.query(&format!("ALTER TABLE {table}{on} DELETE WHERE org_id = ? AND minute < fromUnixTimestamp64Milli(?) SETTINGS mutations_sync = 2"))
             .bind(&org)
             .bind(t0 + 4 * 60_000)
