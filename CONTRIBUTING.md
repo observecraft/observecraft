@@ -203,9 +203,10 @@ characters and explain the *why* in the body when it isn't obvious.
 - Include screenshots or a short recording for UI changes.
 - Note any migration, configuration or breaking API change explicitly.
 - A maintainer will review your PR. Please respond to feedback with new commits rather than force-pushes while the
-  review is in progress; we squash on merge.
-- The PR title becomes the commit on `main`, so it must be a Conventional Commit (a check enforces it). Releases are
-  generated from those titles.
+  review is in progress. Prefer **Rebase and merge** to preserve individual commits and keep main's required linear
+  history. **Squash and merge** is also available when intentionally condensing a branch.
+- Individual commits and PR titles must use Conventional Commits (a check enforces the PR title). Rebase merge keeps
+  the individual commit messages; squash merge uses the PR title. Release-please reads the resulting commits on main.
 
 ## Releases
 
