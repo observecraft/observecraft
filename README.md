@@ -23,7 +23,7 @@ visibility in one place, built on OpenTelemetry and ClickHouse.**
 [![Last commit](https://img.shields.io/github/last-commit/observecraft/observecraft)](https://github.com/observecraft/observecraft/commits/main)
 
 [Features](#features) · [Quickstart](#quickstart) · [Architecture](#architecture) · [Configuration](#configuration) ·
-[Contributing](#contributing) · [License](#license)
+[Contributing](#contributing) · [Support](#support-observecraft) · [License](#license)
 
 </div>
 
@@ -380,6 +380,13 @@ and pull-request process. A quick check before you push:
 make test       # Rust tests + web typecheck
 make openapi    # if you changed an API endpoint
 ```
+
+## Support ObserveCraft
+
+[Sponsor @andreimerfu](https://github.com/sponsors/andreimerfu), ObserveCraft's maintainer, to help fund
+open-source development, CI and releases, and documentation.
+
+You can also support the project by reporting issues, improving documentation and contributing fixes.
 
 ## License
 
