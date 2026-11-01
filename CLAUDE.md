@@ -235,7 +235,8 @@ browser (live and, where relevant, mock mode).
   hostname and ID seen there with neutral ones.
 - **S3 storage is RustFS**, never MinIO (compose, archives, tests, docs). Publish its S3 port away from ClickHouse's
   9000 (e.g. `9100:9000`) and use path-style URLs.
-- **Commits** follow Conventional Commits (`feat(apm): …`, `fix(monitors): …`); so do PR titles, which become the squashed
-  commit that release-please turns into the version and changelog (see "Releases" in `CONTRIBUTING.md`).
+- **Commits** follow Conventional Commits (`feat(apm): …`, `fix(monitors): …`); so do PR titles. Prefer rebase merge to
+  preserve individual commits while keeping main linear; squash merge remains available when intentionally condensing
+  a branch. Release-please reads the commits on main to produce versions and changelogs (see "Releases" in `CONTRIBUTING.md`).
 - **Dependencies** must pass `cargo deny check licenses` (`server/deny.toml`) and the web license allowlist in `ci.yml`.
 - **GitHub Actions** are pinned to a commit SHA with the version in a comment; Dependabot keeps them current.

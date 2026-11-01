@@ -1,5 +1,5 @@
-# Pull requests are squash-merged, so the title becomes the commit on main that release-please reads:
-# it must be a Conventional Commit (feat(apm): …, fix(monitors): …).
+# Keep PR titles conventional for readable history and optional squash merges. Rebase merges
+# preserve the individual Conventional Commits that release-please reads on main.
 name: pr-title
 
 on:
