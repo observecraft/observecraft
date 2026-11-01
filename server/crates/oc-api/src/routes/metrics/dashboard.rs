@@ -17,7 +17,7 @@ use tokio::sync::{watch, Mutex};
 use utoipa::ToSchema;
 
 use super::super::logs::TimeRange;
-use super::{bind, group_label, inner_query_at_step, parse, round, step_ms, Kind, Row, Source, SPAN_METRICS};
+use super::{bind, group_label, inner_query_at_step, parse, reduce, round, step_ms, Kind, Row, Source, TimeAggregator, SPAN_METRICS};
 use crate::error::{ApiError, ApiResult};
 use crate::state::{AppState, OrgId};
 
@@ -26,6 +26,10 @@ pub struct DashboardMetricQuery {
     pub id: String,
     pub query: String,
     pub points: Option<u32>,
+    /// For widgets that show one value per group (tables, toplists, treemaps): each series comes
+    /// back as one point, its values over the range reduced with this aggregator.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aggregator: Option<TimeAggregator>,
 }
 
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
@@ -34,11 +38,19 @@ pub struct DashboardQueryRequest {
     pub range: TimeRange,
 }
 
-#[derive(Clone, Serialize, ToSchema)]
+/// A series as `points`, or, as sent to clients when its buckets are aligned (most of them), as
+/// `values` every `step_ms` of its result from `start` (null where a bucket is empty): a timestamp
+/// per point would be most of the JSON.
+#[derive(Clone, Default, Serialize, ToSchema)]
 pub struct DashboardMetricSeries {
     pub name: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub points: Vec<(i64, f64)>,
     pub tags: BTreeMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub values: Option<Vec<Option<f64>>>,
 }
 
 #[derive(Clone, Serialize, ToSchema)]
@@ -298,7 +310,7 @@ impl Plan {
         let p = &self.items[i];
         if let Some(text) = &p.formula {
             let derived = super::evaluate_formula(st, org, text, range, 120).await.map(|(_, groups)| {
-                groups.into_iter().map(|g| DashboardMetricSeries { name: if g.tags.is_empty() { text.clone() } else { group_label(&g.tags) }, tags: g.tags, points: g.points }).collect::<Vec<_>>()
+                groups.into_iter().map(|g| DashboardMetricSeries { name: if g.tags.is_empty() { text.clone() } else { group_label(&g.tags) }, tags: g.tags, points: g.points, ..Default::default() }).collect::<Vec<_>>()
             });
             return (derived.map(Fetched::Series), true);
         }
@@ -368,7 +380,7 @@ impl Plan {
                         if let Some(s) = target.last_mut().filter(|s| s.name == name) {
                             s.points.push((r.ts, round(r.value)));
                         } else {
-                            target.push(DashboardMetricSeries { name, tags, points: vec![(r.ts, round(r.value))] });
+                            target.push(DashboardMetricSeries { name, tags, points: vec![(r.ts, round(r.value))], ..Default::default() });
                         }
                     }
                 }
@@ -483,7 +495,8 @@ pub async fn dashboard_query(
 ) -> ApiResult<DashboardQueryFrame> {
     validate(&req)?;
     let plan = Plan::prepare(&st, &org, &req).await?;
-    Ok(Json(plan.execute(&st, &org, req.range, None).await))
+    let frame = plan.execute(&st, &org, req.range, None).await;
+    Ok(Json(for_client(&frame, &frame, &aggregators(&req))))
 }
 
 struct Published {
@@ -506,6 +519,7 @@ pub async fn dashboard_live(
     Json(req): Json<DashboardQueryRequest>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiError> {
     validate(&req)?;
+    let reduced = aggregators(&req);
     let mut ordered = req.queries.clone();
     ordered.sort_by(|a, b| a.id.cmp(&b.id));
     let key = format!(
@@ -541,10 +555,10 @@ pub async fn dashboard_live(
                     || last_to.is_some_and(|last| {
                         state.delta.results.iter().any(|r| r.replace_from > last)
                     });
-                let frame = if full { &state.snapshot } else { &state.delta };
+                let frame = for_client(if full { &state.snapshot } else { &state.delta }, &state.snapshot, &reduced);
                 let event = Event::default()
                     .event(if full { "snapshot" } else { "delta" })
-                    .json_data(frame);
+                    .json_data(&frame);
                 initial = false;
                 last_to = Some(frame.range.to);
                 if let Ok(event) = event {
@@ -653,6 +667,54 @@ async fn run_feed(feed: Arc<Feed>, st: AppState, org: String, req: DashboardQuer
             return;
         }
     }
+}
+
+/// The queries of a request that are reduced to one value per series.
+fn aggregators(req: &DashboardQueryRequest) -> HashMap<String, TimeAggregator> {
+    req.queries.iter().filter_map(|q| Some((q.id.clone(), q.aggregator?))).collect()
+}
+
+/// A frame as the client gets it. A reduced query's series are one point each (the last bucket, the
+/// series' value over the range), computed from `full` (a live feed's merged snapshot: a delta holds
+/// only the newest buckets) and replacing everything the client has for the query. Every series is
+/// then [`compact`]ed.
+fn for_client(frame: &DashboardQueryFrame, full: &DashboardQueryFrame, aggregators: &HashMap<String, TimeAggregator>) -> DashboardQueryFrame {
+    let mut out = frame.clone();
+    for result in &mut out.results {
+        if let (Some(&agg), Some(whole)) = (aggregators.get(&result.id), full.results.iter().find(|r| r.id == result.id)) {
+            result.error = whole.error.clone();
+            result.replace_from = full.range.from;
+            result.series = whole
+                .series
+                .iter()
+                .filter_map(|s| Some(DashboardMetricSeries { name: s.name.clone(), tags: s.tags.clone(), points: vec![(s.points.last()?.0, reduce(&s.points, agg))], ..Default::default() }))
+                .collect();
+        }
+        for series in &mut result.series {
+            compact(series, result.step_ms);
+        }
+    }
+    out
+}
+
+/// `points` as `values` every `step` from the first bucket, when every point is on the step and at
+/// least half of the buckets in between have a value (else the nulls would cost more).
+fn compact(series: &mut DashboardMetricSeries, step: i64) {
+    let (Some(start), Some(end)) = (series.points.iter().map(|p| p.0).min(), series.points.iter().map(|p| p.0).max()) else { return };
+    if step <= 0 || series.points.iter().any(|(t, _)| (t - start) % step != 0) {
+        return;
+    }
+    let slots = ((end - start) / step + 1) as usize;
+    if slots > 2 * series.points.len() {
+        return;
+    }
+    let mut values = vec![None; slots];
+    for (t, v) in &series.points {
+        values[((t - start) / step) as usize] = Some(*v);
+    }
+    series.start = Some(start);
+    series.values = Some(values);
+    series.points.clear();
 }
 
 fn merge_frame(snapshot: &mut DashboardQueryFrame, delta: &DashboardQueryFrame) {
@@ -1053,11 +1115,13 @@ mod tests {
                         tags: BTreeMap::new(),
                         name: "host:a".into(),
                         points: vec![(0, 1.0), (10_000, 2.0), (20_000, 3.0)],
+                        ..Default::default()
                     },
                     DashboardMetricSeries {
                         tags: BTreeMap::new(),
                         name: "host:b".into(),
                         points: vec![(20_000, 4.0)],
+                        ..Default::default()
                     },
                 ],
                 0,
@@ -1076,6 +1140,7 @@ mod tests {
                     tags: BTreeMap::new(),
                     name: "host:a".into(),
                     points: vec![(20_000, 8.0), (30_000, 9.0)],
+                    ..Default::default()
                 }],
                 20_000,
             )],
@@ -1153,8 +1218,8 @@ mod tests {
             .expect("insert");
         let request = || DashboardQueryRequest {
             queries: vec![
-                DashboardMetricQuery { id: "q0".into(), query: "sum:dashboard.again.load{*}".into(), points: Some(180) },
-                DashboardMetricQuery { id: "q1".into(), query: "sum:dashboard.again.load{*} by {host}".into(), points: Some(120) },
+                DashboardMetricQuery { id: "q0".into(), query: "sum:dashboard.again.load{*}".into(), points: Some(180), aggregator: None },
+                DashboardMetricQuery { id: "q1".into(), query: "sum:dashboard.again.load{*} by {host}".into(), points: Some(120), aggregator: None },
             ],
             range: TimeRange { from: to - 3_600_000, to },
         };
@@ -1232,7 +1297,7 @@ mod tests {
         insert(org.clone(), "i-0a1b2c3d4e5f60001", 1.0).await;
         insert(other.clone(), "i-0a1b2c3d4e5f60009", 9.0).await;
         let request = || DashboardQueryRequest {
-            queries: vec![DashboardMetricQuery { id: "load".into(), query: "sum:shared.dashboard.load{*} by {host}".into(), points: None }],
+            queries: vec![DashboardMetricQuery { id: "load".into(), query: "sum:shared.dashboard.load{*} by {host}".into(), points: None, aggregator: None }],
             range: TimeRange { from: now - 3_600_000, to: now },
         };
         let run = |st: AppState, org: String| async move { dashboard_query(State(st), OrgId(org), Json(request())).await.unwrap_or_else(|e| panic!("{e:?}")).0 };
@@ -1253,11 +1318,101 @@ mod tests {
             id: "same".into(),
             query: "avg:test{*}".into(),
             points: None,
+            aggregator: None,
         };
         assert!(validate(&DashboardQueryRequest {
             queries: vec![q.clone(), q],
             range: TimeRange { from: 0, to: 1000 }
         })
         .is_err());
+    }
+
+    fn series(name: &str, points: Vec<(i64, f64)>) -> DashboardMetricSeries {
+        DashboardMetricSeries { name: name.into(), tags: BTreeMap::new(), points, ..Default::default() }
+    }
+
+    /// The points a client reads from a series as sent: `points`, or `values` every `step` from `start`.
+    fn sent_points(s: &DashboardMetricSeries, step: i64) -> Vec<(i64, f64)> {
+        match (s.start, &s.values) {
+            (Some(start), Some(values)) => values.iter().enumerate().filter_map(|(i, v)| Some((start + i as i64 * step, (*v)?))).collect(),
+            _ => s.points.clone(),
+        }
+    }
+
+    fn frame(from: i64, results: Vec<(&str, Vec<DashboardMetricSeries>, i64)>) -> DashboardQueryFrame {
+        DashboardQueryFrame {
+            range: TimeRange { from, to: from + 60_000 },
+            data_scans: 1,
+            unique_queries: results.len(),
+            error: None,
+            results: results
+                .into_iter()
+                .map(|(id, series, replace_from)| DashboardQueryResult { id: id.into(), series, kind: "gauge".into(), unit: None, step_ms: 10_000, replace_from, error: None })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn a_query_with_an_aggregator_sends_one_value_per_series() {
+        // Tables, toplists and treemaps show one value per group: the server reduces each series
+        // over the range (as the web did) instead of sending all its points.
+        let full = frame(0, vec![
+            ("table", vec![series("deploy:api", vec![(0, 1.0), (10_000, 4.0), (20_000, 2.5)]), series("deploy:web", vec![(10_000, 6.0)])], 0),
+            ("graph", vec![series("deploy:api", vec![(0, 1.0), (10_000, 4.0), (20_000, 2.5)])], 0),
+        ]);
+        let sent = for_client(&full, &full, &HashMap::from([("table".to_string(), TimeAggregator::Avg)]));
+        let table = &sent.results[0];
+        assert_eq!(table.series.iter().map(|s| (s.name.as_str(), sent_points(s, 10_000))).collect::<Vec<_>>(), vec![("deploy:api", vec![(20_000, 2.5)]), ("deploy:web", vec![(10_000, 6.0)])]);
+        assert_eq!(table.replace_from, 0);
+        // A timeseries keeps every point.
+        assert_eq!(sent_points(&sent.results[1].series[0], 10_000).len(), 3);
+    }
+
+    #[test]
+    fn every_time_aggregator_reduces_like_the_web() {
+        let full = frame(0, vec![("q", vec![series("a", vec![(0, 1.0), (10_000, 4.0), (20_000, 2.5)])], 0)]);
+        for (agg, value) in [(TimeAggregator::Avg, 2.5), (TimeAggregator::Sum, 7.5), (TimeAggregator::Min, 1.0), (TimeAggregator::Max, 4.0), (TimeAggregator::Last, 2.5)] {
+            let sent = for_client(&full, &full, &HashMap::from([("q".to_string(), agg)]));
+            assert_eq!(sent_points(&sent.results[0].series[0], 10_000), vec![(20_000, value)], "{agg:?}");
+        }
+    }
+
+    #[test]
+    fn a_live_update_of_a_reduced_query_is_the_whole_merged_range() {
+        // A delta holds only the newest buckets; a reduced value covers the whole range, so it is
+        // computed from the merged snapshot and replaces everything the client has.
+        let points = vec![(10_000, 4.0), (20_000, 2.0), (30_000, 6.0)];
+        let merged = frame(10_000, vec![("table", vec![series("a", points.clone())], 10_000), ("graph", vec![series("a", points)], 10_000)]);
+        let delta = frame(10_000, vec![("table", vec![series("a", vec![(30_000, 6.0)])], 30_000), ("graph", vec![series("a", vec![(30_000, 6.0)])], 30_000)]);
+        let sent = for_client(&delta, &merged, &HashMap::from([("table".to_string(), TimeAggregator::Avg)]));
+        assert_eq!(sent_points(&sent.results[0].series[0], 10_000), vec![(30_000, 4.0)]);
+        assert_eq!(sent.results[0].replace_from, 10_000);
+        assert_eq!(sent_points(&sent.results[1].series[0], 10_000), vec![(30_000, 6.0)]);
+        assert_eq!(sent.results[1].replace_from, 30_000);
+    }
+
+    #[test]
+    fn aligned_series_go_out_as_values_every_step_from_their_start() {
+        // A point as [ms, value] is ~25 bytes of JSON; a value alone ~9. Buckets are aligned to the
+        // result's step, so the timestamps follow from the first one (null where a bucket is empty).
+        let full = frame(0, vec![("graph", vec![series("a", vec![(10_000, 1.0), (30_000, 3.5), (40_000, 2.0)])], 0)]);
+        let sent = for_client(&full, &full, &HashMap::new());
+        assert_eq!(serde_json::to_value(&sent.results[0].series[0]).unwrap(), serde_json::json!({"name": "a", "tags": {}, "start": 10_000, "values": [1.0, null, 3.5, 2.0]}));
+    }
+
+    #[test]
+    fn series_off_the_step_or_mostly_empty_keep_their_points() {
+        let full = frame(0, vec![("off", vec![series("a", vec![(0, 1.0), (15_000, 2.0)])], 0), ("sparse", vec![series("b", vec![(0, 1.0), (1_000_000, 2.0)])], 0)]);
+        let sent = for_client(&full, &full, &HashMap::new());
+        for r in &sent.results {
+            assert_eq!(r.series[0].start, None, "{}", r.id);
+            assert_eq!(r.series[0].points.len(), 2, "{}", r.id);
+        }
+    }
+
+    #[test]
+    fn the_aggregator_is_part_of_the_request() {
+        let req: DashboardQueryRequest = serde_json::from_str(r#"{"range":{"from":0,"to":1000},"queries":[{"id":"t","query":"sum:x{*} by {host}","points":60,"aggregator":"avg"},{"id":"g","query":"sum:x{*}"}]}"#).unwrap();
+        assert_eq!(aggregators(&req), HashMap::from([("t".to_string(), TimeAggregator::Avg)]));
     }
 }

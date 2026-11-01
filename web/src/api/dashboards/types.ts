@@ -41,6 +41,8 @@ export interface TimeseriesRequest {
   range: TimeRange;
   /** Rough number of points wanted per series. */
   points?: number;
+  /** The dashboard stream's one value per series (see collectDashboardQueries); other sources ignore it. */
+  aggregator?: TimeAggregator;
 }
 
 export interface ScalarRequest {

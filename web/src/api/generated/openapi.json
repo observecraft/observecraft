@@ -35817,6 +35817,17 @@
           "query"
         ],
         "properties": {
+          "aggregator": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TimeAggregator",
+                "description": "For widgets that show one value per group (tables, toplists, treemaps): each series comes\nback as one point, its values over the range reduced with this aggregator."
+              }
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -35835,9 +35846,9 @@
       },
       "DashboardMetricSeries": {
         "type": "object",
+        "description": "A series as `points`, or, as sent to clients when its buckets are aligned (most of them), as\n`values` every `step_ms` of its result from `start` (null where a bucket is empty): a timestamp\nper point would be most of the JSON.",
         "required": [
           "name",
-          "points",
           "tags"
         ],
         "properties": {
@@ -35861,6 +35872,13 @@
               ]
             }
           },
+          "start": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
           "tags": {
             "type": "object",
             "additionalProperties": {
@@ -35868,6 +35886,19 @@
             },
             "propertyNames": {
               "type": "string"
+            }
+          },
+          "values": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
             }
           }
         }
