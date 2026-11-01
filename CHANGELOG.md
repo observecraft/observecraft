@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.8.0](https://github.com/observecraft/observecraft/compare/v0.7.1...v0.8.0) (2026-11-01)
+
+
+### Features
+
+* **ingestion:** preserve JSON log identities across Kafka replay ([1efeb61](https://github.com/observecraft/observecraft/commit/1efeb61b53532410f09fdf872e68cba2f36abdaf))
+* **logs:** deduplicate replayed storage and aggregate event identities ([f66016a](https://github.com/observecraft/observecraft/commit/f66016af2055d3280ee2442b9026ecf952fa7975))
+
+
+### Bug fixes
+
+* **apm:** preserve span aggregate metrics after ingestion rebase ([97c4a8d](https://github.com/observecraft/observecraft/commit/97c4a8d98c91ff4c6df54d6f442cd3b54a854db6))
+* **benchmarks:** pin proxy peers to configured upstreams ([a6ea6d6](https://github.com/observecraft/observecraft/commit/a6ea6d6c558d4b2031c5766c179116e3249e86a9))
+* **ingestion:** align replay checks with rebased migrations ([b8256ee](https://github.com/observecraft/observecraft/commit/b8256eecbefedc5f7cea27cd85f352e7ee107676))
+* **ingestion:** preserve OTLP log identities across Kafka replay ([055f06d](https://github.com/observecraft/observecraft/commit/055f06d21dc0f32c82a5082de8b031fb2829271c))
+* **ingestion:** retain Kafka ownership for new RUM exporters ([4206e93](https://github.com/observecraft/observecraft/commit/4206e93bdba928a5609c83d0fce9945441839dee))
+* **ingestion:** retain Kafka ownership through export and repair late rollups ([e0bc973](https://github.com/observecraft/observecraft/commit/e0bc97392b2dd6ff66baf04a4f6758eb473273ca))
+* **ingestion:** scope storage pools to each server runtime ([a460bfe](https://github.com/observecraft/observecraft/commit/a460bfe4b3ae07b06683e924b34e00308dcfb576))
+* **logs:** bound aggregate memory and preserve raw retention during backfill ([1924d52](https://github.com/observecraft/observecraft/commit/1924d52a1e76a9c5c40d7180509a791cf7514e60))
+* **logs:** coordinate durable index quotas across API replicas ([fbcb3e9](https://github.com/observecraft/observecraft/commit/fbcb3e952de8220ffed6812cf1c44517bf68d10d))
+* **logs:** deduplicate generated metric contributions through replay ([b3c50ea](https://github.com/observecraft/observecraft/commit/b3c50eac00e83fdfcd9a438f2a6d074069d9e577))
+* **logs:** persist generated metric exports before acknowledging ingestion ([042586a](https://github.com/observecraft/observecraft/commit/042586a0f30f4599b3b956310099157162c406d5))
+* **logs:** preserve quota admissions across failed writes and replay ([6a5f7c9](https://github.com/observecraft/observecraft/commit/6a5f7c9a316ddc693a5731507b82543696b4e4ee))
+* **tests:** handle billing month boundaries and JSON responses ([7f677da](https://github.com/observecraft/observecraft/commit/7f677da04552c2480972457d52d4baae99776ff8))
+
+
+### Performance
+
+* **ingestion:** add isolated throughput and backpressure benchmarks ([4daf1ee](https://github.com/observecraft/observecraft/commit/4daf1ee6919e7e39c7a69ca6df39ea7164d38f34))
+* **ingestion:** expose bounded stage timing histograms ([29d1f09](https://github.com/observecraft/observecraft/commit/29d1f09be26ab079c0e0f4d5d9f173a6b52942d0))
+* **logs:** coalesce indexed writes and reuse storage connections ([dcac9ca](https://github.com/observecraft/observecraft/commit/dcac9cad4ca59d6586a436d02c0b0f838ed44d6a))
+* **logs:** release quota gates before bounded storage IO ([df43252](https://github.com/observecraft/observecraft/commit/df43252311ceda2d985fbb1079fd0f3fc0b66ae8))
+* **logs:** skip unused Vector resource and identity work ([ec3142e](https://github.com/observecraft/observecraft/commit/ec3142ea5333f89a3260542ecc60532babc745e9))
+* **metrics:** coalesce bounded outbox exports across spool entries ([e0e977b](https://github.com/observecraft/observecraft/commit/e0e977b304d8c7ba32f82b601fa736d3ad7b96b1))
+
+
+### Documentation
+
+* **contributing:** preserve commits with linear rebase merges ([95904f6](https://github.com/observecraft/observecraft/commit/95904f6fb0c3165d637b30d4462ac48110c8ceca))
+* **ingestion:** record batching and sustained-load validation ([58dec1d](https://github.com/observecraft/observecraft/commit/58dec1d416361a239ad896ed012a5e36a9e82132))
+
 ## [0.7.1](https://github.com/observecraft/observecraft/compare/v0.7.0...v0.7.1) (2026-10-31)
 
 
