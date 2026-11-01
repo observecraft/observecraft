@@ -14,12 +14,11 @@ import { TimePicker } from '../../components/shell/PageHeader';
 import { useTime } from '../../components/shell/TimeContext';
 import { Empty, ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Menu, Select } from '../../components/ui/Dropdown';
-import { Modal } from '../../components/ui/Modal';
 import { UsageBar } from '../../components/ui/Pager';
 import { formatLongDate, hhmm, timeAgo } from '../../lib/format';
 import { addTerm, formatQuery, parseQuery, type Term } from '../../lib/searchQuery';
 import { LogTable } from '../logs/LogTable';
-import { SetupOptions } from '../setup/SetupOptions';
+import { SetupModal } from '../setup/SetupOptions';
 import {
   INSIGHT_INFO,
   NO_SOURCE_FILTERS,
@@ -215,19 +214,7 @@ export function ServerlessPage() {
         </main>
       </div>
       {selected && <FunctionPanel fn={selected} onClose={() => p.set({ fn: null })} />}
-      {setup && (
-        <Modal label="Serverless setup" onClose={() => setSetup(false)} width={880} height="auto">
-          <div className="sls-setup">
-            <header>
-              <h2>Send AWS Lambda telemetry to ObserveCraft</h2>
-              <button className="icon-btn" onClick={() => setSetup(false)} title="Close">
-                <X size={16} />
-              </button>
-            </header>
-            <SetupOptions options={SERVERLESS_SETUP} />
-          </div>
-        </Modal>
-      )}
+      {setup && <SetupModal title="Send AWS Lambda telemetry to ObserveCraft" options={SERVERLESS_SETUP} onClose={() => setSetup(false)} />}
     </div>
   );
 }

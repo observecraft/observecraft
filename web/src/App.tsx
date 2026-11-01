@@ -81,7 +81,6 @@ import { AnalyticsPage as OnCallAnalyticsPage } from './pages/onCall/AnalyticsPa
 import { OnCallLayout } from './pages/onCall/OnCallLayout';
 import { PagesPage as OnCallPagesPage } from './pages/onCall/PagesPage';
 import { PoliciesPage as OnCallPoliciesPage } from './pages/onCall/PoliciesPage';
-import { PolicyEditor as OnCallPolicyEditor } from './pages/onCall/PolicyEditor';
 import { ProfilePage as OnCallProfilePage } from './pages/onCall/ProfilePage';
 import { ScheduleEditor as OnCallScheduleEditor } from './pages/onCall/ScheduleEditor';
 import { SchedulesPage as OnCallSchedulesPage } from './pages/onCall/SchedulesPage';
@@ -708,14 +707,12 @@ function Shell() {
               <Route path="teams" element={<OnCallTeamsPage />} />
               <Route path="pages/:id?" element={<OnCallPagesPage />} />
               <Route path="schedules" element={<OnCallSchedulesPage />} />
-              <Route path="escalation-policies" element={<OnCallPoliciesPage />} />
+              <Route path="escalation-policies/:id?" element={<OnCallPoliciesPage />} />
               <Route path="analytics" element={<OnCallAnalyticsPage />} />
               <Route path="profile" element={<OnCallProfilePage />} />
             </Route>
             <Route path="/on-call/schedules/new" element={<OnCallScheduleEditor />} />
             <Route path="/on-call/schedules/:id" element={<OnCallScheduleEditor />} />
-            <Route path="/on-call/escalation-policies/new" element={<OnCallPolicyEditor />} />
-            <Route path="/on-call/escalation-policies/:id" element={<OnCallPolicyEditor />} />
             <Route path="/status-pages" element={<StatusPagesPage />} />
             <Route path="/status-pages/new" element={<StatusPageEditorPage />} />
             <Route path="/status-pages/:id" element={<StatusPagePage />} />

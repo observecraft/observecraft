@@ -190,7 +190,7 @@ function recDetail(r: Recommendation) {
 
 function RecommendationCard({ rec, onOpen }: { rec: Recommendation; onOpen: () => void }) {
   return (
-    <button className="apm-card" onClick={onOpen}>
+    <button className="apm-card" onClick={onOpen} title={`${REC_TITLE[rec.kind]} on ${rec.resource}`}>
       <span className={`prio prio-${rec.priority}`}>{rec.priority.toUpperCase()}</span>
       <h3>
         {REC_TITLE[rec.kind]} on <span className="mono">{rec.resource}</span>

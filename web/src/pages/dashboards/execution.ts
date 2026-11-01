@@ -86,14 +86,14 @@ export function useDashboardExecution(widgets: Widget[], resolve: (q: string) =>
   const error = state.key === key ? state.error : null;
   return useMemo(() => {
     const byId = new Map(frame?.results.map((r) => [r.id, r]));
-    const byQuery = new Map(queries.map((q) => [metricQueryKey(q.query, q.points), byId.get(q.id)]));
+    const byQuery = new Map(queries.map((q) => [metricQueryKey(q.query, q.points, q.aggregator), byId.get(q.id)]));
     const source: PanelDataSource = {
       catalog: async () =>
         queries.map((q) => ({ name: /:([^{}]+)\{/.exec(q.query)?.[1] ?? '', kind: byId.get(q.id)?.kind ?? 'unknown', unit: byId.get(q.id)?.unit ?? undefined, tags: [], description: '' })),
       timeseries: async (request) => {
         if (error && !frame) throw error;
         return request.queries.flatMap((query) => {
-          const result = byQuery.get(metricQueryKey(query, request.points ?? 120));
+          const result = byQuery.get(metricQueryKey(query, request.points ?? 120, request.aggregator));
           if (!result) throw new Error('Metric query is absent from the dashboard execution plan');
           if (result.error) throw new Error(result.error);
           return result.series;

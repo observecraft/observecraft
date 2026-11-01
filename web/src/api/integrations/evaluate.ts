@@ -1,6 +1,7 @@
 // Execution adapter for the original integrations-core request/formula schema.
 // No eval/Function: formulas are parsed using a small, closed arithmetic grammar.
 import type { MetricSeries } from '../types';
+import type { TimeAggregator } from '../dashboards/types';
 
 export interface IntegrationQuery {
   name: string;
@@ -289,6 +290,19 @@ export function formula(text: string, inputs: Record<string, Vector>): Vector {
 }
 
 /** The collector and renderer share exactly the same resolution and modifier validation. */
+/** Time aggregations the dashboard endpoint can apply per series (Datadog's `mean` is `avg`). */
+const SERVER_AGGREGATORS: Record<string, TimeAggregator> = { avg: 'avg', mean: 'avg', sum: 'sum', min: 'min', max: 'max', last: 'last' };
+
+/**
+ * How a scalar panel's query can be reduced on the server, one value per series: its aggregator, or
+ * undefined when the panel needs every point (fill() adds points, as_count() scales by the gap
+ * between them, before the panel aggregates) or the aggregation is one the server doesn't have.
+ */
+export function serverAggregator(operations: { name: string }[], aggregator = 'avg'): TimeAggregator | undefined {
+  if (operations.some((o) => o.name === 'fill' || o.name === 'as_count')) return undefined;
+  return Object.hasOwn(SERVER_AGGREGATORS, aggregator) ? SERVER_AGGREGATORS[aggregator] : undefined;
+}
+
 export function preparePanelQuery(query: string, resolve: (query: string) => string, range: { from: number; to: number }) {
   const plan = metricPlan(query);
   const rollup = plan.operations.find((o) => o.name === 'rollup');

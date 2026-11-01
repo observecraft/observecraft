@@ -8,11 +8,12 @@ import { Chart } from '../../components/charts/Chart';
 import { FacetPanel } from '../../components/facets/FacetPanel';
 import { QueryBar } from '../../components/query/QueryBar';
 import { useTime } from '../../components/shell/TimeContext';
-import { Empty, ErrorState, Loading } from '../../components/ui/AsyncState';
+import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { hhmm } from '../../lib/format';
 import { formatQuery, parseQuery, type Term } from '../../lib/searchQuery';
 import { GROUP_KEYS, TrafficPanel, scopedQuery } from './NetworkAnalytics';
 import { useTraffic } from './NetworkLayout';
+import { NetworkIntro } from './NetworkIntro';
 
 /** How DNS servers can be shown (Datadog's options). */
 const SERVER_GROUPS = [
@@ -209,7 +210,7 @@ export function DnsAnalytics() {
       ) : !q.data ? (
         <Loading label="Loading DNS traffic…" />
       ) : !q.data.enabled ? (
-        <Empty>No DNS data yet. DNS monitoring needs the Datadog Agent 7.33+ with Cloud Network Monitoring (system-probe) enabled.</Empty>
+        <NetworkIntro />
       ) : (
         <>
           <div className="net-graphs">

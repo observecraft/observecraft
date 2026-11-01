@@ -30,6 +30,7 @@ import {
   useCostTags,
   type Filters,
 } from './costModel';
+import { CloudCostIntro } from './CloudCostIntro';
 import { ChangePill, CostFilterBar, ProviderIcon, SectionTitle, ShareBar, TrendIcon } from './widgets';
 
 type Trend = '3m' | '6m' | '1y' | 'mtd' | 'ytd';
@@ -85,6 +86,10 @@ export function OverviewPage() {
   const tagRange = useMemo(() => ({ from: now - 90 * DAY, to: now + DAY - 1 }), [now]);
   const tags = useCostTags(tagRange);
   const query = filterQuery(filters);
+  // Any cost in the past year: without one, the overview is the product intro.
+  const yearRange = useMemo(() => ({ from: monthStart(now, -11), to: now + DAY - 1 }), [now]);
+  const anyCost = useCosts({ range: yearRange, interval: 'month' });
+  if (anyCost.data && !anyCost.data.series.length) return <CloudCostIntro />;
   return (
     <div className="ccm-page">
       <CostFilterBar keys={FILTER_KEYS} labels={FILTER_LABELS} filters={filters} onChange={setFilters} tags={tags.data} />

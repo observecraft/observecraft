@@ -218,6 +218,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
+  min-width: 0;
   min-height: 168px;
   padding: 14px 16px;
   border: 1px solid var(--border);
@@ -240,7 +241,22 @@ button.apm-card:hover {
   word-break: break-word;
 }
 
+/* A resource can be a whole SQL statement: clamp the title and the text (the card's title has it whole). */
+.apm-card h3,
 .apm-card p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.apm-card h3 {
+  -webkit-line-clamp: 3;
+}
+
+.apm-card p {
+  -webkit-line-clamp: 4;
   margin: 0;
   font-size: var(--fs-md);
   color: var(--text-muted);

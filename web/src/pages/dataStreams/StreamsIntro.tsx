@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Activity, ArrowRight, BookOpen, Gauge, Layers, Timer, Waypoints } from 'lucide-react';
+import { Activity, BookOpen, Gauge, Layers, Timer, Waypoints } from 'lucide-react';
 import type { StreamEdge, StreamNode } from '../../api/dataStreams/client';
+import { ProductIntro, introButton } from '../../components/ui/ProductIntro';
 import { IntegrationLogo } from '../integrations/IntegrationLogo';
 import { StreamGraph } from './StreamGraph';
 
@@ -62,57 +63,24 @@ const START = [
 export function StreamsIntro() {
   const p = preview();
   return (
-    <div className="dsm-intro">
-      <section className="dsm-hero">
-        <div className="dsm-hero-text">
-          <div className="dsm-hero-kicker">
-            <span className="dsm-hero-icon">
-              <Waypoints size={18} />
-            </span>
-            Data Streams Monitoring
-          </div>
-          <h1>Follow every message from producer to consumer</h1>
-          <p>See how your services talk through Kafka and other queues: throughput, end-to-end latency and consumer lag on one map.</p>
-          <div className="dsm-hero-actions">
-            <Link className="btn dsm-btn-white" to="/data-streams/setup">
-              <BookOpen size={16} /> View documentation
-            </Link>
-            <Link className="btn dsm-btn-outline" to="/data-streams/kafka">
-              Open Kafka Console
-            </Link>
-          </div>
-        </div>
-        <div className="dsm-hero-preview" aria-hidden>
-          <div className="dsm-preview-card">
-            <StreamGraph nodes={p.nodes} edges={p.edges} fit />
-          </div>
-        </div>
-      </section>
-
-      <h3 className="dsm-section-title">LEARN MORE</h3>
-      <div className="dsm-benefits">
-        {BENEFITS.map((b) => (
-          <div key={b.title} className="dsm-benefit">
-            <b.icon size={22} />
-            <b>{b.title}</b>
-            <p>{b.text}</p>
-          </div>
-        ))}
-      </div>
-
-      <h3 className="dsm-section-title">GET STARTED</h3>
-      <div className="dsm-start">
-        {START.map((s) => (
-          <Link key={s.tab} className="dsm-start-card" to={`/data-streams/setup?tab=${s.tab}`}>
-            <IntegrationLogo logo={s.logo} name={s.title} size={28} />
-            <b>{s.title}</b>
-            <p>{s.text}</p>
-            <span className="dsm-start-link">
-              Set up <ArrowRight size={14} />
-            </span>
+    <ProductIntro
+      icon={Waypoints}
+      product="Data Streams Monitoring"
+      title="Follow every message from producer to consumer"
+      text="See how your services talk through Kafka and other queues: throughput, end-to-end latency and consumer lag on one map."
+      actions={
+        <>
+          <Link className={introButton.primary} to="/data-streams/setup">
+            <BookOpen size={16} /> View documentation
           </Link>
-        ))}
-      </div>
-    </div>
+          <Link className={introButton.secondary} to="/data-streams/kafka">
+            Open Kafka Console
+          </Link>
+        </>
+      }
+      preview={<StreamGraph nodes={p.nodes} edges={p.edges} fit />}
+      benefits={BENEFITS}
+      start={START.map((s) => ({ icon: <IntegrationLogo logo={s.logo} name={s.title} size={28} />, title: s.title, text: s.text, to: `/data-streams/setup?tab=${s.tab}` }))}
+    />
   );
 }

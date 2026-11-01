@@ -591,24 +591,6 @@ div.sls-card {
   }
 }
 
-.sls-setup {
-  overflow: auto;
-  padding: 16px 22px 20px;
-}
-
-.sls-setup header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.sls-setup h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: var(--fw-semibold);
-}
-
 /* Function side panel */
 .sls-drawer-backdrop {
   position: fixed;

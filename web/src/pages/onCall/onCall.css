@@ -1749,3 +1749,396 @@
   white-space: nowrap;
   transform: translate(-50%, -50%);
 }
+
+/* ---------------------------------------------------------------- empty states and collapsed facets */
+
+.onc-empty-icon {
+  color: var(--primary);
+  opacity: 0.75;
+}
+
+.onc-empty-page {
+  padding-top: 72px;
+}
+
+.onc-empty-page h2 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+}
+
+.onc-empty-page p {
+  max-width: 440px;
+  margin: 4px 0 14px;
+  font-size: var(--fs-lg);
+}
+
+.onc-facet.collapsed {
+  overflow: hidden;
+}
+
+.onc-main-bar .onc-facet.collapsed {
+  width: 150px;
+}
+
+.onc-facet.collapsed .onc-facet-title {
+  height: 32px;
+  border-bottom: 0;
+  background: var(--bg);
+  font-weight: var(--fw-regular);
+}
+
+.onc-facet-count {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--bg-hover);
+  font-size: var(--fs-sm);
+}
+
+.onc-bar-sep {
+  align-self: stretch;
+  width: 1px;
+  background: var(--border);
+}
+
+.onc-side-nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---------------------------------------------------------------- escalation policy dialog */
+
+.onc-policy-modal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.onc-policy-modal-head,
+.onc-policy-modal-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+}
+
+.onc-policy-modal-head {
+  border-bottom: 1px solid var(--border);
+}
+
+.onc-policy-modal-head h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 20px;
+  font-weight: var(--fw-regular);
+}
+
+.onc-policy-modal-foot {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+
+.onc-policy-modal-foot .btn-danger {
+  margin-right: auto;
+}
+
+.onc-policy-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-subtle);
+}
+
+.onc-policy-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 20px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.onc-policy-details .onc-span-2 {
+  grid-column: span 2;
+}
+
+.onc-policy-details .form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.onc-policy-details input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.onc-policy-details .dd,
+.onc-policy-details .dd-trigger {
+  width: 100%;
+}
+
+.onc-required {
+  color: var(--status-error);
+}
+
+.onc-flow {
+  padding: 18px 20px 20px;
+}
+
+.onc-flow-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 6%);
+}
+
+.onc-flow-step {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.onc-flow-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+}
+
+.onc-flow-trigger {
+  color: var(--status-error);
+}
+
+.onc-flow-repeat {
+  color: var(--status-warn);
+}
+
+.onc-flow-resolve {
+  color: var(--status-ok);
+}
+
+/* The vertical line between cards, with its Add Step button. */
+.onc-flow-link {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  min-height: 28px;
+  padding: 6px 0;
+}
+
+.onc-flow-link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-left: 1px solid var(--border-strong);
+}
+
+.onc-flow-link .btn {
+  position: relative;
+  background: var(--bg);
+}
+
+.onc-flow-step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.onc-flow-mode {
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.onc-flow-step-head .onc-step-remove {
+  margin-left: auto;
+}
+
+.onc-recipient-add {
+  display: flex;
+  align-items: stretch;
+}
+
+.onc-recipient-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-right: 0;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  background: var(--bg-subtle);
+  white-space: nowrap;
+}
+
+.onc-recipient-add .dd {
+  flex: 1;
+}
+
+.onc-recipient-add .dd-trigger {
+  width: 100%;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.onc-flow-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+
+.onc-flow-empty b {
+  font-size: var(--fs-lg);
+  color: var(--text-muted);
+}
+
+.onc-flow-tail {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+/* ---------------------------------------------------------------- analytics: page review */
+
+.onc-review {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  margin: -20px -24px 0;
+}
+
+.onc-review .onc-summary {
+  flex: 1;
+  margin: 0;
+}
+
+.onc-review-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 24px;
+  min-height: 52px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.onc-subtabs span {
+  display: inline-block;
+  padding: 14px 4px 12px;
+  border-bottom: 2px solid transparent;
+  font-size: var(--fs-lg);
+}
+
+.onc-subtabs span.active {
+  border-bottom-color: var(--text);
+  font-weight: var(--fw-semibold);
+}
+
+.onc-review-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.onc-review-tools .dd {
+  min-width: 220px;
+}
+
+.onc-review-tools .time-picker,
+.onc-review-tools .time-picker-btn {
+  width: auto;
+  min-width: 0;
+}
+
+.onc-card-sub {
+  margin: -4px 0 16px;
+  font-size: var(--fs-lg);
+}
+
+.onc-kpis-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.onc-summary .onc-kpi {
+  min-height: 130px;
+  padding: 18px 20px;
+  background: var(--bg);
+}
+
+.onc-summary .onc-kpi span {
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.02em;
+}
+
+.onc-summary .onc-kpi b {
+  margin-top: auto;
+  font-size: 30px;
+}
+
+.onc-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.onc-panel + .onc-panel {
+  margin-top: 14px;
+}
+
+.onc-two .onc-panel + .onc-panel {
+  margin-top: 0;
+}
+
+.onc-panel-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: var(--fw-semibold);
+}
+
+.onc-panel > .onc-heat,
+.onc-panel > .chart,
+.onc-panel > div:not(.onc-panel-head) {
+  padding: 12px 16px;
+}
+
+.onc-panel-empty {
+  margin: 0;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+.onc-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 160px;
+}
+
+.onc-bar span {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--primary);
+  opacity: 0.7;
+}
