@@ -23,6 +23,7 @@ const TELEMETRY_TABLES: &[(&str, &str)] = &[
     ("oc.logs_dedup", "org_id"),
     ("oc.logs_raw_dedup", "org_id"),
     ("oc.error_groups_1m_dedup", "org_id"),
+    ("oc.error_issues_1m", "org_id"),
     ("oc.log_facets_1m_dedup", "org_id"),
     ("otel.otel_traces", "OrgId"),
     ("otel.otel_ci_traces", "OrgId"),

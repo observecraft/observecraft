@@ -21,9 +21,10 @@ pub(crate) struct Aggregate {
     columns: &'static [(&'static str, &'static str)],
 }
 
-/// Error logs per issue key (Error Tracking). Every row is an error log, so `status` is constant.
+/// Error Tracking's error logs per issue key: the logs that are issues (`error_tracking::TRACKED_LOG_SQL`).
+/// Every row is an error log, so `status` is constant.
 pub(crate) const ERROR_GROUPS: Aggregate = Aggregate {
-    table: "oc.error_groups_1m_read",
+    table: "oc.error_issues_1m_read",
     columns: &[
         ("service", "service"),
         ("status", "'error'"),

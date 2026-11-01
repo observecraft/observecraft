@@ -1071,10 +1071,11 @@ mod tests {
         let ch = live.client.clone().with_database("oc").with_option("param_org", &org);
         let t0 = crate::routes::metrics::now_ms() / 60_000 * 60_000 - 600_000;
         // Equal events have different IDs. Retry the same events in reversed order and separate inserts.
+        // They are Error Tracking issues (an error kind), so the error aggregate counts them too.
         for id in [1, 2, 2, 1] {
             ch.query(
-                "INSERT INTO oc.logs_dedup (org_id, id, timestamp, service, status, message, tags) \
-                 VALUES ({org:String}, toUUID(?), fromUnixTimestamp64Milli(?), 'order-service', 'error', 'order failed', map('env','prod'))",
+                "INSERT INTO oc.logs_dedup (org_id, id, timestamp, service, status, message, tags, attr) \
+                 VALUES ({org:String}, toUUID(?), fromUnixTimestamp64Milli(?), 'order-service', 'error', 'order failed', map('env','prod'), map('error.kind','OrderFailed'))",
             )
             .bind(format!("019a4000-0000-7000-8000-{id:012}"))
             .bind(t0 + 1_000)
@@ -1097,7 +1098,7 @@ mod tests {
             assert_eq!(rows.len(), 1);
             assert_eq!(rows[0].n, 2, "facet parity, aggregate enabled: {}", since.is_some());
         }
-        assert_eq!(ch.query("SELECT sum(n) FROM oc.error_groups_1m_read WHERE org_id = {org:String}").fetch_one::<u64>().await.unwrap(), 2);
+        assert_eq!(ch.query("SELECT sum(n) FROM oc.error_issues_1m_read WHERE org_id = {org:String}").fetch_one::<u64>().await.unwrap(), 2);
         // The same ID belongs to a different tenant independently.
         ch.query(
             "INSERT INTO oc.logs_dedup (org_id, id, timestamp, service, status, message) \
