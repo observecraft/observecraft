@@ -384,6 +384,44 @@ tests:
             source: |
               assert_eq!(.status, "warn")
 
+  - name: Datadog Agent stderr loguru line with a padded INFO level is info
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "2026-11-01 10:22:11.690 | INFO     | db.reader:get_evaluation:69 - Retrieved evaluation"
+          .status = "error"
+          .ddsource = "python"
+          .service = "system-evaluator-api"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "info")
+
+  - name: Datadog Agent stderr loguru line with a padded ERROR level is error
+    inputs:
+      - insert_at: normalize
+        type: vrl
+        source: |
+          .source_type = "http_server"
+          ."x-oc-org" = "acme"
+          .message = "2026-11-01 10:22:11.690 | ERROR    | db.writer:save:12 - Insert failed"
+          .status = "info"
+          .ddsource = "python"
+          .service = "system-evaluator-api"
+          .hostname = "node-1"
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.status, "error")
+
   - name: Datadog Agent's own log line with a piped ERROR level is error
     inputs:
       - insert_at: normalize
