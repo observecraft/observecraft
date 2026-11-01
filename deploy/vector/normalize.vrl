@@ -127,8 +127,8 @@ if is_null(lvl) && msg != "" {
   klog = parse_regex(head, r'^(?P<l>[IWEF])\d{4} \d{2}:\d{2}:\d{2}') ?? null
   # logfmt (`level=info ts=…`) and Python's `asctime - name - LEVEL - message`.
   field = parse_regex(head, r'(?i)(?:^|\s)(?:level|lvl|severity)=(?P<l>[a-z]+)') ?? null
-  # … and the Datadog Agent's own `date | CORE | LEVEL | …`.
-  dashed = parse_regex(head, r' [-|] (?P<l>TRACE|DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|FATAL) [-|] ') ?? null
+  # … and the Datadog Agent's own `date | CORE | LEVEL | …`; loguru pads the level (`| INFO     |`).
+  dashed = parse_regex(head, r' [-|] +(?P<l>TRACE|DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|FATAL) +[-|] ') ?? null
   if klog != null {
     lvl = get!(klog, ["l"])
   } else if field != null {
