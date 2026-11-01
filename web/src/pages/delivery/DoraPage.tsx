@@ -5,6 +5,7 @@ import { Chart } from '../../components/charts/Chart';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Select } from '../../components/ui/Dropdown';
 import { fmtAgo, fmtDur } from './common';
+import { DoraIntro } from './DoraIntro';
 import { useDora } from './queries';
 
 const RANGES = [
@@ -33,6 +34,7 @@ export function DoraPage() {
   const q = useDora(range, env, service === '*' ? [] : [service]);
   const all = useDora(range, env, []);
   const d = q.data;
+  if (d && d.environments.length === 0) return <DoraIntro />;
 
   return (
     <div className="ci-dora">

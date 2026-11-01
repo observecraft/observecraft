@@ -135,3 +135,21 @@
 .setup-steps p {
   margin: 0;
 }
+
+.setup-modal {
+  overflow: auto;
+  padding: 16px 22px 20px;
+}
+
+.setup-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.setup-modal h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: var(--fw-semibold);
+}

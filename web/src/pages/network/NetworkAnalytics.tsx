@@ -18,6 +18,7 @@ import { hhmm, timeAgo } from '../../lib/format';
 import { addTerm, formatQuery, parseQuery, type Term } from '../../lib/searchQuery';
 import { LogTable } from '../logs/LogTable';
 import { useTraffic } from './NetworkLayout';
+import { NetworkIntro } from './NetworkIntro';
 
 /** Tags a side can be grouped by. */
 export const GROUP_KEYS: { key: string; label: string }[] = [
@@ -384,7 +385,7 @@ export function NetworkAnalytics({ toggle }: { toggle?: React.ReactNode }) {
       ) : !q.data ? (
         <Loading label="Loading network traffic…" />
       ) : !q.data.enabled ? (
-        <Empty>No network data yet. Enable Cloud Network Monitoring in the Datadog Agent (system-probe with network_config enabled) and point it at this intake.</Empty>
+        <NetworkIntro />
       ) : (
         <>
           <div className="net-graphs">

@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, ChevronsUpDown, ExternalLink, Eye, Globe, Plus, Radar, Search } from 'lucide-react';
+import { Bell, ChevronsUpDown, ExternalLink, Eye, Globe, Search } from 'lucide-react';
 import type { SyntheticEndpoint, SyntheticTest } from '../../api/synthetics/client';
 import { TYPE_LABEL } from '../../api/synthetics/logic';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { compact, timeAgo } from '../../lib/format';
 import { TestStatus, TypeIcon, fmtMs } from './common';
 import { useSyntheticCoverage, useSyntheticTests } from './queries';
+import { SyntheticsIntro } from './SyntheticsIntro';
 
 const minute = 60_000;
 const WEEK = 7 * 86_400_000;
@@ -35,7 +36,6 @@ function groupsOf(t: SyntheticTest, by: GroupBy): string[] {
 
 /** Synthetic Monitoring & Testing → Overview: the health of the org's tests and the endpoints that lack one. */
 export function SyntheticsOverviewPage() {
-  const navigate = useNavigate();
   const [team, setTeam] = useState('');
   const [env, setEnv] = useState('');
   // The state is "now": the uptime of the last hour comes along for the treemap's tooltips.
@@ -56,6 +56,8 @@ export function SyntheticsOverviewPage() {
   const teams = [...new Set(all.map((t) => t.team).filter(Boolean))].sort();
   const envs = [...new Set(all.map((t) => t.env).filter(Boolean))].sort();
   const scoped = all.filter((t) => (!team || t.team === team) && (!env || t.env === env));
+  const gaps = <CoverageGaps endpoints={coverage.data?.endpoints} error={coverage.error as Error | null} loading={coverage.isPending} />;
+  if (all.length === 0) return <SyntheticsIntro>{gaps}</SyntheticsIntro>;
 
   return (
     <div className="syn-page syn-overview">
@@ -79,19 +81,8 @@ export function SyntheticsOverviewPage() {
           </select>
         </label>
       </div>
-      {all.length === 0 ? (
-        <div className="syn-empty">
-          <Radar size={36} strokeWidth={1.4} />
-          <h3>Check your endpoints from the ObserveCraft server</h3>
-          <p className="muted">HTTP, SSL, DNS and TCP tests run on a schedule, alert through your notification channels and write synthetics.* metrics for dashboards and SLOs.</p>
-          <button className="btn btn-primary" onClick={() => navigate('/synthetics/create')}>
-            <Plus size={15} /> New Test
-          </button>
-        </div>
-      ) : (
-        <TestHealth tests={scoped} />
-      )}
-      <CoverageGaps endpoints={coverage.data?.endpoints} error={coverage.error as Error | null} loading={coverage.isPending} />
+      <TestHealth tests={scoped} />
+      {gaps}
     </div>
   );
 }

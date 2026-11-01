@@ -16,6 +16,7 @@ import { ServiceGlyph } from '../explorer/SpanBits';
 import { useStars } from '../visuals';
 import { FlameGraphView, viewTree, type GroupBy } from './FlameGraph';
 import { CATEGORY_ORDER, LANGUAGES, averageLabel, chartLabel, chartValue, fmtCard, fmtChart, fmtValue, frameLabel, isLibrary, selectedService } from './format';
+import { ProfilerIntro } from './ProfilerIntro';
 
 type View = 'flame' | 'timeline' | 'metrics' | 'list' | 'callgraph';
 
@@ -441,6 +442,7 @@ export function ProfileExplorer() {
   const shownInsights = (insights.data?.items ?? []).filter((i) => i.status === 'for_review' && (!service || i.service === service));
   const terms = useMemo(() => parseQuery(query), [query]);
   const facets = useMemo(() => (overview.data?.facets ?? []).map((f) => ({ key: f.key, label: FACET_LABELS[f.key] ?? f.key, group: 'CORE', values: f.values })), [overview.data]);
+  if (!query && overview.data && overview.data.services.length === 0) return <ProfilerIntro />;
 
   return (
     <div className="pf-explorer">
