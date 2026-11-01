@@ -13,7 +13,7 @@ const { outputFiles } = require('esbuild').buildSync({
   format: 'esm',
   write: false,
 });
-const { collectDashboardQueries, mergeDashboardFrame } = await import(`data:text/javascript;base64,${Buffer.from(outputFiles[0].text).toString('base64')}`);
+const { collectDashboardQueries, mergeDashboardFrame, decodeDashboardFrame } = await import(`data:text/javascript;base64,${Buffer.from(outputFiles[0].text).toString('base64')}`);
 const dashboards = JSON.parse(readFileSync(new URL('../server/seeds/integrations/kubernetes/dashboards.json', import.meta.url)));
 const resolve = (query) => query.replace(/\$\w+(?:\.value)?/g, '*');
 
@@ -21,12 +21,110 @@ test('the complete dashboard plan is deduplicated and fits one request, includin
   for (const dashboard of dashboards) {
     const queries = collectDashboardQueries(dashboard.widgets, resolve, { from: 0, to: 3600000 });
     assert.ok(queries.length > 0 && queries.length <= 256, dashboard.title);
-    assert.equal(new Set(queries.map((q) => JSON.stringify([q.query, q.points]))).size, queries.length);
+    assert.equal(new Set(queries.map((q) => JSON.stringify([q.query, q.points, q.aggregator]))).size, queries.length);
     assert.equal(new Set(queries.map((q) => q.id)).size, queries.length);
     const duplicate = collectDashboardQueries([...dashboard.widgets, ...dashboard.widgets], resolve, { from: 0, to: 3600000 });
     assert.deepEqual(duplicate, queries);
     console.log(`${dashboard.title}: ${queries.length} unique queries, one dashboard request`);
   }
+});
+
+test('tables and treemaps ask the server for one value per series; timeseries keep their points', () => {
+  const dashboard = dashboards.find((d) => d.id === 'kubernetes-kubernetes-cpu-memory');
+  const queries = collectDashboardQueries(dashboard.widgets, resolve, { from: 0, to: 3600000 });
+  const usage = 'sum:kubernetes.cpu.usage.total{*,*,*,*,*,*,*} by {kube_cluster_name,env,kube_deployment,kube_daemon_set,kube_stateful_set}';
+  // The same query feeds a table (avg over the range) and a timeseries (every point): two entries.
+  assert.deepEqual(
+    queries
+      .filter((q) => q.query === usage)
+      .map((q) => q.aggregator ?? null)
+      .sort(),
+    ['avg', null],
+  );
+  const reduced = queries.filter((q) => q.aggregator).length;
+  assert.ok(reduced > queries.length / 2, `${reduced} of ${queries.length} queries reduced on the server`);
+});
+
+test('queries whose points are changed before aggregating stay whole', () => {
+  const table = (query, aggregator) => ({
+    definition: {
+      type: 'integration',
+      original: { type: 'query_table', requests: [{ response_format: 'scalar', queries: [{ name: 'query1', data_source: 'metrics', query, ...(aggregator ? { aggregator } : {}) }] }] },
+    },
+  });
+  const plan = (widgets) => collectDashboardQueries(widgets, resolve, { from: 0, to: 3600000 }).map((q) => [q.query, q.aggregator ?? null]);
+  assert.deepEqual(plan([table('sum:a{*} by {host}', 'last')]), [['sum:a{*} by {host}', 'last']]);
+  assert.deepEqual(plan([table('sum:b{*} by {host}', 'mean')]), [['sum:b{*} by {host}', 'avg']]);
+  assert.deepEqual(plan([table('sum:c{*} by {host}')]), [['sum:c{*} by {host}', 'avg']]);
+  // fill() adds points and as_count() scales by the gap between points: the panel needs them all.
+  assert.deepEqual(plan([table('sum:d{*} by {host}.fill(zero)', 'avg')]), [['sum:d{*} by {host}', null]]);
+  assert.deepEqual(plan([table('sum:e{*} by {host}.as_count()', 'sum')]), [['sum:e{*} by {host}', null]]);
+  // An aggregation the server doesn't have stays in the panel.
+  assert.deepEqual(plan([table('sum:f{*} by {host}', 'percentile')]), [['sum:f{*} by {host}', null]]);
+  // A query value with a timeseries background also draws the series over time.
+  const value = {
+    definition: {
+      type: 'integration',
+      original: {
+        type: 'query_value',
+        timeseries_background: { type: 'area' },
+        requests: [{ response_format: 'scalar', queries: [{ name: 'query1', data_source: 'metrics', query: 'sum:g{*}', aggregator: 'avg' }] }],
+      },
+    },
+  };
+  assert.deepEqual(plan([value]).sort(), [
+    ['sum:g{*}', null],
+    ['sum:g{*}', 'avg'],
+  ]);
+});
+
+test('series sent as values every step from a start decode to points; points stay as they are', () => {
+  const frame = {
+    range: { from: 0, to: 60000 },
+    data_scans: 1,
+    unique_queries: 2,
+    results: [
+      { id: 'q0', kind: 'gauge', step_ms: 10000, replace_from: 0, series: [{ name: 'a', tags: {}, start: 10000, values: [1, null, 3.5, 2] }] },
+      {
+        id: 'q1',
+        kind: 'gauge',
+        step_ms: 10000,
+        replace_from: 0,
+        series: [
+          {
+            name: 'b',
+            tags: {},
+            points: [
+              [0, 1],
+              [15000, 2],
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const decoded = decodeDashboardFrame(frame);
+  assert.deepEqual(decoded.results[0].series, [
+    {
+      name: 'a',
+      tags: {},
+      points: [
+        [10000, 1],
+        [30000, 3.5],
+        [40000, 2],
+      ],
+    },
+  ]);
+  assert.deepEqual(decoded.results[1].series, [
+    {
+      name: 'b',
+      tags: {},
+      points: [
+        [0, 1],
+        [15000, 2],
+      ],
+    },
+  ]);
 });
 
 test('live bucket replacement removes old points, vanished groups and expired history', () => {

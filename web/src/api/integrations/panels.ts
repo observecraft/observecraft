@@ -3,7 +3,7 @@ import { metricCatalog, queryTimeseries } from '../dashboards/client';
 import type { MetricSeries, TimeRange } from '../types';
 import { topLogValues } from '../client';
 import { logRequest, logSeries, throughputs, type LogPanelQuery } from './logs';
-import { aggregate, formula, normalizeRequest, preparePanelQuery, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
+import { aggregate, formula, normalizeRequest, preparePanelQuery, serverAggregator, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
 
 export interface PanelSeries extends MetricSeries {
   column?: string;
@@ -66,7 +66,10 @@ export async function queryIntegrationPanel(
           const { plan, text, points } = preparePanelQuery(query.query, resolve, range);
           let series: MetricSeries[];
           try {
-            series = await source.timeseries({ queries: [text], range, points });
+            // A scalar panel's query arrives as one value per series from the dashboard stream (the
+            // aggregate below leaves it as it is); other sources send the points.
+            const aggregator = scalar ? serverAggregator(plan.operations, query.aggregator ?? request.aggregator) : undefined;
+            series = await source.timeseries({ queries: [text], range, points, ...(aggregator ? { aggregator } : {}) });
           } catch (error) {
             if (error instanceof Error && error.message.startsWith('Unknown metric:')) series = [];
             else throw error;

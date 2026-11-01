@@ -11348,20 +11348,27 @@ export interface components {
             name: string;
         };
         DashboardMetricQuery: {
+            aggregator?: null | components["schemas"]["TimeAggregator"];
             id: string;
             /** Format: int32 */
             points?: number | null;
             query: string;
         };
+        /** @description A series as `points`, or, as sent to clients when its buckets are aligned (most of them), as
+         *     `values` every `step_ms` of its result from `start` (null where a bucket is empty): a timestamp
+         *     per point would be most of the JSON. */
         DashboardMetricSeries: {
             name: string;
-            points: [
+            points?: [
                 number,
                 number
             ][];
+            /** Format: int64 */
+            start?: number | null;
             tags: {
                 [key: string]: string;
             };
+            values?: (number | null)[] | null;
         };
         DashboardPatch: {
             description?: string | null;

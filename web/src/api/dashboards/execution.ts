@@ -1,11 +1,13 @@
-import type { Widget, MetricSeries } from './types';
-import { normalizeRequest, preparePanelQuery } from '../integrations/evaluate';
+import type { Widget, MetricSeries, TimeAggregator } from './types';
+import { normalizeRequest, preparePanelQuery, serverAggregator } from '../integrations/evaluate';
 import type { TimeRange } from '../types';
 
 export interface DashboardMetricQuery {
   id: string;
   query: string;
   points: number;
+  /** One value per series, reduced on the server (tables, treemaps, toplists). */
+  aggregator?: TimeAggregator;
 }
 export interface DashboardQueryResult {
   id: string;
@@ -23,15 +25,37 @@ export interface DashboardQueryFrame {
   unique_queries: number;
   error?: string | null;
 }
-export const metricQueryKey = (query: string, points = 120) => JSON.stringify([query, points]);
+/** A series as the dashboard endpoints send it: `points`, or `values` every `step_ms` from `start` (null where empty). */
+interface WireSeries extends Omit<MetricSeries, 'points'> {
+  points?: [number, number][];
+  start?: number | null;
+  values?: (number | null)[] | null;
+}
+type WireFrame = Omit<DashboardQueryFrame, 'results'> & { results: (Omit<DashboardQueryResult, 'series'> & { series: WireSeries[] })[] };
+
+/** A frame as received, with every series as points. */
+export function decodeDashboardFrame(frame: WireFrame): DashboardQueryFrame {
+  return {
+    ...frame,
+    results: (frame.results ?? []).map((r) => ({
+      ...r,
+      series: r.series.map(({ start, values, points, ...s }) => ({
+        ...s,
+        points: start != null && values ? values.flatMap((v, i): [number, number][] => (v === null ? [] : [[start + i * r.step_ms, v]])) : (points ?? []),
+      })),
+    })),
+  };
+}
+
+export const metricQueryKey = (query: string, points = 120, aggregator?: TimeAggregator) => JSON.stringify(aggregator ? [query, points, aggregator] : [query, points]);
 
 /** Build the complete metric plan before mounting panels, including nested/collapsed groups. */
 export function collectDashboardQueries(widgets: Widget[], resolve: (query: string) => string, range: TimeRange): DashboardMetricQuery[] {
-  const queries = new Map<string, { query: string; points: number }>();
-  const add = (query: string, points = 120) => queries.set(metricQueryKey(query, points), { query, points });
+  const queries = new Map<string, { query: string; points: number; aggregator?: TimeAggregator }>();
+  const add = (query: string, points = 120, aggregator?: TimeAggregator) => queries.set(metricQueryKey(query, points, aggregator), { query, points, ...(aggregator ? { aggregator } : {}) });
   for (const { definition: d } of widgets) {
     if (d.type === 'group') {
-      for (const q of collectDashboardQueries(d.widgets, resolve, range)) add(q.query, q.points);
+      for (const q of collectDashboardQueries(d.widgets, resolve, range)) add(q.query, q.points, q.aggregator);
     } else if (d.type === 'integration') {
       const def = d.original;
       try {
@@ -39,13 +63,20 @@ export function collectDashboardQueries(widgets: Widget[], resolve: (query: stri
           const tags = Array.isArray(def.tags) ? def.tags.filter((t): t is string => typeof t === 'string') : [];
           add(resolve(`max:service_check.status{check:${typeof def.check === 'string' ? def.check : ''},${tags.join(',')}} by {host}`));
         } else if (def.type !== 'list_stream') {
-          const planned = (def.requests ?? [])
-            .flatMap((r) => normalizeRequest(r).queries)
-            .map((q) => {
+          // Panels other than timeseries show one value per series (panels.ts aggregates them).
+          const scalar = def.type !== 'timeseries';
+          const planned = (def.requests ?? []).flatMap((r) =>
+            normalizeRequest(r).queries.map((q) => {
               if (q.data_source !== 'metrics') throw new Error('Unsupported data source');
-              return preparePanelQuery(q.query, resolve, range);
-            });
-          for (const q of planned) add(q.text, q.points);
+              const prepared = preparePanelQuery(q.query, resolve, range);
+              return { ...prepared, aggregator: scalar ? serverAggregator(prepared.plan.operations, q.aggregator ?? r.aggregator) : undefined };
+            }),
+          );
+          for (const q of planned) {
+            add(q.text, q.points, q.aggregator);
+            // A query value's timeseries background draws the same queries over time.
+            if (def.type === 'query_value' && def.timeseries_background) add(q.text, q.points);
+          }
         }
       } catch {
         /* The renderer displays the unsupported-expression error without network traffic. */
@@ -58,7 +89,7 @@ export function collectDashboardQueries(widgets: Widget[], resolve: (query: stri
       add(resolve(d.request.query), 60);
     }
   }
-  return [...queries.values()].sort((a, b) => metricQueryKey(a.query, a.points).localeCompare(metricQueryKey(b.query, b.points))).map((q, i) => ({ id: `q${i}`, ...q }));
+  return [...queries.values()].sort((a, b) => metricQueryKey(a.query, a.points, a.aggregator).localeCompare(metricQueryKey(b.query, b.points, b.aggregator))).map((q, i) => ({ id: `q${i}`, ...q }));
 }
 
 /** Replace whole aligned tail buckets; addition alone would retain vanished groups/stale points. */
