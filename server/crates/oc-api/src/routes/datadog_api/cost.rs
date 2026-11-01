@@ -1003,8 +1003,10 @@ mod tests {
         cloud_cost::seed_demo(&s.st, &s.org).await.expect("seed");
         let http = reqwest::Client::new();
         let auth = format!("Bearer {}", s.app_key);
-        let today = Utc::now().date_naive();
-        let month = today.year() as i64 * 100 + today.month() as i64;
+        // Demo billing covers completed days only. On the first of a month, today's month
+        // has no billed rows yet; choose a month containing a seeded day instead.
+        let billed_day = Utc::now().date_naive() - chrono::Duration::days(1);
+        let month = billed_day.year() as i64 * 100 + billed_day.month() as i64;
         let doc = json!({ "data": { "type": "budget", "attributes": {
             "name": "Platform", "metrics_query": "aws.cost.amortized{*} by {subaccountname}", "start_month": month, "end_month": month,
             "entries": [{ "month": month, "amount": 1000, "tag_filters": [{ "tag_key": "subaccountname", "tag_value": "ecommerce-prod" }] }],

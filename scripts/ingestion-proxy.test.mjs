@@ -17,6 +17,8 @@ test('benchmark proxy pins the upstream peer and rejects absolute request target
     upstreamCalls++;
     let body = '';
     for await (const part of req) body += part;
+    res.setHeader('content-type', 'application/json');
+    res.setHeader('x-content-type-options', 'nosniff');
     res.end(JSON.stringify({ path: req.url, method: req.method, host: req.headers.host, body }));
   });
   const attacker = await listen((req, res) => {
@@ -29,7 +31,7 @@ test('benchmark proxy pins the upstream peer and rejects absolute request target
       const req = http.request({ hostname: proxy.hostname, port: proxy.port, path, method: 'POST', headers: { host: 'untrusted.example.com' } }, async (res) => {
         let text = '';
         for await (const part of res) text += part;
-        resolve({ status: res.statusCode, text });
+        resolve({ status: res.statusCode, text, contentType: res.headers['content-type'], noSniff: res.headers['x-content-type-options'] });
       });
       req.on('error', reject);
       req.end(body);
@@ -41,6 +43,8 @@ test('benchmark proxy pins the upstream peer and rejects absolute request target
   assert.equal(upstreamCalls, 0);
   const result = await request('/?query=INSERT%20INTO%20logs', 'streamed rows');
   assert.equal(result.status, 200);
+  assert.equal(result.contentType, 'application/json');
+  assert.equal(result.noSniff, 'nosniff');
   assert.deepEqual(JSON.parse(result.text), { path: '/?query=INSERT%20INTO%20logs', method: 'POST', host: new URL(upstream).host, body: 'streamed rows' });
   assert.equal(upstreamCalls, 1);
   assert.equal(attackerCalls, 0);
