@@ -6,11 +6,12 @@ import { Search, X } from 'lucide-react';
 import { networkFlows, type Flow } from '../../api/network/client';
 import { Chart } from '../../components/charts/Chart';
 import { useTime } from '../../components/shell/TimeContext';
-import { Empty, ErrorState, Loading } from '../../components/ui/AsyncState';
+import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { formatBytes } from '../../components/ui/Pager';
 import { token } from '../../theme/chartTheme';
 import { GROUP_KEYS, fmtLatency, fmtThroughput } from './NetworkAnalytics';
 import { useTraffic } from './NetworkLayout';
+import { NetworkIntro } from './NetworkIntro';
 
 /** What edges show (Datadog's list). */
 const EDGE_METRICS: { key: string; label: string; value: (f: Flow) => number; fmt: (v: number) => string }[] = [
@@ -139,7 +140,7 @@ export function NetworkMap() {
       ) : !q.data || !option ? (
         <Loading label="Loading network map…" />
       ) : !q.data.enabled ? (
-        <Empty>No network data yet. Enable Cloud Network Monitoring in the Datadog Agent (system-probe with network_config enabled) and point it at this intake.</Empty>
+        <NetworkIntro />
       ) : (
         <div className="net-map" onClick={() => setMenu(null)}>
           <Chart

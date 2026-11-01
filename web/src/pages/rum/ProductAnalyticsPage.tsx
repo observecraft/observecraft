@@ -12,6 +12,7 @@ import { compact } from '../../lib/format';
 import { token } from '../../theme/chartTheme';
 import { fmtMsShort, useSelectedApplication } from './common';
 import { useRumApplications } from './queries';
+import { ProductAnalyticsIntro } from './ProductAnalyticsIntro';
 import { ApplicationSelector } from './RumLayout';
 import './rum.css';
 
@@ -103,7 +104,9 @@ export function ProductAnalyticsPage() {
         </span>
         <ApplicationSelector />
       </header>
-      {page === 'home' ? (
+      {apps.data?.length === 0 ? (
+        <ProductAnalyticsIntro />
+      ) : page === 'home' ? (
         <div className="pa-hello">
           <h2>Welcome to Product Analytics</h2>
           <p className="muted">{appName ? `How people use ${appName}` : 'How people use your applications'}, from the sessions RUM collects.</p>
@@ -114,13 +117,17 @@ export function ProductAnalyticsPage() {
           <p className="muted">{subtitle}</p>
         </div>
       )}
-      {page === 'home' && <h3 className="pa-section">Product Pulse</h3>}
-      <div className="pa-filter">
-        <span className="muted">{appName ?? 'All applications'}</span>
-        <span className="syn-grow" />
-        <TimePicker compact />
-      </div>
-      {q.isPending ? <Loading label="Loading…" /> : q.isError ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : <Body page={page} r={q.data} range={r} daily={longRange} />}
+      {apps.data?.length !== 0 && (
+        <>
+          {page === 'home' && <h3 className="pa-section">Product Pulse</h3>}
+          <div className="pa-filter">
+            <span className="muted">{appName ?? 'All applications'}</span>
+            <span className="syn-grow" />
+            <TimePicker compact />
+          </div>
+          {q.isPending ? <Loading label="Loading…" /> : q.isError ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : <Body page={page} r={q.data} range={r} daily={longRange} />}
+        </>
+      )}
     </div>
   );
 }
@@ -136,9 +143,7 @@ function Kpi({ label, v, fmt, help, lowerIsBetter }: { label: string; v: Analyti
     <div className="pa-kpi" title={help}>
       <span>{label}</span>
       <b>{fmt(v.value)}</b>
-      {change !== undefined && (
-        <em className={good ? 'up' : bad ? 'down' : ''}>{change == null ? '0% —' : `${change > 0 ? '+' : ''}${Math.round(change)}%`}</em>
-      )}
+      {change !== undefined && <em className={good ? 'up' : bad ? 'down' : ''}>{change == null ? '0% —' : `${change > 0 ? '+' : ''}${Math.round(change)}%`}</em>}
     </div>
   );
 }

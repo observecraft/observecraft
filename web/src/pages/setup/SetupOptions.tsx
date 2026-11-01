@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { X } from 'lucide-react';
+import { Modal } from '../../components/ui/Modal';
 import { CopyButton } from '../settings/SecuritySettings';
 import { fill, type SetupStep } from './sources';
 import './setup.css';
@@ -60,5 +62,22 @@ export function SetupOptions({ options, initial }: { options: SetupOption[]; ini
       </div>
       <SetupStepList option={option} />
     </div>
+  );
+}
+
+/** The setup options of a product in a dialog (a product intro's "Get Started"). */
+export function SetupModal({ title, options, initial, onClose }: { title: string; options: SetupOption[]; initial?: string; onClose: () => void }) {
+  return (
+    <Modal label={title} onClose={onClose} width={880} height="auto">
+      <div className="setup-modal">
+        <header>
+          <h2>{title}</h2>
+          <button className="icon-btn" onClick={onClose} title="Close">
+            <X size={16} />
+          </button>
+        </header>
+        <SetupOptions options={options} initial={initial} />
+      </div>
+    </Modal>
   );
 }
