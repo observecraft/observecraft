@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.9.0](https://github.com/observecraft/observecraft/compare/v0.8.0...v0.9.0) (2026-11-01)
+
+
+### Features
+
+* **errors:** track errors as Datadog's Error Tracking does ([4d2a0ad](https://github.com/observecraft/observecraft/commit/4d2a0adf6c6e9747114247f16eeec096a8070436))
+
+
+### Bug fixes
+
+* **logs:** read the level of lines that pad it ([8a087df](https://github.com/observecraft/observecraft/commit/8a087dfa4bc3664e278af36055568194e67d1518))
+
+
+### Documentation
+
+* add maintainer sponsorship links ([a733322](https://github.com/observecraft/observecraft/commit/a73332269ecadd2bb698513776b3f2517516e300))
+* refresh README screenshots with current UI ([5e8cfd3](https://github.com/observecraft/observecraft/commit/5e8cfd3a27f1a497596183383b0c1d07d740d83d))
+
 ## [0.8.0](https://github.com/observecraft/observecraft/compare/v0.7.1...v0.8.0) (2026-11-01)
 
 
