@@ -136,6 +136,43 @@ test('shifts export as an iCalendar file', () => {
   assert.match(logic.defaultScheduleName('Alex Morgan', utc('2026-10-28T12:00')), /^Alex's Schedule – Oct 28, 2026$/);
 });
 
+test('empty states: onboarded teams, minute choices, policy problems, analytics range', () => {
+  const team = (handle, policy, schedules = []) => ({ handle, name: handle, memberCount: 2, policy, schedules, onCallNow: [], openPages: 0, mine: false });
+  const teams = [team('billing', null), team('checkout', { id: 'p1', name: 'Checkout' }), team('platform', null, [{ id: 's1', name: 'Platform 24/7' }])];
+  assert.deepEqual(
+    logic.onboardedTeams(teams).map((t) => t.handle),
+    ['checkout', 'platform'],
+  );
+  assert.deepEqual(logic.onboardedTeams([team('billing', null)]), []);
+
+  const choices = logic.minuteChoices([5, 60, 1440], 5);
+  assert.deepEqual(choices, [
+    { value: '5', label: '5 minutes' },
+    { value: '60', label: '1 hour' },
+    { value: '1440', label: '1 day' },
+  ]);
+  // A stored value outside the list stays selectable, in order.
+  assert.deepEqual(
+    logic.minuteChoices([5, 60], 90).map((c) => c.label),
+    ['5 minutes', '1 hour', '90 minutes'],
+  );
+  assert.equal(logic.minuteChoices([1], 1)[0].label, '1 minute');
+  assert.equal(logic.minuteChoices([120], 120)[0].label, '2 hours');
+
+  const step = (targets, escalateAfterMinutes = 5) => ({ targets, escalateAfterMinutes });
+  const user = { kind: 'user', id: 'u1' };
+  assert.equal(logic.policyProblem({ name: '', steps: [step([user])], repeat: 0 }), 'Name the escalation policy');
+  assert.equal(logic.policyProblem({ name: 'Checkout', steps: [], repeat: 0 }), 'Add at least one step');
+  assert.equal(logic.policyProblem({ name: 'Checkout', steps: [step([user]), step([])], repeat: 0 }), 'Add a recipient to step 2');
+  assert.equal(logic.policyProblem({ name: 'Checkout', steps: [step([user], 0)], repeat: 0 }), 'Step 1 must escalate after at least 1 minute');
+  assert.equal(logic.policyProblem({ name: 'Checkout', steps: [step([user])], repeat: 11 }), 'Repeat at most 10 times');
+  assert.equal(logic.policyProblem({ name: ' Checkout ', steps: [step([user])], repeat: 0 }), null);
+
+  // Analytics accept at most 92 days: longer ranges keep their end.
+  assert.deepEqual(logic.clampRange({ from: 0, to: 100 * DAY }, 92), { from: 8 * DAY, to: 100 * DAY });
+  assert.deepEqual(logic.clampRange({ from: DAY, to: 8 * DAY }, 92), { from: DAY, to: 8 * DAY });
+});
+
 test('mock: demo teams have schedules, policies and routing', async () => {
   mock.resetOnCallMock();
   const teams = await mock.listTeams();

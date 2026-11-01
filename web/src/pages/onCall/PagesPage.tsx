@@ -1,6 +1,6 @@
 import { useDeferredValue, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { PanelLeftClose, PanelLeftOpen, PhoneCall, PhoneOff, Plus, Search, X } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, PhoneCall, Plus, Search, UserRound, X } from 'lucide-react';
 import type { OnCallPageEvent } from '../../api/onCall/client';
 import { TimePicker } from '../../components/shell/PageHeader';
 import { TimeProvider, useTime } from '../../components/shell/TimeContext';
@@ -73,13 +73,13 @@ function PagesView() {
           <aside className="onc-side">
             <nav className="onc-side-nav">
               <button className={!mine ? 'active' : ''} onClick={() => set('mine', null)}>
-                All Pages
+                <PhoneCall size={15} /> All Pages
               </button>
               <button className={mine ? 'active' : ''} onClick={() => set('mine', '1')}>
-                My Pages
+                <UserRound size={15} /> My Pages
               </button>
             </nav>
-            <TeamFacet teams={(allTeams.data ?? []).map((t) => ({ handle: t.handle, name: t.name }))} selected={teams} onChange={setTeams} />
+            <TeamFacet teams={(allTeams.data ?? []).map((t) => ({ handle: t.handle, name: t.name }))} selected={teams} onChange={setTeams} defaultOpen={teams.length > 0} />
           </aside>
         )}
         <div className="onc-main">
@@ -108,7 +108,7 @@ function PagesView() {
                 onOpen={(p) => navigate({ pathname: `/on-call/pages/${p.id}`, search: params.toString() })}
                 empty={
                   <EmptyState
-                    icon={PhoneOff}
+                    icon={PhoneCall}
                     title={q.isPending ? 'Loading pages…' : 'No Pages found'}
                     hint={q.isPending ? undefined : 'Pages created in the selected time and filters appear here.'}
                   />

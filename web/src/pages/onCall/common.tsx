@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Search, type LucideIcon } from 'lucide-react';
-import type { OnCallPage, OnCallPageStatus, OnCallUser } from '../../api/onCall/client';
+import type { OnCallMyShift, OnCallPage, OnCallPageStatus, OnCallUser } from '../../api/onCall/client';
+import { shiftsToIcs } from '../../api/onCall/logic';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { fmtDateTime } from '../incidents/queries';
 
@@ -66,7 +67,7 @@ export function People({ users, max = 3, empty = '—' }: { users: Pick<OnCallUs
 export function EmptyState({ icon: Icon, title, hint, children }: { icon: LucideIcon; title: string; hint?: ReactNode; children?: ReactNode }) {
   return (
     <div className="onc-empty">
-      <Icon size={64} strokeWidth={1.2} />
+      <Icon className="onc-empty-icon" size={64} strokeWidth={1.5} />
       <h3>{title}</h3>
       {hint && <p className="muted">{hint}</p>}
       {children}
@@ -95,18 +96,37 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
   );
 }
 
-/** A pinned facet box: checkbox per team, with a filter box once the list is long. */
-export function TeamFacet({ teams, selected, onChange, counts }: { teams: { handle: string; name: string }[]; selected: string[]; onChange: (v: string[]) => void; counts?: Record<string, number> }) {
-  const [open, setOpen] = useState(true);
+/** A facet box: checkbox per team, with a filter box once the list is long. Collapsed, it is just its title. */
+export function TeamFacet({
+  teams,
+  selected,
+  onChange,
+  counts,
+  open: openProp,
+  onOpenChange,
+  defaultOpen = true,
+}: {
+  teams: { handle: string; name: string }[];
+  selected: string[];
+  onChange: (v: string[]) => void;
+  counts?: Record<string, number>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  defaultOpen?: boolean;
+}) {
+  const [openState, setOpenState] = useState(defaultOpen);
+  const open = openProp ?? openState;
+  const setOpen = (v: boolean) => (onOpenChange ? onOpenChange(v) : setOpenState(v));
   const [filter, setFilter] = useState('');
   const shown = teams.filter((t) => !filter || t.name.toLowerCase().includes(filter.toLowerCase()) || t.handle.includes(filter.toLowerCase()));
   const toggle = (h: string) => onChange(selected.includes(h) ? selected.filter((x) => x !== h) : [...selected, h]);
   return (
-    <div className="onc-facet">
-      <button className="onc-facet-title" onClick={() => setOpen((o) => !o)}>
+    <div className={`onc-facet${open ? '' : ' collapsed'}`}>
+      <button className="onc-facet-title" aria-expanded={open} onClick={() => setOpen(!open)}>
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         Teams
-        {selected.length > 0 && (
+        {selected.length > 0 && <span className="onc-facet-count">{selected.length}</span>}
+        {selected.length > 0 && open && (
           <span
             className="onc-facet-clear"
             onClick={(e) => {
@@ -138,6 +158,25 @@ export function TeamFacet({ teams, selected, onChange, counts }: { teams: { hand
       )}
     </div>
   );
+}
+
+/** "Showing 1–3 of 3 Schedules". */
+export function Showing({ count, noun }: { count: number; noun: string }) {
+  return (
+    <span className="onc-showing">
+      Showing <b>{count ? 1 : 0}</b>–<b>{count}</b> of <b>{count}</b> {noun}
+    </span>
+  );
+}
+
+/** Download shifts as an .ics calendar file. */
+export function downloadShifts(shifts: OnCallMyShift[]) {
+  const blob = new Blob([shiftsToIcs(shifts, Date.now(), location.hostname || 'observecraft')], { type: 'text/calendar' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'my-on-call-shifts.ics';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 type PageSort = 'title' | 'status' | 'team' | 'createdAt';

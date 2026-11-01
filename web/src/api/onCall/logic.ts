@@ -323,3 +323,39 @@ export function defaultScheduleName(userName: string, now: number): string {
   const date = new Date(now).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   return `${first}'s Schedule – ${date}`;
 }
+
+// ---------------------------------------------------------------- lists and forms
+
+/** Teams set up for On-Call: routed to an escalation policy or owning a schedule. */
+export function onboardedTeams<T extends { policy?: unknown; schedules: unknown[] }>(teams: T[]): T[] {
+  return teams.filter((t) => t.policy != null || t.schedules.length > 0);
+}
+
+function minutesLabel(m: number): string {
+  if (m % 1440 === 0) return m === 1440 ? '1 day' : `${m / 1440} days`;
+  if (m % 60 === 0) return m === 60 ? '1 hour' : `${m / 60} hours`;
+  return m === 1 ? '1 minute' : `${m} minutes`;
+}
+
+/** Dropdown choices for a duration in minutes; a current value outside the list stays selectable. */
+export function minuteChoices(choices: number[], current: number): { value: string; label: string }[] {
+  const all = choices.includes(current) ? choices : [...choices, current].sort((a, b) => a - b);
+  return all.map((m) => ({ value: String(m), label: minutesLabel(m) }));
+}
+
+/** Why an escalation policy can't be saved yet (the server's limits), or null. */
+export function policyProblem(p: { name: string; steps: { targets: unknown[]; escalateAfterMinutes: number }[]; repeat?: number | null }): string | null {
+  if (!p.name.trim()) return 'Name the escalation policy';
+  if (!p.steps.length) return 'Add at least one step';
+  for (const [i, s] of p.steps.entries()) {
+    if (!s.targets.length) return `Add a recipient to step ${i + 1}`;
+    if (!(s.escalateAfterMinutes >= 1)) return `Step ${i + 1} must escalate after at least 1 minute`;
+  }
+  if ((p.repeat ?? 0) > 10) return 'Repeat at most 10 times';
+  return null;
+}
+
+/** A time range shortened to its last `maxDays` days. */
+export function clampRange(r: { from: number; to: number }, maxDays: number): { from: number; to: number } {
+  return { from: Math.max(r.from, r.to - maxDays * DAY), to: r.to };
+}

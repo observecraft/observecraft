@@ -1,10 +1,11 @@
-import { useDeferredValue, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarX2, Plus, Search } from 'lucide-react';
+import { CalendarDays, Plus, Search, Upload } from 'lucide-react';
+import { DAY } from '../../api/onCall/logic';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { useProfile } from '../settings/queries';
-import { People, Segmented, TeamFacet } from './common';
-import { useOnCallSchedules, useOnCallTeams } from './queries';
+import { People, Segmented, Showing, TeamFacet, downloadShifts } from './common';
+import { useMyOnCallShifts, useOnCallSchedules, useOnCallTeams } from './queries';
 
 /** On-Call → Schedules: every schedule with who is on call now. */
 export function SchedulesPage() {
@@ -15,8 +16,12 @@ export function SchedulesPage() {
   const myId = me.data?.id ?? '';
   const [query, setQuery] = useState('');
   const deferred = useDeferredValue(query);
-  const [scope, setScope] = useState<'mine' | 'all'>('all');
+  const [scope, setScope] = useState<'mine' | 'all'>('mine');
   const [selected, setSelected] = useState<string[]>([]);
+  const [facetOpen, setFacetOpen] = useState(false);
+  const minute = Math.floor(Date.now() / 60_000) * 60_000;
+  const upcomingRange = useMemo(() => ({ from: minute, to: minute + 31 * DAY }), [minute]);
+  const upcoming = useMyOnCallShifts(upcomingRange);
   const all = q.data ?? [];
   const text = deferred.trim().toLowerCase();
   const rows = all.filter(
@@ -27,11 +32,15 @@ export function SchedulesPage() {
   );
   const counts: Record<string, number> = {};
   for (const s of all) if (s.team) counts[s.team] = (counts[s.team] ?? 0) + 1;
+  const filtered = !!text || selected.length > 0 || scope === 'mine';
   const clear = () => {
     setQuery('');
     setSelected([]);
     setScope('all');
   };
+  const facet = (
+    <TeamFacet teams={(teams.data ?? []).map((t) => ({ handle: t.handle, name: t.name }))} selected={selected} onChange={setSelected} counts={counts} open={facetOpen} onOpenChange={setFacetOpen} />
+  );
   return (
     <div className="onc-list-page">
       <div className="onc-search-row">
@@ -39,16 +48,18 @@ export function SchedulesPage() {
           <Search size={16} />
           <input placeholder="Search schedules by name, team or tag" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
+        <button className="btn" disabled={!upcoming.data?.length} onClick={() => downloadShifts(upcoming.data ?? [])} title="Your shifts of the next month as an .ics calendar file">
+          <Upload size={14} /> Export My Shifts
+        </button>
         <button className="btn btn-primary" onClick={() => navigate('/on-call/schedules/new')}>
           <Plus size={15} /> New Schedule
         </button>
       </div>
-      <div className="onc-split">
-        <aside className="onc-side">
-          <TeamFacet teams={(teams.data ?? []).map((t) => ({ handle: t.handle, name: t.name }))} selected={selected} onChange={setSelected} counts={counts} />
-        </aside>
+      <div className={`onc-split${facetOpen ? '' : ' no-controls'}`}>
+        {facetOpen && <aside className="onc-side">{facet}</aside>}
         <div className="onc-main">
           <div className="onc-main-bar">
+            {!facetOpen && facet}
             <Segmented
               value={scope}
               onChange={setScope}
@@ -57,9 +68,8 @@ export function SchedulesPage() {
                 ['all', 'All Schedules'],
               ]}
             />
-            <span className="muted onc-showing">
-              Showing {rows.length ? 1 : 0}–{rows.length} of {rows.length} Schedules
-            </span>
+            <span className="onc-bar-sep" />
+            <Showing count={rows.length} noun="Schedules" />
           </div>
           {q.isPending ? (
             <Loading label="Loading schedules…" />
@@ -67,11 +77,11 @@ export function SchedulesPage() {
             <ErrorState error={q.error} onRetry={() => q.refetch()} />
           ) : !rows.length ? (
             <div className="onc-empty">
-              <CalendarX2 size={64} strokeWidth={1.2} />
+              <CalendarDays className="onc-empty-icon" size={64} strokeWidth={1.2} />
               <h3>No schedules found</h3>
-              <p className="muted">{all.length ? 'Check your search query or clear filters' : 'Create a schedule to rotate who is on call.'}</p>
-              {all.length ? (
-                <button className="btn" onClick={clear}>
+              <p className="muted">{filtered ? 'Check your search query or clear filters' : 'Create a schedule to rotate who is on call.'}</p>
+              {filtered ? (
+                <button className="btn btn-primary btn-sm" onClick={clear}>
                   Clear Filters
                 </button>
               ) : (

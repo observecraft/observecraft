@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, ChevronLeft, ChevronRight, Download, PhoneCall, PhoneOff, Users, X } from 'lucide-react';
-import { DAY, monthGrid, shiftsToIcs, utcToWall, wallToUtc } from '../../api/onCall/logic';
+import { CalendarDays, ChevronLeft, ChevronRight, Download, PhoneCall, Users, X } from 'lucide-react';
+import { DAY, monthGrid, utcToWall, wallToUtc } from '../../api/onCall/logic';
 import type { OnCallMyShift } from '../../api/onCall/client';
 import { Select } from '../../components/ui/Dropdown';
-import { EmptyState, PagesTable, Segmented, Toggle, ViewAll, browserTimeZone, timeZoneOptions } from './common';
+import { EmptyState, PagesTable, Segmented, Toggle, ViewAll, browserTimeZone, downloadShifts, timeZoneOptions } from './common';
 import { ProfileSetup } from './ProfileSetup';
 import { useMyOnCallShifts, useOnCallPages, useOnCallPolicies, useOnCallProfile, useOnCallTeams } from './queries';
 
@@ -100,7 +100,7 @@ function LatestPages({ teams }: { teams: { handle: string; name: string }[] }) {
         compact
         pages={q.data?.pages ?? []}
         onOpen={(p) => navigate(`/on-call/pages/${p.id}`)}
-        empty={<EmptyState icon={PhoneOff} title={q.isPending ? 'Loading pages…' : 'No Pages found'} />}
+        empty={<EmptyState icon={PhoneCall} title={q.isPending ? 'Loading pages…' : 'No Pages found'} />}
       />
     </section>
   );
@@ -145,14 +145,6 @@ function MyShifts() {
   );
   const today = Date.UTC(new Date(nowWall).getUTCFullYear(), new Date(nowWall).getUTCMonth(), new Date(nowWall).getUTCDate());
   const step = (d: -1 | 1) => setMonth(({ y, m }) => ({ y: m + d < 0 ? y - 1 : m + d > 11 ? y + 1 : y, m: (m + d + 12) % 12 }));
-  const exportIcs = () => {
-    const blob = new Blob([shiftsToIcs(next, Date.now(), location.hostname || 'observecraft')], { type: 'text/calendar' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'my-on-call-shifts.ics';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
   return (
     <section className="onc-card">
       <div className="onc-card-head">
@@ -167,7 +159,7 @@ function MyShifts() {
             ]}
           />
           <Select label="Time Zone" value={tz} onChange={setTz} options={timeZoneOptions(tz).map((z) => ({ value: z, label: z }))} />
-          <button className="btn" disabled={!next.length} onClick={exportIcs} title="Your shifts of the next month as an .ics calendar file">
+          <button className="btn" disabled={!next.length} onClick={() => downloadShifts(next)} title="Your shifts of the next month as an .ics calendar file">
             <Download size={14} /> Export My Shifts
           </button>
         </div>
