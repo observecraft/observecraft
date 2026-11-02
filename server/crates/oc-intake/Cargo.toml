@@ -16,25 +16,25 @@ bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # Datadog payloads: zlib/deflate, gzip and zstd bodies; protobuf series (agent-payload).
 flate2 = "1"
-prost = "0.13"
-rand = "0.8"
+prost = "0.14"
+rand = "0.10"
 oc-flags.workspace = true
 oc-query.workspace = true
 reqwest.workspace = true
 rskafka.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-sha2 = "0.10"
+sha2 = "0.11"
 # Query strings of RUM SDK requests (`?ddforward=`, `ddtags`).
 url = "2"
 sqlx.workspace = true
 tokio.workspace = true
 # OTLP/gRPC: framing, compression and status codes only (messages are passed through undecoded).
-tonic = { version = "0.12", default-features = false, features = ["gzip", "zstd"] }
+tonic = { version = "0.14", default-features = false, features = ["gzip", "zstd"] }
 tower-http.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-zstd = "0.13"
+zstd = "0.14"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
