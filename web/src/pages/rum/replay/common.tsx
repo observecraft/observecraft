@@ -34,7 +34,7 @@ export function ReplayStage({
   fit = 'contain',
 }: {
   viewport: { w: number; h: number };
-  frameRef: RefObject<HTMLIFrameElement>;
+  frameRef: RefObject<HTMLIFrameElement | null>;
   children?: ReactNode;
   fit?: 'contain' | 'width';
 }) {

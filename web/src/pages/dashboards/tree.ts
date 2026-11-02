@@ -48,7 +48,7 @@ function reId(w: Widget): Widget {
 }
 
 /** Applies a grid layout change (from the grid library) to one level of the tree. */
-export function applyLayouts(widgets: Widget[], layouts: { i: string; x: number; y: number; w: number; h: number }[]): Widget[] {
+export function applyLayouts(widgets: Widget[], layouts: readonly { i: string; x: number; y: number; w: number; h: number }[]): Widget[] {
   const byId = new Map(layouts.map((l) => [l.i, l]));
   return widgets.map((w) => {
     const l = byId.get(w.id);

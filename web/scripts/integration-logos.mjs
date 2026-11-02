@@ -79,6 +79,8 @@ const OVERRIDES = {
   'amazon-app-mesh': 'logos:aws-app-mesh',
   'iam-access-analyzer': 'logos:aws-iam',
   'aws-neuron': 'logos:aws',
+  // Simple Icons dropped Amazon's logo in v16
+  'amazon-vpc-cni': 'logos:aws',
   gke: 'logos:kubernetes',
   oke: 'logos:kubernetes',
   'pivotal-pks': 'logos:kubernetes',

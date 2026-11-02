@@ -17,7 +17,7 @@ export const INTEGRATION_LOGOS: Record<string, string> = {
   "amazon-eks": "logos-aws-eks.svg",
   "amazon-eks-blueprints": "logos-aws-eks.svg",
   "amazon-kafka": "logos-aws-msk.svg",
-  "amazon-vpc-cni": "si-amazon.svg",
+  "amazon-vpc-cni": "logos-aws.svg",
   "ambari": "si-apachehadoop.svg",
   "anecdote": "brand-anecdote.png",
   "anomali-threatstream": "brand-anomali.png",

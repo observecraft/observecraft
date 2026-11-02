@@ -36,7 +36,7 @@ type SaveState = 'saved' | 'pending' | 'saving' | 'error';
 function useAutosave(id: string) {
   const { mutateAsync } = useUpdateNotebook(id);
   const pending = useRef<NotebookPatch>({});
-  const timer = useRef<number>();
+  const timer = useRef<number>(undefined);
   const [state, setState] = useState<SaveState>('saved');
   const [error, setError] = useState<string | null>(null);
   const flush = useCallback(async () => {

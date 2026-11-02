@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import GridLayout, { type Layout } from 'react-grid-layout';
+// react-grid-layout 2's legacy entry: v1's props and behaviour, with v2's type names.
+import GridLayout, { type Layout, type LayoutItem } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import type { LayoutType, Widget } from '../../../api/dashboards/types';
@@ -17,7 +18,7 @@ interface GridProps {
   widgets: Widget[];
   layoutType: Exclude<LayoutType, 'auto'>;
   editable: boolean;
-  onLayout: (layouts: Layout[]) => void;
+  onLayout: (layouts: Layout) => void;
   nested?: boolean;
 }
 
@@ -37,7 +38,7 @@ function WidgetGrid({ widgets, layoutType, editable, onLayout, nested = false }:
   }, []);
   const g = GEOMETRY[layoutType];
   const dragClass = nested ? 'drag-l1' : 'drag-l0';
-  const layout = useMemo<Layout[]>(
+  const layout = useMemo<LayoutItem[]>(
     () =>
       widgets.map((w) => {
         const group = w.definition.type === 'group';
@@ -95,7 +96,7 @@ interface Props {
   widgets: Widget[];
   layoutType: LayoutType;
   editable: boolean;
-  onLayout: (layouts: Layout[]) => void;
+  onLayout: (layouts: Layout) => void;
 }
 
 /** Lays out a dashboard: snapped grid, free canvas, or automatic (timeboard) flow. */

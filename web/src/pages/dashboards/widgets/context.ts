@@ -20,7 +20,7 @@ export interface DashboardContextValue {
   onDelete: (id: string) => void;
   onFullscreen: (w: Widget) => void;
   /** Child layout changes inside a group. */
-  onGroupLayout: (groupId: string, layouts: { i: string; x: number; y: number; w: number; h: number }[]) => void;
+  onGroupLayout: (groupId: string, layouts: readonly { i: string; x: number; y: number; w: number; h: number }[]) => void;
 }
 
 export const DashboardContext = createContext<DashboardContextValue | null>(null);

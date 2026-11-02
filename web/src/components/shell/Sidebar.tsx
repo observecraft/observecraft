@@ -37,7 +37,7 @@ const CLOSE_DELAY = 180;
 export function Sidebar({ mode, setMode }: { mode: NavMode; setMode: (m: NavMode) => void }) {
   const rail = mode === 'rail';
   const [open, setOpen] = useState<Open | null>(null);
-  const timer = useRef<number>();
+  const timer = useRef<number>(undefined);
   const { pathname, search } = useLocation();
 
   const cancelClose = () => window.clearTimeout(timer.current);
