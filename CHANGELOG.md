@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/observecraft/observecraft/compare/v0.10.0...v0.10.1) (2026-11-02)
+
+
+### Bug fixes
+
+* **azure:** skip the types and batches Azure Monitor refuses instead of failing the subscription ([0b26a1a](https://github.com/observecraft/observecraft/commit/0b26a1a18414f1df8fa692501c89b20ac8e1f324))
+
 ## [0.10.0](https://github.com/observecraft/observecraft/compare/v0.9.0...v0.10.0) (2026-11-02)
 
 
