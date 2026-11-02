@@ -21,7 +21,7 @@ use utoipa::ToSchema;
 use crate::state::AppState;
 
 /// Where the points go: the Kafka topic the collector reads OTLP JSON metrics from.
-#[axum::async_trait]
+#[async_trait::async_trait]
 pub trait MetricSink: Send + Sync {
     /// Writes one record and waits for the acknowledgement.
     async fn publish(&self, org: &str, headers: &[(String, String)], body: Vec<u8>) -> Result<(), String>;
@@ -78,7 +78,7 @@ pub enum Outcome {
 }
 
 /// A provider's crawler.
-#[axum::async_trait]
+#[async_trait::async_trait]
 pub trait Crawler: Send + Sync {
     fn provider(&self) -> &'static str;
     /// The jobs the accounts call for: `(org, account, scope)`; `""` is an account's discovery job.

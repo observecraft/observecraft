@@ -19,8 +19,7 @@ pub mod totp;
 
 use std::net::SocketAddr;
 
-use axum::async_trait;
-use axum::extract::{ConnectInfo, FromRequestParts, Request, State};
+use axum::extract::{ConnectInfo, FromRequestParts, OptionalFromRequestParts, Request, State};
 use axum::http::header::{AUTHORIZATION, COOKIE, ORIGIN, REFERER};
 use axum::http::request::Parts;
 use axum::http::{HeaderMap, HeaderValue, Method};
@@ -296,26 +295,33 @@ pub async fn require(State(st): State<AppState>, mut req: Request, next: Next) -
 
 // ================================================================ extractors
 
-#[async_trait]
+/// The signed-in context the auth layer put on the request, if any.
+fn signed_in(parts: &Parts) -> Option<AuthContext> {
+    parts.extensions.get::<AuthContext>().cloned()
+}
+
 impl FromRequestParts<AppState> for AuthContext {
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, _st: &AppState) -> Result<Self, ApiError> {
-        parts
-            .extensions
-            .get::<AuthContext>()
-            .cloned()
-            .ok_or_else(|| ApiError::Unauthorized("sign in required".into()))
+        signed_in(parts).ok_or_else(|| ApiError::Unauthorized("sign in required".into()))
+    }
+}
+
+/// `Option<AuthContext>`: pages that answer anonymous requests too (public status pages) get `None`.
+impl OptionalFromRequestParts<AppState> for AuthContext {
+    type Rejection = std::convert::Infallible;
+    async fn from_request_parts(parts: &mut Parts, _st: &AppState) -> Result<Option<Self>, Self::Rejection> {
+        Ok(signed_in(parts))
     }
 }
 
 /// Any authenticated user with at least Standard access (creates/edits content).
 pub struct Writer(#[allow(dead_code)] pub AuthContext);
 
-#[async_trait]
 impl FromRequestParts<AppState> for Writer {
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, st: &AppState) -> Result<Self, ApiError> {
-        let ctx = AuthContext::from_request_parts(parts, st).await?;
+        let ctx = <AuthContext as FromRequestParts<AppState>>::from_request_parts(parts, st).await?;
         if ctx.access < Access::Standard {
             return Err(ApiError::Forbidden("your role is read-only".into()));
         }
@@ -326,11 +332,10 @@ impl FromRequestParts<AppState> for Writer {
 /// Organization administrators (users, roles, SSO, audit trail).
 pub struct Admin(pub AuthContext);
 
-#[async_trait]
 impl FromRequestParts<AppState> for Admin {
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, st: &AppState) -> Result<Self, ApiError> {
-        let ctx = AuthContext::from_request_parts(parts, st).await?;
+        let ctx = <AuthContext as FromRequestParts<AppState>>::from_request_parts(parts, st).await?;
         if ctx.access < Access::Admin {
             return Err(ApiError::Forbidden(
                 "organization admin role required".into(),
@@ -343,11 +348,10 @@ impl FromRequestParts<AppState> for Admin {
 /// Operators of the install: create, suspend and delete organizations.
 pub struct InstanceAdmin(pub AuthContext);
 
-#[async_trait]
 impl FromRequestParts<AppState> for InstanceAdmin {
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, st: &AppState) -> Result<Self, ApiError> {
-        let ctx = AuthContext::from_request_parts(parts, st).await?;
+        let ctx = <AuthContext as FromRequestParts<AppState>>::from_request_parts(parts, st).await?;
         if !ctx.instance_admin {
             return Err(ApiError::Forbidden(
                 "instance administrator required".into(),
@@ -492,6 +496,25 @@ pub async fn sweep(pg: &sqlx::PgPool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_request_is_signed_in_only_when_the_auth_layer_put_a_context_on_it() {
+        let (mut parts, ()) = axum::http::Request::new(()).into_parts();
+        assert!(signed_in(&parts).is_none(), "anonymous: optional extractors get None, not a rejection");
+        let ctx = AuthContext {
+            user_id: "u1".into(),
+            org_id: "acme".into(),
+            account_id: "a1".into(),
+            instance_admin: false,
+            name: "Jane".into(),
+            access: Access::Standard,
+            credential: Credential::Session,
+            session_hash: None,
+            ip: None,
+        };
+        parts.extensions.insert(ctx);
+        assert_eq!(signed_in(&parts).map(|c| c.org_id), Some("acme".to_string()));
+    }
 
     #[test]
     fn access_levels() {

@@ -34,7 +34,7 @@ use crate::state::AppState;
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/v1/dashboard", get(list).post(create).delete(delete_many).patch(restore_many))
-        .route("/api/v1/dashboard/:id", get(get_one).put(update).delete(delete_one))
+        .route("/api/v1/dashboard/{id}", get(get_one).put(update).delete(delete_one))
         .route("/api/unstable/dashboard/widgets/validate", post(validate_widgets))
 }
 

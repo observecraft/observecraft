@@ -1047,10 +1047,10 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/logs/top", post(logs::top))
         .route("/api/v1/logs/aggregate", post(log_analytics::aggregate))
         .route("/api/v1/error-tracking/issues/search", post(error_tracking::search_issues))
-        .route("/api/v1/error-tracking/issues/:id/state", post(error_tracking::set_issue_state))
+        .route("/api/v1/error-tracking/issues/{id}/state", post(error_tracking::set_issue_state))
         .route("/api/v1/error-tracking/issues/facets", post(error_tracking::issue_facets))
-        .route("/api/v1/error-tracking/issues/:id", post(error_tracking::issue_detail))
-        .route("/api/v1/error-tracking/issues/:id/samples", post(error_tracking::issue_samples))
+        .route("/api/v1/error-tracking/issues/{id}", post(error_tracking::issue_detail))
+        .route("/api/v1/error-tracking/issues/{id}/samples", post(error_tracking::issue_samples))
         .route("/api/v1/logs/patterns", post(logs::patterns))
         .route("/api/v1/logs/fields", post(logs::fields))
         .route("/api/v1/logs/suggest", post(logs::suggest))
@@ -1064,7 +1064,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/apm/databases", post(apm::databases))
         .route("/api/v1/apm/errors", post(apm::errors))
         .route("/api/v1/apm/traces/search", post(apm::search_traces))
-        .route("/api/v1/apm/traces/:trace_id", get(apm::trace))
+        .route("/api/v1/apm/traces/{trace_id}", get(apm::trace))
         .route("/api/v1/apm/recommendations", post(apm::recommendations))
         .route("/api/v1/apm/anomalies", post(apm::anomalies))
         .route("/api/v1/apm/envs", post(apm::envs))
@@ -1085,56 +1085,56 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/metrics/catalog/stats", post(metric_catalog::stats))
         .route("/api/v1/metrics/detail", post(metric_catalog::detail))
         .route("/api/v1/metrics/derived", get(derived_metrics::list).post(derived_metrics::create))
-        .route("/api/v1/metrics/derived/:id", axum::routing::put(derived_metrics::update).delete(derived_metrics::delete))
+        .route("/api/v1/metrics/derived/{id}", axum::routing::put(derived_metrics::update).delete(derived_metrics::delete))
         .route("/api/v1/deployment-gates", get(deployment_gates::list).post(deployment_gates::create))
         .route("/api/v1/deployment-gates/evaluate", post(deployment_gates::evaluate))
         .route("/api/v1/deployment-gates/evaluations", get(deployment_gates::evaluations))
-        .route("/api/v1/deployment-gates/evaluations/:id", get(deployment_gates::evaluation))
-        .route("/api/v1/deployment-gates/:id", get(deployment_gates::get).put(deployment_gates::update).delete(deployment_gates::delete))
+        .route("/api/v1/deployment-gates/evaluations/{id}", get(deployment_gates::evaluation))
+        .route("/api/v1/deployment-gates/{id}", get(deployment_gates::get).put(deployment_gates::update).delete(deployment_gates::delete))
         .route("/api/v1/pr-gates/rules", get(pr_gates::list).post(pr_gates::create))
-        .route("/api/v1/pr-gates/rules/:id", axum::routing::put(pr_gates::update).delete(pr_gates::delete))
+        .route("/api/v1/pr-gates/rules/{id}", axum::routing::put(pr_gates::update).delete(pr_gates::delete))
         .route("/api/v1/pr-gates/evaluate", post(pr_gates::evaluate))
         .route("/api/v1/metrics/rules", get(metric_rules::list).post(metric_rules::create))
         .route("/api/v1/metrics/rules/overview", post(metric_rules::overview))
-        .route("/api/v1/metrics/rules/:id", axum::routing::put(metric_rules::update).delete(metric_rules::delete))
-        .route("/api/v1/tags/:key/values", get(metrics::tag_values))
+        .route("/api/v1/metrics/rules/{id}", axum::routing::put(metric_rules::update).delete(metric_rules::delete))
+        .route("/api/v1/tags/{key}/values", get(metrics::tag_values))
         .route("/api/v1/dashboards", post(dashboards::create))
         .route("/api/v1/dashboards/search", post(dashboards::search))
         .route("/api/v1/notebooks", post(notebooks::create))
         .route("/api/v1/notebooks/search", post(notebooks::search))
         .route(
-            "/api/v1/notebooks/:id",
+            "/api/v1/notebooks/{id}",
             get(notebooks::get_one).patch(notebooks::update).delete(notebooks::delete),
         )
-        .route("/api/v1/notebooks/:id/clone", post(notebooks::clone))
-        .route("/api/v1/notebooks/:id/restore", post(notebooks::restore))
-        .route("/api/v1/notebooks/:id/favorite", axum::routing::put(notebooks::set_favorite))
+        .route("/api/v1/notebooks/{id}/clone", post(notebooks::clone))
+        .route("/api/v1/notebooks/{id}/restore", post(notebooks::restore))
+        .route("/api/v1/notebooks/{id}/favorite", axum::routing::put(notebooks::set_favorite))
         .route("/api/v1/dashboard-reports", get(dashboard_reports::list).post(dashboard_reports::create))
         .route("/api/v1/dashboard-reports/options", get(dashboard_reports::options))
         .route(
-            "/api/v1/dashboard-reports/:id",
+            "/api/v1/dashboard-reports/{id}",
             get(dashboard_reports::get_one).put(dashboard_reports::update).delete(dashboard_reports::delete),
         )
-        .route("/api/v1/dashboard-reports/:id/subscription", axum::routing::put(dashboard_reports::subscribe))
-        .route("/api/v1/dashboard-reports/:id/preview", get(dashboard_reports::preview))
-        .route("/api/v1/dashboard-reports/:id/send", post(dashboard_reports::send_now))
+        .route("/api/v1/dashboard-reports/{id}/subscription", axum::routing::put(dashboard_reports::subscribe))
+        .route("/api/v1/dashboard-reports/{id}/preview", get(dashboard_reports::preview))
+        .route("/api/v1/dashboard-reports/{id}/send", post(dashboard_reports::send_now))
         .route("/api/v1/spreadsheets", post(sheets::create))
         .route("/api/v1/spreadsheets/search", post(sheets::search))
-        .route("/api/v1/spreadsheets/:id", get(sheets::get_one).patch(sheets::update).delete(sheets::delete))
+        .route("/api/v1/spreadsheets/{id}", get(sheets::get_one).patch(sheets::update).delete(sheets::delete))
         .route("/api/v1/dashboards/recent", get(dashboards::recent))
         .route("/api/v1/dashboards/delete", post(dashboards::delete))
         .route(
-            "/api/v1/dashboards/:id",
+            "/api/v1/dashboards/{id}",
             get(dashboards::get_one).patch(dashboards::update),
         )
-        .route("/api/v1/dashboards/:id/clone", post(dashboards::clone))
-        .route("/api/v1/dashboards/:id/restore", post(dashboards::restore))
+        .route("/api/v1/dashboards/{id}/clone", post(dashboards::clone))
+        .route("/api/v1/dashboards/{id}/restore", post(dashboards::restore))
         .route(
             "/api/v1/dashboard-lists",
             get(dashboards::lists).post(dashboards::create_list),
         )
         .route(
-            "/api/v1/dashboard-lists/:id/items",
+            "/api/v1/dashboard-lists/{id}/items",
             post(dashboards::add_to_list),
         )
         .route(
@@ -1148,18 +1148,18 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/monitors/preview", post(monitors::preview))
         .route("/api/v1/monitors/quality", post(monitors::quality))
         .route(
-            "/api/v1/monitors/:id",
+            "/api/v1/monitors/{id}",
             get(monitors::get_one).put(monitors::update),
         )
-        .route("/api/v1/monitors/:id/clone", post(monitors::clone))
-        .route("/api/v1/monitors/:id/history", post(monitors::history))
+        .route("/api/v1/monitors/{id}/clone", post(monitors::clone))
+        .route("/api/v1/monitors/{id}/history", post(monitors::history))
         .route("/api/v1/downtimes", post(downtimes::create))
         .route("/api/v1/downtimes/search", post(downtimes::search))
-        .route("/api/v1/downtimes/:id", delete(downtimes::cancel))
+        .route("/api/v1/downtimes/{id}", delete(downtimes::cancel))
         .route("/api/v1/slos", post(slos::create))
         .route("/api/v1/slos/search", post(slos::search))
         .route(
-            "/api/v1/slos/:id",
+            "/api/v1/slos/{id}",
             get(slos::get_one).put(slos::update).delete(slos::delete),
         )
         .route(
@@ -1167,7 +1167,7 @@ pub fn router() -> Router<AppState> {
             get(slos::list_corrections).post(slos::create_correction),
         )
         .route(
-            "/api/v1/slo-corrections/:id",
+            "/api/v1/slo-corrections/{id}",
             axum::routing::put(slos::update_correction).delete(slos::delete_correction),
         )
         .route("/api/v1/apm/spans/search", post(spans::search))
@@ -1178,12 +1178,12 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/llm/overview", post(llm::overview))
         .route("/api/v1/llm/facets", post(llm::facets))
         .route("/api/v1/llm/traces/search", post(llm::search_traces))
-        .route("/api/v1/llm/traces/:trace_id", get(llm::trace))
+        .route("/api/v1/llm/traces/{trace_id}", get(llm::trace))
         .route("/api/v1/llm/evaluations", post(llm::evaluations))
         .route("/api/v1/ci/executions", post(ci::executions))
         .route("/api/v1/ci/executions/facets", post(ci::facets))
         .route("/api/v1/ci/executions/charts", post(ci::charts))
-        .route("/api/v1/ci/pipelines/:trace_id", get(ci::pipeline))
+        .route("/api/v1/ci/pipelines/{trace_id}", get(ci::pipeline))
         .route("/api/v1/ci/aggregations", post(ci::aggregations))
         .route("/api/v1/ci/overview", post(ci::overview))
         .route("/api/v1/ci/flaky", post(ci::flaky))
@@ -1196,13 +1196,13 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/events/search", post(events::search))
         .route("/api/v1/events/fields", post(events::fields))
         .route("/api/v1/events/work-items", post(events::work_items))
-        .route("/api/v1/events/work-items/:id/attributes", axum::routing::put(event_settings::set_value))
+        .route("/api/v1/events/work-items/{id}/attributes", axum::routing::put(event_settings::set_value))
         .route("/api/v1/events/correlators", get(event_settings::list_correlators).post(event_settings::create_correlator))
-        .route("/api/v1/events/correlators/:id", axum::routing::put(event_settings::update_correlator).delete(event_settings::delete_correlator))
+        .route("/api/v1/events/correlators/{id}", axum::routing::put(event_settings::update_correlator).delete(event_settings::delete_correlator))
         .route("/api/v1/events/maintenance-windows", get(event_settings::list_windows).post(event_settings::create_window))
-        .route("/api/v1/events/maintenance-windows/:id", delete(event_settings::delete_window))
+        .route("/api/v1/events/maintenance-windows/{id}", delete(event_settings::delete_window))
         .route("/api/v1/events/work-item-attributes", get(event_settings::list_attributes).post(event_settings::create_attribute))
-        .route("/api/v1/events/work-item-attributes/:id", axum::routing::put(event_settings::update_attribute).delete(event_settings::delete_attribute))
+        .route("/api/v1/events/work-item-attributes/{id}", axum::routing::put(event_settings::update_attribute).delete(event_settings::delete_attribute))
         .route("/api/v1/service-checks", get(service_checks::list))
         .route("/api/v1/service-checks/detail", post(service_checks::detail))
         .route("/api/v1/watchdog/alerts", get(watchdog::alerts))
@@ -1220,11 +1220,11 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/fleet/agent", post(fleet::agent))
         .route("/api/v1/fleet/configurations", post(fleet::configurations))
         .route("/api/v1/hosts/search", post(hosts::search))
-        .route("/api/v1/hosts/:name", post(hosts::detail))
-        .route("/api/v1/hosts/:name/metrics", post(hosts::metrics))
-        .route("/api/v1/hosts/:name/processes", post(hosts::processes))
-        .route("/api/v1/hosts/:name/pods", post(hosts::pods))
-        .route("/api/v1/hosts/:name/containers", post(hosts::containers))
+        .route("/api/v1/hosts/{name}", post(hosts::detail))
+        .route("/api/v1/hosts/{name}/metrics", post(hosts::metrics))
+        .route("/api/v1/hosts/{name}/processes", post(hosts::processes))
+        .route("/api/v1/hosts/{name}/pods", post(hosts::pods))
+        .route("/api/v1/hosts/{name}/containers", post(hosts::containers))
         .route("/api/v1/infrastructure/catalog", post(catalog::search))
         .route("/api/v1/infrastructure/changes", post(changes::search))
         .route("/api/v1/infrastructure/cloud-map", post(cloud_map::cloud_map))
@@ -1238,7 +1238,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/code-security/summary", get(code_security::summary))
         .route("/api/v1/code-security/library-vulnerabilities", post(code_security::list_library_vulnerabilities))
         .route("/api/v1/code-security/advisories", post(code_security::list_advisories))
-        .route("/api/v1/code-security/advisories/:id", get(code_security::get_advisory))
+        .route("/api/v1/code-security/advisories/{id}", get(code_security::get_advisory))
         .route("/api/v1/code-security/findings", post(code_security::list_findings))
         .route("/api/v1/code-security/runtime-code-vulnerabilities", post(code_security::list_iast))
         .route("/api/v1/code-security/repositories", get(code_security::repositories))
@@ -1249,11 +1249,11 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/code-security/triage", post(code_security::triage))
         .route("/api/v1/code-security/setup", get(code_security::setup))
         .route("/api/v1/cloud-cost/budgets", get(datadog_api::cost::budget_summaries).put(datadog_api::cost::ui_save_budget))
-        .route("/api/v1/cloud-cost/budgets/:budget_id", get(datadog_api::cost::ui_budget).delete(datadog_api::cost::ui_delete_budget))
+        .route("/api/v1/cloud-cost/budgets/{budget_id}", get(datadog_api::cost::ui_budget).delete(datadog_api::cost::ui_delete_budget))
         .route("/api/v1/infrastructure/policies/attributes", get(resource_policies::attributes))
         .route("/api/v1/infrastructure/policies/preview", post(resource_policies::preview))
         .route(
-            "/api/v1/infrastructure/policies/:id",
+            "/api/v1/infrastructure/policies/{id}",
             get(resource_policies::get).put(resource_policies::update).delete(resource_policies::delete),
         )
         .route("/api/v1/gpu/search", post(gpu::search))
@@ -1265,7 +1265,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/sql/templates", get(sql_editor::templates))
         .route("/api/v1/sql/run", post(sql_editor::run))
         .route("/api/v1/sql/queries", get(sql_editor::list_queries).post(sql_editor::create_query))
-        .route("/api/v1/sql/queries/:id", axum::routing::put(sql_editor::update_query).delete(sql_editor::delete_query))
+        .route("/api/v1/sql/queries/{id}", axum::routing::put(sql_editor::update_query).delete(sql_editor::delete_query))
         .route("/api/v1/databases/search", post(databases::search))
         .route("/api/v1/databases/instance", post(databases::instance))
         .route("/api/v1/data-jobs/search", post(data_jobs::search))
@@ -1280,15 +1280,15 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/kubernetes/rollouts", get(kubernetes_rollouts::list))
         .route("/api/v1/kubernetes/autoscaling/settings", axum::routing::put(kubernetes_autoscaling::update_settings))
         .route("/api/v1/kubernetes/autoscaling/profiles", post(kubernetes_autoscaling::create_profile))
-        .route("/api/v1/kubernetes/autoscaling/profiles/:id", axum::routing::put(kubernetes_autoscaling::update_profile).delete(kubernetes_autoscaling::delete_profile))
+        .route("/api/v1/kubernetes/autoscaling/profiles/{id}", axum::routing::put(kubernetes_autoscaling::update_profile).delete(kubernetes_autoscaling::delete_profile))
         .route(
-            "/api/v1/orchestration/resources/*uid",
+            "/api/v1/orchestration/resources/{*uid}",
             get(kubernetes::detail),
         )
         .route("/api/v1/me", get(identity::me).patch(identity::update_me))
         .route("/api/v1/users/search", post(identity::search_users))
         .route("/api/v1/users/invite", post(identity::invite))
-        .route("/api/v1/users/:id", patch(identity::update_user))
+        .route("/api/v1/users/{id}", patch(identity::update_user))
         .route("/api/v1/roles", get(identity::roles))
         .route("/api/v1/teams", post(identity::create_team))
         .route("/api/v1/teams/search", post(identity::search_teams))
@@ -1297,30 +1297,30 @@ pub fn router() -> Router<AppState> {
             get(identity::mappings).post(identity::create_mapping),
         )
         .route(
-            "/api/v1/saml/mappings/:id",
+            "/api/v1/saml/mappings/{id}",
             delete(identity::delete_mapping),
         )
-        .route("/api/v1/users/:id/login-link", post(identity::login_link))
+        .route("/api/v1/users/{id}/login-link", post(identity::login_link))
         .route("/api/v1/audit", get(identity::audit_trail))
         .route("/api/v1/auth/config", get(auth::config))
         .route("/api/v1/auth/login", post(auth::login))
         .route("/api/v1/auth/mfa/verify", post(auth::mfa_verify))
         .route("/api/v1/auth/logout", post(auth::logout))
         .route(
-            "/api/v1/auth/link/:token",
+            "/api/v1/auth/link/{token}",
             get(auth::link_info).post(auth::accept_link),
         )
         .route("/api/v1/auth/sso/discover", post(sso::discover_sso))
-        .route("/api/v1/auth/saml/:org/metadata", get(sso::saml_metadata))
-        .route("/api/v1/auth/saml/:org/login", get(sso::saml_login))
-        .route("/api/v1/auth/saml/:org/acs", post(sso::saml_acs))
-        .route("/api/v1/auth/oidc/:org/login", get(sso::oidc_login))
-        .route("/api/v1/auth/oidc/:org/callback", get(sso::oidc_callback))
+        .route("/api/v1/auth/saml/{org}/metadata", get(sso::saml_metadata))
+        .route("/api/v1/auth/saml/{org}/login", get(sso::saml_login))
+        .route("/api/v1/auth/saml/{org}/acs", post(sso::saml_acs))
+        .route("/api/v1/auth/oidc/{org}/login", get(sso::oidc_login))
+        .route("/api/v1/auth/oidc/{org}/callback", get(sso::oidc_callback))
         .route("/api/v1/me/logout-all", post(auth::logout_all))
         .route("/api/v1/me/password", post(auth::change_password))
         .route("/api/v1/me/security", get(auth::security))
         .route("/api/v1/me/sessions", get(auth::sessions))
-        .route("/api/v1/me/sessions/:id", delete(auth::revoke_session))
+        .route("/api/v1/me/sessions/{id}", delete(auth::revoke_session))
         .route("/api/v1/me/mfa/setup", post(auth::mfa_setup))
         .route("/api/v1/me/mfa/enable", post(auth::mfa_enable))
         .route("/api/v1/me/mfa/disable", post(auth::mfa_disable))
@@ -1331,12 +1331,12 @@ pub fn router() -> Router<AppState> {
             get(instance::list_orgs).post(instance::create_org),
         )
         .route(
-            "/api/v1/instance/orgs/:id",
+            "/api/v1/instance/orgs/{id}",
             patch(instance::update_org).delete(instance::delete_org),
         )
         .route("/api/v1/instance/audit", get(instance::audit))
         .route(
-            "/api/v1/instance/orgs/:id/limits",
+            "/api/v1/instance/orgs/{id}/limits",
             patch(instance::update_limits),
         )
         .route(
@@ -1345,7 +1345,7 @@ pub fn router() -> Router<AppState> {
         )
         .route("/api/v1/logs/indexes/reorder", post(log_indexes::reorder))
         .route(
-            "/api/v1/logs/indexes/:id",
+            "/api/v1/logs/indexes/{id}",
             axum::routing::put(log_indexes::update).delete(log_indexes::delete),
         )
         .route(
@@ -1357,14 +1357,14 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/logs/pipelines/usage", get(logs_config::pipelines_usage))
         .route("/api/v1/logs/custom-destinations", get(logs_config::list_destinations).post(logs_config::create_destination))
         .route(
-            "/api/v1/logs/custom-destinations/:id",
+            "/api/v1/logs/custom-destinations/{id}",
             axum::routing::put(logs_config::update_destination).patch(logs_config::set_destination_enabled).delete(logs_config::delete_destination),
         )
-        .route("/api/v1/logs/custom-destinations/:id/test", post(logs_config::test_destination))
+        .route("/api/v1/logs/custom-destinations/{id}/test", post(logs_config::test_destination))
         .route("/api/v1/logs/flex-settings", get(logs_config::get_flex).put(logs_config::update_flex))
         .route("/api/v1/logs/pipelines/grok", post(log_pipelines::grok))
         .route(
-            "/api/v1/logs/pipelines/:id",
+            "/api/v1/logs/pipelines/{id}",
             axum::routing::put(log_pipelines::update)
                 .patch(log_pipelines::set_enabled)
                 .delete(log_pipelines::delete),
@@ -1374,7 +1374,7 @@ pub fn router() -> Router<AppState> {
             get(log_pipelines::library_list),
         )
         .route(
-            "/api/v1/logs/pipeline-library/:id/install",
+            "/api/v1/logs/pipeline-library/{id}/install",
             post(log_pipelines::install),
         )
         .route(
@@ -1382,7 +1382,7 @@ pub fn router() -> Router<AppState> {
             get(log_metrics::list).post(log_metrics::create),
         )
         .route(
-            "/api/v1/logs/metrics/:id",
+            "/api/v1/logs/metrics/{id}",
             axum::routing::put(log_metrics::update).delete(log_metrics::delete),
         )
         .route(
@@ -1394,23 +1394,23 @@ pub fn router() -> Router<AppState> {
             post(log_restrictions::preview),
         )
         .route(
-            "/api/v1/logs/restriction-queries/:id",
+            "/api/v1/logs/restriction-queries/{id}",
             axum::routing::put(log_restrictions::update).delete(log_restrictions::delete),
         )
         .route(
-            "/api/v1/logs/restriction-queries/:id/roles",
+            "/api/v1/logs/restriction-queries/{id}/roles",
             post(log_restrictions::assign_role),
         )
         .route(
-            "/api/v1/logs/restriction-queries/:id/roles/:role_id",
+            "/api/v1/logs/restriction-queries/{id}/roles/{role_id}",
             delete(log_restrictions::unassign_role),
         )
         .route(
-            "/api/v1/logs/restriction-queries/:id/teams",
+            "/api/v1/logs/restriction-queries/{id}/teams",
             post(log_restrictions::assign_team),
         )
         .route(
-            "/api/v1/logs/restriction-queries/:id/teams/:handle",
+            "/api/v1/logs/restriction-queries/{id}/teams/{handle}",
             delete(log_restrictions::unassign_team),
         )
         .route(
@@ -1420,7 +1420,7 @@ pub fn router() -> Router<AppState> {
                 .delete(standard_attributes::reset),
         )
         .route(
-            "/api/v1/logs/standard-attributes/:path",
+            "/api/v1/logs/standard-attributes/{path}",
             axum::routing::put(standard_attributes::update).delete(standard_attributes::delete),
         )
         .route(
@@ -1430,7 +1430,7 @@ pub fn router() -> Router<AppState> {
                 .layer(axum::extract::DefaultBodyLimit::max(reference_tables::MAX_BODY_BYTES)),
         )
         .route(
-            "/api/v1/reference-tables/:name",
+            "/api/v1/reference-tables/{name}",
             get(reference_tables::get_one)
                 .put(reference_tables::replace)
                 .delete(reference_tables::delete)
@@ -1438,48 +1438,48 @@ pub fn router() -> Router<AppState> {
         )
         .route("/api/v1/status-pages", get(status_pages::list).post(status_pages::create))
         .route(
-            "/api/v1/status-pages/:id",
+            "/api/v1/status-pages/{id}",
             get(status_pages::get_one).put(status_pages::update).delete(status_pages::delete),
         )
-        .route("/api/v1/status-pages/:id/notices", post(status_pages::create_notice))
+        .route("/api/v1/status-pages/{id}/notices", post(status_pages::create_notice))
         .route(
-            "/api/v1/status-pages/:id/notices/:notice_id",
+            "/api/v1/status-pages/{id}/notices/{notice_id}",
             axum::routing::delete(status_pages::delete_notice),
         )
         .route(
-            "/api/v1/status-pages/:id/notices/:notice_id/updates",
+            "/api/v1/status-pages/{id}/notices/{notice_id}/updates",
             post(status_pages::update_notice),
         )
         .route("/api/v1/synthetics/locations", get(synthetics::locations))
         .route("/api/v1/rum/applications", get(rum::list_applications).post(rum::create_application))
-        .route("/api/v1/rum/applications/:id", get(rum::get_application).put(rum::update_application).delete(rum::delete_application))
+        .route("/api/v1/rum/applications/{id}", get(rum::get_application).put(rum::update_application).delete(rum::delete_application))
         .route("/api/v1/rum/events/search", post(rum::search_events))
         .route("/api/v1/rum/facets", post(rum::facets))
         .route("/api/v1/rum/summary", post(rum::summary))
         .route("/api/v1/product-analytics/report", post(rum_analytics::report))
-        .route("/api/v1/rum/replay/sessions/:id", post(rum_replay::session_replay))
-        .route("/api/v1/rum/replay/sessions/:id/watched", axum::routing::put(rum_replay::watched))
+        .route("/api/v1/rum/replay/sessions/{id}", post(rum_replay::session_replay))
+        .route("/api/v1/rum/replay/sessions/{id}/watched", axum::routing::put(rum_replay::watched))
         .route("/api/v1/rum/replay/history", get(rum_replay::history))
         .route("/api/v1/rum/replay/playlists", get(rum_replay::list_playlists).post(rum_replay::create_playlist))
-        .route("/api/v1/rum/replay/playlists/:id", get(rum_replay::get_playlist).put(rum_replay::update_playlist).delete(rum_replay::delete_playlist))
-        .route("/api/v1/rum/replay/playlists/:id/sessions", post(rum_replay::add_session))
-        .route("/api/v1/rum/replay/playlists/:id/sessions/:session_id", axum::routing::delete(rum_replay::remove_session))
+        .route("/api/v1/rum/replay/playlists/{id}", get(rum_replay::get_playlist).put(rum_replay::update_playlist).delete(rum_replay::delete_playlist))
+        .route("/api/v1/rum/replay/playlists/{id}/sessions", post(rum_replay::add_session))
+        .route("/api/v1/rum/replay/playlists/{id}/sessions/{session_id}", axum::routing::delete(rum_replay::remove_session))
         .route("/api/v1/rum/replay/heatmap", post(rum_replay::heatmap))
         .route("/api/v1/security/overview", get(security_overview::overview))
         .route("/api/v1/security/inbox", get(security_overview::inbox))
         .route("/api/v1/security/feed", get(security_feed::feed))
         .route("/api/v1/security/rules", get(security_rules::list).post(security_rules::create))
-        .route("/api/v1/security/rules/:id", get(security_rules::get).put(security_rules::update).delete(security_rules::delete))
-        .route("/api/v1/security/rules/:id/enabled", axum::routing::put(security_rules::set_enabled))
+        .route("/api/v1/security/rules/{id}", get(security_rules::get).put(security_rules::update).delete(security_rules::delete))
+        .route("/api/v1/security/rules/{id}/enabled", axum::routing::put(security_rules::set_enabled))
         .route("/api/v1/security/suppressions", get(security_suppressions::list).post(security_suppressions::create))
-        .route("/api/v1/security/suppressions/:id", axum::routing::put(security_suppressions::update).delete(security_suppressions::delete))
+        .route("/api/v1/security/suppressions/{id}", axum::routing::put(security_suppressions::update).delete(security_suppressions::delete))
         .route("/api/v1/security/signals/search", post(security_signals::search))
         .route("/api/v1/security/signals/bulk", post(security_signals::bulk))
-        .route("/api/v1/security/signals/:id", get(security_signals::get))
-        .route("/api/v1/security/signals/:id/state", axum::routing::put(security_signals::state))
-        .route("/api/v1/security/signals/:id/assignee", axum::routing::put(security_signals::assignee))
+        .route("/api/v1/security/signals/{id}", get(security_signals::get))
+        .route("/api/v1/security/signals/{id}/state", axum::routing::put(security_signals::state))
+        .route("/api/v1/security/signals/{id}/assignee", axum::routing::put(security_signals::assignee))
         .route("/api/v1/security/siem/packs", get(security_siem::packs))
-        .route("/api/v1/security/siem/packs/:id", axum::routing::put(security_siem::set_pack))
+        .route("/api/v1/security/siem/packs/{id}", axum::routing::put(security_siem::set_pack))
         .route("/api/v1/security/siem/overview", post(security_siem::overview))
         .route("/api/v1/cloud-security/summary", get(cloud_security::summary))
         .route("/api/v1/workload-protection/summary", get(workload_protection::summary))
@@ -1488,48 +1488,48 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/workload-protection/agents", get(workload_protection::agents))
         .route("/api/v1/workload-protection/policies", get(workload_protection::list_policies).post(workload_protection::create_policy))
         .route("/api/v1/workload-protection/policies/download", get(workload_protection::download))
-        .route("/api/v1/workload-protection/policies/:id", axum::routing::patch(workload_protection::update_policy).delete(workload_protection::delete_policy))
+        .route("/api/v1/workload-protection/policies/{id}", axum::routing::patch(workload_protection::update_policy).delete(workload_protection::delete_policy))
         .route("/api/v1/workload-protection/agent-rules", get(workload_protection::list_rules).post(workload_protection::create_rule))
-        .route("/api/v1/workload-protection/agent-rules/:id", axum::routing::patch(workload_protection::update_rule).delete(workload_protection::delete_rule))
+        .route("/api/v1/workload-protection/agent-rules/{id}", axum::routing::patch(workload_protection::update_rule).delete(workload_protection::delete_rule))
         .route("/api/v1/integrations/gcp/setup", get(gcp_integration::setup))
         .route("/api/v1/integrations/gcp/accounts", get(gcp_integration::list_accounts).post(gcp_integration::create_account))
-        .route("/api/v1/integrations/gcp/accounts/:id", axum::routing::patch(gcp_integration::update_account).delete(gcp_integration::delete_account))
-        .route("/api/v1/integrations/gcp/accounts/:id/status", get(gcp_integration::account_status))
+        .route("/api/v1/integrations/gcp/accounts/{id}", axum::routing::patch(gcp_integration::update_account).delete(gcp_integration::delete_account))
+        .route("/api/v1/integrations/gcp/accounts/{id}/status", get(gcp_integration::account_status))
         .route("/api/v1/integrations/azure/accounts", get(azure_integration::list_accounts).post(azure_integration::create_account))
-        .route("/api/v1/integrations/azure/accounts/:id", axum::routing::put(azure_integration::update_account).delete(azure_integration::delete_account))
-        .route("/api/v1/integrations/azure/accounts/:id/status", get(azure_integration::account_status))
+        .route("/api/v1/integrations/azure/accounts/{id}", axum::routing::put(azure_integration::update_account).delete(azure_integration::delete_account))
+        .route("/api/v1/integrations/azure/accounts/{id}/status", get(azure_integration::account_status))
         .route("/api/v1/integrations/aws/setup", get(aws_integration::setup))
         .route("/api/v1/integrations/aws/external-id", axum::routing::post(aws_integration::external_id))
         .route("/api/v1/integrations/aws/accounts", get(aws_integration::list_accounts).post(aws_integration::create_account))
-        .route("/api/v1/integrations/aws/accounts/:id/status", get(aws_integration::account_status))
-        .route("/api/v1/integrations/aws/accounts/:id", get(aws_integration::get_account).patch(aws_integration::update_account).delete(aws_integration::delete_account))
+        .route("/api/v1/integrations/aws/accounts/{id}/status", get(aws_integration::account_status))
+        .route("/api/v1/integrations/aws/accounts/{id}", get(aws_integration::get_account).patch(aws_integration::update_account).delete(aws_integration::delete_account))
         .route("/api/v1/apm/settings/overview", get(apm_settings::overview))
         .route("/api/v1/apm/settings/volume", get(apm_settings::volume))
         .route("/api/v1/apm/settings/ingestion", get(apm_settings::ingestion))
         .route("/api/v1/apm/settings/defaults", get(apm_settings::get_defaults).put(apm_settings::update_defaults))
         .route("/api/v1/apm/settings/retention-filters", get(apm_settings::list_filters).post(apm_settings::create_filter))
-        .route("/api/v1/apm/settings/retention-filters/:id", axum::routing::put(apm_settings::update_filter).delete(apm_settings::delete_filter))
+        .route("/api/v1/apm/settings/retention-filters/{id}", axum::routing::put(apm_settings::update_filter).delete(apm_settings::delete_filter))
         .route("/api/v1/apm/settings/retention-filters-order", axum::routing::put(apm_settings::reorder_filters))
         .route("/api/v1/apm/settings/metrics", get(apm_settings::list_metrics).post(apm_settings::create_metric))
-        .route("/api/v1/apm/settings/metrics/:id", axum::routing::patch(apm_settings::update_metric).delete(apm_settings::delete_metric))
+        .route("/api/v1/apm/settings/metrics/{id}", axum::routing::patch(apm_settings::update_metric).delete(apm_settings::delete_metric))
         .route("/api/v1/apm/settings/pipelines", get(apm_settings::list_pipelines).post(apm_settings::create_pipeline))
-        .route("/api/v1/apm/settings/pipelines/:id", axum::routing::put(apm_settings::update_pipeline).delete(apm_settings::delete_pipeline))
+        .route("/api/v1/apm/settings/pipelines/{id}", axum::routing::put(apm_settings::update_pipeline).delete(apm_settings::delete_pipeline))
         .route("/api/v1/ai-guard/settings", get(ai_guard::settings).put(ai_guard::update_settings))
         .route("/api/v1/ai-guard/summary", post(ai_guard::summary))
         .route("/api/v1/ai-guard/evaluations", post(ai_guard::evaluations))
-        .route("/api/v1/ai-guard/evaluations/:id", get(ai_guard::evaluation))
+        .route("/api/v1/ai-guard/evaluations/{id}", get(ai_guard::evaluation))
         .route("/api/v1/ai-guard/playground", post(ai_guard::playground))
         .route("/api/v1/ai-guard/discover", post(ai_guard::discover))
         .route("/api/v1/ai-guard/categories", get(ai_guard::categories))
         .route("/api/v1/logs/translate", post(log_migration::translate))
         .route("/api/v1/logs/imports", get(log_migration::list).post(log_migration::create))
-        .route("/api/v1/logs/imports/:id", get(log_migration::get_one).delete(log_migration::delete))
-        .route("/api/v1/logs/imports/:id/migrate", post(log_migration::migrate))
+        .route("/api/v1/logs/imports/{id}", get(log_migration::get_one).delete(log_migration::delete))
+        .route("/api/v1/logs/imports/{id}/migrate", post(log_migration::migrate))
         .route("/api/v1/me/preferences", get(personal::get_preferences).put(personal::set_preferences))
         .route("/api/v1/me/email-subscriptions", get(personal::email_subscriptions))
-        .route("/api/v1/me/email-subscriptions/reports/:id", delete(personal::unsubscribe_report))
+        .route("/api/v1/me/email-subscriptions/reports/{id}", delete(personal::unsubscribe_report))
         .route("/api/v1/me/verify-email", post(personal::send_verification))
-        .route("/api/v1/auth/verify-email/:token", get(personal::verify))
+        .route("/api/v1/auth/verify-email/{token}", get(personal::verify))
         .route("/api/v1/appsec/traces", post(appsec::traces))
         .route("/api/v1/appsec/attackers", post(appsec::attackers))
         .route("/api/v1/appsec/users", post(appsec::users))
@@ -1539,11 +1539,11 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/appsec/overview", post(appsec::overview))
         .route("/api/v1/appsec/business-logic", get(appsec::business_logic))
         .route("/api/v1/appsec/denylist", get(appsec::denylist).post(appsec::block))
-        .route("/api/v1/appsec/denylist/:kind/:value", axum::routing::delete(appsec::unblock))
+        .route("/api/v1/appsec/denylist/{kind}/{value}", axum::routing::delete(appsec::unblock))
         .route("/api/v1/appsec/policies", get(appsec::policies))
-        .route("/api/v1/appsec/waf/:kind", get(appsec::waf_list).post(appsec::waf_create))
-        .route("/api/v1/appsec/waf/:kind/:id", axum::routing::put(appsec::waf_update).delete(appsec::waf_delete))
-        .route("/api/v1/appsec/settings/:key", get(appsec::setting).put(appsec::set_setting))
+        .route("/api/v1/appsec/waf/{kind}", get(appsec::waf_list).post(appsec::waf_create))
+        .route("/api/v1/appsec/waf/{kind}/{id}", axum::routing::put(appsec::waf_update).delete(appsec::waf_delete))
+        .route("/api/v1/appsec/settings/{key}", get(appsec::setting).put(appsec::set_setting))
         .route("/api/v1/cloud-security/misconfigurations", post(cloud_security::misconfigurations))
         .route("/api/v1/cloud-security/vulnerabilities", post(cloud_security::vulnerabilities))
         .route("/api/v1/cloud-security/resources", get(cloud_security::resources))
@@ -1552,7 +1552,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/synthetics/suites", post(synthetics_suites::create_suite))
         .route("/api/v1/synthetics/suites/search", post(synthetics_suites::search_suites))
         .route(
-            "/api/v1/synthetics/suites/:id",
+            "/api/v1/synthetics/suites/{id}",
             get(synthetics_suites::get_suite).put(synthetics_suites::update_suite).delete(synthetics_suites::delete_suite),
         )
         .route("/api/v1/synthetics/results/search", post(synthetics_explorer::search_results))
@@ -1560,84 +1560,84 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/synthetics/settings", get(synthetics_settings::get_settings).put(synthetics_settings::update_settings))
         .route("/api/v1/synthetics/variables", get(synthetics_settings::list_variables).post(synthetics_settings::create_variable))
         .route(
-            "/api/v1/synthetics/variables/:id",
+            "/api/v1/synthetics/variables/{id}",
             axum::routing::put(synthetics_settings::update_variable).delete(synthetics_settings::delete_variable),
         )
         .route("/api/v1/synthetics/tests", post(synthetics::create))
         .route("/api/v1/synthetics/tests/search", post(synthetics::search))
         .route(
-            "/api/v1/synthetics/tests/:id",
+            "/api/v1/synthetics/tests/{id}",
             get(synthetics::get_one).put(synthetics::update).delete(synthetics::delete),
         )
-        .route("/api/v1/synthetics/tests/:id/run", post(synthetics::run_now))
-        .route("/api/v1/synthetics/tests/:id/results", post(synthetics::results))
-        .route("/api/v1/synthetics/tests/:id/results/:result_id", get(synthetics::result))
+        .route("/api/v1/synthetics/tests/{id}/run", post(synthetics::run_now))
+        .route("/api/v1/synthetics/tests/{id}/results", post(synthetics::results))
+        .route("/api/v1/synthetics/tests/{id}/results/{result_id}", get(synthetics::result))
         .route("/api/v1/synthetics/try", post(synthetics::try_request))
         .route("/api/v1/scorecards", get(scorecards::get_overview))
         .route("/api/v1/scorecards/setup", post(scorecards::setup))
         .route("/api/v1/scorecards/evaluate", post(scorecards::evaluate_now))
         .route("/api/v1/scorecards/rules", post(scorecards::create_rule))
-        .route("/api/v1/scorecards/rules/:id", axum::routing::put(scorecards::update_rule).delete(scorecards::delete_rule))
-        .route("/api/v1/scorecards/rules/:id/outcomes", post(scorecards::set_outcomes))
-        .route("/api/v1/scorecards/services/:service/metadata", axum::routing::put(scorecards::update_metadata))
+        .route("/api/v1/scorecards/rules/{id}", axum::routing::put(scorecards::update_rule).delete(scorecards::delete_rule))
+        .route("/api/v1/scorecards/rules/{id}/outcomes", post(scorecards::set_outcomes))
+        .route("/api/v1/scorecards/services/{service}/metadata", axum::routing::put(scorecards::update_metadata))
         .route("/api/v1/feature-flags", get(feature_flags::list).post(feature_flags::create))
         .route("/api/v1/feature-flags/history", get(feature_flags::history))
         .route("/api/v1/feature-flags/environments", get(feature_flags::list_environments).post(feature_flags::create_environment))
         .route(
-            "/api/v1/feature-flags/environments/:id",
+            "/api/v1/feature-flags/environments/{id}",
             axum::routing::put(feature_flags::update_environment_settings).delete(feature_flags::delete_environment),
         )
         .route(
-            "/api/v1/feature-flags/:id",
+            "/api/v1/feature-flags/{id}",
             get(feature_flags::get_one).put(feature_flags::update).delete(feature_flags::delete),
         )
-        .route("/api/v1/feature-flags/:id/history", get(feature_flags::flag_history))
-        .route("/api/v1/feature-flags/:id/environments/:environment_id", axum::routing::put(feature_flags::update_environment))
+        .route("/api/v1/feature-flags/{id}/history", get(feature_flags::flag_history))
+        .route("/api/v1/feature-flags/{id}/environments/{environment_id}", axum::routing::put(feature_flags::update_environment))
         .route("/api/v1/portal/connectors", get(portal_home::get_connectors))
-        .route("/api/v1/portal/connectors/:provider", axum::routing::put(portal_home::put_connector).delete(portal_home::delete_connector))
-        .route("/api/v1/portal/connectors/:provider/test", post(portal_home::test_connector))
+        .route("/api/v1/portal/connectors/{provider}", axum::routing::put(portal_home::put_connector).delete(portal_home::delete_connector))
+        .route("/api/v1/portal/connectors/{provider}/test", post(portal_home::test_connector))
         .route("/api/v1/portal/identities", get(portal_home::get_identities).put(portal_home::put_identities))
         .route("/api/v1/portal/home/prs", get(portal_home::pull_requests))
         .route("/api/v1/portal/home/tickets", get(portal_home::tickets))
         .route("/api/v1/portal/home/entities", get(portal_home::entities))
-        .route("/api/v1/portal/favorites/:entity", axum::routing::put(portal_home::add_favorite).delete(portal_home::remove_favorite))
+        .route("/api/v1/portal/favorites/{entity}", axum::routing::put(portal_home::add_favorite).delete(portal_home::remove_favorite))
         .route("/api/v1/portal/apps", get(portal_home::get_apps).post(portal_home::create_app))
-        .route("/api/v1/portal/apps/:id", axum::routing::put(portal_home::update_app).delete(portal_home::delete_app))
+        .route("/api/v1/portal/apps/{id}", axum::routing::put(portal_home::update_app).delete(portal_home::delete_app))
         .route("/api/v1/portal/sources", get(portal_home::get_sources))
         .route("/api/v1/portal/surveys", get(portal_surveys::list_surveys).post(portal_surveys::create_survey))
         .route(
-            "/api/v1/portal/surveys/:id",
+            "/api/v1/portal/surveys/{id}",
             get(portal_surveys::get_survey).put(portal_surveys::update_survey).delete(portal_surveys::delete_survey),
         )
-        .route("/api/v1/portal/surveys/:id/form", get(portal_surveys::survey_form))
-        .route("/api/v1/portal/surveys/:id/responses", get(portal_surveys::list_responses).post(portal_surveys::submit_response))
-        .route("/api/v1/portal/surveys/:id/results", get(portal_surveys::survey_results))
+        .route("/api/v1/portal/surveys/{id}/form", get(portal_surveys::survey_form))
+        .route("/api/v1/portal/surveys/{id}/responses", get(portal_surveys::list_responses).post(portal_surveys::submit_response))
+        .route("/api/v1/portal/surveys/{id}/results", get(portal_surveys::survey_results))
         .route("/api/v1/portal/actions", get(portal_actions::list_actions).post(portal_actions::create_action))
         .route(
-            "/api/v1/portal/actions/:id",
+            "/api/v1/portal/actions/{id}",
             get(portal_actions::get_action).put(portal_actions::update_action).delete(portal_actions::delete_action),
         )
-        .route("/api/v1/portal/actions/:id/runs", get(portal_actions::list_runs).post(portal_actions::run_action))
+        .route("/api/v1/portal/actions/{id}/runs", get(portal_actions::list_runs).post(portal_actions::run_action))
         .route("/api/v1/workflows", get(workflows::list_workflows).post(workflows::create_workflow))
         .route(
-            "/api/v1/workflows/:id",
+            "/api/v1/workflows/{id}",
             get(workflows::get_workflow).put(workflows::update_workflow).delete(workflows::delete_workflow),
         )
-        .route("/api/v1/workflows/:id/publish", post(workflows::publish_workflow))
-        .route("/api/v1/workflows/:id/unpublish", post(workflows::unpublish_workflow))
-        .route("/api/v1/workflows/:id/token", post(workflows::create_token))
-        .route("/api/v1/workflows/:id/trigger", post(workflows::trigger_workflow))
-        .route("/api/v1/workflows/:id/runs", get(workflows::list_runs).post(workflows::run_workflow))
-        .route("/api/v1/workflows/:id/runs/:run", get(workflows::get_run))
-        .route("/api/v1/workflows/:id/runs/:run/cancel", post(workflows::cancel_run))
+        .route("/api/v1/workflows/{id}/publish", post(workflows::publish_workflow))
+        .route("/api/v1/workflows/{id}/unpublish", post(workflows::unpublish_workflow))
+        .route("/api/v1/workflows/{id}/token", post(workflows::create_token))
+        .route("/api/v1/workflows/{id}/trigger", post(workflows::trigger_workflow))
+        .route("/api/v1/workflows/{id}/runs", get(workflows::list_runs).post(workflows::run_workflow))
+        .route("/api/v1/workflows/{id}/runs/{run}", get(workflows::get_run))
+        .route("/api/v1/workflows/{id}/runs/{run}/cancel", post(workflows::cancel_run))
         .route("/api/v1/apps", get(apps::list_apps).post(apps::create_app))
-        .route("/api/v1/apps/:id", get(apps::get_app).put(apps::update_app).delete(apps::delete_app))
-        .route("/api/v1/apps/:id/run", post(apps::run_app))
+        .route("/api/v1/apps/{id}", get(apps::get_app).put(apps::update_app).delete(apps::delete_app))
+        .route("/api/v1/apps/{id}/run", post(apps::run_app))
         .route("/api/v1/portal/catalog", post(portal_catalog::catalog))
         .route("/api/v1/portal/entities", get(portal_catalog::list_entities).post(portal_catalog::upsert_entity))
         .route("/api/v1/portal/entities/import", post(portal_catalog::import_entities))
         .route(
-            "/api/v1/portal/entities/:id",
+            "/api/v1/portal/entities/{id}",
             get(portal_catalog::get_entity).put(portal_catalog::update_entity).delete(portal_catalog::delete_entity),
         )
         .route("/api/v1/portal/reports/teams", post(portal_reports::teams))
@@ -1647,7 +1647,7 @@ pub fn router() -> Router<AppState> {
             get(portal_reports::list_dashboards).put(portal_reports::set_dashboards),
         )
         // Needs no sign-in (auth::is_public); answers only for public pages or members of the page's org.
-        .route("/api/v1/public/status-pages/:slug", get(status_pages::get_public))
+        .route("/api/v1/public/status-pages/{slug}", get(status_pages::get_public))
         .route(
             "/api/v1/org/data-settings",
             get(log_indexes::get_settings).patch(log_indexes::update_settings),
@@ -1656,13 +1656,13 @@ pub fn router() -> Router<AppState> {
             "/api/v1/ingest-keys",
             get(ingest_keys::list).post(ingest_keys::create),
         )
-        .route("/api/v1/ingest-keys/:id", delete(ingest_keys::revoke))
+        .route("/api/v1/ingest-keys/{id}", delete(ingest_keys::revoke))
         .route(
             "/api/v1/notification-channels",
             get(notifications::list).post(notifications::create),
         )
         .route(
-            "/api/v1/notification-channels/:id",
+            "/api/v1/notification-channels/{id}",
             delete(notifications::delete),
         )
         .route(
@@ -1676,26 +1676,26 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/on-call/schedules", get(on_call::list_schedules).post(on_call::create_schedule))
         .route("/api/v1/on-call/schedules/preview", post(on_call::preview_schedule))
         .route(
-            "/api/v1/on-call/schedules/:id",
+            "/api/v1/on-call/schedules/{id}",
             get(on_call::get_schedule).put(on_call::update_schedule).delete(on_call::delete_schedule),
         )
-        .route("/api/v1/on-call/schedules/:id/shifts", post(on_call::schedule_shifts))
-        .route("/api/v1/on-call/schedules/:id/overrides", post(on_call::create_override))
-        .route("/api/v1/on-call/schedules/:id/overrides/:override_id", delete(on_call::delete_override))
+        .route("/api/v1/on-call/schedules/{id}/shifts", post(on_call::schedule_shifts))
+        .route("/api/v1/on-call/schedules/{id}/overrides", post(on_call::create_override))
+        .route("/api/v1/on-call/schedules/{id}/overrides/{override_id}", delete(on_call::delete_override))
         .route("/api/v1/on-call/my-shifts", post(on_call::my_shifts))
         .route("/api/v1/on-call/escalation-policies", get(on_call::list_policies).post(on_call::create_policy))
         .route(
-            "/api/v1/on-call/escalation-policies/:id",
+            "/api/v1/on-call/escalation-policies/{id}",
             get(on_call::get_policy).put(on_call::update_policy).delete(on_call::delete_policy),
         )
         .route("/api/v1/on-call/teams", get(on_call::list_teams))
-        .route("/api/v1/on-call/teams/:handle/routing", axum::routing::put(on_call::set_routing))
+        .route("/api/v1/on-call/teams/{handle}/routing", axum::routing::put(on_call::set_routing))
         .route("/api/v1/on-call/pages", post(on_call::create_page))
         .route("/api/v1/on-call/pages/search", post(on_call::search_pages))
-        .route("/api/v1/on-call/pages/:id", get(on_call::get_page))
-        .route("/api/v1/on-call/pages/:id/acknowledge", post(on_call::acknowledge_page))
-        .route("/api/v1/on-call/pages/:id/resolve", post(on_call::resolve_page))
-        .route("/api/v1/on-call/pages/:id/reassign", post(on_call::reassign_page))
+        .route("/api/v1/on-call/pages/{id}", get(on_call::get_page))
+        .route("/api/v1/on-call/pages/{id}/acknowledge", post(on_call::acknowledge_page))
+        .route("/api/v1/on-call/pages/{id}/resolve", post(on_call::resolve_page))
+        .route("/api/v1/on-call/pages/{id}/reassign", post(on_call::reassign_page))
         .route("/api/v1/on-call/profile", get(on_call::get_profile).put(on_call::update_profile))
         .route("/api/v1/on-call/profile/test", post(on_call::test_profile))
         .route("/api/v1/on-call/analytics", post(on_call::analytics))
@@ -1705,17 +1705,17 @@ pub fn router() -> Router<AppState> {
         )
         .route("/api/v1/logs/archives/test", post(archives::test))
         .route(
-            "/api/v1/logs/archives/:id",
+            "/api/v1/logs/archives/{id}",
             patch(archives::update).delete(archives::delete),
         )
-        .route("/api/v1/logs/archives/:id/runs", get(archives::runs))
-        .route("/api/v1/logs/archives/:id/run", post(archives::run_now))
+        .route("/api/v1/logs/archives/{id}/runs", get(archives::runs))
+        .route("/api/v1/logs/archives/{id}/run", post(archives::run_now))
         .route(
             "/api/v1/logs/archive-searches",
             get(archives::list_searches).post(archives::create_search),
         )
         .route(
-            "/api/v1/logs/archive-searches/:id",
+            "/api/v1/logs/archive-searches/{id}",
             get(archives::get_search_detail).delete(archives::delete_search),
         )
         .route(
@@ -1723,14 +1723,14 @@ pub fn router() -> Router<AppState> {
             get(archives::list_rehydrations).post(archives::create_rehydration),
         )
         .route(
-            "/api/v1/logs/rehydrations/:id",
+            "/api/v1/logs/rehydrations/{id}",
             delete(archives::expire_rehydration),
         )
         .route(
             "/api/v1/me/app-keys",
             get(auth::app_keys).post(auth::create_app_key),
         )
-        .route("/api/v1/me/app-keys/:id", delete(auth::revoke_app_key))
+        .route("/api/v1/me/app-keys/{id}", delete(auth::revoke_app_key))
         .route(
             "/api/v1/org/login-methods",
             get(sso::get_settings).put(sso::update_settings),
@@ -1738,56 +1738,56 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/incidents", post(incidents::declare))
         .route("/api/v1/incidents/search", post(incidents::search))
         .route(
-            "/api/v1/incidents/:id",
+            "/api/v1/incidents/{id}",
             get(incidents::get_one).patch(incidents::update),
         )
         .route(
-            "/api/v1/incidents/:id/timeline",
+            "/api/v1/incidents/{id}/timeline",
             get(incidents::timeline).post(incidents::add_note),
         )
-        .route("/api/v1/incidents/:id/impacts", post(incidents::add_impact))
+        .route("/api/v1/incidents/{id}/impacts", post(incidents::add_impact))
         .route(
-            "/api/v1/incidents/:id/followups",
+            "/api/v1/incidents/{id}/followups",
             post(incidents::add_followup),
         )
         .route(
-            "/api/v1/incidents/:id/followups/:followup_id",
+            "/api/v1/incidents/{id}/followups/{followup_id}",
             patch(incidents::update_followup),
         )
         .route(
-            "/api/v1/incidents/:id/timeline/:event_id",
+            "/api/v1/incidents/{id}/timeline/{event_id}",
             patch(incident_views::set_important),
         )
         .route(
-            "/api/v1/incidents/:id/responders",
+            "/api/v1/incidents/{id}/responders",
             get(incident_views::responders).post(incident_views::add_responder),
         )
         .route(
-            "/api/v1/incidents/:id/responders/:user_id",
+            "/api/v1/incidents/{id}/responders/{user_id}",
             delete(incident_views::remove_responder),
         )
         .route(
-            "/api/v1/incidents/:id/pages",
+            "/api/v1/incidents/{id}/pages",
             get(incident_views::pages).post(incident_views::create_page),
         )
         .route(
-            "/api/v1/incidents/:id/pages/:page_id",
+            "/api/v1/incidents/{id}/pages/{page_id}",
             patch(incident_views::update_page),
         )
         .route(
-            "/api/v1/incidents/:id/notifications",
+            "/api/v1/incidents/{id}/notifications",
             get(incident_views::notifications).post(incident_views::create_notification),
         )
         .route(
-            "/api/v1/incidents/:id/documents",
+            "/api/v1/incidents/{id}/documents",
             get(incident_views::documents).post(incident_views::add_document),
         )
         .route(
-            "/api/v1/incidents/:id/documents/:doc_id",
+            "/api/v1/incidents/{id}/documents/{doc_id}",
             delete(incident_views::remove_document),
         )
         .route(
-            "/api/v1/incidents/:id/postmortem",
+            "/api/v1/incidents/{id}/postmortem",
             get(incident_views::postmortem)
                 .post(incident_views::generate_postmortem)
                 .put(incident_views::update_postmortem),
@@ -1798,6 +1798,13 @@ pub fn router() -> Router<AppState> {
 mod tests {
     use super::ApiDoc;
     use utoipa::OpenApi;
+
+    /// axum panics while building a router on a path it can't parse (`/:id` since axum 0.8): build them all here.
+    #[test]
+    fn every_route_path_parses() {
+        let _ = super::router();
+        let _ = super::datadog_api::router();
+    }
 
     /// openapi-typescript keys operations by id, so two handlers with the same function name in
     /// different modules would silently merge their types on the web side.

@@ -45,7 +45,6 @@ pub mod validate;
 #[cfg(test)]
 pub mod replay;
 
-use axum::async_trait;
 use axum::extract::{ConnectInfo, FromRequestParts};
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
@@ -69,7 +68,7 @@ fn aws_router() -> Router<AppState> {
     use aws_integration as aws;
     Router::new()
         .route("/api/v2/integration/aws/accounts", get(aws::list).post(aws::create))
-        .route("/api/v2/integration/aws/accounts/:aws_account_config_id", get(aws::get).patch(aws::update).delete(aws::delete))
+        .route("/api/v2/integration/aws/accounts/{aws_account_config_id}", get(aws::get).patch(aws::update).delete(aws::delete))
         .route("/api/v2/integration/aws/available_namespaces", get(aws::namespaces))
         .route("/api/v2/integration/aws/logs/services", get(aws::logs_services))
         .route("/api/v2/integration/aws/generate_new_external_id", post(aws::generate_external_id))
@@ -100,15 +99,15 @@ pub fn router() -> Router<AppState> {
         )
         .route("/api/v1/integration/azure/host_filters", post(azure_integration::host_filters))
         .route("/api/v2/integration/gcp/accounts", get(gcp_integration::list).post(gcp_integration::create))
-        .route("/api/v2/integration/gcp/accounts/:account_id", axum::routing::patch(gcp_integration::update).delete(gcp_integration::delete))
+        .route("/api/v2/integration/gcp/accounts/{account_id}", axum::routing::patch(gcp_integration::update).delete(gcp_integration::delete))
         .route("/api/v2/integration/gcp/sts_delegate", get(gcp_integration::get_delegate).post(gcp_integration::make_delegate))
         .route("/api/v2/rum/applications", get(rum::list).post(rum::create))
-        .route("/api/v2/rum/applications/:id", get(rum::get).patch(rum::update).delete(rum::delete))
+        .route("/api/v2/rum/applications/{id}", get(rum::get).patch(rum::update).delete(rum::delete))
         .route("/api/v2/remote_config/products/cws/policy", get(csm_threats::list_policies).post(csm_threats::create_policy))
         .route("/api/v2/remote_config/products/cws/policy/download", get(csm_threats::download))
-        .route("/api/v2/remote_config/products/cws/policy/:id", get(csm_threats::get_policy).patch(csm_threats::update_policy).delete(csm_threats::delete_policy))
+        .route("/api/v2/remote_config/products/cws/policy/{id}", get(csm_threats::get_policy).patch(csm_threats::update_policy).delete(csm_threats::delete_policy))
         .route("/api/v2/remote_config/products/cws/agent_rules", get(csm_threats::list_rules).post(csm_threats::create_rule))
-        .route("/api/v2/remote_config/products/cws/agent_rules/:id", get(csm_threats::get_rule).patch(csm_threats::update_rule).delete(csm_threats::delete_rule))
+        .route("/api/v2/remote_config/products/cws/agent_rules/{id}", get(csm_threats::get_rule).patch(csm_threats::update_rule).delete(csm_threats::delete_rule))
         .route("/api/v2/csm/onboarding/agents", get(csm_threats::list_agents))
         .route("/api/v2/csm/onboarding/serverless/agents", get(csm_threats::list_serverless_agents))
         .route("/api/v2/csm/onboarding/coverage_analysis/hosts_and_containers", get(csm_threats::coverage_hosts))
@@ -116,32 +115,32 @@ pub fn router() -> Router<AppState> {
         .route("/api/v2/csm/onboarding/coverage_analysis/cloud_accounts", get(csm_threats::coverage_cloud_accounts))
         .route("/api/v2/ai-guard/evaluate", post(ai_guard::evaluate))
         .route("/api/v2/apm/config/retention-filters", get(apm_config::list_filters).post(apm_config::create_filter))
-        .route("/api/v2/apm/config/retention-filters/:id", get(apm_config::get_filter).put(apm_config::update_filter).delete(apm_config::delete_filter))
+        .route("/api/v2/apm/config/retention-filters/{id}", get(apm_config::get_filter).put(apm_config::update_filter).delete(apm_config::delete_filter))
         .route("/api/v2/apm/config/retention-filters-execution-order", axum::routing::put(apm_config::reorder_filters))
         .route("/api/v2/apm/config/metrics", get(apm_config::list_metrics).post(apm_config::create_metric))
-        .route("/api/v2/apm/config/metrics/:id", get(apm_config::get_metric).patch(apm_config::update_metric).delete(apm_config::delete_metric))
+        .route("/api/v2/apm/config/metrics/{id}", get(apm_config::get_metric).patch(apm_config::update_metric).delete(apm_config::delete_metric))
         .route("/api/v2/remote_config/products/asm/waf/custom_rules", get(appsec::list_custom_rules).post(appsec::create_custom_rule))
-        .route("/api/v2/remote_config/products/asm/waf/custom_rules/:id", get(appsec::get_custom_rule).put(appsec::update_custom_rule).delete(appsec::delete_custom_rule))
+        .route("/api/v2/remote_config/products/asm/waf/custom_rules/{id}", get(appsec::get_custom_rule).put(appsec::update_custom_rule).delete(appsec::delete_custom_rule))
         .route("/api/v2/remote_config/products/asm/waf/exclusion_filters", get(appsec::list_exclusion_filters).post(appsec::create_exclusion_filter))
         .route(
-            "/api/v2/remote_config/products/asm/waf/exclusion_filters/:id",
+            "/api/v2/remote_config/products/asm/waf/exclusion_filters/{id}",
             get(appsec::get_exclusion_filter).put(appsec::update_exclusion_filter).delete(appsec::delete_exclusion_filter),
         )
         .route("/api/v2/remote_config/products/asm/waf/policies", get(appsec::list_policies).post(appsec::create_policy))
-        .route("/api/v2/remote_config/products/asm/waf/policies/:id", get(appsec::get_policy).put(appsec::update_policy).delete(appsec::delete_policy))
+        .route("/api/v2/remote_config/products/asm/waf/policies/{id}", get(appsec::get_policy).put(appsec::update_policy).delete(appsec::delete_policy))
         .route("/api/v2/security_monitoring/rules", get(security_monitoring::list_rules).post(security_monitoring::create_rule))
         .route("/api/v2/security_monitoring/rules/validation", post(security_monitoring::validate_rule))
-        .route("/api/v2/security_monitoring/rules/:rule_id", get(security_monitoring::get_rule).put(security_monitoring::update_rule).delete(security_monitoring::delete_rule))
+        .route("/api/v2/security_monitoring/rules/{rule_id}", get(security_monitoring::get_rule).put(security_monitoring::update_rule).delete(security_monitoring::delete_rule))
         .route("/api/v2/security_monitoring/signals", get(security_monitoring::list_signals))
         .route("/api/v2/security_monitoring/signals/search", post(security_monitoring::search_signals))
-        .route("/api/v2/security_monitoring/signals/:signal_id", get(security_monitoring::get_signal))
-        .route("/api/v2/security_monitoring/signals/:signal_id/state", axum::routing::patch(security_monitoring::signal_state))
-        .route("/api/v2/security_monitoring/signals/:signal_id/assignee", axum::routing::patch(security_monitoring::signal_assignee))
-        .route("/api/v2/security_monitoring/signals/:signal_id/incidents", axum::routing::patch(security_monitoring::signal_incidents))
+        .route("/api/v2/security_monitoring/signals/{signal_id}", get(security_monitoring::get_signal))
+        .route("/api/v2/security_monitoring/signals/{signal_id}/state", axum::routing::patch(security_monitoring::signal_state))
+        .route("/api/v2/security_monitoring/signals/{signal_id}/assignee", axum::routing::patch(security_monitoring::signal_assignee))
+        .route("/api/v2/security_monitoring/signals/{signal_id}/incidents", axum::routing::patch(security_monitoring::signal_incidents))
         .route("/api/v2/security_monitoring/configuration/suppressions", get(security_monitoring::list_suppressions).post(security_monitoring::create_suppression))
         .route("/api/v2/security_monitoring/configuration/suppressions/validation", post(security_monitoring::validate_suppression))
         .route(
-            "/api/v2/security_monitoring/configuration/suppressions/:suppression_id",
+            "/api/v2/security_monitoring/configuration/suppressions/{suppression_id}",
             get(security_monitoring::get_suppression).patch(security_monitoring::update_suppression).delete(security_monitoring::delete_suppression),
         )
 }
@@ -156,10 +155,10 @@ fn cost_router() -> Router<AppState> {
         .route("/api/v2/static-analysis-sca/dependencies", post(crate::routes::code_security::upload_sbom))
         .route("/api/v2/cost/budget/validate", post(cost::validate_budget))
         .route("/api/v2/cost/budget/custom-forecast", put(cost::upsert_custom_forecast))
-        .route("/api/v2/cost/budget/:budget_id", get(cost::get_budget).delete(cost::delete_budget))
-        .route("/api/v2/cost/budget/:budget_id/custom-forecast", get(cost::get_custom_forecast).delete(cost::delete_custom_forecast))
+        .route("/api/v2/cost/budget/{budget_id}", get(cost::get_budget).delete(cost::delete_budget))
+        .route("/api/v2/cost/budget/{budget_id}/custom-forecast", get(cost::get_custom_forecast).delete(cost::delete_custom_forecast))
         .route("/api/v2/cost/custom_costs", get(cost::list_custom_costs).put(cost::upload_custom_costs))
-        .route("/api/v2/cost/custom_costs/:file_id", get(cost::get_custom_costs).delete(cost::delete_custom_costs))
+        .route("/api/v2/cost/custom_costs/{file_id}", get(cost::get_custom_costs).delete(cost::delete_custom_costs))
 }
 
 /// `datadog_monitor`, `datadog_downtime_schedule` and `datadog_downtime` ([`monitors`], [`downtimes`]).
@@ -169,14 +168,14 @@ fn monitors_and_downtimes() -> Router<AppState> {
         .route("/api/v1/monitor/validate", post(monitors::validate))
         .route("/api/v1/monitor/can_delete", get(monitors::can_delete))
         .route("/api/v1/monitor/search", get(monitors::search))
-        .route("/api/v1/monitor/:monitor_id", get(monitors::get_one).put(monitors::update).delete(monitors::delete))
-        .route("/api/v1/monitor/:monitor_id/validate", post(monitors::validate_existing))
+        .route("/api/v1/monitor/{monitor_id}", get(monitors::get_one).put(monitors::update).delete(monitors::delete))
+        .route("/api/v1/monitor/{monitor_id}/validate", post(monitors::validate_existing))
         .route("/api/v1/downtime", get(downtimes::v1_list).post(downtimes::v1_create))
         .route("/api/v1/downtime/cancel/by_scope", post(downtimes::v1_cancel_by_scope))
-        .route("/api/v1/downtime/:downtime_id", get(downtimes::v1_get).put(downtimes::v1_update).delete(downtimes::v1_cancel))
+        .route("/api/v1/downtime/{downtime_id}", get(downtimes::v1_get).put(downtimes::v1_update).delete(downtimes::v1_cancel))
         .route("/api/v2/downtime", get(downtimes::v2_list).post(downtimes::v2_create))
-        .route("/api/v2/downtime/:downtime_id", get(downtimes::v2_get).patch(downtimes::v2_update).delete(downtimes::v2_cancel))
-        .route("/api/v2/monitor/:monitor_id/downtime_matches", get(downtimes::v2_monitor_matches))
+        .route("/api/v2/downtime/{downtime_id}", get(downtimes::v2_get).patch(downtimes::v2_update).delete(downtimes::v2_cancel))
+        .route("/api/v2/monitor/{monitor_id}/downtime_matches", get(downtimes::v2_monitor_matches))
 }
 
 /// Users, roles, permissions, teams and keys ([`users`], [`roles`], [`teams`], [`keys`]).
@@ -184,29 +183,29 @@ fn iam_router() -> Router<AppState> {
     use axum::routing::post;
     Router::new()
         .route("/api/v2/users", get(users::list).post(users::create))
-        .route("/api/v2/users/:id", get(users::get).patch(users::update).delete(users::disable))
-        .route("/api/v2/users/:id/permissions", get(users::permissions))
-        .route("/api/v2/users/:id/memberships", get(teams::user_memberships))
+        .route("/api/v2/users/{id}", get(users::get).patch(users::update).delete(users::disable))
+        .route("/api/v2/users/{id}/permissions", get(users::permissions))
+        .route("/api/v2/users/{id}/memberships", get(teams::user_memberships))
         .route("/api/v2/user_invitations", post(users::send_invitations))
-        .route("/api/v2/user_invitations/:id", get(users::get_invitation))
+        .route("/api/v2/user_invitations/{id}", get(users::get_invitation))
         .route("/api/v2/permissions", get(roles::list_permissions))
         .route("/api/v2/roles", get(roles::list).post(roles::create))
-        .route("/api/v2/roles/:id", get(roles::get).patch(roles::update).delete(roles::delete))
-        .route("/api/v2/roles/:id/clone", post(roles::clone))
-        .route("/api/v2/roles/:id/permissions", get(roles::list_role_permissions).post(roles::add_permission).delete(roles::remove_permission))
-        .route("/api/v2/roles/:id/users", get(roles::list_users).post(roles::add_user).delete(roles::remove_user))
+        .route("/api/v2/roles/{id}", get(roles::get).patch(roles::update).delete(roles::delete))
+        .route("/api/v2/roles/{id}/clone", post(roles::clone))
+        .route("/api/v2/roles/{id}/permissions", get(roles::list_role_permissions).post(roles::add_permission).delete(roles::remove_permission))
+        .route("/api/v2/roles/{id}/users", get(roles::list_users).post(roles::add_user).delete(roles::remove_user))
         .route("/api/v2/team", get(teams::list).post(teams::create))
-        .route("/api/v2/team/:id", get(teams::get).patch(teams::update).delete(teams::delete))
-        .route("/api/v2/team/:id/links", get(teams::links).post(teams::create_link))
-        .route("/api/v2/team/:id/links/:link", get(teams::link).patch(teams::update_link).delete(teams::link))
-        .route("/api/v2/team/:id/memberships", get(teams::memberships).post(teams::add_member))
-        .route("/api/v2/team/:id/memberships/:user", axum::routing::patch(teams::update_member).delete(teams::remove_member))
+        .route("/api/v2/team/{id}", get(teams::get).patch(teams::update).delete(teams::delete))
+        .route("/api/v2/team/{id}/links", get(teams::links).post(teams::create_link))
+        .route("/api/v2/team/{id}/links/{link}", get(teams::link).patch(teams::update_link).delete(teams::link))
+        .route("/api/v2/team/{id}/memberships", get(teams::memberships).post(teams::add_member))
+        .route("/api/v2/team/{id}/memberships/{user}", axum::routing::patch(teams::update_member).delete(teams::remove_member))
         .route("/api/v2/api_keys", get(keys::list_api_keys).post(keys::create_api_key))
-        .route("/api/v2/api_keys/:id", get(keys::get_api_key).patch(keys::update_api_key).delete(keys::delete_api_key))
+        .route("/api/v2/api_keys/{id}", get(keys::get_api_key).patch(keys::update_api_key).delete(keys::delete_api_key))
         .route("/api/v2/current_user/application_keys", get(keys::list_my_app_keys).post(keys::create_my_app_key))
-        .route("/api/v2/current_user/application_keys/:id", get(keys::get_my_app_key).patch(keys::update_my_app_key).delete(keys::delete_my_app_key))
+        .route("/api/v2/current_user/application_keys/{id}", get(keys::get_my_app_key).patch(keys::update_my_app_key).delete(keys::delete_my_app_key))
         .route("/api/v2/application_keys", get(keys::list_org_app_keys))
-        .route("/api/v2/application_keys/:id", get(keys::get_org_app_key).patch(keys::update_org_app_key).delete(keys::delete_org_app_key))
+        .route("/api/v2/application_keys/{id}", get(keys::get_org_app_key).patch(keys::update_org_app_key).delete(keys::delete_org_app_key))
 }
 
 // ================================================================ errors
@@ -338,7 +337,6 @@ pub async fn resolve(st: &AppState, keys: &DdKeys, ip: Option<String>) -> Result
 /// `{"errors": ["Forbidden"]}` as Datadog does for missing or invalid keys.
 pub struct DdAuth(pub AuthContext);
 
-#[async_trait]
 impl FromRequestParts<AppState> for DdAuth {
     type Rejection = DdError;
     async fn from_request_parts(parts: &mut Parts, st: &AppState) -> Result<Self, DdError> {

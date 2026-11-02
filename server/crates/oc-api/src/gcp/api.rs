@@ -43,7 +43,7 @@ pub enum GcpError {
     Other(String),
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 pub trait GcpApi: Send + Sync {
     /// The ids of the active projects the service account can see.
     async fn projects(&self, service_account: &str) -> Result<Vec<String>, GcpError>;
@@ -52,7 +52,7 @@ pub trait GcpApi: Send + Sync {
 }
 
 /// This install's own access token (cloud-platform scope).
-#[axum::async_trait]
+#[async_trait::async_trait]
 pub trait TokenSource: Send + Sync {
     async fn token(&self) -> Result<String, GcpError>;
 }
@@ -67,7 +67,7 @@ impl Adc {
     }
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 impl TokenSource for Adc {
     async fn token(&self) -> Result<String, GcpError> {
         self.0.token(&[CLOUD_PLATFORM]).await.map(|t| t.as_str().to_string()).map_err(|e| GcpError::Auth(format!("this install's GCP credentials: {e}")))
@@ -197,7 +197,7 @@ impl Rest {
     }
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 impl GcpApi for Rest {
     async fn projects(&self, service_account: &str) -> Result<Vec<String>, GcpError> {
         let token = self.impersonate(service_account).await?;
@@ -273,7 +273,7 @@ mod tests {
 
     struct Static;
 
-    #[axum::async_trait]
+    #[async_trait::async_trait]
     impl TokenSource for Static {
         async fn token(&self) -> Result<String, GcpError> {
             Ok("install-token".into())
@@ -287,7 +287,7 @@ mod tests {
         let log = seen.clone();
         let app = Router::new()
             .route(
-                "/v1/projects/-/serviceAccounts/:sa",
+                "/v1/projects/-/serviceAccounts/{sa}",
                 post(move |h: HeaderMap, Path(sa): Path<String>| {
                     let log = log.clone();
                     async move {

@@ -82,7 +82,7 @@ impl KafkaSink {
     }
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 impl MetricSink for KafkaSink {
     async fn publish(&self, org: &str, headers: &[(String, String)], body: Vec<u8>) -> Result<(), String> {
         let partition = self.partition(org).await?;

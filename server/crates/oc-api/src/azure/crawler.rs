@@ -124,7 +124,7 @@ pub struct AzureCrawler {
     pub interval_secs: i64,
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 impl Crawler for AzureCrawler {
     fn provider(&self) -> &'static str {
         PROVIDER
@@ -179,7 +179,7 @@ mod tests {
         calls: StdMutex<Vec<Call>>,
     }
 
-    #[axum::async_trait]
+    #[async_trait::async_trait]
     impl AzureApi for FakeAzure {
         async fn subscriptions(&self, _c: &Credentials) -> Result<Vec<String>, AzureError> {
             Ok(vec!["sub-a".into()])

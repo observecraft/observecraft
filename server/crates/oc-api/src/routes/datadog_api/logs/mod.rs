@@ -22,26 +22,26 @@ use crate::state::AppState;
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/v1/logs/config/indexes", get(indexes::list).post(indexes::create))
-        .route("/api/v1/logs/config/indexes/:name", get(indexes::get).put(indexes::update).delete(indexes::delete))
+        .route("/api/v1/logs/config/indexes/{name}", get(indexes::get).put(indexes::update).delete(indexes::delete))
         .route("/api/v1/logs/config/index-order", get(indexes::get_order).put(indexes::update_order))
         .route("/api/v2/logs/config/archives", get(archives::list).post(archives::create))
-        .route("/api/v2/logs/config/archives/:id", get(archives::get).put(archives::update).delete(archives::delete))
+        .route("/api/v2/logs/config/archives/{id}", get(archives::get).put(archives::update).delete(archives::delete))
         .route("/api/v2/logs/config/archive-order", get(archives::get_order).put(archives::update_order))
         .route("/api/v1/logs/config/pipelines", get(pipelines::list).post(pipelines::create))
-        .route("/api/v1/logs/config/pipelines/:id", get(pipelines::get).put(pipelines::update).delete(pipelines::delete))
+        .route("/api/v1/logs/config/pipelines/{id}", get(pipelines::get).put(pipelines::update).delete(pipelines::delete))
         .route("/api/v1/logs/config/pipeline-order", get(pipelines::get_order).put(pipelines::update_order))
         .route("/api/v2/logs/config/metrics", get(metrics::list).post(metrics::create))
-        .route("/api/v2/logs/config/metrics/:id", get(metrics::get).patch(metrics::update).delete(metrics::delete))
+        .route("/api/v2/logs/config/metrics/{id}", get(metrics::get).patch(metrics::update).delete(metrics::delete))
         .route("/api/v2/logs/config/restriction_queries", get(restrictions::list).post(restrictions::create))
-        .route("/api/v2/logs/config/restriction_queries/user/:user_id", get(restrictions::for_user))
-        .route("/api/v2/logs/config/restriction_queries/role/:role_id", get(restrictions::for_role))
+        .route("/api/v2/logs/config/restriction_queries/user/{user_id}", get(restrictions::for_user))
+        .route("/api/v2/logs/config/restriction_queries/role/{role_id}", get(restrictions::for_role))
         .route(
-            "/api/v2/logs/config/restriction_queries/:id",
+            "/api/v2/logs/config/restriction_queries/{id}",
             get(restrictions::get).patch(restrictions::update).put(restrictions::replace).delete(restrictions::delete),
         )
-        .route("/api/v2/logs/config/restriction_queries/:id/roles", get(restrictions::list_roles).post(restrictions::grant_role).delete(restrictions::revoke_role))
+        .route("/api/v2/logs/config/restriction_queries/{id}/roles", get(restrictions::list_roles).post(restrictions::grant_role).delete(restrictions::revoke_role))
         .route("/api/v2/logs/config/custom-destinations", get(destinations::list).post(destinations::create))
-        .route("/api/v2/logs/config/custom-destinations/:id", get(destinations::get).patch(destinations::update).delete(destinations::delete))
+        .route("/api/v2/logs/config/custom-destinations/{id}", get(destinations::get).patch(destinations::update).delete(destinations::delete))
 }
 
 /// A search query as Datadog writes it: `*` for every log, where we store ''.

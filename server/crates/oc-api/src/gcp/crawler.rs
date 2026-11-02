@@ -103,7 +103,7 @@ pub struct GcpCrawler {
     pub interval_secs: i64,
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 impl Crawler for GcpCrawler {
     fn provider(&self) -> &'static str {
         PROVIDER
@@ -144,7 +144,7 @@ mod tests {
         fail: Option<GcpError>,
     }
 
-    #[axum::async_trait]
+    #[async_trait::async_trait]
     impl GcpApi for FakeGcp {
         async fn projects(&self, _sa: &str) -> Result<Vec<String>, GcpError> {
             Ok(vec!["example-storefront".into()])
