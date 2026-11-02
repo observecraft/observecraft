@@ -26,6 +26,7 @@ import { Modal } from '../../components/ui/Modal';
 import { useProfile } from '../settings/queries';
 import { PipelineTestModal } from './PipelineTestModal';
 import { ProcessorEditor } from './ProcessorEditor';
+import { filterLibrary } from './libraryFilter';
 import { Avatar, Columns, ConfigTitle, FilterQuery, FlowStep, fmtDate, LabeledSelect, Num, SectionHead, TagChips, UsageBars } from './config/configUi';
 
 const KEY = ['log-pipelines'];
@@ -500,9 +501,11 @@ function PipelineModal({ pipeline, clone, onClose, onSaved }: { pipeline: LogPip
 function LibraryModal({ canEdit, onClose, onInstalled }: { canEdit: boolean; onClose: () => void; onInstalled: () => void }) {
   const q = useQuery({ queryKey: LIBRARY_KEY, queryFn: listLibrary });
   const [open, setOpen] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
   const install = useMutation({ mutationFn: installLibraryPipeline, onSuccess: onInstalled });
+  const shown = filterLibrary(q.data ?? [], query);
   return (
-    <Modal onClose={onClose} label="Integration pipelines" width={860} height="auto">
+    <Modal onClose={onClose} label="Integration pipelines" width={860} height="80vh">
       <div className="small-modal">
         <div className="modal-title-row">
           <h3>Integration Pipelines</h3>
@@ -517,8 +520,15 @@ function LibraryModal({ canEdit, onClose, onInstalled }: { canEdit: boolean; onC
         {q.isPending && <Loading />}
         {q.isError && <ErrorState error={q.error} onRetry={() => q.refetch()} />}
         {install.error && <p className="form-error">{(install.error as Error).message}</p>}
-        <div className="pl-list">
-          {q.data?.map((p) => (
+        {q.data && (
+          <label className="pl-search">
+            <Search size={14} />
+            <input autoFocus placeholder={`Search ${q.data.length} pipelines by name or source`} value={query} onChange={(e) => setQuery(e.target.value)} />
+          </label>
+        )}
+        <div className="pl-list pl-library">
+          {q.data && shown.length === 0 && <p className="muted">No pipeline matches “{query}”.</p>}
+          {shown.map((p) => (
             <section key={p.id} className="pl-card">
               <div className="pl-row">
                 <button className="icon-plain" onClick={() => setOpen(open === p.id ? null : p.id)} aria-expanded={open === p.id} title="Show processors">

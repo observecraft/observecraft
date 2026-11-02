@@ -58,10 +58,14 @@ enum Filter {
     Uppercase,
     Json,
     Scale(f64),
-    Array { open: String, close: String, sep: String },
+    Array { open: String, close: String, sep: String, each: Option<Box<Filter>> },
     KeyValue(Regex),
     DecodeUri,
     QueryString,
+    /// `xml`: the document as an object (attributes and child elements as keys, repeated elements as arrays).
+    Xml,
+    /// `csv(headers[, separator[, quote]])`: the values named by the comma-separated headers.
+    Csv { headers: Vec<String>, sep: char, quote: char },
 }
 
 /// Rules may include each other; deeper nesting than this is taken for a loop.
@@ -98,7 +102,7 @@ impl Grok {
         for (name, pattern) in &matching {
             let mut ex = Expander { defs: &defs, captures: Vec::new() };
             let body = ex.expand(pattern, 0).map_err(|e| format!("Rule '{name}': {e}"))?;
-            let regex = fancy_regex::RegexBuilder::new(&format!("^(?:{body})$")).backtrack_limit(BACKTRACK_LIMIT).build().map_err(|e| format!("Rule '{name}': invalid pattern ({e})"))?;
+            let regex = fancy_regex::RegexBuilder::new(&format!("^(?:{})$", java_regex(&body))).backtrack_limit(BACKTRACK_LIMIT).build().map_err(|e| format!("Rule '{name}': invalid pattern ({e})"))?;
             rules.push(Rule { name: name.clone(), regex, captures: ex.captures });
         }
         Ok(Grok { rules })
@@ -149,10 +153,12 @@ fn rule_lines(text: &str) -> Result<Vec<(String, String)>, String> {
     for line in text.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')) {
         let (name, pattern) = line.split_once(char::is_whitespace).unwrap_or((line, ""));
         let pattern = pattern.trim();
+        // A body starting with a quantifier applies it to the space before it (`name ?(…)`: an optional space).
+        let pattern = if pattern.starts_with(['?', '*', '+']) { format!(" {pattern}") } else { pattern.to_string() };
         if pattern.is_empty() {
             return Err(format!("Rule '{name}' has no pattern (write one rule per line: name pattern)"));
         }
-        out.push((name.to_string(), pattern.to_string()));
+        out.push((name.to_string(), pattern));
     }
     Ok(out)
 }
@@ -206,6 +212,50 @@ impl Expander<'_> {
     }
 }
 
+/// Java regex syntax the regex crate reads differently: a `-` next to a class escape inside `[…]` (`[\w\s-_.]`) is a
+/// literal dash (the crate rejects it), and `\<` / `\>` are the characters (the crate's word boundaries).
+fn java_regex(re: &str) -> String {
+    let chars: Vec<char> = re.chars().collect();
+    let shorthand = |i: usize| chars.get(i) == Some(&'\\') && chars.get(i + 1).is_some_and(|c| "wWsSdDhHvV".contains(*c));
+    let (mut out, mut class, mut i) = (String::with_capacity(re.len()), false, 0);
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '\\' {
+            match chars.get(i + 1) {
+                // `\<` / `\>` are the characters in Java, word boundaries in the regex crate.
+                Some(n @ ('<' | '>')) => out.push(*n),
+                Some(n) => {
+                    out.push(c);
+                    out.push(*n);
+                }
+                None => out.push(c),
+            }
+            i += 2;
+            continue;
+        }
+        if !class && c == '[' {
+            class = true;
+            out.push(c);
+            // A leading `^` and `]` belong to the class.
+            for lead in ['^', ']'] {
+                if chars.get(i + 1) == Some(&lead) {
+                    out.push(lead);
+                    i += 1;
+                }
+            }
+        } else if class && c == ']' {
+            class = false;
+            out.push(c);
+        } else if class && c == '-' && ((i >= 2 && shorthand(i - 2)) || shorthand(i + 1)) {
+            out.push_str("\\-");
+        } else {
+            out.push(c);
+        }
+        i += 1;
+    }
+    out
+}
+
 /// Index of the `}` closing a `%{`, skipping quoted arguments.
 fn closing_brace(s: &str) -> Option<usize> {
     let mut quote: Option<char> = None;
@@ -233,6 +283,10 @@ fn parse_spec(s: &str) -> Result<Spec, String> {
         return Err(format!("empty matcher in %{{{s}}}"));
     }
     let args = cur.args()?;
+    // A stray `|` between the matcher and its attribute (`%{date("…")|:timestamp}`): Datadog ignores it.
+    while cur.peek() == Some('|') {
+        cur.pos += 1;
+    }
     let mut attr = String::new();
     let mut filter = None;
     if cur.eat(':') {
@@ -290,6 +344,25 @@ impl Cursor {
         self.chars[start..self.pos].iter().collect()
     }
 
+    /// An unquoted argument: up to a `,` or `)` outside the parentheses and quotes it holds (`nullIf("-")`).
+    fn until_top_level(&mut self) -> String {
+        let start = self.pos;
+        let (mut depth, mut quote): (usize, Option<char>) = (0, None);
+        while let Some(c) = self.peek() {
+            match quote {
+                Some(q) if c == q => quote = None,
+                Some(_) => {}
+                None if c == '"' || c == '\'' => quote = Some(c),
+                None if c == '(' => depth += 1,
+                None if c == ')' && depth > 0 => depth -= 1,
+                None if (c == ',' || c == ')') && depth == 0 => break,
+                None => {}
+            }
+            self.pos += 1;
+        }
+        self.chars[start..self.pos].iter().collect()
+    }
+
     /// `("a", "b", 3)` → its arguments; nothing when there is no `(`.
     fn args(&mut self) -> Result<Vec<String>, String> {
         let mut out = Vec::new();
@@ -306,7 +379,7 @@ impl Cursor {
                     self.pos += 1;
                     out.push(self.quoted(q)?);
                 }
-                Some(_) => out.push(self.until(&[',', ')']).trim().to_string()),
+                Some(_) => out.push(self.until_top_level().trim().to_string()),
                 None => return Err("unclosed argument list".into()),
             }
             self.skip_spaces();
@@ -346,6 +419,8 @@ fn matcher(name: &str, args: &[String]) -> Result<(String, Kind), String> {
         "word" => s(r"\b\w+\b"),
         "notSpace" => s(r"\S+"),
         "data" => s(r"[\s\S]*?"),
+        // Logstash's GREEDYDATA, which integrations-core rules use: as much as the rest of the rule allows.
+        "greedyData" => s(r"[\s\S]*"),
         "integer" => Ok((INT.into(), Kind::Int)),
         "integerStr" => s(INT),
         "integerExt" => Ok((INT_EXT.into(), Kind::Int)),
@@ -401,17 +476,41 @@ fn compile_filter(name: &str, args: &[String]) -> Result<Filter, String> {
         "querystring" => Filter::QueryString,
         "nullIf" => Filter::NullIf(arg(0).ok_or("nullIf takes the value to drop: nullIf(\"-\")")?.to_string()),
         "scale" => Filter::Scale(arg(0).and_then(|a| a.parse().ok()).ok_or("scale takes a number: scale(1000)")?),
-        "array" => match args {
-            [sep] => Filter::Array { open: String::new(), close: String::new(), sep: sep.clone() },
-            [brackets, sep] => {
-                let mut b = brackets.chars();
-                let (open, close) = (b.next().map(String::from).unwrap_or_default(), b.next().map(String::from).unwrap_or_default());
-                Filter::Array { open, close, sep: sep.clone() }
+        "array" => {
+            // `array([[brackets,] separator][, filter])`: the last argument may be a filter for each element.
+            let is_filter = |a: &str| a.len() > 1 && a.starts_with(|c: char| c.is_ascii_alphabetic()) && a.chars().take_while(|c| *c != '(').all(|c| c.is_ascii_alphanumeric());
+            let (args, each) = match args.split_last() {
+                Some((last, rest)) if !rest.is_empty() && is_filter(last) => {
+                    let mut cur = Cursor { chars: last.chars().collect(), pos: 0 };
+                    let name = cur.until(&['(']).trim().to_string();
+                    (rest, Some(Box::new(compile_filter(&name, &cur.args()?)?)))
+                }
+                _ => (args, None),
+            };
+            match args {
+                [] => Filter::Array { open: "[".into(), close: "]".into(), sep: ",".into(), each },
+                [sep] => Filter::Array { open: String::new(), close: String::new(), sep: sep.clone(), each },
+                [brackets, sep] => {
+                    let mut b = brackets.chars();
+                    let (open, close) = (b.next().map(String::from).unwrap_or_default(), b.next().map(String::from).unwrap_or_default());
+                    Filter::Array { open, close, sep: sep.clone(), each }
+                }
+                _ => return Err("array takes a separator, optionally after the brackets, and a filter: array(\"[]\", \",\", integer)".into()),
             }
-            _ => return Err("array takes a separator, optionally after the brackets: array(\"[]\", \",\")".into()),
-        },
+        }
         "keyvalue" => Filter::KeyValue(keyvalue_regex(arg(0).unwrap_or("="), arg(1).unwrap_or(""))?),
-        "url" | "useragent" | "xml" | "rubyhash" | "geoip" | "cidr" => return Err(format!("The '{name}' filter isn't supported yet")),
+        "csv" => {
+            let headers = arg(0).ok_or("csv takes the headers: csv(\"a,b,c\")")?.split(',').map(|h| h.trim().to_string()).collect();
+            let one = |i: usize, default: char| match arg(i) {
+                None => Ok(default),
+                Some(a) if a.chars().count() == 1 => Ok(a.chars().next().unwrap_or(default)),
+                Some("\\t") => Ok('\t'),
+                Some(a) => Err(format!("csv separator and quote are one character, not \"{a}\"")),
+            };
+            Filter::Csv { headers, sep: one(1, ',')?, quote: one(2, '"')? }
+        }
+        "xml" => Filter::Xml,
+        "url" | "useragent" | "rubyhash" | "geoip" | "cidr" => return Err(format!("The '{name}' filter isn't supported yet")),
         _ => return Err(format!("Unknown filter '{name}'")),
     })
 }
@@ -482,13 +581,17 @@ impl Filter {
             Filter::Uppercase => Some(v.as_str().map(|s| Value::from(s.to_uppercase())).unwrap_or(v)),
             Filter::Json => serde_json::from_str(v.as_str()?).ok(),
             Filter::Scale(k) => num(as_f64(&v)? * k),
-            Filter::Array { open, close, sep } => {
+            Filter::Array { open, close, sep, each } => {
                 let s = text(&v);
                 let s = s.trim();
                 let inner = s.strip_prefix(open.as_str()).unwrap_or(s);
                 let inner = inner.strip_suffix(close.as_str()).unwrap_or(inner);
                 let items = if sep.is_empty() { vec![inner] } else { inner.split(sep.as_str()).collect() };
-                Some(Value::Array(items.into_iter().map(str::trim).filter(|x| !x.is_empty()).map(Value::from).collect()))
+                let items = items.into_iter().map(str::trim).filter(|x| !x.is_empty()).map(Value::from);
+                Some(Value::Array(match each {
+                    Some(f) => items.filter_map(|v| f.apply(v)).collect(),
+                    None => items.collect(),
+                }))
             }
             Filter::KeyValue(re) => {
                 let s = text(&v);
@@ -504,8 +607,39 @@ impl Filter {
             }
             Filter::DecodeUri => Some(Value::from(decode_uri(&text(&v)))),
             Filter::QueryString => Some(query_string(&text(&v))),
+            Filter::Xml => super::xml::to_json(&text(&v)),
+            Filter::Csv { headers, sep, quote } => {
+                let fields = csv_fields(&text(&v), *sep, *quote);
+                Some(Value::Object(headers.iter().zip(fields).filter(|(_, f)| !f.is_empty()).map(|(h, f)| (h.clone(), Value::from(f))).collect()))
+            }
         }
     }
+}
+
+/// One CSV line's fields: `quote` encloses fields holding the separator, a doubled quote is a quote.
+fn csv_fields(line: &str, sep: char, quote: char) -> Vec<String> {
+    let (mut fields, mut field, mut quoted) = (Vec::new(), String::new(), false);
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        if quoted {
+            if c == quote && chars.peek() == Some(&quote) {
+                field.push(quote);
+                chars.next();
+            } else if c == quote {
+                quoted = false;
+            } else {
+                field.push(c);
+            }
+        } else if c == quote {
+            quoted = true;
+        } else if c == sep {
+            fields.push(std::mem::take(&mut field));
+        } else {
+            field.push(c);
+        }
+    }
+    fields.push(field);
+    fields
 }
 
 /// `%XX` escapes decoded (invalid UTF-8 replaced).
@@ -585,6 +719,71 @@ mod tests {
         assert_eq!(parse(r#"r %{data:list:array("[]", ",")}"#, "[a, b,c]"), Some(json!({"list": ["a", "b", "c"]})));
         assert_eq!(parse(r#"r %{notSpace:flags:array(",")}"#, "qr,rd,ra"), Some(json!({"flags": ["qr", "rd", "ra"]})));
         assert_eq!(parse("r %{notSpace:p:decodeuricomponent} %{notSpace:q:querystring}", "a%20b%2Fc%é ?id=7&q=red%20shoes"), Some(json!({"p": "a b/c%é", "q": {"id": "7", "q": "red shoes"}})));
+    }
+
+    #[test]
+    fn greedy_data_takes_as_much_as_it_can() {
+        assert_eq!(parse(r#"r %{greedyData:a} %{word:b}"#, "x y z"), Some(json!({"a": "x y", "b": "z"})));
+        assert_eq!(parse(r#"r %{data:a} %{greedyData:b}"#, "x y z"), Some(json!({"a": "x", "b": "y z"})));
+    }
+
+    #[test]
+    fn a_rule_body_starting_with_a_quantifier_keeps_the_space_it_applies_to() {
+        // Symantec's `scan_results ?(…)`: an optional space, then the group.
+        let g = Grok::compile("opt ?(x)", "r a%{opt}b").unwrap();
+        assert!(g.parse("a xb", NOW).is_some());
+        assert!(g.parse("ab", NOW).is_none());
+    }
+
+    #[test]
+    fn a_dash_next_to_a_class_escape_is_literal_as_in_java() {
+        assert_eq!(parse(r#"r %{regex("[\\w\\s-_.]*"):a}"#, "my app-1_x.y"), Some(json!({"a": "my app-1_x.y"})));
+        assert_eq!(parse(r#"r %{regex("[a-c\\d]+"):a}"#, "ab12"), Some(json!({"a": "ab12"})), "ranges stay ranges");
+    }
+
+    #[test]
+    fn escaped_angle_brackets_are_literal_as_in_java() {
+        // Cisco ASA's syslog priority `\<190\>`.
+        assert_eq!(parse(r"r \<%{integer:p}\>x", "<190>x"), Some(json!({"p": 190})));
+    }
+
+    #[test]
+    fn array_defaults_and_a_filter_for_each_element() {
+        assert_eq!(parse("r %{data:a:array}", "[x, y]"), Some(json!({"a": ["x", "y"]})));
+        assert_eq!(parse(r#"r %{data:a:array(",", nullIf("-"))}"#, "x,-,y"), Some(json!({"a": ["x", "y"]})));
+        assert_eq!(parse(r#"r %{data:a:array("[]", ";", integer)}"#, "[1;2]"), Some(json!({"a": [1, 2]})));
+    }
+
+    #[test]
+    fn xml_filter() {
+        // As Datadog's docs: attributes and child elements are keys, text next to attributes is `value`.
+        let book = r#"<book category="CHILDREN"><title lang="en">Harry Potter</title><author>J K. Rowling</author><year>2005</year></book>"#;
+        assert_eq!(
+            parse("r %{data:x:xml}", book),
+            Some(json!({"x": {"book": {"category": "CHILDREN", "title": {"lang": "en", "value": "Harry Potter"}, "author": "J K. Rowling", "year": "2005"}}}))
+        );
+        // Repeated elements become an array; self-closing ones and entities; the root merges with an empty attribute.
+        assert_eq!(
+            parse("r %{data::xml}", r#"<r v="a &amp; b"><a n="1"/><a n="2"/><e></e></r>"#),
+            Some(json!({"": {"r": {"v": "a & b", "a": [{"n": "1"}, {"n": "2"}], "e": ""}}}))
+        );
+        assert_eq!(parse("r %{data:x:xml}", "<unclosed>"), Some(json!({})), "not XML: nothing extracted");
+    }
+
+    #[test]
+    fn a_stray_bar_before_the_attribute_is_ignored_as_datadog_does() {
+        // Forescout's `%{date("MMM d HH:mm:ss")|:timestamp}`.
+        let v = parse(r#"r %{date("MMM d HH:mm:ss")|:t}"#, "Sep 22 11:44:01").unwrap();
+        assert!(v["t"].is_i64(), "{v}");
+    }
+
+    #[test]
+    fn csv_filter() {
+        assert_eq!(parse(r#"r %{data:f:csv("a,b,c")}"#, r#"1,"x, y",3"#), Some(json!({"f": {"a": "1", "b": "x, y", "c": "3"}})));
+        assert_eq!(parse(r#"r %{data::csv("a,b", ";")}"#, "1;2"), Some(json!({"": {"a": "1", "b": "2"}})));
+        // Missing values are left out, extra ones ignored; a custom quote character.
+        assert_eq!(parse(r#"r %{data:f:csv("a,b,c", ",", "'")}"#, "1,'2,3'"), Some(json!({"f": {"a": "1", "b": "2,3"}})));
+        assert_eq!(parse(r#"r %{data:f:csv("a")}"#, "1,2"), Some(json!({"f": {"a": "1"}})));
     }
 
     #[test]

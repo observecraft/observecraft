@@ -11,19 +11,44 @@ pub struct DatePattern {
     fragment: String,
     /// The pattern with one named group per field, to read the matched text.
     parse: Regex,
-    /// The zone used when the text carries none (the matcher's second argument), in seconds east of UTC.
-    default_offset: i32,
+    /// The zone used when the text carries none (the matcher's second argument).
+    default_zone: Zone,
+}
+
+/// A time zone: a fixed offset (seconds east of UTC) or a named zone with its daylight saving time.
+#[derive(Clone, Copy)]
+enum Zone {
+    Fixed(i32),
+    Named(chrono_tz::Tz),
+}
+
+impl Zone {
+    /// `UTC`, `+02:00`, `CEST`, … or an IANA name such as `Asia/Kolkata`.
+    fn parse(zone: &str) -> Option<Zone> {
+        zone_offset(zone).map(Zone::Fixed).or_else(|| zone.trim().parse::<chrono_tz::Tz>().ok().map(Zone::Named))
+    }
+
+    /// Seconds east of UTC at a local date and time (the earlier one when the clock goes back).
+    fn offset_at(self, local: &chrono::NaiveDateTime) -> Option<i32> {
+        use chrono::{Offset, TimeZone};
+        match self {
+            Zone::Fixed(s) => Some(s),
+            Zone::Named(tz) => tz.offset_from_local_datetime(local).earliest().map(|o| o.fix().local_minus_utc()),
+        }
+    }
 }
 
 impl DatePattern {
     pub fn compile(pattern: &str, tz: Option<&str>) -> Result<Self, String> {
-        let default_offset = match tz {
-            Some(z) => zone_offset(z).ok_or_else(|| format!("Unsupported time zone '{z}' (use UTC or an offset such as +02:00)"))?,
-            None => 0,
+        let default_zone = match tz {
+            Some(z) => Zone::parse(z).ok_or_else(|| format!("Unsupported time zone '{z}' (use UTC, an offset such as +02:00 or a name such as Europe/Paris)"))?,
+            None => Zone::Fixed(0),
         };
         let (mut fragment, mut named) = (String::new(), String::new());
         let mut seen = std::collections::HashSet::new();
         let chars: Vec<char> = pattern.chars().collect();
+        // integrations-core pipelines write `DD` for the day of the month next to a month (`MMDD`, `yyyy-MM-DD`).
+        let has_month = chars.iter().any(|c| matches!(c, 'M' | 'L'));
         let mut i = 0;
         while i < chars.len() {
             let c = chars[i];
@@ -47,6 +72,7 @@ impl DatePattern {
                 n += 1;
             }
             i += n;
+            let c = if c == 'D' && has_month { 'd' } else { c };
             let (group, re) = field(c, n).ok_or_else(|| format!("Unsupported date pattern letter '{c}' in \"{pattern}\""))?;
             fragment.push_str(&format!("(?:{re})"));
             // A field repeated later (rare) is matched but read once.
@@ -57,7 +83,7 @@ impl DatePattern {
             }
         }
         let parse = Regex::new(&format!("^{named}$")).map_err(|e| format!("Invalid date pattern \"{pattern}\": {e}"))?;
-        Ok(DatePattern { fragment, parse, default_offset })
+        Ok(DatePattern { fragment, parse, default_zone })
     }
 
     pub fn fragment(&self) -> &str {
@@ -81,14 +107,18 @@ impl DatePattern {
         let (minute, second) = (num("m").unwrap_or(0), num("s").unwrap_or(0));
         // Fractions keep their first three digits (microseconds and nanoseconds are cut to ms).
         let millis = c.name("S").map_or(0, |m| m.as_str().chars().chain("000".chars()).take(3).collect::<String>().parse::<i64>().unwrap_or(0));
-        let offset = match c.name("Z").or_else(|| c.name("z")) {
-            Some(m) => zone_offset(m.as_str())?,
-            None => self.default_offset,
+        let zone = match c.name("Z").or_else(|| c.name("z")) {
+            Some(m) => Zone::parse(m.as_str())?,
+            None => self.default_zone,
         };
+        let day_of_year = num("D");
         let at = |year: i64| -> Option<i64> {
-            let date = chrono::NaiveDate::from_ymd_opt(year as i32, month as u32, day as u32)?;
+            let date = match day_of_year {
+                Some(ordinal) => chrono::NaiveDate::from_yo_opt(year as i32, ordinal as u32)?,
+                None => chrono::NaiveDate::from_ymd_opt(year as i32, month as u32, day as u32)?,
+            };
             let t = date.and_hms_milli_opt(hour as u32, minute as u32, second as u32, millis as u32)?;
-            Some(t.and_utc().timestamp_millis() - offset as i64 * 1000)
+            Some(t.and_utc().timestamp_millis() - zone.offset_at(&t)? as i64 * 1000)
         };
         if let Some(year) = num("y") {
             return at(year);
@@ -139,6 +169,7 @@ fn field(c: char, n: usize) -> Option<(&'static str, String)> {
         'M' | 'L' if n == 3 => ("MMM", "[A-Za-z]{3}".into()),
         'M' | 'L' => ("M", digits(1, 2)),
         'd' => ("d", digits(1, 2)),
+        'D' => ("D", digits(1, 3)),
         'H' | 'k' => ("H", digits(1, 2)),
         'h' | 'K' => ("h", digits(1, 2)),
         'm' => ("m", digits(1, 2)),
@@ -147,7 +178,7 @@ fn field(c: char, n: usize) -> Option<(&'static str, String)> {
         'a' => ("a", "(?i:AM|PM)".into()),
         'E' => ("E", "[A-Za-z]+".into()),
         'Z' | 'X' | 'x' => ("Z", r"Z|[+-]\d{2}(?::?\d{2})?".into()),
-        'z' => ("z", r"[A-Za-z]{1,5}(?:[+-]\d{1,2}(?::?\d{2})?)?|[+-]\d{2}(?::?\d{2})?".into()),
+        'z' => ("z", r"[A-Za-z]+/[A-Za-z_]+(?:/[A-Za-z_]+)?|[A-Za-z]{1,5}(?:[+-]\d{1,2}(?::?\d{2})?)?|[+-]\d{2}(?::?\d{2})?".into()),
         _ => return None,
     })
 }
@@ -328,6 +359,25 @@ mod tests {
         assert_eq!(parse("MMdd HH:mm:ss.SSSSSS", None, "0424 11:47:41.605188"), Some(1_777_031_261_605));
         // A date after now belongs to last year (logs written in December, read in January).
         assert_eq!(parse("MMM dd HH:mm:ss", None, "Dec 31 23:00:00"), Some(1_767_222_000_000));
+    }
+
+    #[test]
+    fn named_time_zones_follow_their_daylight_saving_time() {
+        // Asia/Kolkata is UTC+05:30 all year.
+        assert_eq!(parse("yyyy-MM-dd HH:mm:ss", Some("Asia/Kolkata"), "2017-11-07 23:00:39"), Some(1_510_075_839_000));
+        // Europe/Paris: +02:00 in July, +01:00 in January.
+        assert_eq!(parse("yyyy-MM-dd HH:mm:ss", Some("Europe/Paris"), "2026-07-01 14:00:00"), Some(1_782_907_200_000));
+        assert_eq!(parse("yyyy-MM-dd HH:mm:ss", Some("Europe/Paris"), "2026-01-01 13:00:00"), Some(1_767_268_800_000));
+        // A zone name in the text.
+        assert_eq!(parse("yyyy-MM-dd HH:mm:ss z", None, "2017-11-07 23:00:39 Asia/Kolkata"), Some(1_510_075_839_000));
+    }
+
+    #[test]
+    fn day_of_year_and_the_dd_upstream_writes_next_to_a_month() {
+        assert_eq!(parse("yyyy-DDD HH:mm:ss", None, "2026-298 13:00:00"), Some(NOW));
+        // `MMDD` / `yyyy-MM-DD` in integrations-core pipelines mean the day of the month.
+        assert_eq!(parse("MMDD HH:mm:ss.SSSSSS", None, "0424 11:47:41.605188"), Some(1_777_031_261_605));
+        assert_eq!(parse("yyyy-MM-DD HH:mm:ss.SSSS", None, "2026-10-25 13:00:00.0000"), Some(NOW));
     }
 
     #[test]
