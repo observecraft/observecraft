@@ -80,7 +80,7 @@ impl Store {
             let res = self.http.get(url).send().await.map_err(|e| s3_error("List", e))?;
             let text = check(res, "List").await?.text().await.map_err(|e| s3_error("List", e))?;
             let parsed = ListObjectsV2::parse_response(&text).map_err(|e| s3_error("List response", e))?;
-            out.extend(parsed.contents.into_iter().map(|c| Object { key: c.key, size: c.size }));
+            out.extend(parsed.contents.into_iter().map(|c| Object { key: c.key, size: c.size.unwrap_or(0) }));
             match parsed.next_continuation_token {
                 Some(t) if !t.is_empty() => token = Some(t),
                 _ => break,

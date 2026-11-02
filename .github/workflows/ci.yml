@@ -116,7 +116,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libclang-dev libxml2-dev libxmlsec1-dev
-      - uses: dtolnay/rust-toolchain@599c45df1a24c1c63ae1129a7e59f46654b8fb66 # 1.89.0
+      - uses: dtolnay/rust-toolchain@ff7f6a3374ce205788da40198ec918bd5d67aea7 # 1.99.0
         with: { components: clippy }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with: { workspaces: server }
@@ -168,7 +168,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libclang-dev libxml2-dev libxmlsec1-dev postgresql-client
-      - uses: dtolnay/rust-toolchain@599c45df1a24c1c63ae1129a7e59f46654b8fb66 # 1.89.0
+      - uses: dtolnay/rust-toolchain@ff7f6a3374ce205788da40198ec918bd5d67aea7 # 1.99.0
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         # Preserve expensive compiled dependencies even when a compatibility assertion fails.
         with: { workspaces: server, cache-on-failure: true }
