@@ -748,6 +748,12 @@ fn merge_frame(snapshot: &mut DashboardQueryFrame, delta: &DashboardQueryFrame) 
 /// Units of integration metrics from integrations-core's metadata.csv (BSD-3-Clause, see
 /// server/seeds/integrations/kubernetes/LICENSE): the Datadog Agent sends none.
 const INTEGRATION_UNITS: &str = include_str!("../../../../../seeds/integrations/kubernetes/units.csv");
+/// Units of the cloud metrics the AWS, Azure and Google Cloud overviews chart (scripts/cloud-dashboards.mjs).
+const CLOUD_UNITS: &str = include_str!("../../../../../seeds/integrations/cloud/units.csv");
+/// Units of the metrics the AWS, Azure and Google Cloud service dashboards chart (scripts/cloud-service-dashboards.mjs).
+const SERVICE_UNITS: &str = include_str!("../../../../../seeds/integrations/cloud/service-units.csv");
+/// Every integrations-core metric's unit (scripts/import-integration-dashboards.mjs --all).
+const CORE_UNITS: &str = include_str!("../../../../../seeds/integrations/core/units.csv");
 const INTEGRATION_DESCRIPTIONS: &str = include_str!("../../../../../seeds/integrations/kubernetes/descriptions.tsv");
 
 /// A metric's unit: what its sender reported, else the integration's, else none.
@@ -756,7 +762,9 @@ pub(super) fn metric_unit(metric: &str, reported: &str) -> Option<String> {
     if !reported.is_empty() {
         return Some(reported.to_string());
     }
-    let units = UNITS.get_or_init(|| INTEGRATION_UNITS.lines().filter(|l| !l.starts_with('#')).filter_map(|l| l.split_once(',')).collect());
+    let units = UNITS.get_or_init(|| {
+        CORE_UNITS.lines().chain(INTEGRATION_UNITS.lines()).chain(CLOUD_UNITS.lines()).chain(SERVICE_UNITS.lines()).filter(|l| !l.starts_with('#')).filter_map(|l| l.split_once(',')).collect()
+    });
     units.get(metric).map(|u| u.to_string())
 }
 
@@ -774,6 +782,22 @@ pub(super) fn metric_description(metric: &str, reported: &str) -> String {
 mod tests {
     use super::super::{group_array, resolve_alias};
     use super::*;
+
+    #[test]
+    fn cloud_metrics_take_their_units_from_the_cloud_dashboards_seed() {
+        assert_eq!(metric_unit("aws.ec2.network_in.sum", "").as_deref(), Some("byte"));
+        assert_eq!(metric_unit("gcp.gce.instance.cpu.utilization", "").as_deref(), Some("fraction"));
+        assert_eq!(metric_unit("kubernetes.memory.usage", "").as_deref(), Some("byte"));
+        assert_eq!(metric_unit("aws.ec2.network_in.sum", "bit").as_deref(), Some("bit"), "a reported unit wins");
+        assert_eq!(metric_unit("azure.vm.available_memory_bytes.maximum", "").as_deref(), Some("byte"), "the service dashboards' units");
+        assert_eq!(metric_unit("gcp.cloudsql.database.disk.bytes_used_by_data_type", "").as_deref(), Some("byte"));
+    }
+
+    #[test]
+    fn every_integrations_metrics_take_their_units_from_integrations_core() {
+        assert_eq!(metric_unit("postgresql.replication_delay_bytes", "").as_deref(), Some("byte"));
+        assert_eq!(metric_unit("redis.mem.used", "").as_deref(), Some("byte"));
+    }
     use oc_query::{metric_field, metric_filter};
     use std::collections::HashSet;
 

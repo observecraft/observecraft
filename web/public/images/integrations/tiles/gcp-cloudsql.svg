@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" preserveAspectRatio="xMidYMid meet" role="img">
+  <!-- ObserveCraft artwork. -->
+  <rect width="320" height="220" fill="#ffffff"/>
+  <g transform="translate(104 36) scale(1.12)"><path d="M50 8l38 18-38 18-38-18z" fill="#4285F4"/><path d="M12 42l38 18 38-18v12L50 72 12 54z" fill="#669DF6"/><path d="M12 64l38 18 38-18v12L50 94 12 76z" fill="#AECBFA"/></g>
+  <text x="160" y="198" text-anchor="middle" fill="#3c4043" font-family="Noto Sans, -apple-system, Segoe UI, sans-serif" font-size="21">Cloud SQL</text>
+</svg>

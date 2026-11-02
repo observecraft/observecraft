@@ -1,0 +1,2602 @@
+[
+  {
+    "id": "aws-overview",
+    "title": "AWS Overview",
+    "description": "The AWS services ObserveCraft collects from CloudWatch: EC2, RDS, load balancers, Lambda, S3 and EBS.",
+    "kind": "integration",
+    "logo": "aws",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [
+      {
+        "name": "account",
+        "prefix": "aws_account",
+        "default": "*"
+      },
+      {
+        "name": "region",
+        "prefix": "region",
+        "default": "*"
+      }
+    ],
+    "widgets": [
+      {
+        "id": "aws-8",
+        "definition": {
+          "type": "group",
+          "title": "AWS Overview",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "aws-8-banner",
+              "definition": {
+                "type": "image",
+                "title": "Aws",
+                "src": "/images/integrations/aws-banner.svg"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
+            {
+              "id": "aws-1",
+              "definition": {
+                "type": "note",
+                "content": "A starting point for the AWS services ObserveCraft collects from CloudWatch. Add accounts, regions and services in [Integrations → Amazon Web Services](/integrations/aws); every chart filters by account and region.",
+                "background": "blue",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 12,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-2",
+              "definition": {
+                "type": "image",
+                "title": "Amazon EC2",
+                "src": "/images/integrations/tiles/aws-ec2.svg"
+              },
+              "layout": {
+                "x": 0,
+                "y": 8,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "aws-3",
+              "definition": {
+                "type": "image",
+                "title": "Amazon RDS",
+                "src": "/images/integrations/tiles/aws-rds.svg"
+              },
+              "layout": {
+                "x": 4,
+                "y": 8,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "aws-4",
+              "definition": {
+                "type": "image",
+                "title": "Elastic Load Balancing",
+                "src": "/images/integrations/tiles/aws-elb.svg"
+              },
+              "layout": {
+                "x": 8,
+                "y": 8,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "aws-5",
+              "definition": {
+                "type": "image",
+                "title": "AWS Lambda",
+                "src": "/images/integrations/tiles/aws-lambda.svg"
+              },
+              "layout": {
+                "x": 0,
+                "y": 12,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "aws-6",
+              "definition": {
+                "type": "image",
+                "title": "Amazon S3",
+                "src": "/images/integrations/tiles/aws-s3.svg"
+              },
+              "layout": {
+                "x": 4,
+                "y": 12,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "aws-7",
+              "definition": {
+                "type": "image",
+                "title": "Amazon EBS",
+                "src": "/images/integrations/tiles/aws-ebs.svg"
+              },
+              "layout": {
+                "x": 8,
+                "y": 12,
+                "w": 4,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 17
+        }
+      },
+      {
+        "id": "aws-9",
+        "definition": {
+          "type": "monitor_summary",
+          "title": "AWS monitors",
+          "query": "aws"
+        },
+        "layout": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 10
+        }
+      },
+      {
+        "id": "aws-10",
+        "definition": {
+          "type": "log_stream",
+          "title": "AWS logs",
+          "query": "source:(cloudwatch OR lambda OR elb OR s3 OR rds OR cloudtrail OR vpc)",
+          "limit": 50
+        },
+        "layout": {
+          "x": 6,
+          "y": 10,
+          "w": 6,
+          "h": 8
+        }
+      },
+      {
+        "id": "aws-21",
+        "definition": {
+          "type": "group",
+          "title": "EC2",
+          "color": "orange",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "aws-11",
+              "definition": {
+                "type": "note",
+                "content": "Instances, their CPU and network. Consistently high CPU is normal for some workloads; maxed-out CPU or failed status checks need a look.",
+                "background": "yellow",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "aws-12",
+              "definition": {
+                "type": "integration",
+                "title": "Active EC2 instances",
+                "original": {
+                  "type": "query_value",
+                  "title": "Active EC2 instances",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.ec2.cpuutilization{$account,$region} by {instanceid}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "count_nonzero(query1)"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-13",
+              "definition": {
+                "type": "integration",
+                "title": "Failed status checks",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failed status checks",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.ec2.status_check_failed.maximum{$account,$region}",
+                          "aggregator": "max"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-14",
+              "definition": {
+                "type": "integration",
+                "title": "Total network in",
+                "original": {
+                  "type": "query_value",
+                  "title": "Total network in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.ec2.network_in.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-15",
+              "definition": {
+                "type": "integration",
+                "title": "Total network out",
+                "original": {
+                  "type": "query_value",
+                  "title": "Total network out",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.ec2.network_out.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-16",
+              "definition": {
+                "type": "integration",
+                "title": "Avg CPU utilization",
+                "original": {
+                  "type": "query_value",
+                  "title": "Avg CPU utilization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.ec2.cpuutilization{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-17",
+              "definition": {
+                "type": "integration",
+                "title": "Max CPU utilization",
+                "original": {
+                  "type": "query_value",
+                  "title": "Max CPU utilization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:aws.ec2.cpuutilization.maximum{$account,$region}",
+                          "aggregator": "max"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-18",
+              "definition": {
+                "type": "integration",
+                "title": "CPU utilization by region",
+                "original": {
+                  "type": "timeseries",
+                  "title": "CPU utilization by region",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.ec2.cpuutilization{$account,$region} by {region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "orange",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "aws-19",
+              "definition": {
+                "type": "integration",
+                "title": "Network I/O",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Network I/O",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.ec2.network_in.sum{$account,$region}",
+                          "aggregator": "sum"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:aws.ec2.network_out.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1",
+                          "alias": "in"
+                        },
+                        {
+                          "formula": "0 - query2",
+                          "alias": "out"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 5,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "aws-20",
+              "definition": {
+                "type": "integration",
+                "title": "CPU utilization (top 50)",
+                "original": {
+                  "type": "query_table",
+                  "title": "CPU utilization (top 50)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.ec2.cpuutilization{$account,$region} by {instanceid,region}",
+                          "aggregator": "avg"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "max:aws.ec2.cpuutilization.maximum{$account,$region} by {instanceid,region}",
+                          "aggregator": "max"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "CPU %",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "Max CPU %",
+                          "formula": "query2"
+                        }
+                      ],
+                      "sort": {
+                        "count": 50,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 5,
+                "w": 4,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 18,
+          "w": 12,
+          "h": 16
+        }
+      },
+      {
+        "id": "aws-31",
+        "definition": {
+          "type": "group",
+          "title": "RDS",
+          "color": "orange",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "aws-22",
+              "definition": {
+                "type": "note",
+                "content": "Database instances: connections, CPU, storage and latency.",
+                "background": "yellow",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "aws-23",
+              "definition": {
+                "type": "integration",
+                "title": "Total connections",
+                "original": {
+                  "type": "query_value",
+                  "title": "Total connections",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.rds.database_connections{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-24",
+              "definition": {
+                "type": "integration",
+                "title": "Avg CPU utilization",
+                "original": {
+                  "type": "query_value",
+                  "title": "Avg CPU utilization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.rds.cpuutilization{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-25",
+              "definition": {
+                "type": "integration",
+                "title": "Total free storage",
+                "original": {
+                  "type": "query_value",
+                  "title": "Total free storage",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.rds.free_storage_space{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-26",
+              "definition": {
+                "type": "integration",
+                "title": "Read IOPS",
+                "original": {
+                  "type": "query_value",
+                  "title": "Read IOPS",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.rds.read_iops{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-27",
+              "definition": {
+                "type": "integration",
+                "title": "Highest read latency",
+                "original": {
+                  "type": "toplist",
+                  "title": "Highest read latency",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.rds.read_latency{$account,$region} by {dbinstanceidentifier}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "orange"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "aws-28",
+              "definition": {
+                "type": "integration",
+                "title": "Least free storage",
+                "original": {
+                  "type": "toplist",
+                  "title": "Least free storage",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.rds.free_storage_space{$account,$region} by {dbinstanceidentifier}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "asc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "aws-29",
+              "definition": {
+                "type": "integration",
+                "title": "Connections by database",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Connections by database",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.rds.database_connections{$account,$region} by {dbinstanceidentifier}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 11,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "aws-30",
+              "definition": {
+                "type": "integration",
+                "title": "Write latency by database",
+                "original": {
+                  "type": "treemap",
+                  "title": "Write latency by database",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.rds.write_latency{$account,$region} by {dbinstanceidentifier}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 11,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 34,
+          "w": 12,
+          "h": 20
+        }
+      },
+      {
+        "id": "aws-43",
+        "definition": {
+          "type": "group",
+          "title": "Load Balancers",
+          "color": "orange",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "aws-32",
+              "definition": {
+                "type": "note",
+                "content": "Classic Load Balancers (ELB) and Application Load Balancers (ALB): healthy hosts, traffic, errors and response time.",
+                "background": "yellow",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "aws-33",
+              "definition": {
+                "type": "integration",
+                "title": "Healthy ELB hosts",
+                "original": {
+                  "type": "query_value",
+                  "title": "Healthy ELB hosts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.elb.healthy_host_count{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-34",
+              "definition": {
+                "type": "integration",
+                "title": "Unhealthy ELB hosts",
+                "original": {
+                  "type": "query_value",
+                  "title": "Unhealthy ELB hosts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.elb.un_healthy_host_count{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-35",
+              "definition": {
+                "type": "integration",
+                "title": "Healthy ALB targets",
+                "original": {
+                  "type": "query_value",
+                  "title": "Healthy ALB targets",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.applicationelb.healthy_host_count{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-36",
+              "definition": {
+                "type": "integration",
+                "title": "Unhealthy ALB targets",
+                "original": {
+                  "type": "query_value",
+                  "title": "Unhealthy ALB targets",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.applicationelb.un_healthy_host_count{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-37",
+              "definition": {
+                "type": "integration",
+                "title": "ELB 5xx errors",
+                "original": {
+                  "type": "query_value",
+                  "title": "ELB 5xx errors",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.elb.httpcode_elb_5xx.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-38",
+              "definition": {
+                "type": "integration",
+                "title": "ALB 5xx errors",
+                "original": {
+                  "type": "query_value",
+                  "title": "ALB 5xx errors",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.applicationelb.httpcode_elb_5xx_count.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-39",
+              "definition": {
+                "type": "integration",
+                "title": "ELB requests",
+                "original": {
+                  "type": "timeseries",
+                  "title": "ELB requests",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.elb.request_count.sum{$account,$region} by {loadbalancername}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "aws-40",
+              "definition": {
+                "type": "integration",
+                "title": "ALB requests",
+                "original": {
+                  "type": "timeseries",
+                  "title": "ALB requests",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.applicationelb.request_count.sum{$account,$region} by {loadbalancer}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "aws-41",
+              "definition": {
+                "type": "integration",
+                "title": "ELB latency",
+                "original": {
+                  "type": "timeseries",
+                  "title": "ELB latency",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.elb.latency{$account,$region} by {loadbalancername}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 11,
+                "w": 6,
+                "h": 4
+              }
+            },
+            {
+              "id": "aws-42",
+              "definition": {
+                "type": "integration",
+                "title": "ALB target response time",
+                "original": {
+                  "type": "timeseries",
+                  "title": "ALB target response time",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.applicationelb.target_response_time{$account,$region} by {loadbalancer}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 11,
+                "w": 6,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 54,
+          "w": 12,
+          "h": 18
+        }
+      },
+      {
+        "id": "aws-54",
+        "definition": {
+          "type": "group",
+          "title": "Lambda",
+          "color": "orange",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "aws-44",
+              "definition": {
+                "type": "note",
+                "content": "Functions: invocations, errors, duration and throttles.",
+                "background": "yellow",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "aws-45",
+              "definition": {
+                "type": "integration",
+                "title": "Invocations",
+                "original": {
+                  "type": "query_value",
+                  "title": "Invocations",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.lambda.invocations.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-46",
+              "definition": {
+                "type": "integration",
+                "title": "Errors",
+                "original": {
+                  "type": "query_value",
+                  "title": "Errors",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.lambda.errors.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-47",
+              "definition": {
+                "type": "integration",
+                "title": "Error rate",
+                "original": {
+                  "type": "query_value",
+                  "title": "Error rate",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.lambda.errors.sum{$account,$region}",
+                          "aggregator": "sum"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:aws.lambda.invocations.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "100 * query1 / query2"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 2,
+                  "custom_unit": "%"
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-48",
+              "definition": {
+                "type": "integration",
+                "title": "Avg duration",
+                "original": {
+                  "type": "query_value",
+                  "title": "Avg duration",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.lambda.duration{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-49",
+              "definition": {
+                "type": "integration",
+                "title": "Throttles",
+                "original": {
+                  "type": "query_value",
+                  "title": "Throttles",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.lambda.throttles.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-50",
+              "definition": {
+                "type": "integration",
+                "title": "Peak concurrency",
+                "original": {
+                  "type": "query_value",
+                  "title": "Peak concurrency",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:aws.lambda.concurrent_executions.maximum{$account,$region}",
+                          "aggregator": "max"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-51",
+              "definition": {
+                "type": "integration",
+                "title": "Functions",
+                "original": {
+                  "type": "query_table",
+                  "title": "Functions",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.lambda.invocations.sum{$account,$region} by {functionname}",
+                          "aggregator": "sum"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:aws.lambda.errors.sum{$account,$region} by {functionname}",
+                          "aggregator": "sum"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query3",
+                          "query": "avg:aws.lambda.duration{$account,$region} by {functionname}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "Invocations",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "Errors",
+                          "formula": "query2"
+                        },
+                        {
+                          "alias": "Avg duration (ms)",
+                          "formula": "query3"
+                        }
+                      ],
+                      "sort": {
+                        "count": 50,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 8,
+                "h": 10
+              }
+            },
+            {
+              "id": "aws-52",
+              "definition": {
+                "type": "integration",
+                "title": "Errors by function",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Errors by function",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.lambda.errors.sum{$account,$region} by {functionname}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 5,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "aws-53",
+              "definition": {
+                "type": "integration",
+                "title": "Throttles",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Throttles",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.lambda.throttles.sum{$account,$region} by {functionname}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "warm",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 11,
+                "w": 4,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 72,
+          "w": 12,
+          "h": 18
+        }
+      },
+      {
+        "id": "aws-62",
+        "definition": {
+          "type": "group",
+          "title": "S3",
+          "color": "orange",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "aws-55",
+              "definition": {
+                "type": "note",
+                "content": "Buckets: size and objects (daily storage metrics) and requests (with request metrics enabled on the bucket).",
+                "background": "yellow",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "aws-56",
+              "definition": {
+                "type": "integration",
+                "title": "Storage",
+                "original": {
+                  "type": "query_value",
+                  "title": "Storage",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.s3.bucket_size_bytes{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-57",
+              "definition": {
+                "type": "integration",
+                "title": "Objects",
+                "original": {
+                  "type": "query_value",
+                  "title": "Objects",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.s3.number_of_objects{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-58",
+              "definition": {
+                "type": "integration",
+                "title": "Requests",
+                "original": {
+                  "type": "query_value",
+                  "title": "Requests",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.s3.all_requests.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-59",
+              "definition": {
+                "type": "integration",
+                "title": "4xx errors",
+                "original": {
+                  "type": "query_value",
+                  "title": "4xx errors",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.s3.4xx_errors.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-60",
+              "definition": {
+                "type": "integration",
+                "title": "Storage by bucket",
+                "original": {
+                  "type": "toplist",
+                  "title": "Storage by bucket",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.s3.bucket_size_bytes{$account,$region} by {bucketname}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "aws-61",
+              "definition": {
+                "type": "integration",
+                "title": "Objects by bucket",
+                "original": {
+                  "type": "treemap",
+                  "title": "Objects by bucket",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.s3.number_of_objects{$account,$region} by {bucketname}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 90,
+          "w": 12,
+          "h": 14
+        }
+      },
+      {
+        "id": "aws-71",
+        "definition": {
+          "type": "group",
+          "title": "EBS",
+          "color": "orange",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "aws-63",
+              "definition": {
+                "type": "note",
+                "content": "Volumes: operations, throughput, queue length and burst credits.",
+                "background": "yellow",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "aws-64",
+              "definition": {
+                "type": "integration",
+                "title": "Volumes",
+                "original": {
+                  "type": "query_value",
+                  "title": "Volumes",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.ebs.volume_queue_length{$account,$region} by {volumeid}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "count_nonzero(query1)"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-65",
+              "definition": {
+                "type": "integration",
+                "title": "Avg burst balance",
+                "original": {
+                  "type": "query_value",
+                  "title": "Avg burst balance",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.ebs.burst_balance{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-66",
+              "definition": {
+                "type": "integration",
+                "title": "Avg queue length",
+                "original": {
+                  "type": "query_value",
+                  "title": "Avg queue length",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.ebs.volume_queue_length{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 2
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-67",
+              "definition": {
+                "type": "integration",
+                "title": "Idle time",
+                "original": {
+                  "type": "query_value",
+                  "title": "Idle time",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.ebs.volume_idle_time.sum{$account,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "aws-68",
+              "definition": {
+                "type": "integration",
+                "title": "Operations",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Operations",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.ebs.volume_read_ops.sum{$account,$region}",
+                          "aggregator": "sum"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:aws.ebs.volume_write_ops.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1",
+                          "alias": "reads"
+                        },
+                        {
+                          "formula": "query2",
+                          "alias": "writes"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "aws-69",
+              "definition": {
+                "type": "integration",
+                "title": "Throughput",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Throughput",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:aws.ebs.volume_read_bytes.sum{$account,$region}",
+                          "aggregator": "sum"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:aws.ebs.volume_write_bytes.sum{$account,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1",
+                          "alias": "read"
+                        },
+                        {
+                          "formula": "query2",
+                          "alias": "written"
+                        }
+                      ],
+                      "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "aws-70",
+              "definition": {
+                "type": "integration",
+                "title": "Longest queues",
+                "original": {
+                  "type": "toplist",
+                  "title": "Longest queues",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:aws.ebs.volume_queue_length{$account,$region} by {volumeid}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "orange"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 11,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 104,
+          "w": 12,
+          "h": 18
+        }
+      }
+    ],
+    "source": {
+      "repository": "observecraft",
+      "path": "scripts/cloud-dashboards.mjs",
+      "license": "MIT"
+    }
+  }
+]

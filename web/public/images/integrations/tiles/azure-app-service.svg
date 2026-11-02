@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" preserveAspectRatio="xMidYMid meet" role="img">
+  <!-- ObserveCraft artwork. -->
+  <rect width="320" height="220" fill="#ffffff"/>
+  <g transform="translate(104 36) scale(1.12)"><circle cx="50" cy="50" r="40" fill="#0078D4"/><g fill="none" stroke="#83B9F9" stroke-width="3.5"><ellipse cx="50" cy="50" rx="17" ry="40"/><path d="M10 50h80M16 30h68M16 70h68"/></g><circle cx="74" cy="74" r="14" fill="#50E6FF"/><path d="M68 74l4 4 8-9" fill="none" stroke="#004E8C" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <text x="160" y="198" text-anchor="middle" fill="#3c4043" font-family="Noto Sans, -apple-system, Segoe UI, sans-serif" font-size="21">App Service</text>
+</svg>

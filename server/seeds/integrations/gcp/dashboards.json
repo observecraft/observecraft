@@ -1,0 +1,1646 @@
+[
+  {
+    "id": "gcp-overview",
+    "title": "Google Cloud Overview",
+    "description": "The Google Cloud services ObserveCraft collects from Cloud Monitoring: Compute Engine, Cloud SQL, Kubernetes Engine, Cloud Run, Cloud Functions and load balancing.",
+    "kind": "integration",
+    "logo": "gcp",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [
+      {
+        "name": "project",
+        "prefix": "project_id",
+        "default": "*"
+      },
+      {
+        "name": "zone",
+        "prefix": "zone",
+        "default": "*"
+      },
+      {
+        "name": "region",
+        "prefix": "region",
+        "default": "*"
+      }
+    ],
+    "widgets": [
+      {
+        "id": "gcp-8",
+        "definition": {
+          "type": "group",
+          "title": "Google Cloud Overview",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "gcp-8-banner",
+              "definition": {
+                "type": "image",
+                "title": "Gcp",
+                "src": "/images/integrations/gcp-banner.svg"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
+            {
+              "id": "gcp-1",
+              "definition": {
+                "type": "note",
+                "content": "A starting point for the Google Cloud services ObserveCraft collects from Cloud Monitoring. Add service accounts in [Integrations → Google Cloud](/integrations/gcp); every chart filters by project.",
+                "background": "blue",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 12,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-2",
+              "definition": {
+                "type": "image",
+                "title": "Compute Engine",
+                "src": "/images/integrations/tiles/gcp-gce.svg"
+              },
+              "layout": {
+                "x": 0,
+                "y": 8,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "gcp-3",
+              "definition": {
+                "type": "image",
+                "title": "Cloud SQL",
+                "src": "/images/integrations/tiles/gcp-cloudsql.svg"
+              },
+              "layout": {
+                "x": 4,
+                "y": 8,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "gcp-4",
+              "definition": {
+                "type": "image",
+                "title": "Kubernetes Engine",
+                "src": "/images/integrations/tiles/gcp-gke.svg"
+              },
+              "layout": {
+                "x": 8,
+                "y": 8,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "gcp-5",
+              "definition": {
+                "type": "image",
+                "title": "Cloud Run",
+                "src": "/images/integrations/tiles/gcp-run.svg"
+              },
+              "layout": {
+                "x": 0,
+                "y": 12,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "gcp-6",
+              "definition": {
+                "type": "image",
+                "title": "Cloud Functions",
+                "src": "/images/integrations/tiles/gcp-functions.svg"
+              },
+              "layout": {
+                "x": 4,
+                "y": 12,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "gcp-7",
+              "definition": {
+                "type": "image",
+                "title": "Cloud Load Balancing",
+                "src": "/images/integrations/tiles/gcp-lb.svg"
+              },
+              "layout": {
+                "x": 8,
+                "y": 12,
+                "w": 4,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 17
+        }
+      },
+      {
+        "id": "gcp-9",
+        "definition": {
+          "type": "monitor_summary",
+          "title": "Google Cloud monitors",
+          "query": "gcp"
+        },
+        "layout": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 10
+        }
+      },
+      {
+        "id": "gcp-10",
+        "definition": {
+          "type": "log_stream",
+          "title": "Google Cloud logs",
+          "query": "source:gcp*",
+          "limit": 50
+        },
+        "layout": {
+          "x": 6,
+          "y": 10,
+          "w": 6,
+          "h": 8
+        }
+      },
+      {
+        "id": "gcp-21",
+        "definition": {
+          "type": "group",
+          "title": "Compute Engine",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gcp-11",
+              "definition": {
+                "type": "note",
+                "content": "Instances: CPU, network and disks.",
+                "background": "purple",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "gcp-12",
+              "definition": {
+                "type": "integration",
+                "title": "Active instances",
+                "original": {
+                  "type": "query_value",
+                  "title": "Active instances",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:gcp.gce.instance.cpu.utilization{$project,$zone} by {instance_id}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "count_nonzero(query1)"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-13",
+              "definition": {
+                "type": "integration",
+                "title": "Total network in",
+                "original": {
+                  "type": "query_value",
+                  "title": "Total network in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.gce.instance.network.received_bytes_count{$project,$zone}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-14",
+              "definition": {
+                "type": "integration",
+                "title": "Total network out",
+                "original": {
+                  "type": "query_value",
+                  "title": "Total network out",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.gce.instance.network.sent_bytes_count{$project,$zone}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-15",
+              "definition": {
+                "type": "integration",
+                "title": "Avg CPU utilization",
+                "original": {
+                  "type": "query_value",
+                  "title": "Avg CPU utilization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:gcp.gce.instance.cpu.utilization{$project,$zone}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-16",
+              "definition": {
+                "type": "integration",
+                "title": "Max CPU utilization",
+                "original": {
+                  "type": "query_value",
+                  "title": "Max CPU utilization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:gcp.gce.instance.cpu.utilization{$project,$zone}",
+                          "aggregator": "max"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-17",
+              "definition": {
+                "type": "integration",
+                "title": "Disk reads",
+                "original": {
+                  "type": "query_value",
+                  "title": "Disk reads",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.gce.instance.disk.read_bytes_count{$project,$zone}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 10,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-18",
+              "definition": {
+                "type": "integration",
+                "title": "CPU utilization by zone",
+                "original": {
+                  "type": "timeseries",
+                  "title": "CPU utilization by zone",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:gcp.gce.instance.cpu.utilization{$project,$zone} by {zone}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "gcp-19",
+              "definition": {
+                "type": "integration",
+                "title": "Network I/O",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Network I/O",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.gce.instance.network.received_bytes_count{$project,$zone}",
+                          "aggregator": "sum"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:gcp.gce.instance.network.sent_bytes_count{$project,$zone}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1",
+                          "alias": "in"
+                        },
+                        {
+                          "formula": "0 - query2",
+                          "alias": "out"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 5,
+                "w": 4,
+                "h": 8
+              }
+            },
+            {
+              "id": "gcp-20",
+              "definition": {
+                "type": "integration",
+                "title": "CPU utilization (top 50)",
+                "original": {
+                  "type": "query_table",
+                  "title": "CPU utilization (top 50)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:gcp.gce.instance.cpu.utilization{$project,$zone} by {instance_id,zone}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "CPU",
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 50,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 5,
+                "w": 4,
+                "h": 8
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 18,
+          "w": 12,
+          "h": 16
+        }
+      },
+      {
+        "id": "gcp-29",
+        "definition": {
+          "type": "group",
+          "title": "Cloud SQL",
+          "color": "blue",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gcp-22",
+              "definition": {
+                "type": "note",
+                "content": "Database instances: connections, CPU, memory and disk.",
+                "background": "blue",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "gcp-23",
+              "definition": {
+                "type": "integration",
+                "title": "Connections",
+                "original": {
+                  "type": "query_value",
+                  "title": "Connections",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.cloudsql.database.network.connections{$project,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-24",
+              "definition": {
+                "type": "integration",
+                "title": "Avg CPU utilization",
+                "original": {
+                  "type": "query_value",
+                  "title": "Avg CPU utilization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:gcp.cloudsql.database.cpu.utilization{$project,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-25",
+              "definition": {
+                "type": "integration",
+                "title": "Avg memory utilization",
+                "original": {
+                  "type": "query_value",
+                  "title": "Avg memory utilization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:gcp.cloudsql.database.memory.utilization{$project,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-26",
+              "definition": {
+                "type": "integration",
+                "title": "Disk used",
+                "original": {
+                  "type": "query_value",
+                  "title": "Disk used",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.cloudsql.database.disk.bytes_used{$project,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-27",
+              "definition": {
+                "type": "integration",
+                "title": "Fullest disks",
+                "original": {
+                  "type": "toplist",
+                  "title": "Fullest disks",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:gcp.cloudsql.database.disk.utilization{$project,$region} by {database_id}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "orange"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "gcp-28",
+              "definition": {
+                "type": "integration",
+                "title": "Connections by database",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Connections by database",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:gcp.cloudsql.database.network.connections{$project,$region} by {database_id}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 34,
+          "w": 12,
+          "h": 14
+        }
+      },
+      {
+        "id": "gcp-35",
+        "definition": {
+          "type": "group",
+          "title": "Kubernetes Engine",
+          "color": "green",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gcp-30",
+              "definition": {
+                "type": "note",
+                "content": "Clusters: node utilization of allocatable resources, container memory and restarts.",
+                "background": "green",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "gcp-31",
+              "definition": {
+                "type": "integration",
+                "title": "Node CPU allocatable utilization",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Node CPU allocatable utilization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:gcp.gke.node.cpu.allocatable_utilization{$project} by {cluster_name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "green",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "gcp-32",
+              "definition": {
+                "type": "integration",
+                "title": "Node memory allocatable utilization",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Node memory allocatable utilization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:gcp.gke.node.memory.allocatable_utilization{$project} by {cluster_name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "green",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "gcp-33",
+              "definition": {
+                "type": "integration",
+                "title": "Memory-intensive containers",
+                "original": {
+                  "type": "toplist",
+                  "title": "Memory-intensive containers",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:gcp.gke.container.memory.used_bytes{$project} by {cluster_name,namespace_name,container_name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 8,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "gcp-34",
+              "definition": {
+                "type": "integration",
+                "title": "Container restarts",
+                "original": {
+                  "type": "toplist",
+                  "title": "Container restarts",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.gke.container.restart_count{$project} by {cluster_name,namespace_name,container_name}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "sort": {
+                        "count": 10,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      },
+                      "style": {
+                        "palette": "orange"
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 8,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 48,
+          "w": 12,
+          "h": 17
+        }
+      },
+      {
+        "id": "gcp-43",
+        "definition": {
+          "type": "group",
+          "title": "Cloud Run and Cloud Functions",
+          "color": "purple",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gcp-36",
+              "definition": {
+                "type": "note",
+                "content": "Serverless: requests and instances of Cloud Run services, executions of functions.",
+                "background": "purple",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "gcp-37",
+              "definition": {
+                "type": "integration",
+                "title": "Cloud Run requests",
+                "original": {
+                  "type": "query_value",
+                  "title": "Cloud Run requests",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.run.request_count{$project}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-38",
+              "definition": {
+                "type": "integration",
+                "title": "Cloud Run 5xx",
+                "original": {
+                  "type": "query_value",
+                  "title": "Cloud Run 5xx",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.run.request_count{$project,response_code_class:5xx}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 3,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-39",
+              "definition": {
+                "type": "integration",
+                "title": "Function executions",
+                "original": {
+                  "type": "query_value",
+                  "title": "Function executions",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.cloudfunctions.function.execution_count{$project}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-40",
+              "definition": {
+                "type": "integration",
+                "title": "Function errors",
+                "original": {
+                  "type": "query_value",
+                  "title": "Function errors",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.cloudfunctions.function.execution_count{$project,!status:ok}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 9,
+                "y": 2,
+                "w": 3,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-41",
+              "definition": {
+                "type": "integration",
+                "title": "Requests by service",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Requests by service",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.run.request_count{$project} by {service_name}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "gcp-42",
+              "definition": {
+                "type": "integration",
+                "title": "Executions by function",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Executions by function",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.cloudfunctions.function.execution_count{$project} by {function_name}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "purple",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 5,
+                "w": 6,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 65,
+          "w": 12,
+          "h": 14
+        }
+      },
+      {
+        "id": "gcp-49",
+        "definition": {
+          "type": "group",
+          "title": "Load Balancers",
+          "color": "orange",
+          "light": true,
+          "compact": false,
+          "widgets": [
+            {
+              "id": "gcp-44",
+              "definition": {
+                "type": "note",
+                "content": "External HTTP(S) load balancers: requests and bytes.",
+                "background": "yellow",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "gcp-45",
+              "definition": {
+                "type": "integration",
+                "title": "Requests",
+                "original": {
+                  "type": "query_value",
+                  "title": "Requests",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.loadbalancing.https.request_count{$project}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 4,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-46",
+              "definition": {
+                "type": "integration",
+                "title": "Bytes received",
+                "original": {
+                  "type": "query_value",
+                  "title": "Bytes received",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.loadbalancing.https.request_bytes_count{$project}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 4,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-47",
+              "definition": {
+                "type": "integration",
+                "title": "Bytes sent",
+                "original": {
+                  "type": "query_value",
+                  "title": "Bytes sent",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.loadbalancing.https.response_bytes_count{$project}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 8,
+                "w": 4,
+                "h": 3
+              }
+            },
+            {
+              "id": "gcp-48",
+              "definition": {
+                "type": "integration",
+                "title": "Requests by URL map",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Requests by URL map",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:gcp.loadbalancing.https.request_count{$project} by {url_map_name}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "orange",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 2,
+                "w": 8,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 79,
+          "w": 12,
+          "h": 14
+        }
+      }
+    ],
+    "source": {
+      "repository": "observecraft",
+      "path": "scripts/cloud-dashboards.mjs",
+      "license": "MIT"
+    }
+  }
+]
