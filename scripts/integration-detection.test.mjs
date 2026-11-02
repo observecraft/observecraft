@@ -25,3 +25,13 @@ test('generic application metrics and similar product names do not provide evide
 test('histogram statistic names match their declared metric', () => {
   assert.equal(hasReportedMetrics('custom', [{ name: 'custom.duration' }], new Set(['custom.duration.p95'])), true);
 });
+
+test('AWS services are detected by the Datadog prefix of their CloudWatch namespace', async () => {
+  const { awsMetricPrefix } = await import('../web/src/api/integrations/detection.ts');
+  assert.equal(awsMetricPrefix('AWS/EC2'), 'aws.ec2.');
+  assert.equal(awsMetricPrefix('AWS/ApplicationELB'), 'aws.applicationelb.');
+  assert.equal(awsMetricPrefix('AWS/RDS/Proxy'), 'aws.rds_proxy.');
+  assert.equal(awsMetricPrefix('/aws/sagemaker/Endpoints'), 'aws.sagemaker_endpoints.');
+  assert.equal(hasReportedMetrics('aws-ec2', [], new Set(['aws.ec2.cpuutilization']), [awsMetricPrefix('AWS/EC2')]), true);
+  assert.equal(hasReportedMetrics('aws-ec2', [], new Set(['aws.ecs.cpuutilization']), [awsMetricPrefix('AWS/EC2')]), false);
+});

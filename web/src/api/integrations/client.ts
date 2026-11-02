@@ -17,7 +17,7 @@ export async function searchCatalog(req: CatalogRequest): Promise<CatalogRespons
     .catalogMetadata()
     .map((entry): IntegrationSummary => ({
       ...entry,
-      status: hasReportedMetrics(entry.id, mock.integrationMetadata(entry.id).metrics, names) ? 'detected' : 'available',
+      status: hasReportedMetrics(entry.id, mock.integrationMetadata(entry.id).metrics, names, mock.catalogPrefixes(entry.id)) ? 'detected' : 'available',
     }))
     .filter((s) => req.status === 'all' || s.status === req.status)
     .filter((s) => !req.category || s.categories.includes(req.category))
@@ -28,10 +28,13 @@ export async function searchCatalog(req: CatalogRequest): Promise<CatalogRespons
 
 export const listCategories = mock.listCategories;
 
+/** Static documentation bundled with the UI (integrations-core), the same in mock and live mode. */
+export { loadIntegrationDocs } from './catalog';
+
 export async function getIntegration(id: string): Promise<IntegrationDetail> {
   if (API_MODE === 'mock') return mock.getIntegration(id);
   const detail = mock.integrationMetadata(id);
-  return { ...detail, status: hasReportedMetrics(id, detail.metrics, await reportedMetrics()) ? 'detected' : 'available' };
+  return { ...detail, status: hasReportedMetrics(id, detail.metrics, await reportedMetrics(), mock.catalogPrefixes(id)) ? 'detected' : 'available' };
 }
 
 export function installIntegration(id: string): Promise<IntegrationDetail> {

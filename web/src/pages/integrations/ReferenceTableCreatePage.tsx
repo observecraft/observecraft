@@ -1,25 +1,12 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, FileText, Info, Table2, TriangleAlert } from 'lucide-react';
+import { ChevronRight, FileText, Info, Table2, TriangleAlert } from 'lucide-react';
 import { checkFile, checkName, MAX_DESCRIPTION_CHARS, MAX_NAME_CHARS } from '../../api/referenceTables/file';
 import { useReferenceTableMutations } from './queries';
 import { CsvDropzone, CsvPreview, useCsvFile } from './ReferenceTableUpload';
+import { Step } from './Step';
 import '../settings/settings.css';
 import './integrations.css';
-
-/** One collapsible step of the form. */
-function Step({ n, title, open, onToggle, done, children }: { n: number; title: string; open: boolean; onToggle: () => void; done?: boolean; children: ReactNode }) {
-  return (
-    <section className={`rt-step${open ? ' open' : ''}${done ? ' done' : ''}`}>
-      <button type="button" className="rt-step-head" onClick={onToggle}>
-        <span className="rt-step-num">{n}</span>
-        {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-        {title}
-      </button>
-      {open && <div className="rt-step-body">{children}</div>}
-    </section>
-  );
-}
 
 /** Integrations → Reference Tables → New: data source, table metadata, then the preview and primary key. */
 export function ReferenceTableCreatePage() {

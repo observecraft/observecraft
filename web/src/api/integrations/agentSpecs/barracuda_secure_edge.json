@@ -1,0 +1,1 @@
+{"name":"barracuda_secure_edge.yaml","options":[{"name":"logs","description":"Logs configuration specifying the log sources the integration collects","required":true}]}
