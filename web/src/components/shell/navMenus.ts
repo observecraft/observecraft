@@ -632,7 +632,7 @@ export const NAV_FOOTER: NavItem[] = [
     icon: Puzzle,
     menu: [
       group('Integrations', '/integrations'),
-      group('Marketplace', '/integrations/marketplace'),
+      group('Community', '/integrations/community'),
       group('Reference Tables', '/integrations/reference-tables'),
       group('Source Code Integration', '/integrations/source-code'),
       group('Fleet Automation', '/fleet', [

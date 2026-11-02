@@ -113,7 +113,7 @@ const REFERENCE = {
     'Observability Pipelines = Volume Control Packs, +New Pipeline',
     'Sensitive Data Scanner',
   ],
-  Integrations: ['Integrations', 'Marketplace', 'Reference Tables', 'Source Code Integration', 'Fleet Automation = Fleet View, +Install Agents, Configuration!NEW, Upgrades', 'IDE Plugins'],
+  Integrations: ['Integrations', 'Community', 'Reference Tables', 'Source Code Integration', 'Fleet Automation = Fleet View, +Install Agents, Configuration!NEW, Upgrades', 'IDE Plugins'],
 };
 
 const link = (l) => `${l.plus ? '+' : ''}${l.label}${l.isNew ? '!NEW' : ''}${l.isPreview ? '!PREVIEW' : ''}`;

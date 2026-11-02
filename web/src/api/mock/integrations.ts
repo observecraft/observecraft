@@ -2,20 +2,10 @@
 // Each catalog entry declares HOW it is collected; config files, metric lists and hosts are
 // derived from that, so the Configure tab shows the collector config "Install" would apply.
 // Generated configs are templates — verify field names against the pinned collector version.
-import type {
-  CatalogRequest,
-  CatalogResponse,
-  CollectedMetric,
-  CollectorConfig,
-  IntegrationDetail,
-  IntegrationHost,
-  IntegrationStatus,
-  IntegrationSummary,
-  MarketplaceApp,
-  MarketplaceRequest,
-} from '../integrations/types';
+import type { CatalogRequest, CatalogResponse, CollectedMetric, CollectorConfig, IntegrationDetail, IntegrationHost, IntegrationStatus, IntegrationSummary } from '../integrations/types';
 import { rng } from './generator';
 import { coreCatalog, type CoreIntegration } from '../integrations/catalog';
+import { filterCatalog } from '../integrations/catalogFilter';
 import { linkCore } from '../integrations/coreLink';
 import { awsMetricPrefix } from '../integrations/detection';
 import awsCatalog from '../../../../server/seeds/aws_integration.json';
@@ -964,6 +954,7 @@ function summary(e: Entry): IntegrationSummary {
     categories: e.categories,
     description: e.core?.description || `Monitor the health and performance of ${e.name}.`,
     warning: status === 'warning' ? e.warning : undefined,
+    repository: e.core?.repository,
   };
 }
 
@@ -1189,13 +1180,7 @@ function find(id: string): Entry {
 // ---------------------------------------------------------------- endpoints
 
 export function searchCatalog(req: CatalogRequest): Promise<CatalogResponse> {
-  const q = req.query.trim().toLowerCase();
-  const integrations = CATALOG.map(summary)
-    .filter((s) => (req.status === 'all' ? true : req.status === 'installed' ? s.status === 'installed' || s.status === 'warning' : s.status === req.status))
-    .filter((s) => !req.category || s.categories.includes(req.category))
-    .filter((s) => !q || s.name.toLowerCase().includes(q) || s.categories.some((c) => c.toLowerCase().includes(q)))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  return delay({ integrations });
+  return delay({ integrations: filterCatalog(CATALOG.map(summary), req) });
 }
 
 export function getIntegration(id: string): Promise<IntegrationDetail> {
@@ -1211,192 +1196,6 @@ export function uninstallIntegration(id: string): Promise<IntegrationDetail> {
   const e = find(id);
   statusOverride.set(id, e.status === 'detected' ? 'detected' : 'available');
   return delay(detail(e), 300);
-}
-
-// ---------------------------------------------------------------- marketplace
-
-const APPS: MarketplaceApp[] = [
-  {
-    id: 'airtable',
-    name: 'Airtable',
-    partner: 'Northwind Labs',
-    logo: 'airtable',
-    offering: 'Integration',
-    categories: ['Collaboration'],
-    description: 'Base activity, automation runs and API usage.',
-  },
-  {
-    id: 'threatstream',
-    name: 'Threat Intel Stream',
-    partner: 'Northwind Labs',
-    logo: 'tile:threatstream',
-    offering: 'Integration',
-    categories: ['Security'],
-    description: 'Enrich security signals with threat intelligence indicators.',
-  },
-  {
-    id: 'ansible-aap',
-    name: 'Ansible Automation Platform',
-    partner: 'Bluepeak Data',
-    logo: 'ansible',
-    offering: 'Integration',
-    categories: ['Automation', 'Configuration & Deployment'],
-    description: 'Job runs, inventories and host failures from AAP.',
-  },
-  {
-    id: 'iotdb',
-    name: 'Apache IoTDB',
-    partner: 'Bluepeak Data',
-    logo: 'tile:iotdb',
-    offering: 'Integration',
-    categories: ['Data Stores'],
-    description: 'Time-series storage engine health and ingestion rate.',
-  },
-  {
-    id: 'saas-posture',
-    name: 'SaaS Posture Guard',
-    partner: 'Cobalt Systems',
-    logo: 'tile:posture',
-    offering: 'Software License',
-    categories: ['Security'],
-    description: 'SaaS security posture findings as ObserveCraft events.',
-  },
-  {
-    id: 'asset-inventory',
-    name: 'Asset Inventory',
-    partner: 'Northwind Labs',
-    logo: 'tile:inventory',
-    offering: 'Integration',
-    categories: ['Security', 'Network'],
-    description: 'Device inventory and risk scores.',
-  },
-  {
-    id: 'bamboo',
-    name: 'Atlassian Bamboo',
-    partner: 'Bluepeak Data',
-    logo: 'bamboo',
-    offering: 'Integration',
-    categories: ['Developer Tools', 'Testing'],
-    description: 'Build plans, durations and failure rates.',
-  },
-  {
-    id: 'atomwatch',
-    name: 'AtomWatch',
-    partner: 'Atomwise Ltd',
-    logo: 'tile:atomwatch',
-    offering: 'Software License',
-    categories: ['Testing'],
-    description: 'Synthetic transaction monitoring for legacy apps.',
-  },
-  {
-    id: 'automic',
-    name: 'Workload Automation',
-    partner: 'Bluepeak Data',
-    logo: 'tile:automic',
-    offering: 'Integration',
-    categories: ['Automation'],
-    description: 'Job scheduling health and SLA breaches.',
-  },
-  {
-    id: 'automox',
-    name: 'Automox',
-    partner: 'Northwind Labs',
-    logo: 'tile:automox',
-    offering: 'Integration',
-    categories: ['OS & System', 'Security'],
-    description: 'Patch compliance across endpoints.',
-  },
-  {
-    id: 'avd',
-    name: 'Azure Virtual Desktop',
-    partner: 'Bluepeak Data',
-    logo: 'tile:avd',
-    offering: 'Integration',
-    categories: ['Azure'],
-    description: 'Session hosts, connection quality and user sessions.',
-  },
-  {
-    id: 'backup-automator',
-    name: 'Backup Automator',
-    partner: 'Bluepeak Data',
-    logo: 'tile:backup',
-    offering: 'Software License',
-    categories: ['Automation'],
-    description: 'Back up dashboards, monitors and pipelines on a schedule.',
-  },
-  {
-    id: 'barracuda-waf',
-    name: 'Barracuda WAF',
-    partner: 'Northwind Labs',
-    logo: 'tile:waf',
-    offering: 'Integration',
-    categories: ['Security', 'Network'],
-    description: 'Web application firewall events and blocked requests.',
-  },
-  { id: 'box', name: 'Box', partner: 'Bluepeak Data', logo: 'box', offering: 'Integration', categories: ['Collaboration', 'Security'], description: 'Admin events and file activity audit logs.' },
-  {
-    id: 'circleci-insights',
-    name: 'CircleCI Insights',
-    partner: 'Cobalt Systems',
-    logo: 'circleci',
-    offering: 'Integration',
-    categories: ['Developer Tools', 'Testing'],
-    description: 'Workflow durations, flaky tests and credits used.',
-  },
-  {
-    id: 'onboarding',
-    name: 'Observability Onboarding',
-    partner: 'Lumen Partners',
-    logo: 'tile:onboarding',
-    offering: 'Professional Services',
-    categories: ['Automation'],
-    description: 'Two-week guided rollout of collectors, dashboards and monitors.',
-  },
-  {
-    id: 'snowflake-cost',
-    name: 'Snowflake Cost Explorer',
-    partner: 'Cobalt Systems',
-    logo: 'snowflake',
-    offering: 'Software License',
-    categories: ['Cost Management', 'Data Stores'],
-    description: 'Warehouse credit usage broken down by team.',
-  },
-  {
-    id: 'zoom-rooms',
-    name: 'Zoom Rooms',
-    partner: 'Northwind Labs',
-    logo: 'zoom',
-    offering: 'Integration',
-    categories: ['Collaboration'],
-    description: 'Room health, meeting quality and device status.',
-  },
-  {
-    id: 'twilio-flex',
-    name: 'Twilio Flex',
-    partner: 'Bluepeak Data',
-    logo: 'twilio',
-    offering: 'Integration',
-    categories: ['Collaboration'],
-    description: 'Contact-center queues, wait times and agent activity.',
-  },
-  {
-    id: 'migration',
-    name: 'Monitoring Migration',
-    partner: 'Lumen Partners',
-    logo: 'tile:migration',
-    offering: 'Professional Services',
-    categories: ['Configuration & Deployment'],
-    description: 'Migrate dashboards and alerts from your previous tool.',
-  },
-];
-
-export function searchMarketplace(req: MarketplaceRequest): Promise<MarketplaceApp[]> {
-  const q = req.query.trim().toLowerCase();
-  return delay(
-    APPS.filter((a) => !req.category || a.categories.includes(req.category))
-      .filter((a) => !q || `${a.name} ${a.partner}`.toLowerCase().includes(q))
-      .sort((a, b) => a.name.localeCompare(b.name)),
-  );
 }
 
 /** Static catalog metadata, without the demo installation state or generated hosts. */

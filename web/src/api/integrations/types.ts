@@ -1,6 +1,7 @@
 // Integrations wire contract. An integration is a packaged collector configuration
 // (OpenTelemetry receiver and/or Vector source) plus the metadata, dashboards and
 // monitors that come with it. Live collection is configured on externally managed collectors.
+import type { Repository } from './catalog';
 
 export type IntegrationStatus = 'detected' | 'installed' | 'warning' | 'available';
 
@@ -15,12 +16,16 @@ export interface IntegrationSummary {
   description: string;
   /** Present when status is "warning": what needs fixing. */
   warning?: string;
+  /** The integrations repository it is imported from; absent for our own entries (OpenTelemetry, clouds). */
+  repository?: Repository;
 }
 
 export interface CatalogRequest {
   query: string;
   status: IntegrationStatus | 'all';
   category: string | null;
+  /** Only the integrations of this repository (Integrations → Community: integrations-extras). */
+  repository?: Repository;
 }
 
 /** The catalog is bounded (hundreds of entries), so search returns every match without paging. */
@@ -74,21 +79,4 @@ export interface IntegrationDetail extends IntegrationSummary {
   coreId?: string;
   /** The page that configures it (cloud integrations: the AWS page). */
   configureUrl?: string;
-}
-
-export type AppOffering = 'Integration' | 'Software License' | 'Professional Services';
-
-export interface MarketplaceApp {
-  id: string;
-  name: string;
-  partner: string;
-  logo: string;
-  offering: AppOffering;
-  categories: string[];
-  description: string;
-}
-
-export interface MarketplaceRequest {
-  query: string;
-  category: string | null;
 }

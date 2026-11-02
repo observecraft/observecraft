@@ -715,12 +715,12 @@
   padding-left: 20px;
 }
 
-/* ---------- Marketplace ---------- */
-.mp-page {
+/* ---------- Community ---------- */
+.cm-page {
   padding-top: 0;
 }
 
-.mp-hero {
+.cm-hero {
   position: relative;
   display: flex;
   align-items: center;
@@ -731,25 +731,25 @@
   background: linear-gradient(90deg, var(--bg) 35%, var(--hero-tint) 100%);
 }
 
-.mp-hero > div {
+.cm-hero > div {
   position: relative;
   z-index: 1;
   max-width: min(520px, 46%);
 }
 
-.mp-hero h1 {
+.cm-hero h1 {
   margin: 0 0 14px;
   font-size: 32px;
   font-weight: var(--fw-regular);
 }
 
-.mp-hero p {
+.cm-hero p {
   margin: 0;
   font-size: 16px;
   color: var(--text-muted);
 }
 
-.mp-art {
+.cm-art {
   position: absolute;
   right: 0;
   top: 0;
@@ -757,21 +757,16 @@
   width: 44%;
 }
 
-.mp-card {
-  border-top-width: 1px;
-}
-
-.mp-offering {
-  margin-top: 10px;
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  background: var(--primary-subtle);
-  color: var(--badge-info-fg);
-  font-size: var(--fs-md);
-}
-
-.mp-modal .im-text {
-  padding: 4px 24px 24px 90px;
+.cm-contribute {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 16px;
+  text-align: center;
 }
 
 /* ---------- Reference tables ---------- */

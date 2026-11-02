@@ -3,7 +3,7 @@ import './integrations.css';
 
 const TABS = [
   { to: '/integrations', label: 'Integration Catalog', end: true },
-  { to: '/integrations/marketplace', label: 'Marketplace' },
+  { to: '/integrations/community', label: 'Community' },
   { to: '/integrations/reference-tables', label: 'Reference Tables' },
   { to: '/integrations/source-code', label: 'Link Source Code' },
 ];
