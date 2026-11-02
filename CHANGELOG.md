@@ -1,5 +1,58 @@
 # Changelog
 
+## [0.9.0](https://github.com/observecraft/observecraft/compare/v0.8.0...v0.9.0) (2026-11-02)
+
+
+### Features
+
+* **dashboards:** AWS, Azure and Google Cloud overview and per-service dashboards ([c75c831](https://github.com/observecraft/observecraft/commit/c75c831910de0dcc830c8bc5f881c1a7055eb5cb))
+* **dashboards:** every integrations-core dashboard, installed when its integration reports ([f2430a4](https://github.com/observecraft/observecraft/commit/f2430a4f0466a4b079309c9b395c0420fb45ebb5))
+* **dashboards:** sunburst widgets as donuts with rings per group, total and legend ([daf1f36](https://github.com/observecraft/observecraft/commit/daf1f36aff41c77748ce2657c8ae70017f8418ca))
+* **errors:** track errors as Datadog's Error Tracking does ([4d2a0ad](https://github.com/observecraft/observecraft/commit/4d2a0adf6c6e9747114247f16eeec096a8070436))
+* **integrations:** AWS, Azure and Google Cloud integrations with their metric crawlers ([d8e3eaf](https://github.com/observecraft/observecraft/commit/d8e3eaf0a0a59b84691151cb638db2fbf7f2911d))
+* **integrations:** Community tab with integrations-extras in place of the marketplace ([f85ea8f](https://github.com/observecraft/observecraft/commit/f85ea8f6a5b099a340d2b2caad68ddeeb1c7b75b))
+* **integrations:** integrations-core catalog, original logos and integration details ([d343bad](https://github.com/observecraft/observecraft/commit/d343bad7795ebca8743394090510e19e49bc8d10))
+* **integrations:** integrations-extras community checks and log integrations, Traefik shown as Traefik ([cd64ed3](https://github.com/observecraft/observecraft/commit/cd64ed333bacaa17cc60e37272e90da683b279fa))
+* **kubernetes:** Kubernetes integration, autoscaling, remediation and live rollouts ([a46c54e](https://github.com/observecraft/observecraft/commit/a46c54eba57df4f317719708a97ea0e04647b549))
+* **logs:** grok rubyhash filter ([f4e559b](https://github.com/observecraft/observecraft/commit/f4e559b4c55f5d171d68952c11a09caefb513b66))
+* **network:** add shared grouping icons and service map logos ([#70](https://github.com/observecraft/observecraft/issues/70)) ([06a849e](https://github.com/observecraft/observecraft/commit/06a849e00f640b4115c3b879f316e1e1a60899b3))
+* **on-call:** empty states, policy dialog and page review analytics ([b1312d2](https://github.com/observecraft/observecraft/commit/b1312d2d4076e552d009b783a26a063cc6b66288))
+* **web:** product intro pages for products without data ([6319cb0](https://github.com/observecraft/observecraft/commit/6319cb0ddbb83d2fb6ac7647c58b76cd9fa2fecb))
+
+
+### Bug fixes
+
+* **apm:** keep long resources inside the attention cards ([bff4981](https://github.com/observecraft/observecraft/commit/bff4981e0cfe61dac9e6d68d86a860e57276a093))
+* **cloud-cost:** escape service names in the waterfall tooltip ([7879b29](https://github.com/observecraft/observecraft/commit/7879b29647667007f932c9538ef7c0c263911000))
+* **integrations:** CodeQL findings in SVG sanitizing, README comments, entity decoding and the AWS forwarder link ([373cba8](https://github.com/observecraft/observecraft/commit/373cba80cea9d2626a3dc0681e39a595f952948c))
+* **integrations:** each SVG sanitizer removal repeats on its own until stable ([c2f6fe1](https://github.com/observecraft/observecraft/commit/c2f6fe1ac3709a61c366b009594c246a21b30aff))
+* **integrations:** SVG sanitizer loops written inline, one replacement per statement ([79a0021](https://github.com/observecraft/observecraft/commit/79a002135449bd0337ab3fc78d6661d8118c4a29))
+* **logs:** integration pipelines from every integrations-core integration compile ([6dae575](https://github.com/observecraft/observecraft/commit/6dae575d0d69eb42eaafac6634bdad04488e9ca5))
+* **logs:** read the level of lines that pad it ([8a087df](https://github.com/observecraft/observecraft/commit/8a087dfa4bc3664e278af36055568194e67d1518))
+
+
+### Performance
+
+* **dashboards:** reduce one-value widgets on the server and send series compactly ([ac1833d](https://github.com/observecraft/observecraft/commit/ac1833d08ee673873d366336baa7eda820daf506))
+
+
+### Documentation
+
+* add maintainer sponsorship links ([a733322](https://github.com/observecraft/observecraft/commit/a73332269ecadd2bb698513776b3f2517516e300))
+* integrations-extras notes ([1d6af82](https://github.com/observecraft/observecraft/commit/1d6af8229107efd960dceeecb1db0a4da3e06a98))
+* integrations, cloud and Kubernetes notes for agents and the README ([9fdf939](https://github.com/observecraft/observecraft/commit/9fdf9397ed34c6dcc306d37642321c4a3a9e4d20))
+* **integrations:** guide to installing and building integrations, linked from Community ([7707001](https://github.com/observecraft/observecraft/commit/7707001d086aafb362b015742bae322847849774))
+* refresh README screenshots with current UI ([5e8cfd3](https://github.com/observecraft/observecraft/commit/5e8cfd3a27f1a497596183383b0c1d07d740d83d))
+
+
+### Dependencies
+
+* bump oras-project/setup-oras ([29f8edf](https://github.com/observecraft/observecraft/commit/29f8edf480381fc39d14fb235635d6f693bb4a6f))
+* bump rust in /server in the docker group ([c710ca3](https://github.com/observecraft/observecraft/commit/c710ca3e7ec46b134c02aa4c529470953f2cc48c))
+* bump the npm group across 1 directory with 6 updates ([e80b527](https://github.com/observecraft/observecraft/commit/e80b5273657527032b15fc261ac4365ce7a63f21))
+* React 19, react-grid-layout 2, simple-icons 16 and the other npm major updates (TypeScript stays on 5) ([43bfa17](https://github.com/observecraft/observecraft/commit/43bfa17b81d9b565ad45c71371801ac0098c2c10))
+* regenerate logos and cloud artwork for @iconify-json/logos 1.2.18 ([9549a9d](https://github.com/observecraft/observecraft/commit/9549a9d67c9420f97e937b5652db444a09de3eed))
+
 ## [0.8.0](https://github.com/observecraft/observecraft/compare/v0.7.1...v0.8.0) (2026-11-01)
 
 
