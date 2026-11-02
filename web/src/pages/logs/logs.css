@@ -1484,3 +1484,30 @@
   color: var(--primary);
   font-weight: var(--fw-semibold);
 }
+
+/* The integration pipelines library: searchable, scrolling inside the modal. */
+.pl-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 10px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+
+.pl-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.pl-library {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

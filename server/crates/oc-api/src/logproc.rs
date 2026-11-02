@@ -634,6 +634,7 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
         .route("/ingest/apm-telemetry", post(crate::routes::code_security::ingest_telemetry))
         .route("/ingest/sbom", post(crate::routes::cloud_security::ingest_sbom))
         .route("/ingest/code-scans", post(crate::routes::code_security::ingest_sarif))
+        .route("/ingest/autoscaling-recommendation", post(crate::routes::kubernetes_recommender::ingest))
         .route("/metrics", get(internal_metrics))
         .with_state(st.clone());
     let app = Router::new()
