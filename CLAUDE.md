@@ -184,6 +184,11 @@ or SDK features.
   - `PINNED_REVISION` (`scripts/import-integration-dashboards.mjs`) is the last revision with every integration: from
     2026-10-30 Datadog moves integrations to a private repository, so a newer pin drops catalog entries. Every
     importer above takes the same revision; rerun them all after changing it.
+  - [`DataDog/integrations-extras`](https://github.com/DataDog/integrations-extras) (BSD-3-Clause, pinned to
+    `EXTRAS_REVISION`, its last revision before the same move) adds the community Agent checks and the integrations
+    with log pipelines (113, `repository: 'integrations-extras'` in the catalog); every importer below takes
+    `--extras <checkout>` next to `--source`. Its partner and documentation-only listings are left out: they send
+    to Datadog itself. Traefik is integrations-core's `traefik_mesh` (moved there from extras).
   - The integration modal is integrations-core's own content: `scripts/import-integration-details.mjs --source
     <checkout>` writes `web/src/api/integrations/details/<id>.json` (README sections with Hugo shortcodes and HTML
     turned into Markdown, Dive Deeper links, metadata.csv, log facets, service checks, monitor templates, CHANGELOG),

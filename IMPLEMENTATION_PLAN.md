@@ -347,3 +347,11 @@ Status: Complete
   `server/seeds/integrations/cloud/services.ndjson.gz`, units in `service-units.csv`.
 - Not covered: AWS Budgets and Service Quotas (no metrics of their own; quotas are `AWS/Usage`), Azure Databricks
   (no platform metrics). Some AWS dimensions are inferred where the docs don't name them (noted per namespace, `doc`).
+
+## Stage 7: integrations-extras
+Goal: integrations-extras' community Agent checks and log integrations in the catalog, with their details, dashboards,
+log pipelines, units and logos.
+Success Criteria: catalog, details, dashboards and pipelines tests name extras entries (bind9, unbound, tailscale,
+logstash) credited to `DataDog/integrations-extras@EXTRAS_REVISION`; every extras pipeline compiles (grok `rubyhash`
+added for Logstash); logos for all but the brands listed in `integration-logos.test.mjs`.
+Status: Complete
