@@ -632,10 +632,10 @@ pub async fn run_action(State(st): State<AppState>, Writer(ctx): Writer, Path(id
     let status = if outcome.ok { "succeeded" } else { "failed" };
     let response = excerpt(&steps::redact(&outcome.response, &secrets), EXCERPT_CHARS);
     let error = outcome.error.map(|e| excerpt(&steps::redact(&e, &secrets), EXCERPT_CHARS));
-    let run: PortalActionRun = sqlx::query_as(&format!(
+    let run: PortalActionRun = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "INSERT INTO portal_action_runs (org_id, action_id, user_id, user_name, inputs, status, status_code, duration_ms, response_excerpt, error, link) \
          VALUES ($1, $2::uuid, (SELECT id FROM users WHERE org_id = $1 AND id::text = $3), $4, $5, $6, $7, $8, $9, $10, $11) RETURNING {RUN_COLUMNS}"
-    ))
+    )))
     .bind(&ctx.org_id)
     .bind(&row.id)
     .bind(&ctx.user_id)
@@ -658,7 +658,7 @@ pub async fn run_action(State(st): State<AppState>, Writer(ctx): Writer, Path(id
     responses((status = 200, body = Vec<PortalActionRun>), (status = 404, body = crate::error::ErrorBody)), tag = "portal")]
 pub async fn list_runs(State(st): State<AppState>, ctx: AuthContext, Path(id): Path<String>) -> ApiResult<Vec<PortalActionRun>> {
     let row = action_row(&st, &ctx.org_id, &id).await?;
-    let runs = sqlx::query_as(&format!("SELECT {RUN_COLUMNS} FROM portal_action_runs WHERE org_id = $1 AND action_id::text = $2 ORDER BY created_at DESC, id DESC LIMIT $3"))
+    let runs = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {RUN_COLUMNS} FROM portal_action_runs WHERE org_id = $1 AND action_id::text = $2 ORDER BY created_at DESC, id DESC LIMIT $3")))
         .bind(&ctx.org_id)
         .bind(&row.id)
         .bind(RUNS_LISTED)

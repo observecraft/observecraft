@@ -34,7 +34,7 @@ const KEY_SELECT: &str = "SELECT k.id::text, k.name, k.prefix, u.name AS created
 /// Every key of the organization, revoked ones included (with `revokedAt`), newest first.
 #[utoipa::path(get, path = "/api/v1/ingest-keys", operation_id = "list_ingest_keys", responses((status = 200, body = Vec<IngestKey>)), tag = "ingest")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<IngestKey>> {
-    let rows = sqlx::query_as(&format!("{KEY_SELECT} WHERE k.org_id = $1 ORDER BY k.revoked_at IS NOT NULL, k.created_at DESC"))
+    let rows = sqlx::query_as(sqlx::AssertSqlSafe(format!("{KEY_SELECT} WHERE k.org_id = $1 ORDER BY k.revoked_at IS NOT NULL, k.created_at DESC")))
         .bind(&ctx.org_id)
         .fetch_all(&st.postgres)
         .await?;
@@ -65,7 +65,7 @@ pub(crate) async fn insert(st: &AppState, org: &str, name: &str, key: &str, crea
         .bind(created_by)
         .fetch_one(&st.postgres)
         .await?;
-    Ok(sqlx::query_as(&format!("{KEY_SELECT} WHERE k.id = $1::uuid")).bind(&id).fetch_one(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{KEY_SELECT} WHERE k.id = $1::uuid"))).bind(&id).fetch_one(&st.postgres).await?)
 }
 
 #[utoipa::path(post, path = "/api/v1/ingest-keys", operation_id = "create_ingest_key", request_body = CreateIngestKey, responses((status = 200, body = CreatedIngestKey)), tag = "ingest")]

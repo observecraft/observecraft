@@ -64,7 +64,8 @@ fn team_doc(t: &TeamRow) -> Value {
 async fn find_team(st: &AppState, org: &str, id: &str) -> Result<TeamRow, DdError> {
     let not_found = || not_found(format!("Team {id} not found"));
     let id = uuid(id).ok_or_else(not_found)?;
-    let row: Option<TeamRow> = sqlx::query_as(&format!("SELECT {TEAM_COLS} FROM teams t WHERE t.org_id = $1 AND t.id = $2::uuid")).bind(org).bind(&id).fetch_optional(&st.postgres).await?;
+    let row: Option<TeamRow> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {TEAM_COLS} FROM teams t WHERE t.org_id = $1 AND t.id = $2::uuid"))).bind(org).bind(&id).fetch_optional(&st.postgres).await?;
     row.ok_or_else(not_found)
 }
 
@@ -308,16 +309,18 @@ pub async fn memberships(State(st): State<AppState>, DdAuth(ctx): DdAuth, Path(i
         "-role" => "m.role DESC, lower(u.name)",
         other => return Err(bad_request(format!("unknown sort '{other}'"))),
     };
-    let rows: Vec<MemberRow> =
-        sqlx::query_as(&format!("{} WHERE m.org_id = $1 AND m.handle = $2 AND ($3 = '' OR u.name ILIKE $4 OR u.email ILIKE $4) ORDER BY {order} LIMIT $5 OFFSET $6", member_select()))
-            .bind(&ctx.org_id)
-            .bind(&team.handle)
-            .bind(&keyword)
-            .bind(ilike(&keyword))
-            .bind(page.size)
-            .bind(page.offset())
-            .fetch_all(&st.postgres)
-            .await?;
+    let rows: Vec<MemberRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "{} WHERE m.org_id = $1 AND m.handle = $2 AND ($3 = '' OR u.name ILIKE $4 OR u.email ILIKE $4) ORDER BY {order} LIMIT $5 OFFSET $6",
+        member_select()
+    )))
+    .bind(&ctx.org_id)
+    .bind(&team.handle)
+    .bind(&keyword)
+    .bind(ilike(&keyword))
+    .bind(page.size)
+    .bind(page.offset())
+    .fetch_all(&st.postgres)
+    .await?;
     ok(memberships_page(&rows, &ctx.org_id, team.user_count, &page, &format!("/api/v2/team/{}/memberships", team.id)))
 }
 
@@ -325,8 +328,11 @@ pub async fn memberships(State(st): State<AppState>, DdAuth(ctx): DdAuth, Path(i
 #[utoipa::path(get, path = "/api/v2/users/{user_uuid}/memberships", operation_id = "datadog_get_user_memberships", params(("user_uuid" = String, Path)), responses((status = 200, body = super::users::DatadogIamDocument), (status = 404, body = super::DatadogErrors)), tag = "datadog-api")]
 pub async fn user_memberships(State(st): State<AppState>, DdAuth(ctx): DdAuth, Path(id): Path<String>) -> DocResult {
     let user = find_user(&st, &ctx.org_id, &id).await?.ok_or_else(|| not_found(format!("User {id} not found")))?;
-    let rows: Vec<MemberRow> =
-        sqlx::query_as(&format!("{} WHERE m.org_id = $1 AND m.user_id = $2::uuid ORDER BY lower(t.name)", member_select())).bind(&ctx.org_id).bind(&user.id).fetch_all(&st.postgres).await?;
+    let rows: Vec<MemberRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{} WHERE m.org_id = $1 AND m.user_id = $2::uuid ORDER BY lower(t.name)", member_select())))
+        .bind(&ctx.org_id)
+        .bind(&user.id)
+        .fetch_all(&st.postgres)
+        .await?;
     ok(json!({ "data": rows.iter().map(membership_doc).collect::<Vec<_>>() }))
 }
 
@@ -341,7 +347,7 @@ fn member_role(attrs: Option<&Value>) -> Result<&'static str, DdError> {
 }
 
 async fn membership(st: &AppState, ctx: &AuthContext, team_handle: &str, user_id: &str) -> Result<Option<MemberRow>, DdError> {
-    Ok(sqlx::query_as(&format!("{} WHERE m.org_id = $1 AND m.handle = $2 AND m.user_id = $3::uuid", member_select()))
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{} WHERE m.org_id = $1 AND m.handle = $2 AND m.user_id = $3::uuid", member_select())))
         .bind(&ctx.org_id)
         .bind(team_handle)
         .bind(user_id)

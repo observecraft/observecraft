@@ -208,7 +208,7 @@ pub fn user_doc(u: &UserRow, org: &str) -> Value {
 /// A user of the org, or None.
 pub async fn find_user(st: &AppState, org: &str, id: &str) -> Result<Option<UserRow>, DdError> {
     let Some(id) = uuid(id) else { return Ok(None) };
-    Ok(sqlx::query_as(&format!("SELECT {USER_COLS} FROM users u WHERE u.org_id = $1 AND u.id = $2::uuid")).bind(org).bind(&id).fetch_optional(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {USER_COLS} FROM users u WHERE u.org_id = $1 AND u.id = $2::uuid"))).bind(org).bind(&id).fetch_optional(&st.postgres).await?)
 }
 
 async fn user_response(st: &AppState, org: &str, id: &str) -> Result<Value, DdError> {
@@ -477,8 +477,11 @@ pub async fn send_invitations(State(st): State<AppState>, DdAuth(ctx): DdAuth, r
     for user in users {
         let url = super::super::auth::issue_link(&st, &ctx.org_id, &user.id, "invite", Some(&ctx.user_id), 72).await?;
         let token = url.rsplit('/').next().unwrap_or_default();
-        let row: InvitationRow =
-            sqlx::query_as(&format!("SELECT {INVITATION_COLS} FROM login_tokens WHERE org_id = $1 AND token_hash = $2")).bind(&ctx.org_id).bind(crypto::sha256(token)).fetch_one(&st.postgres).await?;
+        let row: InvitationRow = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {INVITATION_COLS} FROM login_tokens WHERE org_id = $1 AND token_hash = $2")))
+            .bind(&ctx.org_id)
+            .bind(crypto::sha256(token))
+            .fetch_one(&st.postgres)
+            .await?;
         ctx.audit(&st, "user.login_link_issued", &user.email, "invite (Datadog-compatible API)").await;
         data.push(invitation_doc(&row));
     }
@@ -490,11 +493,12 @@ pub async fn send_invitations(State(st): State<AppState>, DdAuth(ctx): DdAuth, r
 pub async fn get_invitation(State(st): State<AppState>, DdAuth(ctx): DdAuth, Path(id): Path<String>) -> DocResult {
     require(&ctx, Access::Admin)?;
     let prefix = invitation_hash_prefix(&id).ok_or_else(|| not_found(format!("Invitation {id} not found")))?;
-    let row: Option<InvitationRow> = sqlx::query_as(&format!("SELECT {INVITATION_COLS} FROM login_tokens WHERE org_id = $1 AND purpose = 'invite' AND substring(token_hash FROM 1 FOR 16) = $2"))
-        .bind(&ctx.org_id)
-        .bind(prefix)
-        .fetch_optional(&st.postgres)
-        .await?;
+    let row: Option<InvitationRow> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {INVITATION_COLS} FROM login_tokens WHERE org_id = $1 AND purpose = 'invite' AND substring(token_hash FROM 1 FOR 16) = $2")))
+            .bind(&ctx.org_id)
+            .bind(prefix)
+            .fetch_optional(&st.postgres)
+            .await?;
     let row = row.ok_or_else(|| not_found(format!("Invitation {id} not found")))?;
     ok(json!({ "data": invitation_doc(&row) }))
 }

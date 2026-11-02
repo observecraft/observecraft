@@ -759,7 +759,7 @@ async fn test_row(st: &AppState, org: &str, id: &str) -> Result<TestRow, ApiErro
     if !is_uuid(id) {
         return Err(not_found());
     }
-    let row: Option<TestRow> = sqlx::query_as(&format!("{} WHERE t.org_id = $1 AND t.id = $2::uuid", test_select())).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<TestRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{} WHERE t.org_id = $1 AND t.id = $2::uuid", test_select()))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.ok_or_else(not_found)
 }
 
@@ -1068,11 +1068,11 @@ async fn run_scheduled(st: &AppState, t: TestRow) {
 /// Claims up to `limit` due tests: their next slot is set and they're held while they run.
 async fn claim(st: &AppState, limit: i64) -> Result<Vec<TestRow>, ApiError> {
     let mut tx = st.postgres.begin().await?;
-    let rows: Vec<TestRow> = sqlx::query_as(&format!(
+    let rows: Vec<TestRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "{} JOIN orgs o ON o.id = t.org_id WHERE NOT t.paused AND t.next_run_at <= now() AND (t.claimed_until IS NULL OR t.claimed_until < now()) AND o.status = 'active' \
          ORDER BY t.next_run_at LIMIT $1 FOR UPDATE OF t SKIP LOCKED",
         test_select()
-    ))
+    )))
     .bind(limit)
     .fetch_all(&mut *tx)
     .await?;
@@ -1182,7 +1182,7 @@ pub async fn locations(State(st): State<AppState>, _ctx: AuthContext) -> ApiResu
     responses((status = 200, body = SyntheticTestsPage), (status = 400, body = crate::error::ErrorBody)), tag = "synthetics")]
 pub async fn search(State(st): State<AppState>, ctx: AuthContext, Json(req): Json<SyntheticTestSearchRequest>) -> ApiResult<SyntheticTestsPage> {
     req.range.validate()?;
-    let rows: Vec<TestRow> = sqlx::query_as(&format!("{} WHERE t.org_id = $1 ORDER BY lower(t.name), t.id", test_select())).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<TestRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{} WHERE t.org_id = $1 ORDER BY lower(t.name), t.id", test_select()))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     let changes = transitions(&st, &ctx.org_id, None, &req.range).await?;
     let downtimes = load_downtimes(&st, &ctx.org_id).await?;
     let now = now_ms();

@@ -171,7 +171,7 @@ pub fn check_input(input: &mut RumApplicationInput, creating: bool) -> Result<()
 }
 
 pub async fn list_apps(st: &AppState, org: &str) -> Result<Vec<RumApplication>, ApiError> {
-    let rows: Vec<AppRow> = sqlx::query_as(&format!("{APP_SELECT} WHERE a.org_id = $1 ORDER BY lower(a.name), a.id")).bind(org).fetch_all(&st.postgres).await?;
+    let rows: Vec<AppRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{APP_SELECT} WHERE a.org_id = $1 ORDER BY lower(a.name), a.id"))).bind(org).fetch_all(&st.postgres).await?;
     Ok(rows.into_iter().map(Into::into).collect())
 }
 
@@ -179,7 +179,7 @@ pub async fn find_app(st: &AppState, org: &str, id: &str) -> Result<Option<RumAp
     if !is_uuid(id) {
         return Ok(None);
     }
-    let row: Option<AppRow> = sqlx::query_as(&format!("{APP_SELECT} WHERE a.org_id = $1 AND a.id = $2::uuid")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<AppRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{APP_SELECT} WHERE a.org_id = $1 AND a.id = $2::uuid"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     Ok(row.map(Into::into))
 }
 

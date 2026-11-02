@@ -239,7 +239,7 @@ async fn load(st: &AppState, org: &str, id: &str) -> Result<Row, DdError> {
     if !valid_id(id) {
         return Err(not_found(id));
     }
-    sqlx::query_as::<_, Row>(&format!("{SELECT} WHERE c.org_id = $1 AND c.id = $2::uuid")).bind(org).bind(id).fetch_optional(&st.postgres).await?.ok_or_else(|| not_found(id))
+    sqlx::query_as::<_, Row>(sqlx::AssertSqlSafe(format!("{SELECT} WHERE c.org_id = $1 AND c.id = $2::uuid"))).bind(org).bind(id).fetch_optional(&st.postgres).await?.ok_or_else(|| not_found(id))
 }
 
 async fn store(conn: &mut sqlx::PgConnection, org: &str, id: &str, user: &str, attrs: &Map<String, Value>) -> Result<(), DdError> {
@@ -359,8 +359,12 @@ pub async fn list(State(st): State<AppState>, DdAuth(ctx): DdAuth, Query(p): Que
     let limit = p.limit.filter(|l| *l > 0).unwrap_or(25).min(1000);
     let offset = p.offset.unwrap_or(0).max(0);
     let (total,): (i64,) = sqlx::query_as("SELECT count(*) FROM slo_corrections WHERE org_id = $1").bind(&ctx.org_id).fetch_one(&st.postgres).await?;
-    let rows: Vec<Row> =
-        sqlx::query_as(&format!("{SELECT} WHERE c.org_id = $1 ORDER BY c.created_at DESC, c.id LIMIT $2 OFFSET $3")).bind(&ctx.org_id).bind(limit).bind(offset).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE c.org_id = $1 ORDER BY c.created_at DESC, c.id LIMIT $2 OFFSET $3")))
+        .bind(&ctx.org_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&st.postgres)
+        .await?;
     let meta = json!({ "page": { "total_count": total, "total_filtered_count": rows.len() } });
     Ok(Json(DatadogSloCorrectionResponse { data: Value::Array(rows.iter().map(Row::document).collect()), meta: Some(meta), links: None }))
 }
@@ -387,7 +391,7 @@ pub async fn for_slo(State(st): State<AppState>, DdAuth(ctx): DdAuth, Path(id): 
     exists.ok_or_else(missing)?;
     let limit = p.limit.filter(|l| *l > 0).unwrap_or(10).min(1000);
     let offset = p.offset.unwrap_or(0).max(0);
-    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE c.org_id = $1 AND (c.slo_id IS NULL OR c.slo_id = $2::uuid) ORDER BY c.start_at DESC, c.id"))
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE c.org_id = $1 AND (c.slo_id IS NULL OR c.slo_id = $2::uuid) ORDER BY c.start_at DESC, c.id")))
         .bind(&ctx.org_id)
         .bind(&slo)
         .fetch_all(&st.postgres)

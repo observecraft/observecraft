@@ -417,7 +417,7 @@ async fn workflow_rows(st: &AppState, org: &str, id: Option<&str>) -> Result<Vec
         updated = ms("w.updated_at"),
         last_at = ms("l.created_at"),
     );
-    Ok(sqlx::query_as(&sql).bind(org).bind(id).fetch_all(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(sql.as_str())).bind(org).bind(id).fetch_all(&st.postgres).await?)
 }
 
 async fn workflow_row(st: &AppState, org: &str, id: &str) -> Result<WorkflowRow, ApiError> {
@@ -643,10 +643,10 @@ pub async fn list_runs(State(st): State<AppState>, ctx: AuthContext, Path(id): P
     if !valid_uuid(&id) {
         return Err(not_found());
     }
-    let runs = sqlx::query_as(&format!(
+    let runs = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT {RUN_COLUMNS} FROM workflow_runs r JOIN workflows w ON w.org_id = r.org_id AND w.id = r.workflow_id \
          WHERE r.org_id = $1 AND r.workflow_id::text = $2 ORDER BY r.created_at DESC, r.id DESC LIMIT $3"
-    ))
+    )))
     .bind(&ctx.org_id)
     .bind(&id)
     .bind(RUNS_LISTED)
@@ -666,9 +666,9 @@ pub(crate) async fn run_detail(st: &AppState, org: &str, workflow: &str, run: i6
     if !valid_uuid(workflow) {
         return Err(missing());
     }
-    let mut r: WorkflowRun = sqlx::query_as(&format!(
+    let mut r: WorkflowRun = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT {RUN_COLUMNS} FROM workflow_runs r JOIN workflows w ON w.org_id = r.org_id AND w.id = r.workflow_id WHERE r.org_id = $1 AND r.workflow_id::text = $2 AND r.id = $3"
-    ))
+    )))
     .bind(org)
     .bind(workflow)
     .bind(run)

@@ -387,13 +387,13 @@ fn counts(assets: &[ImportAsset]) -> ImportCounts {
 }
 
 async fn load(st: &AppState, org: &str, id: &str) -> Result<LogImportDetail, ApiError> {
-    let row: ImportRow = sqlx::query_as(&format!("{IMPORT_SELECT} WHERE i.org_id = $1 AND i.id::text = $2"))
+    let row: ImportRow = sqlx::query_as(sqlx::AssertSqlSafe(format!("{IMPORT_SELECT} WHERE i.org_id = $1 AND i.id::text = $2")))
         .bind(org)
         .bind(id)
         .fetch_optional(&st.postgres)
         .await?
         .ok_or_else(|| ApiError::NotFound(format!("Import {id} not found")))?;
-    let rows: Vec<AssetRow> = sqlx::query_as(&format!("{ASSET_SELECT} WHERE org_id = $1 AND import_id::text = $2 ORDER BY position"))
+    let rows: Vec<AssetRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{ASSET_SELECT} WHERE org_id = $1 AND import_id::text = $2 ORDER BY position")))
         .bind(org)
         .bind(id)
         .fetch_all(&st.postgres)
@@ -411,7 +411,7 @@ fn summary(r: ImportRow, counts: ImportCounts) -> LogImport {
 
 #[utoipa::path(get, path = "/api/v1/logs/imports", operation_id = "list_log_imports", responses((status = 200, body = Vec<LogImport>)), tag = "logs")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<LogImport>> {
-    let rows: Vec<ImportRow> = sqlx::query_as(&format!("{IMPORT_SELECT} WHERE i.org_id = $1 ORDER BY i.created_at DESC")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<ImportRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{IMPORT_SELECT} WHERE i.org_id = $1 ORDER BY i.created_at DESC"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     let stats: Vec<(String, String, String, i64)> = sqlx::query_as("SELECT import_id::text, kind, status, count(*) FROM log_import_assets WHERE org_id = $1 GROUP BY 1, 2, 3")
         .bind(&ctx.org_id)
         .fetch_all(&st.postgres)

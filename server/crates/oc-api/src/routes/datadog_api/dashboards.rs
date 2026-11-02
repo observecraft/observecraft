@@ -298,7 +298,7 @@ fn prepare(doc: Value) -> Value {
 }
 
 async fn load(st: &AppState, org: &str, id: &str) -> Result<Row, DdError> {
-    let row: Option<Row> = sqlx::query_as(&format!("{SELECT} WHERE d.org_id = $1 AND d.id = $2 AND d.deleted_at IS NULL")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE d.org_id = $1 AND d.id = $2 AND d.deleted_at IS NULL"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.ok_or_else(|| not_found(id))
 }
 
@@ -442,7 +442,7 @@ pub async fn list(State(st): State<AppState>, DdAuth(ctx): DdAuth, Query(q): Que
     if shared {
         return Ok(Json(DatadogDashboardSummaries { dashboards: vec![] }));
     }
-    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE d.org_id = $1 AND (d.deleted_at IS NOT NULL) = $2 ORDER BY d.created_at, d.id LIMIT $3 OFFSET $4"))
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE d.org_id = $1 AND (d.deleted_at IS NOT NULL) = $2 ORDER BY d.created_at, d.id LIMIT $3 OFFSET $4")))
         .bind(&ctx.org_id)
         .bind(deleted)
         .bind(count.map(|c| c.clamp(0, 10_000)))

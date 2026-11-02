@@ -363,11 +363,11 @@ struct KeyRow {
 }
 
 async fn environments(st: &AppState, org: &str) -> Result<Vec<FeatureFlagEnvironment>, ApiError> {
-    let rows: Vec<EnvRow> = sqlx::query_as(&format!(
+    let rows: Vec<EnvRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT id::text AS id, name, queries, is_production, requires_approval, {} AS created_at, {} AS updated_at FROM feature_flag_environments WHERE org_id = $1 ORDER BY is_production DESC, lower(name)",
         ms("created_at"),
         ms("updated_at")
-    ))
+    )))
     .bind(org)
     .fetch_all(&st.postgres)
     .await?;
@@ -447,23 +447,23 @@ fn lifecycle_str(l: FlagLifecycle) -> &'static str {
 
 /// Flags of the org (or the one flag `id`) with their configuration in every environment.
 async fn load_flags(st: &AppState, org: &str, id: Option<&str>, envs: &[FeatureFlagEnvironment]) -> Result<Vec<FeatureFlag>, ApiError> {
-    let flags: Vec<FlagRow> = sqlx::query_as(&format!(
+    let flags: Vec<FlagRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT f.id::text AS id, f.key, f.name, f.description, f.flag_type, f.variants, f.default_variant, f.sdk_access, f.lifecycle, f.teams, f.tags, f.version, \
          c.name AS created_by, u.name AS updated_by, {} AS created_at, {} AS updated_at \
          FROM feature_flags f LEFT JOIN users c ON c.id = f.created_by LEFT JOIN users u ON u.id = f.updated_by \
          WHERE f.org_id = $1 AND ($2::uuid IS NULL OR f.id = $2::uuid) ORDER BY f.updated_at DESC",
         ms("f.created_at"),
         ms("f.updated_at")
-    ))
+    )))
     .bind(org)
     .bind(id)
     .fetch_all(&st.postgres)
     .await?;
-    let configs: Vec<ConfigRow> = sqlx::query_as(&format!(
+    let configs: Vec<ConfigRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT c.flag_id::text AS flag_id, c.environment_id::text AS environment_id, c.enabled, c.config, u.name AS updated_by, {} AS updated_at \
          FROM feature_flag_env_configs c LEFT JOIN users u ON u.id = c.updated_by WHERE c.org_id = $1 AND ($2::uuid IS NULL OR c.flag_id = $2::uuid)",
         ms("c.updated_at")
-    ))
+    )))
     .bind(org)
     .bind(id)
     .fetch_all(&st.postgres)
@@ -743,12 +743,12 @@ async fn history_of(st: &AppState, org: &str, flag: Option<&str>, limit: Option<
         version: i32,
         at: i64,
     }
-    let rows: Vec<Row> = sqlx::query_as(&format!(
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT c.id, c.flag_id::text AS flag_id, c.flag_key, COALESCE(f.name, c.flag_key) AS flag_name, c.environment_name, c.action, c.summary, c.actor, c.version, {} AS at \
          FROM feature_flag_changes c LEFT JOIN feature_flags f ON f.id = c.flag_id AND f.org_id = c.org_id \
          WHERE c.org_id = $1 AND ($2::uuid IS NULL OR c.flag_id = $2::uuid) ORDER BY c.at DESC, c.id DESC LIMIT $3",
         ms("c.at")
-    ))
+    )))
     .bind(org)
     .bind(flag)
     .bind(limit.unwrap_or(DEFAULT_HISTORY).clamp(1, MAX_HISTORY))

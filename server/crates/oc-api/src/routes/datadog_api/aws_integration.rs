@@ -401,7 +401,7 @@ const SELECT: &str = "SELECT id::text AS id, aws_account_id, aws_partition, acco
 
 /// The org's accounts, optionally only the one with this AWS account id.
 pub async fn list_rows(st: &AppState, org: &str, aws_account_id: Option<&str>) -> Result<Vec<AccountRow>, sqlx::Error> {
-    let rows: Vec<DbRow> = sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 AND ($2::text IS NULL OR aws_account_id = $2) ORDER BY created_at, id"))
+    let rows: Vec<DbRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 AND ($2::text IS NULL OR aws_account_id = $2) ORDER BY created_at, id")))
         .bind(org)
         .bind(aws_account_id)
         .fetch_all(&st.postgres)
@@ -410,7 +410,7 @@ pub async fn list_rows(st: &AppState, org: &str, aws_account_id: Option<&str>) -
 }
 
 pub async fn get_row(st: &AppState, org: &str, id: &str) -> Result<Option<AccountRow>, sqlx::Error> {
-    let row: Option<DbRow> = sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 AND id = $2::uuid")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<DbRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 AND id = $2::uuid"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     Ok(row.map(AccountRow::from))
 }
 

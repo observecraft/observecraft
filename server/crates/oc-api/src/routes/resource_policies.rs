@@ -299,7 +299,7 @@ fn from_row(r: PolicyRow) -> Option<(ResourcePolicy, CompiledPolicy)> {
 }
 
 async fn load_policies(st: &AppState, org: &str) -> Result<Vec<(ResourcePolicy, CompiledPolicy)>, ApiError> {
-    let rows: Vec<PolicyRow> = sqlx::query_as(&format!("{POLICY_SELECT} WHERE p.org_id = $1 ORDER BY p.priority, p.name")).bind(org).fetch_all(&st.postgres).await?;
+    let rows: Vec<PolicyRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{POLICY_SELECT} WHERE p.org_id = $1 ORDER BY p.priority, p.name"))).bind(org).fetch_all(&st.postgres).await?;
     Ok(rows.into_iter().filter_map(from_row).collect())
 }
 
@@ -308,7 +308,7 @@ async fn load_policy(st: &AppState, org: &str, id: &str) -> Result<(ResourcePoli
     if !super::scorecards::valid_uuid(id) {
         return Err(not_found());
     }
-    let row: Option<PolicyRow> = sqlx::query_as(&format!("{POLICY_SELECT} WHERE p.org_id = $1 AND p.id = $2::uuid")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<PolicyRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{POLICY_SELECT} WHERE p.org_id = $1 AND p.id = $2::uuid"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.and_then(from_row).ok_or_else(not_found)
 }
 

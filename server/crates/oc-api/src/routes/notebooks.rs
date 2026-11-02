@@ -269,7 +269,7 @@ impl Row {
 }
 
 /// Notebooks of `org` with the per-user state of `user`; callers append ` AND …` conditions.
-fn base_query<'a>(org: &'a str, user: &'a str, with_cells: bool) -> QueryBuilder<'a, Postgres> {
+fn base_query<'a>(org: &'a str, user: &'a str, with_cells: bool) -> QueryBuilder<Postgres> {
     let mut qb = QueryBuilder::new(
         "SELECT n.id, n.title, u.id::text AS author_id, u.name AS author_name, n.teams, n.tags, n.status, n.time_range, \
          jsonb_array_length(n.cells)::bigint AS cell_count, \
@@ -352,7 +352,7 @@ pub struct NotebookSearchPage {
 }
 
 /// The search behind the notebook list, scoped to `org` and the per-user lists of `user`.
-fn search_query<'a>(org: &'a str, user: &'a str, req: &'a NotebookSearchRequest) -> QueryBuilder<'a, Postgres> {
+fn search_query<'a>(org: &'a str, user: &'a str, req: &'a NotebookSearchRequest) -> QueryBuilder<Postgres> {
     let mut qb = base_query(org, user, false);
     qb.push(if req.view == NotebookListView::Deleted { " AND n.deleted_at IS NOT NULL" } else { " AND n.deleted_at IS NULL" });
     match req.view {
@@ -682,7 +682,7 @@ mod tests {
     fn every_list_is_scoped_to_the_org_and_the_user() {
         for view in VIEWS {
             let req = request(view);
-            let sql = search_query("org-a", "user-a", &req).into_sql();
+            let sql = search_query("org-a", "user-a", &req).into_sql().as_str().to_string();
             assert!(sql.contains("WHERE n.org_id = $3"), "{view:?}: {sql}");
             assert!(sql.contains("v.org_id = n.org_id AND v.notebook_id = n.id AND v.user_id = $1::uuid"), "{view:?}");
             assert!(sql.contains("f.org_id = n.org_id AND f.notebook_id = n.id AND f.user_id = $2::uuid"), "{view:?}");
@@ -692,7 +692,7 @@ mod tests {
 
     #[test]
     fn lists_select_their_notebooks() {
-        let sql = |view| search_query("o", "u", &request(view)).into_sql();
+        let sql = |view| search_query("o", "u", &request(view)).into_sql().as_str().to_string();
         assert!(sql(NotebookListView::All).contains("n.deleted_at IS NULL"));
         assert!(sql(NotebookListView::Deleted).contains("n.deleted_at IS NOT NULL"));
         assert!(sql(NotebookListView::Mine).contains("n.author_id = $4::uuid"));
@@ -711,7 +711,7 @@ mod tests {
         req.query = "50%_off".into();
         req.author = Some("00000000-0000-0000-0000-000000000001".into());
         req.team = Some("payments".into());
-        let sql = search_query("o", "u", &req).into_sql();
+        let sql = search_query("o", "u", &req).into_sql().as_str().to_string();
         assert!(sql.contains("n.author_id::text = $4") && sql.contains("$5 = ANY(n.teams)") && sql.contains("n.cells::text ILIKE $9"));
         assert!(!sql.contains("payments") && !sql.contains("50%"));
     }

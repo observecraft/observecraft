@@ -157,11 +157,11 @@ const SELECT: &str = "SELECT id, version, name, description, enabled, rule_query
     (extract(epoch FROM created_at) * 1000)::bigint AS created_at, (extract(epoch FROM updated_at) * 1000)::bigint AS updated_at FROM security_suppressions";
 
 pub async fn list_rows(st: &AppState, org: &str) -> Result<Vec<Suppression>, ApiError> {
-    Ok(sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 ORDER BY name")).bind(org).fetch_all(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 ORDER BY name"))).bind(org).fetch_all(&st.postgres).await?)
 }
 
 pub async fn load(st: &AppState, org: &str, id: &str) -> Result<Suppression, ApiError> {
-    sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 AND id = $2"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 AND id = $2")))
         .bind(org)
         .bind(id)
         .fetch_optional(&st.postgres)
@@ -171,7 +171,7 @@ pub async fn load(st: &AppState, org: &str, id: &str) -> Result<Suppression, Api
 
 /// The enabled suppressions in effect at `now`.
 pub async fn active_suppressions(st: &AppState, org: &str, now: i64) -> Result<Vec<Suppression>, ApiError> {
-    Ok(sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 AND enabled AND (start_date IS NULL OR start_date <= $2) AND (expiration_date IS NULL OR expiration_date > $2)"))
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 AND enabled AND (start_date IS NULL OR start_date <= $2) AND (expiration_date IS NULL OR expiration_date > $2)")))
         .bind(org)
         .bind(now)
         .fetch_all(&st.postgres)

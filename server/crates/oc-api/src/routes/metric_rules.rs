@@ -259,11 +259,11 @@ async fn recent_names(st: &AppState, org: &str) -> Result<Vec<String>, ApiError>
 }
 
 async fn rows(st: &AppState, org: &str) -> Result<Vec<Row>, ApiError> {
-    Ok(sqlx::query_as(&format!("SELECT {COLS} FROM metric_rules WHERE org_id = $1 ORDER BY kind, lower(name)")).bind(org).fetch_all(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} FROM metric_rules WHERE org_id = $1 ORDER BY kind, lower(name)"))).bind(org).fetch_all(&st.postgres).await?)
 }
 
 async fn get_rule(st: &AppState, org: &str, id: &str) -> Result<MetricRule, ApiError> {
-    let row: Option<Row> = sqlx::query_as(&format!("SELECT {COLS} FROM metric_rules WHERE org_id = $1 AND id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} FROM metric_rules WHERE org_id = $1 AND id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     let row = row.ok_or_else(|| ApiError::NotFound("Rule not found".into()))?;
     Ok(row.into_rule(&recent_names(st, org).await?))
 }

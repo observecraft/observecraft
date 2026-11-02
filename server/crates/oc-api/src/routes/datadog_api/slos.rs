@@ -553,11 +553,11 @@ fn not_found(id: &str) -> DdError {
 
 async fn load(st: &AppState, org: &str, id: &str) -> Result<Stored, DdError> {
     let Some(uuid) = uuid_of(id) else { return Err(not_found(id)) };
-    sqlx::query_as::<_, Stored>(&format!("{SELECT} WHERE s.org_id = $1 AND s.id = $2::uuid")).bind(org).bind(&uuid).fetch_optional(&st.postgres).await?.ok_or_else(|| not_found(id))
+    sqlx::query_as::<_, Stored>(sqlx::AssertSqlSafe(format!("{SELECT} WHERE s.org_id = $1 AND s.id = $2::uuid"))).bind(org).bind(&uuid).fetch_optional(&st.postgres).await?.ok_or_else(|| not_found(id))
 }
 
 async fn load_all(st: &AppState, org: &str) -> Result<Vec<Stored>, DdError> {
-    Ok(sqlx::query_as::<_, Stored>(&format!("{SELECT} WHERE s.org_id = $1 ORDER BY s.created_at, s.id")).bind(org).fetch_all(&st.postgres).await?)
+    Ok(sqlx::query_as::<_, Stored>(sqlx::AssertSqlSafe(format!("{SELECT} WHERE s.org_id = $1 ORDER BY s.created_at, s.id"))).bind(org).fetch_all(&st.postgres).await?)
 }
 
 async fn store_document(conn: &mut sqlx::PgConnection, org: &str, id: &str, doc: &Value) -> Result<(), DdError> {

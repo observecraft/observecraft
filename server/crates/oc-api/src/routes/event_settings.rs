@@ -144,7 +144,7 @@ impl From<CorrelatorRow> for EventCorrelator {
 const CORRELATOR_COLS: &str = "id::text AS id, name, query, group_by, window_minutes, enabled, position, updated_by, (extract(epoch FROM updated_at) * 1000)::bigint AS updated_at";
 
 async fn correlator_rows(st: &AppState, org: &str) -> Result<Vec<CorrelatorRow>, ApiError> {
-    Ok(sqlx::query_as(&format!("SELECT {CORRELATOR_COLS} FROM event_correlators WHERE org_id = $1 ORDER BY position, lower(name)")).bind(org).fetch_all(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {CORRELATOR_COLS} FROM event_correlators WHERE org_id = $1 ORDER BY position, lower(name)"))).bind(org).fetch_all(&st.postgres).await?)
 }
 
 /// The org's enabled correlators, in order (the inbox reads them on every request).
@@ -159,7 +159,7 @@ pub(crate) async fn active_correlators(st: &AppState, org: &str) -> Result<Vec<C
 
 async fn get_correlator(st: &AppState, org: &str, id: &str) -> Result<EventCorrelator, ApiError> {
     let row: Option<CorrelatorRow> =
-        sqlx::query_as(&format!("SELECT {CORRELATOR_COLS} FROM event_correlators WHERE org_id = $1 AND id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {CORRELATOR_COLS} FROM event_correlators WHERE org_id = $1 AND id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.map(EventCorrelator::from).ok_or_else(|| ApiError::NotFound("Correlator not found".into()))
 }
 
@@ -284,9 +284,9 @@ impl From<WindowRow> for EventMaintenanceWindow {
 
 /// The org's maintenance windows overlapping [from, to].
 pub(crate) async fn windows_between(st: &AppState, org: &str, from: i64, to: i64) -> Result<Vec<MaintenanceWindow>, ApiError> {
-    let rows: Vec<WindowRow> = sqlx::query_as(&format!(
+    let rows: Vec<WindowRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT {WINDOW_COLS} FROM event_maintenance_windows WHERE org_id = $1 AND ends_at >= to_timestamp($2::bigint / 1000.0) AND starts_at <= to_timestamp($3::bigint / 1000.0) ORDER BY starts_at"
-    ))
+    )))
     .bind(org)
     .bind(from)
     .bind(to)
@@ -298,7 +298,7 @@ pub(crate) async fn windows_between(st: &AppState, org: &str, from: i64, to: i64
 #[utoipa::path(get, path = "/api/v1/events/maintenance-windows", operation_id = "list_event_maintenance_windows", responses((status = 200, body = Vec<EventMaintenanceWindow>)), tag = "events")]
 pub async fn list_windows(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<EventMaintenanceWindow>> {
     let rows: Vec<WindowRow> =
-        sqlx::query_as(&format!("SELECT {WINDOW_COLS} FROM event_maintenance_windows WHERE org_id = $1 ORDER BY starts_at DESC")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {WINDOW_COLS} FROM event_maintenance_windows WHERE org_id = $1 ORDER BY starts_at DESC"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(EventMaintenanceWindow::from).collect()))
 }
 
@@ -309,9 +309,9 @@ pub async fn create_window(State(st): State<AppState>, Writer(ctx): Writer, Json
     if count >= MAX_WINDOWS {
         return Err(ApiError::BadRequest(format!("An organization can have at most {MAX_WINDOWS} current maintenance windows")));
     }
-    let row: WindowRow = sqlx::query_as(&format!(
+    let row: WindowRow = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "INSERT INTO event_maintenance_windows (org_id, name, query, starts_at, ends_at, created_by) VALUES ($1, $2, $3, to_timestamp($4::bigint / 1000.0), to_timestamp($5::bigint / 1000.0), $6) RETURNING {WINDOW_COLS}"
-    ))
+    )))
     .bind(&ctx.org_id)
     .bind(&input.name)
     .bind(&input.query)
@@ -407,8 +407,11 @@ impl From<AttributeRow> for WorkItemAttribute {
 const ATTRIBUTE_COLS: &str = "id::text AS id, name, kind, options, position";
 
 async fn get_attribute(st: &AppState, org: &str, id: &str) -> Result<WorkItemAttribute, ApiError> {
-    let row: Option<AttributeRow> =
-        sqlx::query_as(&format!("SELECT {ATTRIBUTE_COLS} FROM event_work_item_attributes WHERE org_id = $1 AND id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<AttributeRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {ATTRIBUTE_COLS} FROM event_work_item_attributes WHERE org_id = $1 AND id::text = $2")))
+        .bind(org)
+        .bind(id)
+        .fetch_optional(&st.postgres)
+        .await?;
     row.map(WorkItemAttribute::from).ok_or_else(|| ApiError::NotFound("Attribute not found".into()))
 }
 
@@ -421,8 +424,10 @@ fn kind_str(k: WorkItemAttributeKind) -> &'static str {
 
 #[utoipa::path(get, path = "/api/v1/events/work-item-attributes", operation_id = "list_work_item_attributes", responses((status = 200, body = Vec<WorkItemAttribute>)), tag = "events")]
 pub async fn list_attributes(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<WorkItemAttribute>> {
-    let rows: Vec<AttributeRow> =
-        sqlx::query_as(&format!("SELECT {ATTRIBUTE_COLS} FROM event_work_item_attributes WHERE org_id = $1 ORDER BY position, lower(name)")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<AttributeRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {ATTRIBUTE_COLS} FROM event_work_item_attributes WHERE org_id = $1 ORDER BY position, lower(name)")))
+        .bind(&ctx.org_id)
+        .fetch_all(&st.postgres)
+        .await?;
     Ok(Json(rows.into_iter().map(WorkItemAttribute::from).collect()))
 }
 

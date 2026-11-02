@@ -56,7 +56,7 @@ fn doc(r: &Row) -> Value {
 
 async fn find(st: &AppState, org: &str, id: &str) -> Result<Row, DdError> {
     let Some(id) = uuid(id) else { return Err(bad_request(format!("Invalid restriction query id {id}"))) };
-    sqlx::query_as(&format!("{SELECT} WHERE q.org_id = $1 AND q.id = $2::uuid")).bind(org).bind(&id).fetch_optional(&st.postgres).await?.ok_or_else(|| not_found("Restriction query not found"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE q.org_id = $1 AND q.id = $2::uuid"))).bind(org).bind(&id).fetch_optional(&st.postgres).await?.ok_or_else(|| not_found("Restriction query not found"))
 }
 
 /// The `restriction_query` of a request.
@@ -99,7 +99,7 @@ fn page(rows: Vec<Row>, q: &HashMap<String, String>) -> Vec<Value> {
 
 pub async fn list(State(st): State<AppState>, DdAuth(ctx): DdAuth, Query(q): Query<HashMap<String, String>>) -> DocResult {
     require(&ctx, Access::Admin)?;
-    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE q.org_id = $1 ORDER BY q.created_at")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE q.org_id = $1 ORDER BY q.created_at"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     ok(json!({ "data": page(rows, &q) }))
 }
 
@@ -212,10 +212,10 @@ pub async fn for_user(State(st): State<AppState>, DdAuth(ctx): DdAuth, Path(user
     if !exists {
         return Err(bad_request(format!("user with uuid {user_id} doesn't exist")));
     }
-    let rows: Vec<Row> = sqlx::query_as(&format!(
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE q.org_id = $1 AND q.id IN (SELECT a.restriction_id FROM log_restriction_roles a JOIN user_roles ur ON ur.role_id = a.role_id \
          WHERE a.org_id = $1 AND ur.user_id = $2::uuid) ORDER BY q.created_at"
-    ))
+    )))
     .bind(&ctx.org_id)
     .bind(&uid)
     .fetch_all(&st.postgres)
@@ -229,9 +229,9 @@ pub async fn for_role(State(st): State<AppState>, DdAuth(ctx): DdAuth, Path(role
     if super::super::roles::find_role(&st, &ctx.org_id, &role_id).await?.is_none() {
         return Err(bad_request(format!("role with uuid {role_id} doesn't exist")));
     }
-    let rows: Vec<Row> = sqlx::query_as(&format!(
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE q.org_id = $1 AND q.id IN (SELECT a.restriction_id FROM log_restriction_roles a WHERE a.org_id = $1 AND a.role_id = $2) ORDER BY q.created_at"
-    ))
+    )))
     .bind(&ctx.org_id)
     .bind(&role_id)
     .fetch_all(&st.postgres)

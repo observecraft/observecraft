@@ -701,7 +701,7 @@ pub async fn cves(State(st): State<AppState>, ctx: AuthContext, Query(q): Query<
     let filter = "WHERE a.withdrawn IS NULL AND ($1 = '%%' OR lower(a.id) LIKE $1 OR lower(a.summary) LIKE $1 OR EXISTS (SELECT 1 FROM unnest(a.aliases) x WHERE lower(x) LIKE $1) \
          OR EXISTS (SELECT 1 FROM cs_advisory_packages p WHERE p.advisory_id = a.id AND lower(p.package) LIKE $1)) \
          AND ($2 = '' OR a.severity = $2) AND ($3 = '' OR ($3 = 'impacted') = (a.id = ANY($4))) AND (NOT $5 OR a.aliases && $6)";
-    let total: i64 = sqlx::query_scalar(&format!("SELECT count(*) FROM cs_advisories a {filter}"))
+    let total: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT count(*) FROM cs_advisories a {filter}")))
         .bind(&text)
         .bind(&q.severity)
         .bind(&q.impact)
@@ -710,12 +710,12 @@ pub async fn cves(State(st): State<AppState>, ctx: AuthContext, Query(q): Query<
         .bind(&kev)
         .fetch_one(&st.postgres)
         .await?;
-    let rows: Vec<AdvisoryRow> = sqlx::query_as(&format!(
+    let rows: Vec<AdvisoryRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT a.id, a.aliases, a.summary, a.severity, a.score, \
          ARRAY(SELECT p.ecosystem || ':' || p.package FROM cs_advisory_packages p WHERE p.advisory_id = a.id ORDER BY 1) AS packages, \
          (EXTRACT(EPOCH FROM a.published) * 1000)::bigint AS published FROM cs_advisories a {filter} \
          ORDER BY (a.id = ANY($4)) DESC, a.published DESC NULLS LAST, a.id LIMIT $7 OFFSET $8"
-    ))
+    )))
     .bind(&text)
     .bind(&q.severity)
     .bind(&q.impact)

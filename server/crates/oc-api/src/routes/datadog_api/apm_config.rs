@@ -138,12 +138,12 @@ pub async fn ensure_defaults(st: &AppState, org: &str) -> Result<(), sqlx::Error
 
 pub async fn list_filter_rows(st: &AppState, org: &str) -> Result<Vec<FilterRow>, sqlx::Error> {
     ensure_defaults(st, org).await?;
-    sqlx::query_as(&format!("SELECT {FILTER_COLUMNS} FROM apm_retention_filters WHERE org_id = $1 ORDER BY execution_order, created_at, id")).bind(org).fetch_all(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {FILTER_COLUMNS} FROM apm_retention_filters WHERE org_id = $1 ORDER BY execution_order, created_at, id"))).bind(org).fetch_all(&st.postgres).await
 }
 
 async fn filter_row(st: &AppState, org: &str, id: &str) -> Result<Option<FilterRow>, sqlx::Error> {
     ensure_defaults(st, org).await?;
-    sqlx::query_as(&format!("SELECT {FILTER_COLUMNS} FROM apm_retention_filters WHERE org_id = $1 AND id = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {FILTER_COLUMNS} FROM apm_retention_filters WHERE org_id = $1 AND id = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await
 }
 
 fn not_found(id: &str) -> DdErr {
@@ -354,11 +354,11 @@ pub struct MetricRow {
 const METRIC_COLUMNS: &str = "id, query, aggregation_type, path, include_percentiles, group_by";
 
 pub async fn list_metric_rows(st: &AppState, org: &str) -> Result<Vec<MetricRow>, sqlx::Error> {
-    sqlx::query_as(&format!("SELECT {METRIC_COLUMNS} FROM apm_spans_metrics WHERE org_id = $1 ORDER BY id")).bind(org).fetch_all(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {METRIC_COLUMNS} FROM apm_spans_metrics WHERE org_id = $1 ORDER BY id"))).bind(org).fetch_all(&st.postgres).await
 }
 
 async fn metric_row(st: &AppState, org: &str, id: &str) -> Result<Option<MetricRow>, sqlx::Error> {
-    sqlx::query_as(&format!("SELECT {METRIC_COLUMNS} FROM apm_spans_metrics WHERE org_id = $1 AND id = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {METRIC_COLUMNS} FROM apm_spans_metrics WHERE org_id = $1 AND id = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await
 }
 
 fn metric_not_found(id: &str) -> DdErr {

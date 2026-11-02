@@ -342,12 +342,13 @@ const COLS: &str = "id::text AS id, name, source, repositories, threshold, min_s
      (extract(epoch FROM created_at) * 1000)::bigint AS created_at, (extract(epoch FROM updated_at) * 1000)::bigint AS updated_at";
 
 async fn rules(st: &AppState, org: &str) -> Result<Vec<PrGateRule>, ApiError> {
-    let rows: Vec<RuleRow> = sqlx::query_as(&format!("SELECT {COLS} FROM pr_gate_rules WHERE org_id = $1 ORDER BY lower(name)")).bind(org).fetch_all(&st.postgres).await?;
+    let rows: Vec<RuleRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} FROM pr_gate_rules WHERE org_id = $1 ORDER BY lower(name)"))).bind(org).fetch_all(&st.postgres).await?;
     Ok(rows.into_iter().filter_map(RuleRow::into_rule).collect())
 }
 
 async fn get_rule(st: &AppState, org: &str, id: &str) -> Result<PrGateRule, ApiError> {
-    let row: Option<RuleRow> = sqlx::query_as(&format!("SELECT {COLS} FROM pr_gate_rules WHERE org_id = $1 AND id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<RuleRow> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} FROM pr_gate_rules WHERE org_id = $1 AND id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.and_then(RuleRow::into_rule).ok_or_else(|| ApiError::NotFound("PR gate rule not found".into()))
 }
 

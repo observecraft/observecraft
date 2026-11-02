@@ -53,7 +53,12 @@ fn doc(r: &Row) -> Value {
 
 pub(crate) async fn find(st: &AppState, org: &str, id: &str) -> Result<Row, DdError> {
     let Some(id) = uuid(id) else { return Err(bad_request(format!("Invalid custom destination id {id}"))) };
-    sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 AND id = $2::uuid")).bind(org).bind(&id).fetch_optional(&st.postgres).await?.ok_or_else(|| not_found("Custom destination not found"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 AND id = $2::uuid")))
+        .bind(org)
+        .bind(&id)
+        .fetch_optional(&st.postgres)
+        .await?
+        .ok_or_else(|| not_found("Custom destination not found"))
 }
 
 /// Checks a `forwarder_destination` and splits it into (stored document, secrets).
@@ -279,7 +284,7 @@ fn attributes(raw: &Bytes) -> Result<Value, DdError> {
 }
 
 pub async fn list(State(st): State<AppState>, DdAuth(ctx): DdAuth) -> DocResult {
-    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 ORDER BY position, created_at")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 ORDER BY position, created_at"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     ok(json!({ "data": rows.iter().map(doc).collect::<Vec<_>>() }))
 }
 

@@ -371,16 +371,16 @@ pub async fn search_results(State(st): State<AppState>, ctx: AuthContext, Json(r
     );
     let (from, to) = (req.range.from as f64 / 1000.0, req.range.to as f64 / 1000.0);
     let n = filter.args.len();
-    let (total,): (i64,) = bind_all(sqlx::query_as(&format!("SELECT count(*) {from_where}")).bind(&ctx.org_id).bind(from).bind(to), &filter.args).fetch_one(&st.postgres).await?;
+    let (total,): (i64,) = bind_all(sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT count(*) {from_where}"))).bind(&ctx.org_id).bind(from).bind(to), &filter.args).fetch_one(&st.postgres).await?;
     let results: Vec<SyntheticResultRow> = bind_all(
-        sqlx::query_as(&format!(
+        sqlx::query_as(sqlx::AssertSqlSafe(format!(
             "SELECT r.id, r.test_id::text AS test_id, t.name AS test_name, t.type AS test_type, r.location, (extract(epoch FROM r.started_at) * 1000)::bigint AS started_at, \
              r.duration_ms, r.passed, r.status_code, r.error, r.attempts, r.trigger, t.env, t.team, t.tags, \
              (SELECT count(*) FROM jsonb_array_elements(r.details->'assertions') a WHERE (a->>'passed') = 'false') AS failed_assertions \
              {from_where} ORDER BY r.started_at DESC, r.id DESC LIMIT ${} OFFSET ${}",
             n + 4,
             n + 5
-        ))
+        )))
         .bind(&ctx.org_id)
         .bind(from)
         .bind(to),
@@ -392,11 +392,11 @@ pub async fn search_results(State(st): State<AppState>, ctx: AuthContext, Json(r
     .await?;
     let step = bucket_ms(&req.range);
     let series: Vec<SyntheticResultBucket> = bind_all(
-        sqlx::query_as(&format!(
+        sqlx::query_as(sqlx::AssertSqlSafe(format!(
             "SELECT (floor(extract(epoch FROM r.started_at) * 1000 / ${0}) * ${0})::bigint AS t, count(*) FILTER (WHERE r.passed) AS passed, count(*) FILTER (WHERE NOT r.passed) AS failed \
              {from_where} GROUP BY 1 ORDER BY 1",
             n + 4
-        ))
+        )))
         .bind(&ctx.org_id)
         .bind(from)
         .bind(to),
@@ -406,11 +406,11 @@ pub async fn search_results(State(st): State<AppState>, ctx: AuthContext, Json(r
     .fetch_all(&st.postgres)
     .await?;
     let groups: Vec<SyntheticResultGroup> = bind_all(
-        sqlx::query_as(&format!(
+        sqlx::query_as(sqlx::AssertSqlSafe(format!(
             "SELECT r.test_id::text AS test_id, t.name AS test_name, t.type AS test_type, count(*) AS runs, count(*) FILTER (WHERE NOT r.passed) AS failed, \
              avg(r.duration_ms) AS avg_duration_ms, percentile_cont(0.95) WITHIN GROUP (ORDER BY r.duration_ms) AS p95_duration_ms, \
              (extract(epoch FROM max(r.started_at)) * 1000)::bigint AS last_run_at {from_where} GROUP BY r.test_id, t.name, t.type ORDER BY runs DESC, t.name LIMIT 100"
-        ))
+        )))
         .bind(&ctx.org_id)
         .bind(from)
         .bind(to),
@@ -420,10 +420,12 @@ pub async fn search_results(State(st): State<AppState>, ctx: AuthContext, Json(r
     .await?;
     let mut facets = Vec::new();
     for (key, label, expr) in FACETS {
-        let rows: Vec<(String, i64)> =
-            bind_all(sqlx::query_as(&format!("SELECT {expr} AS v, count(*) {from_where} GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 20")).bind(&ctx.org_id).bind(from).bind(to), &filter.args)
-                .fetch_all(&st.postgres)
-                .await?;
+        let rows: Vec<(String, i64)> = bind_all(
+            sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {expr} AS v, count(*) {from_where} GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 20"))).bind(&ctx.org_id).bind(from).bind(to),
+            &filter.args,
+        )
+        .fetch_all(&st.postgres)
+        .await?;
         let values = rows.into_iter().filter(|(v, _)| !v.is_empty()).map(|(value, count)| SyntheticFacetValue { value, count }).collect();
         facets.push(SyntheticResultFacet { key: key.into(), label: label.into(), values });
     }

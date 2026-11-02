@@ -260,14 +260,14 @@ fn managed_doc((id, name, description, default): (&str, &str, &str, bool)) -> Va
 }
 
 pub async fn list_rows(st: &AppState, org: &str, kind: Kind) -> Result<Vec<WafRow>, sqlx::Error> {
-    sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 AND kind = $2 ORDER BY added_at, id")).bind(org).bind(kind.as_str()).fetch_all(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 AND kind = $2 ORDER BY added_at, id"))).bind(org).bind(kind.as_str()).fetch_all(&st.postgres).await
 }
 
 async fn find(st: &AppState, org: &str, kind: Kind, id: &str) -> Result<Option<WafRow>, sqlx::Error> {
     if super::users::uuid(id).is_none() {
         return Ok(None);
     }
-    sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 AND kind = $2 AND id = $3::uuid")).bind(org).bind(kind.as_str()).bind(id).fetch_optional(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 AND kind = $2 AND id = $3::uuid"))).bind(org).bind(kind.as_str()).bind(id).fetch_optional(&st.postgres).await
 }
 
 /// The attributes of a request body, checked.
@@ -283,11 +283,11 @@ fn attributes(kind: Kind, raw: &Bytes) -> Result<Map<String, Value>, (StatusCode
 }
 
 pub async fn insert(st: &AppState, ctx: &AuthContext, kind: Kind, attrs: &Map<String, Value>) -> Result<WafRow, sqlx::Error> {
-    sqlx::query_as(&format!(
+    sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "WITH r AS (INSERT INTO appsec_waf_objects (org_id, kind, attributes, added_by, added_by_name) VALUES ($1, $2, $3, $4, $5) RETURNING *) \
          {} FROM r",
         SELECT.trim_end_matches(" FROM appsec_waf_objects")
-    ))
+    )))
     .bind(&ctx.org_id)
     .bind(kind.as_str())
     .bind(Value::Object(attrs.clone()))
@@ -301,11 +301,11 @@ pub async fn replace(st: &AppState, ctx: &AuthContext, kind: Kind, id: &str, att
     if super::users::uuid(id).is_none() {
         return Ok(None);
     }
-    sqlx::query_as(&format!(
+    sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "WITH r AS (UPDATE appsec_waf_objects SET attributes = $4, modified_by = $5, modified_by_name = $6, modified_at = now() \
          WHERE org_id = $1 AND kind = $2 AND id = $3::uuid RETURNING *) {} FROM r",
         SELECT.trim_end_matches(" FROM appsec_waf_objects")
-    ))
+    )))
     .bind(&ctx.org_id)
     .bind(kind.as_str())
     .bind(id)

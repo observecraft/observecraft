@@ -1124,12 +1124,12 @@ fn check_pipeline(i: &SpanPipelineInput) -> Result<(), ApiError> {
 
 #[utoipa::path(get, path = "/api/v1/apm/settings/pipelines", operation_id = "list_apm_span_pipelines", responses((status = 200, body = Vec<SpanPipeline>)), tag = "apm")]
 pub async fn list_pipelines(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<Vec<SpanPipeline>> {
-    let rows: Vec<PipelineRow> = sqlx::query_as(&format!("SELECT {PIPELINE_COLUMNS} FROM apm_span_pipelines WHERE org_id = $1 ORDER BY position, updated_at")).bind(&org).fetch_all(&st.postgres).await?;
+    let rows: Vec<PipelineRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {PIPELINE_COLUMNS} FROM apm_span_pipelines WHERE org_id = $1 ORDER BY position, updated_at"))).bind(&org).fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(pipeline_view).collect()))
 }
 
 async fn pipeline(st: &AppState, org: &str, id: &str) -> Result<SpanPipeline, ApiError> {
-    let row: Option<PipelineRow> = sqlx::query_as(&format!("SELECT {PIPELINE_COLUMNS} FROM apm_span_pipelines WHERE org_id = $1 AND id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<PipelineRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {PIPELINE_COLUMNS} FROM apm_span_pipelines WHERE org_id = $1 AND id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.map(pipeline_view).ok_or_else(|| ApiError::NotFound("pipeline not found".into()))
 }
 

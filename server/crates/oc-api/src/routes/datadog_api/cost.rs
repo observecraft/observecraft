@@ -265,7 +265,7 @@ fn budget_doc(b: &BudgetRow, entries: Option<&[(Entry, Option<Costs>)]>) -> Valu
 
 async fn find_budget(st: &AppState, org: &str, id: &str) -> Result<Option<BudgetRow>, DdError> {
     let Some(id) = uuid(id) else { return Ok(None) };
-    Ok(sqlx::query_as(&format!("SELECT {BUDGET_COLS} FROM cost_budgets WHERE org_id = $1 AND id = $2::uuid")).bind(org).bind(&id).fetch_optional(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {BUDGET_COLS} FROM cost_budgets WHERE org_id = $1 AND id = $2::uuid"))).bind(org).bind(&id).fetch_optional(&st.postgres).await?)
 }
 
 /// What each entry's month cost so far and where it's heading (this month: at the pace so far).
@@ -307,7 +307,7 @@ async fn entry_costs(st: &AppState, org: &str, b: &BudgetRow, custom: &[Entry]) 
 /// List budgets (Datadog-compatible), without their entries.
 #[utoipa::path(get, path = "/api/v2/cost/budgets", operation_id = "datadog_list_budgets", responses((status = 200, body = super::users::DatadogIamDocument), (status = 403, body = super::DatadogErrors)), tag = "datadog-api")]
 pub async fn list_budgets(State(st): State<AppState>, DdAuth(ctx): DdAuth) -> DocResult {
-    let rows: Vec<BudgetRow> = sqlx::query_as(&format!("SELECT {BUDGET_COLS} FROM cost_budgets WHERE org_id = $1 ORDER BY created_at, id")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<BudgetRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {BUDGET_COLS} FROM cost_budgets WHERE org_id = $1 ORDER BY created_at, id"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     ok(json!({ "data": rows.iter().map(|b| budget_doc(b, None)).collect::<Vec<_>>() }))
 }
 
@@ -442,7 +442,7 @@ pub struct CostBudgetSummary {
 /// The org's budgets with this month's figures (Cloud Cost → Plan, Overview).
 #[utoipa::path(get, path = "/api/v1/cloud-cost/budgets", operation_id = "cloud_cost_budgets", responses((status = 200, body = Vec<CostBudgetSummary>)), tag = "cloud-cost")]
 pub async fn budget_summaries(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<Vec<CostBudgetSummary>> {
-    let rows: Vec<BudgetRow> = sqlx::query_as(&format!("SELECT {BUDGET_COLS} FROM cost_budgets WHERE org_id = $1 ORDER BY lower(name), id")).bind(&org).fetch_all(&st.postgres).await?;
+    let rows: Vec<BudgetRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {BUDGET_COLS} FROM cost_budgets WHERE org_id = $1 ORDER BY lower(name), id"))).bind(&org).fetch_all(&st.postgres).await?;
     let today = Utc::now().date_naive();
     let this_month = today.year() as i64 * 100 + today.month() as i64;
     let mut out = Vec::new();
@@ -534,7 +534,7 @@ const FORECAST_COLS: &str = "id::text AS id, budget_id::text AS budget_id, entri
 
 async fn find_forecast(st: &AppState, org: &str, budget: &str) -> Result<Option<ForecastRow>, DdError> {
     let Some(budget) = uuid(budget) else { return Ok(None) };
-    Ok(sqlx::query_as(&format!("SELECT {FORECAST_COLS} FROM cost_custom_forecasts WHERE org_id = $1 AND budget_id = $2::uuid")).bind(org).bind(&budget).fetch_optional(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {FORECAST_COLS} FROM cost_custom_forecasts WHERE org_id = $1 AND budget_id = $2::uuid"))).bind(org).bind(&budget).fetch_optional(&st.postgres).await?)
 }
 
 async fn custom_forecast_entries(st: &AppState, org: &str, budget: &str) -> Result<Vec<Entry>, DdError> {
@@ -773,7 +773,7 @@ fn file_doc(f: &FileRow, content: Option<Value>) -> Value {
 
 async fn find_file(st: &AppState, org: &str, id: &str) -> Result<Option<FileRow>, DdError> {
     let Some(id) = uuid(id) else { return Ok(None) };
-    Ok(sqlx::query_as(&format!("SELECT {FILE_COLS} FROM {FILE_FROM} WHERE f.org_id = $1 AND f.id = $2::uuid")).bind(org).bind(&id).fetch_optional(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {FILE_COLS} FROM {FILE_FROM} WHERE f.org_id = $1 AND f.id = $2::uuid"))).bind(org).bind(&id).fetch_optional(&st.postgres).await?)
 }
 
 /// Upload a custom costs file (Datadog-compatible): FOCUS line items as JSON.
@@ -827,7 +827,7 @@ pub async fn list_custom_costs(State(st): State<AppState>, DdAuth(ctx): DdAuth, 
         other => return Err(bad_request(format!("unknown sort '{other}'"))),
     };
     let filter = "f.org_id = $1 AND ($2::text IS NULL OR f.status = $2) AND ($3::text IS NULL OR f.name ILIKE $3) AND (cardinality($4::text[]) = 0 OR f.provider_names && $4)";
-    let rows: Vec<FileRow> = sqlx::query_as(&format!("SELECT {FILE_COLS} FROM {FILE_FROM} WHERE {filter} ORDER BY {order} LIMIT $5 OFFSET $6"))
+    let rows: Vec<FileRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {FILE_COLS} FROM {FILE_FROM} WHERE {filter} ORDER BY {order} LIMIT $5 OFFSET $6")))
         .bind(&ctx.org_id)
         .bind(&status)
         .bind(&name)
@@ -836,7 +836,7 @@ pub async fn list_custom_costs(State(st): State<AppState>, DdAuth(ctx): DdAuth, 
         .bind(number * size)
         .fetch_all(&st.postgres)
         .await?;
-    let (total,): (i64,) = sqlx::query_as(&format!("SELECT count(*) FROM {FILE_FROM} WHERE {filter}")).bind(&ctx.org_id).bind(&status).bind(&name).bind(&providers).fetch_one(&st.postgres).await?;
+    let (total,): (i64,) = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT count(*) FROM {FILE_FROM} WHERE {filter}"))).bind(&ctx.org_id).bind(&status).bind(&name).bind(&providers).fetch_one(&st.postgres).await?;
     let counts: Vec<(String, i64)> = sqlx::query_as("SELECT upper(status), count(*) FROM cost_custom_files WHERE org_id = $1 GROUP BY 1").bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     let (all_providers,): (Vec<String>,) =
         sqlx::query_as("SELECT COALESCE(array_agg(DISTINCT p ORDER BY p), '{}') FROM cost_custom_files, unnest(provider_names) p WHERE org_id = $1").bind(&ctx.org_id).fetch_one(&st.postgres).await?;

@@ -180,7 +180,7 @@ const KEY: &str = "WHERE provider = $1 AND org_id = $2 AND account_id = $3::uuid
 pub async fn record(st: &AppState, job: &JobKey, outcome: &Outcome, interval_secs: i64) -> Result<(), sqlx::Error> {
     match outcome {
         Outcome::Idle => {
-            sqlx::query(&format!("UPDATE cloud_crawl_jobs SET claimed_until = NULL, next_run_at = now() + make_interval(secs => 60) {KEY}"))
+            sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE cloud_crawl_jobs SET claimed_until = NULL, next_run_at = now() + make_interval(secs => 60) {KEY}")))
                 .bind(&job.provider)
                 .bind(&job.org_id)
                 .bind(&job.account_id)
@@ -190,10 +190,10 @@ pub async fn record(st: &AppState, job: &JobKey, outcome: &Outcome, interval_sec
         }
         Outcome::Discovered(scopes) => {
             sync_scopes(st, job, scopes).await?;
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "UPDATE cloud_crawl_jobs SET claimed_until = NULL, last_success_at = now(), failures = 0, error_kind = NULL, error_message = NULL, missing_action = NULL, \
                  error_at = NULL, metrics_last_run = $5, next_run_at = now() + make_interval(secs => $6) {KEY}"
-            ))
+            )))
             .bind(&job.provider)
             .bind(&job.org_id)
             .bind(&job.account_id)
@@ -204,11 +204,11 @@ pub async fn record(st: &AppState, job: &JobKey, outcome: &Outcome, interval_sec
             .await?;
         }
         Outcome::Collected { end_ms, metrics, points, warning } => {
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "UPDATE cloud_crawl_jobs SET claimed_until = NULL, collected_until = to_timestamp($5::double precision / 1000), last_success_at = now(), failures = 0, \
                  next_run_at = now() + make_interval(secs => $6), metrics_last_run = $7, points_last_run = $8, error_kind = $9, error_message = $10, missing_action = $11, \
                  error_at = CASE WHEN $9::text IS NULL THEN NULL ELSE now() END {KEY}"
-            ))
+            )))
             .bind(&job.provider)
             .bind(&job.org_id)
             .bind(&job.account_id)
@@ -224,7 +224,7 @@ pub async fn record(st: &AppState, job: &JobKey, outcome: &Outcome, interval_sec
             .await?;
         }
         Outcome::Failed(issue) => {
-            let failures: i32 = sqlx::query_scalar(&format!("SELECT failures FROM cloud_crawl_jobs {KEY}"))
+            let failures: i32 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT failures FROM cloud_crawl_jobs {KEY}")))
                 .bind(&job.provider)
                 .bind(&job.org_id)
                 .bind(&job.account_id)
@@ -232,10 +232,10 @@ pub async fn record(st: &AppState, job: &JobKey, outcome: &Outcome, interval_sec
                 .fetch_optional(&st.postgres)
                 .await?
                 .unwrap_or(0);
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "UPDATE cloud_crawl_jobs SET claimed_until = NULL, failures = failures + 1, error_kind = $5, error_message = $6, missing_action = $7, error_at = now(), \
                  next_run_at = now() + make_interval(secs => $8) {KEY}"
-            ))
+            )))
             .bind(&job.provider)
             .bind(&job.org_id)
             .bind(&job.account_id)
@@ -282,13 +282,13 @@ type StatusRow = (String, Option<i64>, Option<i64>, i32, i32, Option<String>, Op
 /// An account's jobs, by scope.
 pub async fn status(st: &AppState, provider: &str, org: &str, account: &str) -> Result<Vec<ScopeStatus>, sqlx::Error> {
     let ms = |c: &str| format!("(extract(epoch FROM {c}) * 1000)::bigint");
-    let rows: Vec<StatusRow> = sqlx::query_as(&format!(
+    let rows: Vec<StatusRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT scope, {}, {}, metrics_last_run, points_last_run, error_kind, error_message, missing_action, {} FROM cloud_crawl_jobs \
          WHERE provider = $1 AND org_id = $2 AND account_id = $3::uuid ORDER BY scope",
         ms("last_success_at"),
         ms("collected_until"),
         ms("error_at")
-    ))
+    )))
     .bind(provider)
     .bind(org)
     .bind(account)

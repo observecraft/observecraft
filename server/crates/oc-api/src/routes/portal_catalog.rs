@@ -251,7 +251,8 @@ fn item(row: DefinitionRow) -> Option<PortalDefinitionItem> {
 }
 
 async fn load_definitions(st: &AppState, org: &str) -> Result<Vec<PortalDefinitionItem>, ApiError> {
-    let rows: Vec<DefinitionRow> = sqlx::query_as(&format!("SELECT {DEFINITION_COLUMNS} FROM portal_entities WHERE org_id = $1 ORDER BY kind, name")).bind(org).fetch_all(&st.postgres).await?;
+    let rows: Vec<DefinitionRow> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {DEFINITION_COLUMNS} FROM portal_entities WHERE org_id = $1 ORDER BY kind, name"))).bind(org).fetch_all(&st.postgres).await?;
     Ok(rows.into_iter().filter_map(item).collect())
 }
 
@@ -419,8 +420,12 @@ async fn upsert(st: &AppState, ctx: &AuthContext, def: &EntityDefinition, source
 }
 
 async fn definition_by_name(st: &AppState, org: &str, kind: &str, name: &str) -> Result<PortalDefinitionItem, ApiError> {
-    let row: Option<DefinitionRow> =
-        sqlx::query_as(&format!("SELECT {DEFINITION_COLUMNS} FROM portal_entities WHERE org_id = $1 AND kind = $2 AND name = $3")).bind(org).bind(kind).bind(name).fetch_optional(&st.postgres).await?;
+    let row: Option<DefinitionRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {DEFINITION_COLUMNS} FROM portal_entities WHERE org_id = $1 AND kind = $2 AND name = $3")))
+        .bind(org)
+        .bind(kind)
+        .bind(name)
+        .fetch_optional(&st.postgres)
+        .await?;
     row.and_then(item).ok_or_else(|| ApiError::NotFound("No such entity definition".into()))
 }
 
@@ -434,7 +439,7 @@ async fn definition_by_id(st: &AppState, org: &str, id: &str) -> Result<PortalDe
         return Err(missing());
     }
     let row: Option<DefinitionRow> =
-        sqlx::query_as(&format!("SELECT {DEFINITION_COLUMNS} FROM portal_entities WHERE org_id = $1 AND id = $2::uuid")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {DEFINITION_COLUMNS} FROM portal_entities WHERE org_id = $1 AND id = $2::uuid"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.and_then(item).ok_or_else(missing)
 }
 

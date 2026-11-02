@@ -137,7 +137,7 @@ const SELECT: &str = "SELECT s.id::text, s.name, u.id::text AS author_id, u.name
     FROM spreadsheets s LEFT JOIN users u ON u.id = s.author_id WHERE s.org_id = $1";
 
 async fn load(st: &AppState, org: &str, id: &str) -> Result<Spreadsheet, ApiError> {
-    let row: Option<Row> = sqlx::query_as(&format!("{SELECT} AND s.id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} AND s.id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.map(Row::full).ok_or_else(|| ApiError::NotFound(format!("Spreadsheet {id} not found")))
 }
 
@@ -165,9 +165,9 @@ pub struct SpreadsheetSearchPage {
 #[utoipa::path(post, path = "/api/v1/spreadsheets/search", operation_id = "search_spreadsheets", request_body = SpreadsheetSearchRequest, responses((status = 200, body = SpreadsheetSearchPage)), tag = "dashboards")]
 pub async fn search(State(st): State<AppState>, ctx: AuthContext, Json(req): Json<SpreadsheetSearchRequest>) -> ApiResult<SpreadsheetSearchPage> {
     let pattern = super::dashboards::ilike(req.query.trim());
-    let rows: Vec<Row> = sqlx::query_as(&format!(
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "{SELECT} AND (s.name ILIKE $2 OR COALESCE(u.name, '') ILIKE $2) AND ($3 <> 'mine' OR s.author_id = $4::uuid) AND ($5::text IS NULL OR s.team = $5) ORDER BY s.modified_at DESC LIMIT 500"
-    ))
+    )))
     .bind(&ctx.org_id)
     .bind(&pattern)
     .bind(&req.view)

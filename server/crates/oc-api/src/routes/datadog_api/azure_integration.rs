@@ -123,11 +123,11 @@ fn db(e: sqlx::Error) -> DdError {
 }
 
 pub async fn list_rows(st: &AppState, org: &str) -> Result<Vec<AzureRow>, sqlx::Error> {
-    sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 ORDER BY created_at, id")).bind(org).fetch_all(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 ORDER BY created_at, id"))).bind(org).fetch_all(&st.postgres).await
 }
 
 pub async fn get_row(st: &AppState, org: &str, id: &str) -> Result<Option<AzureRow>, sqlx::Error> {
-    sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 AND id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 AND id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await
 }
 
 /// The client secret of an app registration, unsealed.

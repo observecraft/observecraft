@@ -172,7 +172,7 @@ pub(crate) fn validate(input: &mut LogMetricInput) -> Result<(), String> {
 const COLS: &str = "id::text AS id, name, query, aggregation, path, group_by, include_percentiles";
 
 async fn get_metric(st: &AppState, org: &str, id: &str) -> Result<LogMetric, ApiError> {
-    let row: Option<Row> = sqlx::query_as(&format!("SELECT {COLS} FROM log_metrics WHERE org_id = $1 AND id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} FROM log_metrics WHERE org_id = $1 AND id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.map(LogMetric::from).ok_or_else(|| ApiError::NotFound("Generated metric not found".into()))
 }
 
@@ -189,7 +189,7 @@ fn group_by_json(g: &[LogMetricGroupBy]) -> Value {
 
 #[utoipa::path(get, path = "/api/v1/logs/metrics", operation_id = "list_log_metrics", responses((status = 200, body = Vec<LogMetric>)), tag = "logs")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<LogMetric>> {
-    let rows: Vec<Row> = sqlx::query_as(&format!("SELECT {COLS} FROM log_metrics WHERE org_id = $1 ORDER BY name")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} FROM log_metrics WHERE org_id = $1 ORDER BY name"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(LogMetric::from).collect()))
 }
 

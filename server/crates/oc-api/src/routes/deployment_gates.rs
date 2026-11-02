@@ -466,7 +466,7 @@ const GATE_SELECT: &str = "SELECT g.id::text AS id, g.service, g.env, g.identifi
      WHERE e.org_id = g.org_id AND e.gate_id = g.id ORDER BY e.started_at DESC LIMIT 1) l ON true";
 
 async fn get_gate(st: &AppState, org: &str, id: &str) -> Result<DeploymentGate, ApiError> {
-    let row: Option<GateRow> = sqlx::query_as(&format!("{GATE_SELECT} WHERE g.org_id = $1 AND g.id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<GateRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{GATE_SELECT} WHERE g.org_id = $1 AND g.id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.map(DeploymentGate::from).ok_or_else(|| ApiError::NotFound("Deployment gate not found".into()))
 }
 
@@ -562,7 +562,8 @@ async fn evaluate_rules(st: &AppState, org: &str, gate: &DeploymentGate, version
 
 #[utoipa::path(get, path = "/api/v1/deployment-gates", operation_id = "list_deployment_gates", responses((status = 200, body = Vec<DeploymentGate>)), tag = "delivery")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<DeploymentGate>> {
-    let rows: Vec<GateRow> = sqlx::query_as(&format!("{GATE_SELECT} WHERE g.org_id = $1 ORDER BY g.service, g.env, g.identifier")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<GateRow> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("{GATE_SELECT} WHERE g.org_id = $1 ORDER BY g.service, g.env, g.identifier"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(DeploymentGate::from).collect()))
 }
 
@@ -641,7 +642,7 @@ pub async fn evaluate(State(st): State<AppState>, Writer(ctx): Writer, Json(req)
     if version.is_some_and(|v| v.chars().count() > MAX_FIELD_CHARS) {
         return Err(ApiError::BadRequest(format!("version is at most {MAX_FIELD_CHARS} characters")));
     }
-    let row: Option<GateRow> = sqlx::query_as(&format!("{GATE_SELECT} WHERE g.org_id = $1 AND g.service = $2 AND g.env = $3 AND g.identifier = $4"))
+    let row: Option<GateRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{GATE_SELECT} WHERE g.org_id = $1 AND g.service = $2 AND g.env = $3 AND g.identifier = $4")))
         .bind(&ctx.org_id)
         .bind(service)
         .bind(env)
@@ -671,16 +672,22 @@ pub async fn evaluate(State(st): State<AppState>, Writer(ctx): Writer, Json(req)
     .bind(duration_ms)
     .fetch_one(&st.postgres)
     .await?;
-    sqlx::query(&format!("DELETE FROM deployment_gate_evaluations WHERE org_id = $1 AND started_at < now() - interval '{RETENTION_DAYS} days'")).bind(&ctx.org_id).execute(&st.postgres).await?;
-    let row: EvaluationRow =
-        sqlx::query_as(&format!("SELECT {EVALUATION_COLS} FROM deployment_gate_evaluations WHERE org_id = $1 AND id::text = $2")).bind(&ctx.org_id).bind(&id).fetch_one(&st.postgres).await?;
+    sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM deployment_gate_evaluations WHERE org_id = $1 AND started_at < now() - interval '{RETENTION_DAYS} days'")))
+        .bind(&ctx.org_id)
+        .execute(&st.postgres)
+        .await?;
+    let row: EvaluationRow = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {EVALUATION_COLS} FROM deployment_gate_evaluations WHERE org_id = $1 AND id::text = $2")))
+        .bind(&ctx.org_id)
+        .bind(&id)
+        .fetch_one(&st.postgres)
+        .await?;
     Ok(Json(row.into()))
 }
 
 /// The org's latest evaluations, newest first.
 #[utoipa::path(get, path = "/api/v1/deployment-gates/evaluations", operation_id = "list_deployment_gate_evaluations", responses((status = 200, body = Vec<GateEvaluation>)), tag = "delivery")]
 pub async fn evaluations(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<GateEvaluation>> {
-    let rows: Vec<EvaluationRow> = sqlx::query_as(&format!("SELECT {EVALUATION_COLS} FROM deployment_gate_evaluations WHERE org_id = $1 ORDER BY started_at DESC LIMIT $2"))
+    let rows: Vec<EvaluationRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {EVALUATION_COLS} FROM deployment_gate_evaluations WHERE org_id = $1 ORDER BY started_at DESC LIMIT $2")))
         .bind(&ctx.org_id)
         .bind(MAX_EVALUATIONS)
         .fetch_all(&st.postgres)
@@ -691,8 +698,11 @@ pub async fn evaluations(State(st): State<AppState>, ctx: AuthContext) -> ApiRes
 /// One evaluation, with the current status of the monitors that failed it.
 #[utoipa::path(get, path = "/api/v1/deployment-gates/evaluations/{id}", operation_id = "get_deployment_gate_evaluation", params(("id" = String, Path)), responses((status = 200, body = GateEvaluation)), tag = "delivery")]
 pub async fn evaluation(State(st): State<AppState>, ctx: AuthContext, Path(id): Path<String>) -> ApiResult<GateEvaluation> {
-    let row: Option<EvaluationRow> =
-        sqlx::query_as(&format!("SELECT {EVALUATION_COLS} FROM deployment_gate_evaluations WHERE org_id = $1 AND id::text = $2")).bind(&ctx.org_id).bind(&id).fetch_optional(&st.postgres).await?;
+    let row: Option<EvaluationRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {EVALUATION_COLS} FROM deployment_gate_evaluations WHERE org_id = $1 AND id::text = $2")))
+        .bind(&ctx.org_id)
+        .bind(&id)
+        .fetch_optional(&st.postgres)
+        .await?;
     let Some(mut evaluation) = row.map(GateEvaluation::from) else { return Err(ApiError::NotFound("Evaluation not found".into())) };
     let ids: Vec<i64> = evaluation.rules.iter().flat_map(|r| r.monitors.iter().map(|m| m.id)).collect();
     if !ids.is_empty() {

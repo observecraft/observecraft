@@ -181,7 +181,7 @@ const SELECT: &str = "SELECT q.id::text AS id, q.name, q.description, q.query, u
     FROM log_restriction_queries q LEFT JOIN users u ON u.id = q.created_by";
 
 async fn get_query(st: &AppState, org: &str, id: &str) -> Result<LogRestrictionQuery, ApiError> {
-    let row: Option<Row> = sqlx::query_as(&format!("{SELECT} WHERE q.org_id = $1 AND q.id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE q.org_id = $1 AND q.id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.map(Into::into).ok_or_else(|| ApiError::NotFound("Restriction query not found".into()))
 }
 
@@ -189,7 +189,7 @@ const ORG_ROLES: &str = "SELECT id FROM roles WHERE org_id = $1 AND id = ANY($2)
 const ORG_TEAMS: &str = "SELECT handle FROM teams WHERE org_id = $1 AND handle = ANY($2)";
 
 /// The ids among `ids` that `existing` (`ORG_ROLES` or `ORG_TEAMS`) doesn't find in the org.
-async fn unknown(st: &AppState, org: &str, existing: &str, ids: &[String]) -> Result<Vec<String>, ApiError> {
+async fn unknown(st: &AppState, org: &str, existing: &'static str, ids: &[String]) -> Result<Vec<String>, ApiError> {
     if ids.is_empty() {
         return Ok(Vec::new());
     }
@@ -245,7 +245,7 @@ fn assignment_detail(input: &RestrictionQueryInput) -> String {
 
 #[utoipa::path(get, path = "/api/v1/logs/restriction-queries", operation_id = "list_log_restriction_queries", responses((status = 200, body = Vec<LogRestrictionQuery>)), tag = "logs")]
 pub async fn list(State(st): State<AppState>, Admin(ctx): Admin) -> ApiResult<Vec<LogRestrictionQuery>> {
-    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE q.org_id = $1 ORDER BY q.name")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE q.org_id = $1 ORDER BY q.name"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(Into::into).collect()))
 }
 

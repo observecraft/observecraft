@@ -228,11 +228,11 @@ const SCHEDULE_SELECT: &str = "SELECT id::text AS id, name, time_zone, team_hand
     (extract(epoch FROM created_at) * 1000)::bigint AS created_at, (extract(epoch FROM updated_at) * 1000)::bigint AS updated_at FROM on_call_schedules";
 
 async fn schedule_rows(st: &AppState, org: &str) -> Result<Vec<ScheduleRow>, ApiError> {
-    Ok(sqlx::query_as(&format!("{SCHEDULE_SELECT} WHERE org_id = $1 ORDER BY lower(name) LIMIT {MAX_SCHEDULES}")).bind(org).fetch_all(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{SCHEDULE_SELECT} WHERE org_id = $1 ORDER BY lower(name) LIMIT {MAX_SCHEDULES}"))).bind(org).fetch_all(&st.postgres).await?)
 }
 
 async fn schedule_row(st: &AppState, org: &str, id: &str) -> Result<ScheduleRow, ApiError> {
-    sqlx::query_as(&format!("{SCHEDULE_SELECT} WHERE org_id = $1 AND id::text = $2"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SCHEDULE_SELECT} WHERE org_id = $1 AND id::text = $2")))
         .bind(org)
         .bind(id)
         .fetch_optional(&st.postgres)
@@ -643,7 +643,7 @@ const POLICY_SELECT: &str = "SELECT p.id::text AS id, p.name, p.team_handle, p.t
     (extract(epoch FROM p.created_at) * 1000)::bigint AS created_at, (extract(epoch FROM p.updated_at) * 1000)::bigint AS updated_at FROM on_call_escalation_policies p";
 
 async fn policy_row(st: &AppState, org: &str, id: &str) -> Result<Option<PolicyRow>, ApiError> {
-    Ok(sqlx::query_as(&format!("{POLICY_SELECT} WHERE p.org_id = $1 AND p.id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{POLICY_SELECT} WHERE p.org_id = $1 AND p.id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?)
 }
 
 async fn check_policy(st: &AppState, org: &str, input: &mut OnCallPolicyInput) -> Result<(), ApiError> {
@@ -671,7 +671,8 @@ async fn check_policy(st: &AppState, org: &str, input: &mut OnCallPolicyInput) -
 
 #[utoipa::path(get, path = "/api/v1/on-call/escalation-policies", operation_id = "list_on_call_policies", responses((status = 200, body = Vec<OnCallPolicy>)), tag = "on-call")]
 pub async fn list_policies(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<OnCallPolicy>> {
-    let rows: Vec<PolicyRow> = sqlx::query_as(&format!("{POLICY_SELECT} WHERE p.org_id = $1 ORDER BY lower(p.name) LIMIT {MAX_POLICIES}")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<PolicyRow> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("{POLICY_SELECT} WHERE p.org_id = $1 ORDER BY lower(p.name) LIMIT {MAX_POLICIES}"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(PolicyRow::view).collect()))
 }
 
@@ -1046,7 +1047,7 @@ pub struct OnCallPageDetail {
 }
 
 async fn page_view(st: &AppState, org: &str, id: i64) -> Result<OnCallPage, ApiError> {
-    let row: Option<PageRow> = sqlx::query_as(&format!("{PAGE_SELECT} WHERE g.org_id = $1 AND g.id = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<PageRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{PAGE_SELECT} WHERE g.org_id = $1 AND g.id = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     let row = row.ok_or_else(|| ApiError::NotFound("Page not found".into()))?;
     page_views(st, org, vec![row]).await?.pop().ok_or_else(|| ApiError::NotFound("Page not found".into()))
 }

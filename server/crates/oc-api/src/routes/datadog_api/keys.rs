@@ -89,7 +89,7 @@ async fn find_api_key(st: &AppState, org: &str, id: &str) -> Result<ApiKeyRow, D
     let not_found = || not_found("API key not found");
     let id = uuid(id).ok_or_else(not_found)?;
     let row: Option<ApiKeyRow> =
-        sqlx::query_as(&format!("SELECT {API_KEY_COLS} FROM ingest_keys k WHERE k.org_id = $1 AND k.id = $2::uuid AND k.revoked_at IS NULL")).bind(org).bind(&id).fetch_optional(&st.postgres).await?;
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {API_KEY_COLS} FROM ingest_keys k WHERE k.org_id = $1 AND k.id = $2::uuid AND k.revoked_at IS NULL"))).bind(org).bind(&id).fetch_optional(&st.postgres).await?;
     row.ok_or_else(not_found)
 }
 
@@ -116,9 +116,9 @@ pub async fn list_api_keys(State(st): State<AppState>, DdAuth(ctx): DdAuth, Quer
         key: ApiKeyRow,
         filtered: i64,
     }
-    let rows: Vec<Row> = sqlx::query_as(&format!(
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT {API_KEY_COLS}, count(*) OVER () AS filtered FROM ingest_keys k WHERE k.org_id = $1 AND k.revoked_at IS NULL AND ($2 = '' OR k.name ILIKE $3) ORDER BY {order} LIMIT $4 OFFSET $5"
-    ))
+    )))
     .bind(&ctx.org_id)
     .bind(&filter)
     .bind(ilike(&filter))
@@ -231,7 +231,7 @@ enum Owner {
 async fn find_app_key(st: &AppState, ctx: &AuthContext, owner: Owner, id: &str) -> Result<AppKeyRow, DdError> {
     let not_found = || not_found("Application key not found");
     let id = uuid(id).ok_or_else(not_found)?;
-    let row: Option<AppKeyRow> = sqlx::query_as(&format!("SELECT {APP_KEY_COLS} FROM app_keys k WHERE k.org_id = $1 AND k.id = $2::uuid AND k.revoked_at IS NULL AND ($3 OR k.user_id = $4::uuid)"))
+    let row: Option<AppKeyRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {APP_KEY_COLS} FROM app_keys k WHERE k.org_id = $1 AND k.id = $2::uuid AND k.revoked_at IS NULL AND ($3 OR k.user_id = $4::uuid)")))
         .bind(&ctx.org_id)
         .bind(&id)
         .bind(owner == Owner::Org)
@@ -268,11 +268,11 @@ async fn list_app_keys(st: &AppState, ctx: &AuthContext, owner: Owner, q: &HashM
         key: AppKeyRow,
         filtered: i64,
     }
-    let rows: Vec<Row> = sqlx::query_as(&format!(
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT {APP_KEY_COLS}, count(*) OVER () AS filtered FROM app_keys k JOIN users u ON u.id = k.user_id \
          WHERE k.org_id = $1 AND k.revoked_at IS NULL AND ($2 OR k.user_id = $3::uuid) AND ($4 = '' OR k.name ILIKE $5) \
          AND ($6 = '' OR u.name ILIKE $7 OR u.email ILIKE $7) ORDER BY {order} LIMIT $8 OFFSET $9"
-    ))
+    )))
     .bind(&ctx.org_id)
     .bind(owner == Owner::Org)
     .bind(&ctx.user_id)

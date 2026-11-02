@@ -150,7 +150,7 @@ const PAGE_SELECT: &str = "SELECT id, team_handle AS team, title, status, create
 #[utoipa::path(get, path = "/api/v1/incidents/{id}/pages", params(("id" = i32, Path)), responses((status = 200, body = Vec<Page>)), tag = "incidents")]
 pub async fn pages(State(st): State<AppState>, OrgId(org): OrgId, Path(id): Path<i32>) -> ApiResult<Vec<Page>> {
     let row = find(&st, &org, id).await?;
-    let rows = sqlx::query_as(&format!("{PAGE_SELECT} WHERE incident_id = $1 ORDER BY created_at DESC")).bind(row.pk).fetch_all(&st.postgres).await?;
+    let rows = sqlx::query_as(sqlx::AssertSqlSafe(format!("{PAGE_SELECT} WHERE incident_id = $1 ORDER BY created_at DESC"))).bind(row.pk).fetch_all(&st.postgres).await?;
     Ok(Json(rows))
 }
 
@@ -193,7 +193,7 @@ pub async fn create_page(State(st): State<AppState>, Writer(ctx): Writer, Path(i
         .fetch_one(&st.postgres)
         .await?;
     event(&st, row.pk, "notification", &ctx, &format!("Paged @{team}: {title}")).await?;
-    let page = sqlx::query_as(&format!("{PAGE_SELECT} WHERE id = $1")).bind(pid).fetch_one(&st.postgres).await?;
+    let page = sqlx::query_as(sqlx::AssertSqlSafe(format!("{PAGE_SELECT} WHERE id = $1"))).bind(pid).fetch_one(&st.postgres).await?;
     Ok(Json(page))
 }
 

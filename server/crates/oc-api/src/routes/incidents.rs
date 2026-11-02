@@ -691,7 +691,7 @@ mod tests {
     fn sql(skip: Option<Facet>) -> String {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT 1 FROM incidents i");
         push_filters(&mut qb, "org", "me", &req(), skip);
-        qb.sql().to_string()
+        qb.sql().as_str().to_string()
     }
 
     #[test]

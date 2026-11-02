@@ -252,7 +252,7 @@ async fn load(st: &AppState, org: &str, id: &str) -> Result<SyntheticSuite, ApiE
     if !is_uuid(id) {
         return Err(not_found());
     }
-    let row: Option<SuiteRow> = sqlx::query_as(&format!("{SUITE_SELECT} WHERE s.org_id = $1 AND s.id = $2::uuid")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<SuiteRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SUITE_SELECT} WHERE s.org_id = $1 AND s.id = $2::uuid"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     let row = row.ok_or_else(not_found)?;
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0);
     let range = TimeRange { from: now - 24 * 3_600_000, to: now };
@@ -287,7 +287,7 @@ async fn set_tests(tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, org: &str, su
     responses((status = 200, body = SyntheticSuitesPage), (status = 400, body = crate::error::ErrorBody)), tag = "synthetics")]
 pub async fn search_suites(State(st): State<AppState>, ctx: AuthContext, Json(req): Json<SyntheticSuiteSearchRequest>) -> ApiResult<SyntheticSuitesPage> {
     req.range.validate()?;
-    let rows: Vec<SuiteRow> = sqlx::query_as(&format!("{SUITE_SELECT} WHERE s.org_id = $1 ORDER BY lower(s.name), s.id")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<SuiteRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SUITE_SELECT} WHERE s.org_id = $1 ORDER BY lower(s.name), s.id"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     let mut suites: Vec<SyntheticSuite> = assemble(&st, &ctx.org_id, rows, Some(&req.range)).await?.into_iter().filter(|s| matches_suite_query(s, &req.query)).collect();
     suites.sort_by_key(|s| std::cmp::Reverse(s.status.severity()));
     Ok(Json(SyntheticSuitesPage { suites }))
