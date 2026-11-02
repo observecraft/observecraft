@@ -159,7 +159,7 @@ fn rewrite_budgeted(mut input: &[u8], level: u8, at: DateTime<Utc>, budget: &mut
             }
             let mut payload = data;
             let len = encoding::decode_varint(&mut payload)? as usize;
-            let payload = payload.get(..len).ok_or_else(|| prost::DecodeError::new("truncated message"))?;
+            let payload = payload.get(..len).ok_or(Error::Invalid)?;
             if child {
                 put_message(tag, &rewrite_budgeted(payload, level + 1, at, budget)?, &mut output);
                 continue;

@@ -1068,7 +1068,7 @@ mod tests {
     async fn replay_counts_match_search_facets_and_error_aggregates() {
         let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = crate::test_support::org("log-replay");
-        let ch = live.client.clone().with_database("oc").with_option("param_org", &org);
+        let ch = live.client.clone().with_database("oc").with_setting("param_org", &org);
         let t0 = crate::routes::metrics::now_ms() / 60_000 * 60_000 - 600_000;
         // Equal events have different IDs. Retry the same events in reversed order and separate inserts.
         // They are Error Tracking issues (an error kind), so the error aggregate counts them too.

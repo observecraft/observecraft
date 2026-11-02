@@ -181,9 +181,9 @@ pub fn configure(client: Client, cfg: &ClickHouseConfig) -> Client {
         .with_user(&cfg.user)
         .with_password(&cfg.password)
         .with_database(&cfg.database)
-        .with_option("optimize_aggregation_in_order", "1");
+        .with_setting("optimize_aggregation_in_order", "1");
     match cfg.cluster {
-        Some(_) => client.with_option("distributed_product_mode", "global"),
+        Some(_) => client.with_setting("distributed_product_mode", "global"),
         None => client,
     }
 }
@@ -437,7 +437,7 @@ fn delete_ttls(r: RetentionDays) -> Vec<(&'static str, String)> {
 /// TTL is recalculated for existing parts without rewriting them; expired parts are dropped at the
 /// next merges.
 pub async fn apply_retention(cfg: &ClickHouseConfig, r: RetentionDays) -> anyhow::Result<()> {
-    let admin = cfg.admin().with_option("materialize_ttl_after_modify", "0");
+    let admin = cfg.admin().with_setting("materialize_ttl_after_modify", "0");
     let on = cfg.on_cluster();
     for (table, ttl) in retention_ttls(r) {
         let local = cfg.local(table);

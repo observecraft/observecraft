@@ -231,7 +231,7 @@ async fn retention_changes_reach_existing_parts() {
     let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
     let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
     migrate_clickhouse(&cfg, false).await.expect("migrate");
-    let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_option("mutations_sync", "2");
+    let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_setting("mutations_sync", "2");
     let org = format!("retention-test-{}", std::process::id());
     let days = |raw: u32| oc_store::RetentionDays { traces: 15, traces_max: 90, metrics: raw, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 0 };
     let count = || {

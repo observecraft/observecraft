@@ -949,7 +949,7 @@ mod tests {
             super::super::now_ms()
         );
         // Widgets run on `points_client` (shard-local joins on a cluster).
-        let ch = live.points(&live.client).with_option("param_oc_org", &org);
+        let ch = live.points(&live.client).with_setting("param_oc_org", &org);
         let from = super::super::now_ms().div_euclid(3_600_000) * 3_600_000;
         let range = TimeRange {
             from,
@@ -1049,7 +1049,7 @@ mod tests {
         let (sql, params) = widget_sql(&prepared("sum:dashboard.test.gauge{*}"), Kind::Gauge, range, Default::default());
         let other = ch
             .clone()
-            .with_option("param_oc_org", format!("{org}-empty"));
+            .with_setting("param_oc_org", format!("{org}-empty"));
         assert!(bind(other.query(&sql), &params)
             .fetch_all::<Row>()
             .await

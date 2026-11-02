@@ -2368,7 +2368,7 @@ mod tests {
             .execute()
             .await
             .expect("insert objects");
-        let ch = admin.clone().with_option("param_oc_org", &org);
+        let ch = admin.clone().with_setting("param_oc_org", &org);
 
         let objects = load_objects(&ch, &[]).await.expect("load");
         assert_eq!(objects.len(), bodies.len(), "every fixture object is in the inventory");

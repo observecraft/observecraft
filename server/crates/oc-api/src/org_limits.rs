@@ -134,8 +134,8 @@ impl OrgClients {
     /// org's limits apply.
     pub fn client(&self, org: &str) -> clickhouse::Client {
         let base = if self.limits.concurrency == 0 || in_background() { self.shared.clone() } else { self.per_org.lock().unwrap().entry(org.to_string()).or_insert_with(|| self.limited()).clone() };
-        let client = base.with_option("param_oc_org", org).with_option("quota_key", org);
-        self.limits.settings().into_iter().fold(client, |c, (name, value)| c.with_option(name, value))
+        let client = base.with_setting("param_oc_org", org).with_setting("quota_key", org);
+        self.limits.settings().into_iter().fold(client, |c, (name, value)| c.with_setting(name, value))
     }
 
     /// A client on a connection pool of at most `concurrency` connections (as the clickhouse

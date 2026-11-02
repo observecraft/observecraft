@@ -131,7 +131,7 @@ pub async fn live_clickhouse() -> Option<LiveClickHouse> {
     migrate_clickhouse_once(&cfg).await;
     // The server's client (cluster settings included), as the routes get it through AppState.
     let client = oc_store::clickhouse(&cfg);
-    let client = if cfg.cluster.is_some() { client.with_option("insert_distributed_sync", "1").with_option("load_balancing", "in_order") } else { client };
+    let client = if cfg.cluster.is_some() { client.with_setting("insert_distributed_sync", "1").with_setting("load_balancing", "in_order") } else { client };
     Some(LiveClickHouse { cfg, client })
 }
 

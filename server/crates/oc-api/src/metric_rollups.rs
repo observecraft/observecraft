@@ -141,7 +141,7 @@ pub(crate) fn rollup_sql(tier: Tier) -> [&'static str; 2] {
 /// Rolls up `[from, to)` of `tier` with `ch`, an org's client (`AppState::ch`). In a cluster each
 /// shard rolls up its own series (series, samples and rollups share the shard).
 pub(crate) async fn roll(ch: &clickhouse::Client, cluster: bool, tier: Tier, from: i64, to: i64) -> Result<(), clickhouse::error::Error> {
-    let ch = if cluster { ch.clone().with_option("parallel_distributed_insert_select", "2").with_option("insert_distributed_sync", "1") } else { ch.clone() };
+    let ch = if cluster { ch.clone().with_setting("parallel_distributed_insert_select", "2").with_setting("insert_distributed_sync", "1") } else { ch.clone() };
     for sql in rollup_sql(tier) {
         ch.query(sql).bind(from).bind(to).execute().await?;
     }
@@ -162,7 +162,7 @@ pub(crate) async fn replica_delay(ch: &clickhouse::Client, cluster: &str) -> Res
         "SELECT toUInt64(max(absolute_delay)) FROM clusterAllReplicas({cluster:String}, system.replicas) \
          WHERE database = 'otel' AND table IN ('metrics_samples_local', 'metrics_log_samples_local', 'metrics_log_dist_samples_local', 'metrics_dist_samples_local', 'metrics_rollup_5m_local', 'metrics_dist_rollup_5m_local', 'metrics_arrivals_local')",
     )
-    .with_option("param_cluster", cluster)
+    .with_setting("param_cluster", cluster)
     .fetch_one()
     .await
 }
@@ -507,7 +507,7 @@ mod tests {
             sqlx::query("INSERT INTO metric_rollups (org_id, tier, done_until, arrivals_until) SELECT $1, tier, to_timestamp($2::double precision / 1000), to_timestamp($3::double precision / 1000) FROM (VALUES ('5m'), ('1h')) t(tier)")
                 .bind(id).bind(sample_start + HOUR_MS).bind(floor(now, MINUTE_MS)).execute(&pg).await.unwrap();
         }
-        let ch = live.client.clone().with_option("param_oc_org", &org);
+        let ch = live.client.clone().with_setting("param_oc_org", &org);
         let insert = |at, value| {
             ch.query("INSERT INTO otel.metrics_samples (OrgId, MetricName, SeriesId, TimeUnix, Value, RetentionDays, Retention5mDays, Retention1hDays) VALUES ({oc_org:String}, 'system.cpu.user', 1, fromUnixTimestamp64Milli(?), ?, 30, 90, 395)")
                 .bind(at).bind(value)
@@ -559,7 +559,7 @@ mod tests {
     async fn rollups_match_the_samples_and_reruns_replace_them() {
         let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("rollup-job-{}-{}", std::process::id(), crate::routes::metrics::now_ms());
-        let ch = live.client.clone().with_option("param_oc_org", &org);
+        let ch = live.client.clone().with_setting("param_oc_org", &org);
         // Two series, a point every 10 s for 2 hours; tiers 15 / 180 / 760 days.
         let insert = |from_s: i64, n: u64, value: &str| {
             format!(
@@ -623,7 +623,7 @@ mod tests {
         close(&fetch(rolled("metrics_rollup_1h")).await, &fetch(raw(3600)).await, "1h after a re-roll");
 
         // Another org's samples aren't touched.
-        let other = ch.clone().with_option("param_oc_org", format!("{org}-other"));
+        let other = ch.clone().with_setting("param_oc_org", format!("{org}-other"));
         let n: u64 = other
             .query("SELECT count() FROM otel.metrics_rollup_5m WHERE OrgId = {oc_org:String}")
             .fetch_one()
@@ -638,7 +638,7 @@ mod tests {
     async fn distribution_rollups_keep_first_last_and_totals() {
         let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("rollup-dist-{}-{}", std::process::id(), crate::routes::metrics::now_ms());
-        let ch = live.client.clone().with_option("param_oc_org", &org);
+        let ch = live.client.clone().with_setting("param_oc_org", &org);
         // A cumulative histogram: 3 points in 10:00–10:05, one at 10:07.
         ch.query(&format!(
             "INSERT INTO otel.metrics_ingest_histogram (ResourceAttributes, MetricName, Attributes, TimeUnix, Count, Sum, BucketCounts, ExplicitBounds, Min, Max, AggregationTemporality) VALUES \
