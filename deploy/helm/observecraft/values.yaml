@@ -395,6 +395,9 @@ networkPolicy:
 serviceAccount:
   create: true
   name: ""
+  # The cloud integrations' crawlers run as this identity: AWS (EKS IRSA: eks.amazonaws.com/role-arn: <role ARN>,
+  # or EKS Pod Identity; set the role as OC_AWS_PRINCIPAL_ARN in extraEnv) and GCP (GKE workload identity:
+  # iam.gke.io/gcp-service-account: <email>; set it as OC_GCP_PRINCIPAL_EMAIL). Customers trust these identities.
   annotations: {}
 
 podSecurityContext:

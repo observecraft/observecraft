@@ -1,4 +1,4 @@
-# Metric units from DataDog/integrations-core@c7dbc72cac1946294acda77f6491ecd081d9b498 (kubelet/metadata.csv, kubernetes_state_core/metadata.csv, kubernetes_state/metadata.csv, etcd/metadata.csv, kube_apiserver_metrics/metadata.csv, kube_controller_manager/metadata.csv, kube_scheduler/metadata.csv, container/metadata.csv, system_core/metadata.csv, disk/metadata.csv, network/metadata.csv, tls/metadata.csv); BSD-3-Clause, see LICENSE. Agent host metrics (system.*) added here.
+# Metric units from DataDog/integrations-core@1e7420ec635aafdd33db6a1e69586de7d2e24c21 (kubelet/metadata.csv, kubernetes_state_core/metadata.csv, kubernetes_state/metadata.csv, etcd/metadata.csv, kube_apiserver_metrics/metadata.csv, kube_controller_manager/metadata.csv, kube_scheduler/metadata.csv, container/metadata.csv, system_core/metadata.csv, disk/metadata.csv, network/metadata.csv, tls/metadata.csv); BSD-3-Clause, see LICENSE. Agent host metrics (system.*) added here.
 container.cpu.limit,nanocore
 container.cpu.partial_stall,nanosecond
 container.cpu.system,nanocore

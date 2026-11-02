@@ -1,5 +1,5 @@
 // In-browser Kubernetes inventory for mock mode: two clusters of the e-commerce demo.
-import type { KubeDetail, KubeFacet, KubeGroup, KubeHealth, KubeKind, KubeResource, KubeSearchPage, KubeSearchRequest, KubeUtilization } from '../kubernetes/client';
+import type { KubeClusterSummary, KubeDetail, KubeFacet, KubeGroup, KubeHealth, KubeKind, KubeResource, KubeSearchPage, KubeSearchRequest, KubeUtilization } from '../kubernetes/client';
 import { parseQuery } from '../../lib/searchQuery';
 import { rng } from './generator';
 
@@ -479,4 +479,26 @@ export async function getKubeResource(uid: string): Promise<KubeDetail> {
           },
         ];
   return { resource: r, manifest: manifest as unknown as KubeDetail['manifest'], related, events };
+}
+
+/** Integrations → Kubernetes: the production cluster runs the Datadog Agent with workload autoscaling,
+ * staging the OpenTelemetry Collector. */
+export async function listKubeClusters(): Promise<KubeClusterSummary[]> {
+  return inventory()
+    .filter((r) => r.kind === 'clusters')
+    .map((c) => {
+      const prod = c.name.includes('prod');
+      return {
+        name: c.name,
+        nodes: c.nodes ?? 0,
+        pods: c.pods ?? 0,
+        version: c.version,
+        lastSeen: Date.now() - 40_000,
+        cpuCapacity: c.cpu?.capacity,
+        memoryCapacity: c.memory?.capacity,
+        status: c.status,
+        sources: [prod ? 'datadog_cluster_agent' : 'opentelemetry'],
+        autoscaling: prod,
+      };
+    });
 }

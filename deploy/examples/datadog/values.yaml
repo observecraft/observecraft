@@ -41,6 +41,13 @@ datadog:
   # Products ObserveCraft doesn't have yet.
   remoteConfiguration:
     enabled: false
+  # Workload autoscaling (Kubernetes → Autoscaling): the Cluster Agent refuses to start it without Remote
+  # Configuration; with the site above it never reaches Datadog. Set remoteConfiguration.enabled to true,
+  # uncomment, and add DD_AUTOSCALING_WORKLOAD_EXTERNAL_RECOMMENDER_ENABLED=true to clusterAgent.env for
+  # ObserveCraft's recommender (Integrations → Kubernetes → Install generates all of it).
+  # autoscaling:
+  #   workload:
+  #     enabled: true
   env: &env
     - { name: DD_APM_DD_URL, value: *intake }
     - { name: DD_APM_PROFILING_DD_URL, value: *profilesIntake }
