@@ -1,7 +1,6 @@
 //! Password hashing (Argon2id, OWASP-recommended parameters) and policy.
 
-use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
-use argon2::Argon2;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use std::sync::OnceLock;
 
 pub const MIN_LEN: usize = 12;
@@ -22,8 +21,8 @@ pub fn check_policy(p: &str) -> Result<(), String> {
 }
 
 pub fn hash(p: &str) -> anyhow::Result<String> {
-    let salt = SaltString::generate(&mut rand::rngs::OsRng);
-    Ok(Argon2::default().hash_password(p.as_bytes(), &salt).map_err(|e| anyhow::anyhow!("hash password: {e}"))?.to_string())
+    // A random salt from the operating system's generator, chosen by argon2.
+    Ok(Argon2::default().hash_password(p.as_bytes()).map_err(|e| anyhow::anyhow!("hash password: {e}"))?.to_string())
 }
 
 pub fn verify(p: &str, stored: &str) -> bool {
@@ -48,6 +47,14 @@ mod tests {
         assert!(verify("correct horse battery", &h));
         assert!(!verify("wrong horse battery", &h));
         assert!(!verify("x", "not-a-hash"));
+    }
+
+    #[test]
+    fn hashes_stored_by_earlier_versions_still_verify() {
+        // The Argon2id reference known-answer vector (password "password", salt "somesalt"), as PHC string.
+        let stored = "$argon2id$v=19$m=256,t=2,p=1$c29tZXNhbHQ$nf65EOgLrQMR/uIPnA4rEsF5h7TKyQwu9U1bMCHGi/4";
+        assert!(verify("password", stored));
+        assert!(!verify("passwore", stored));
     }
 
     #[test]

@@ -587,7 +587,7 @@ fn widget_id(i: usize) -> String {
 
 fn uuid_part() -> String {
     let mut b = [0u8; 6];
-    rand::RngCore::fill_bytes(&mut rand::rngs::OsRng, &mut b);
+    crate::auth::crypto::os_random(&mut b);
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 

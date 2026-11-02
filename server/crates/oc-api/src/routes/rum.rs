@@ -16,7 +16,6 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use oc_query::{build_where, parse_query, Param, RumSchema};
-use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -127,7 +126,7 @@ pub struct RumApplicationInput {
 /// A client token as Datadog's look: `pub` and 32 hex digits.
 pub fn new_client_token() -> String {
     let mut b = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut b);
+    crate::auth::crypto::os_random(&mut b);
     format!("pub{}", b.iter().map(|x| format!("{x:02x}")).collect::<String>())
 }
 

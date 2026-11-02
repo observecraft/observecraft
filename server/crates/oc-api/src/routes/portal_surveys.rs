@@ -960,9 +960,8 @@ mod tests {
     fn respondent_keys_are_per_survey_and_per_user() {
         // Surveys get random salts, as created.
         let salt = || {
-            use rand::RngCore;
             let mut bytes = [0u8; 16];
-            rand::rngs::OsRng.fill_bytes(&mut bytes);
+            crate::auth::crypto::os_random(&mut bytes);
             bytes.iter().map(|x| format!("{x:02x}")).collect::<String>()
         };
         let (a, b) = (salt(), salt());

@@ -85,8 +85,7 @@ fn uuid_v4() -> String {
 }
 
 fn getrandom_fill(b: &mut [u8]) {
-    use rand::RngCore;
-    rand::thread_rng().fill_bytes(b);
+    rand::fill(b);
 }
 
 #[cfg(test)]
