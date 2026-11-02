@@ -1,0 +1,1076 @@
+{
+  "_comment": "ObserveCraft's AWS catalog: the CloudWatch namespaces the AWS integration collects (GET /api/v2/integration/aws/available_namespaces, the AWS service tiles) and the log sources the Datadog Forwarder subscribes to (GET /api/v2/integration/aws/logs/services).",
+  "namespaces": [
+    {
+      "namespace": "AWS/ApiGateway",
+      "name": "Amazon API Gateway",
+      "id": "aws-apigateway",
+      "categories": [
+        "AWS",
+        "Web"
+      ]
+    },
+    {
+      "namespace": "AWS/AppRunner",
+      "name": "AWS App Runner",
+      "id": "aws-apprunner",
+      "categories": [
+        "AWS",
+        "Containers"
+      ]
+    },
+    {
+      "namespace": "AWS/AppStream",
+      "name": "Amazon AppStream",
+      "id": "aws-appstream",
+      "categories": [
+        "AWS"
+      ]
+    },
+    {
+      "namespace": "AWS/AppSync",
+      "name": "AWS AppSync",
+      "id": "aws-appsync",
+      "categories": [
+        "AWS",
+        "Web"
+      ]
+    },
+    {
+      "namespace": "AWS/ApplicationELB",
+      "name": "Application Load Balancer",
+      "id": "aws-applicationelb",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/Athena",
+      "name": "Amazon Athena",
+      "id": "aws-athena",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/AutoScaling",
+      "name": "Amazon EC2 Auto Scaling",
+      "id": "aws-autoscaling",
+      "categories": [
+        "AWS",
+        "Orchestration"
+      ]
+    },
+    {
+      "namespace": "AWS/Backup",
+      "name": "AWS Backup",
+      "id": "aws-backup",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/Bedrock",
+      "name": "Amazon Bedrock",
+      "id": "aws-bedrock",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/Billing",
+      "name": "AWS Billing",
+      "id": "aws-billing",
+      "categories": [
+        "AWS",
+        "Cost Management"
+      ]
+    },
+    {
+      "namespace": "AWS/Budgeting",
+      "name": "AWS Budgets",
+      "id": "aws-budgeting",
+      "categories": [
+        "AWS",
+        "Cost Management"
+      ]
+    },
+    {
+      "namespace": "AWS/CertificateManager",
+      "name": "AWS Certificate Manager",
+      "id": "aws-certificatemanager",
+      "categories": [
+        "AWS",
+        "Security"
+      ]
+    },
+    {
+      "namespace": "AWS/ELB",
+      "name": "Classic Load Balancer",
+      "id": "aws-elb",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/CloudFront",
+      "name": "Amazon CloudFront",
+      "id": "aws-cloudfront",
+      "categories": [
+        "AWS",
+        "Network",
+        "Web"
+      ]
+    },
+    {
+      "namespace": "AWS/CloudHSM",
+      "name": "AWS CloudHSM",
+      "id": "aws-cloudhsm",
+      "categories": [
+        "AWS",
+        "Security"
+      ]
+    },
+    {
+      "namespace": "AWS/CloudSearch",
+      "name": "Amazon CloudSearch",
+      "id": "aws-cloudsearch",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/Logs",
+      "name": "Amazon CloudWatch Logs",
+      "id": "aws-logs",
+      "categories": [
+        "AWS",
+        "Log Collection"
+      ]
+    },
+    {
+      "namespace": "AWS/CodeBuild",
+      "name": "AWS CodeBuild",
+      "id": "aws-codebuild",
+      "categories": [
+        "AWS",
+        "Developer Tools"
+      ]
+    },
+    {
+      "namespace": "AWS/CodeWhisperer",
+      "name": "Amazon CodeWhisperer",
+      "id": "aws-codewhisperer",
+      "categories": [
+        "AWS",
+        "Developer Tools",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/Cognito",
+      "name": "Amazon Cognito",
+      "id": "aws-cognito",
+      "categories": [
+        "AWS",
+        "Security"
+      ]
+    },
+    {
+      "namespace": "AWS/Config",
+      "name": "AWS Config",
+      "id": "aws-config",
+      "categories": [
+        "AWS",
+        "Configuration & Deployment"
+      ]
+    },
+    {
+      "namespace": "AWS/Connect",
+      "name": "Amazon Connect",
+      "id": "aws-connect",
+      "categories": [
+        "AWS",
+        "Collaboration"
+      ]
+    },
+    {
+      "namespace": "AWS/DMS",
+      "name": "AWS Database Migration Service",
+      "id": "aws-dms",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/DX",
+      "name": "AWS Direct Connect",
+      "id": "aws-dx",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/DocDB",
+      "name": "Amazon DocumentDB",
+      "id": "aws-docdb",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/DynamoDB",
+      "name": "Amazon DynamoDB",
+      "id": "aws-dynamodb",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/DAX",
+      "name": "Amazon DynamoDB Accelerator (DAX)",
+      "id": "aws-dax",
+      "categories": [
+        "AWS",
+        "Data Stores",
+        "Caching"
+      ]
+    },
+    {
+      "namespace": "AWS/EC2",
+      "name": "Amazon EC2",
+      "id": "aws-ec2",
+      "categories": [
+        "AWS",
+        "OS & System"
+      ]
+    },
+    {
+      "namespace": "AWS/EC2/API",
+      "name": "Amazon EC2 API",
+      "id": "aws-ec2-api",
+      "categories": [
+        "AWS",
+        "OS & System"
+      ]
+    },
+    {
+      "namespace": "AWS/EC2/InfrastructurePerformance",
+      "name": "Amazon EC2 Infrastructure Performance",
+      "id": "aws-ec2-infrastructureperformance",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/EC2Spot",
+      "name": "Amazon EC2 Spot",
+      "id": "aws-ec2spot",
+      "categories": [
+        "AWS",
+        "OS & System",
+        "Cost Management"
+      ]
+    },
+    {
+      "namespace": "AWS/ElasticMapReduce",
+      "name": "Amazon EMR",
+      "id": "aws-elasticmapreduce",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/ElastiCache",
+      "name": "Amazon ElastiCache",
+      "id": "aws-elasticache",
+      "categories": [
+        "AWS",
+        "Caching",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/ElasticBeanstalk",
+      "name": "AWS Elastic Beanstalk",
+      "id": "aws-elasticbeanstalk",
+      "categories": [
+        "AWS",
+        "Configuration & Deployment"
+      ]
+    },
+    {
+      "namespace": "AWS/EBS",
+      "name": "Amazon EBS",
+      "id": "aws-ebs",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/ECR",
+      "name": "Amazon ECR",
+      "id": "aws-ecr",
+      "categories": [
+        "AWS",
+        "Containers"
+      ]
+    },
+    {
+      "namespace": "AWS/ECS",
+      "name": "Amazon ECS",
+      "id": "aws-ecs",
+      "categories": [
+        "AWS",
+        "Containers",
+        "Orchestration"
+      ]
+    },
+    {
+      "namespace": "AWS/EFS",
+      "name": "Amazon EFS",
+      "id": "aws-efs",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/ElasticInference",
+      "name": "Amazon Elastic Inference",
+      "id": "aws-elasticinference",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/ElasticTranscoder",
+      "name": "Amazon Elastic Transcoder",
+      "id": "aws-elastictranscoder",
+      "categories": [
+        "AWS"
+      ]
+    },
+    {
+      "namespace": "AWS/MediaConnect",
+      "name": "AWS Elemental MediaConnect",
+      "id": "aws-mediaconnect",
+      "categories": [
+        "AWS"
+      ]
+    },
+    {
+      "namespace": "AWS/MediaConvert",
+      "name": "AWS Elemental MediaConvert",
+      "id": "aws-mediaconvert",
+      "categories": [
+        "AWS"
+      ]
+    },
+    {
+      "namespace": "AWS/MediaLive",
+      "name": "AWS Elemental MediaLive",
+      "id": "aws-medialive",
+      "categories": [
+        "AWS"
+      ]
+    },
+    {
+      "namespace": "AWS/MediaPackage",
+      "name": "AWS Elemental MediaPackage",
+      "id": "aws-mediapackage",
+      "categories": [
+        "AWS"
+      ]
+    },
+    {
+      "namespace": "AWS/MediaStore",
+      "name": "AWS Elemental MediaStore",
+      "id": "aws-mediastore",
+      "categories": [
+        "AWS"
+      ]
+    },
+    {
+      "namespace": "AWS/MediaTailor",
+      "name": "AWS Elemental MediaTailor",
+      "id": "aws-mediatailor",
+      "categories": [
+        "AWS"
+      ]
+    },
+    {
+      "namespace": "AWS/Events",
+      "name": "Amazon EventBridge",
+      "id": "aws-events",
+      "categories": [
+        "AWS",
+        "Message Queues"
+      ]
+    },
+    {
+      "namespace": "AWS/EventBridge/Pipes",
+      "name": "Amazon EventBridge Pipes",
+      "id": "aws-eventbridge-pipes",
+      "categories": [
+        "AWS",
+        "Message Queues"
+      ]
+    },
+    {
+      "namespace": "AWS/Scheduler",
+      "name": "Amazon EventBridge Scheduler",
+      "id": "aws-scheduler",
+      "categories": [
+        "AWS",
+        "Automation"
+      ]
+    },
+    {
+      "namespace": "AWS/FSx",
+      "name": "Amazon FSx",
+      "id": "aws-fsx",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/GameLift",
+      "name": "Amazon GameLift",
+      "id": "aws-gamelift",
+      "categories": [
+        "AWS"
+      ]
+    },
+    {
+      "namespace": "AWS/GlobalAccelerator",
+      "name": "AWS Global Accelerator",
+      "id": "aws-globalaccelerator",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "Glue",
+      "name": "AWS Glue",
+      "id": "aws-glue",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/Inspector",
+      "name": "Amazon Inspector",
+      "id": "aws-inspector",
+      "categories": [
+        "AWS",
+        "Security"
+      ]
+    },
+    {
+      "namespace": "AWS/IoT",
+      "name": "AWS IoT Core",
+      "id": "aws-iot",
+      "categories": [
+        "AWS",
+        "IoT"
+      ]
+    },
+    {
+      "namespace": "AWS/KMS",
+      "name": "AWS Key Management Service",
+      "id": "aws-kms",
+      "categories": [
+        "AWS",
+        "Security"
+      ]
+    },
+    {
+      "namespace": "AWS/Cassandra",
+      "name": "Amazon Keyspaces",
+      "id": "aws-cassandra",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/Kinesis",
+      "name": "Amazon Kinesis Data Streams",
+      "id": "aws-kinesis",
+      "categories": [
+        "AWS",
+        "Message Queues"
+      ]
+    },
+    {
+      "namespace": "AWS/KinesisAnalytics",
+      "name": "Amazon Managed Service for Apache Flink",
+      "id": "aws-kinesisanalytics",
+      "categories": [
+        "AWS",
+        "Message Queues"
+      ]
+    },
+    {
+      "namespace": "AWS/Firehose",
+      "name": "Amazon Data Firehose",
+      "id": "aws-firehose",
+      "categories": [
+        "AWS",
+        "Message Queues",
+        "Log Collection"
+      ]
+    },
+    {
+      "namespace": "AWS/Lambda",
+      "name": "AWS Lambda",
+      "id": "aws-lambda",
+      "categories": [
+        "AWS",
+        "Languages"
+      ]
+    },
+    {
+      "namespace": "AWS/Lex",
+      "name": "Amazon Lex",
+      "id": "aws-lex",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/AmazonMQ",
+      "name": "Amazon MQ",
+      "id": "aws-amazonmq",
+      "categories": [
+        "AWS",
+        "Message Queues"
+      ]
+    },
+    {
+      "namespace": "AWS/ML",
+      "name": "Amazon Machine Learning",
+      "id": "aws-ml",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/Kafka",
+      "name": "Amazon MSK",
+      "id": "aws-kafka",
+      "categories": [
+        "AWS",
+        "Message Queues"
+      ]
+    },
+    {
+      "namespace": "AmazonMWAA",
+      "name": "Amazon MWAA",
+      "id": "aws-amazonmwaa",
+      "categories": [
+        "AWS",
+        "Automation",
+        "Orchestration"
+      ]
+    },
+    {
+      "namespace": "AWS/MemoryDB",
+      "name": "Amazon MemoryDB",
+      "id": "aws-memorydb",
+      "categories": [
+        "AWS",
+        "Caching",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/NATGateway",
+      "name": "NAT Gateway",
+      "id": "aws-natgateway",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/Neptune",
+      "name": "Amazon Neptune",
+      "id": "aws-neptune",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/NetworkFirewall",
+      "name": "AWS Network Firewall",
+      "id": "aws-networkfirewall",
+      "categories": [
+        "AWS",
+        "Network",
+        "Security"
+      ]
+    },
+    {
+      "namespace": "AWS/NetworkELB",
+      "name": "Network Load Balancer",
+      "id": "aws-networkelb",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/Network Manager",
+      "name": "AWS Network Manager",
+      "id": "aws-network-manager",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/NetworkMonitor",
+      "name": "Amazon CloudWatch Network Monitor",
+      "id": "aws-networkmonitor",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/ES",
+      "name": "Amazon OpenSearch Service",
+      "id": "aws-es",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/AOSS",
+      "name": "Amazon OpenSearch Serverless",
+      "id": "aws-aoss",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/OpsWorks",
+      "name": "AWS OpsWorks",
+      "id": "aws-opsworks",
+      "categories": [
+        "AWS",
+        "Configuration & Deployment"
+      ]
+    },
+    {
+      "namespace": "AWS/PCS",
+      "name": "AWS Parallel Computing Service",
+      "id": "aws-pcs",
+      "categories": [
+        "AWS",
+        "Orchestration"
+      ]
+    },
+    {
+      "namespace": "AWS/Polly",
+      "name": "Amazon Polly",
+      "id": "aws-polly",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/PrivateLinkEndpoints",
+      "name": "AWS PrivateLink Endpoints",
+      "id": "aws-privatelinkendpoints",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/PrivateLinkServices",
+      "name": "AWS PrivateLink Services",
+      "id": "aws-privatelinkservices",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/RDS",
+      "name": "Amazon RDS",
+      "id": "aws-rds",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/RDS/Proxy",
+      "name": "Amazon RDS Proxy",
+      "id": "aws-rds-proxy",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/Redshift",
+      "name": "Amazon Redshift",
+      "id": "aws-redshift",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/Rekognition",
+      "name": "Amazon Rekognition",
+      "id": "aws-rekognition",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/Route53",
+      "name": "Amazon Route 53",
+      "id": "aws-route53",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/Route53Resolver",
+      "name": "Amazon Route 53 Resolver",
+      "id": "aws-route53resolver",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/S3",
+      "name": "Amazon S3",
+      "id": "aws-s3",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/S3/Storage-Lens",
+      "name": "Amazon S3 Storage Lens",
+      "id": "aws-s3-storage-lens",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/SageMaker",
+      "name": "Amazon SageMaker",
+      "id": "aws-sagemaker",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "/aws/sagemaker/Endpoints",
+      "name": "Amazon SageMaker Endpoints",
+      "id": "aws-sagemaker-endpoints",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/Sagemaker/LabelingJobs",
+      "name": "Amazon SageMaker Labeling Jobs",
+      "id": "aws-sagemaker-labelingjobs",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/Sagemaker/ModelBuildingPipeline",
+      "name": "Amazon SageMaker Pipelines",
+      "id": "aws-sagemaker-modelbuildingpipeline",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "/aws/sagemaker/ProcessingJobs",
+      "name": "Amazon SageMaker Processing Jobs",
+      "id": "aws-sagemaker-processingjobs",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "/aws/sagemaker/TrainingJobs",
+      "name": "Amazon SageMaker Training Jobs",
+      "id": "aws-sagemaker-trainingjobs",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "/aws/sagemaker/TransformJobs",
+      "name": "Amazon SageMaker Transform Jobs",
+      "id": "aws-sagemaker-transformjobs",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/SageMaker/Workteam",
+      "name": "Amazon SageMaker Workteam",
+      "id": "aws-sagemaker-workteam",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/ServiceQuotas",
+      "name": "Service Quotas",
+      "id": "aws-servicequotas",
+      "categories": [
+        "AWS",
+        "Cost Management"
+      ]
+    },
+    {
+      "namespace": "AWS/DDoSProtection",
+      "name": "AWS Shield",
+      "id": "aws-ddosprotection",
+      "categories": [
+        "AWS",
+        "Security",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/SES",
+      "name": "Amazon SES",
+      "id": "aws-ses",
+      "categories": [
+        "AWS",
+        "Notifications"
+      ]
+    },
+    {
+      "namespace": "AWS/SNS",
+      "name": "Amazon SNS",
+      "id": "aws-sns",
+      "categories": [
+        "AWS",
+        "Notifications",
+        "Message Queues"
+      ]
+    },
+    {
+      "namespace": "AWS/SQS",
+      "name": "Amazon SQS",
+      "id": "aws-sqs",
+      "categories": [
+        "AWS",
+        "Message Queues"
+      ]
+    },
+    {
+      "namespace": "AWS/SWF",
+      "name": "Amazon SWF",
+      "id": "aws-swf",
+      "categories": [
+        "AWS",
+        "Automation"
+      ]
+    },
+    {
+      "namespace": "AWS/States",
+      "name": "AWS Step Functions",
+      "id": "aws-states",
+      "categories": [
+        "AWS",
+        "Automation",
+        "Orchestration"
+      ]
+    },
+    {
+      "namespace": "AWS/StorageGateway",
+      "name": "AWS Storage Gateway",
+      "id": "aws-storagegateway",
+      "categories": [
+        "AWS",
+        "Data Stores"
+      ]
+    },
+    {
+      "namespace": "AWS/Textract",
+      "name": "Amazon Textract",
+      "id": "aws-textract",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/TransitGateway",
+      "name": "AWS Transit Gateway",
+      "id": "aws-transitgateway",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "AWS/Translate",
+      "name": "Amazon Translate",
+      "id": "aws-translate",
+      "categories": [
+        "AWS",
+        "AI/ML"
+      ]
+    },
+    {
+      "namespace": "AWS/TrustedAdvisor",
+      "name": "AWS Trusted Advisor",
+      "id": "aws-trustedadvisor",
+      "categories": [
+        "AWS",
+        "Cost Management"
+      ]
+    },
+    {
+      "namespace": "AWS/Usage",
+      "name": "AWS Usage",
+      "id": "aws-usage",
+      "categories": [
+        "AWS",
+        "Cost Management"
+      ]
+    },
+    {
+      "namespace": "AWS/VPN",
+      "name": "AWS Site-to-Site VPN",
+      "id": "aws-vpn",
+      "categories": [
+        "AWS",
+        "Network"
+      ]
+    },
+    {
+      "namespace": "WAF",
+      "name": "AWS WAF Classic",
+      "id": "aws-waf",
+      "categories": [
+        "AWS",
+        "Security"
+      ]
+    },
+    {
+      "namespace": "AWS/WAFV2",
+      "name": "AWS WAF",
+      "id": "aws-wafv2",
+      "categories": [
+        "AWS",
+        "Security"
+      ]
+    },
+    {
+      "namespace": "AWS/WorkSpaces",
+      "name": "Amazon WorkSpaces",
+      "id": "aws-workspaces",
+      "categories": [
+        "AWS"
+      ]
+    },
+    {
+      "namespace": "AWS/X-Ray",
+      "name": "AWS X-Ray",
+      "id": "aws-x-ray",
+      "categories": [
+        "AWS",
+        "Tracing"
+      ]
+    }
+  ],
+  "log_services": [
+    {
+      "id": "apigw-access-logs",
+      "name": "API Gateway Access Logs"
+    },
+    {
+      "id": "apigw-execution-logs",
+      "name": "API Gateway Execution Logs"
+    },
+    {
+      "id": "cloudfront",
+      "name": "CloudFront Access Logs"
+    },
+    {
+      "id": "elb",
+      "name": "Classic ELB Access Logs"
+    },
+    {
+      "id": "elbv2",
+      "name": "Application ELB Access Logs"
+    },
+    {
+      "id": "lambda",
+      "name": "Lambda CloudWatch Logs"
+    },
+    {
+      "id": "redshift",
+      "name": "Redshift Logs"
+    },
+    {
+      "id": "s3",
+      "name": "S3 Access Logs"
+    },
+    {
+      "id": "states",
+      "name": "Step Functions CloudWatch Logs"
+    },
+    {
+      "id": "waf",
+      "name": "WAF Logs"
+    }
+  ]
+}

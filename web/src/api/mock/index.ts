@@ -5,6 +5,7 @@ import type { Facet, FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogE
 import { generateLog, rng } from './generator';
 import { logField, matchLog } from './match';
 import { standardPaths } from './standardAttributes';
+import type { LogAggregateRequest, LogAggregateResponse } from '../integrations/logs';
 
 const HOUR = 3600_000;
 const MAX_STORED = 150_000;
@@ -131,6 +132,69 @@ export function mockTopLogValues(q: LogQuery & { key: string; limit?: number }):
     .map(([value, count]) => ({ value, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, q.limit ?? 10);
+}
+
+/** One aggregation over a group's logs (NaN when it has no value). */
+function aggregateOf(logs: LogEvent[], aggregation: string, metric?: string): number {
+  if (aggregation === 'count') return logs.length;
+  const values = logs.map((l) => (metric ? logField(l, metric) : undefined)).filter((v): v is string => v !== undefined && v !== '');
+  if (aggregation === 'cardinality') return new Set(values).size;
+  const nums = values
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+  if (!nums.length) return NaN;
+  const pc = { median: 0.5, pc75: 0.75, pc90: 0.9, pc95: 0.95, pc98: 0.98, pc99: 0.99 }[aggregation];
+  if (pc !== undefined) return nums[Math.min(nums.length - 1, Math.floor(pc * nums.length))];
+  if (aggregation === 'sum') return nums.reduce((a, b) => a + b, 0);
+  if (aggregation === 'avg') return nums.reduce((a, b) => a + b, 0) / nums.length;
+  return aggregation === 'min' ? nums[0] : nums[nums.length - 1];
+}
+
+/** Log analytics over the mock's logs, as /api/v1/logs/aggregate answers. */
+export function mockAggregateLogs(req: LogAggregateRequest): LogAggregateResponse {
+  const range = { from: req.filter.from, to: req.filter.to };
+  const terms = parseQuery(req.filter.query);
+  const facets = req.group_by.map((g) => g.facet);
+  const groups = new Map<string, { by: Record<string, string>; logs: LogEvent[] }>();
+  for (const l of inRange(range)) {
+    if (!matchLog(l, terms)) continue;
+    const values = facets.map((f) => logField(l, f));
+    if (values.some((v) => v === undefined || v === '')) continue;
+    const key = values.join('\u0000');
+    const g = groups.get(key) ?? { by: Object.fromEntries(facets.map((f, i) => [f, values[i] as string])), logs: [] };
+    g.logs.push(l);
+    groups.set(key, g);
+  }
+  const [first] = req.compute;
+  const timeseries = req.compute.some((c) => c.type === 'timeseries');
+  const step = Number(req.compute.find((c) => c.interval)?.interval) || Math.max(1000, Math.floor((range.to - range.from) / 60));
+  const asc = req.group_by[0]?.sort?.order === 'asc';
+  const limit = req.group_by.reduce((n, g) => n * (g.limit ?? 10), 1);
+  const ranked = [...groups.values()]
+    .map((g) => ({ ...g, rank: aggregateOf(g.logs, first?.aggregation ?? 'count', first?.metric) || 0 }))
+    .sort((a, b) => (asc ? a.rank - b.rank : b.rank - a.rank))
+    .slice(0, facets.length ? limit : 1);
+  const value = (n: number) => (Number.isFinite(n) ? n : null);
+  const computes: { aggregation: string; metric?: string }[] = req.compute.length ? req.compute : [{ aggregation: 'count' }];
+  return {
+    data: {
+      buckets: ranked.map((g) => ({
+        by: g.by,
+        computes: Object.fromEntries(
+          computes.map((c, i) => {
+            if (!timeseries) return [`c${i}`, value(aggregateOf(g.logs, c.aggregation, c.metric))];
+            const steps = new Map<number, LogEvent[]>();
+            for (const l of g.logs) {
+              const t = Math.floor(l.timestamp / step) * step;
+              steps.set(t, [...(steps.get(t) ?? []), l]);
+            }
+            return [`c${i}`, [...steps].sort(([a], [b]) => a - b).map(([t, logs]) => ({ time: new Date(t).toISOString(), value: value(aggregateOf(logs, c.aggregation, c.metric)) }))];
+          }),
+        ),
+      })),
+    },
+  };
 }
 
 /** Logs grouped by message pattern (numbers and ids as `*`), newest 10,000 matching logs. */

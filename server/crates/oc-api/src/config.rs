@@ -29,6 +29,20 @@ pub struct Config {
     pub instance_admin_email: Option<String>,
     /// Encrypts secrets at rest (TOTP seeds, OIDC client secrets). Required in production.
     pub secret_key: String,
+    /// `OC_AWS_PRINCIPAL_ARN`: the AWS IAM role (or user) this install assumes customers' integration roles
+    /// with; customers trust it in their role's trust policy.
+    pub aws_principal_arn: Option<String>,
+    /// `OC_GCP_PRINCIPAL_EMAIL`: the GCP service account this install impersonates customers' service
+    /// accounts with (the STS delegate); customers grant it the Service Account Token Creator role.
+    pub gcp_principal_email: Option<String>,
+    /// `OC_CLOUD_CRAWLERS` (default `aws,azure,gcp`): the cloud integrations whose metrics this server
+    /// crawls (they publish to Kafka, so they need it); empty turns them off.
+    pub cloud_crawlers: Vec<String>,
+    /// `OC_CLOUD_CRAWL_INTERVAL_SECS` (default 600, at least 60): how often each account's region,
+    /// subscription or project is read.
+    pub cloud_crawl_interval_secs: i64,
+    /// `OC_CLOUD_CRAWL_CONCURRENCY` (default 8): jobs one server runs at a time, per cloud.
+    pub cloud_crawl_concurrency: i64,
     /// Origin users reach the web app on (SSO redirect URLs, emailed links). No trailing slash.
     pub public_url: String,
     /// `Secure` cookie flag: enable whenever the app is served over HTTPS.
@@ -173,6 +187,11 @@ impl Config {
                 tracing::warn!("OC_SECRET_KEY is not set: using an insecure development key. Set it in production.");
                 "observecraft-insecure-development-key".into()
             }),
+            gcp_principal_email: env::var("OC_GCP_PRINCIPAL_EMAIL").ok().map(|s| s.trim().to_string()).filter(|s| s.contains('@')),
+            cloud_crawlers: var("OC_CLOUD_CRAWLERS", "aws,azure,gcp").split(',').map(|c| c.trim().to_ascii_lowercase()).filter(|c| !c.is_empty()).collect(),
+            cloud_crawl_interval_secs: var("OC_CLOUD_CRAWL_INTERVAL_SECS", "600").parse().unwrap_or(600).max(60),
+            cloud_crawl_concurrency: var("OC_CLOUD_CRAWL_CONCURRENCY", "8").parse().unwrap_or(8).clamp(1, 64),
+            aws_principal_arn: env::var("OC_AWS_PRINCIPAL_ARN").ok().map(|s| s.trim().to_string()).filter(|s| s.starts_with("arn:")),
             public_url: var("OC_PUBLIC_URL", "http://localhost:5173").trim_end_matches('/').to_string(),
             cookie_secure: var("OC_COOKIE_SECURE", "false") == "true",
             session_hours: var("OC_SESSION_HOURS", "12").parse().unwrap_or(12).clamp(1, 168),

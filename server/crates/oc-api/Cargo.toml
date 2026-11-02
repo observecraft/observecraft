@@ -2,6 +2,7 @@
 name = "oc-api"
 description = "ObserveCraft API server (REST + SSE) for the web app"
 edition.workspace = true
+rust-version.workspace = true
 version.workspace = true
 license.workspace = true
 
@@ -10,6 +11,14 @@ name = "observecraft-server"
 path = "src/main.rs"
 
 [dependencies]
+# AWS integration crawler: the official AWS SDK (Apache-2.0) for the server's AWS identity, STS AssumeRole,
+# CloudWatch and resource tags.
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+aws-sdk-sts = "1"
+aws-sdk-cloudwatch = "1"
+aws-sdk-resourcegroupstagging = "1"
+# GCP integration crawler: this install's Application Default Credentials (metadata server, workload identity, key file).
+gcp_auth = "0.12"
 aes-gcm = "0.10"
 anyhow.workspace = true
 argon2 = "0.5"

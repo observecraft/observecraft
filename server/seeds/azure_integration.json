@@ -1,0 +1,563 @@
+{
+  "_comment": "ObserveCraft's Azure catalog: the resource types the Azure integration collects from Azure Monitor (the Azure tiles), with their Datadog metric prefixes (crates/oc-api/src/azure/naming.rs).",
+  "resource_types": [
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "Azure Virtual Machine",
+      "id": "azure-compute-virtualmachines",
+      "prefix": "azure.vm",
+      "categories": [
+        "Azure",
+        "OS & System"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachineScaleSets",
+      "name": "Azure VM Scale Set",
+      "id": "azure-compute-virtualmachinescalesets",
+      "prefix": "azure.compute_virtualmachinescalesets",
+      "categories": [
+        "Azure",
+        "OS & System",
+        "Orchestration"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "name": "Azure Managed Disks",
+      "id": "azure-compute-disks",
+      "prefix": "azure.compute_disks",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "name": "Azure App Service",
+      "id": "azure-web-sites",
+      "prefix": "azure.app_services",
+      "categories": [
+        "Azure",
+        "Web"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/serverFarms",
+      "name": "Azure App Service Plan",
+      "id": "azure-web-serverfarms",
+      "prefix": "azure.web_serverfarms",
+      "categories": [
+        "Azure",
+        "Web"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/hostingEnvironments",
+      "name": "Azure App Service Environment",
+      "id": "azure-web-hostingenvironments",
+      "prefix": "azure.web_hostingenvironments",
+      "categories": [
+        "Azure",
+        "Web"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "name": "Azure Container Apps",
+      "id": "azure-app-containerapps",
+      "prefix": "azure.app_containerapps",
+      "categories": [
+        "Azure",
+        "Containers"
+      ]
+    },
+    {
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "name": "Azure Container Instances",
+      "id": "azure-containerinstance-containergroups",
+      "prefix": "azure.containerinstance_containergroups",
+      "categories": [
+        "Azure",
+        "Containers"
+      ]
+    },
+    {
+      "type": "Microsoft.ContainerService/managedClusters",
+      "name": "Azure Kubernetes Service",
+      "id": "azure-containerservice-managedclusters",
+      "prefix": "azure.containerservice_managedclusters",
+      "categories": [
+        "Azure",
+        "Kubernetes",
+        "Containers"
+      ]
+    },
+    {
+      "type": "Microsoft.ContainerRegistry/registries",
+      "name": "Azure Container Registry",
+      "id": "azure-containerregistry-registries",
+      "prefix": "azure.containerregistry_registries",
+      "categories": [
+        "Azure",
+        "Containers"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "Azure Storage",
+      "id": "azure-storage-storageaccounts",
+      "prefix": "azure.storage",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases",
+      "name": "Azure SQL Database",
+      "id": "azure-sql-servers-databases",
+      "prefix": "azure.sql_servers_databases",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Sql/servers/elasticPools",
+      "name": "Azure SQL Elastic Pool",
+      "id": "azure-sql-servers-elasticpools",
+      "prefix": "azure.sql_servers_elasticpools",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Sql/managedInstances",
+      "name": "Azure SQL Managed Instance",
+      "id": "azure-sql-managedinstances",
+      "prefix": "azure.sql_managedinstances",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+      "name": "Azure Database for PostgreSQL",
+      "id": "azure-dbforpostgresql-flexibleservers",
+      "prefix": "azure.dbforpostgresql_flexibleservers",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforMySQL/flexibleServers",
+      "name": "Azure Database for MySQL",
+      "id": "azure-dbformysql-flexibleservers",
+      "prefix": "azure.dbformysql_flexibleservers",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts",
+      "name": "Azure Cosmos DB",
+      "id": "azure-documentdb-databaseaccounts",
+      "prefix": "azure.cosmosdb",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Cache/redis",
+      "name": "Azure Cache for Redis",
+      "id": "azure-cache-redis",
+      "prefix": "azure.cache_redis",
+      "categories": [
+        "Azure",
+        "Caching",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/loadBalancers",
+      "name": "Azure Load Balancer",
+      "id": "azure-network-loadbalancers",
+      "prefix": "azure.network_loadbalancers",
+      "categories": [
+        "Azure",
+        "Network"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/applicationGateways",
+      "name": "Azure Application Gateway",
+      "id": "azure-network-applicationgateways",
+      "prefix": "azure.network_applicationgateways",
+      "categories": [
+        "Azure",
+        "Network",
+        "Web"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/frontDoors",
+      "name": "Azure Front Door",
+      "id": "azure-network-frontdoors",
+      "prefix": "azure.network_frontdoors",
+      "categories": [
+        "Azure",
+        "Network",
+        "Web"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/azureFirewalls",
+      "name": "Azure Firewall",
+      "id": "azure-network-azurefirewalls",
+      "prefix": "azure.network_azurefirewalls",
+      "categories": [
+        "Azure",
+        "Network",
+        "Security"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/natGateways",
+      "name": "Azure NAT Gateway",
+      "id": "azure-network-natgateways",
+      "prefix": "azure.network_natgateways",
+      "categories": [
+        "Azure",
+        "Network"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "Azure Public IP",
+      "id": "azure-network-publicipaddresses",
+      "prefix": "azure.network_publicipaddresses",
+      "categories": [
+        "Azure",
+        "Network"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworkGateways",
+      "name": "Azure VPN Gateway",
+      "id": "azure-network-virtualnetworkgateways",
+      "prefix": "azure.network_virtualnetworkgateways",
+      "categories": [
+        "Azure",
+        "Network"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/expressRouteCircuits",
+      "name": "Azure ExpressRoute",
+      "id": "azure-network-expressroutecircuits",
+      "prefix": "azure.network_expressroutecircuits",
+      "categories": [
+        "Azure",
+        "Network"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/dnszones",
+      "name": "Azure DNS",
+      "id": "azure-network-dnszones",
+      "prefix": "azure.network_dnszones",
+      "categories": [
+        "Azure",
+        "Network"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/trafficManagerProfiles",
+      "name": "Azure Traffic Manager",
+      "id": "azure-network-trafficmanagerprofiles",
+      "prefix": "azure.network_trafficmanagerprofiles",
+      "categories": [
+        "Azure",
+        "Network"
+      ]
+    },
+    {
+      "type": "Microsoft.Cdn/profiles",
+      "name": "Azure CDN",
+      "id": "azure-cdn-profiles",
+      "prefix": "azure.cdn_profiles",
+      "categories": [
+        "Azure",
+        "Network",
+        "Web"
+      ]
+    },
+    {
+      "type": "Microsoft.EventHub/namespaces",
+      "name": "Azure Event Hubs",
+      "id": "azure-eventhub-namespaces",
+      "prefix": "azure.eventhub_namespaces",
+      "categories": [
+        "Azure",
+        "Message Queues"
+      ]
+    },
+    {
+      "type": "Microsoft.ServiceBus/namespaces",
+      "name": "Azure Service Bus",
+      "id": "azure-servicebus-namespaces",
+      "prefix": "azure.servicebus_namespaces",
+      "categories": [
+        "Azure",
+        "Message Queues"
+      ]
+    },
+    {
+      "type": "Microsoft.EventGrid/topics",
+      "name": "Azure Event Grid",
+      "id": "azure-eventgrid-topics",
+      "prefix": "azure.eventgrid_topics",
+      "categories": [
+        "Azure",
+        "Message Queues"
+      ]
+    },
+    {
+      "type": "Microsoft.Relay/namespaces",
+      "name": "Azure Relay",
+      "id": "azure-relay-namespaces",
+      "prefix": "azure.relay_namespaces",
+      "categories": [
+        "Azure",
+        "Message Queues"
+      ]
+    },
+    {
+      "type": "Microsoft.Logic/workflows",
+      "name": "Azure Logic Apps",
+      "id": "azure-logic-workflows",
+      "prefix": "azure.logic_workflows",
+      "categories": [
+        "Azure",
+        "Automation"
+      ]
+    },
+    {
+      "type": "Microsoft.Automation/automationAccounts",
+      "name": "Azure Automation",
+      "id": "azure-automation-automationaccounts",
+      "prefix": "azure.automation_automationaccounts",
+      "categories": [
+        "Azure",
+        "Automation"
+      ]
+    },
+    {
+      "type": "Microsoft.DataFactory/factories",
+      "name": "Azure Data Factory",
+      "id": "azure-datafactory-factories",
+      "prefix": "azure.datafactory_factories",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Synapse/workspaces",
+      "name": "Azure Synapse Analytics",
+      "id": "azure-synapse-workspaces",
+      "prefix": "azure.synapse_workspaces",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Databricks/workspaces",
+      "name": "Azure Databricks",
+      "id": "azure-databricks-workspaces",
+      "prefix": "azure.databricks_workspaces",
+      "categories": [
+        "Azure",
+        "Data Stores",
+        "AI/ML"
+      ]
+    },
+    {
+      "type": "Microsoft.HDInsight/clusters",
+      "name": "Azure HDInsight",
+      "id": "azure-hdinsight-clusters",
+      "prefix": "azure.hdinsight_clusters",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.StreamAnalytics/streamingjobs",
+      "name": "Azure Stream Analytics",
+      "id": "azure-streamanalytics-streamingjobs",
+      "prefix": "azure.streamanalytics_streamingjobs",
+      "categories": [
+        "Azure",
+        "Message Queues"
+      ]
+    },
+    {
+      "type": "Microsoft.Search/searchServices",
+      "name": "Azure AI Search",
+      "id": "azure-search-searchservices",
+      "prefix": "azure.search_searchservices",
+      "categories": [
+        "Azure",
+        "AI/ML"
+      ]
+    },
+    {
+      "type": "Microsoft.CognitiveServices/accounts",
+      "name": "Azure AI Services (OpenAI)",
+      "id": "azure-cognitiveservices-accounts",
+      "prefix": "azure.cognitiveservices_accounts",
+      "categories": [
+        "Azure",
+        "AI/ML"
+      ]
+    },
+    {
+      "type": "Microsoft.MachineLearningServices/workspaces",
+      "name": "Azure Machine Learning",
+      "id": "azure-machinelearningservices-workspaces",
+      "prefix": "azure.machinelearningservices_workspaces",
+      "categories": [
+        "Azure",
+        "AI/ML"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "name": "Azure Key Vault",
+      "id": "azure-keyvault-vaults",
+      "prefix": "azure.keyvault_vaults",
+      "categories": [
+        "Azure",
+        "Security"
+      ]
+    },
+    {
+      "type": "Microsoft.ApiManagement/service",
+      "name": "Azure API Management",
+      "id": "azure-apimanagement-service",
+      "prefix": "azure.apimanagement_service",
+      "categories": [
+        "Azure",
+        "Web"
+      ]
+    },
+    {
+      "type": "Microsoft.AppConfiguration/configurationStores",
+      "name": "Azure App Configuration",
+      "id": "azure-appconfiguration-configurationstores",
+      "prefix": "azure.appconfiguration_configurationstores",
+      "categories": [
+        "Azure",
+        "Configuration & Deployment"
+      ]
+    },
+    {
+      "type": "Microsoft.SignalRService/SignalR",
+      "name": "Azure SignalR Service",
+      "id": "azure-signalrservice-signalr",
+      "prefix": "azure.signalrservice_signalr",
+      "categories": [
+        "Azure",
+        "Web"
+      ]
+    },
+    {
+      "type": "Microsoft.Devices/IotHubs",
+      "name": "Azure IoT Hub",
+      "id": "azure-devices-iothubs",
+      "prefix": "azure.devices_iothubs",
+      "categories": [
+        "Azure",
+        "IoT"
+      ]
+    },
+    {
+      "type": "Microsoft.Batch/batchAccounts",
+      "name": "Azure Batch",
+      "id": "azure-batch-batchaccounts",
+      "prefix": "azure.batch_batchaccounts",
+      "categories": [
+        "Azure",
+        "Orchestration"
+      ]
+    },
+    {
+      "type": "Microsoft.RecoveryServices/vaults",
+      "name": "Azure Backup",
+      "id": "azure-recoveryservices-vaults",
+      "prefix": "azure.recoveryservices_vaults",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "name": "Azure Application Insights",
+      "id": "azure-insights-components",
+      "prefix": "azure.insights_components",
+      "categories": [
+        "Azure",
+        "Tracing"
+      ]
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "name": "Azure Log Analytics",
+      "id": "azure-operationalinsights-workspaces",
+      "prefix": "azure.operationalinsights_workspaces",
+      "categories": [
+        "Azure",
+        "Log Collection"
+      ]
+    },
+    {
+      "type": "Microsoft.NetApp/netAppAccounts/capacityPools/volumes",
+      "name": "Azure NetApp Files",
+      "id": "azure-netapp-netappaccounts-capacitypools-volumes",
+      "prefix": "azure.netapp_netappaccounts_capacitypools_volumes",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.AnalysisServices/servers",
+      "name": "Azure Analysis Services",
+      "id": "azure-analysisservices-servers",
+      "prefix": "azure.analysisservices_servers",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    },
+    {
+      "type": "Microsoft.PowerBIDedicated/capacities",
+      "name": "Power BI Embedded",
+      "id": "azure-powerbidedicated-capacities",
+      "prefix": "azure.powerbidedicated_capacities",
+      "categories": [
+        "Azure",
+        "Data Stores"
+      ]
+    }
+  ]
+}

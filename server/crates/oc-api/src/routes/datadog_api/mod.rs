@@ -31,6 +31,9 @@ pub mod permissions;
 pub mod roles;
 pub mod ai_guard;
 pub mod apm_config;
+pub mod aws_integration;
+pub mod azure_integration;
+pub mod gcp_integration;
 pub mod appsec;
 pub mod csm_threats;
 pub mod rum;
@@ -62,6 +65,19 @@ pub const APP_KEY_HEADER: &str = "dd-application-key";
 const APP_KEY_PREFIX: &str = "ocak_";
 const INGEST_KEY_PREFIX: &str = "ocik_";
 
+fn aws_router() -> Router<AppState> {
+    use aws_integration as aws;
+    Router::new()
+        .route("/api/v2/integration/aws/accounts", get(aws::list).post(aws::create))
+        .route("/api/v2/integration/aws/accounts/:aws_account_config_id", get(aws::get).patch(aws::update).delete(aws::delete))
+        .route("/api/v2/integration/aws/available_namespaces", get(aws::namespaces))
+        .route("/api/v2/integration/aws/logs/services", get(aws::logs_services))
+        .route("/api/v2/integration/aws/generate_new_external_id", post(aws::generate_external_id))
+        .route("/api/v2/integration/aws/iam_permissions", get(aws::iam_permissions))
+        .route("/api/v2/integration/aws/iam_permissions/standard", get(aws::iam_permissions_standard))
+        .route("/api/v2/integration/aws/iam_permissions/resource_collection", get(aws::iam_permissions_resource_collection))
+}
+
 /// The Datadog-compatible routes. They authenticate themselves ([`DdAuth`]), so they are merged
 /// outside the session middleware.
 pub fn router() -> Router<AppState> {
@@ -77,6 +93,15 @@ pub fn router() -> Router<AppState> {
         .merge(iam_router())
         .merge(cost_router())
         .merge(logs::router())
+        .merge(aws_router())
+        .route(
+            "/api/v1/integration/azure",
+            get(azure_integration::list).post(azure_integration::create).put(azure_integration::update).delete(azure_integration::delete),
+        )
+        .route("/api/v1/integration/azure/host_filters", post(azure_integration::host_filters))
+        .route("/api/v2/integration/gcp/accounts", get(gcp_integration::list).post(gcp_integration::create))
+        .route("/api/v2/integration/gcp/accounts/:account_id", axum::routing::patch(gcp_integration::update).delete(gcp_integration::delete))
+        .route("/api/v2/integration/gcp/sts_delegate", get(gcp_integration::get_delegate).post(gcp_integration::make_delegate))
         .route("/api/v2/rum/applications", get(rum::list).post(rum::create))
         .route("/api/v2/rum/applications/:id", get(rum::get).patch(rum::update).delete(rum::delete))
         .route("/api/v2/remote_config/products/cws/policy", get(csm_threats::list_policies).post(csm_threats::create_policy))
