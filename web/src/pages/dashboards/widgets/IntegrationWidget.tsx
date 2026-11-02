@@ -19,7 +19,7 @@ import { SourceIcon, STATUS_TOKENS } from '../../events/eventVisuals';
 import { searchKubernetes } from '../../../api/kubernetes/client';
 import { infrastructureList, type InfrastructureRequest } from '../../../api/integrations/infrastructure';
 import { COLUMNS } from '../../kubernetes/columns';
-import { IntegrationBarChart, IntegrationDistribution, IntegrationFreeText, IntegrationGeomap, IntegrationHostmap, IntegrationLogPatterns } from './IntegrationExtraWidgets';
+import { IntegrationBarChart, IntegrationDistribution, IntegrationFreeText, IntegrationGeomap, IntegrationHostmap, IntegrationLogPatterns, IntegrationSunburst } from './IntegrationExtraWidgets';
 import { byteAxisInterval, formatMetricValue, formatUnitValue, presentationUnit, valueUnit } from '../../../api/integrations/units';
 
 /** Renders the actual upstream requests; never substitutes a different metric or formula. */
@@ -345,6 +345,8 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
     content = <IntegrationDistribution values={values} />;
   } else if (def.type === 'toplist') {
     content = <IntegrationToplist def={def} series={series} />;
+  } else if (def.type === 'sunburst') {
+    content = <IntegrationSunburst def={def} values={values} />;
   } else {
     const axisUnits = [...new Set(series.map((s) => presentationUnit(s.unit).unit))];
     /** Largest value drawn on an axis: stacked areas add up. */
@@ -360,51 +362,43 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
       }
       return Math.max(max, ...totals.values());
     };
-    const option: EChartsOption =
-      def.type === 'sunburst'
-        ? {
-            tooltip: { trigger: 'item', confine: true, valueFormatter: (value) => formatMetricValue(Number(value), series[0]?.unit) },
-            series: [{ type: 'sunburst', data: values, label: { show: true } }],
-          }
-        : {
-            color: palette(),
-            grid: { left: 8, right: 16, top: 12, bottom: def.show_legend ? 50 : 26, containLabel: true },
-            tooltip: { trigger: 'axis', confine: true },
-            // Series read by their tag values ("prod, checkout-api"), as upstream legends show them.
-            legend: def.show_legend
-              ? { bottom: 0, type: 'scroll', formatter: (name: string) => (name.includes(':') ? [...groupTags(name.replace(/^.* · /, '')).values()].join(', ') : name) }
-              : undefined,
-            xAxis: { type: 'time', axisLabel: { hideOverlap: true } },
-            yAxis: axisUnits.map((unit, index) => {
-              // Binary units tick in round KiB/MiB/GiB, not in decimal steps of bytes.
-              const interval = unit.split('/')[0] === 'By' && def.yaxis?.scale !== 'log' ? byteAxisInterval(axisMax(unit)) : undefined;
-              return {
-                position: index === 0 ? 'left' : 'right',
-                offset: Math.max(0, index - 1) * 65,
-                type: def.yaxis?.scale === 'log' ? 'log' : 'value',
-                // Axes start at zero unless the panel says otherwise.
-                scale: def.yaxis?.include_zero === false,
-                min: def.yaxis?.min && def.yaxis.min !== 'auto' ? Number(def.yaxis.min) : undefined,
-                max: def.yaxis?.max && def.yaxis.max !== 'auto' ? Number(def.yaxis.max) : interval ? ({ max }: { max: number }) => Math.ceil(max / interval) * interval : undefined,
-                interval,
-                axisLabel: { formatter: (value: number) => formatUnitValue(value, unit, 2) },
-              };
-            }) as EChartsOption['yAxis'],
-            series: [
-              ...(series.map((s, i) => ({
-                name: s.name,
-                color: colorOf(s, i),
-                data: s.points.map(([t, value]) => [t, value * presentationUnit(s.unit).scale]),
-                yAxisIndex: axisUnits.indexOf(presentationUnit(s.unit).unit),
-                tooltip: { valueFormatter: (value: unknown) => formatUnitValue(Number(value), presentationUnit(s.unit).unit) },
-                type: s.display === 'bars' ? 'bar' : 'line',
-                showSymbol: false,
-                lineStyle: { type: s.dashed ? 'dashed' : 'solid' },
-                ...(s.display === 'area' ? { areaStyle: { opacity: 0.4 }, stack: 'total' } : {}),
-              })) as SeriesOption[]),
-              ...(overlays?.length ? [overlaySeries(overlays, (status) => token(overlayStatusToken(status)))] : []),
-            ],
-          };
+    const option: EChartsOption = {
+      color: palette(),
+      grid: { left: 8, right: 16, top: 12, bottom: def.show_legend ? 50 : 26, containLabel: true },
+      tooltip: { trigger: 'axis', confine: true },
+      // Series read by their tag values ("prod, checkout-api"), as upstream legends show them.
+      legend: def.show_legend ? { bottom: 0, type: 'scroll', formatter: (name: string) => (name.includes(':') ? [...groupTags(name.replace(/^.* · /, '')).values()].join(', ') : name) } : undefined,
+      xAxis: { type: 'time', axisLabel: { hideOverlap: true } },
+      yAxis: axisUnits.map((unit, index) => {
+        // Binary units tick in round KiB/MiB/GiB, not in decimal steps of bytes.
+        const interval = unit.split('/')[0] === 'By' && def.yaxis?.scale !== 'log' ? byteAxisInterval(axisMax(unit)) : undefined;
+        return {
+          position: index === 0 ? 'left' : 'right',
+          offset: Math.max(0, index - 1) * 65,
+          type: def.yaxis?.scale === 'log' ? 'log' : 'value',
+          // Axes start at zero unless the panel says otherwise.
+          scale: def.yaxis?.include_zero === false,
+          min: def.yaxis?.min && def.yaxis.min !== 'auto' ? Number(def.yaxis.min) : undefined,
+          max: def.yaxis?.max && def.yaxis.max !== 'auto' ? Number(def.yaxis.max) : interval ? ({ max }: { max: number }) => Math.ceil(max / interval) * interval : undefined,
+          interval,
+          axisLabel: { formatter: (value: number) => formatUnitValue(value, unit, 2) },
+        };
+      }) as EChartsOption['yAxis'],
+      series: [
+        ...(series.map((s, i) => ({
+          name: s.name,
+          color: colorOf(s, i),
+          data: s.points.map(([t, value]) => [t, value * presentationUnit(s.unit).scale]),
+          yAxisIndex: axisUnits.indexOf(presentationUnit(s.unit).unit),
+          tooltip: { valueFormatter: (value: unknown) => formatUnitValue(Number(value), presentationUnit(s.unit).unit) },
+          type: s.display === 'bars' ? 'bar' : 'line',
+          showSymbol: false,
+          lineStyle: { type: s.dashed ? 'dashed' : 'solid' },
+          ...(s.display === 'area' ? { areaStyle: { opacity: 0.4 }, stack: 'total' } : {}),
+        })) as SeriesOption[]),
+        ...(overlays?.length ? [overlaySeries(overlays, (status) => token(overlayStatusToken(status)))] : []),
+      ],
+    };
     content = <Chart option={option} height="100%" />;
   }
   const supported = ['timeseries', 'query_value', 'query_table', 'toplist', 'sunburst', 'treemap', 'check_status', 'change', 'heatmap', 'geomap', 'bar_chart', 'distribution'].includes(def.type);

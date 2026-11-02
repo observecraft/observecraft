@@ -30,3 +30,34 @@ export function hostmapColor(value: number, min: number, max: number): string {
   const share = max > min ? Math.min(1, Math.max(0, (value - min) / (max - min))) : 0;
   return HOSTMAP[Math.round(share * (HOSTMAP.length - 1))];
 }
+
+export interface SunburstNode {
+  name: string;
+  value: number;
+  children: SunburstNode[];
+}
+
+/**
+ * A sunburst (pie) widget's rings, as Datadog draws it: one ring per group-by tag (the first tag innermost), each
+ * slice named by its tag value and sized by the sum of its groups, largest first; the legend lists the inner ring.
+ * Groups are `tag:value, tag:value` (a formula's prefix `query1 · ` dropped); empty and negative ones are left out.
+ */
+export function sunburstTree(values: { name: string; value: number }[]): { total: number; nodes: SunburstNode[]; legend: { name: string; value: number; percent: number }[] } {
+  const root: SunburstNode = { name: '', value: 0, children: [] };
+  for (const { name, value } of values) {
+    if (!(value > 0)) continue;
+    const group = name.replace(/^.* · /, '');
+    const path = group === '*' ? ['All'] : group.split(', ').map((pair) => (pair.includes(':') ? pair.slice(pair.indexOf(':') + 1) : pair));
+    let node = root;
+    node.value += value;
+    for (const part of path) {
+      let child = node.children.find((c) => c.name === part);
+      if (!child) node.children.push((child = { name: part, value: 0, children: [] }));
+      child.value += value;
+      node = child;
+    }
+  }
+  const sort = (nodes: SunburstNode[]): SunburstNode[] => nodes.sort((a, b) => b.value - a.value).map((n) => ({ ...n, children: sort(n.children) }));
+  const nodes = sort(root.children);
+  return { total: root.value, nodes, legend: nodes.map((n) => ({ name: n.name, value: n.value, percent: root.value ? (n.value / root.value) * 100 : 0 })) };
+}

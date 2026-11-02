@@ -7,10 +7,12 @@ interface ChartProps {
   option: EChartsOption;
   height: number | string;
   onClick?: (params: echarts.ECElementEvent) => void;
+  /** The element under the pointer, `null` once it leaves (a donut's centre shows the hovered slice). */
+  onHover?: (params: echarts.ECElementEvent | null) => void;
 }
 
 /** Thin ECharts wrapper: themed, auto-resizing, option replaced on change. */
-export function Chart({ option, height, onClick }: ChartProps) {
+export function Chart({ option, height, onClick, onHover }: ChartProps) {
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
 
@@ -40,6 +42,19 @@ export function Chart({ option, height, onClick }: ChartProps) {
       instance.off('click', onClick);
     };
   }, [onClick]);
+
+  useEffect(() => {
+    const instance = chart.current;
+    if (!instance || !onHover) return;
+    const over = (params: echarts.ECElementEvent) => onHover(params);
+    const out = () => onHover(null);
+    instance.on('mouseover', over);
+    instance.on('mouseout', out);
+    return () => {
+      instance.off('mouseover', over);
+      instance.off('mouseout', out);
+    };
+  }, [onHover]);
 
   return <div ref={el} style={{ width: '100%', height }} />;
 }

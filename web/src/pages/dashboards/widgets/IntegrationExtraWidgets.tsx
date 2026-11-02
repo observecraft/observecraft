@@ -1,17 +1,17 @@
 // integrations-core widgets beyond charts and tables, drawn as Datadog draws them: the geomap (a world map
 // coloured by value per country), the bar chart, the distribution (a histogram of the groups' values), the
-// host map, free text and a log pattern list.
+// host map, free text, a log pattern list and the sunburst (pie).
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import * as echarts from 'echarts';
 import { Chart } from '../../../components/charts/Chart';
 import type { IntegrationWidgetDefinition } from '../../../api/integrations/evaluate';
 import { queryIntegrationPanel } from '../../../api/integrations/panels';
 import { formatMetricValue } from '../../../api/integrations/units';
-import { countryValues, distributionBuckets, hostmapColor } from '../../../api/integrations/widgetData';
+import { countryValues, distributionBuckets, hostmapColor, sunburstTree, type SunburstNode } from '../../../api/integrations/widgetData';
 import { loadWorldMap } from '../../../api/integrations/worldMap';
 import { logPatterns } from '../../../api/client';
-import { token } from '../../../theme/chartTheme';
+import { palette, token } from '../../../theme/chartTheme';
 import { useDashboardContext } from './context';
 import { WidgetState } from './MetricWidgets';
 
@@ -168,6 +168,85 @@ export function IntegrationLogPatterns({ def }: { def: IntegrationWidgetDefiniti
             </tbody>
           </table>
         </div>
+      </div>
+    </WidgetState>
+  );
+}
+
+/**
+ * Datadog's sunburst (pie): a donut with a ring per group-by tag, the total in its centre (the hovered slice's value
+ * instead while hovering), no labels on the slices, and a legend of the inner ring beside it, as a table (`table`),
+ * a list (`inline`), only when the widget is wide enough (`automatic`) or none (`none`).
+ */
+export function IntegrationSunburst({ def, values }: { def: IntegrationWidgetDefinition; values: Value[] }) {
+  const tree = useMemo(() => sunburstTree(values), [values]);
+  const [hovered, setHovered] = useState<{ name: string; value: number } | null>(null);
+  const unit = values[0]?.unit;
+  const colors = palette();
+  const legend = (def.legend as { type?: string } | undefined)?.type ?? 'automatic';
+  const showTotal = def.hide_total !== true;
+  // Outer rings take their inner slice's colour, lighter the further out they are.
+  const color = (nodes: SunburstNode[], base?: string, depth = 0): object[] =>
+    nodes.map((n, i) => {
+      const c = base ?? colors[i % colors.length];
+      return { name: n.name, value: n.value, itemStyle: { color: c, opacity: 1 - depth * 0.18 }, children: color(n.children, c, depth + 1) };
+    });
+  const center = hovered ?? (showTotal ? { name: 'Total', value: tree.total } : null);
+  const option = useMemo(
+    () => ({
+      tooltip: {
+        trigger: 'item' as const,
+        confine: true,
+        formatter: (p: unknown) =>
+          `${(p as { treePathInfo: { name: string }[] }).treePathInfo
+            .slice(1)
+            .map((t) => t.name)
+            .join(' › ')}: ${formatMetricValue((p as { value: number }).value, unit)}`,
+      },
+      series: [
+        {
+          type: 'sunburst' as const,
+          radius: ['52%', '92%'],
+          data: color(tree.nodes),
+          sort: undefined,
+          label: { show: false },
+          itemStyle: { borderColor: token('--bg'), borderWidth: 1 },
+          emphasis: { focus: 'ancestor' as const },
+          nodeClick: false as const,
+        },
+      ],
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tree, unit],
+  );
+  return (
+    <WidgetState loading={false} error={null} empty={!tree.nodes.length}>
+      <div className={`iw-pie iw-pie-${legend}`}>
+        <div className="iw-pie-chart">
+          <Chart height="100%" option={option} onHover={(p) => setHovered(p ? { name: p.name, value: Number(p.value) } : null)} />
+          {center && (
+            <div className="iw-pie-center">
+              <span className="iw-pie-center-value">{formatMetricValue(center.value, unit)}</span>
+              <span className="iw-pie-center-name">{center.name}</span>
+            </div>
+          )}
+        </div>
+        {legend !== 'none' && (
+          <table className="iw-pie-legend">
+            <tbody>
+              {tree.legend.map((row, i) => (
+                <tr key={row.name}>
+                  <td>
+                    <span className="iw-pie-swatch" style={{ background: colors[i % colors.length] }} />
+                    {row.name}
+                  </td>
+                  {legend !== 'inline' && <td className="num">{formatMetricValue(row.value, unit)}</td>}
+                  <td className="num muted">{row.percent.toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </WidgetState>
   );
