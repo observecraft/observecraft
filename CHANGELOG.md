@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0](https://github.com/observecraft/observecraft/compare/v0.9.0...v0.10.0) (2026-11-02)
+
+
+### Features
+
+* **charts:** server.podLabels, for keyless cloud identities such as AKS Workload Identity ([a4c5b7f](https://github.com/observecraft/observecraft/commit/a4c5b7fa07a3a924c342f20d0661f16ed9a99734))
+
+
+### Dependencies
+
+* axum 0.8 and utoipa 6 ([4a5a628](https://github.com/observecraft/observecraft/commit/4a5a6283d0205d8d16d705b11969b6f7e27a6712))
+* rand 0.10, aes-gcm 0.11, argon2 0.6, hmac 0.13, sha1/sha2 0.11 ([53fcac1](https://github.com/observecraft/observecraft/commit/53fcac11d43ad6cdeca5dc1255556cd259092fd6))
+* sqlx 0.9 ([1114941](https://github.com/observecraft/observecraft/commit/1114941f18bdf720001781052db7b77e7b62d3c0))
+* thiserror 2, base64 0.23, zstd 0.14, x509-cert 0.3, rusty-s3 0.11; CI on Rust 1.99 ([9a50961](https://github.com/observecraft/observecraft/commit/9a50961f0bae05e1003356202ab1293aca3bc2a1))
+* tonic and prost 0.14, clickhouse 0.15, tower-http 0.7 ([5beeec7](https://github.com/observecraft/observecraft/commit/5beeec7aafe4830dd1ba050e33036737509af036))
+
 ## [0.9.0](https://github.com/observecraft/observecraft/compare/v0.8.0...v0.9.0) (2026-11-02)
 
 
