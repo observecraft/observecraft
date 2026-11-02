@@ -17,7 +17,8 @@
 #   OC_TF_API_URL   server URL, e.g. http://localhost:8080
 #   OC_TF_APP_KEY   application key (ocak_…) of a user with the Standard or Admin role
 #   OC_TF_API_KEY   ingest key (ocik_…) of the same org; without it only the bearer_token run happens
-#   (the application_key fixture needs OC_DATADOG_API_ALLOW_APP_KEY_CREATION=true on that server)
+#   (the application_key fixture needs OC_DATADOG_API_ALLOW_APP_KEY_CREATION=true on that server, gcp_sts
+#   OC_GCP_PRINCIPAL_EMAIL)
 #
 # --local builds and starts observecraft-server itself on 127.0.0.1:$OC_TF_PORT (default 18480,
 # internal listener on the next port) against OC_POSTGRES_URL, OC_CLICKHOUSE_URL and OC_CACHE_URL,
@@ -110,7 +111,9 @@ start_local_server() {
   (cd "$repo/server" && cargo build -q --bin observecraft-server)
   log "starting observecraft-server on 127.0.0.1:$port (log: $work/server.log)"
   # The application_key fixture creates keys with the provider's own key (off by default on servers).
-  OC_HTTP_ADDR="127.0.0.1:$port" OC_LOGPROC_ADDR="127.0.0.1:$((port + 1))" OC_SEED_DEMO=false OC_DATADOG_API_ALLOW_APP_KEY_CREATION=true \
+  # A GCP service account of its own, as the gcp_sts fixture's STS delegate needs (fictional).
+  OC_GCP_PRINCIPAL_EMAIL="observecraft@example-project.iam.gserviceaccount.com" \
+    OC_HTTP_ADDR="127.0.0.1:$port" OC_LOGPROC_ADDR="127.0.0.1:$((port + 1))" OC_SEED_DEMO=false OC_DATADOG_API_ALLOW_APP_KEY_CREATION=true \
     "$repo/server/target/debug/observecraft-server" >"$work/server.log" 2>&1 &
   server_pid=$!
   echo "$server_pid" >"$work/server.pid"
