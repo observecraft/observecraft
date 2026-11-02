@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" preserveAspectRatio="xMidYMid meet" role="img">
+  <!-- ObserveCraft artwork. -->
+  <rect width="320" height="220" fill="#ffffff"/>
+  <g transform="translate(104 36) scale(1.12)"><path d="M50 6l38 22v44L50 94 12 72V28z" fill="none" stroke="#4285F4" stroke-width="8" stroke-linejoin="round"/><path d="M50 30l18 10v20L50 70 32 60V40z" fill="#669DF6"/><path d="M50 50l18-10v20L50 70z" fill="#1967D2"/><path d="M50 50L32 40l18-10 18 10z" fill="#AECBFA"/></g>
+  <text x="160" y="198" text-anchor="middle" fill="#3c4043" font-family="Noto Sans, -apple-system, Segoe UI, sans-serif" font-size="21">Kubernetes Engine</text>
+</svg>

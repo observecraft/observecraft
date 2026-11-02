@@ -1,0 +1,1725 @@
+[
+  {
+    "id": "azure-overview",
+    "title": "Azure Overview",
+    "description": "The Azure services ObserveCraft collects from Azure Monitor: virtual machines, SQL databases, App Service, load balancers and storage.",
+    "kind": "integration",
+    "logo": "azure",
+    "teams": [],
+    "layoutType": "grid",
+    "templateVariables": [
+      {
+        "name": "subscription",
+        "prefix": "subscription_id",
+        "default": "*"
+      },
+      {
+        "name": "resource_group",
+        "prefix": "resource_group",
+        "default": "*"
+      },
+      {
+        "name": "region",
+        "prefix": "region",
+        "default": "*"
+      }
+    ],
+    "widgets": [
+      {
+        "id": "azure-8",
+        "definition": {
+          "type": "group",
+          "title": "Azure Overview",
+          "color": "blue",
+          "compact": false,
+          "showTitle": false,
+          "widgets": [
+            {
+              "id": "azure-8-banner",
+              "definition": {
+                "type": "image",
+                "title": "Azure",
+                "src": "/images/integrations/azure-banner.svg"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 5
+              }
+            },
+            {
+              "id": "azure-1",
+              "definition": {
+                "type": "note",
+                "content": "A starting point for the Azure services ObserveCraft collects from Azure Monitor. Add app registrations in [Integrations → Microsoft Azure](/integrations/azure); every chart filters by subscription, resource group and region.",
+                "background": "blue",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 12,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-2",
+              "definition": {
+                "type": "image",
+                "title": "Virtual Machines",
+                "src": "/images/integrations/tiles/azure-vm.svg"
+              },
+              "layout": {
+                "x": 0,
+                "y": 8,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-3",
+              "definition": {
+                "type": "image",
+                "title": "SQL Database",
+                "src": "/images/integrations/tiles/azure-sql.svg"
+              },
+              "layout": {
+                "x": 4,
+                "y": 8,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-4",
+              "definition": {
+                "type": "image",
+                "title": "App Service",
+                "src": "/images/integrations/tiles/azure-app-service.svg"
+              },
+              "layout": {
+                "x": 8,
+                "y": 8,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-5",
+              "definition": {
+                "type": "image",
+                "title": "Functions",
+                "src": "/images/integrations/tiles/azure-functions.svg"
+              },
+              "layout": {
+                "x": 0,
+                "y": 12,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-6",
+              "definition": {
+                "type": "image",
+                "title": "Load Balancer",
+                "src": "/images/integrations/tiles/azure-lb.svg"
+              },
+              "layout": {
+                "x": 4,
+                "y": 12,
+                "w": 4,
+                "h": 4
+              }
+            },
+            {
+              "id": "azure-7",
+              "definition": {
+                "type": "image",
+                "title": "Storage",
+                "src": "/images/integrations/tiles/azure-storage.svg"
+              },
+              "layout": {
+                "x": 8,
+                "y": 12,
+                "w": 4,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 17
+        }
+      },
+      {
+        "id": "azure-9",
+        "definition": {
+          "type": "monitor_summary",
+          "title": "Azure monitors",
+          "query": "azure"
+        },
+        "layout": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 10
+        }
+      },
+      {
+        "id": "azure-10",
+        "definition": {
+          "type": "log_stream",
+          "title": "Azure logs",
+          "query": "source:azure*",
+          "limit": 50
+        },
+        "layout": {
+          "x": 6,
+          "y": 10,
+          "w": 6,
+          "h": 8
+        }
+      },
+      {
+        "id": "azure-22",
+        "definition": {
+          "type": "group",
+          "title": "Virtual Machines",
+          "color": "blue",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "azure-11",
+              "definition": {
+                "type": "note",
+                "content": "Virtual machines: CPU, memory, disks and network.",
+                "background": "purple",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "azure-12",
+              "definition": {
+                "type": "integration",
+                "title": "Running VMs",
+                "original": {
+                  "type": "query_value",
+                  "title": "Running VMs",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.vm.percentage_cpu{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "count_nonzero(query1)"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-13",
+              "definition": {
+                "type": "integration",
+                "title": "Total network in",
+                "original": {
+                  "type": "query_value",
+                  "title": "Total network in",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.vm.network_in_total.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-14",
+              "definition": {
+                "type": "integration",
+                "title": "Total network out",
+                "original": {
+                  "type": "query_value",
+                  "title": "Total network out",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.vm.network_out_total.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-15",
+              "definition": {
+                "type": "integration",
+                "title": "Avg CPU utilization",
+                "original": {
+                  "type": "query_value",
+                  "title": "Avg CPU utilization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.vm.percentage_cpu{$subscription,$resource_group,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-16",
+              "definition": {
+                "type": "integration",
+                "title": "Max CPU utilization",
+                "original": {
+                  "type": "query_value",
+                  "title": "Max CPU utilization",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "max:azure.vm.percentage_cpu.maximum{$subscription,$resource_group,$region}",
+                          "aggregator": "max"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-17",
+              "definition": {
+                "type": "note",
+                "content": "High CPU can be normal; CPU pinned at its maximum slows the VM.",
+                "background": "blue",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 10,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-18",
+              "definition": {
+                "type": "integration",
+                "title": "Network traffic",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Network traffic",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.vm.network_in_total.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:azure.vm.network_out_total.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1",
+                          "alias": "in"
+                        },
+                        {
+                          "formula": "0 - query2",
+                          "alias": "out"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-19",
+              "definition": {
+                "type": "integration",
+                "title": "Available memory",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Available memory",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.vm.available_memory_bytes{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 5,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-20",
+              "definition": {
+                "type": "integration",
+                "title": "CPU utilization (top 50)",
+                "original": {
+                  "type": "query_table",
+                  "title": "CPU utilization (top 50)",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.vm.percentage_cpu{$subscription,$resource_group,$region} by {name,resource_group}",
+                          "aggregator": "avg"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "max:azure.vm.percentage_cpu.maximum{$subscription,$resource_group,$region} by {name,resource_group}",
+                          "aggregator": "max"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "CPU %",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "Max CPU %",
+                          "formula": "query2"
+                        }
+                      ],
+                      "sort": {
+                        "count": 50,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 5,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-21",
+              "definition": {
+                "type": "integration",
+                "title": "Disk throughput",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Disk throughput",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.vm.disk_read_bytes.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:azure.vm.disk_write_bytes.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1",
+                          "alias": "read"
+                        },
+                        {
+                          "formula": "query2",
+                          "alias": "written"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 11,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 18,
+          "w": 12,
+          "h": 18
+        }
+      },
+      {
+        "id": "azure-31",
+        "definition": {
+          "type": "group",
+          "title": "SQL Databases",
+          "color": "blue",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "azure-23",
+              "definition": {
+                "type": "note",
+                "content": "SQL databases: connections, CPU, DTU and storage.",
+                "background": "purple",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "azure-24",
+              "definition": {
+                "type": "integration",
+                "title": "Failed connections",
+                "original": {
+                  "type": "query_value",
+                  "title": "Failed connections",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.sql_servers_databases.connection_failed.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-25",
+              "definition": {
+                "type": "integration",
+                "title": "Successful connections",
+                "original": {
+                  "type": "query_value",
+                  "title": "Successful connections",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.sql_servers_databases.connection_successful.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "green_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-26",
+              "definition": {
+                "type": "integration",
+                "title": "Avg CPU",
+                "original": {
+                  "type": "query_value",
+                  "title": "Avg CPU",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.sql_servers_databases.cpu_percent{$subscription,$resource_group,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-27",
+              "definition": {
+                "type": "integration",
+                "title": "Deadlocks",
+                "original": {
+                  "type": "query_value",
+                  "title": "Deadlocks",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.sql_servers_databases.deadlock.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-28",
+              "definition": {
+                "type": "note",
+                "content": "DTU consumption near 100% means the database needs a larger tier or lighter queries.",
+                "background": "blue",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 8,
+                "y": 2,
+                "w": 4,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-29",
+              "definition": {
+                "type": "integration",
+                "title": "Storage used by database",
+                "original": {
+                  "type": "treemap",
+                  "title": "Storage used by database",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.sql_servers_databases.storage_percent{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 8,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-30",
+              "definition": {
+                "type": "integration",
+                "title": "DTU consumption by database",
+                "original": {
+                  "type": "timeseries",
+                  "title": "DTU consumption by database",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.sql_servers_databases.dtu_consumption_percent{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 5,
+                "w": 4,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 36,
+          "w": 12,
+          "h": 14
+        }
+      },
+      {
+        "id": "azure-37",
+        "definition": {
+          "type": "group",
+          "title": "App Services",
+          "color": "blue",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "azure-32",
+              "definition": {
+                "type": "note",
+                "content": "Web apps and function apps: requests, errors, response time and executions.",
+                "background": "purple",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "azure-33",
+              "definition": {
+                "type": "integration",
+                "title": "Requests",
+                "original": {
+                  "type": "query_value",
+                  "title": "Requests",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.app_services.requests.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-34",
+              "definition": {
+                "type": "integration",
+                "title": "5xx errors",
+                "original": {
+                  "type": "query_value",
+                  "title": "5xx errors",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.app_services.http5xx.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": [
+                        {
+                          "comparator": ">",
+                          "value": 0,
+                          "palette": "red_on_white"
+                        }
+                      ]
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-35",
+              "definition": {
+                "type": "integration",
+                "title": "Function executions",
+                "original": {
+                  "type": "query_value",
+                  "title": "Function executions",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.app_services.function_execution_count.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 8,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-36",
+              "definition": {
+                "type": "integration",
+                "title": "Apps",
+                "original": {
+                  "type": "query_table",
+                  "title": "Apps",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.app_services.requests.total{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "sum"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query2",
+                          "query": "sum:azure.app_services.http5xx.total{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "sum"
+                        },
+                        {
+                          "data_source": "metrics",
+                          "name": "query3",
+                          "query": "avg:azure.app_services.http_response_time{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "alias": "Requests",
+                          "formula": "query1"
+                        },
+                        {
+                          "alias": "5xx",
+                          "formula": "query2"
+                        },
+                        {
+                          "alias": "Response time (s)",
+                          "formula": "query3"
+                        }
+                      ],
+                      "sort": {
+                        "count": 50,
+                        "order_by": [
+                          {
+                            "type": "formula",
+                            "index": 0,
+                            "order": "desc"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 2,
+                "w": 10,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 50,
+          "w": 12,
+          "h": 14
+        }
+      },
+      {
+        "id": "azure-45",
+        "definition": {
+          "type": "group",
+          "title": "Load Balancers",
+          "color": "blue",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "azure-38",
+              "definition": {
+                "type": "note",
+                "content": "Load balancers: data path and health probe availability, traffic.",
+                "background": "purple",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "azure-39",
+              "definition": {
+                "type": "integration",
+                "title": "Data path availability",
+                "original": {
+                  "type": "query_value",
+                  "title": "Data path availability",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.network_loadbalancers.vip_availability{$subscription,$resource_group,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-40",
+              "definition": {
+                "type": "integration",
+                "title": "Health probe status",
+                "original": {
+                  "type": "query_value",
+                  "title": "Health probe status",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.network_loadbalancers.dip_availability{$subscription,$resource_group,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 1
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-41",
+              "definition": {
+                "type": "note",
+                "content": "Data path availability below 100% means the frontend IP isn’t reachable; health probe status, that backends fail their probes.",
+                "background": "blue",
+                "align": "left",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 4,
+                "y": 2,
+                "w": 8,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-42",
+              "definition": {
+                "type": "integration",
+                "title": "Bytes by load balancer",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Bytes by load balancer",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.network_loadbalancers.byte_count.total{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "bars"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-43",
+              "definition": {
+                "type": "integration",
+                "title": "Health probe status",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Health probe status",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.network_loadbalancers.dip_availability{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 5,
+                "w": 4,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-44",
+              "definition": {
+                "type": "integration",
+                "title": "Data path availability",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Data path availability",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.network_loadbalancers.vip_availability{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 8,
+                "y": 5,
+                "w": 4,
+                "h": 6
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 64,
+          "w": 12,
+          "h": 14
+        }
+      },
+      {
+        "id": "azure-52",
+        "definition": {
+          "type": "group",
+          "title": "Storage",
+          "color": "blue",
+          "compact": false,
+          "widgets": [
+            {
+              "id": "azure-46",
+              "definition": {
+                "type": "note",
+                "content": "Storage accounts: availability, capacity, transactions and latency.",
+                "background": "purple",
+                "align": "center",
+                "fontSize": "sm"
+              },
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "azure-47",
+              "definition": {
+                "type": "integration",
+                "title": "Availability",
+                "original": {
+                  "type": "query_value",
+                  "title": "Availability",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.storage.availability{$subscription,$resource_group,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 2
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-48",
+              "definition": {
+                "type": "integration",
+                "title": "Used capacity",
+                "original": {
+                  "type": "query_value",
+                  "title": "Used capacity",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.storage.used_capacity{$subscription,$resource_group,$region}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 2,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-49",
+              "definition": {
+                "type": "integration",
+                "title": "Transactions",
+                "original": {
+                  "type": "query_value",
+                  "title": "Transactions",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "requests": [
+                    {
+                      "response_format": "scalar",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "sum:azure.storage.transactions.total{$subscription,$resource_group,$region}",
+                          "aggregator": "sum"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "conditional_formats": []
+                    }
+                  ],
+                  "autoscale": true,
+                  "precision": 0
+                }
+              },
+              "layout": {
+                "x": 4,
+                "y": 2,
+                "w": 2,
+                "h": 3
+              }
+            },
+            {
+              "id": "azure-50",
+              "definition": {
+                "type": "integration",
+                "title": "Used capacity by account",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Used capacity by account",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.storage.used_capacity{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 6,
+                "y": 2,
+                "w": 6,
+                "h": 6
+              }
+            },
+            {
+              "id": "azure-51",
+              "definition": {
+                "type": "integration",
+                "title": "Server latency",
+                "original": {
+                  "type": "timeseries",
+                  "title": "Server latency",
+                  "title_size": "16",
+                  "title_align": "left",
+                  "show_legend": true,
+                  "legend_layout": "auto",
+                  "requests": [
+                    {
+                      "response_format": "timeseries",
+                      "queries": [
+                        {
+                          "data_source": "metrics",
+                          "name": "query1",
+                          "query": "avg:azure.storage.success_server_latency{$subscription,$resource_group,$region} by {name}",
+                          "aggregator": "avg"
+                        }
+                      ],
+                      "formulas": [
+                        {
+                          "formula": "query1"
+                        }
+                      ],
+                      "style": {
+                        "palette": "cool",
+                        "order_by": "values"
+                      },
+                      "display_type": "line"
+                    }
+                  ],
+                  "yaxis": {
+                    "include_zero": true
+                  }
+                }
+              },
+              "layout": {
+                "x": 0,
+                "y": 5,
+                "w": 6,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "layout": {
+          "x": 0,
+          "y": 78,
+          "w": 12,
+          "h": 12
+        }
+      }
+    ],
+    "source": {
+      "repository": "observecraft",
+      "path": "scripts/cloud-dashboards.mjs",
+      "license": "MIT"
+    }
+  }
+]

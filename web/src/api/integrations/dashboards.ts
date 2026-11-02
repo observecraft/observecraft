@@ -1,11 +1,20 @@
 // Shared generated documents used by backend seeds, the mock store and integration resources.
 // See each document's source field and server/seeds/integrations/kubernetes/LICENSE.
 import kubernetes from '../../../../server/seeds/integrations/kubernetes/dashboards.json';
+// ObserveCraft's own AWS, Azure and Google Cloud overviews (scripts/cloud-dashboards.mjs).
+import aws from '../../../../server/seeds/integrations/aws/dashboards.json';
+import azure from '../../../../server/seeds/integrations/azure/dashboards.json';
+import gcp from '../../../../server/seeds/integrations/gcp/dashboards.json';
 // ObserveCraft's own dashboard over the synthetics.* metrics of synthetic API tests.
 import synthetics from '../../../../server/seeds/dashboards/synthetics-api-tests.json';
+// The integrations-core dashboards of the integrations the mock shows installed (the server installs every
+// integration's on its first data: scripts/import-integration-dashboards.mjs --all).
+import core from './coreDashboards.generated.json';
+// Our dashboards of the AWS services the demo account collects (scripts/cloud-service-dashboards.mjs).
+import cloudServices from './cloudServiceDashboards.generated.json';
 import type { Widget, TemplateVariable, LayoutType } from '../dashboards/types';
 
-export const integrationDashboards = [...kubernetes, synthetics].map((d) => ({
+export const integrationDashboards = [...kubernetes, ...aws, ...azure, ...gcp, synthetics, ...core.dashboards, ...cloudServices.dashboards].map((d) => ({
   ...d,
   kind: 'integration' as const,
   layoutType: d.layoutType as LayoutType,

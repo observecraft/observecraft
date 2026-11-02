@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" preserveAspectRatio="xMidYMid meet" role="img">
+  <!-- ObserveCraft artwork. -->
+  <rect width="320" height="220" fill="#ffffff"/>
+  <g transform="translate(104 36) scale(1.12)"><rect x="8" y="14" width="84" height="56" rx="6" fill="#0078D4"/><rect x="15" y="21" width="70" height="42" rx="3" fill="#83B9F9"/><path d="M50 28l14 7v15l-14 7-14-7V35z" fill="#0078D4"/><path d="M50 43l14-8M50 43v14M50 43l-14-8" stroke="#50E6FF" stroke-width="2.5"/><path d="M40 70h20l4 14H36z" fill="#004E8C"/><rect x="28" y="84" width="44" height="6" rx="3" fill="#0078D4"/></g>
+  <text x="160" y="198" text-anchor="middle" fill="#3c4043" font-family="Noto Sans, -apple-system, Segoe UI, sans-serif" font-size="21">Virtual Machines</text>
+</svg>
