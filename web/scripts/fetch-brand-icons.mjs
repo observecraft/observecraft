@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { inlineStyles, untilStable } from './fetch-cloud-icons.mjs';
+import { inlineStyles } from './fetch-cloud-icons.mjs';
 
 const commons = (title) => ({ commons: title, source: `Wikimedia Commons, File:${title}`, terms: 'Public domain (logo below the threshold of originality); trademark of its owner' });
 const iconify = (set, name, license) => ({ url: `https://api.iconify.design/${set}/${name}.svg`, source: `Iconify ${set}:${name}`, terms: license });
@@ -163,24 +163,27 @@ export const OUT = new URL('../src/assets/brand-icons/', import.meta.url);
 
 /** Removes what must never reach a page from a downloaded SVG: scripts, event handlers, external references. */
 export function sanitizeSvg(svg) {
-  // Repeated until stable: removing one piece can join others into something it removes.
-  const clean = (s) =>
-    s
-      .replace(/<\?xml[^>]*>\s*/g, '')
-      .replace(/<!DOCTYPE[^>]*>\s*/gi, '')
-      .replace(/<!--[\s\S]*?-->/g, '')
-      .replace(/<metadata[\s\S]*?<\/metadata>/g, '')
-      .replace(/<title>[^<]*<\/title>/g, '')
-      .replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, '')
-      .replace(/<\/?script\b[^>]*>/gi, '')
-      .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
-      // Editor metadata: its namespaces are lost once the logo is rewrapped, which breaks the XML.
-      .replace(/<(sodipodi|inkscape|sketch|rdf|cc|dc):[\w-]+[^>]*\/>/g, '')
-      .replace(/<(sodipodi|inkscape|sketch|rdf|cc|dc):([\w-]+)[^>]*>[\s\S]*?<\/\1:\2>/g, '')
-      .replace(/\s(?:sodipodi|inkscape|sketch):[\w-]+="[^"]*"/g, '')
-      .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, '')
-      .replace(/\s(?:xlink:)?href\s*=\s*(?:"(?!#|data:image\/)[^"]*"|'(?!#|data:image\/)[^']*')/g, '');
-  return inlineStyles(untilStable(svg, clean)).trim();
+  // Repeated until stable: removing one piece can join others into something it removes (`<scr<script>ipt>`).
+  let out = svg;
+  let previous;
+  do {
+    previous = out;
+    out = out.replace(/<\?xml[^>]*>\s*/g, '');
+    out = out.replace(/<!DOCTYPE[^>]*>\s*/gi, '');
+    out = out.replace(/<!--[\s\S]*?-->/g, '');
+    out = out.replace(/<metadata[\s\S]*?<\/metadata>/g, '');
+    out = out.replace(/<title>[^<]*<\/title>/g, '');
+    out = out.replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, '');
+    out = out.replace(/<\/?script\b[^>]*>/gi, '');
+    out = out.replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '');
+    // Editor metadata: its namespaces are lost once the logo is rewrapped, which breaks the XML.
+    out = out.replace(/<(sodipodi|inkscape|sketch|rdf|cc|dc):[\w-]+[^>]*\/>/g, '');
+    out = out.replace(/<(sodipodi|inkscape|sketch|rdf|cc|dc):([\w-]+)[^>]*>[\s\S]*?<\/\1:\2>/g, '');
+    out = out.replace(/\s(?:sodipodi|inkscape|sketch):[\w-]+="[^"]*"/g, '');
+    out = out.replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, '');
+    out = out.replace(/\s(?:xlink:)?href\s*=\s*(?:"(?!#|data:image\/)[^"]*"|'(?!#|data:image\/)[^']*')/g, '');
+  } while (out !== previous);
+  return inlineStyles(out).trim();
 }
 
 // Wikimedia asks for a descriptive agent with a project URL (https://meta.wikimedia.org/wiki/User-Agent_policy).
