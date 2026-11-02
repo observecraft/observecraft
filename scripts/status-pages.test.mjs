@@ -202,6 +202,5 @@ test('days before a component existed have no data and do not count toward uptim
 });
 
 test('visualization labels', () => {
-  
   assert.deepEqual(Object.keys(types.VISUALIZATION_LABEL), ['bars_and_uptime', 'bars', 'names']);
 });

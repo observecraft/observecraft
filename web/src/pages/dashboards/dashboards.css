@@ -2383,3 +2383,33 @@ td.iw-ev-source .status-bar {
   display: flex;
   gap: 16px;
 }
+
+/* integrations-core free text: one line of text sized to the widget unless it names a size. */
+.iw-free-text {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 8px;
+  container-type: size;
+  font-weight: var(--fw-semibold);
+  line-height: 1.15;
+  overflow: hidden;
+}
+
+/* A host map: one tile per host, in its value's colour. */
+.iw-hostmap {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 3px;
+  height: 100%;
+  padding: 4px;
+  overflow: auto;
+}
+
+.iw-hostmap-cell {
+  flex: 1 0 36px;
+  max-width: 64px;
+  aspect-ratio: 1;
+  border-radius: 3px;
+}

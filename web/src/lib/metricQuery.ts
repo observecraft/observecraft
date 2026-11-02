@@ -13,9 +13,9 @@ export interface ParsedMetricQuery {
   by: string[];
 }
 
-const RE = /^\s*(avg|sum|min|max):([\w.]+)\{([^}]*)\}(?:\s+by\s+\{([^}]*)\})?\s*$/;
+const RE = /^\s*(avg|sum|min|max|count):([\w.]+)\{([^}]*)\}(?:\s+by\s+\{([^}]*)\})?\s*$/;
 
-export const QUERY_IN_FORMULA = /(?:avg|sum|min|max):[\w.]+\{[^}]*\}(?:\s+by\s+\{[^}]*\})?/g;
+export const QUERY_IN_FORMULA = /(?:avg|sum|min|max|count):[\w.]+\{[^}]*\}(?:\s+by\s+\{[^}]*\})?/g;
 
 /**
  * The metric queries of a monitor formula (`sum:a{*} by {x} - sum:b{*} by {x}`, `default_zero(… * 100 / …)`),

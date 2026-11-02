@@ -1334,7 +1334,8 @@ pub async fn scalar(
         .into_iter()
         .map(|(t, vs)| {
             let v = match q.agg {
-                oc_query::SpaceAgg::Sum => vs.iter().sum(),
+                // Each group's value is its count of series: the groups' counts add up.
+                oc_query::SpaceAgg::Sum | oc_query::SpaceAgg::Count => vs.iter().sum(),
                 oc_query::SpaceAgg::Min => vs.iter().copied().fold(f64::INFINITY, f64::min),
                 oc_query::SpaceAgg::Max => vs.iter().copied().fold(f64::NEG_INFINITY, f64::max),
                 oc_query::SpaceAgg::Avg => vs.iter().sum::<f64>() / vs.len() as f64,

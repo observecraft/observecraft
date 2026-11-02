@@ -10,3 +10,10 @@ test('physical units have explicit CPU, memory and throughput labels', () => {
   assert.equal(formatMetricValue(-1024, 'By'), '-1 KiB');
   assert.equal(formatMetricValue(1, 'GiBy'), '1 GiB');
 });
+
+test('a widget’s custom unit replaces the metric’s: the formula already scaled the value', async () => {
+  const { valueUnit } = await import('../web/src/api/integrations/units.ts');
+  assert.equal(valueUnit('fraction', '%'), undefined);
+  assert.equal(valueUnit('fraction', undefined), 'fraction');
+  assert.equal(valueUnit('byte', ''), 'byte');
+});

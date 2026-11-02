@@ -19,12 +19,27 @@ import { SourceIcon, STATUS_TOKENS } from '../../events/eventVisuals';
 import { searchKubernetes } from '../../../api/kubernetes/client';
 import { infrastructureList, type InfrastructureRequest } from '../../../api/integrations/infrastructure';
 import { COLUMNS } from '../../kubernetes/columns';
-import { byteAxisInterval, formatMetricValue, formatUnitValue, presentationUnit } from '../../../api/integrations/units';
+import { IntegrationBarChart, IntegrationDistribution, IntegrationFreeText, IntegrationGeomap, IntegrationHostmap, IntegrationLogPatterns } from './IntegrationExtraWidgets';
+import { byteAxisInterval, formatMetricValue, formatUnitValue, presentationUnit, valueUnit } from '../../../api/integrations/units';
 
 /** Renders the actual upstream requests; never substitutes a different metric or formula. */
 export function IntegrationWidget({ def }: { def: IntegrationWidgetDefinition }) {
   if (def.type === 'list_stream' && def.requests?.[0]?.query?.data_source === 'infrastructure') return <InfrastructureListWidget def={def} />;
-  return def.type === 'list_stream' || def.requests?.some((r) => r.queries?.some((q) => q.data_source === 'events')) ? <IntegrationEvents def={def} /> : <IntegrationMetric def={def} />;
+  if (def.type === 'list_stream' && def.requests?.[0]?.query?.data_source === 'logs_pattern_stream') return <IntegrationLogPatterns def={def} />;
+  if (def.type === 'free_text') return <IntegrationFreeText def={def} />;
+  if (def.type === 'hostmap') return <IntegrationHostmap def={def} />;
+  const stream = def.requests?.[0]?.query?.data_source;
+  if (def.type === 'list_stream' && stream && stream !== 'event_stream')
+    return (
+      <WidgetState loading={false} error={new Error(`The ${stream.replace(/_/g, ' ')} list is not supported yet`)}>
+        {null}
+      </WidgetState>
+    );
+  return def.type === 'list_stream' || def.type === 'event_stream' || def.type === 'event_timeline' || def.requests?.some((r) => r.queries?.some((q) => q.data_source === 'events')) ? (
+    <IntegrationEvents def={def} />
+  ) : (
+    <IntegrationMetric def={def} />
+  );
 }
 
 /** Kubernetes resources, as the Kubernetes Explorer lists them; a row opens it in the Explorer. */
@@ -88,11 +103,12 @@ function IntegrationEvents({ def }: { def: IntegrationWidgetDefinition }) {
   const range = useWidgetRange(def, dashboardRange);
   const eventQuery = def.requests?.flatMap((r) => r.queries ?? []).find((q) => q.data_source === 'events');
   const search = (eventQuery as unknown as { search?: { query?: string } })?.search?.query;
-  const query = resolveSearch((search ?? def.requests?.[0]?.query?.query_string ?? '').replace(/\$[a-zA-Z_]\w*/g, ''));
+  const legacy = typeof def.query === 'string' ? def.query : undefined;
+  const query = resolveSearch((search ?? def.requests?.[0]?.query?.query_string ?? legacy ?? '').replace(/\$[a-zA-Z_]\w*/g, ''));
   const result = useQuery({ queryKey: ['events', 'integration-panel', query, range], queryFn: () => searchEvents({ range, query, limit: 25, offset: 0 }) });
   return (
     <WidgetState loading={result.isPending} error={result.error} empty={!result.data?.items.length}>
-      {def.type === 'timeseries' ? (
+      {def.type === 'timeseries' || def.type === 'event_timeline' ? (
         <Chart
           height="100%"
           option={{
@@ -254,7 +270,7 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
     );
     const format = matchFormat(v, def.requests[0]?.conditional_formats);
     const fill = format && fills(format.palette);
-    const text = v === undefined ? '—' : formatMetricValue(v, series[0]?.unit, def.precision ?? 2);
+    const text = v === undefined ? '—' : formatMetricValue(v, valueUnit(series[0]?.unit, def.custom_unit), def.precision ?? 2);
     // Long values ("14 nodes") shrink to fit the tile's width.
     const fontSize = `min(62cqh, 30cqw, ${Math.round(150 / (text.length + 0.3 * (def.custom_unit?.length ?? 0)))}cqw)`;
     const points = new Map<number, number>();
@@ -321,6 +337,12 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
     content = <IntegrationTreemap series={series} />;
   } else if (def.type === 'query_table') {
     content = <IntegrationTable def={def} series={series} />;
+  } else if (def.type === 'geomap') {
+    content = <IntegrationGeomap values={values} />;
+  } else if (def.type === 'bar_chart') {
+    content = <IntegrationBarChart values={values} colorOf={(i) => colorOf(series[i] ?? {}, i)} />;
+  } else if (def.type === 'distribution') {
+    content = <IntegrationDistribution values={values} />;
   } else if (def.type === 'toplist') {
     content = <IntegrationToplist def={def} series={series} />;
   } else {
@@ -385,9 +407,13 @@ function IntegrationMetric({ def }: { def: IntegrationWidgetDefinition }) {
           };
     content = <Chart option={option} height="100%" />;
   }
-  const supported = ['timeseries', 'query_value', 'query_table', 'toplist', 'sunburst', 'treemap', 'check_status', 'change', 'heatmap'].includes(def.type);
+  const supported = ['timeseries', 'query_value', 'query_table', 'toplist', 'sunburst', 'treemap', 'check_status', 'change', 'heatmap', 'geomap', 'bar_chart', 'distribution'].includes(def.type);
   return (
-    <WidgetState loading={data.isPending} error={!supported ? new Error(`The ${def.type} panel requires a data source that is not supported yet.`) : data.error} empty={!series.length}>
+    <WidgetState
+      loading={data.isPending}
+      error={!supported ? new Error(`The ${def.type} panel requires a data source that is not supported yet.`) : data.error}
+      empty={!series.length && def.type !== 'geomap'}
+    >
       {content}
     </WidgetState>
   );

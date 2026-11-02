@@ -366,8 +366,8 @@ test('a group banner embedded in the upstream file is kept, and a hidden group t
   assert.equal(banner.showTitle, false);
   assert.deepEqual(banner.widgets[0].definition, { type: 'image', title: 'Kubernetes', src: 'data:image/png;base64,iVBORw0KGgo=' });
   assert.equal(d.widgets[1].definition.showTitle, undefined);
-  // No header: the group is as tall as its banner, not two rows taller.
-  assert.equal(d.widgets[0].layout.h, 5);
+  // No header: the group is as tall as its banner plus the one row of padding the dashboard draws, not a header taller.
+  assert.equal(d.widgets[0].layout.h, 6);
 });
 
 test('a group without a header is only as tall as its widgets and padding', async () => {
@@ -415,20 +415,64 @@ test('infrastructure lists drop unresolved variables and match-all filters', asy
   assert.deepEqual(list.queries, ['pod_phase:running']);
 });
 
-test('log queries count logs per facet value; throughput divides by the range', async () => {
+test('log queries become Datadog log analytics requests, of any aggregation and any number of facets', async () => {
   const { logRequest, logSeries, throughputs } = await import('../web/src/api/integrations/logs.ts');
   const query = {
     name: 'query1',
     data_source: 'logs',
     search: { query: 'kube_cluster_name:$kube_cluster_name.value AND source:(*kube* OR etcd)' },
-    group_by: [{ facet: 'source', limit: 10 }],
+    group_by: [{ facet: 'source', limit: 10, sort: { order: 'desc', aggregation: 'count' } }],
     compute: { aggregation: 'count' },
   };
   const resolve = (q) => q.replace('$kube_cluster_name.value', 'shop-prod');
-  assert.deepEqual(logRequest(query, resolve), { query: 'kube_cluster_name:shop-prod AND source:(*kube* OR etcd)', key: 'source', limit: 10 });
-  assert.throws(() => logRequest({ ...query, compute: { aggregation: 'cardinality', metric: '@usr.id' } }, resolve), /count/);
   const range = { from: 0, to: 60_000 };
-  assert.deepEqual(logSeries([{ value: 'etcd', count: 120 }], 'source', range), [{ name: 'source:etcd', points: [[60_000, 120]] }]);
+  assert.deepEqual(logRequest(query, resolve, range, false), {
+    compute: [{ aggregation: 'count', type: 'total' }],
+    filter: { query: 'kube_cluster_name:shop-prod AND source:(*kube* OR etcd)', from: 0, to: 60_000 },
+    group_by: [{ facet: 'source', limit: 10, sort: { order: 'desc' } }],
+  });
+  // A measure, no facet, over time.
+  const avg = logRequest({ name: 'q', data_source: 'logs', search: { query: 'source:x' }, compute: { aggregation: 'avg', metric: '@duration', interval: 300000 } }, resolve, range, true);
+  assert.deepEqual(avg.compute, [{ aggregation: 'avg', metric: '@duration', type: 'timeseries', interval: '300000' }]);
+  assert.deepEqual(avg.group_by, []);
+  assert.throws(() => logRequest({ ...query, compute: { aggregation: 'mode', metric: '@x' } }, resolve, range, false), /mode/);
+  // Datadog's newer form: `group_by: {fields, limit, sort}`.
+  const fields = { ...query, group_by: { fields: ['@usr.name', 'service'], limit: 5, sort: { order: 'asc' } } };
+  assert.deepEqual(logRequest(fields, resolve, range, false).group_by, [
+    { facet: '@usr.name', limit: 5, sort: { order: 'asc' } },
+    { facet: 'service', limit: 5, sort: { order: 'asc' } },
+  ]);
+  assert.equal(logSeries({ data: { buckets: [{ by: { '@usr.name': 'jane', service: 'billing' }, computes: { c0: 3 } }] } }, fields, range, false)[0].name, '@usr.name:jane,service:billing');
+
+  // Totals: one series per group (all facets in the name), its value at the end of the range.
+  const two = { ...query, group_by: [{ facet: 'source' }, { facet: '@http.status_code' }] };
+  assert.deepEqual(logSeries({ data: { buckets: [{ by: { source: 'etcd', '@http.status_code': '500' }, computes: { c0: 120 } }] } }, two, range, false), [
+    { name: 'source:etcd,@http.status_code:500', points: [[60_000, 120]] },
+  ]);
+  // No facet: `*`; a timeseries lists its steps; a step without a value is left out.
+  assert.deepEqual(
+    logSeries(
+      {
+        data: {
+          buckets: [
+            {
+              by: {},
+              computes: {
+                c0: [
+                  { time: '1970-01-01T00:00:00.000Z', value: 2 },
+                  { time: '1970-01-01T00:01:00.000Z', value: null },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      { ...query, group_by: [] },
+      range,
+      true,
+    ),
+    [{ name: '*', points: [[0, 2]] }],
+  );
   assert.deepEqual(throughputs('throughput(query1) * 2'), { text: 'query1__throughput * 2', names: ['query1'] });
 });
 
@@ -787,13 +831,148 @@ test('setup guides: sources per page, snippets filled with the intake URL', asyn
   // The HTTP API only sends logs; infrastructure needs an agent on the hosts.
   assert.ok(!infra.includes('http-api') && infra.includes('host-datadog'));
   assert.ok(SOURCES.every((s) => s.steps.length > 0 && s.category));
-  assert.deepEqual(categoriesFor('logs').map((c) => c.name), ['Server', 'Container', 'Cloud', 'Other']);
-  assert.deepEqual(categoriesFor('infrastructure').map((c) => c.name), ['Server', 'Container', 'Cloud']);
+  assert.deepEqual(
+    categoriesFor('logs').map((c) => c.name),
+    ['Server', 'Container', 'Cloud', 'Other'],
+  );
+  assert.deepEqual(
+    categoriesFor('infrastructure').map((c) => c.name),
+    ['Server', 'Container', 'Cloud'],
+  );
   assert.ok(categoriesFor('logs').every((c) => c.examples));
-  assert.equal(fill('curl {{intake}}/api/v2/logs -H "DD-API-KEY: {{apiKey}}"', { intake: 'https://intake.example.com', apiKey: '<API_KEY>' }), 'curl https://intake.example.com/api/v2/logs -H "DD-API-KEY: <API_KEY>"');
+  assert.equal(
+    fill('curl {{intake}}/api/v2/logs -H "DD-API-KEY: {{apiKey}}"', { intake: 'https://intake.example.com', apiKey: '<API_KEY>' }),
+    'curl https://intake.example.com/api/v2/logs -H "DD-API-KEY: <API_KEY>"',
+  );
   // Host:port forms for agents that take one.
   assert.equal(fill('{{intakeHost}}', { intake: 'https://intake.example.com', apiKey: 'k' }), 'intake.example.com:443');
   assert.equal(fill('{{intakeHost}}', { intake: 'http://10.0.0.5:4318', apiKey: 'k' }), '10.0.0.5:4318');
   assert.equal(fill('{{logsNoSsl}}', { intake: 'http://10.0.0.5:4318', apiKey: 'k' }), 'true');
   assert.equal(fill('{{logsNoSsl}}', { intake: 'https://intake.example.com', apiKey: 'k' }), 'false');
+});
+
+test('Datadog metric query forms become ours: default avg, count, percentiles, value filters, daily rollups, query lists', async () => {
+  const { canonicalMetricQuery, normalizeRequest, preparePanelQuery } = await import('../web/src/api/integrations/evaluate.ts');
+  assert.equal(canonicalMetricQuery('system.load.1{$scope}'), 'avg:system.load.1{$scope}');
+  assert.equal(canonicalMetricQuery('count:argocd.goroutines{*} by {host}'), 'count:argocd.goroutines{*} by {host}');
+  assert.equal(canonicalMetricQuery('count(v: v>=0):data_streams.latency{a:b} by {service}.as_rate()'), 'count:data_streams.latency{a:b} by {service}.as_rate()');
+  // A percentile of a distribution is its statistic, the highest across the group's series.
+  assert.equal(canonicalMetricQuery('p95:airbyte.job_runtime{*} by {job_status}'), 'max:airbyte.job_runtime.p95{*} by {job_status}');
+  assert.equal(canonicalMetricQuery('p99.9:x.latency{*}'), 'max:x.latency.p99.9{*}');
+  assert.equal(canonicalMetricQuery('1000 * tokumx.miss.timeps{$scope} by {server}'), '1000 * avg:tokumx.miss.timeps{$scope} by {server}', 'queries inside formulas too');
+  const range = { from: 0, to: 30 * 86_400_000 };
+  assert.equal(preparePanelQuery('sum:all.cost{*} by {model}.rollup(sum, daily)', (q) => q, range).points, 30);
+  // `.rollup(10)`: only the interval, averaged.
+  const ten = preparePanelQuery('count:x{*}.rollup(10)', (q) => q, { from: 0, to: 600_000 });
+  assert.deepEqual([ten.text, ten.points], ['count:x{*}', 60]);
+  // Legacy log and security requests are queries of their data source.
+  const legacyLogs = normalizeRequest({
+    log_query: { index: '*', search: { query: 'source:x' }, group_by: [{ facet: '@severity', limit: 50 }], compute: { aggregation: 'cardinality', facet: '@usr.id' } },
+  });
+  assert.deepEqual(legacyLogs.queries, [
+    { name: 'query1', data_source: 'logs', search: { query: 'source:x' }, group_by: [{ facet: '@severity', limit: 50 }], compute: { aggregation: 'cardinality', metric: '@usr.id' } },
+  ]);
+  assert.equal(normalizeRequest({ security_query: { search: { query: 'x' }, compute: { aggregation: 'count' } } }).queries[0].data_source, 'security_signals');
+  // A legacy request listing several queries draws each.
+  const r = normalizeRequest({ q: 'system.cpu.idle{$scope}, system.cpu.user{$scope}' });
+  assert.deepEqual(
+    r.queries.map((q) => q.query),
+    ['avg:system.cpu.idle{$scope}', 'avg:system.cpu.user{$scope}'],
+  );
+});
+
+test('security signal queries count signals in total, per facet, and over time per severity', async () => {
+  const { signalSeries } = await import('../web/src/api/integrations/signals.ts');
+  const page = {
+    total: 7,
+    facets: [
+      {
+        key: '@workflow.rule.name',
+        values: [
+          { value: 'Brute force', count: 5 },
+          { value: 'Malware', count: 2 },
+        ],
+      },
+    ],
+    histogram: [
+      { ts: 0, info: 1, low: 0, medium: 2, high: 0, critical: 0 },
+      { ts: 60_000, info: 0, low: 0, medium: 1, high: 3, critical: 0 },
+    ],
+  };
+  const range = { from: 0, to: 120_000 };
+  const q = (group_by) => ({ name: 'query1', data_source: 'security_signals', compute: { aggregation: 'count' }, search: { query: 'source:x' }, group_by });
+  assert.deepEqual(signalSeries(page, q([]), range, false), [{ name: '*', points: [[120_000, 7]] }]);
+  assert.deepEqual(signalSeries(page, q([{ facet: '@workflow.rule.name' }]), range, false), [
+    { name: '@workflow.rule.name:Brute force', points: [[120_000, 5]] },
+    { name: '@workflow.rule.name:Malware', points: [[120_000, 2]] },
+  ]);
+  assert.deepEqual(signalSeries(page, q([]), range, true), [
+    {
+      name: '*',
+      points: [
+        [0, 3],
+        [60_000, 4],
+      ],
+    },
+  ]);
+  assert.deepEqual(
+    signalSeries(page, q([{ facet: 'status' }]), range, true).map((s) => s.name),
+    ['status:info', 'status:medium', 'status:high'],
+    'severities with signals',
+  );
+  assert.throws(() => signalSeries(page, q([{ facet: '@usr.id' }]), range, false), /@usr\.id/);
+});
+
+test('formula functions of integrations-core dashboards', async () => {
+  const { formula, normalizeRequest } = await import('../web/src/api/integrations/evaluate.ts');
+  const s = (points) => [{ name: '*', points }];
+  const q = s([
+    [0, 1],
+    [60_000, 3],
+    [120_000, 2],
+  ]);
+  const pts = (expr, inputs = { query1: q }) => formula(expr, inputs)[0]?.points;
+  assert.deepEqual(pts('default_zero(query1)'), q[0].points);
+  assert.deepEqual(pts('default_zero(query1)', { query1: [] }), [[0, 0]], 'no data is zero');
+  assert.deepEqual(pts('max(query1, 2)'), [
+    [0, 2],
+    [60_000, 3],
+    [120_000, 2],
+  ]);
+  assert.deepEqual(pts('min(100, query1)'), [
+    [0, 1],
+    [60_000, 3],
+    [120_000, 2],
+  ]);
+  assert.deepEqual(pts('round(query1 / 2)'), [
+    [0, 1],
+    [60_000, 2],
+    [120_000, 1],
+  ]);
+  assert.deepEqual(pts('derivative(query1)'), [
+    [60_000, 2 / 60],
+    [120_000, -1 / 60],
+  ]);
+  assert.deepEqual(pts('rate(query1)'), pts('derivative(query1)'));
+  assert.deepEqual(pts('dt(query1)'), [
+    [60_000, 60],
+    [120_000, 60],
+  ]);
+  assert.deepEqual(pts('cutoff_max(query1, 2)'), [
+    [0, 1],
+    [120_000, 2],
+  ]);
+  assert.deepEqual(pts('cutoff_min(query1, 2)'), [
+    [60_000, 3],
+    [120_000, 2],
+  ]);
+  assert.equal(pts('autosmooth(query1)').length, 3);
+  assert.deepEqual(pts('ewma_3(query1)')[0], [0, 1]);
+  // A metric query written inside a formula is a query of its own.
+  const r = normalizeRequest({ queries: [{ name: 'query2', data_source: 'metrics', query: 'sum:system.mem.total{*}' }], formulas: [{ formula: 'query2-sum:system.mem.usable{$scope}' }] });
+  assert.deepEqual(
+    r.queries.map((x) => x.query),
+    ['sum:system.mem.total{*}', 'sum:system.mem.usable{$scope}'],
+  );
+  assert.equal(r.formulas[0].formula, 'query2-inline1');
 });

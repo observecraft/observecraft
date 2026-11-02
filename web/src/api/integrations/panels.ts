@@ -1,7 +1,9 @@
 import type { PanelDataSource } from './panelQueries';
 import { metricCatalog, queryTimeseries } from '../dashboards/client';
 import type { MetricSeries, TimeRange } from '../types';
-import { topLogValues } from '../client';
+import { aggregateLogs } from '../client';
+import { searchSignals } from '../security/client';
+import { signalSeries, type SignalPanelQuery } from './signals';
 import { logRequest, logSeries, throughputs, type LogPanelQuery } from './logs';
 import { aggregate, formula, normalizeRequest, preparePanelQuery, serverAggregator, timeShifts, type IntegrationWidgetDefinition, type IntegrationFormula } from './evaluate';
 
@@ -36,8 +38,9 @@ export async function queryIntegrationPanel(
   // Reject unsupported expressions before waiting on any network request.
   for (const request of def.requests) {
     for (const query of normalizeRequest(request).queries) {
-      if (query.data_source === 'logs') logRequest(query as unknown as LogPanelQuery, resolve);
+      if (query.data_source === 'logs') logRequest(query as unknown as LogPanelQuery, resolve, range, !scalar);
       else if (query.data_source === 'metrics') preparePanelQuery(query.query, resolve, range);
+      else if (query.data_source === 'security_signals') continue;
       else throw new Error(`Data source ${query.data_source} is not supported by this panel yet`);
     }
   }
@@ -59,9 +62,14 @@ export async function queryIntegrationPanel(
           return (await loadQuery(query, shifted, from)).map((s) => ({ ...s, points: s.points.map(([t, v]) => [t + seconds * 1000, v]) }));
         };
         const loadQuery = async (query: (typeof queries)[number], range: TimeRange, source: PanelDataSource): Promise<MetricSeries[]> => {
+          if (query.data_source === 'security_signals') {
+            const panelQuery = query as unknown as SignalPanelQuery;
+            const page = await searchSignals({ range, query: resolve(panelQuery.search?.query ?? ''), state: '', limit: 1, offset: 0, ascending: false });
+            return signalSeries(page, panelQuery, range, !scalar);
+          }
           if (query.data_source === 'logs') {
-            const request = logRequest(query as unknown as LogPanelQuery, resolve);
-            return logSeries(await topLogValues({ range, ...request }), request.key, range);
+            const panelQuery = query as unknown as LogPanelQuery;
+            return logSeries(await aggregateLogs(logRequest(panelQuery, resolve, range, !scalar)), panelQuery, range, !scalar);
           }
           const { plan, text, points } = preparePanelQuery(query.query, resolve, range);
           let series: MetricSeries[];

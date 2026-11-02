@@ -5,7 +5,7 @@ import { Select, usePopover } from '../../../components/ui/Dropdown';
 import { parseMetricQuery } from '../../../lib/metricQuery';
 import { useMetricCatalog } from '../queries';
 
-const AGGS: SpaceAggregator[] = ['avg', 'sum', 'min', 'max'];
+const AGGS: SpaceAggregator[] = ['avg', 'sum', 'min', 'max', 'count'];
 
 function filtersText(q: ReturnType<typeof parseMetricQuery>): string {
   if (!q) return '';
@@ -80,7 +80,11 @@ export function QueryBuilder({ value, onChange }: { value: string; onChange: (q:
       <button type="button" className={`icon-square qb-toggle${raw ? ' on' : ''}`} title={raw ? 'Structured editor' : 'Edit as text'} onClick={() => setRaw((r) => !r)}>
         <Code2 size={15} />
       </button>
-      {!parsed && <div className="qb-error">Expected: avg:metric.name{'{tag:value}'} by {'{tag}'}</div>}
+      {!parsed && (
+        <div className="qb-error">
+          Expected: avg:metric.name{'{tag:value}'} by {'{tag}'}
+        </div>
+      )}
     </div>
   );
 }

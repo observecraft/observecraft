@@ -7,7 +7,7 @@ import type { IntegrationWidgetDefinition } from '../integrations/evaluate';
 
 /** `avg:kubernetes_state.deployment.replicas{kube_cluster_name:a,$namespace} by {kube_deployment}` */
 export type MetricQueryString = string;
-export type SpaceAggregator = 'avg' | 'sum' | 'min' | 'max';
+export type SpaceAggregator = 'avg' | 'sum' | 'min' | 'max' | 'count';
 export type TimeAggregator = 'avg' | 'sum' | 'min' | 'max' | 'last';
 
 export interface MetricRequest {

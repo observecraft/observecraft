@@ -1,4 +1,4 @@
-// Block structure of the Note widgets' Markdown subset: #/##/### headings, "- " / "1. " lists, "---" rules, paragraphs.
+// Block structure of the Note widgets' Markdown subset: # to ###### headings, "- " / "1. " lists, "---" rules, paragraphs.
 
 export type MarkdownBlock = { type: 'heading'; level: number; text: string } | { type: 'list'; ordered: boolean; items: string[] } | { type: 'paragraph'; text: string } | { type: 'rule' };
 
@@ -19,7 +19,7 @@ export function markdownBlocks(source: string): MarkdownBlock[] {
   };
   for (const raw of source.split('\n')) {
     const line = decode(raw.trimEnd());
-    const heading = /^(#{1,3})\s+(.*)$/.exec(line);
+    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
     const item = /^(?:([-*])|\d+[.)])\s+(.*)$/.exec(line);
     if (heading) {
       flush();
@@ -40,4 +40,11 @@ export function markdownBlocks(source: string): MarkdownBlock[] {
   }
   flush();
   return blocks;
+}
+
+/** Where a note's link may go: http(s) URLs (a new tab) and paths of this app (`/integrations/aws`); anything else stays text. */
+export function linkKind(href: string): 'external' | 'internal' | null {
+  if (/^https?:\/\//.test(href)) return 'external';
+  if (/^\/(?![/\\])\S*$/.test(href)) return 'internal';
+  return null;
 }

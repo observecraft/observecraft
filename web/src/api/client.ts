@@ -2,7 +2,8 @@
 // otherwise the in-browser mock answers, so the UI still runs without a backend.
 import { API_MODE, post } from './http';
 import type { components } from './generated/schema';
-import { mockHistogram, mockLiveTail, mockLogFields, mockLogPatterns, mockTopLogValues, mockMetric, mockSearchLogs, mockSuggest } from './mock';
+import type { LogAggregateRequest, LogAggregateResponse } from './integrations/logs';
+import { mockAggregateLogs, mockHistogram, mockLiveTail, mockLogFields, mockLogPatterns, mockTopLogValues, mockMetric, mockSearchLogs, mockSuggest } from './mock';
 import { mockViewRestricted } from './mock/logRestrictions';
 import type { Facet, FacetValue, HistogramBucket, JsonValue, LiveTailBatch, LogEvent, LogInsight, LogQuery, LogStatus, MetricSeries, QuerySuggestion, TimeRange } from './types';
 
@@ -42,6 +43,12 @@ export async function logInsights(q: LogQuery): Promise<LogInsight[]> {
 export async function topLogValues(q: LogQuery & { key: string; limit?: number }): Promise<FacetValue[]> {
   if (API_MODE !== 'live') return mockTopLogValues(q);
   return post('/api/v1/logs/top', { range: q.range, query: q.query, key: q.key, limit: q.limit });
+}
+
+/** Log analytics, as Datadog's `/api/v2/logs/analytics/aggregate` (dashboard widgets over logs). */
+export async function aggregateLogs(req: LogAggregateRequest): Promise<LogAggregateResponse> {
+  if (API_MODE !== 'live') return mockAggregateLogs(req);
+  return post('/api/v1/logs/aggregate', req);
 }
 
 export type LogPattern = components['schemas']['LogPattern'];
