@@ -46,3 +46,11 @@ test('no invented marketplace apps remain', () => {
   const mock = readFileSync(new URL('../web/src/api/mock/integrations.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(mock, /MarketplaceApp|searchMarketplace/);
 });
+
+test('“Build an integration” leads to our integrations guide, which points to the Agent’s own guides', () => {
+  const page = readFileSync(new URL('../web/src/pages/integrations/CommunityPage.tsx', import.meta.url), 'utf8');
+  assert.match(page, /docs\/integrations\.md/);
+  const guide = readFileSync(new URL('../docs/integrations.md', import.meta.url), 'utf8');
+  for (const link of ['use-community-integrations', 'custom_checks/write_agent_check', 'integrations/agent_integration']) assert.ok(guide.includes(link), link);
+  assert.match(guide, /datadog-agent integration install -t datadog-/);
+});
