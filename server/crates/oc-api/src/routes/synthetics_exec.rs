@@ -875,11 +875,11 @@ fn now_ms() -> i64 {
 fn certificate_info(der: &[u8], now: i64) -> Result<(String, String, i64, i64, f64), String> {
     use x509_cert::der::Decode;
     let cert = x509_cert::Certificate::from_der(der).map_err(|e| format!("Unreadable certificate: {e}"))?;
-    let tbs = &cert.tbs_certificate;
-    let not_before = tbs.validity.not_before.to_unix_duration().as_millis() as i64;
-    let not_after = tbs.validity.not_after.to_unix_duration().as_millis() as i64;
+    let tbs = cert.tbs_certificate();
+    let not_before = tbs.validity().not_before.to_unix_duration().as_millis() as i64;
+    let not_after = tbs.validity().not_after.to_unix_duration().as_millis() as i64;
     let days_left = (not_after - now) as f64 / 86_400_000.0;
-    Ok((tbs.subject.to_string(), tbs.issuer.to_string(), not_before, not_after, days_left))
+    Ok((tbs.subject().to_string(), tbs.issuer().to_string(), not_before, not_after, days_left))
 }
 
 async fn run_ssl(r: &SyntheticRequest, allow_private: bool, out: &mut SyntheticRunDetail) -> Result<(), String> {
