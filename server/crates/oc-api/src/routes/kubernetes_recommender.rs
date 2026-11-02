@@ -157,9 +157,9 @@ async fn observe(st: &AppState, org: &str, t: &TargetRef) -> Result<HashMap<Stri
     let now = now_ms();
     let src = points_subquery("gauge", USAGE_METRICS);
     let usage = with_window(st.ch(org), now - 5 * 60_000, now + OPEN_END_MS)
-        .with_option("param_cluster", &t.cluster)
-        .with_option("param_namespace", &t.namespace)
-        .with_option("param_prefix", format!("{}-", t.name))
+        .with_setting("param_cluster", &t.cluster)
+        .with_setting("param_namespace", &t.namespace)
+        .with_setting("param_prefix", format!("{}-", t.name))
         .query(&format!(
             "SELECT pod, sum(cpu) AS cpu, sum(mem) AS mem FROM ( \
                SELECT ResourceAttributes['k8s.pod.name'] AS pod, ResourceAttributes['k8s.container.name'] AS container, \

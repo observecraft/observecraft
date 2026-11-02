@@ -56,7 +56,7 @@ oc-flags = { workspace = true, features = ["openapi"] }
 oc-query.workspace = true
 oc-store.workspace = true
 openidconnect = "4"
-prost = "0.13"
+prost = "0.14"
 rand = "0.10"
 # Shared result cache on Valkey (BSD-3-Clause): async connection manager, TLS (rediss://) over rustls.
 redis = { version = "1.8", default-features = false, features = ["tokio-comp", "connection-manager", "tokio-rustls-comp", "tls-rustls-webpki-roots", "script"] }

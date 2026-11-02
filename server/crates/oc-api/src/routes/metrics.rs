@@ -880,7 +880,7 @@ pub(crate) fn points_client(st: &AppState, org: &str) -> clickhouse::Client {
 /// The settings of [`points_client`] on `ch`.
 pub(crate) fn points_settings(ch: clickhouse::Client, cluster: bool) -> clickhouse::Client {
     if cluster {
-        ch.with_option("distributed_product_mode", "local")
+        ch.with_setting("distributed_product_mode", "local")
     } else {
         ch
     }
@@ -897,8 +897,8 @@ pub(crate) const OPEN_END_MS: i64 = 3_600_000;
 
 /// Sets the `{oc_from:Int64}` / `{oc_to:Int64}` window (epoch ms) that [`points_subquery`] reads.
 pub(crate) fn with_window(c: clickhouse::Client, from: i64, to: i64) -> clickhouse::Client {
-    c.with_option("param_oc_from", from.to_string())
-        .with_option("param_oc_to", to.to_string())
+    c.with_setting("param_oc_from", from.to_string())
+        .with_setting("param_oc_to", to.to_string())
 }
 
 /// Points of the `kind` ("gauge" or "sum") metrics `names` in the window, with the columns of the
@@ -1844,7 +1844,7 @@ mod tests {
         let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("parity-{}", std::process::id());
         let ch = live.client.clone()
-            .with_option("param_oc_org", &org);
+            .with_setting("param_oc_org", &org);
 
         // Two hours from an hour boundary, a point every 10s: 3 gauge series, a cumulative counter
         // with a reset, and a delta counter. Each goes into the old table and the ingest table.
@@ -1962,7 +1962,7 @@ mod tests {
             return;
         }
         let org = format!("cluster-{}-{}", std::process::id(), now_ms());
-        let ch = live.client.clone().with_option("param_oc_org", &org);
+        let ch = live.client.clone().with_setting("param_oc_org", &org);
         let start = 1_793_095_200_i64;
         let select = format!(
             "SELECT map('oc.org_id', '{org}', 'host.name', concat('i-0a1b2c3d4e5f6', toString(number % 40))) AS ResourceAttributes, 'storefront-api' AS ServiceName, \
@@ -2015,7 +2015,7 @@ mod tests {
         let (from, to) = (now - 15 * 60_000, now + OPEN_END_MS);
         let ch = with_window(
             live.client.clone()
-                .with_option("param_oc_org", &org),
+                .with_setting("param_oc_org", &org),
             from,
             to,
         );
@@ -2139,7 +2139,7 @@ mod tests {
     async fn the_tag_index_resolves_series_like_the_label_maps() {
         let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("index-{}-{}", std::process::id(), now_ms());
-        let ch = live.client.clone().with_option("param_oc_org", &org);
+        let ch = live.client.clone().with_setting("param_oc_org", &org);
         // 24 series: namespaces, services (one without), a resource `env` some points override,
         // `deployment.environment` as both a resource and a point attribute, a point-only `state`
         // on some, `zone` in both with the same value.
@@ -2245,7 +2245,7 @@ mod tests {
         let Some(live) = crate::test_support::live_clickhouse().await else { return };
         let org = format!("dists-{}", std::process::id());
         let ch = live.client.clone()
-            .with_option("param_oc_org", &org);
+            .with_setting("param_oc_org", &org);
 
         // Two hours from an hour boundary, a point every 10s per series (two hosts).
         let start = 1_793_095_200_i64;

@@ -470,7 +470,7 @@ async fn archive_hour(st: &AppState, a: &ArchiveRow, store: &Store, hour: i64) -
         return Ok((0, 0, None));
     }
     // Strings as UTF-8 strings (not binary) so every Parquet reader sees text.
-    let ch = st.clickhouse.clone().with_option("output_format_parquet_string_as_string", "1").with_option("output_format_parquet_compression_method", "zstd");
+    let ch = st.clickhouse.clone().with_setting("output_format_parquet_string_as_string", "1").with_setting("output_format_parquet_compression_method", "zstd");
     let mut cursor = bind(ch.query(&format!("SELECT {ARCHIVE_SELECT} FROM logs_raw_read WHERE {clause} ORDER BY timestamp")), &params).fetch_bytes("Parquet")?;
     let mut body = Vec::new();
     while let Some(chunk) = cursor.next().await? {

@@ -411,7 +411,7 @@ pub async fn ingest(State(st): State<AppState>, headers: HeaderMap, mut form: Mu
         return StatusCode::BAD_REQUEST;
     }
     let result = async {
-        let mut insert = st.clickhouse.insert("otel.profiles")?;
+        let mut insert = st.clickhouse.insert::<ProfileRow>("otel.profiles").await?;
         for (attachment, pprof) in files {
             insert
                 .write(&ProfileRow {

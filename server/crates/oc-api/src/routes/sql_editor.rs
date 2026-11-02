@@ -837,12 +837,12 @@ pub async fn run(State(st): State<AppState>, ctx: AuthContext, access: LogAccess
     let (sql, params) = assemble(&checked, &subqueries)?;
     let ch = st
         .ch(org)
-        .with_option("readonly", "2")
-        .with_option("max_execution_time", st.config.org_query.timeout_secs.min(MAX_EXECUTION_SECS).to_string())
-        .with_option("max_memory_usage", st.config.org_query.max_memory_bytes.min(MAX_MEMORY_BYTES).to_string())
-        .with_option("max_query_size", (64u64 << 20).to_string())
-        .with_option("output_format_json_quote_64bit_integers", "0")
-        .with_option("output_format_json_quote_64bit_floats", "0");
+        .with_setting("readonly", "2")
+        .with_setting("max_execution_time", st.config.org_query.timeout_secs.min(MAX_EXECUTION_SECS).to_string())
+        .with_setting("max_memory_usage", st.config.org_query.max_memory_bytes.min(MAX_MEMORY_BYTES).to_string())
+        .with_setting("max_query_size", (64u64 << 20).to_string())
+        .with_setting("output_format_json_quote_64bit_integers", "0")
+        .with_setting("output_format_json_quote_64bit_floats", "0");
     let mut cursor = bind(ch.query(&sql), &params).fetch_bytes("JSONCompactEachRowWithNamesAndTypes")?;
     let mut body = Vec::new();
     let mut too_big = false;

@@ -38,10 +38,10 @@ async fn schema_on_a_cluster() {
     let ch = clickhouse::Client::default()
         .with_url(&cfg.url)
         .with_user("default")
-        .with_option("insert_distributed_sync", "1")
-        .with_option("load_balancing", "in_order")
-        .with_option("param_org", &acme)
-        .with_option("param_other", &globex);
+        .with_setting("insert_distributed_sync", "1")
+        .with_setting("load_balancing", "in_order")
+        .with_setting("param_org", &acme)
+        .with_setting("param_other", &globex);
     let count = |sql: &str| {
         let (ch, sql) = (ch.clone(), sql.to_string());
         async move { ch.query(&sql).fetch_one::<Count>().await.expect(&sql).n }
@@ -113,7 +113,7 @@ async fn schema_on_a_cluster() {
     // The server's client joins Distributed tables and filters them with subqueries of other
     // Distributed tables (series → samples for hosts and pods, the tag index), which ClickHouse
     // refuses by default ("Double-distributed IN/JOIN subqueries is denied").
-    let server = oc_store::clickhouse(&cfg).with_option("load_balancing", "in_order").with_option("param_org", &acme);
+    let server = oc_store::clickhouse(&cfg).with_setting("load_balancing", "in_order").with_setting("param_org", &acme);
     let joined = server
         .query(
             "SELECT count() AS n FROM otel.metrics_samples AS x INNER JOIN (SELECT SeriesId, any(Attributes) AS Attributes FROM otel.metrics_series WHERE OrgId = {org:String} GROUP BY SeriesId) AS s \
