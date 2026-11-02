@@ -19,22 +19,7 @@ import { addTerm, formatQuery, parseQuery, type Term } from '../../lib/searchQue
 import { LogTable } from '../logs/LogTable';
 import { useTraffic } from './NetworkLayout';
 import { NetworkIntro } from './NetworkIntro';
-
-/** Tags a side can be grouped by. */
-export const GROUP_KEYS: { key: string; label: string }[] = [
-  { key: 'service', label: 'service' },
-  { key: 'env', label: 'env' },
-  { key: 'availability-zone', label: 'availability-zone' },
-  { key: 'kube_namespace', label: 'kube_namespace' },
-  { key: 'kube_service', label: 'kube_service' },
-  { key: 'pod_name', label: 'pod_name' },
-  { key: 'container_name', label: 'container_name' },
-  { key: 'short_image', label: 'short_image' },
-  { key: 'host', label: 'host' },
-  { key: 'ip', label: 'ip' },
-  { key: 'port', label: 'port' },
-  { key: 'domain', label: 'domain' },
-];
+import { NetworkGroupSelect } from './NetworkGroupSelect';
 
 const FACET_LABELS: Record<string, string> = {
   service: 'Service',
@@ -358,26 +343,8 @@ export function NetworkAnalytics({ toggle }: { toggle?: React.ReactNode }) {
       </div>
       <div className="net-groupby">
         <span className="net-groupby-label">Group by</span>
-        <label className="net-chipset">
-          <span>Client</span>
-          <select value={clientGroupBy} onChange={(e) => set({ client: e.target.value === 'service' ? null : e.target.value })}>
-            {GROUP_KEYS.map((g) => (
-              <option key={g.key} value={g.key}>
-                {g.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="net-chipset">
-          <span>Server</span>
-          <select value={serverGroupBy} onChange={(e) => set({ server: e.target.value === 'service' ? null : e.target.value })}>
-            {GROUP_KEYS.map((g) => (
-              <option key={g.key} value={g.key}>
-                {g.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <NetworkGroupSelect value={clientGroupBy} label="Client" onChange={(value) => set({ client: value === 'service' ? null : value })} />
+        <NetworkGroupSelect value={serverGroupBy} label="Server" onChange={(value) => set({ server: value === 'service' ? null : value })} />
       </div>
 
       {q.isError ? (

@@ -76,6 +76,26 @@
   font-size: var(--fs-md);
 }
 
+.net-group-select {
+  overflow: visible;
+}
+
+.net-group-select > span {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.net-group-select .dd-trigger {
+  min-width: 180px;
+  height: 30px;
+  border: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--fs-md);
+}
+
+.net-group-select svg {
+  flex-shrink: 0;
+}
+
 .net-graphs {
   display: flex;
   gap: 12px;
