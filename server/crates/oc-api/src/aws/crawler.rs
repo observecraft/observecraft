@@ -197,7 +197,7 @@ pub struct AwsCrawler {
     pub interval_secs: i64,
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 impl Crawler for AwsCrawler {
     fn provider(&self) -> &'static str {
         PROVIDER
@@ -234,7 +234,7 @@ mod tests {
         calls: StdMutex<Vec<(String, usize, i64, i64)>>,
     }
 
-    #[axum::async_trait]
+    #[async_trait::async_trait]
     impl AwsApi for FakeAws {
         async fn list_metrics(&self, _t: &Target) -> Result<Vec<MetricId>, AwsError> {
             self.fail_list.clone().map_or(Ok(self.metrics.clone()), Err)

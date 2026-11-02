@@ -36,7 +36,7 @@ use crate::routes::slos::{self as model, SloComparator, SloInput, SloStatus, Slo
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
-    Router::new().route("/api/v1/slo", get(list).post(create)).route("/api/v1/slo/search", get(search)).route("/api/v1/slo/:id", get(get_one).put(update).delete(delete))
+    Router::new().route("/api/v1/slo", get(list).post(create)).route("/api/v1/slo/search", get(search)).route("/api/v1/slo/{id}", get(get_one).put(update).delete(delete))
 }
 
 /// Datadog's timeframes we measure (`custom` is not).

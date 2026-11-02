@@ -773,7 +773,7 @@ async fn main() -> anyhow::Result<()> {
     });
     let ofrep_routes = Router::new()
         .route("/ofrep/v1/evaluate/flags", post(ofrep::evaluate_flags))
-        .route("/ofrep/v1/evaluate/flags/:key", post(ofrep::evaluate_flag))
+        .route("/ofrep/v1/evaluate/flags/{key}", post(ofrep::evaluate_flag))
         .layer(ofrep::cors());
     let rum_routes = Router::new().route("/api/v2/rum", post(datadog_rum::post)).route("/api/v2/replay", post(datadog_replay::post)).layer(datadog_rum::cors());
     let app = Router::new()

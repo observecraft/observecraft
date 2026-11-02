@@ -22,7 +22,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use axum::async_trait;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use oc_query::{build_any, build_any_duckdb, matches_any, parse_query, Fields, LogsSchema, SqlFilter, Term};
@@ -205,11 +204,10 @@ pub async fn for_user(st: &AppState, ctx: &AuthContext) -> Result<LogAccess, Api
 }
 
 /// Handlers that read logs for a user take `LogAccess` (resolved from the session or API key).
-#[async_trait]
 impl FromRequestParts<AppState> for LogAccess {
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, st: &AppState) -> Result<Self, ApiError> {
-        let ctx = AuthContext::from_request_parts(parts, st).await?;
+        let ctx = <AuthContext as FromRequestParts<AppState>>::from_request_parts(parts, st).await?;
         for_user(st, &ctx).await
     }
 }

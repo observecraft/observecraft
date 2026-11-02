@@ -17,7 +17,7 @@ pub struct FakeSink {
     pub fail: bool,
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 impl MetricSink for FakeSink {
     async fn publish(&self, org: &str, headers: &[(String, String)], body: Vec<u8>) -> Result<(), String> {
         if self.fail {

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use axum::async_trait;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 
@@ -54,23 +53,21 @@ impl std::ops::Deref for AppState {
 /// The tenant a request acts for: the authenticated user's org. Every query is scoped by it.
 pub struct OrgId(pub String);
 
-#[async_trait]
 impl FromRequestParts<AppState> for OrgId {
     type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, ApiError> {
-        Ok(OrgId(AuthContext::from_request_parts(parts, state).await?.org_id))
+        Ok(OrgId(<AuthContext as FromRequestParts<AppState>>::from_request_parts(parts, state).await?.org_id))
     }
 }
 
 /// The authenticated user's id (UUID as text).
 pub struct CurrentUser(pub String);
 
-#[async_trait]
 impl FromRequestParts<AppState> for CurrentUser {
     type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, ApiError> {
-        Ok(CurrentUser(AuthContext::from_request_parts(parts, state).await?.user_id))
+        Ok(CurrentUser(<AuthContext as FromRequestParts<AppState>>::from_request_parts(parts, state).await?.user_id))
     }
 }

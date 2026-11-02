@@ -28,8 +28,8 @@ use crate::state::AppState;
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/v1/slo/correction", get(list).post(create))
-        .route("/api/v1/slo/correction/:id", get(get_one).patch(update).delete(delete))
-        .route("/api/v1/slo/:id/corrections", get(for_slo))
+        .route("/api/v1/slo/correction/{id}", get(get_one).patch(update).delete(delete))
+        .route("/api/v1/slo/{id}/corrections", get(for_slo))
 }
 
 /// Fields the server owns: never stored, always filled in on reads.

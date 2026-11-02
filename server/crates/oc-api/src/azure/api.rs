@@ -50,7 +50,7 @@ pub enum AzureError {
     Other(String),
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 pub trait AzureApi: Send + Sync {
     /// The ids of the enabled subscriptions the app registration can read.
     async fn subscriptions(&self, c: &Credentials) -> Result<Vec<String>, AzureError>;
@@ -166,7 +166,7 @@ fn resource_group(id: &str) -> String {
     parts.iter().position(|p| p.eq_ignore_ascii_case("resourceGroups")).and_then(|i| parts.get(i + 1)).map(|g| g.to_ascii_lowercase()).unwrap_or_default()
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 impl AzureApi for Rest {
     async fn subscriptions(&self, c: &Credentials) -> Result<Vec<String>, AzureError> {
         let all = self.pages(c, format!("{}/subscriptions?api-version=2022-12-01", self.endpoints.management)).await?;

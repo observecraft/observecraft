@@ -26,7 +26,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::Context;
-use axum::async_trait;
+use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sha2::{Digest, Sha256};

@@ -87,7 +87,7 @@ pub fn classify(code: Option<&str>, message: &str) -> AwsError {
 }
 
 /// What the crawler needs from AWS.
-#[axum::async_trait]
+#[async_trait::async_trait]
 pub trait AwsApi: Send + Sync {
     /// Metrics with data in the last 3 hours.
     async fn list_metrics(&self, target: &Target) -> Result<Vec<MetricId>, AwsError>;
@@ -158,7 +158,7 @@ fn dimensions(m: &MetricId) -> Vec<Dimension> {
     m.dimensions.iter().map(|(k, v)| Dimension::builder().name(k).value(v).build()).collect()
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 impl AwsApi for Sdk {
     async fn list_metrics(&self, target: &Target) -> Result<Vec<MetricId>, AwsError> {
         let client = self.clients(target).await.cloudwatch;

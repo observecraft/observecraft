@@ -26,8 +26,8 @@ use crate::state::AppState;
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/v1/dashboard/lists/manual", get(list).post(create))
-        .route("/api/v1/dashboard/lists/manual/:id", get(get_one).put(update).delete(delete_one))
-        .route("/api/v2/dashboard/lists/manual/:id/dashboards", get(items).post(add_items).put(replace_items).delete(remove_items))
+        .route("/api/v1/dashboard/lists/manual/{id}", get(get_one).put(update).delete(delete_one))
+        .route("/api/v2/dashboard/lists/manual/{id}/dashboards", get(items).post(add_items).put(replace_items).delete(remove_items))
 }
 
 const ITEM_TYPES: &[&str] = &["custom_timeboard", "custom_screenboard", "integration_timeboard", "integration_screenboard", "host_timeboard"];
