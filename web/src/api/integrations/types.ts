@@ -68,6 +68,12 @@ export interface IntegrationDetail extends IntegrationSummary {
   hosts: IntegrationHost[];
   resources: { kind: 'dashboard' | 'monitor'; name: string; description: string }[];
   releaseNotes: { version: string; date: string; notes: string[] }[];
+  /** The Datadog Agent check from integrations-core (its spec drives the configuration form). */
+  agent?: { check: string; configurable: boolean; source: string };
+  /** Its integrations-core entry (documentation, metrics, dashboards), when it has one. */
+  coreId?: string;
+  /** The page that configures it (cloud integrations: the AWS page). */
+  configureUrl?: string;
 }
 
 export type AppOffering = 'Integration' | 'Software License' | 'Professional Services';

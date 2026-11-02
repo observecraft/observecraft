@@ -16,11 +16,19 @@ const PREFIXES: Record<string, string[]> = {
   dotnet: ['process.runtime.dotnet.', 'runtime.dotnet.', 'dotnet.'],
 };
 
-export function hasReportedMetrics(id: string, declared: { name: string }[], names: Set<string>): boolean {
-  const prefixes = PREFIXES[id] ?? [];
+/** `catalogPrefixes` are the integration's metric prefixes from the generated catalog (manifest `metrics.prefix`). */
+export function hasReportedMetrics(id: string, declared: { name: string }[], names: Set<string>, catalogPrefixes: string[] = []): boolean {
+  const prefixes = [...(PREFIXES[id] ?? []), ...catalogPrefixes];
   for (const name of names) {
     if (prefixes.some((prefix) => name.startsWith(prefix))) return true;
     if (declared.some((m) => !/^(http|rpc|process|system|runtime|trace)\./.test(m.name) && (name === m.name || name.startsWith(m.name + '.')))) return true;
   }
   return false;
 }
+
+/** The Datadog metric prefix of a CloudWatch namespace: `AWS/EC2` → `aws.ec2.`. */
+export const awsMetricPrefix = (namespace: string) =>
+  `aws.${namespace
+    .replace(/^\/?aws\//i, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')}.`;

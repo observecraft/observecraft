@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue } from 'react';
 import { API_MODE } from '../../api/http';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CircleHelp } from 'lucide-react';
 import type { IntegrationStatus, IntegrationSummary } from '../../api/integrations/types';
 import { Empty, ErrorState, Loading } from '../../components/ui/AsyncState';
@@ -9,6 +9,9 @@ import { CategoryChips, SearchBox } from './CatalogFilters';
 import { IntegrationCard } from './IntegrationCard';
 import { IntegrationModal } from './IntegrationModal';
 import { useCatalog } from './queries';
+
+/** Integrations with their own page instead of the detail modal. */
+const OWN_PAGES: Record<string, string> = { aws: '/integrations/aws', azure: '/integrations/azure', 'google-cloud': '/integrations/gcp', kubernetes: '/integrations/kubernetes' };
 
 const STATUSES: Option<IntegrationStatus | 'all'>[] = [
   { value: 'all', label: 'All Statuses' },
@@ -57,7 +60,9 @@ export function CatalogPage() {
   const catalog = useCatalog({ query: deferredQuery, status, category });
   const items = catalog.data?.integrations ?? [];
 
-  const open = useCallback((id: string) => setParam('integration', id), [setParam]);
+  const navigate = useNavigate();
+  // Integrations with their own page open it; the others open the detail modal.
+  const open = useCallback((id: string) => (OWN_PAGES[id] ? navigate(OWN_PAGES[id]) : setParam('integration', id)), [navigate, setParam]);
 
   return (
     <div className="int-page">

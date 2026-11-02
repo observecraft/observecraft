@@ -1,27 +1,36 @@
 // TanStack Query bindings for Integrations / Marketplace / Reference Tables.
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getIntegration, installIntegration, listCategories, searchCatalog, searchMarketplace, uninstallIntegration } from '../../api/integrations/client';
+import { getIntegration, installIntegration, loadIntegrationDocs, listCategories, searchCatalog, searchMarketplace, uninstallIntegration } from '../../api/integrations/client';
 import type { CatalogRequest, MarketplaceRequest } from '../../api/integrations/types';
 import { searchDashboards } from '../../api/dashboards/client';
-import { integrationDashboards } from '../../api/integrations/dashboards';
+import { loadAgentSpec } from '../../api/integrations/catalog';
 import { createReferenceTable, deleteReferenceTable, getReferenceTable, listReferenceTables, replaceReferenceTable } from '../../api/referenceTables/client';
 import type { ReferenceTableFile, ReferenceTableRowsQuery } from '../../api/referenceTables/types';
 
-export function useIntegrationDashboards(id: string) {
-  const bundled = integrationDashboards.filter((d) => d.logo === id);
+/** The org's dashboards of an integration (by logo, its catalog or integrations-core id): installed by the server once it sends data. */
+export function useIntegrationDashboards(ids: string[]) {
   return useQuery({
-    queryKey: ['dashboards', 'integration', id],
+    queryKey: ['dashboards', 'integration', ...ids],
     queryFn: async () => {
       const result = [];
       for (let offset = 0; ; offset += 200) {
         const page = await searchDashboards({ query: '', preset: 'integrations', listId: null, team: null, sort: { field: 'title', dir: 'asc' }, offset, limit: 200 });
-        result.push(...page.dashboards.filter((d) => d.logo === id && bundled.some((b) => b.title === d.title)));
+        result.push(...page.dashboards.filter((d) => d.logo && ids.includes(d.logo)));
         if (offset + page.dashboards.length >= page.total || !page.dashboards.length) break;
       }
       return result;
     },
-    enabled: bundled.length > 0,
   });
+}
+
+/** The integration's integrations-core documentation (static, loaded once). */
+export function useIntegrationDocs(coreId: string | undefined) {
+  return useQuery({ queryKey: ['integrations', 'docs', coreId], queryFn: () => loadIntegrationDocs(coreId!), enabled: !!coreId, staleTime: Infinity });
+}
+
+/** The Agent check's configuration spec from integrations-core (static, loaded once). */
+export function useAgentSpec(check: string | undefined) {
+  return useQuery({ queryKey: ['integrations', 'agent-spec', check], queryFn: () => loadAgentSpec(check!), enabled: !!check, staleTime: Infinity });
 }
 
 export const integrationKeys = {

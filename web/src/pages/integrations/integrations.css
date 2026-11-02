@@ -130,8 +130,135 @@
   text-align: left;
 }
 
-.int-card:hover {
+.int-card:hover,
+.int-card:focus-visible {
+  border-color: var(--primary);
   box-shadow: var(--shadow-pop);
+}
+
+/* Front (logo, name) and back (description, action) share the tile; hover or focus shows the back. */
+.int-card-front,
+.int-card-back {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: stretch;
+  flex: 1;
+  min-width: 0;
+}
+
+.int-card-back {
+  display: none;
+  margin: 0 -18px -16px;
+  padding: 12px 14px 12px;
+}
+
+.int-card:hover .int-card-front,
+.int-card:focus-visible .int-card-front {
+  display: none;
+}
+
+.int-card:hover .int-card-back,
+.int-card:focus-visible .int-card-back {
+  display: flex;
+}
+
+/* The top edge's colour keeps the status; while hovered its label moves into the band below. */
+.int-card:hover > .edge-label,
+.int-card:focus-visible > .edge-label {
+  display: none;
+}
+
+.edge-detected:hover,
+.edge-detected:focus-visible {
+  border-top-color: var(--brand-strong);
+}
+
+.edge-installed:hover,
+.edge-installed:focus-visible {
+  border-top-color: var(--status-ok);
+}
+
+.edge-warning:hover,
+.edge-warning:focus-visible {
+  border-top-color: var(--status-warn);
+}
+
+.int-card-band {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  align-self: stretch;
+  margin: -12px -14px 10px;
+  padding: 4px 8px;
+  color: var(--text-inverse);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.edge-detected .int-card-band {
+  background: var(--brand-strong);
+}
+
+.edge-installed .int-card-band {
+  background: var(--status-ok);
+}
+
+.edge-warning .int-card-band {
+  background: var(--status-warn);
+}
+
+.int-card-name.wrap {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.int-card-back > .int-card-name {
+  margin-top: 4px;
+  padding: 0 4px;
+}
+
+.int-card-back > .int-card-by,
+.int-card-desc {
+  padding: 0 4px;
+}
+
+.int-card-desc {
+  margin-top: 8px;
+  color: var(--text);
+  font-size: var(--fs-md);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+/* Looks like a button; the whole tile is the button (a button can't hold another). */
+.int-card-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  align-self: stretch;
+  margin-top: auto;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--text-inverse);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.int-card:hover .int-card-action {
+  background: var(--primary-hover);
 }
 
 .edge-detected {
@@ -189,12 +316,23 @@
   color: var(--text-muted);
 }
 
+.int-card-by b {
+  font-weight: var(--fw-semibold);
+}
+
 .logo-tile {
   display: inline-grid;
   place-items: center;
   border-radius: var(--radius-md);
   color: var(--text-inverse);
   font-weight: var(--fw-semibold);
+}
+
+/* A catalog logo file: its own aspect ratio, at most the box IntegrationLogo gives it. */
+.logo-file {
+  display: block;
+  width: auto;
+  object-fit: contain;
 }
 
 .logo-word {
@@ -449,6 +587,40 @@
 .cfg-vector {
   background: var(--brand-subtle);
   color: var(--brand-strong);
+}
+
+.cfg-datadog-agent {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+
+.im-settings select {
+  height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-weight: var(--fw-regular);
+}
+
+.im-settings small {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  line-height: 1.4;
+}
+
+.im-required {
+  color: var(--badge-error-fg);
+}
+
+.im-agent-settings .link-button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font-size: var(--fs-md);
+  cursor: pointer;
 }
 
 .im-install-row {
@@ -888,4 +1060,197 @@
   border-radius: var(--radius-sm);
   background: var(--badge-info-bg);
   font-size: var(--fs-lg);
+}
+
+/* ---- integrations-core documentation in the modal ---- */
+
+.readme {
+  max-width: 1000px;
+}
+
+.readme h3,
+.readme h4,
+.readme h5 {
+  margin: 18px 0 8px;
+  font-size: 15px;
+  font-weight: var(--fw-semibold);
+}
+
+.readme h4,
+.readme h5 {
+  font-size: var(--fs-lg);
+}
+
+.readme ul,
+.readme ol {
+  margin: 0 0 10px;
+  padding-left: 22px;
+}
+
+.readme code {
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.readme img {
+  max-width: 100%;
+}
+
+.readme blockquote {
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  border-left: 3px solid var(--border);
+  color: var(--text-muted);
+}
+
+.readme-table {
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+
+.readme-tabs {
+  margin: 8px 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.readme-tab-row {
+  display: flex;
+  gap: 4px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.readme-tab-row button {
+  padding: 8px 10px 6px;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+}
+
+.readme-tab-row button.active {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+
+.readme-tab-body {
+  padding: 10px 14px 4px;
+}
+
+.im-observecraft {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+
+.im-observecraft ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.im-dive {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.im-dive-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.im-dive-card:hover {
+  border-color: var(--primary);
+}
+
+.im-dive-kind {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+}
+
+.im-dive-host,
+.im-dive-path {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.im-dive-host {
+  font-weight: var(--fw-semibold);
+}
+
+.im-dive-path {
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  text-transform: capitalize;
+}
+
+.im-table-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 10px;
+}
+
+.im-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 280px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+
+.im-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.im-desc {
+  max-width: 0;
+  width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.im-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 8px 0 16px;
+}
+
+.im-row-action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.im-table + h3,
+.im-pager + h3 {
+  margin-top: 22px;
 }
