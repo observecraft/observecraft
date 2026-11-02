@@ -9,6 +9,7 @@ pub mod grok;
 pub mod library;
 pub mod log;
 pub mod processors;
+pub mod rubyhash;
 pub mod xml;
 
 use serde_json::Value;

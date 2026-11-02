@@ -2339,6 +2339,7 @@ mod tests {
             ("../pipelines/dates.rs", include_str!("../pipelines/dates.rs")),
             ("../pipelines/filter.rs", include_str!("../pipelines/filter.rs")),
             ("../pipelines/grok.rs", include_str!("../pipelines/grok.rs")),
+            ("../pipelines/rubyhash.rs", include_str!("../pipelines/rubyhash.rs")),
             ("../pipelines/xml.rs", include_str!("../pipelines/xml.rs")),
             ("../pipelines/library.rs", include_str!("../pipelines/library.rs")),
             ("../pipelines/log.rs", include_str!("../pipelines/log.rs")),
