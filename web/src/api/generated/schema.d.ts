@@ -3352,6 +3352,351 @@ export interface paths {
         patch: operations["instance_update_org_limits"];
         trace?: never;
     };
+    "/api/v1/integration/azure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_azure_integration"];
+        put: operations["datadog_update_azure_integration"];
+        post: operations["datadog_create_azure_integration"];
+        delete: operations["datadog_delete_azure_integration"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integration/azure/host_filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Changes the host, App Service plan and container app filters only. */
+        post: operations["datadog_update_azure_host_filters"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/aws/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["aws_list_accounts"];
+        put?: never;
+        /** Datadog's account attributes (`aws_account_id`, `auth_config`, `aws_regions`, `metrics_config`, …). */
+        post: operations["aws_create_account"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/aws/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["aws_get_account"];
+        put?: never;
+        post?: never;
+        delete: operations["aws_delete_account"];
+        options?: never;
+        head?: never;
+        /** The attributes to change; the others keep their value. */
+        patch: operations["aws_update_account"];
+        trace?: never;
+    };
+    "/api/v1/integrations/aws/accounts/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The crawler's progress and issues per region of an account. */
+        get: operations["aws_account_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/aws/external-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["aws_external_id"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/aws/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["aws_setup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/azure/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["azure_list_accounts"];
+        put?: never;
+        /** Datadog's fields (`tenant_name`, `client_id`, `client_secret`, filters, …). */
+        post: operations["azure_create_account"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/azure/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** The fields to change (a new `tenant_name` or `client_id` renames it); the others keep their value. */
+        put: operations["azure_update_account"];
+        post?: never;
+        delete: operations["azure_delete_account"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/azure/accounts/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["azure_account_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/gcp/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["gcp_list_accounts"];
+        put?: never;
+        /** Datadog's attributes (`client_email`, `account_tags`, `monitored_resource_configs`, …). */
+        post: operations["gcp_create_account"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/gcp/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["gcp_delete_account"];
+        options?: never;
+        head?: never;
+        /** The attributes to change; the others keep their value. */
+        patch: operations["gcp_update_account"];
+        trace?: never;
+    };
+    "/api/v1/integrations/gcp/accounts/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["gcp_account_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/gcp/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["gcp_setup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kubernetes/autoscaling": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Everything the Autoscaling pages show; the UI filters by cluster and namespace. */
+        get: operations["get_kubernetes_autoscaling"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kubernetes/autoscaling/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_kubernetes_autoscaling_profile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kubernetes/autoscaling/profiles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_kubernetes_autoscaling_profile"];
+        post?: never;
+        delete: operations["delete_kubernetes_autoscaling_profile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kubernetes/autoscaling/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_kubernetes_autoscaling_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kubernetes/clusters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_kubernetes_clusters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kubernetes/remediation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_kubernetes_workload_problems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kubernetes/rollouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_kubernetes_rollouts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/llm/evaluations": {
         parameters: {
             query?: never;
@@ -3426,6 +3771,23 @@ export interface paths {
         get: operations["llm_trace"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/aggregate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log analytics, as Datadog's `/api/v2/logs/analytics/aggregate` (dashboard widgets over logs). */
+        post: operations["aggregate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8628,6 +8990,185 @@ export interface paths {
         patch: operations["datadog_update_downtime"];
         trace?: never;
     };
+    "/api/v2/integration/aws/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_aws_accounts"];
+        put?: never;
+        post: operations["datadog_create_aws_account"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/integration/aws/accounts/{aws_account_config_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_aws_account"];
+        put?: never;
+        post?: never;
+        delete: operations["datadog_delete_aws_account"];
+        options?: never;
+        head?: never;
+        patch: operations["datadog_update_aws_account"];
+        trace?: never;
+    };
+    "/api/v2/integration/aws/available_namespaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_aws_namespaces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/integration/aws/generate_new_external_id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["datadog_create_aws_external_id"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/integration/aws/iam_permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_aws_iam_permissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/integration/aws/iam_permissions/resource_collection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resource collection isn't built: it needs no permissions. */
+        get: operations["datadog_get_aws_iam_permissions_resource_collection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/integration/aws/iam_permissions/standard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_aws_iam_permissions_standard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/integration/aws/logs/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_aws_logs_services"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/integration/gcp/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_gcp_sts_accounts"];
+        put?: never;
+        post: operations["datadog_create_gcp_sts_account"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/integration/gcp/accounts/{account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["datadog_delete_gcp_sts_account"];
+        options?: never;
+        head?: never;
+        patch: operations["datadog_update_gcp_sts_account"];
+        trace?: never;
+    };
+    "/api/v2/integration/gcp/sts_delegate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The service account this install impersonates customers' service accounts with. */
+        get: operations["datadog_get_gcp_sts_delegate"];
+        put?: never;
+        /** Datadog creates the delegate on first use; this install's is configured, so this answers it. */
+        post: operations["datadog_make_gcp_sts_delegate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/monitor/{monitor_id}/downtime_matches": {
         parameters: {
             query?: never;
@@ -9561,6 +10102,30 @@ export interface components {
             introduced: string;
             last_affected?: string;
         };
+        AggregateData: {
+            buckets: components["schemas"]["Bucket"][];
+        };
+        AggregateFilter: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds; Datadog's ISO 8601 and `now` / `now-15m` strings too. The last 15 minutes by default.
+             */
+            from?: number | null;
+            query?: string;
+            /** Format: int64 */
+            to?: number | null;
+        };
+        AggregateRequest: {
+            /** @description What to compute; a log count when empty. */
+            compute?: components["schemas"]["Compute"][];
+            filter?: components["schemas"]["AggregateFilter"];
+            /** @description Facets to split by, outermost first. */
+            group_by?: components["schemas"]["GroupBy"][];
+        };
+        AggregateResponse: {
+            data: components["schemas"]["AggregateData"];
+            meta: Record<string, never>;
+        };
         AiDiscover: {
             providers: components["schemas"]["AiProvider"][];
             services: components["schemas"]["AiService"][];
@@ -10338,6 +10903,117 @@ export interface components {
         AutomationAppSpec: {
             components?: components["schemas"]["AppComponent"][];
         };
+        AutoscalingOverview: {
+            autoscalers: components["schemas"]["KubeAutoscaler"][];
+            clusters: components["schemas"]["ClusterScaling"][];
+            profiles: components["schemas"]["AutoscalingProfile"][];
+            /** @description The external recommender's last answers (last day), per autoscaler target. */
+            recommendations: components["schemas"]["StoredRecommendation"][];
+            settings: components["schemas"]["AutoscalingSettings"];
+            summary: components["schemas"]["AutoscalingSummary"];
+            workloads: components["schemas"]["WorkloadRecommendation"][];
+        };
+        AutoscalingProfile: {
+            /** @description Clusters where the profile is deployed. */
+            clusters: string[];
+            /** @description The id of the copy saved in ObserveCraft, if any. */
+            id?: string | null;
+            name: string;
+            source: components["schemas"]["ProfileSource"];
+            /** @description `spec.template` of the profile. */
+            template: Record<string, never>;
+            /**
+             * Format: int32
+             * @description Workloads labelled with it.
+             */
+            workloads: number;
+        };
+        AutoscalingSettings: {
+            /**
+             * Format: double
+             * @description USD per vCPU-hour of requests.
+             */
+            cpuHourPrice: number;
+            /**
+             * Format: double
+             * @description USD per GiB-hour of requests.
+             */
+            memoryGibHourPrice: number;
+        };
+        AutoscalingSummary: {
+            /** Format: double */
+            clusterIdleCost: number;
+            /** Format: double */
+            clusterSavings: number;
+            /** Format: int32 */
+            clusters: number;
+            /**
+             * Format: int32
+             * @description Clusters without a node autoscaler.
+             */
+            unscaledClusters: number;
+            /**
+             * Format: int32
+             * @description Workloads no autoscaler targets.
+             */
+            unscaledWorkloads: number;
+            /**
+             * Format: double
+             * @description Monthly costs.
+             */
+            usageCost: number;
+            /** Format: double */
+            workloadIdleCost: number;
+            /** Format: double */
+            workloadSavings: number;
+            /** Format: int32 */
+            workloads: number;
+        };
+        /** @description An account as Datadog's API documents it: `{id, type: "account", attributes}`. */
+        AwsAccount: {
+            attributes: Record<string, never>;
+            id: string;
+        };
+        AwsAccountStatus: {
+            /** @description One per region. */
+            regions: components["schemas"]["ScopeStatus"][];
+        };
+        AwsExternalId: {
+            external_id: string;
+        };
+        /** @description What the add-account flows need. */
+        AwsSetup: {
+            /** @description Namespaces excluded when the account doesn't choose any. */
+            default_excluded_namespaces: string[];
+            /** @description `[{id, name}]`: the log sources the Datadog Forwarder subscribes to. */
+            log_services: Record<string, never>;
+            /** @description `[{namespace, name, id, categories}]` (`seeds/aws_integration.json`). */
+            namespaces: Record<string, never>;
+            /** @description IAM actions the integration role must allow. */
+            permissions: string[];
+            /** @description The AWS principal the server assumes customers' roles with; None until `OC_AWS_PRINCIPAL_ARN` is set. */
+            principal_arn?: string | null;
+        };
+        /** @description An app registration: its identity, whether a client secret is stored, and Datadog's other fields. */
+        AzureAccount: {
+            client_id: string;
+            config: Record<string, never>;
+            has_secret: boolean;
+            id: string;
+            tenant_name: string;
+        };
+        AzureAccountStatus: {
+            /** @description One per subscription; scope `""` is the discovery of the subscriptions. */
+            subscriptions: components["schemas"]["ScopeStatus"][];
+        };
+        Bucket: {
+            /** @description Each facet's value (`{"@http.status_code": "500"}`). */
+            by: {
+                [key: string]: string;
+            };
+            /** @description `c0`, `c1`, … as the computes: a number, or `[{time, value}]` for a timeseries. */
+            computes: Record<string, never>;
+        };
         /**
          * @description What the error budget is counted in.
          * @enum {string}
@@ -10792,6 +11468,43 @@ export interface components {
                 [key: string]: number;
             };
         };
+        ClusterScaling: {
+            autoscaling: components["schemas"]["NodeAutoscaler"];
+            cluster: string;
+            /**
+             * Format: double
+             * @description Allocatable capacity no pod requests, per month.
+             */
+            clusterIdleCost: number;
+            /** Format: double */
+            cpuCapacity: number;
+            /** Format: double */
+            cpuRequests: number;
+            /** Format: double */
+            memoryCapacity: number;
+            /** Format: double */
+            memoryRequests: number;
+            /** Format: int32 */
+            nodes: number;
+            /**
+             * Format: double
+             * @description Idle capacity beyond the largest node (kept as headroom), per month: what removing nodes
+             *     would save.
+             */
+            projectedClusterSavings: number;
+            /**
+             * Format: double
+             * @description What the workloads' recommendations would save per month.
+             */
+            projectedWorkloadSavings: number;
+            /** Format: double */
+            usageCost: number;
+            /**
+             * Format: double
+             * @description Requested capacity no pod uses, per month.
+             */
+            workloadIdleCost: number;
+        };
         CodeRequest: {
             /** @description 6-digit code from the authenticator app. */
             code: string;
@@ -10939,6 +11652,35 @@ export interface components {
          * @enum {string}
          */
         ComponentStatus: "operational" | "degraded_performance" | "partial_outage" | "major_outage";
+        Compute: {
+            /** @description `count`, `cardinality`, `sum`, `min`, `max`, `avg`, `median`, `pc75`, `pc90`, `pc95`, `pc98`, `pc99`. */
+            aggregation: string;
+            /** @description A timeseries' step: `30s`, `5m`, `1h`, `1d` or milliseconds. */
+            interval?: string | null;
+            /** @description The facet or measure (`@duration`); none for `count`. */
+            metric?: string | null;
+            /** @description `total` (default) or `timeseries`. */
+            type?: string | null;
+        };
+        ContainerRecommendation: {
+            /** Format: double */
+            cpuAvg?: number | null;
+            /** Format: double */
+            cpuP95?: number | null;
+            /** Format: double */
+            cpuRequest?: number | null;
+            /** Format: double */
+            memoryAvg?: number | null;
+            /** Format: double */
+            memoryMax?: number | null;
+            /** Format: double */
+            memoryRequest?: number | null;
+            name: string;
+            /** Format: double */
+            recommendedCpu?: number | null;
+            /** Format: double */
+            recommendedMemory?: number | null;
+        };
         ContentPackStatus: {
             category: string;
             description: string;
@@ -11078,6 +11820,19 @@ export interface components {
             onDemand: number;
             region: string;
             service: string;
+        };
+        /** @description The last crawl problem of a scope. */
+        CrawlIssue: {
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            at: number;
+            /** @description access_denied | auth | throttled | disabled | other */
+            kind: string;
+            message: string;
+            /** @description The permission the provider refused, when it names it. */
+            missing_action?: string | null;
         };
         CreateAppKey: {
             name: string;
@@ -13163,6 +13918,21 @@ export interface components {
         };
         /** @enum {string} */
         GateRuleStatus: "passed" | "failed";
+        /** @description A service account: its email and Datadog's other attributes. */
+        GcpAccount: {
+            client_email: string;
+            config: Record<string, never>;
+            id: string;
+        };
+        GcpAccountStatus: {
+            /** @description One per project; scope `""` is the discovery of the projects. */
+            projects: components["schemas"]["ScopeStatus"][];
+        };
+        GcpSetup: {
+            /** @description This install's service account (`OC_GCP_PRINCIPAL_EMAIL`): customers grant it the Service Account
+             *     Token Creator role on their service account. None until it is configured. */
+            principal_email?: string | null;
+        };
         GeneratePostmortem: {
             /** @description standard | brief */
             template: string;
@@ -13269,6 +14039,15 @@ export interface components {
             error?: string | null;
             samples: components["schemas"]["GrokSampleResult"][];
         };
+        GroupBy: {
+            facet: string;
+            /**
+             * Format: int64
+             * @description Groups kept (default 10).
+             */
+            limit?: number | null;
+            sort?: null | components["schemas"]["GroupSort"];
+        };
         GroupCount: {
             count: number;
             critical: number;
@@ -13284,6 +14063,10 @@ export interface components {
             ok: number;
             /** Format: int64 */
             warn: number;
+        };
+        GroupSort: {
+            /** @description `desc` (default) or `asc`. */
+            order?: string | null;
         };
         GroupedScalar: {
             /** @description "host:a, region:b", or "*" when ungrouped. */
@@ -13997,6 +14780,8 @@ export interface components {
             /** @description for_review | reviewed | ignored | resolved | all */
             state?: string;
         };
+        /** @enum {string} */
+        IssueType: "crash_loop_back_off" | "oom_killed" | "image_pull" | "container_config" | "pending" | "failed_pods" | "not_ready" | "frequent_restarts";
         IssueUpdate: {
             /** @description A user of the organization, `null` to unassign; absent leaves it as is. */
             assigneeId?: string | null;
@@ -14220,6 +15005,67 @@ export interface components {
             /** Format: int64 */
             underReplicated?: number | null;
         };
+        KubeAutoscaler: {
+            cluster: string;
+            /** Format: int64 */
+            createdAt?: number | null;
+            /** Format: int32 */
+            currentReplicas?: number | null;
+            /** Format: int32 */
+            desiredReplicas?: number | null;
+            horizontal: boolean;
+            /** @description DatadogPodAutoscaler or HorizontalPodAutoscaler. */
+            kind: string;
+            /** Format: int32 */
+            maxReplicas?: number | null;
+            /** Format: int32 */
+            minReplicas?: number | null;
+            name: string;
+            namespace: string;
+            /** @description DatadogPodAutoscaler: Local (created in the cluster) or Remote. */
+            owner?: string | null;
+            /** Format: int32 */
+            podsFailing: number;
+            /** Format: int32 */
+            podsPending: number;
+            /** Format: int32 */
+            podsRunning: number;
+            /** @description Why it doesn't work: missing target, error conditions. */
+            problems: string[];
+            /** @description The cluster profile it was generated from. */
+            profile?: string | null;
+            /** @description The external recommender endpoint of its `custom-recommender` annotation. */
+            recommender?: string | null;
+            targetExists: boolean;
+            targetKind: string;
+            targetName: string;
+            uid: string;
+            vertical: boolean;
+        };
+        KubeClusterSummary: {
+            /** @description The Cluster Agent's workload autoscaling CRD is installed. */
+            autoscaling: boolean;
+            /**
+             * Format: double
+             * @description Allocatable cores and bytes.
+             */
+            cpuCapacity?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            lastSeen: number;
+            /** Format: double */
+            memoryCapacity?: number | null;
+            name: string;
+            /** Format: int32 */
+            nodes: number;
+            /** Format: int32 */
+            pods: number;
+            sources: components["schemas"]["KubeObjectSource"][];
+            status: string;
+            version?: string | null;
+        };
         KubeContainer: {
             cpu: components["schemas"]["KubeUtilization"];
             image: string;
@@ -14296,6 +15142,11 @@ export interface components {
             name: string;
             uid: string;
         };
+        /**
+         * @description Who sends a cluster's objects.
+         * @enum {string}
+         */
+        KubeObjectSource: "datadog_cluster_agent" | "opentelemetry";
         /** @description One row of the explorer. Kind-specific columns are null for other kinds. */
         KubeResource: {
             accessModes?: string | null;
@@ -15721,6 +16572,8 @@ export interface components {
              */
             t: number;
         };
+        /** @enum {string} */
+        NodeAutoscaler: "karpenter" | "cluster_autoscaler" | "none";
         NoteRequest: {
             body: string;
         };
@@ -17079,6 +17932,12 @@ export interface components {
              */
             value: number;
         };
+        ProfileInput: {
+            /** @description A Kubernetes object name (DNS subdomain). */
+            name: string;
+            /** @description `spec.template` of the DatadogPodAutoscalerClusterProfile. */
+            template: Record<string, never>;
+        };
         ProfileInsight: {
             /** @description CPU, MEMORY, LOCK, … */
             category: string;
@@ -17178,6 +18037,8 @@ export interface components {
              */
             value: number;
         };
+        /** @enum {string} */
+        ProfileSource: "builtin" | "cluster" | "saved";
         ProfileSummary: {
             attachment: string;
             /** Format: int64 */
@@ -17791,6 +18652,38 @@ export interface components {
             id: string;
             name: string;
         };
+        Rollout: {
+            /** Format: int32 */
+            available: number;
+            cluster: string;
+            /** Format: int32 */
+            desired: number;
+            /** Format: double */
+            durationSeconds?: number | null;
+            /** Format: int64 */
+            finished?: number | null;
+            /** @description The image of the first container. */
+            image?: string | null;
+            /** @description The Progressing condition's message. */
+            message?: string | null;
+            name: string;
+            namespace: string;
+            /** Format: int32 */
+            ready: number;
+            /** Format: int64 */
+            revision?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms: the newest ReplicaSet's creation, and the last progress of a completed rollout.
+             */
+            started?: number | null;
+            status: components["schemas"]["RolloutStatus"];
+            uid: string;
+            /** Format: int32 */
+            updated: number;
+        };
+        /** @enum {string} */
+        RolloutStatus: "in_progress" | "complete" | "stalled" | "scaled_down";
         RuleCase: {
             condition?: string;
             name?: string;
@@ -18075,6 +18968,11 @@ export interface components {
             /** @description e.g. nanoseconds, bytes, count */
             unit: string;
         };
+        SavedProfileView: {
+            id: string;
+            name: string;
+            template: Record<string, never>;
+        };
         SavedSqlQuery: {
             author: string;
             /**
@@ -18099,6 +18997,28 @@ export interface components {
             aggregator: components["schemas"]["TimeAggregator"];
             query: string;
             range: components["schemas"]["TimeRange"];
+        };
+        /** @description One scope's crawl (scope `""`: the account's discovery of its subscriptions or projects). */
+        ScopeStatus: {
+            /**
+             * Format: int64
+             * @description Epoch ms up to which metrics are collected.
+             */
+            collected_until?: number | null;
+            error?: null | components["schemas"]["CrawlIssue"];
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful run.
+             */
+            last_success_at?: number | null;
+            /**
+             * Format: int32
+             * @description Metrics and points of the last successful run (a discovery: the scopes found).
+             */
+            metrics: number;
+            /** Format: int32 */
+            points: number;
+            scope: string;
         };
         Scorecard: {
             description: string;
@@ -19618,6 +20538,24 @@ export interface components {
             status: components["schemas"]["MonitorStatus"];
             /** Format: int64 */
             to: number;
+        };
+        /** @description The recommender's last answer for an autoscaler's target. */
+        StoredRecommendation: {
+            cluster: string;
+            /** Format: int32 */
+            currentReplicas: number;
+            error?: string | null;
+            kind: string;
+            name: string;
+            namespace: string;
+            reason: string;
+            /** Format: int32 */
+            targetReplicas: number;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
         };
         StreamEdge: {
             consumerGroups: string[];
@@ -21433,6 +22371,71 @@ export interface components {
         };
         /** @enum {string} */
         WorkflowTriggerKind: "manual" | "monitor" | "schedule" | "incident" | "api" | "app";
+        WorkloadProblem: {
+            cluster: string;
+            issue: components["schemas"]["IssueType"];
+            issueLabel: string;
+            /** @description Deployment, DaemonSet or StatefulSet. */
+            kind: string;
+            name: string;
+            namespace: string;
+            /** @description Up to 5 affected pods. */
+            pods: string[];
+            /** Format: int32 */
+            podsAffected: number;
+            /** Format: int32 */
+            podsTotal: number;
+            remediation: string;
+            service?: string | null;
+            /**
+             * Format: int64
+             * @description The oldest affected pod's creation (epoch ms).
+             */
+            started?: number | null;
+            team?: string | null;
+            uid: string;
+        };
+        WorkloadRecommendation: {
+            /** @description The Cluster Agent's workload autoscaling is installed in the cluster. */
+            agentSetup: boolean;
+            /** @description The autoscaler targeting the workload, if any (`Kind/name`). */
+            autoscaler?: string | null;
+            cluster: string;
+            containers: components["schemas"]["ContainerRecommendation"][];
+            /**
+             * Format: double
+             * @description Requested minus used, over all replicas (cores, bytes).
+             */
+            cpuIdle: number;
+            /** Format: double */
+            idleCost: number;
+            /** @description Deployment or StatefulSet. */
+            kind: string;
+            /** Format: double */
+            memoryUnused: number;
+            name: string;
+            namespace: string;
+            /** @description Why the workload can't be autoscaled yet (empty: ready). */
+            notReady: string[];
+            /** @description The cluster profile its label asks for. */
+            profile?: string | null;
+            /**
+             * Format: double
+             * @description What the recommended requests would save per month (0 when they'd cost more).
+             */
+            projectedSavings: number;
+            /** Format: int32 */
+            replicas: number;
+            /**
+             * Format: double
+             * @description Monthly costs: of what the replicas request, of what they use, and of the idle part.
+             */
+            requestsCost: number;
+            service?: string | null;
+            uid: string;
+            /** Format: double */
+            usageCost: number;
+        };
         WpAgentCounts: {
             hosts: number;
             hostsEnabled: number;
@@ -28293,6 +29296,880 @@ export interface operations {
             };
         };
     };
+    datadog_list_azure_integration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_azure_integration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_azure_integration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_delete_azure_integration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_azure_host_filters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    aws_list_accounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwsAccount"][];
+                };
+            };
+        };
+    };
+    aws_create_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwsAccount"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    aws_get_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwsAccount"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    aws_delete_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    aws_update_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwsAccount"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    aws_account_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwsAccountStatus"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    aws_external_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwsExternalId"];
+                };
+            };
+        };
+    };
+    aws_setup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwsSetup"];
+                };
+            };
+        };
+    };
+    azure_list_accounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AzureAccount"][];
+                };
+            };
+        };
+    };
+    azure_create_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AzureAccount"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    azure_update_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AzureAccount"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    azure_delete_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    azure_account_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AzureAccountStatus"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    gcp_list_accounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GcpAccount"][];
+                };
+            };
+        };
+    };
+    gcp_create_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GcpAccount"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    gcp_delete_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    gcp_update_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GcpAccount"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    gcp_account_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GcpAccountStatus"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    gcp_setup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GcpSetup"];
+                };
+            };
+        };
+    };
+    get_kubernetes_autoscaling: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoscalingOverview"];
+                };
+            };
+        };
+    };
+    create_kubernetes_autoscaling_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedProfileView"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_kubernetes_autoscaling_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedProfileView"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_kubernetes_autoscaling_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_kubernetes_autoscaling_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutoscalingSettings"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoscalingSettings"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_kubernetes_clusters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KubeClusterSummary"][];
+                };
+            };
+        };
+    };
+    list_kubernetes_workload_problems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkloadProblem"][];
+                };
+            };
+        };
+    };
+    list_kubernetes_rollouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Rollout"][];
+                };
+            };
+        };
+    };
     llm_evaluations: {
         parameters: {
             query?: never;
@@ -28403,6 +30280,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LlmTraceDetail"];
+                };
+            };
+        };
+    };
+    aggregate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AggregateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AggregateResponse"];
                 };
             };
         };
@@ -40319,6 +42219,481 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_aws_accounts: {
+        parameters: {
+            query?: {
+                aws_account_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_aws_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_aws_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                aws_account_config_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_delete_aws_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                aws_account_config_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_aws_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                aws_account_config_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_list_aws_namespaces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_aws_external_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_aws_iam_permissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_aws_iam_permissions_resource_collection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_aws_iam_permissions_standard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_list_aws_logs_services: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_list_gcp_sts_accounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_gcp_sts_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_delete_gcp_sts_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_gcp_sts_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_gcp_sts_delegate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_make_gcp_sts_delegate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };

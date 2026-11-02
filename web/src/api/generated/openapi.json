@@ -9110,6 +9110,1008 @@
         }
       }
     },
+    "/api/v1/integration/azure": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_azure_integration",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_update_azure_integration",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_create_azure_integration",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_delete_azure_integration",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integration/azure/host_filters": {
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Changes the host, App Service plan and container app filters only.",
+        "operationId": "datadog_update_azure_host_filters",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/aws/accounts": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "aws_list_accounts",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AwsAccount"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Datadog's account attributes (`aws_account_id`, `auth_config`, `aws_regions`, `metrics_config`, …).",
+        "operationId": "aws_create_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwsAccount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": ""
+          },
+          "409": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/aws/accounts/{id}": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "aws_get_account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwsAccount"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "aws_delete_account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The attributes to change; the others keep their value.",
+        "operationId": "aws_update_account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwsAccount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/aws/accounts/{id}/status": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The crawler's progress and issues per region of an account.",
+        "operationId": "aws_account_status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwsAccountStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/aws/external-id": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "aws_external_id",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwsExternalId"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/aws/setup": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "aws_setup",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwsSetup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/azure/accounts": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "azure_list_accounts",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AzureAccount"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Datadog's fields (`tenant_name`, `client_id`, `client_secret`, filters, …).",
+        "operationId": "azure_create_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AzureAccount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/azure/accounts/{id}": {
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The fields to change (a new `tenant_name` or `client_id` renames it); the others keep their value.",
+        "operationId": "azure_update_account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AzureAccount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "azure_delete_account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/azure/accounts/{id}/status": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "azure_account_status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AzureAccountStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/gcp/accounts": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "gcp_list_accounts",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GcpAccount"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Datadog's attributes (`client_email`, `account_tags`, `monitored_resource_configs`, …).",
+        "operationId": "gcp_create_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GcpAccount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": ""
+          },
+          "409": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/gcp/accounts/{id}": {
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "gcp_delete_account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The attributes to change; the others keep their value.",
+        "operationId": "gcp_update_account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GcpAccount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/gcp/accounts/{id}/status": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "gcp_account_status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GcpAccountStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/gcp/setup": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "operationId": "gcp_setup",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GcpSetup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kubernetes/autoscaling": {
+      "get": {
+        "tags": [
+          "orchestration"
+        ],
+        "summary": "Everything the Autoscaling pages show; the UI filters by cluster and namespace.",
+        "operationId": "get_kubernetes_autoscaling",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoscalingOverview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kubernetes/autoscaling/profiles": {
+      "post": {
+        "tags": [
+          "orchestration"
+        ],
+        "operationId": "create_kubernetes_autoscaling_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedProfileView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": ""
+          },
+          "409": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/kubernetes/autoscaling/profiles/{id}": {
+      "put": {
+        "tags": [
+          "orchestration"
+        ],
+        "operationId": "update_kubernetes_autoscaling_profile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedProfileView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "orchestration"
+        ],
+        "operationId": "delete_kubernetes_autoscaling_profile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/kubernetes/autoscaling/settings": {
+      "put": {
+        "tags": [
+          "orchestration"
+        ],
+        "operationId": "update_kubernetes_autoscaling_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoscalingSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoscalingSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/kubernetes/clusters": {
+      "get": {
+        "tags": [
+          "orchestration"
+        ],
+        "operationId": "list_kubernetes_clusters",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KubeClusterSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kubernetes/remediation": {
+      "get": {
+        "tags": [
+          "orchestration"
+        ],
+        "operationId": "list_kubernetes_workload_problems",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkloadProblem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kubernetes/rollouts": {
+      "get": {
+        "tags": [
+          "orchestration"
+        ],
+        "operationId": "list_kubernetes_rollouts",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Rollout"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/llm/evaluations": {
       "post": {
         "tags": [
@@ -9254,6 +10256,37 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LlmTraceDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs/aggregate": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Log analytics, as Datadog's `/api/v2/logs/analytics/aggregate` (dashboard widgets over logs).",
+        "operationId": "aggregate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AggregateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AggregateResponse"
                 }
               }
             }
@@ -25528,6 +26561,583 @@
         }
       }
     },
+    "/api/v2/integration/aws/accounts": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_aws_accounts",
+        "parameters": [
+          {
+            "name": "aws_account_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_create_aws_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/integration/aws/accounts/{aws_account_config_id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_get_aws_account",
+        "parameters": [
+          {
+            "name": "aws_account_config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_delete_aws_account",
+        "parameters": [
+          {
+            "name": "aws_account_config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_update_aws_account",
+        "parameters": [
+          {
+            "name": "aws_account_config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/integration/aws/available_namespaces": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_aws_namespaces",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/integration/aws/generate_new_external_id": {
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_create_aws_external_id",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/integration/aws/iam_permissions": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_get_aws_iam_permissions",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/integration/aws/iam_permissions/resource_collection": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Resource collection isn't built: it needs no permissions.",
+        "operationId": "datadog_get_aws_iam_permissions_resource_collection",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/integration/aws/iam_permissions/standard": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_get_aws_iam_permissions_standard",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/integration/aws/logs/services": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_aws_logs_services",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/integration/gcp/accounts": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_gcp_sts_accounts",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_create_gcp_sts_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/integration/gcp/accounts/{account_id}": {
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_delete_gcp_sts_account",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_update_gcp_sts_account",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/integration/gcp/sts_delegate": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "The service account this install impersonates customers' service accounts with.",
+        "operationId": "datadog_get_gcp_sts_delegate",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Datadog creates the delegate on first use; this install's is configured, so this answers it.",
+        "operationId": "datadog_make_gcp_sts_delegate",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/monitor/{monitor_id}/downtime_matches": {
       "get": {
         "tags": [
@@ -29682,6 +31292,80 @@
           }
         }
       },
+      "AggregateData": {
+        "type": "object",
+        "required": [
+          "buckets"
+        ],
+        "properties": {
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Bucket"
+            }
+          }
+        }
+      },
+      "AggregateFilter": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch milliseconds; Datadog's ISO 8601 and `now` / `now-15m` strings too. The last 15 minutes by default."
+          },
+          "query": {
+            "type": "string"
+          },
+          "to": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "AggregateRequest": {
+        "type": "object",
+        "properties": {
+          "compute": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Compute"
+            },
+            "description": "What to compute; a log count when empty."
+          },
+          "filter": {
+            "$ref": "#/components/schemas/AggregateFilter"
+          },
+          "group_by": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupBy"
+            },
+            "description": "Facets to split by, outermost first."
+          }
+        }
+      },
+      "AggregateResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AggregateData"
+          },
+          "meta": {
+            "type": "object"
+          }
+        }
+      },
       "AiDiscover": {
         "type": "object",
         "required": [
@@ -32366,6 +34050,326 @@
           }
         }
       },
+      "AutoscalingOverview": {
+        "type": "object",
+        "required": [
+          "settings",
+          "summary",
+          "clusters",
+          "workloads",
+          "autoscalers",
+          "profiles",
+          "recommendations"
+        ],
+        "properties": {
+          "autoscalers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KubeAutoscaler"
+            }
+          },
+          "clusters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClusterScaling"
+            }
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutoscalingProfile"
+            }
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoredRecommendation"
+            },
+            "description": "The external recommender's last answers (last day), per autoscaler target."
+          },
+          "settings": {
+            "$ref": "#/components/schemas/AutoscalingSettings"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AutoscalingSummary"
+          },
+          "workloads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkloadRecommendation"
+            }
+          }
+        }
+      },
+      "AutoscalingProfile": {
+        "type": "object",
+        "required": [
+          "name",
+          "source",
+          "clusters",
+          "workloads",
+          "template"
+        ],
+        "properties": {
+          "clusters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Clusters where the profile is deployed."
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The id of the copy saved in ObserveCraft, if any."
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ProfileSource"
+          },
+          "template": {
+            "type": "object",
+            "description": "`spec.template` of the profile."
+          },
+          "workloads": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Workloads labelled with it.",
+            "minimum": 0
+          }
+        }
+      },
+      "AutoscalingSettings": {
+        "type": "object",
+        "required": [
+          "cpuHourPrice",
+          "memoryGibHourPrice"
+        ],
+        "properties": {
+          "cpuHourPrice": {
+            "type": "number",
+            "format": "double",
+            "description": "USD per vCPU-hour of requests."
+          },
+          "memoryGibHourPrice": {
+            "type": "number",
+            "format": "double",
+            "description": "USD per GiB-hour of requests."
+          }
+        }
+      },
+      "AutoscalingSummary": {
+        "type": "object",
+        "required": [
+          "usageCost",
+          "workloadIdleCost",
+          "clusterIdleCost",
+          "workloadSavings",
+          "clusterSavings",
+          "workloads",
+          "unscaledWorkloads",
+          "clusters",
+          "unscaledClusters"
+        ],
+        "properties": {
+          "clusterIdleCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "clusterSavings": {
+            "type": "number",
+            "format": "double"
+          },
+          "clusters": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "unscaledClusters": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Clusters without a node autoscaler.",
+            "minimum": 0
+          },
+          "unscaledWorkloads": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Workloads no autoscaler targets.",
+            "minimum": 0
+          },
+          "usageCost": {
+            "type": "number",
+            "format": "double",
+            "description": "Monthly costs."
+          },
+          "workloadIdleCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "workloadSavings": {
+            "type": "number",
+            "format": "double"
+          },
+          "workloads": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "AwsAccount": {
+        "type": "object",
+        "description": "An account as Datadog's API documents it: `{id, type: \"account\", attributes}`.",
+        "required": [
+          "id",
+          "attributes"
+        ],
+        "properties": {
+          "attributes": {
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "AwsAccountStatus": {
+        "type": "object",
+        "required": [
+          "regions"
+        ],
+        "properties": {
+          "regions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeStatus"
+            },
+            "description": "One per region."
+          }
+        }
+      },
+      "AwsExternalId": {
+        "type": "object",
+        "required": [
+          "external_id"
+        ],
+        "properties": {
+          "external_id": {
+            "type": "string"
+          }
+        }
+      },
+      "AwsSetup": {
+        "type": "object",
+        "description": "What the add-account flows need.",
+        "required": [
+          "permissions",
+          "default_excluded_namespaces",
+          "namespaces",
+          "log_services"
+        ],
+        "properties": {
+          "default_excluded_namespaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Namespaces excluded when the account doesn't choose any."
+          },
+          "log_services": {
+            "type": "object",
+            "description": "`[{id, name}]`: the log sources the Datadog Forwarder subscribes to."
+          },
+          "namespaces": {
+            "type": "object",
+            "description": "`[{namespace, name, id, categories}]` (`seeds/aws_integration.json`)."
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "IAM actions the integration role must allow."
+          },
+          "principal_arn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The AWS principal the server assumes customers' roles with; None until `OC_AWS_PRINCIPAL_ARN` is set."
+          }
+        }
+      },
+      "AzureAccount": {
+        "type": "object",
+        "description": "An app registration: its identity, whether a client secret is stored, and Datadog's other fields.",
+        "required": [
+          "id",
+          "tenant_name",
+          "client_id",
+          "has_secret",
+          "config"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object"
+          },
+          "has_secret": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "tenant_name": {
+            "type": "string"
+          }
+        }
+      },
+      "AzureAccountStatus": {
+        "type": "object",
+        "required": [
+          "subscriptions"
+        ],
+        "properties": {
+          "subscriptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeStatus"
+            },
+            "description": "One per subscription; scope `\"\"` is the discovery of the subscriptions."
+          }
+        }
+      },
+      "Bucket": {
+        "type": "object",
+        "required": [
+          "by",
+          "computes"
+        ],
+        "properties": {
+          "by": {
+            "type": "object",
+            "description": "Each facet's value (`{\"@http.status_code\": \"500\"}`).",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "computes": {
+            "type": "object",
+            "description": "`c0`, `c1`, … as the computes: a number, or `[{time, value}]` for a timeseries."
+          }
+        }
+      },
       "BudgetUnit": {
         "type": "string",
         "description": "What the error budget is counted in.",
@@ -34026,6 +36030,76 @@
           }
         }
       },
+      "ClusterScaling": {
+        "type": "object",
+        "required": [
+          "cluster",
+          "autoscaling",
+          "nodes",
+          "cpuCapacity",
+          "memoryCapacity",
+          "cpuRequests",
+          "memoryRequests",
+          "clusterIdleCost",
+          "workloadIdleCost",
+          "usageCost",
+          "projectedWorkloadSavings",
+          "projectedClusterSavings"
+        ],
+        "properties": {
+          "autoscaling": {
+            "$ref": "#/components/schemas/NodeAutoscaler"
+          },
+          "cluster": {
+            "type": "string"
+          },
+          "clusterIdleCost": {
+            "type": "number",
+            "format": "double",
+            "description": "Allocatable capacity no pod requests, per month."
+          },
+          "cpuCapacity": {
+            "type": "number",
+            "format": "double"
+          },
+          "cpuRequests": {
+            "type": "number",
+            "format": "double"
+          },
+          "memoryCapacity": {
+            "type": "number",
+            "format": "double"
+          },
+          "memoryRequests": {
+            "type": "number",
+            "format": "double"
+          },
+          "nodes": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "projectedClusterSavings": {
+            "type": "number",
+            "format": "double",
+            "description": "Idle capacity beyond the largest node (kept as headroom), per month: what removing nodes\nwould save."
+          },
+          "projectedWorkloadSavings": {
+            "type": "number",
+            "format": "double",
+            "description": "What the workloads' recommendations would save per month."
+          },
+          "usageCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "workloadIdleCost": {
+            "type": "number",
+            "format": "double",
+            "description": "Requested capacity no pod uses, per month."
+          }
+        }
+      },
       "CodeRequest": {
         "type": "object",
         "required": [
@@ -34501,6 +36575,106 @@
           "major_outage"
         ]
       },
+      "Compute": {
+        "type": "object",
+        "required": [
+          "aggregation"
+        ],
+        "properties": {
+          "aggregation": {
+            "type": "string",
+            "description": "`count`, `cardinality`, `sum`, `min`, `max`, `avg`, `median`, `pc75`, `pc90`, `pc95`, `pc98`, `pc99`."
+          },
+          "interval": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A timeseries' step: `30s`, `5m`, `1h`, `1d` or milliseconds."
+          },
+          "metric": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The facet or measure (`@duration`); none for `count`."
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`total` (default) or `timeseries`."
+          }
+        }
+      },
+      "ContainerRecommendation": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "cpuAvg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "cpuP95": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "cpuRequest": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "memoryAvg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "memoryMax": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "memoryRequest": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "name": {
+            "type": "string"
+          },
+          "recommendedCpu": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "recommendedMemory": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "ContentPackStatus": {
         "type": "object",
         "required": [
@@ -34892,6 +37066,36 @@
           },
           "service": {
             "type": "string"
+          }
+        }
+      },
+      "CrawlIssue": {
+        "type": "object",
+        "description": "The last crawl problem of a scope.",
+        "required": [
+          "kind",
+          "message",
+          "at"
+        ],
+        "properties": {
+          "at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "kind": {
+            "type": "string",
+            "description": "access_denied | auth | throttled | disabled | other"
+          },
+          "message": {
+            "type": "string"
+          },
+          "missing_action": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The permission the provider refused, when it names it."
           }
         }
       },
@@ -41683,6 +43887,53 @@
           "failed"
         ]
       },
+      "GcpAccount": {
+        "type": "object",
+        "description": "A service account: its email and Datadog's other attributes.",
+        "required": [
+          "id",
+          "client_email",
+          "config"
+        ],
+        "properties": {
+          "client_email": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "GcpAccountStatus": {
+        "type": "object",
+        "required": [
+          "projects"
+        ],
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeStatus"
+            },
+            "description": "One per project; scope `\"\"` is the discovery of the projects."
+          }
+        }
+      },
+      "GcpSetup": {
+        "type": "object",
+        "properties": {
+          "principal_email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "This install's service account (`OC_GCP_PRINCIPAL_EMAIL`): customers grant it the Service Account\nToken Creator role on their service account. None until it is configured."
+          }
+        }
+      },
       "GeneratePostmortem": {
         "type": "object",
         "required": [
@@ -42067,6 +44318,35 @@
           }
         }
       },
+      "GroupBy": {
+        "type": "object",
+        "required": [
+          "facet"
+        ],
+        "properties": {
+          "facet": {
+            "type": "string"
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Groups kept (default 10)."
+          },
+          "sort": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GroupSort"
+              }
+            ]
+          }
+        }
+      },
       "GroupCount": {
         "type": "object",
         "required": [
@@ -42117,6 +44397,18 @@
           "warn": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "GroupSort": {
+        "type": "object",
+        "properties": {
+          "order": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`desc` (default) or `asc`."
           }
         }
       },
@@ -44698,6 +46990,19 @@
           }
         }
       },
+      "IssueType": {
+        "type": "string",
+        "enum": [
+          "crash_loop_back_off",
+          "oom_killed",
+          "image_pull",
+          "container_config",
+          "pending",
+          "failed_pods",
+          "not_ready",
+          "frequent_restarts"
+        ]
+      },
       "IssueUpdate": {
         "type": "object",
         "properties": {
@@ -45451,6 +47756,206 @@
           }
         }
       },
+      "KubeAutoscaler": {
+        "type": "object",
+        "required": [
+          "uid",
+          "cluster",
+          "namespace",
+          "name",
+          "kind",
+          "targetKind",
+          "targetName",
+          "targetExists",
+          "horizontal",
+          "vertical",
+          "podsRunning",
+          "podsPending",
+          "podsFailing",
+          "problems"
+        ],
+        "properties": {
+          "cluster": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "currentReplicas": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "desiredReplicas": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "horizontal": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string",
+            "description": "DatadogPodAutoscaler or HorizontalPodAutoscaler."
+          },
+          "maxReplicas": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "minReplicas": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "DatadogPodAutoscaler: Local (created in the cluster) or Remote."
+          },
+          "podsFailing": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "podsPending": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "podsRunning": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Why it doesn't work: missing target, error conditions."
+          },
+          "profile": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The cluster profile it was generated from."
+          },
+          "recommender": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The external recommender endpoint of its `custom-recommender` annotation."
+          },
+          "targetExists": {
+            "type": "boolean"
+          },
+          "targetKind": {
+            "type": "string"
+          },
+          "targetName": {
+            "type": "string"
+          },
+          "uid": {
+            "type": "string"
+          },
+          "vertical": {
+            "type": "boolean"
+          }
+        }
+      },
+      "KubeClusterSummary": {
+        "type": "object",
+        "required": [
+          "name",
+          "nodes",
+          "pods",
+          "lastSeen",
+          "status",
+          "sources",
+          "autoscaling"
+        ],
+        "properties": {
+          "autoscaling": {
+            "type": "boolean",
+            "description": "The Cluster Agent's workload autoscaling CRD is installed."
+          },
+          "cpuCapacity": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Allocatable cores and bytes."
+          },
+          "lastSeen": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "memoryCapacity": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nodes": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "pods": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KubeObjectSource"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "KubeContainer": {
         "type": "object",
         "required": [
@@ -45736,6 +48241,14 @@
             "type": "string"
           }
         }
+      },
+      "KubeObjectSource": {
+        "type": "string",
+        "description": "Who sends a cluster's objects.",
+        "enum": [
+          "datadog_cluster_agent",
+          "opentelemetry"
+        ]
       },
       "KubeResource": {
         "type": "object",
@@ -50451,6 +52964,14 @@
           }
         }
       },
+      "NodeAutoscaler": {
+        "type": "string",
+        "enum": [
+          "karpenter",
+          "cluster_autoscaler",
+          "none"
+        ]
+      },
       "NoteRequest": {
         "type": "object",
         "required": [
@@ -54850,6 +57371,23 @@
           }
         }
       },
+      "ProfileInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "template"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "A Kubernetes object name (DNS subdomain)."
+          },
+          "template": {
+            "type": "object",
+            "description": "`spec.template` of the DatadogPodAutoscalerClusterProfile."
+          }
+        }
+      },
       "ProfileInsight": {
         "type": "object",
         "required": [
@@ -55175,6 +57713,14 @@
             "description": "Over the whole range: units per second for summed types, the average for gauges."
           }
         }
+      },
+      "ProfileSource": {
+        "type": "string",
+        "enum": [
+          "builtin",
+          "cluster",
+          "saved"
+        ]
       },
       "ProfileSummary": {
         "type": "object",
@@ -57125,6 +59671,110 @@
           }
         }
       },
+      "Rollout": {
+        "type": "object",
+        "required": [
+          "uid",
+          "cluster",
+          "namespace",
+          "name",
+          "status",
+          "desired",
+          "updated",
+          "ready",
+          "available"
+        ],
+        "properties": {
+          "available": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "cluster": {
+            "type": "string"
+          },
+          "desired": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "durationSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "finished": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "image": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The image of the first container."
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The Progressing condition's message."
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "revision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "started": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms: the newest ReplicaSet's creation, and the last progress of a completed rollout."
+          },
+          "status": {
+            "$ref": "#/components/schemas/RolloutStatus"
+          },
+          "uid": {
+            "type": "string"
+          },
+          "updated": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "RolloutStatus": {
+        "type": "string",
+        "enum": [
+          "in_progress",
+          "complete",
+          "stalled",
+          "scaled_down"
+        ]
+      },
       "RuleCase": {
         "type": "object",
         "required": [
@@ -58102,6 +60752,25 @@
           }
         }
       },
+      "SavedProfileView": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "template"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "template": {
+            "type": "object"
+          }
+        }
+      },
       "SavedSqlQuery": {
         "type": "object",
         "required": [
@@ -58178,6 +60847,55 @@
           },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "ScopeStatus": {
+        "type": "object",
+        "description": "One scope's crawl (scope `\"\"`: the account's discovery of its subscriptions or projects).",
+        "required": [
+          "scope",
+          "metrics",
+          "points"
+        ],
+        "properties": {
+          "collected_until": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms up to which metrics are collected."
+          },
+          "error": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CrawlIssue"
+              }
+            ]
+          },
+          "last_success_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last successful run."
+          },
+          "metrics": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Metrics and points of the last successful run (a discovery: the scopes found)."
+          },
+          "points": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "scope": {
+            "type": "string"
           }
         }
       },
@@ -63207,6 +65925,56 @@
           "to": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "StoredRecommendation": {
+        "type": "object",
+        "description": "The recommender's last answer for an autoscaler's target.",
+        "required": [
+          "cluster",
+          "namespace",
+          "kind",
+          "name",
+          "currentReplicas",
+          "targetReplicas",
+          "reason",
+          "updatedAt"
+        ],
+        "properties": {
+          "cluster": {
+            "type": "string"
+          },
+          "currentReplicas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "targetReplicas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
           }
         }
       },
@@ -68453,6 +71221,193 @@
           "api",
           "app"
         ]
+      },
+      "WorkloadProblem": {
+        "type": "object",
+        "required": [
+          "cluster",
+          "namespace",
+          "kind",
+          "name",
+          "uid",
+          "issue",
+          "issueLabel",
+          "remediation",
+          "podsAffected",
+          "podsTotal",
+          "pods"
+        ],
+        "properties": {
+          "cluster": {
+            "type": "string"
+          },
+          "issue": {
+            "$ref": "#/components/schemas/IssueType"
+          },
+          "issueLabel": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "Deployment, DaemonSet or StatefulSet."
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "pods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Up to 5 affected pods."
+          },
+          "podsAffected": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "podsTotal": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "remediation": {
+            "type": "string"
+          },
+          "service": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "started": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The oldest affected pod's creation (epoch ms)."
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uid": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkloadRecommendation": {
+        "type": "object",
+        "required": [
+          "uid",
+          "cluster",
+          "namespace",
+          "kind",
+          "name",
+          "replicas",
+          "containers",
+          "cpuIdle",
+          "memoryUnused",
+          "requestsCost",
+          "usageCost",
+          "idleCost",
+          "projectedSavings",
+          "notReady",
+          "agentSetup"
+        ],
+        "properties": {
+          "agentSetup": {
+            "type": "boolean",
+            "description": "The Cluster Agent's workload autoscaling is installed in the cluster."
+          },
+          "autoscaler": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The autoscaler targeting the workload, if any (`Kind/name`)."
+          },
+          "cluster": {
+            "type": "string"
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContainerRecommendation"
+            }
+          },
+          "cpuIdle": {
+            "type": "number",
+            "format": "double",
+            "description": "Requested minus used, over all replicas (cores, bytes)."
+          },
+          "idleCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "kind": {
+            "type": "string",
+            "description": "Deployment or StatefulSet."
+          },
+          "memoryUnused": {
+            "type": "number",
+            "format": "double"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "notReady": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Why the workload can't be autoscaled yet (empty: ready)."
+          },
+          "profile": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The cluster profile its label asks for."
+          },
+          "projectedSavings": {
+            "type": "number",
+            "format": "double",
+            "description": "What the recommended requests would save per month (0 when they'd cost more)."
+          },
+          "replicas": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "requestsCost": {
+            "type": "number",
+            "format": "double",
+            "description": "Monthly costs: of what the replicas request, of what they use, and of the idle part."
+          },
+          "service": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uid": {
+            "type": "string"
+          },
+          "usageCost": {
+            "type": "number",
+            "format": "double"
+          }
+        }
       },
       "WpAgentCounts": {
         "type": "object",

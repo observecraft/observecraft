@@ -26,7 +26,7 @@ FEATURES="v1/authentication v1/monitors v1/downtimes v1/dashboards v1/dashboard_
 v1/service_level_objective_corrections v2/downtimes v2/dashboard_lists v2/users v2/roles v2/teams v2/key_management
 v2/cloud_cost_management v2/rum v2/security_monitoring v2/application_security v2/csm_threats v2/csm_agents
 v2/csm_coverage_analysis v2/apm_retention_filters v2/spans_metrics v1/logs_pipelines
-v2/logs_metrics v2/logs_restriction_queries v2/logs_custom_destinations"
+v2/logs_metrics v2/logs_restriction_queries v2/logs_custom_destinations v2/aws_integration v2/aws_logs_integration v1/azure_integration v2/gcp_integration"
 
 DEST="${OC_DATADOG_FIXTURES:-${XDG_CACHE_HOME:-$HOME/.cache}/observecraft/datadog-api-client-go/$COMMIT}"
 

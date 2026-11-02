@@ -6,6 +6,10 @@
 //! `observecraft-server openapi`  print the OpenAPI document (used to generate the web app's types)
 
 mod auth;
+mod aws;
+mod azure;
+mod cloud;
+mod gcp;
 mod cache;
 mod config;
 mod demo;
@@ -182,6 +186,29 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(org_limits::background(routes::security_feed::run_kev_sync(state.clone())));
     tokio::spawn(org_limits::background(routes::workflows::run_executor(state.clone())));
     tokio::spawn(org_limits::background(metric_rollups::run(state.clone())));
+    // The cloud integrations' crawlers publish to Kafka (docs/adr/0004), so they need it.
+    if let Some(brokers) = state.config.kafka_brokers.clone() {
+        let sink: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, cloud::kafka::TOPIC));
+        let (interval, concurrency) = (state.config.cloud_crawl_interval_secs, state.config.cloud_crawl_concurrency);
+        for name in state.config.cloud_crawlers.clone() {
+            let crawler: Arc<dyn cloud::jobs::Crawler> = match name.as_str() {
+                "aws" => Arc::new(aws::crawler::AwsCrawler { api: aws::api::Sdk::from_env().await, sink: sink.clone(), interval_secs: interval }),
+                "azure" => Arc::new(azure::crawler::AzureCrawler { api: Arc::new(azure::api::Rest::new(reqwest::Client::new(), Default::default())), sink: sink.clone(), interval_secs: interval }),
+                "gcp" => match gcp::api::Adc::new().await {
+                    Ok(identity) => Arc::new(gcp::crawler::GcpCrawler { api: Arc::new(gcp::api::Rest::new(reqwest::Client::new(), Default::default(), Arc::new(identity))), sink: sink.clone(), interval_secs: interval }),
+                    Err(e) => {
+                        tracing::warn!(error = %e, "GCP crawler off: this install has no Google credentials (Application Default Credentials)");
+                        continue;
+                    }
+                },
+                other => {
+                    tracing::warn!(crawler = other, "OC_CLOUD_CRAWLERS: unknown cloud");
+                    continue;
+                }
+            };
+            tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), crawler, interval, concurrency)));
+        }
+    }
     logproc::serve(state.clone()).await.context("log indexer")?;
 
     let cors = CorsLayer::new()

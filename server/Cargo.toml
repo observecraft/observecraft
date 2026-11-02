@@ -4,6 +4,8 @@ members = ["crates/oc-query", "crates/oc-store", "crates/oc-api", "crates/oc-int
 
 [workspace.package]
 edition = "2021"
+# The toolchain CI builds with (.github/workflows/ci.yml); the resolver picks dependency versions that support it.
+rust-version = "1.89"
 version = "0.1.0"
 license = "MIT"
 

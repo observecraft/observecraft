@@ -1,0 +1,389 @@
+{
+  "_comment": "ObserveCraft's Google Cloud catalog: the Cloud Monitoring metric prefixes the GCP integration collects (the Google Cloud tiles) and their Datadog names gcp.<short>.* (crates/oc-api/src/gcp/naming.rs).",
+  "services": [
+    {
+      "prefix": "compute.googleapis.com/",
+      "short": "gce",
+      "name": "Google Compute Engine",
+      "id": "gcp-gce",
+      "categories": [
+        "Google Cloud",
+        "OS & System"
+      ]
+    },
+    {
+      "prefix": "storage.googleapis.com/",
+      "short": "gcs",
+      "name": "Google Cloud Storage",
+      "id": "gcp-gcs",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "cloudsql.googleapis.com/",
+      "short": "cloudsql",
+      "name": "Google Cloud SQL",
+      "id": "gcp-cloudsql",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "run.googleapis.com/",
+      "short": "run",
+      "name": "Google Cloud Run",
+      "id": "gcp-run",
+      "categories": [
+        "Google Cloud",
+        "Containers"
+      ]
+    },
+    {
+      "prefix": "cloudfunctions.googleapis.com/",
+      "short": "cloudfunctions",
+      "name": "Google Cloud Functions",
+      "id": "gcp-cloudfunctions",
+      "categories": [
+        "Google Cloud",
+        "Languages"
+      ]
+    },
+    {
+      "prefix": "pubsub.googleapis.com/",
+      "short": "pubsub",
+      "name": "Google Cloud Pub/Sub",
+      "id": "gcp-pubsub",
+      "categories": [
+        "Google Cloud",
+        "Message Queues"
+      ]
+    },
+    {
+      "prefix": "loadbalancing.googleapis.com/",
+      "short": "loadbalancing",
+      "name": "Google Cloud Load Balancing",
+      "id": "gcp-loadbalancing",
+      "categories": [
+        "Google Cloud",
+        "Network"
+      ]
+    },
+    {
+      "prefix": "kubernetes.io/",
+      "short": "gke",
+      "name": "Google Kubernetes Engine",
+      "id": "gcp-gke",
+      "categories": [
+        "Google Cloud",
+        "Kubernetes",
+        "Containers"
+      ]
+    },
+    {
+      "prefix": "bigquery.googleapis.com/",
+      "short": "bigquery",
+      "name": "Google BigQuery",
+      "id": "gcp-bigquery",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "bigtable.googleapis.com/",
+      "short": "bigtable",
+      "name": "Google Cloud Bigtable",
+      "id": "gcp-bigtable",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "spanner.googleapis.com/",
+      "short": "spanner",
+      "name": "Google Cloud Spanner",
+      "id": "gcp-spanner",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "firestore.googleapis.com/",
+      "short": "firestore",
+      "name": "Google Cloud Firestore",
+      "id": "gcp-firestore",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "datastore.googleapis.com/",
+      "short": "datastore",
+      "name": "Google Cloud Datastore",
+      "id": "gcp-datastore",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "redis.googleapis.com/",
+      "short": "redis",
+      "name": "Google Cloud Memorystore for Redis",
+      "id": "gcp-redis",
+      "categories": [
+        "Google Cloud",
+        "Caching",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "memcache.googleapis.com/",
+      "short": "memcache",
+      "name": "Google Cloud Memorystore for Memcached",
+      "id": "gcp-memcache",
+      "categories": [
+        "Google Cloud",
+        "Caching"
+      ]
+    },
+    {
+      "prefix": "alloydb.googleapis.com/",
+      "short": "alloydb",
+      "name": "Google Cloud AlloyDB",
+      "id": "gcp-alloydb",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "dataflow.googleapis.com/",
+      "short": "dataflow",
+      "name": "Google Cloud Dataflow",
+      "id": "gcp-dataflow",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "dataproc.googleapis.com/",
+      "short": "dataproc",
+      "name": "Google Cloud Dataproc",
+      "id": "gcp-dataproc",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "composer.googleapis.com/",
+      "short": "composer",
+      "name": "Google Cloud Composer",
+      "id": "gcp-composer",
+      "categories": [
+        "Google Cloud",
+        "Automation",
+        "Orchestration"
+      ]
+    },
+    {
+      "prefix": "appengine.googleapis.com/",
+      "short": "gae",
+      "name": "Google App Engine",
+      "id": "gcp-gae",
+      "categories": [
+        "Google Cloud",
+        "Web"
+      ]
+    },
+    {
+      "prefix": "logging.googleapis.com/",
+      "short": "logging",
+      "name": "Google Cloud Logging",
+      "id": "gcp-logging",
+      "categories": [
+        "Google Cloud",
+        "Log Collection"
+      ]
+    },
+    {
+      "prefix": "router.googleapis.com/",
+      "short": "router",
+      "name": "Google Cloud Router",
+      "id": "gcp-router",
+      "categories": [
+        "Google Cloud",
+        "Network"
+      ]
+    },
+    {
+      "prefix": "vpn.googleapis.com/",
+      "short": "vpn",
+      "name": "Google Cloud VPN",
+      "id": "gcp-vpn",
+      "categories": [
+        "Google Cloud",
+        "Network"
+      ]
+    },
+    {
+      "prefix": "interconnect.googleapis.com/",
+      "short": "interconnect",
+      "name": "Google Cloud Interconnect",
+      "id": "gcp-interconnect",
+      "categories": [
+        "Google Cloud",
+        "Network"
+      ]
+    },
+    {
+      "prefix": "dns.googleapis.com/",
+      "short": "dns",
+      "name": "Google Cloud DNS",
+      "id": "gcp-dns",
+      "categories": [
+        "Google Cloud",
+        "Network"
+      ]
+    },
+    {
+      "prefix": "networking.googleapis.com/",
+      "short": "networking",
+      "name": "Google Cloud Networking",
+      "id": "gcp-networking",
+      "categories": [
+        "Google Cloud",
+        "Network"
+      ]
+    },
+    {
+      "prefix": "firewallinsights.googleapis.com/",
+      "short": "firewallinsights",
+      "name": "Google Cloud Firewall Insights",
+      "id": "gcp-firewallinsights",
+      "categories": [
+        "Google Cloud",
+        "Network",
+        "Security"
+      ]
+    },
+    {
+      "prefix": "cloudtasks.googleapis.com/",
+      "short": "cloudtasks",
+      "name": "Google Cloud Tasks",
+      "id": "gcp-cloudtasks",
+      "categories": [
+        "Google Cloud",
+        "Message Queues"
+      ]
+    },
+    {
+      "prefix": "iam.googleapis.com/",
+      "short": "iam",
+      "name": "Google Cloud IAM",
+      "id": "gcp-iam",
+      "categories": [
+        "Google Cloud",
+        "Security"
+      ]
+    },
+    {
+      "prefix": "serviceruntime.googleapis.com/",
+      "short": "serviceruntime",
+      "name": "Google Cloud APIs",
+      "id": "gcp-serviceruntime",
+      "categories": [
+        "Google Cloud",
+        "Web"
+      ]
+    },
+    {
+      "prefix": "aiplatform.googleapis.com/",
+      "short": "aiplatform",
+      "name": "Google Vertex AI",
+      "id": "gcp-aiplatform",
+      "categories": [
+        "Google Cloud",
+        "AI/ML"
+      ]
+    },
+    {
+      "prefix": "file.googleapis.com/",
+      "short": "filestore",
+      "name": "Google Cloud Filestore",
+      "id": "gcp-filestore",
+      "categories": [
+        "Google Cloud",
+        "Data Stores"
+      ]
+    },
+    {
+      "prefix": "artifactregistry.googleapis.com/",
+      "short": "artifactregistry",
+      "name": "Google Artifact Registry",
+      "id": "gcp-artifactregistry",
+      "categories": [
+        "Google Cloud",
+        "Containers"
+      ]
+    },
+    {
+      "prefix": "cloudbuild.googleapis.com/",
+      "short": "cloudbuild",
+      "name": "Google Cloud Build",
+      "id": "gcp-cloudbuild",
+      "categories": [
+        "Google Cloud",
+        "Developer Tools"
+      ]
+    },
+    {
+      "prefix": "apigateway.googleapis.com/",
+      "short": "apigateway",
+      "name": "Google Cloud API Gateway",
+      "id": "gcp-apigateway",
+      "categories": [
+        "Google Cloud",
+        "Web"
+      ]
+    },
+    {
+      "prefix": "workflows.googleapis.com/",
+      "short": "workflows",
+      "name": "Google Cloud Workflows",
+      "id": "gcp-workflows",
+      "categories": [
+        "Google Cloud",
+        "Automation"
+      ]
+    },
+    {
+      "prefix": "managedkafka.googleapis.com/",
+      "short": "managedkafka",
+      "name": "Google Cloud Managed Service for Apache Kafka",
+      "id": "gcp-managedkafka",
+      "categories": [
+        "Google Cloud",
+        "Message Queues"
+      ]
+    },
+    {
+      "prefix": "tpu.googleapis.com/",
+      "short": "tpu",
+      "name": "Google Cloud TPU",
+      "id": "gcp-tpu",
+      "categories": [
+        "Google Cloud",
+        "AI/ML"
+      ]
+    }
+  ]
+}

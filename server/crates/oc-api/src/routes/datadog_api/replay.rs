@@ -92,6 +92,9 @@ fn not_replayed(version: &str, feature: &str) -> Option<NotReplayed> {
             "Delete a Workload Protection agent rule returns \"OK\" response",
             "Delete a Workload Protection policy returns \"OK\" response",
         ])),
+        // AWS accounts, namespaces, external ids and IAM permissions; not Cloud Cost Management's data
+        // exports (CCM config). (EventBridge sources and the metric name filter preview have no recordings.)
+        ("v2", "AWS Integration") => Some(NotReplayed::Containing(&["CCM config"])),
         // RUM applications; not events search and aggregation, source maps or repository information.
         // (Creating is replayed by the scenarios' given steps: its own cassettes were recorded under
         // other names than its scenarios.)
@@ -606,7 +609,11 @@ mod tests {
     }
 
     /// The features the tests replay (what `scripts/datadog-fixtures/fetch.sh` downloads).
-    const FEATURES: [&str; 26] = [
+    const FEATURES: [&str; 30] = [
+        "v2/aws_integration",
+        "v1/azure_integration",
+        "v2/gcp_integration",
+        "v2/aws_logs_integration",
         "v1/logs_pipelines",
         "v2/logs_metrics",
         "v2/logs_restriction_queries",

@@ -1,5 +1,8 @@
 pub mod apm;
 pub mod apm_settings;
+pub mod aws_integration;
+pub mod azure_integration;
+pub mod gcp_integration;
 pub mod apps;
 pub mod archives;
 pub mod auth;
@@ -30,9 +33,15 @@ pub mod hosts;
 pub mod identity;
 pub mod incident_views;
 pub mod incidents;
+pub mod integration_dashboards;
 pub mod ingest_keys;
 pub mod instance;
 pub mod kubernetes;
+pub mod kubernetes_autoscaling;
+pub mod kubernetes_integration;
+pub mod kubernetes_recommender;
+pub mod kubernetes_remediation;
+pub mod kubernetes_rollouts;
 pub mod live;
 pub mod llm;
 pub mod llm_attrs;
@@ -43,6 +52,7 @@ pub mod log_pipelines;
 pub mod log_restrictions;
 pub mod logs_config;
 pub mod log_aggregates;
+pub mod log_analytics;
 pub mod logs;
 pub mod metric_catalog;
 pub mod metric_inventory;
@@ -237,6 +247,28 @@ use crate::state::AppState;
         datadog_api::csm_threats::coverage_serverless,
         datadog_api::csm_threats::coverage_cloud_accounts,
         datadog_api::ai_guard::evaluate,
+        datadog_api::gcp_integration::list,
+        datadog_api::gcp_integration::create,
+        datadog_api::gcp_integration::update,
+        datadog_api::gcp_integration::delete,
+        datadog_api::gcp_integration::get_delegate,
+        datadog_api::gcp_integration::make_delegate,
+        datadog_api::azure_integration::list,
+        datadog_api::azure_integration::create,
+        datadog_api::azure_integration::update,
+        datadog_api::azure_integration::delete,
+        datadog_api::azure_integration::host_filters,
+        datadog_api::aws_integration::list,
+        datadog_api::aws_integration::create,
+        datadog_api::aws_integration::get,
+        datadog_api::aws_integration::update,
+        datadog_api::aws_integration::delete,
+        datadog_api::aws_integration::namespaces,
+        datadog_api::aws_integration::logs_services,
+        datadog_api::aws_integration::generate_external_id,
+        datadog_api::aws_integration::iam_permissions,
+        datadog_api::aws_integration::iam_permissions_standard,
+        datadog_api::aws_integration::iam_permissions_resource_collection,
         datadog_api::apm_config::list_filters,
         datadog_api::apm_config::get_filter,
         datadog_api::apm_config::create_filter,
@@ -313,6 +345,7 @@ use crate::state::AppState;
         logs::histogram,
         logs::facets,
         logs::top,
+        log_analytics::aggregate,
         error_tracking::search_issues,
         error_tracking::set_issue_state,
         error_tracking::issue_detail,
@@ -489,6 +522,14 @@ use crate::state::AppState;
         kafka_console::console,
         kubernetes::search,
         kubernetes::detail,
+        kubernetes_integration::clusters,
+        kubernetes_autoscaling::overview,
+        kubernetes_autoscaling::update_settings,
+        kubernetes_autoscaling::create_profile,
+        kubernetes_autoscaling::update_profile,
+        kubernetes_autoscaling::delete_profile,
+        kubernetes_remediation::list,
+        kubernetes_rollouts::list,
         identity::me,
         identity::update_me,
         identity::search_users,
@@ -717,6 +758,25 @@ use crate::state::AppState;
         workload_protection::create_rule,
         workload_protection::update_rule,
         workload_protection::delete_rule,
+        gcp_integration::setup,
+        gcp_integration::list_accounts,
+        gcp_integration::create_account,
+        gcp_integration::update_account,
+        gcp_integration::delete_account,
+        gcp_integration::account_status,
+        azure_integration::list_accounts,
+        azure_integration::create_account,
+        azure_integration::update_account,
+        azure_integration::delete_account,
+        azure_integration::account_status,
+        aws_integration::setup,
+        aws_integration::external_id,
+        aws_integration::list_accounts,
+        aws_integration::get_account,
+        aws_integration::create_account,
+        aws_integration::update_account,
+        aws_integration::delete_account,
+        aws_integration::account_status,
         apm_settings::overview,
         apm_settings::volume,
         apm_settings::ingestion,
@@ -985,6 +1045,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/logs/histogram", post(logs::histogram))
         .route("/api/v1/logs/facets", post(logs::facets))
         .route("/api/v1/logs/top", post(logs::top))
+        .route("/api/v1/logs/aggregate", post(log_analytics::aggregate))
         .route("/api/v1/error-tracking/issues/search", post(error_tracking::search_issues))
         .route("/api/v1/error-tracking/issues/:id/state", post(error_tracking::set_issue_state))
         .route("/api/v1/error-tracking/issues/facets", post(error_tracking::issue_facets))
@@ -1213,6 +1274,13 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/data-streams/node", post(data_streams::node))
         .route("/api/v1/data-streams/kafka", post(kafka_console::console))
         .route("/api/v1/orchestration/search", post(kubernetes::search))
+        .route("/api/v1/kubernetes/clusters", get(kubernetes_integration::clusters))
+        .route("/api/v1/kubernetes/autoscaling", get(kubernetes_autoscaling::overview))
+        .route("/api/v1/kubernetes/remediation", get(kubernetes_remediation::list))
+        .route("/api/v1/kubernetes/rollouts", get(kubernetes_rollouts::list))
+        .route("/api/v1/kubernetes/autoscaling/settings", axum::routing::put(kubernetes_autoscaling::update_settings))
+        .route("/api/v1/kubernetes/autoscaling/profiles", post(kubernetes_autoscaling::create_profile))
+        .route("/api/v1/kubernetes/autoscaling/profiles/:id", axum::routing::put(kubernetes_autoscaling::update_profile).delete(kubernetes_autoscaling::delete_profile))
         .route(
             "/api/v1/orchestration/resources/*uid",
             get(kubernetes::detail),
@@ -1423,6 +1491,18 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/workload-protection/policies/:id", axum::routing::patch(workload_protection::update_policy).delete(workload_protection::delete_policy))
         .route("/api/v1/workload-protection/agent-rules", get(workload_protection::list_rules).post(workload_protection::create_rule))
         .route("/api/v1/workload-protection/agent-rules/:id", axum::routing::patch(workload_protection::update_rule).delete(workload_protection::delete_rule))
+        .route("/api/v1/integrations/gcp/setup", get(gcp_integration::setup))
+        .route("/api/v1/integrations/gcp/accounts", get(gcp_integration::list_accounts).post(gcp_integration::create_account))
+        .route("/api/v1/integrations/gcp/accounts/:id", axum::routing::patch(gcp_integration::update_account).delete(gcp_integration::delete_account))
+        .route("/api/v1/integrations/gcp/accounts/:id/status", get(gcp_integration::account_status))
+        .route("/api/v1/integrations/azure/accounts", get(azure_integration::list_accounts).post(azure_integration::create_account))
+        .route("/api/v1/integrations/azure/accounts/:id", axum::routing::put(azure_integration::update_account).delete(azure_integration::delete_account))
+        .route("/api/v1/integrations/azure/accounts/:id/status", get(azure_integration::account_status))
+        .route("/api/v1/integrations/aws/setup", get(aws_integration::setup))
+        .route("/api/v1/integrations/aws/external-id", axum::routing::post(aws_integration::external_id))
+        .route("/api/v1/integrations/aws/accounts", get(aws_integration::list_accounts).post(aws_integration::create_account))
+        .route("/api/v1/integrations/aws/accounts/:id/status", get(aws_integration::account_status))
+        .route("/api/v1/integrations/aws/accounts/:id", get(aws_integration::get_account).patch(aws_integration::update_account).delete(aws_integration::delete_account))
         .route("/api/v1/apm/settings/overview", get(apm_settings::overview))
         .route("/api/v1/apm/settings/volume", get(apm_settings::volume))
         .route("/api/v1/apm/settings/ingestion", get(apm_settings::ingestion))
@@ -1985,6 +2065,7 @@ mod tests {
             ("log_metrics.rs", include_str!("log_metrics.rs")),
             ("log_aggregates.rs", include_str!("log_aggregates.rs")),
             ("logs.rs", include_str!("logs.rs")),
+            ("log_analytics.rs", include_str!("log_analytics.rs")),
             ("metrics.rs", include_str!("metrics.rs")),
             ("metrics/dashboard.rs", include_str!("metrics/dashboard.rs")),
             ("monitor_engine.rs", include_str!("monitor_engine.rs")),
@@ -2056,6 +2137,31 @@ mod tests {
     /// Every source file of the server, relative to `src/routes`.
     fn server_sources() -> Vec<(&'static str, &'static str)> {
         vec![
+            ("aws_integration.rs", include_str!("aws_integration.rs")),
+            ("azure_integration.rs", include_str!("azure_integration.rs")),
+            ("gcp_integration.rs", include_str!("gcp_integration.rs")),
+            ("kubernetes_autoscaling.rs", include_str!("kubernetes_autoscaling.rs")),
+            ("kubernetes_integration.rs", include_str!("kubernetes_integration.rs")),
+            ("kubernetes_recommender.rs", include_str!("kubernetes_recommender.rs")),
+            ("kubernetes_remediation.rs", include_str!("kubernetes_remediation.rs")),
+            ("kubernetes_rollouts.rs", include_str!("kubernetes_rollouts.rs")),
+            ("../aws/mod.rs", include_str!("../aws/mod.rs")),
+            ("../aws/api.rs", include_str!("../aws/api.rs")),
+            ("../aws/crawler.rs", include_str!("../aws/crawler.rs")),
+            ("../cloud/mod.rs", include_str!("../cloud/mod.rs")),
+            ("../cloud/jobs.rs", include_str!("../cloud/jobs.rs")),
+            ("../cloud/kafka.rs", include_str!("../cloud/kafka.rs")),
+            ("../cloud/naming.rs", include_str!("../cloud/naming.rs")),
+            ("../cloud/testing.rs", include_str!("../cloud/testing.rs")),
+            ("../azure/mod.rs", include_str!("../azure/mod.rs")),
+            ("../azure/api.rs", include_str!("../azure/api.rs")),
+            ("../azure/crawler.rs", include_str!("../azure/crawler.rs")),
+            ("../azure/naming.rs", include_str!("../azure/naming.rs")),
+            ("../gcp/mod.rs", include_str!("../gcp/mod.rs")),
+            ("../gcp/api.rs", include_str!("../gcp/api.rs")),
+            ("../gcp/crawler.rs", include_str!("../gcp/crawler.rs")),
+            ("../gcp/naming.rs", include_str!("../gcp/naming.rs")),
+            ("../aws/naming.rs", include_str!("../aws/naming.rs")),
             ("cloud_cost.rs", include_str!("cloud_cost.rs")),
             ("code_security.rs", include_str!("code_security.rs")),
             ("code_security_model.rs", include_str!("code_security_model.rs")),
@@ -2124,6 +2230,7 @@ mod tests {
             ("identity.rs", include_str!("identity.rs")),
             ("incident_views.rs", include_str!("incident_views.rs")),
             ("incidents.rs", include_str!("incidents.rs")),
+            ("integration_dashboards.rs", include_str!("integration_dashboards.rs")),
             ("ingest_keys.rs", include_str!("ingest_keys.rs")),
             ("instance.rs", include_str!("instance.rs")),
             ("kubernetes.rs", include_str!("kubernetes.rs")),
@@ -2137,6 +2244,7 @@ mod tests {
             ("log_pipelines.rs", include_str!("log_pipelines.rs")),
             ("log_restrictions.rs", include_str!("log_restrictions.rs")),
             ("logs.rs", include_str!("logs.rs")),
+            ("log_analytics.rs", include_str!("log_analytics.rs")),
             ("metrics.rs", include_str!("metrics.rs")),
             ("metrics/dashboard.rs", include_str!("metrics/dashboard.rs")),
             ("mod.rs", include_str!("mod.rs")),
@@ -2187,7 +2295,10 @@ mod tests {
             ("workload_catalog.rs", include_str!("workload_catalog.rs")),
             ("datadog_api/csm_threats.rs", include_str!("datadog_api/csm_threats.rs")),
             ("apm_settings.rs", include_str!("apm_settings.rs")),
+            ("datadog_api/azure_integration.rs", include_str!("datadog_api/azure_integration.rs")),
+            ("datadog_api/gcp_integration.rs", include_str!("datadog_api/gcp_integration.rs")),
             ("datadog_api/apm_config.rs", include_str!("datadog_api/apm_config.rs")),
+            ("datadog_api/aws_integration.rs", include_str!("datadog_api/aws_integration.rs")),
             ("cloud_security_rules.rs", include_str!("cloud_security_rules.rs")),
             ("security_catalog.rs", include_str!("security_catalog.rs")),
             ("security_engine.rs", include_str!("security_engine.rs")),
@@ -2228,6 +2339,7 @@ mod tests {
             ("../pipelines/dates.rs", include_str!("../pipelines/dates.rs")),
             ("../pipelines/filter.rs", include_str!("../pipelines/filter.rs")),
             ("../pipelines/grok.rs", include_str!("../pipelines/grok.rs")),
+            ("../pipelines/xml.rs", include_str!("../pipelines/xml.rs")),
             ("../pipelines/library.rs", include_str!("../pipelines/library.rs")),
             ("../pipelines/log.rs", include_str!("../pipelines/log.rs")),
             ("../pipelines/mod.rs", include_str!("../pipelines/mod.rs")),

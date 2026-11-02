@@ -21,6 +21,13 @@ import { WatchdogPage } from './pages/watchdog/WatchdogPage';
 import { ReleaseNotesPage } from './pages/releaseNotes/ReleaseNotesPage';
 import { SetupGuidePage } from './pages/setup/SetupGuidePage';
 import { ReferenceTableCreatePage } from './pages/integrations/ReferenceTableCreatePage';
+import { AwsPage } from './pages/integrations/aws/AwsPage';
+import { AddAwsAccountPage } from './pages/integrations/aws/AddAwsAccountPage';
+import { KubernetesIntegrationPage } from './pages/integrations/kubernetes/KubernetesIntegrationPage';
+import { AzurePage } from './pages/integrations/azure/AzurePage';
+import { AddAzurePage } from './pages/integrations/azure/AddAzurePage';
+import { GcpPage } from './pages/integrations/gcp/GcpPage';
+import { AddGcpPage } from './pages/integrations/gcp/AddGcpPage';
 import { ApiKeysPage } from './pages/settings/ApiKeysPage';
 import { InstanceOrgsPage } from './pages/instance/InstanceOrgsPage';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
@@ -213,7 +220,14 @@ import { MeasurePage as DataStreamsMeasure } from './pages/dataStreams/MeasurePa
 import { PipelinesPage as DataStreamsPipelines } from './pages/dataStreams/PipelinesPage';
 import { SetupPage as DataStreamsSetup } from './pages/dataStreams/SetupPage';
 import { KubernetesOverview } from './pages/kubernetes/KubernetesOverview';
-import { KubernetesComingSoon } from './pages/kubernetes/KubernetesComingSoon';
+import { RemediationPage } from './pages/kubernetes/RemediationPage';
+import { LiveRolloutsPage } from './pages/kubernetes/LiveRolloutsPage';
+import { AutoscalingLayout } from './pages/kubernetes/autoscaling/AutoscalingLayout';
+import { SummaryPage as AutoscalingSummaryPage } from './pages/kubernetes/autoscaling/SummaryPage';
+import { ClusterScalingPage } from './pages/kubernetes/autoscaling/ClusterScalingPage';
+import { WorkloadScalingPage } from './pages/kubernetes/autoscaling/WorkloadScalingPage';
+import { SetupPage as AutoscalingSetupPage } from './pages/kubernetes/autoscaling/SetupPage';
+import { ProfileEditorPage } from './pages/kubernetes/autoscaling/ProfileEditorPage';
 import { OrchestrationExplorer, ProcessMetrics } from './pages/kubernetes/OrchestrationExplorer';
 import { ProfilesLayout } from './pages/apm/profiles/ProfilesLayout';
 import { NetworkLayout } from './pages/network/NetworkLayout';
@@ -345,6 +359,13 @@ function Shell() {
               <Route index element={<IssuesPage />} />
             </Route>
             <Route path="/integrations/reference-tables/new" element={<ReferenceTableCreatePage />} />
+            <Route path="/integrations/aws" element={<AwsPage />} />
+            <Route path="/integrations/kubernetes" element={<KubernetesIntegrationPage />} />
+            <Route path="/integrations/aws/add" element={<AddAwsAccountPage />} />
+            <Route path="/integrations/azure" element={<AzurePage />} />
+            <Route path="/integrations/azure/add" element={<AddAzurePage />} />
+            <Route path="/integrations/gcp" element={<GcpPage />} />
+            <Route path="/integrations/gcp/add" element={<AddGcpPage />} />
             <Route path="/integrations" element={<IntegrationsLayout />}>
               <Route index element={<CatalogPage />} />
               <Route path="marketplace" element={<MarketplacePage />} />
@@ -430,9 +451,16 @@ function Shell() {
             </Route>
             <Route path="/process" element={<OrchestrationExplorer />} />
             <Route path="/process/metrics" element={<ProcessMetrics />} />
-            <Route path="/kubernetes/autoscaling" element={<KubernetesComingSoon tab="Autoscaling" />} />
-            <Route path="/kubernetes/remediation" element={<KubernetesComingSoon tab="Remediation" />} />
-            <Route path="/kubernetes/rollouts" element={<KubernetesComingSoon tab="Live Rollouts" />} />
+            <Route path="/kubernetes/autoscaling" element={<AutoscalingLayout />}>
+              <Route index element={<AutoscalingSummaryPage />} />
+              <Route path="clusters" element={<ClusterScalingPage />} />
+              <Route path="workloads" element={<WorkloadScalingPage />} />
+              <Route path="setup" element={<AutoscalingSetupPage />} />
+            </Route>
+            <Route path="/kubernetes/autoscaling/profiles/new" element={<ProfileEditorPage />} />
+            <Route path="/kubernetes/autoscaling/profiles/:id" element={<ProfileEditorPage />} />
+            <Route path="/kubernetes/remediation" element={<RemediationPage />} />
+            <Route path="/kubernetes/rollouts" element={<LiveRolloutsPage />} />
             <Route path="/dashboards" element={<DashboardListPage />} />
             <Route path="/dashboards/shared" element={<SharedDashboardsPage />} />
             <Route path="/dashboards/reports" element={<ReportsPage />} />

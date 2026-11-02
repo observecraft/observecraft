@@ -102,6 +102,9 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 | `datadog_aws_cur_config`, `datadog_azure_uc_config`, `datadog_gcp_uc_config`, `datadog_tag_pipeline_ruleset(s)`, `datadog_custom_allocation_rule(s)` | `/api/v2/cost/*_config`, `/api/v2/tags/enrichment`, `/api/v2/cost/arbitrary_rule` | Not yet |
 | `datadog_apm_retention_filter`, `datadog_apm_retention_filter_order` | `/api/v2/apm/config/retention-filters` (create, list, get, update, delete), `PUT /api/v2/apm/config/retention-filters-execution-order` | ✅ [details](#apm-retention-filters-and-span-based-metrics) |
 | `datadog_spans_metric` | `/api/v2/apm/config/metrics` (create, list, get, update, delete) | ✅ [details](#apm-retention-filters-and-span-based-metrics) |
+| `datadog_integration_aws_account`, `datadog_integration_aws_external_id`, data sources `datadog_integration_aws_available_namespaces` / `datadog_integration_aws_iam_permissions` | `/api/v2/integration/aws/accounts` (create, list, get, update, delete), `/available_namespaces`, `/logs/services`, `/generate_new_external_id`, `/iam_permissions[/standard\|/resource_collection]` | ✅ [details](#aws-integration) |
+| `datadog_integration_azure` | `/api/v1/integration/azure` (list, create, update, delete), `POST /api/v1/integration/azure/host_filters` | ✅ [details](#azure-integration) |
+| `datadog_integration_gcp_sts` | `/api/v2/integration/gcp/accounts` (create, list, update, delete), `/api/v2/integration/gcp/sts_delegate` | ✅ [details](#gcp-integration) |
 
 ## Cloud cost
 
@@ -121,6 +124,43 @@ the query's `by {…}` once, and each tag combination has an entry for every mon
 `/validate` answers `valid: false` with the problems, and an upsert with them answers 400. `GET …/budget/{id}` with
 `actual=true` or `forecast=true` adds each entry's `costs`: what the month cost so far and, for the current month, the
 cost at the pace so far (or the custom forecast).
+
+## AWS integration
+
+AWS accounts are stored as the API documents them, with the Terraform provider's defaults filled in
+(`aws_regions` `include_all`, namespaces `AWS/SQS`, `AWS/ElasticMapReduce` and `AWS/Usage` excluded, extended
+collection on). An update keeps the fields it doesn't send; `aws_regions` and each filter are replaced whole.
+
+- **Authentication.** A role (`role_name`, with the `external_id` sent or a generated one) or access keys. The
+  secret access key is sealed with the server's secret key and never answered. An account can't switch between
+  the two (`400`, as Datadog).
+- **Namespaces and log sources** come from ObserveCraft's own catalog (`server/seeds/aws_integration.json`).
+- **IAM permissions** are the ones ObserveCraft's crawler calls (`cloudwatch:ListMetrics`, `cloudwatch:GetMetricData`,
+  `tag:GetResources`); resource collection isn't built, so its list is empty.
+- One AWS account per organization (`409` for a second one with the same `aws_account_id`); writes need an admin.
+- Metrics are collected by ObserveCraft's crawler (`server/crates/oc-api/src/aws/`) every 10 minutes: Average as
+  `aws.<namespace>.<metric>`, Sum and Maximum as `.sum` / `.maximum`, tagged with the dimensions (lowercased), the
+  region, `aws_account`, the account's tags and the resource's AWS tags.
+- Not yet: Cloud Cost Management's data exports (CCM config),
+  EventBridge sources and the metric name filter preview.
+- The provider reads an account back with its id in quotes; they are dropped.
+
+## Azure integration
+
+App registrations are identified by tenant and client id. POST creates one (or replaces the one with the same
+identity), PUT replaces one and renames it with `new_tenant_name` / `new_client_id`, DELETE removes it (a missing one
+succeeds, as in Datadog's recordings). Fields get the Terraform provider's defaults; the client secret is sealed and
+never answered, and the provider's `SECRETLESS_AUTH` placeholder keeps the stored one. Secretless (federated)
+authentication isn't supported: such a registration is reported as an issue until it has a secret. Metrics are
+crawled from Azure Monitor every 10 minutes (`azure.<type>.<metric>`, `.total`, `.maximum`; VMs are `azure.vm.*`).
+
+## GCP integration
+
+Service accounts are impersonated by this install's own service account (`OC_GCP_PRINCIPAL_EMAIL`, which
+`sts_delegate` answers; 404 until it is set): no key is stored. Every attribute the provider reads back is answered,
+with defaults when it wasn't sent; an update keeps the others; CSPM needs resource collection (400). A list's
+`meta.accessible_projects` are the projects the crawler found. Metrics are crawled from Cloud Monitoring every 10
+minutes (`gcp.<service>.<metric path>`, e.g. `gcp.gce.instance.cpu.utilization`).
 
 ## APM retention filters and span-based metrics
 
