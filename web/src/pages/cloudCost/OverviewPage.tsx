@@ -32,6 +32,7 @@ import {
 } from './costModel';
 import { CloudCostIntro } from './CloudCostIntro';
 import { ChangePill, CostFilterBar, ProviderIcon, SectionTitle, ShareBar, TrendIcon } from './widgets';
+import { escapeHtml } from '../../lib/html';
 
 type Trend = '3m' | '6m' | '1y' | 'mtd' | 'ytd';
 const TRENDS: { value: Trend; label: string }[] = [
@@ -406,7 +407,7 @@ function waterfall(top: Change[], all: Change[], total: number, prev: number, fr
         const p = (ps as { dataIndex: number }[])[0];
         const i = p.dataIndex;
         const v = i === 0 ? prev : i === labels.length - 1 ? total : steps[i - 1].delta;
-        return `${labels[i].replace('\n', ' ')}<br/><b>${i === 0 || i === labels.length - 1 ? money(v, { precise: true }) : signedMoney(v)}</b>`;
+        return `${escapeHtml(labels[i].replace(/\n/g, ' '))}<br/><b>${i === 0 || i === labels.length - 1 ? money(v, { precise: true }) : signedMoney(v)}</b>`;
       },
     },
     xAxis: {
