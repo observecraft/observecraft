@@ -35,18 +35,88 @@ export interface IntegrationWidgetDefinition {
 }
 
 /** A metric query (with its `.fill()`-style functions) inside a function such as top(…). */
-const WRAPPED_QUERY = /(?:avg|sum|min|max):[\w./-]+\{[^{}]*\}(?:\s+by\s+\{[\w, -]+\})?(?:\.[a-z_]+\([^()]*\))*/;
+const WRAPPED_QUERY = /(?:avg|sum|min|max|count):[\w./-]+\{[^{}]*\}(?:\s+by\s+\{[\w, -]+\})?(?:\.[a-z_]+\([^()]*\))*/;
 
 /**
  * A request's metric queries and formulas, with a legacy `q` as query1 and any function wrapped
  * around a metric query (`top(avg:…, 10, 'mean', 'desc')`) moved into the formulas, where it applies
  * to that query's name.
  */
+/**
+ * Datadog's metric query forms as the engine reads them: a query without an aggregator averages
+ * (`system.load.1{*}`), `count(v: …):` counts, and a percentile (`p95:latency{*}`) is the distribution's
+ * statistic, the highest across the group's series (`max:latency.p95{*}`). Every query of a formula too.
+ */
+export function canonicalMetricQuery(text: string): string {
+  return text
+    .replace(/count\(v:[^)]*\):/g, 'count:')
+    .replace(/(^|[^\w.:$])(?:(avg|sum|min|max|count|p\d{1,2}(?:\.\d+)?):)?([A-Za-z_][\w./-]*)\{/g, (all, pre: string, agg: string | undefined, name: string) => {
+      if (!agg) return `${pre}avg:${name}{`;
+      if (agg.startsWith('p')) return `${pre}max:${name}.${agg}{`;
+      return all;
+    });
+}
+
+/** Metric queries written inside formulas (`query2-sum:m{*}`): queries of their own, `inline1`, `inline2`, … in the formula. */
+function inlineQueries(queries: IntegrationQuery[], formulas: IntegrationFormula[] | undefined): { queries: IntegrationQuery[]; formulas?: IntegrationFormula[] } {
+  if (!formulas) return { queries, formulas };
+  const inline = new RegExp(WRAPPED_QUERY.source, 'g');
+  const added: IntegrationQuery[] = [];
+  const rewritten = formulas.map((f) => ({
+    ...f,
+    formula: canonicalMetricQuery(f.formula).replace(inline, (query) => {
+      const name = `inline${added.length + 1}`;
+      added.push({ name, data_source: 'metrics', query } as IntegrationQuery);
+      return name;
+    }),
+  }));
+  return added.length ? { queries: [...queries, ...added], formulas: rewritten } : { queries, formulas };
+}
+
+/** A log or security query in the legacy request form (`log_query`, `security_query`). */
+interface LegacyQuery {
+  index?: string;
+  search?: { query?: string };
+  group_by?: unknown;
+  compute?: { aggregation?: string; metric?: string; facet?: string };
+}
+
+/** A legacy `q` listing several queries (`a{*}, b{*}`): each one, split at the commas outside braces and parentheses. */
+function splitQueries(q: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < q.length; i++) {
+    if (q[i] === '{' || q[i] === '(') depth++;
+    else if (q[i] === '}' || q[i] === ')') depth--;
+    else if (q[i] === ',' && depth === 0) {
+      out.push(q.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  out.push(q.slice(start).trim());
+  return out.filter(Boolean);
+}
+
 export function normalizeRequest(request: Pick<IntegrationRequest, 'q' | 'queries' | 'formulas'>): { queries: IntegrationQuery[]; formulas?: IntegrationFormula[] } {
   // Cost queries (`sum:aws.cost.amortized{*}`) are cost metrics: the metric engine reads them.
-  const raw: IntegrationQuery[] = (request.queries ?? (request.q ? [{ name: 'query1', query: request.q, data_source: 'metrics' }] : [])).map((q) =>
-    q.data_source === 'cloud_cost' ? { ...q, data_source: 'metrics' } : q,
-  );
+  // Legacy requests: `q` (metric queries, comma-separated), `log_query` and `security_query` (one query each).
+  const old = request as { log_query?: LegacyQuery; security_query?: LegacyQuery };
+  const legacyQuery = (source: string, q: LegacyQuery) => {
+    const { index: _index, compute, ...rest } = q;
+    const metric = compute?.metric ?? compute?.facet;
+    return { name: 'query1', data_source: source, ...rest, compute: { aggregation: compute?.aggregation ?? 'count', ...(metric ? { metric } : {}) } } as unknown as IntegrationQuery;
+  };
+  const legacy = request.q
+    ? splitQueries(request.q).map((query, i) => ({ name: `query${i + 1}`, query, data_source: 'metrics' }))
+    : old.log_query
+      ? [legacyQuery('logs', old.log_query)]
+      : old.security_query
+        ? [legacyQuery('security_signals', old.security_query)]
+        : [];
+  const raw: IntegrationQuery[] = (request.queries ?? legacy)
+    .map((q) => (q.data_source === 'cloud_cost' ? { ...q, data_source: 'metrics' } : q))
+    .map((q) => (q.data_source === 'metrics' && typeof q.query === 'string' ? { ...q, query: canonicalMetricQuery(q.query) } : q));
   const wrappers = new Map<string, string>();
   const queries = raw.map((q) => {
     const m = q.data_source === 'metrics' ? WRAPPED_QUERY.exec(q.query) : null;
@@ -54,7 +124,7 @@ export function normalizeRequest(request: Pick<IntegrationRequest, 'q' | 'querie
     wrappers.set(q.name, q.query.replace(m[0], q.name));
     return { ...q, query: m[0] };
   });
-  if (!wrappers.size) return { queries, formulas: request.formulas };
+  if (!wrappers.size) return inlineQueries(queries, request.formulas);
   // A time comparison of a wrapped query (hour_before(query1)) is wrapped whole: top(hour_before(query1), …).
   const wrap = (text: string) =>
     text.replace(
@@ -67,11 +137,11 @@ export function normalizeRequest(request: Pick<IntegrationRequest, 'q' | 'querie
       },
     );
   const formulas = request.formulas?.map((f) => ({ ...f, formula: wrap(f.formula) })) ?? queries.map((q) => ({ formula: wrappers.get(q.name) ?? q.name }));
-  return { queries, formulas };
+  return inlineQueries(queries, formulas);
 }
 
 export function metricPlan(text: string) {
-  const m = /^((?:avg|sum|min|max):[\w./-]+\{[^{}]*\}(?:\s+by\s+\{[\w, -]+\})?)(.*)$/.exec(text);
+  const m = /^((?:avg|sum|min|max|count):[\w./-]+\{[^{}]*\}(?:\s+by\s+\{[\w, -]+\})?)(.*)$/.exec(canonicalMetricQuery(text));
   if (!m) throw new Error(`Unsupported metric expression: ${text}`);
   const operations: { name: string; args: string[] }[] = [];
   let rest = m[2];
@@ -249,7 +319,27 @@ export function formula(text: string, inputs: Record<string, Vector>): Vector {
             const groups = s.tags ? Object.values(s.tags) : s.name === '*' ? [] : s.name.split(/,\s*/).map((part) => part.slice(part.indexOf(':') + 1));
             return groups.every((v) => v !== '' && v !== 'N/A');
           });
-        else if (token === 'clamp_min' && second) value = binary(arg, second, Math.max);
+        else if (token === 'default_zero') value = arg.length ? arg : [{ name: '__constant', points: [[0, 0]] }];
+        else if ((token === 'max' || token === 'min') && second) value = binary(arg, second, token === 'max' ? Math.max : Math.min);
+        else if (token === 'round') value = arg.map((s) => ({ ...s, points: s.points.map(([t, v]) => [t, Math.round(v)]) }));
+        else if (token === 'derivative' || token === 'rate')
+          // Change per second between consecutive points.
+          value = arg.map((s) => ({ ...s, points: s.points.slice(1).map(([t, v], j) => [t, ((v - s.points[j][1]) * 1000) / (t - s.points[j][0])]) }));
+        else if (token === 'dt') value = arg.map((s) => ({ ...s, points: s.points.slice(1).map(([t], j) => [t, (t - s.points[j][0]) / 1000]) }));
+        else if ((token === 'cutoff_max' || token === 'cutoff_min') && second) {
+          const limit = second[0]?.points[0]?.[1] ?? 0;
+          value = arg.map((s) => ({ ...s, points: s.points.filter(([, v]) => (token === 'cutoff_max' ? v <= limit : v >= limit)) }));
+        } else if (token === 'autosmooth')
+          // A trailing moving average over five points.
+          value = arg.map((s) => ({ ...s, points: s.points.map(([t], j) => [t, s.points.slice(Math.max(0, j - 4), j + 1).reduce((a, p) => a + p[1], 0) / (Math.min(j, 4) + 1)]) }));
+        else if (/^ewma_\d+$/.test(token)) {
+          // An exponentially weighted moving average over the given span of points.
+          const alpha = 2 / (Number(token.slice(5)) + 1);
+          value = arg.map((s) => {
+            let avg: number | undefined;
+            return { ...s, points: s.points.map(([t, v]) => [t, (avg = avg === undefined ? v : alpha * v + (1 - alpha) * avg)]) };
+          });
+        } else if (token === 'clamp_min' && second) value = binary(arg, second, Math.max);
         else if (token === 'clamp_max' && second) value = binary(arg, second, Math.min);
         else if (Object.hasOwn(POINTWISE, token)) value = arg.map((s) => ({ ...s, points: s.points.map(([t, v]) => [t, POINTWISE[token](v)]) }));
         else if (token === 'cumsum')
@@ -305,11 +395,14 @@ export function serverAggregator(operations: { name: string }[], aggregator = 'a
 
 export function preparePanelQuery(query: string, resolve: (query: string) => string, range: { from: number; to: number }) {
   const plan = metricPlan(query);
-  const rollup = plan.operations.find((o) => o.name === 'rollup');
+  // `.rollup(10)`: only the interval, with the default (average) method.
+  const found = plan.operations.find((o) => o.name === 'rollup');
+  const rollup = found && /^\d/.test(found.args[0]) ? { ...found, args: ['avg', found.args[0]] } : found;
   if (rollup && !['avg', 'max', 'min', 'sum', 'count'].includes(rollup.args[0])) throw new Error(`Rollup ${rollup.args[0]} is not supported yet`);
   // Methods other than avg (the API's default) travel with the query; the interval sets the points.
   const method = rollup && rollup.args[0] !== 'avg' ? `.rollup(${rollup.args[0]})` : '';
-  const interval = rollup?.args[1] ? Number(rollup.args[1]) : undefined;
+  const named: Record<string, number> = { hourly: 3600, daily: 86_400, weekly: 604_800, monthly: 2_592_000 };
+  const interval = rollup?.args[1] ? (named[rollup.args[1].replace(/['"]/g, '')] ?? Number(rollup.args[1])) : undefined;
   if (interval !== undefined && (!Number.isFinite(interval) || interval < 1)) throw new Error('Invalid rollup interval');
   const points = interval ? Math.min(1000, Math.max(10, Math.ceil((range.to - range.from) / (interval * 1000)))) : 120;
   const weighted = plan.operations.find((o) => o.name === 'weighted');

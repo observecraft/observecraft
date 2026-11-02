@@ -199,7 +199,10 @@ test('OpenFeature snippets point at this install', () => {
     ['browser', 'node', 'go', 'python'],
   );
   for (const x of s) {
-    assert.ok(urlOrigins(x.code).some((origin) => origin === 'https://intake.example.com'), x.id);
+    assert.ok(
+      urlOrigins(x.code).some((origin) => origin === 'https://intake.example.com'),
+      x.id,
+    );
     assert.ok(x.code.includes('<API_KEY>'), x.id);
     assert.ok(x.code.includes('checkout-new-payment-flow'), x.id);
   }

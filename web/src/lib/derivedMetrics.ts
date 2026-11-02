@@ -1,3 +1,4 @@
+import type { SpaceAggregator } from '../api/dashboards/types';
 // Derived metrics: a metric name that queries resolve to a formula over other metric queries. The API
 // resolves them (server: routes/derived_metrics.rs); the mock and the editor's preview use these twins.
 import { formatMetricQuery, parseMetricQuery, QUERY_IN_FORMULA } from './metricQuery';
@@ -28,7 +29,7 @@ export function expandDerived(text: string, derived: DerivedFormulas): string {
 }
 
 /** `sum:a{*} by {host}` → the row fields the editor edits. */
-export function queryRow(query: string): { agg: 'avg' | 'sum' | 'min' | 'max'; metric: string; from: string; by: string } {
+export function queryRow(query: string): { agg: SpaceAggregator; metric: string; from: string; by: string } {
   const q = parseMetricQuery(query);
   if (!q) return { agg: 'avg', metric: '', from: '', by: '' };
   return { agg: q.aggregator, metric: q.metric, from: q.filters.map((f) => `${f.negate ? '!' : ''}${f.key}:${f.value}`).join(', '), by: q.by.join(', ') };

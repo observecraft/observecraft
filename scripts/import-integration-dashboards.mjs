@@ -2,10 +2,15 @@
 // in them. Images only linked from them are hosted by Datadog, not part of the repository, and are
 // replaced by our own artwork (web/public/images/integrations/<integration>-banner.svg).
 // node scripts/import-integration-dashboards.mjs [integration] [commit SHA]
-import { mkdir, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
 import { formulaQueries, parseMetricQuery } from '../web/src/lib/metricQuery.ts';
-export const PINNED_REVISION = 'c7dbc72cac1946294acda77f6491ecd081d9b498';
+// The last revision with every integration: from 9afe6c8 (2026-10-30) Datadog moves integrations to a private
+// repository (integrations-internal-core), so later revisions lose catalog entries Datadog still offers.
+export const PINNED_REVISION = '1e7420ec635aafdd33db6a1e69586de7d2e24c21';
 
 /** Units of the Agent's own host metrics (they have no integrations-core metadata.csv); memory is in MiB. */
 const AGENT_UNITS = {
@@ -97,6 +102,13 @@ export function convertDashboard(doc, integration, path, revision) {
       } else if (d.type === 'image') {
         // Embedded images are part of the BSD-licensed file; linked ones are Datadog's.
         definition = d.url?.startsWith('data:image/') ? { type: 'image', title: d.title ?? '', src: d.url } : banner;
+      } else if (d.type === 'list_stream' && d.requests?.[0]?.query?.data_source === 'logs_stream') {
+        // Log lists are our log stream (the integration's logs, newest first).
+        definition = { type: 'log_stream', title: d.title ?? '', query: d.requests[0].query.query_string ?? '', limit: 50 };
+      } else if (d.type === 'log_stream') {
+        definition = { type: 'log_stream', title: d.title ?? '', query: d.query ?? '', limit: 50 };
+      } else if (d.type === 'manage_status') {
+        definition = { type: 'monitor_summary', title: d.title ?? '', query: d.query ?? '' };
       } else {
         // Preserve requests, formulas, units, thresholds and visualization options verbatim.
         const { banner_img, image_url, ...original } = d;
@@ -117,9 +129,9 @@ export function convertDashboard(doc, integration, path, revision) {
         geometry = { x: 0, y: cursor, w: cols, h };
       }
       if (definition.type === 'group') {
-        // Two rows for the group's header, unless it has none.
-        const header = definition.showTitle === false ? 0 : 2;
-        geometry.h = Math.max(geometry.h, header + Math.max(0, ...definition.widgets.map((w) => w.layout.y + w.layout.h)));
+        // The rows the dashboard draws the group in (web/src/pages/dashboards/tree.ts groupHeight): its header, then its widgets.
+        const header = definition.showTitle === false ? 1 : definition.compact ? 2 : 3;
+        geometry.h = Math.max(geometry.h, header + Math.max(2, ...definition.widgets.map((w) => w.layout.y + w.layout.h)));
       }
       cursor = Math.max(cursor, geometry.y + geometry.h);
       return { id: `upstream-${item.id ?? ++seq}`, definition, layout: geometry };
@@ -127,16 +139,55 @@ export function convertDashboard(doc, integration, path, revision) {
     // Group headers add space that was implicit in the upstream layout. Move
     // subsequent rows below those headers instead of relying on runtime overlap
     // correction, which otherwise changes the layout after the first paint.
-    if (!free || nested) {
-      const placed = [];
-      for (const item of [...converted].sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x)) {
-        for (;;) {
-          const a = item.layout;
-          const collisions = placed.filter(({ layout: b }) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y);
-          if (!collisions.length) break;
-          a.y = Math.max(...collisions.map(({ layout: b }) => b.y + b.h));
+    if (!free && !nested) {
+      // Datadog draws an ordered dashboard in its list order, row after row: a widget joins the row when it starts
+      // after the previous one and fits, else it starts a new row. The upstream y is for its column view.
+      let row = [];
+      let rowY = 0;
+      let x = 0;
+      const closeRow = () => {
+        if (row.length > 1 && row.every((item) => item.definition.type === 'group')) {
+          const h = Math.max(...row.map((item) => item.layout.h));
+          for (const item of row) item.layout.h = h;
         }
-        placed.push(item);
+        rowY = Math.max(rowY, ...row.map((item) => item.layout.y + item.layout.h));
+        row = [];
+        x = 0;
+      };
+      for (const item of converted) {
+        const l = item.layout;
+        if (row.length && (l.x < x || l.x + l.w > cols)) closeRow();
+        l.y = rowY;
+        x = l.x + l.w;
+        row.push(item);
+      }
+      closeRow();
+    } else if (nested) {
+      // Inside a group, row by row (widgets sharing an upstream y), so a row moves down as one and stays aligned.
+      // Widgets of one upstream y that overlap each other (after a column break) start a further row.
+      const rows = [];
+      for (const item of [...converted].sort((a, b) => a.layout.y - b.layout.y)) {
+        const row = rows.findLast((r) => r.start === item.layout.y && !r.items.some(({ layout: b }) => item.layout.x < b.x + b.w && item.layout.x + item.layout.w > b.x));
+        if (row) row.items.push(item);
+        else rows.push({ start: item.layout.y, items: [item] });
+      }
+      const placed = [];
+      const overlaps = (a, y, b) => a.x < b.x + b.w && a.x + a.w > b.x && y < b.y + b.h && y + a.h > b.y;
+      for (const { start, items: row } of rows) {
+        let y = start;
+        for (;;) {
+          const blocking = placed.filter(({ layout: b }) => row.some(({ layout: a }) => overlaps(a, y, b)));
+          if (!blocking.length) break;
+          y = Math.max(...blocking.map(({ layout: b }) => b.y + b.h));
+        }
+        for (const item of row) item.layout.y = y;
+        // Groups of a row share its height (as Datadog draws them): the dashboard's upward compaction can't
+        // pull the next row's left part above its right part.
+        if (row.length > 1 && row.every((item) => item.definition.type === 'group')) {
+          const h = Math.max(...row.map((item) => item.layout.h));
+          for (const item of row) item.layout.h = h;
+        }
+        placed.push(...row);
       }
     }
     return converted;
@@ -146,7 +197,9 @@ export function convertDashboard(doc, integration, path, revision) {
       .split('/')
       .at(-1)
       .replace(/\.json$/, '')
-      .replace(/_/g, '-')}`,
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')}`,
     title: doc.title,
     description: `Built-in ${integration} dashboard from integrations-core.`,
     kind: 'integration',
@@ -250,7 +303,90 @@ export function metricDescriptions(csv) {
     .map((f) => [f[name], f[description].trim().replace(/\s+/g, ' ')]);
 }
 
+/** Integrations with a bundle of their own (Kubernetes, the clouds): not repeated in the core bundle. */
+const OWN_BUNDLES = new Set(['kubernetes', 'aws', 'azure', 'gcp']);
+/** Integrations the mock shows installed: their dashboards are bundled with the UI for `make web-mock`. */
+const MOCK_INTEGRATIONS = ['postgres', 'mysql', 'redisdb', 'nginx', 'kafka', 'mongo', 'elastic', 'rabbitmq', 'cisco-asa'];
+
+/** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */
+export function bannerFor(id) {
+  const banner = `/images/integrations/${id}-banner.svg`;
+  return existsSync(new URL(`../web/public${banner}`, import.meta.url)) ? banner : null;
+}
+
+/** Points the converted dashboard's images at our banner, or at the integration's logo (the image widget draws it). */
+function withArtwork(widgets, id, name) {
+  const banner = bannerFor(id);
+  return widgets.map((w) => {
+    const d = w.definition;
+    if (d.type === 'group') return { ...w, definition: { ...d, widgets: withArtwork(d.widgets, id, name) } };
+    if (d.type !== 'image' || d.src?.startsWith('data:')) return w;
+    return { ...w, definition: banner ? { ...d, src: banner } : { type: 'image', title: name, logo: id, background: '#ffffff' } };
+  });
+}
+
+/** Every catalog integration's dashboards from a checkout: one entry per integration with its metric prefix. */
+export async function coreBundle(source, catalog, revision = PINNED_REVISION) {
+  const bundle = [];
+  for (const c of catalog.integrations) {
+    if (OWN_BUNDLES.has(c.id)) continue;
+    const dir = join(source, c.check);
+    if (!existsSync(join(dir, 'manifest.json'))) continue;
+    const manifest = JSON.parse(await readFile(join(dir, 'manifest.json'), 'utf8'));
+    const dashboards = [];
+    for (const path of new Set(Object.values(manifest.assets?.dashboards ?? {}).map((p) => p.replace(/^\.\//, '')))) {
+      if (!path.startsWith('assets/dashboards/') || !path.endsWith('.json') || path.includes('..') || !existsSync(join(dir, path))) continue;
+      const d = convertDashboard(JSON.parse(await readFile(join(dir, path), 'utf8')), c.check, path, revision);
+      dashboards.push({ ...d, logo: c.id, widgets: withArtwork(d.widgets, c.id, c.name) });
+    }
+    if (dashboards.length) bundle.push({ logo: c.id, prefix: c.metricPrefix ?? '', dashboards });
+  }
+  return bundle.sort((a, b) => a.logo.localeCompare(b.logo));
+}
+
+/** `--all --source <checkout>`: the core bundle (gzip NDJSON), the units of every metric and the mock subset. */
+async function importAll(source, revision) {
+  const license = await readFile(join(source, 'LICENSE'), 'utf8');
+  if (!license.includes('Redistribution and use in source and binary forms')) throw new Error('Upstream license changed; review before importing');
+  const catalog = JSON.parse(await readFile(new URL('../web/src/api/integrations/catalog.generated.json', import.meta.url), 'utf8'));
+  const bundle = await coreBundle(source, catalog, revision);
+  const target = new URL('../server/seeds/integrations/core/', import.meta.url);
+  await mkdir(target, { recursive: true });
+  await writeFile(new URL('dashboards.ndjson.gz', target), gzipSync(bundle.map((b) => JSON.stringify(b)).join('\n') + '\n', { level: 9 }));
+  const units = new Map();
+  for (const c of catalog.integrations) {
+    const csv = join(source, c.check, 'metadata.csv');
+    if (existsSync(csv)) for (const [metric, unit] of metricUnits(await readFile(csv, 'utf8'))) if (!units.has(metric) && /^[\w.]+$/.test(metric)) units.set(metric, unit);
+  }
+  await writeFile(
+    new URL('units.csv', target),
+    `# Metric units from DataDog/integrations-core@${revision} (every integration's metadata.csv); BSD-3-Clause, see LICENSE.\n` +
+      [...units]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([m, u]) => `${m},${u}`)
+        .join('\n') +
+      '\n',
+  );
+  await writeFile(new URL('LICENSE', target), license);
+  const dashboards = bundle.filter((b) => MOCK_INTEGRATIONS.includes(b.logo)).flatMap((b) => b.dashboards);
+  // The units of the metrics they chart, for the mock's series (the server reads units.csv).
+  const charted = new Set([...JSON.stringify(dashboards).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{/g)].map((m) => m[1]));
+  const mockUnits = Object.fromEntries(
+    [...charted]
+      .filter((m) => units.has(m))
+      .sort()
+      .map((m) => [m, units.get(m)]),
+  );
+  await writeFile(new URL('../web/src/api/integrations/coreDashboards.generated.json', import.meta.url), JSON.stringify({ dashboards, units: mockUnits }) + '\n');
+  console.log(`Imported ${bundle.reduce((n, b) => n + b.dashboards.length, 0)} dashboards of ${bundle.length} integrations and ${units.size} metric units.`);
+}
+
 async function main() {
+  if (process.argv.includes('--all')) {
+    const source = process.argv[process.argv.indexOf('--source') + 1];
+    if (!process.argv.includes('--source') || !source) throw new Error('usage: --all --source <integrations-core checkout>');
+    return importAll(source, PINNED_REVISION);
+  }
   const integration = process.argv[2] ?? 'kubernetes';
   const revision = process.argv[3] ?? PINNED_REVISION;
   if (!/^[a-z0-9_]+$/.test(integration) || !/^[a-f0-9]{40}$/.test(revision)) throw new Error('Expected integration directory and full commit SHA');

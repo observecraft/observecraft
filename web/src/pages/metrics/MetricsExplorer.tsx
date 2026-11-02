@@ -16,7 +16,7 @@ import type { TimeseriesStyle } from '../../api/dashboards/types';
 import { ColorOverride, PalettePicker, SourcePicker } from './ExplorerControls';
 import { KIND_LABEL } from './MetricsLayout';
 
-export const AGGS = ['avg', 'sum', 'min', 'max'] as const;
+export const AGGS = ['avg', 'sum', 'min', 'max', 'count'] as const;
 export type Agg = (typeof AGGS)[number];
 
 export interface Row {

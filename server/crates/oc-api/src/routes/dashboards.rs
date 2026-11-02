@@ -295,6 +295,8 @@ pub async fn search(
     } else {
         " AND d.deleted_at IS NULL"
     });
+    let hidden = hidden_logos(&*enabled_integrations(&st, &org).await?);
+    qb.push(" AND NOT (d.kind = 'integration' AND d.logo = ANY(").push_bind(hidden.clone()).push("))");
     match req.preset {
         PresetList::Custom => {
             qb.push(" AND d.kind = 'custom'");
@@ -375,6 +377,8 @@ pub async fn recent(
         .push_bind(&user)
         .push("::uuid WHERE d.org_id = ")
         .push_bind(&org);
+    let hidden = hidden_logos(&*enabled_integrations(&st, &org).await?);
+    qb.push(" AND NOT (d.kind = 'integration' AND d.logo = ANY(").push_bind(hidden).push("))");
     qb.push(
         " AND d.deleted_at IS NULL AND s.viewed_at IS NOT NULL ORDER BY s.viewed_at DESC LIMIT ",
     )
@@ -753,11 +757,15 @@ const SEEDS: &[(&str, &str)] = &[
     ),
 ];
 
-// Generated from the pinned integrations-core revision recorded on each document.
-// Copyright and BSD-3-Clause terms: server/seeds/integrations/kubernetes/LICENSE.
-const INTEGRATION_BUNDLES: &[&str] = &[include_str!(
-    "../../../../seeds/integrations/kubernetes/dashboards.json"
-)];
+// Kubernetes: generated from the pinned integrations-core revision recorded on each document
+// (copyright and BSD-3-Clause terms: server/seeds/integrations/kubernetes/LICENSE). AWS, Azure and
+// Google Cloud: ObserveCraft's own overviews (scripts/cloud-dashboards.mjs).
+const INTEGRATION_BUNDLES: &[&str] = &[
+    include_str!("../../../../seeds/integrations/kubernetes/dashboards.json"),
+    include_str!("../../../../seeds/integrations/aws/dashboards.json"),
+    include_str!("../../../../seeds/integrations/azure/dashboards.json"),
+    include_str!("../../../../seeds/integrations/gcp/dashboards.json"),
+];
 
 fn seed_documents() -> anyhow::Result<Vec<(String, Value)>> {
     let mut documents = Vec::new();
@@ -776,32 +784,188 @@ fn seed_documents() -> anyhow::Result<Vec<(String, Value)>> {
     Ok(documents)
 }
 
+// ================================================================ available integration dashboards
+
+/// Integration dashboards appear once their integration is enabled (by the dashboard's `logo`): a cloud
+/// account, synthetic tests, or its data received in the last day. Others are always available.
+const GATED: [&str; 7] = ["aws", "azure", "gcp", "kubernetes", "linux", "opentelemetry", "tile:synthetics"];
+
+/// The gated integrations not enabled: their dashboards are left out of searches and recents.
+pub fn hidden_logos(enabled: &std::collections::BTreeSet<String>) -> Vec<String> {
+    GATED.iter().filter(|l| !enabled.contains(**l)).map(|l| l.to_string()).collect()
+}
+
+/// How long an org's enabled integrations are reused (an account added shows its dashboards within it).
+const ENABLED_TTL: std::time::Duration = std::time::Duration::from_secs(30);
+
+fn enabled_cache() -> &'static crate::ttl_cache::TtlCache<std::collections::BTreeSet<String>> {
+    static CACHE: std::sync::OnceLock<crate::ttl_cache::TtlCache<std::collections::BTreeSet<String>>> = std::sync::OnceLock::new();
+    CACHE.get_or_init(|| crate::ttl_cache::TtlCache::new(ENABLED_TTL).with_max_entries(10_000))
+}
+
+/// Drops the org's cached enabled integrations (tests; after configuration changes).
+pub fn forget_enabled(org: &str) {
+    enabled_cache().remove_prefix(&format!("{org}\0"));
+}
+
+/// Held by changes that enable or disable an integration (a cloud account added or removed): when
+/// it goes out of scope, after the change is written, the org's dashboards are recomputed.
+pub struct EnabledChange<'a>(pub &'a str);
+
+impl Drop for EnabledChange<'_> {
+    fn drop(&mut self) {
+        forget_enabled(self.0);
+    }
+}
+
+/// The org's enabled gated integrations, reused for [`ENABLED_TTL`].
+pub async fn enabled_integrations(st: &AppState, org: &str) -> Result<std::sync::Arc<std::collections::BTreeSet<String>>, ApiError> {
+    enabled_cache()
+        .get_or_load(&format!("{org}\0"), || async {
+            let (aws, azure, gcp, synthetics): (bool, bool, bool, bool) = sqlx::query_as(
+                "SELECT EXISTS (SELECT 1 FROM aws_accounts WHERE org_id = $1), EXISTS (SELECT 1 FROM azure_accounts WHERE org_id = $1), \
+                 EXISTS (SELECT 1 FROM gcp_accounts WHERE org_id = $1), EXISTS (SELECT 1 FROM synthetic_tests WHERE org_id = $1)",
+            )
+            .bind(org)
+            .fetch_one(&st.postgres)
+            .await?;
+            #[derive(clickhouse::Row, Deserialize)]
+            struct Seen {
+                kubernetes: bool,
+                hosts: bool,
+                traces: bool,
+            }
+            // Data of the last day: Kubernetes objects or metrics, host metrics, spans. Scalar subqueries are
+            // Nullable: ifNull keeps the columns plain UInt8.
+            let seen = st
+                .ch(org)
+                .query(
+                    "SELECT \
+                       ifNull((SELECT count() FROM (SELECT 1 FROM otel.k8s_inventory WHERE OrgId = {oc_org:String} AND LastSeen > now64(3) - INTERVAL 1 DAY LIMIT 1)) \
+                       + (SELECT count() FROM (SELECT 1 FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND LastSeen >= toStartOfHour(now() - INTERVAL 1 DAY) \
+                          AND (startsWith(MetricName, 'kubernetes') OR startsWith(MetricName, 'k8s.')) LIMIT 1)) > 0, 0) AS kubernetes, \
+                       ifNull((SELECT count() FROM (SELECT 1 FROM otel.metrics_series WHERE OrgId = {oc_org:String} AND LastSeen >= toStartOfHour(now() - INTERVAL 1 DAY) \
+                          AND startsWith(MetricName, 'system.') LIMIT 1)) > 0, 0) AS hosts, \
+                       ifNull((SELECT count() FROM (SELECT 1 FROM otel.otel_traces WHERE OrgId = {oc_org:String} AND Timestamp > now() - INTERVAL 1 DAY LIMIT 1)) > 0, 0) AS traces",
+                )
+                .fetch_one::<Seen>()
+                .await?;
+            let flags = [("aws", aws), ("azure", azure), ("gcp", gcp), ("tile:synthetics", synthetics), ("kubernetes", seen.kubernetes), ("linux", seen.hosts), ("opentelemetry", seen.traces)];
+            let mut enabled: std::collections::BTreeSet<String> = flags.into_iter().filter(|(_, on)| *on).map(|(l, _)| l.to_string()).collect();
+            // integrations-core integrations sending metrics (their name's first two segments): their dashboards are
+            // installed for the org the first time.
+            let prefixes: std::collections::BTreeSet<String> = st
+                .ch(org)
+                .query(
+                    "SELECT DISTINCT arrayStringConcat(arraySlice(splitByChar('.', MetricName), 1, 2), '.') FROM otel.metrics_series \
+                     WHERE OrgId = {oc_org:String} AND LastSeen >= toStartOfHour(now() - INTERVAL 1 DAY)",
+                )
+                .fetch_all::<String>()
+                .await?
+                .into_iter()
+                .collect();
+            let core = super::integration_dashboards::enabled_logos(&prefixes);
+            if let Err(e) = super::integration_dashboards::install_missing(&st.postgres, org, &core).await {
+                tracing::warn!(org, error = %e, "installing integration dashboards failed");
+            }
+            enabled.extend(core.into_iter().map(str::to_string));
+            Ok::<_, ApiError>(enabled)
+        })
+        .await
+}
+
 pub async fn install_seeds(pg: &sqlx::PgPool, org: &str, user: &str) -> anyhow::Result<()> {
     for (id, doc) in seed_documents()? {
-        let kind = doc["kind"].as_str().unwrap_or("custom");
-        let teams: Vec<String> = serde_json::from_value(doc["teams"].clone()).unwrap_or_default();
-        let def = json!({ "layoutType": doc["layoutType"], "templateVariables": doc["templateVariables"], "widgets": doc["widgets"] });
-        let author = (kind == "custom").then_some(user);
-        let refresh = if kind == "integration" {
-            "DO UPDATE SET definition = EXCLUDED.definition, title = EXCLUDED.title, description = EXCLUDED.description WHERE dashboards.org_id = EXCLUDED.org_id"
-        } else {
-            "DO NOTHING"
-        };
-        sqlx::query(&format!(
-            "INSERT INTO dashboards (id, org_id, title, description, kind, logo, author_id, teams, definition) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7::uuid, $8, $9) ON CONFLICT (id) {refresh}"
-        ))
-        .bind(if org == "default" { id.to_string() } else { format!("{org}-{id}") })
-        .bind(org)
-        .bind(doc["title"].as_str().unwrap_or(&id))
-        .bind(doc["description"].as_str())
-        .bind(kind)
-        .bind(doc["logo"].as_str())
-        .bind(author)
-        .bind(&teams)
-        .bind(&def)
-        .execute(pg)
-        .await?;
+        upsert_seed(pg, org, Some(user), &id, &doc).await?;
     }
+    super::integration_dashboards::refresh_installed(pg, org).await
+}
+
+/// Writes one seed dashboard for the org: integration dashboards are refreshed, others only created once.
+pub(crate) async fn upsert_seed(pg: &sqlx::PgPool, org: &str, user: Option<&str>, id: &str, doc: &Value) -> anyhow::Result<()> {
+    let kind = doc["kind"].as_str().unwrap_or("custom");
+    let teams: Vec<String> = serde_json::from_value(doc["teams"].clone()).unwrap_or_default();
+    let def = json!({ "layoutType": doc["layoutType"], "templateVariables": doc["templateVariables"], "widgets": doc["widgets"] });
+    let author = if kind == "custom" { user } else { None };
+    let refresh = if kind == "integration" {
+        "DO UPDATE SET definition = EXCLUDED.definition, title = EXCLUDED.title, description = EXCLUDED.description WHERE dashboards.org_id = EXCLUDED.org_id"
+    } else {
+        "DO NOTHING"
+    };
+    sqlx::query(&format!(
+        "INSERT INTO dashboards (id, org_id, title, description, kind, logo, author_id, teams, definition) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7::uuid, $8, $9) ON CONFLICT (id) {refresh}"
+    ))
+    .bind(if org == "default" { id.to_string() } else { format!("{org}-{id}") })
+    .bind(org)
+    .bind(doc["title"].as_str().unwrap_or(id))
+    .bind(doc["description"].as_str())
+    .bind(kind)
+    .bind(doc["logo"].as_str())
+    .bind(author)
+    .bind(&teams)
+    .bind(&def)
+    .execute(pg)
+    .await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn dashboards_of_integrations_not_enabled_are_hidden() {
+        let enabled: BTreeSet<String> = ["aws".to_string(), "kubernetes".to_string()].into();
+        let hidden = hidden_logos(&enabled);
+        assert!(hidden.contains(&"azure".to_string()) && hidden.contains(&"gcp".to_string()) && hidden.contains(&"linux".to_string()));
+        assert!(!hidden.contains(&"aws".to_string()) && !hidden.contains(&"kubernetes".to_string()));
+        assert_eq!(hidden_logos(&GATED.iter().map(|s| s.to_string()).collect()), Vec::<String>::new());
+    }
+
+    /// A new org sees none of the gated integration dashboards; an AWS account brings AWS Overview,
+    /// Kubernetes objects the Kubernetes ones, and other orgs' data changes nothing.
+    #[tokio::test]
+    async fn integration_dashboards_appear_once_their_integration_is_enabled() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "dash-gating").await;
+        let (user,): (String,) = sqlx::query_as("INSERT INTO users (id, org_id, email, name) VALUES (gen_random_uuid(), $1, $2, 'Dashboards Tester') RETURNING id::text")
+            .bind(&org)
+            .bind(format!("{org}@example.com"))
+            .fetch_one(&st.postgres)
+            .await
+            .unwrap();
+        install_seeds(&st.postgres, &org, &user).await.unwrap();
+        let ids = |st: AppState, org: String, user: String| async move {
+            let req = DashboardSearchRequest { query: String::new(), preset: PresetList::Integrations, list_id: None, team: None, sort: DashboardSort { field: SortField::Title, dir: SortDir::Asc }, offset: 0, limit: 200 };
+            let Json(page) = search(State(st), OrgId(org.clone()), CurrentUser(user), Json(req)).await.unwrap();
+            page.dashboards.into_iter().map(|d| d.id.trim_start_matches(&format!("{org}-")).to_string()).collect::<Vec<_>>()
+        };
+        let before = ids(st.clone(), org.clone(), user.clone()).await;
+        for id in ["aws-overview", "azure-overview", "gcp-overview", "kubernetes-kubernetes-dashboard", "host-overview", "apm-services", "synthetics-api-tests"] {
+            assert!(!before.contains(&id.to_string()), "{id} is hidden: {before:?}");
+        }
+
+        // Adding an account shows its dashboards at once (no wait for the cache).
+        let account = serde_json::json!({ "aws_account_id": "123456789012", "auth_config": { "role_name": "ObserveCraftIntegrationRole" } });
+        crate::routes::datadog_api::aws_integration::create_row(st, &org, account.as_object().unwrap()).await.unwrap();
+        let with_aws = ids(st.clone(), org.clone(), user.clone()).await;
+        assert!(with_aws.contains(&"aws-overview".to_string()), "{with_aws:?}");
+        st.ch(&org)
+            .query("INSERT INTO otel.otel_k8s_objects (Timestamp, Body, ResourceAttributes) VALUES (now64(9), ?, map('oc.org_id', ?, 'k8s.cluster.name', 'shop-prod', 'oc.signal', 'k8s.objects'))")
+            .bind(serde_json::json!({ "kind": "Namespace", "metadata": { "uid": format!("{org}-ns"), "name": "checkout" } }).to_string())
+            .bind(&org)
+            .execute()
+            .await
+            .unwrap();
+        forget_enabled(&org);
+        let after = ids(st.clone(), org.clone(), user.clone()).await;
+        assert!(after.contains(&"aws-overview".to_string()) && after.contains(&"kubernetes-kubernetes-dashboard".to_string()), "{after:?}");
+        assert!(!after.contains(&"azure-overview".to_string()) && !after.contains(&"gcp-overview".to_string()), "{after:?}");
+
+        let other = crate::test_support::new_org(st, "dash-gating-other").await;
+        assert!(enabled_integrations(st, &other).await.unwrap().is_empty());
+    }
 }

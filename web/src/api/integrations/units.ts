@@ -98,6 +98,11 @@ export function byteAxisInterval(max: number, ticks = 5): number | undefined {
   return nice * unit;
 }
 
+/** The unit a widget's value is formatted in: none when the widget names its own (Datadog's custom_unit), else the metric's. */
+export function valueUnit(metricUnit: string | undefined, customUnit: string | undefined): string | undefined {
+  return customUnit ? undefined : metricUnit;
+}
+
 export function formatMetricValue(value: number, unit?: string, precision = 2): string {
   const display = presentationUnit(unit);
   return formatUnitValue(value * display.scale, display.unit, precision);

@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { markdownBlocks } from './markdownBlocks';
+import { Link } from 'react-router-dom';
+import { linkKind, markdownBlocks } from './markdownBlocks';
 
-// Tiny, safe Markdown subset for Note widgets: #/##/### headings, **bold**, *italic*, `code`,
-// [links](http…) (http/https only), "- " and "1. " lists, "---" rules, paragraphs. No raw HTML is ever rendered.
+// Tiny, safe Markdown subset for Note widgets: # to ###### headings, **bold**, *italic*, `code`,
+// [links](http…) (http/https in a new tab, /paths of the app in it), "- " and "1. " lists, "---" rules, paragraphs. No raw HTML is ever rendered.
 
 function inline(text: string, key: string): ReactNode[] {
   const out: ReactNode[] = [];
@@ -19,11 +20,16 @@ function inline(text: string, key: string): ReactNode[] {
     else if (tok.startsWith('[')) {
       const label = tok.slice(1, tok.indexOf(']'));
       const href = tok.slice(tok.indexOf('(') + 1, -1);
+      const kind = linkKind(href);
       out.push(
-        /^https?:\/\//.test(href) ? (
+        kind === 'external' ? (
           <a key={k} href={href} target="_blank" rel="noreferrer noopener">
             {inline(label, k)}
           </a>
+        ) : kind === 'internal' ? (
+          <Link key={k} to={href}>
+            {inline(label, k)}
+          </Link>
         ) : (
           inline(label, k)
         ),
@@ -43,7 +49,7 @@ export function Markdown({ source }: { source: string }) {
         if (block.type === 'rule') return <hr key={key} />;
         if (block.type === 'paragraph') return <p key={key}>{inline(block.text, key)}</p>;
         if (block.type === 'heading') {
-          const Heading = (['h1', 'h2', 'h3'] as const)[block.level - 1];
+          const Heading = (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const)[block.level - 1];
           return <Heading key={key}>{inline(block.text, key)}</Heading>;
         }
         const List = block.ordered ? 'ol' : 'ul';

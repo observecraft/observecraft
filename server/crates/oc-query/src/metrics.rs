@@ -15,6 +15,8 @@ pub enum SpaceAgg {
     Sum,
     Min,
     Max,
+    /// How many series report in the group (Datadog's `count:`).
+    Count,
 }
 
 impl SpaceAgg {
@@ -24,6 +26,7 @@ impl SpaceAgg {
             SpaceAgg::Sum => "sum",
             SpaceAgg::Min => "min",
             SpaceAgg::Max => "max",
+            SpaceAgg::Count => "count",
         }
     }
 }
@@ -88,6 +91,8 @@ pub fn parse_metric_query(q: &str) -> Result<MetricQuery, String> {
         Some(i) if q.ends_with(')') && q[..i].ends_with('}') => {
             let method = q[i + ".rollup(".len()..q.len() - 1].split(',').next().unwrap_or("").trim();
             let rollup = match method {
+                // `.rollup(10)`: only an interval, the default method.
+                m if m.starts_with(|c: char| c.is_ascii_digit()) => return parse_metric_query(&q[..i]),
                 "avg" => Rollup::Avg,
                 "sum" => Rollup::Sum,
                 "min" => Rollup::Min,
@@ -99,16 +104,33 @@ pub fn parse_metric_query(q: &str) -> Result<MetricQuery, String> {
         }
         _ => (q, None),
     };
-    let (agg, rest) = q.split_once(':').ok_or("expected <agg>:<metric>{…}")?;
-    let agg = match agg {
-        "avg" => SpaceAgg::Avg,
-        "sum" => SpaceAgg::Sum,
-        "min" => SpaceAgg::Min,
-        "max" => SpaceAgg::Max,
+    // Datadog's forms: no aggregator (an average), `count(v: …):`, and percentiles of distributions
+    // (`p95:m{…}`: the `m.p95` statistic, the highest across the group's series).
+    let brace = q.find('{').ok_or("expected '{' after the metric name")?;
+    let (agg, rest) = match q.strip_prefix("count(v:").and_then(|r| r.find("):")) {
+        // `count(v: v>=0):` holds a colon of its own.
+        Some(end) => ("count", &q["count(v:".len() + end + 2..]),
+        None => match q[..brace].split_once(':') {
+            Some((agg, _)) => (agg, &q[agg.len() + 1..]),
+            None => ("avg", q),
+        },
+    };
+    let (agg, percentile) = match agg {
+        "avg" => (SpaceAgg::Avg, None),
+        "sum" => (SpaceAgg::Sum, None),
+        "min" => (SpaceAgg::Min, None),
+        "max" => (SpaceAgg::Max, None),
+        "count" => (SpaceAgg::Count, None),
+        a if a.strip_prefix('p').is_some_and(|n| !n.is_empty() && n.parse::<f64>().is_ok_and(|p| p > 0.0 && p < 100.0)) => (SpaceAgg::Max, Some(a)),
         other => return Err(format!("unknown aggregator '{other}'")),
     };
     let open = rest.find('{').ok_or("expected '{' after the metric name")?;
-    let metric = &rest[..open];
+    let name = &rest[..open];
+    let metric = match percentile {
+        Some(p) => format!("{name}.{p}"),
+        None => name.to_string(),
+    };
+    let metric = metric.as_str();
     if !valid_name(metric) {
         return Err(format!("invalid metric name '{metric}'"));
     }
@@ -326,6 +348,23 @@ mod tests {
         assert_eq!(q.filters.len(), 3);
         assert!(q.filters[2].negate);
         assert_eq!(q.by, vec!["host", "region"]);
+    }
+
+    #[test]
+    fn datadogs_other_query_forms() {
+        // No aggregator: an average.
+        let q = parse_metric_query("system.load.1{env:prod}").unwrap();
+        assert_eq!((q.agg, q.metric.as_str()), (SpaceAgg::Avg, "system.load.1"));
+        // count: the series reporting per group.
+        assert_eq!(parse_metric_query("count:argocd.goroutines{*} by {host}").unwrap().agg, SpaceAgg::Count);
+        assert_eq!(parse_metric_query("count(v: v>=0):x.latency{*}").unwrap().agg, SpaceAgg::Count);
+        // A percentile: the distribution's statistic, the highest across the group's series.
+        let q = parse_metric_query("p95:airbyte.job_runtime{*} by {job_status}").unwrap();
+        assert_eq!((q.agg, q.metric.as_str()), (SpaceAgg::Max, "airbyte.job_runtime.p95"));
+        assert_eq!(q.to_string(), "max:airbyte.job_runtime.p95{*} by {job_status}");
+        assert_eq!(parse_metric_query("count:a{*}").unwrap().to_string(), "count:a{*}");
+        // `.rollup(10)`: only an interval, the default (average) method.
+        assert_eq!(parse_metric_query("avg:a{*}.rollup(10)").unwrap().rollup, None);
     }
 
     #[test]
