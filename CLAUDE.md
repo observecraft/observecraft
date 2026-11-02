@@ -100,6 +100,30 @@ or SDK features.
   pipelines store the UI's processor keys and answer Datadog's. Custom destinations are forwarded by the log indexer
   (`log_forwarding.rs`: HTTP, Splunk HEC, Elasticsearch). Archives created through the API need their bucket keys set
   in the UI (Datadog's API carries no secrets).
+- **AWS integration** (`datadog_api/aws_integration.rs`): accounts are `datadog_integration_aws_account`
+  (`/api/v2/integration/aws/accounts`, Postgres `aws_accounts`, secret access keys sealed), with the external id,
+  available namespaces, log sources and IAM permissions endpoints; namespaces and log sources are our catalog
+  (`server/seeds/aws_integration.json`). The page (`routes/aws_integration.rs`, `web/src/pages/integrations/aws/`)
+  edits the same rows; the server assumes customers' roles as `OC_AWS_PRINCIPAL_ARN`. The CloudWatch crawler
+  (`oc-api/src/aws/`, official AWS SDK) runs in the server: jobs per account and region in Postgres `cloud_crawl_jobs`
+  (SKIP LOCKED, so servers scale it), points published as OTLP JSON to `oc.otlp-json.metrics` with Datadog names.
+- **Azure and GCP integrations** (`datadog_api/azure_integration.rs`, `datadog_api/gcp_integration.rs`; pages
+  `routes/{azure,gcp}_integration.rs`): `datadog_integration_azure` (`/api/v1/integration/azure`, Postgres
+  `azure_accounts`, sealed client secrets) and `datadog_integration_gcp_sts` (`/api/v2/integration/gcp/accounts`,
+  Postgres `gcp_accounts`, impersonated by `OC_GCP_PRINCIPAL_EMAIL`). Their crawlers (`oc-api/src/azure/`,
+  `oc-api/src/gcp/`) share the AWS one's jobs and Kafka sink (`oc-api/src/cloud/`): a discovery job per account lists
+  its subscriptions or projects, each becoming a job; `OC_CLOUD_CRAWLERS` picks the clouds.
+- **Kubernetes** (Integrations → Kubernetes, `routes/kubernetes_integration.rs`; Kubernetes → Autoscaling, Remediation,
+  Live Rollouts): installed with the official Datadog chart (the Install tab generates its values) or the
+  observecraft-agent chart. Autoscaling (`kubernetes_autoscaling.rs`) reads the inventory, the Cluster Agent's
+  `DatadogPodAutoscaler` / `DatadogPodAutoscalerClusterProfile` objects and Karpenter NodePools (orchestrator
+  manifests), and 24 h of container usage (Datadog `container.*` CPU is in nanocores, marked
+  `observecraft.collector = datadog-agent`); prices and saved profiles are Postgres `kube_autoscaling_settings` /
+  `_profiles`. The Cluster Agent scales: ObserveCraft serves its external recommender (`custom-recommender`
+  annotation → intake `/api/v2/autoscaling/recommend?api_key=` → server `/ingest/autoscaling-recommendation`,
+  `kubernetes_recommender.rs`, answers in `kube_autoscaler_recommendations`); it needs Remote Configuration enabled
+  (site `observecraft.invalid`) and `DD_AUTOSCALING_WORKLOAD_EXTERNAL_RECOMMENDER_ENABLED`. Remediation
+  (`kubernetes_remediation.rs`) and rollouts (`kubernetes_rollouts.rs`) are computed from the inventory.
 - **APM → Settings** (`apm_settings.rs`, `datadog_api/apm_config.rs`): retention filters and span-based metrics are
   `datadog_apm_retention_filter` / `_order` and `datadog_spans_metric` (`/api/v2/apm/config/...`, Postgres
   `apm_retention_filters`, `apm_spans_metrics`); span-based metrics are computed every minute from `otel.otel_traces`
@@ -147,15 +171,58 @@ or SDK features.
   source for Datadog integrations. We don't need all of them now; take them one by one as the integrations catalog
   grows:
   - The **checks** run inside the Datadog Agent and reach us as ordinary series, so they already work.
+  - The catalog (tiles, categories, detection prefixes, the Agent configuration form) is generated from every
+    `manifest.json` and `assets/configuration/spec.yaml` by `scripts/import-integration-catalog.mjs`
+    (`web/src/api/integrations/catalog.generated.json`, `agentSpecs/`); curated OTel/Vector entries are linked in
+    `coreLink.ts`. Rerun it when the pinned revision changes.
+  - Catalog logos (`web/scripts/integration-logos.mjs`, then `npm run logos`): SVG Logos and Simple Icons (CC0) by
+    name, the providers' official AWS / Azure / Google Cloud service icons (`fetch-cloud-icons.mjs`, used with the
+    owner's approval, terms in `src/assets/cloud-icons/NOTICE.md`) and the other vendors' logos
+    (`fetch-brand-icons.mjs`: public-domain Commons files, MIT/CC0 sets, CNCF artwork or the vendor's site icon,
+    sources in `src/assets/brand-icons/NOTICE.md`). They are served as files from `public/images/integrations/logos/`
+    (manifest `integrationLogos.generated.ts`), so pages load only the logos they show. Never Datadog's own images.
+  - `PINNED_REVISION` (`scripts/import-integration-dashboards.mjs`) is the last revision with every integration: from
+    2026-10-30 Datadog moves integrations to a private repository, so a newer pin drops catalog entries. Every
+    importer above takes the same revision; rerun them all after changing it.
+  - The integration modal is integrations-core's own content: `scripts/import-integration-details.mjs --source
+    <checkout>` writes `web/src/api/integrations/details/<id>.json` (README sections with Hugo shortcodes and HTML
+    turned into Markdown, Dive Deeper links, metadata.csv, log facets, service checks, monitor templates, CHANGELOG),
+    loaded per integration and rendered by `ReadmeMarkdown` (react-markdown, no raw HTML).
+  - Every integration's dashboards: `scripts/import-integration-dashboards.mjs --all --source <checkout>` writes
+    `server/seeds/integrations/core/{dashboards.ndjson.gz,units.csv}` and the mock subset
+    `web/src/api/integrations/coreDashboards.generated.json`; the server installs an integration's dashboards for an
+    org when its metric prefix is seen (`routes/integration_dashboards.rs`, from `enabled_integrations`).
+  - Integration dashboards draw as Datadog does: an ordered dashboard flows in its list order (`convertDashboard`);
+    log widgets read `POST /api/v1/logs/aggregate` (Datadog's `/api/v2/logs/analytics/aggregate` shape:
+    count / cardinality / sum / avg / percentiles, any number of facets, totals or timeseries, `log_analytics.rs`),
+    security signal widgets the signal search (`signals.ts`); geomaps use Natural Earth countries
+    (`web/scripts/build-world-map.mjs`); metric queries accept Datadog's forms (`count:`, `p95:`, no aggregator,
+    `.rollup(10)`, inline queries in formulas, `canonicalMetricQuery`).
   - What to reuse per integration:
     - `metadata.csv` (metric names, types, units, descriptions) for the metric catalog;
     - `assets/service_checks.json`;
     - `assets/dashboards/*.json`, converted to our dashboard format by `scripts/import-integration-dashboards.mjs`
       (which also writes the units from `metadata.csv` that the Agent doesn't send);
     - `assets/monitors/*.json` as recommended monitors;
-    - the log pipelines in `assets/logs/`, converted to our pipeline format by `scripts/import-integration-pipelines.mjs`
-      (Logs → Configuration → Pipelines installs them from its library);
+    - every integration's log pipelines in `assets/logs/`, converted by `scripts/import-integration-pipelines.mjs --source
+      <checkout>` into `server/seeds/integrations/core/pipelines.json` (Logs → Configuration → Pipelines installs them
+      from its library; the mock carries a few in `web/src/api/pipelines/library.generated.json`);
   - Keep their copyright and LICENSE text with anything copied, and note the source path and version.
+- **Cloud overview dashboards** (AWS, Azure, Google Cloud): Datadog's aren't in integrations-core, so ours are generated
+  by `scripts/cloud-dashboards.mjs` (Datadog widget format → the importer's `convertDashboard` →
+  `server/seeds/integrations/{aws,azure,gcp}/dashboards.json`, units in `integrations/cloud/units.csv`) on the metric
+  names our crawlers publish; banners and service tiles are `web/scripts/build-cloud-artwork.mjs` (our artwork, CC0 SVG
+  Logos). Mock data: `web/src/api/mock/cloudMetrics.ts`.
+- **Cloud service dashboards** (one per AWS namespace, Azure resource type and Google Cloud service, as Datadog has):
+  `scripts/import-cloud-metrics.mjs` gathers each service's metrics into `server/seeds/integrations/cloud/{aws,azure,gcp}-metrics.json`
+  (AWS: aws-cdk-lib's canned metrics, Apache-2.0, plus the AWS documentation's metric pages for the rest; Azure: Azure
+  Monitor's supported-metrics reference; GCP: Cloud Monitoring's metrics list; names, units and aggregations only), and
+  `scripts/cloud-service-dashboards.mjs` turns them into `integrations/cloud/services.ndjson.gz` (installed lazily like
+  integrations-core's, by metric prefix), `service-units.csv` and the mock subset `cloudServiceDashboards.generated.json`.
+- **Integration dashboards are listed once their integration is enabled** (`routes/dashboards.rs`, by the dashboard's
+  `logo`): AWS / Azure / GCP with an account, synthetics with a test, Kubernetes / hosts / APM with data in the last
+  day; other logos always. Cached 30 s per server (`EnabledChange` drops it when an account is added or removed);
+  clones (`custom`) aren't affected.
 - **Still missing:**
   - Cloud Network Monitoring's network paths;
   - Logs: forwarding to Microsoft Sentinel (needs Azure credentials), Azure Blob archives, archive readers (roles), the
@@ -179,6 +246,10 @@ or SDK features.
     pipelines and Kafka Console are built from messaging spans and Kafka metrics (`data_streams.rs`, `kafka_console.rs`);
   - APM: applying retention filters and span pipelines to incoming spans (the Collector writes spans directly),
     adaptive sampling and remote Agent ingestion settings (Remote Configuration), service remapping and tag enrichment;
+  - Kubernetes autoscaling's vertical values and cluster (Karpenter) recommendations delivered to the Cluster Agent
+    (Datadog's signed Remote Configuration; vertical recommendations are shown and applied with the commands the UI
+    gives), realized savings against a pre-autoscaling baseline, and pod usage in the Kubernetes Explorer for the
+    Datadog Agent's `container.*` metrics (its pods carry no `k8s.pod.uid`);
   - RUM's mobile Session Replay, replay retention and privacy settings, Operations, source maps and debug symbols, generated metrics, retention filters and the
     events search and aggregation API (`/api/v2/rum/events`); the error-focused processing mode keeps every session.
 

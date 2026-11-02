@@ -307,6 +307,11 @@ most important ones:
 | `OC_CACHE_MAX_VALUE_BYTES` / `OC_CACHE_LOAD_TIMEOUT_SECONDS` | `8388608` / `30` | Largest value stored (after compression); how long replicas wait for another replica's load of the same entry |
 | `OC_INVENTORY_CACHE_MAX_OBJECTS` | `500000` | Kubernetes objects the in-process inventory cache keeps over all orgs |
 | `OC_PUBLIC_URL` | `http://localhost:5173` | Origin users open the app on (SSO redirects, login links, notification links) |
+| `OC_AWS_PRINCIPAL_ARN` | unset | The AWS IAM role the server assumes customers' AWS integration roles with; their roles trust it (Integrations → Amazon Web Services) |
+| `OC_GCP_PRINCIPAL_EMAIL` | unset | The GCP service account the server impersonates customers' service accounts with (the STS delegate); they grant it Service Account Token Creator |
+| `OC_CLOUD_CRAWLERS` | `aws,azure,gcp` | The cloud integrations whose metrics the server crawls (CloudWatch, Azure Monitor, Cloud Monitoring); needs `OC_KAFKA_BROKERS` |
+| `OC_CLOUD_CRAWL_INTERVAL_SECS` | `600` | How often each account's region, subscription or project is read |
+| `OC_CLOUD_CRAWL_CONCURRENCY` | `8` | Crawl jobs one server runs at a time per cloud (add servers to crawl more) |
 | `OC_SECRET_KEY` | — | **Required in production.** Encrypts MFA seeds, OIDC secrets, archive and channel credentials (`openssl rand -base64 48`) |
 | `OC_INSTANCE_ADMIN_EMAIL` | — | Account that creates and manages organizations (becomes an admin of the install's org) |
 | `OC_RETENTION_LOGS_DAYS` / `_TRACES_DAYS` | `15` / `15` | Defaults for a new org's first log index and its span retention (orgs change them in *Log Indexes* / *Data Retention*) |
@@ -325,7 +330,8 @@ most important ones:
 | `OC_SEED_DEMO` | `true` | Fictional demo users, teams, monitors and incidents, a demo ingest key and archive. **Set `false` in production.** |
 
 The intake (`oc-intake`) has its own settings: `OC_INTAKE_ADDR` (HTTP, `:4318`), `OC_INTAKE_GRPC_ADDR` (OTLP/gRPC,
-`:4317`), `OC_INTAKE_COLLECTOR_URL`, `OC_INTAKE_LOGS_URL`, `OC_INTAKE_MAX_BODY_MB` (16), and per-organization limits
+`:4317`), `OC_INTAKE_COLLECTOR_URL`, `OC_INTAKE_LOGS_URL`, `OC_INTAKE_AUTOSCALING_URL` (the server's internal listener for the
+Datadog Cluster Agent's external recommender calls), `OC_INTAKE_MAX_BODY_MB` (16), and per-organization limits
 `OC_INTAKE_ORG_RPS` (500 requests/s) and `OC_INTAKE_ORG_MBPS` (50 MB/s).
 
 ## Security
