@@ -64,6 +64,8 @@ enum Filter {
     QueryString,
     /// `xml`: the document as an object (attributes and child elements as keys, repeated elements as arrays).
     Xml,
+    /// `rubyhash`: a Ruby hash literal as an object (`{:code=>503}` → `{"code": 503}`).
+    RubyHash,
     /// `csv(headers[, separator[, quote]])`: the values named by the comma-separated headers.
     Csv { headers: Vec<String>, sep: char, quote: char },
 }
@@ -510,7 +512,8 @@ fn compile_filter(name: &str, args: &[String]) -> Result<Filter, String> {
             Filter::Csv { headers, sep: one(1, ',')?, quote: one(2, '"')? }
         }
         "xml" => Filter::Xml,
-        "url" | "useragent" | "rubyhash" | "geoip" | "cidr" => return Err(format!("The '{name}' filter isn't supported yet")),
+        "rubyhash" => Filter::RubyHash,
+        "url" | "useragent" | "geoip" | "cidr" => return Err(format!("The '{name}' filter isn't supported yet")),
         _ => return Err(format!("Unknown filter '{name}'")),
     })
 }
@@ -608,6 +611,7 @@ impl Filter {
             Filter::DecodeUri => Some(Value::from(decode_uri(&text(&v)))),
             Filter::QueryString => Some(query_string(&text(&v))),
             Filter::Xml => super::xml::to_json(&text(&v)),
+            Filter::RubyHash => super::rubyhash::to_json(&text(&v)),
             Filter::Csv { headers, sep, quote } => {
                 let fields = csv_fields(&text(&v), *sep, *quote);
                 Some(Value::Object(headers.iter().zip(fields).filter(|(_, f)| !f.is_empty()).map(|(h, f)| (h.clone(), Value::from(f))).collect()))
@@ -752,6 +756,14 @@ mod tests {
         assert_eq!(parse("r %{data:a:array}", "[x, y]"), Some(json!({"a": ["x", "y"]})));
         assert_eq!(parse(r#"r %{data:a:array(",", nullIf("-"))}"#, "x,-,y"), Some(json!({"a": ["x", "y"]})));
         assert_eq!(parse(r#"r %{data:a:array("[]", ";", integer)}"#, "[1;2]"), Some(json!({"a": [1, 2]})));
+    }
+
+    #[test]
+    fn rubyhash_filter() {
+        // Logstash's own log lines end with a Ruby hash of details; without a name it is the empty attribute (merged at the top level).
+        let line = r#"[2026-10-25T12:59:58,123][WARN ][logstash.outputs.http] Could not send {:url=>"http://intake", :code=>503}"#;
+        assert_eq!(parse(r#"r \[%{notSpace:ts}\]\[%{word:level}\s*\]\[%{notSpace:logger}\]\s%{regex("[^\\{]+")}(%{data::rubyhash})?"#, line).map(|v| v[""]["code"].clone()), Some(json!(503)));
+        assert_eq!(parse("r %{data:x:rubyhash}", r#"{name => "John"}"#), Some(json!({"x": {"name": "John"}})));
     }
 
     #[test]
