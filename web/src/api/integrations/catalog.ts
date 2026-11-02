@@ -25,7 +25,11 @@ export interface CoreIntegration {
   configurable: boolean;
   /** Prefix that identifies the integration in received metrics; null when shared or generic. */
   detectionPrefix: string | null;
+  /** Where it comes from: Datadog's integrations-core, or integrations-extras (community and partners). */
+  repository: Repository;
 }
+
+export type Repository = 'integrations-core' | 'integrations-extras';
 
 /** What integrations-core documents about an integration, as Datadog's integration page shows it. */
 export interface IntegrationDocs {

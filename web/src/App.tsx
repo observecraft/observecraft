@@ -239,7 +239,7 @@ import { ProfileComparison } from './pages/apm/profiles/ProfileComparison';
 import { ProfileInsights } from './pages/apm/profiles/ProfileInsights';
 import { CatalogPage } from './pages/integrations/CatalogPage';
 import { IntegrationsComingSoon, IntegrationsLayout } from './pages/integrations/IntegrationsLayout';
-import { MarketplacePage } from './pages/integrations/MarketplacePage';
+import { CommunityPage } from './pages/integrations/CommunityPage';
 import { ReferenceTablePage } from './pages/integrations/ReferenceTablePage';
 import { ReferenceTablesPage } from './pages/integrations/ReferenceTablesPage';
 import { LiveTail } from './pages/logs/LiveTail';
@@ -368,7 +368,8 @@ function Shell() {
             <Route path="/integrations/gcp/add" element={<AddGcpPage />} />
             <Route path="/integrations" element={<IntegrationsLayout />}>
               <Route index element={<CatalogPage />} />
-              <Route path="marketplace" element={<MarketplacePage />} />
+              <Route path="community" element={<CommunityPage />} />
+              <Route path="marketplace" element={<Navigate to="/integrations/community" replace />} />
               <Route path="reference-tables" element={<ReferenceTablesPage />} />
               <Route path="reference-tables/:name" element={<ReferenceTablePage />} />
               <Route path="source-code" element={<IntegrationsComingSoon title="Link Source Code" />} />

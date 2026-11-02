@@ -1,7 +1,7 @@
-// TanStack Query bindings for Integrations / Marketplace / Reference Tables.
+// TanStack Query bindings for Integrations / Community / Reference Tables.
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getIntegration, installIntegration, loadIntegrationDocs, listCategories, searchCatalog, searchMarketplace, uninstallIntegration } from '../../api/integrations/client';
-import type { CatalogRequest, MarketplaceRequest } from '../../api/integrations/types';
+import { getIntegration, installIntegration, loadIntegrationDocs, listCategories, searchCatalog, uninstallIntegration } from '../../api/integrations/client';
+import type { CatalogRequest } from '../../api/integrations/types';
 import { searchDashboards } from '../../api/dashboards/client';
 import { loadAgentSpec } from '../../api/integrations/catalog';
 import { createReferenceTable, deleteReferenceTable, getReferenceTable, listReferenceTables, replaceReferenceTable } from '../../api/referenceTables/client';
@@ -38,7 +38,6 @@ export const integrationKeys = {
   catalog: (req: CatalogRequest) => [...integrationKeys.all, 'catalog', req] as const,
   categories: () => [...integrationKeys.all, 'categories'] as const,
   detail: (id: string) => [...integrationKeys.all, 'detail', id] as const,
-  marketplace: (req: MarketplaceRequest) => [...integrationKeys.all, 'marketplace', req] as const,
 };
 
 export function useCatalog(req: CatalogRequest) {
@@ -51,10 +50,6 @@ export function useCategories() {
 
 export function useIntegration(id: string) {
   return useQuery({ queryKey: integrationKeys.detail(id), queryFn: () => getIntegration(id), refetchInterval: 60_000 });
-}
-
-export function useMarketplace(req: MarketplaceRequest) {
-  return useQuery({ queryKey: integrationKeys.marketplace(req), queryFn: () => searchMarketplace(req), placeholderData: keepPreviousData });
 }
 
 /** Install / uninstall; the catalog and the detail are refetched afterwards. */
