@@ -21,6 +21,7 @@
 //! - `POST /api/v2/profile`                      Datadog profiler uploads → the server (otel.profiles)
 //! - `POST /api/v2/apmtelemetry`                 tracers' instrumentation telemetry (via the Agent) → the server (Code Security's runtime libraries)
 //! - `POST /api/v2/cicodescan`                   `datadog-ci sarif upload` reports → the server (Code Security findings)
+//! - `POST /api/v2/autoscaling/recommend`         the Cluster Agent's external recommender → the server's replicas
 //! - `POST /intake/`, `/api/v2/host_metadata`   Datadog Agent host metadata → Postgres `datadog_hosts`; its events → events.
 //!   Its host tags are added to that host's series, sketches and service checks (see `host_tags`)
 //! - `POST /api/v1/events`, `/api/v2/events`     Datadog events (API, Agent) → otel.otel_events
@@ -111,6 +112,8 @@ struct Config {
     apm_telemetry_url: String,
     sbom_url: String,
     code_scans_url: String,
+    /// The server's internal listener for the Cluster Agent's external recommender calls.
+    autoscaling_url: String,
     /// Bearer token of the server's internal listener (OC_INTERNAL_TOKEN), if it requires one.
     internal_token: Option<String>,
     max_body: usize,
@@ -151,6 +154,7 @@ impl Config {
             apm_telemetry_url: env("OC_INTAKE_APM_TELEMETRY_URL", "http://localhost:8090/ingest/apm-telemetry"),
             sbom_url: env("OC_INTAKE_SBOM_URL", "http://localhost:8090/ingest/sbom"),
             code_scans_url: env("OC_INTAKE_CODE_SCANS_URL", "http://localhost:8090/ingest/code-scans"),
+            autoscaling_url: env("OC_INTAKE_AUTOSCALING_URL", "http://localhost:8090/ingest/autoscaling-recommendation"),
             internal_token: std::env::var("OC_INTERNAL_TOKEN")
                 .ok()
                 .filter(|t| !t.is_empty()),
@@ -583,6 +587,32 @@ async fn code_scan(State(st): State<Shared>, headers: HeaderMap, body: Bytes) ->
     pass_to_server(st, headers, body, url, "code scan").await
 }
 
+/// `POST /api/v2/autoscaling/recommend?api_key=…`: the Datadog Cluster Agent's external recommender
+/// (the `custom-recommender` endpoint of a DatadogPodAutoscaler), answered by the server with the
+/// replicas the workload needs; its reply goes back unchanged.
+async fn autoscaling_recommend(State(st): State<Shared>, headers: HeaderMap, body: Bytes) -> Response {
+    let org = match admit(&st, &headers, body.len()).await {
+        Ok(org) => org.org_id,
+        Err(r) => return r.into_response(),
+    };
+    let mut req = st.http.post(&st.cfg.autoscaling_url).header(ORG_HEADER, &org).header(header::CONTENT_TYPE, "application/json").body(body);
+    if let Some(t) = &st.cfg.internal_token {
+        req = req.bearer_auth(t);
+    }
+    let res = match req.send().await {
+        Ok(res) => res,
+        Err(e) => {
+            tracing::warn!(error = %e, "server unavailable for an autoscaling recommendation");
+            return reject(StatusCode::SERVICE_UNAVAILABLE, "recommender unavailable, retry later");
+        }
+    };
+    let status = StatusCode::from_u16(res.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+    match res.bytes().await {
+        Ok(reply) => (status, [(header::CONTENT_TYPE, "application/json")], reply).into_response(),
+        Err(_) => reject(StatusCode::BAD_GATEWAY, "recommender reply lost"),
+    }
+}
+
 /// Passes an upload unchanged to one of the server's internal listeners, with the org resolved from
 /// its key.
 async fn pass_to_server(st: Shared, headers: HeaderMap, body: Bytes, url: String, what: &'static str) -> Response {
@@ -771,6 +801,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v2/apmtelemetry", post(apm_telemetry))
         .route("/api/v2/sbom", post(sbom))
         .route("/api/v2/cicodescan", post(code_scan))
+        .route("/api/v2/autoscaling/recommend", post(autoscaling_recommend))
         .route("/api/v1/check_run", post(datadog::check_run))
         .route("/api/v1/metadata", post(datadog::metadata))
         .route("/intake/", post(datadog::intake))
@@ -800,6 +831,51 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    /// The Cluster Agent's external recommender call: admitted by its key, forwarded to the server
+    /// with the org, and the server's reply (body and status) returned as is.
+    #[tokio::test]
+    async fn autoscaling_recommendations_are_answered_by_the_server() {
+        use sha2::{Digest, Sha256};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mut cfg = Config::from_env();
+        cfg.autoscaling_url = format!("http://{}/ingest/autoscaling-recommendation", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            axum::serve(
+                listener,
+                Router::new().route(
+                    "/ingest/autoscaling-recommendation",
+                    post(|headers: HeaderMap, body: Bytes| async move {
+                        assert_eq!(headers[ORG_HEADER], "example-org");
+                        if body.as_ref() == b"{}" {
+                            return (StatusCode::BAD_REQUEST, "not a WorkloadRecommendationRequest".to_string());
+                        }
+                        (StatusCode::OK, r#"{"timestamp":"2026-11-01T18:00:00Z","targetReplicas":5,"observedTargets":[],"reason":"cpu"}"#.to_string())
+                    }),
+                ),
+            )
+            .await
+            .unwrap();
+        });
+        let st = test_state(cfg);
+        st.keys.lock().unwrap().insert(
+            Sha256::digest(b"ocik_autoscaling_test").to_vec(),
+            CachedKey {
+                org: Some(KeyOrg { org_id: "example-org".into(), span_retention_days: 15, metrics_retention_days: 30, metrics_5m_days: 90, metrics_1h_days: 395, flag_environment_id: None }),
+                at: Instant::now(),
+                touched: Some(Instant::now()),
+            },
+        );
+        let mut headers = HeaderMap::new();
+        headers.insert("dd-api-key", HeaderValue::from_static("ocik_autoscaling_test"));
+        let res = autoscaling_recommend(State(st.clone()), headers.clone(), Bytes::from_static(br#"{"targetRef":{"name":"storefront-api"}}"#)).await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(res.headers()[header::CONTENT_TYPE], "application/json");
+        let body = axum::body::to_bytes(res.into_body(), 1 << 16).await.unwrap();
+        assert!(std::str::from_utf8(&body).unwrap().contains(r#""targetReplicas":5"#));
+        let res = autoscaling_recommend(State(st), headers, Bytes::from_static(b"{}")).await;
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    }
     use super::*;
 
     #[test]

@@ -121,7 +121,7 @@
           "x": 0,
           "y": 0,
           "w": 6,
-          "h": 12
+          "h": 23
         }
       },
       {
@@ -924,7 +924,7 @@
           "x": 6,
           "y": 0,
           "w": 6,
-          "h": 22
+          "h": 23
         }
       },
       {
@@ -1029,9 +1029,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 12,
+          "y": 23,
           "w": 6,
-          "h": 16
+          "h": 17
         }
       },
       {
@@ -1196,9 +1196,9 @@
         },
         "layout": {
           "x": 6,
-          "y": 22,
+          "y": 23,
           "w": 6,
-          "h": 12
+          "h": 17
         }
       },
       {
@@ -1422,9 +1422,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 28,
+          "y": 40,
           "w": 6,
-          "h": 12
+          "h": 13
         }
       },
       {
@@ -1741,9 +1741,9 @@
         },
         "layout": {
           "x": 6,
-          "y": 34,
+          "y": 40,
           "w": 6,
-          "h": 12
+          "h": 13
         }
       },
       {
@@ -2065,9 +2065,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 40,
+          "y": 53,
           "w": 6,
-          "h": 12
+          "h": 13
         }
       },
       {
@@ -2389,9 +2389,9 @@
         },
         "layout": {
           "x": 6,
-          "y": 46,
+          "y": 53,
           "w": 6,
-          "h": 12
+          "h": 13
         }
       },
       {
@@ -2590,15 +2590,15 @@
         },
         "layout": {
           "x": 0,
-          "y": 52,
+          "y": 66,
           "w": 6,
-          "h": 12
+          "h": 13
         }
       }
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_dashboard.json",
       "license": "BSD-3-Clause"
     }
@@ -2699,7 +2699,7 @@
           "x": 0,
           "y": 0,
           "w": 4,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -2943,7 +2943,7 @@
           "x": 4,
           "y": 0,
           "w": 8,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -3128,9 +3128,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 14,
+          "y": 15,
           "w": 12,
-          "h": 12
+          "h": 13
         }
       },
       {
@@ -3785,15 +3785,15 @@
         },
         "layout": {
           "x": 0,
-          "y": 26,
+          "y": 28,
           "w": 12,
-          "h": 18
+          "h": 19
         }
       }
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_pods.json",
       "license": "BSD-3-Clause"
     }
@@ -4241,7 +4241,7 @@
           "x": 0,
           "y": 0,
           "w": 8,
-          "h": 18
+          "h": 19
         }
       },
       {
@@ -4438,7 +4438,7 @@
           "x": 8,
           "y": 0,
           "w": 4,
-          "h": 18
+          "h": 19
         }
       },
       {
@@ -4907,9 +4907,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 18,
+          "y": 19,
           "w": 12,
-          "h": 18
+          "h": 19
         }
       },
       {
@@ -5210,9 +5210,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 36,
+          "y": 38,
           "w": 12,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -5461,9 +5461,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 50,
+          "y": 53,
           "w": 12,
-          "h": 10
+          "h": 11
         }
       },
       {
@@ -5661,9 +5661,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 60,
+          "y": 64,
           "w": 12,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -5953,9 +5953,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 74,
+          "y": 79,
           "w": 12,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -6214,15 +6214,15 @@
         },
         "layout": {
           "x": 0,
-          "y": 88,
+          "y": 94,
           "w": 12,
-          "h": 10
+          "h": 11
         }
       }
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_nodes.json",
       "license": "BSD-3-Clause"
     }
@@ -6303,7 +6303,7 @@
           "x": 0,
           "y": 0,
           "w": 4,
-          "h": 18
+          "h": 19
         }
       },
       {
@@ -6912,7 +6912,7 @@
           "x": 4,
           "y": 0,
           "w": 8,
-          "h": 18
+          "h": 19
         }
       },
       {
@@ -7371,9 +7371,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 46,
+          "y": 19,
           "w": 12,
-          "h": 18
+          "h": 19
         }
       },
       {
@@ -7574,9 +7574,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 18,
+          "y": 38,
           "w": 6,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -7777,9 +7777,9 @@
         },
         "layout": {
           "x": 6,
-          "y": 18,
+          "y": 38,
           "w": 6,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -7983,9 +7983,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 32,
+          "y": 53,
           "w": 6,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -8168,15 +8168,15 @@
         },
         "layout": {
           "x": 6,
-          "y": 32,
+          "y": 53,
           "w": 6,
-          "h": 14
+          "h": 15
         }
       }
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_deployments.json",
       "license": "BSD-3-Clause"
     }
@@ -9633,7 +9633,7 @@
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_replicasets.json",
       "license": "BSD-3-Clause"
     }
@@ -10491,7 +10491,7 @@
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_services.json",
       "license": "BSD-3-Clause"
     }
@@ -11896,7 +11896,7 @@
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_daemonsets.json",
       "license": "BSD-3-Clause"
     }
@@ -12656,7 +12656,7 @@
           "x": 0,
           "y": 0,
           "w": 12,
-          "h": 30
+          "h": 31
         }
       },
       {
@@ -13136,9 +13136,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 30,
+          "y": 31,
           "w": 12,
-          "h": 26
+          "h": 27
         }
       },
       {
@@ -13618,15 +13618,15 @@
         },
         "layout": {
           "x": 0,
-          "y": 56,
+          "y": 58,
           "w": 12,
-          "h": 28
+          "h": 29
         }
       }
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_jobs.json",
       "license": "BSD-3-Clause"
     }
@@ -15069,7 +15069,7 @@
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_statefulsets.json",
       "license": "BSD-3-Clause"
     }
@@ -15140,7 +15140,7 @@
           "x": 0,
           "y": 0,
           "w": 4,
-          "h": 18
+          "h": 19
         }
       },
       {
@@ -15718,7 +15718,7 @@
           "x": 4,
           "y": 0,
           "w": 8,
-          "h": 18
+          "h": 19
         }
       },
       {
@@ -16199,9 +16199,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 38,
+          "y": 19,
           "w": 12,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -16781,9 +16781,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 72,
+          "y": 34,
           "w": 12,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -17478,9 +17478,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 92,
+          "y": 49,
           "w": 12,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -17909,9 +17909,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 120,
+          "y": 64,
           "w": 12,
-          "h": 10
+          "h": 11
         }
       },
       {
@@ -18298,9 +18298,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 18,
+          "y": 75,
           "w": 12,
-          "h": 10
+          "h": 11
         }
       },
       {
@@ -18679,9 +18679,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 28,
+          "y": 86,
           "w": 12,
-          "h": 10
+          "h": 11
         }
       },
       {
@@ -19105,9 +19105,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 52,
+          "y": 97,
           "w": 12,
-          "h": 10
+          "h": 11
         }
       },
       {
@@ -19509,9 +19509,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 62,
+          "y": 108,
           "w": 12,
-          "h": 10
+          "h": 11
         }
       },
       {
@@ -19705,9 +19705,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 86,
+          "y": 119,
           "w": 12,
-          "h": 6
+          "h": 7
         }
       },
       {
@@ -19993,9 +19993,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 106,
+          "y": 126,
           "w": 12,
-          "h": 14
+          "h": 15
         }
       },
       {
@@ -20395,9 +20395,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 130,
+          "y": 141,
           "w": 12,
-          "h": 10
+          "h": 11
         }
       },
       {
@@ -20501,15 +20501,15 @@
         },
         "layout": {
           "x": 0,
-          "y": 140,
+          "y": 152,
           "w": 12,
-          "h": 18
+          "h": 19
         }
       }
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_clusters.json",
       "license": "BSD-3-Clause"
     }
@@ -21058,7 +21058,7 @@
           "x": 0,
           "y": 8,
           "w": 12,
-          "h": 32
+          "h": 33
         }
       },
       {
@@ -21635,9 +21635,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 40,
+          "y": 41,
           "w": 12,
-          "h": 22
+          "h": 23
         }
       },
       {
@@ -21874,15 +21874,15 @@
         },
         "layout": {
           "x": 0,
-          "y": 62,
+          "y": 64,
           "w": 12,
-          "h": 14
+          "h": 15
         }
       }
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_cpu_memory.json",
       "license": "BSD-3-Clause"
     }
@@ -21947,7 +21947,7 @@
           "x": 0,
           "y": 0,
           "w": 4,
-          "h": 11
+          "h": 21
         }
       },
       {
@@ -22362,7 +22362,7 @@
           "x": 4,
           "y": 0,
           "w": 8,
-          "h": 20
+          "h": 21
         }
       },
       {
@@ -22411,7 +22411,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 11,
+          "y": 21,
           "w": 4,
           "h": 6
         }
@@ -22462,7 +22462,7 @@
         },
         "layout": {
           "x": 0,
-          "y": 17,
+          "y": 27,
           "w": 4,
           "h": 4
         }
@@ -23182,9 +23182,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 21,
+          "y": 31,
           "w": 12,
-          "h": 26
+          "h": 27
         }
       },
       {
@@ -23989,9 +23989,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 47,
+          "y": 58,
           "w": 12,
-          "h": 20
+          "h": 21
         }
       },
       {
@@ -24585,9 +24585,9 @@
         },
         "layout": {
           "x": 0,
-          "y": 67,
+          "y": 79,
           "w": 12,
-          "h": 26
+          "h": 27
         }
       },
       {
@@ -25133,15 +25133,15 @@
         },
         "layout": {
           "x": 0,
-          "y": 93,
+          "y": 106,
           "w": 12,
-          "h": 20
+          "h": 21
         }
       }
     ],
     "source": {
       "repository": "DataDog/integrations-core",
-      "revision": "c7dbc72cac1946294acda77f6491ecd081d9b498",
+      "revision": "1e7420ec635aafdd33db6a1e69586de7d2e24c21",
       "path": "kubernetes/assets/dashboards/kubernetes_control_plane.json",
       "license": "BSD-3-Clause"
     }
