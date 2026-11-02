@@ -37,6 +37,17 @@ test('one line per integration, with its metric prefix and dashboards', () => {
   for (const id of ids) assert.match(id, /^[a-z0-9_-]+$/, id);
 });
 
+test('integrations-extras’ dashboards and units come with them, credited to their repository', () => {
+  const bind9 = bundle().find((l) => l.logo === 'bind9');
+  assert.equal(bind9.prefix, 'bind9.');
+  assert.deepEqual(
+    bind9.dashboards.map((d) => d.source.repository),
+    ['DataDog/integrations-extras', 'DataDog/integrations-extras'],
+  );
+  assert.match(readFileSync(new URL('units.csv', dir), 'utf8'), /^unbound\.thread\.num\.queries,query$/m);
+  assert.ok(existsSync(new URL('LICENSE-integrations-extras', dir)));
+});
+
 test('images Datadog hosts become the integration’s logo or banner, which exist', () => {
   const walk = (ws, out = []) => {
     for (const w of ws) {
@@ -146,8 +157,8 @@ test('the units of every integration’s metrics are seeded for the server', () 
 
 test('mock mode carries the dashboards of the integrations it shows installed, with their metrics’ units', () => {
   const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/coreDashboards.generated.json', import.meta.url), 'utf8'));
-  assert.ok(mock.dashboards.some((d) => d.title === 'Postgres - Overview'));
-  assert.ok(mock.dashboards.length < 40, 'only a few, not the whole bundle');
+  for (const title of ['Postgres - Overview', 'Traefik Mesh Overview', 'Bind9 - Overview', 'Gitea Overview', 'EMQX Overview']) assert.ok(mock.dashboards.some((d) => d.title === title), title);
+  assert.ok(mock.dashboards.length < 50, 'only a few, not the whole bundle');
   assert.equal(mock.units['postgresql.replication_delay_bytes'], 'byte');
 });
 

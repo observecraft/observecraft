@@ -119,7 +119,19 @@ const OVERRIDES = {
   weblogic: 'logos:oracle',
   'nginx-ingress-controller': 'logos:nginx',
   'consul-connect': 'logos:consul',
-  'traefik-mesh': 'si:traefikmesh',
+  // Shown as Traefik (the tile covers Traefik Proxy too): Traefik Proxy's own mark
+  'traefik-mesh': 'si:traefikproxy',
+  // integrations-extras
+  filebeat: 'logos:beats',
+  nvml: 'logos:nvidia',
+  flume: 'logos:apache',
+  redisenterprise: 'logos:redis',
+  'unifi-console': 'si:ubiquiti',
+  cfssl: 'logos:cloudflare-icon',
+  'loadrunner-professional': 'si:opentext',
+  lacework: 'si:fortinet',
+  'robust-intelligence-ai-firewall': 'si:cisco',
+  ns1: 'logos:ibm',
   'kubernetes-state': 'logos:kubernetes',
   'kubernetes-state-core': 'logos:kubernetes',
   kubelet: 'logos:kubernetes',
@@ -249,6 +261,14 @@ const GENERIC = new Set([
   'supply-chain-firewall',
   'guarddog',
   'ide-shepherd',
+  // integrations-extras checks of protocols and host states, not of a product
+  'ping',
+  'reboot-required',
+  'snmpwalk',
+  'upsc',
+  'sortdb',
+  'hikaricp',
+  'sendmail',
 ]);
 /** Whether an integration is a host check or Datadog's own agent, shown with our tile on purpose. */
 export const isGeneric = (id) => GENERIC.has(id);

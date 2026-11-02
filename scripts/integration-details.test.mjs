@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
-import { PINNED_REVISION } from './import-integration-dashboards.mjs';
+import { EXTRAS_REVISION, PINNED_REVISION } from './import-integration-dashboards.mjs';
 import { changelog, htmlToMarkdown, logFacets, metadataCsv, monitorTemplate, readmeSections, resolveShortcodes } from './import-integration-details.mjs';
 
 const README = `# Agent Check: Thing
@@ -136,4 +136,10 @@ test('Postgres is imported with everything Datadog shows', () => {
   assert.ok(d.resources.some((r) => r.type === 'blog'));
   assert.ok(d.releaseNotes.length >= 5);
   assert.equal(d.source, `DataDog/integrations-core@${PINNED_REVISION} postgres`);
+});
+
+test('integrations-extras integrations are imported from their repository', () => {
+  const bind9 = JSON.parse(readFileSync(new URL('../web/src/api/integrations/details/bind9.json', import.meta.url), 'utf8'));
+  assert.equal(bind9.source, `DataDog/integrations-extras@${EXTRAS_REVISION} bind9`);
+  assert.ok(bind9.overview.length > 0 && bind9.metrics.length > 0);
 });

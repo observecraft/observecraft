@@ -2,13 +2,13 @@
 // split into the modal's tabs, the Dive Deeper links, metadata.csv, the log pipeline's facets, service checks,
 // monitor templates, dashboard titles and the latest CHANGELOG entries, into
 // web/src/api/integrations/details/<id>.json (one file per integration, loaded when its modal opens).
-// node scripts/import-integration-details.mjs --source <integrations-core checkout at PINNED_REVISION>
+// node scripts/import-integration-details.mjs --source <integrations-core checkout at PINNED_REVISION> [--extras <integrations-extras checkout at EXTRAS_REVISION>]
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { PINNED_REVISION } from './import-integration-dashboards.mjs';
+import { EXTRAS_REVISION, PINNED_REVISION } from './import-integration-dashboards.mjs';
 
 const yaml = createRequire(new URL('../web/package.json', import.meta.url))('js-yaml');
 
@@ -153,7 +153,7 @@ const json = async (path) => {
 };
 
 /** One integration directory of the checkout → its details. */
-export async function integrationDetails(dir, id, revision = PINNED_REVISION) {
+export async function integrationDetails(dir, id, revision = PINNED_REVISION, repository = 'integrations-core') {
   const manifest = (await json(join(dir, 'manifest.json'))) ?? {};
   const assets = manifest.assets ?? {};
   const readme = htmlToMarkdown(resolveShortcodes((await read(join(dir, 'README.md'))) ?? ''));
@@ -173,9 +173,11 @@ export async function integrationDetails(dir, id, revision = PINNED_REVISION) {
     const doc = await json(join(dir, path));
     if (doc) monitors.push(monitorTemplate(doc));
   }
-  const checks = (await json(join(dir, assets.integration?.service_checks?.metadata_path ?? 'assets/service_checks.json'))) ?? [];
+  const listed = await json(join(dir, assets.integration?.service_checks?.metadata_path ?? 'assets/service_checks.json'));
+  // A few community files hold one object instead of a list.
+  const checks = Array.isArray(listed) ? listed : listed ? [listed] : [];
   return {
-    source: `DataDog/integrations-core@${revision} ${dir.split('/').pop()}`,
+    source: `DataDog/${repository}@${revision} ${dir.split('/').pop()}`,
     overview: sections.overview,
     setup: sections.setup,
     troubleshooting: sections.troubleshooting,
@@ -193,16 +195,20 @@ export async function integrationDetails(dir, id, revision = PINNED_REVISION) {
 async function main() {
   const args = process.argv.slice(2);
   const source = args[args.indexOf('--source') + 1];
-  if (!args.includes('--source') || !source) throw new Error('usage: node scripts/import-integration-details.mjs --source <integrations-core checkout>');
+  if (!args.includes('--source') || !source) throw new Error('usage: node scripts/import-integration-details.mjs --source <integrations-core checkout> [--extras <integrations-extras checkout>]');
+  const extras = args.includes('--extras') ? args[args.indexOf('--extras') + 1] : null;
   const catalog = JSON.parse(await readFile(new URL('../web/src/api/integrations/catalog.generated.json', import.meta.url), 'utf8'));
   const out = new URL('../web/src/api/integrations/details/', import.meta.url);
   await rm(out, { recursive: true, force: true });
   await mkdir(out, { recursive: true });
   // Catalog ids are the integrations-core directory names with dashes (manifest app_id); the directory is the check.
   for (const c of catalog.integrations) {
-    const dir = join(source, c.check);
+    const fromExtras = c.repository === 'integrations-extras';
+    if (fromExtras && !extras) continue;
+    const dir = join(fromExtras ? extras : source, c.check);
     if (!existsSync(join(dir, 'manifest.json'))) continue;
-    await writeFile(new URL(`${c.id}.json`, out), `${JSON.stringify(await integrationDetails(dir, c.id))}\n`);
+    const details = await integrationDetails(dir, c.id, fromExtras ? EXTRAS_REVISION : PINNED_REVISION, c.repository ?? 'integrations-core');
+    await writeFile(new URL(`${c.id}.json`, out), `${JSON.stringify(details)}\n`);
   }
   console.log(`Details of ${catalog.integrations.length} integrations written to ${out.pathname}`);
 }

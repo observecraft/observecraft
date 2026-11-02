@@ -2,6 +2,7 @@
 // in them. Images only linked from them are hosted by Datadog, not part of the repository, and are
 // replaced by our own artwork (web/public/images/integrations/<integration>-banner.svg).
 // node scripts/import-integration-dashboards.mjs [integration] [commit SHA]
+// node scripts/import-integration-dashboards.mjs --all --source <integrations-core checkout> [--extras <integrations-extras checkout>]
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -11,6 +12,9 @@ import { formulaQueries, parseMetricQuery } from '../web/src/lib/metricQuery.ts'
 // The last revision with every integration: from 9afe6c8 (2026-10-30) Datadog moves integrations to a private
 // repository (integrations-internal-core), so later revisions lose catalog entries Datadog still offers.
 export const PINNED_REVISION = '1e7420ec635aafdd33db6a1e69586de7d2e24c21';
+// integrations-extras (community and partner integrations, BSD-3-Clause) at its last revision before the same move
+// (d6ad10b, 2026-10-30, drops the listings Datadog migrated to its publishing platform).
+export const EXTRAS_REVISION = '20d3ceeaf342b8c9f6211dc9df9ea3d382dbb692';
 
 /** Units of the Agent's own host metrics (they have no integrations-core metadata.csv); memory is in MiB. */
 const AGENT_UNITS = {
@@ -55,7 +59,7 @@ const noteSize = (px) => (!px ? 'md' : px <= 14 ? 'sm' : px <= 16 ? 'md' : px <=
 /** Rows a group banner takes above the group's widgets. */
 const BANNER_ROWS = 5;
 
-export function convertDashboard(doc, integration, path, revision) {
+export function convertDashboard(doc, integration, path, revision, repository = 'DataDog/integrations-core') {
   const banner = { type: 'image', title: integration.charAt(0).toUpperCase() + integration.slice(1).replace(/_/g, ' '), src: `/images/integrations/${integration}-banner.svg` };
   const free = doc.layout_type === 'free';
   let seq = 0;
@@ -208,7 +212,7 @@ export function convertDashboard(doc, integration, path, revision) {
     layoutType: free ? 'free' : 'grid',
     templateVariables: (doc.template_variables ?? []).map((v) => ({ name: v.name, prefix: v.prefix ?? '', default: v.default ?? '*' })),
     widgets: widgets(doc.widgets ?? [], undefined),
-    source: { repository: 'DataDog/integrations-core', revision, path: `${integration}/${path}`, license: 'BSD-3-Clause' },
+    source: { repository, revision, path: `${integration}/${path}`, license: 'BSD-3-Clause' },
   };
 }
 
@@ -306,7 +310,7 @@ export function metricDescriptions(csv) {
 /** Integrations with a bundle of their own (Kubernetes, the clouds): not repeated in the core bundle. */
 const OWN_BUNDLES = new Set(['kubernetes', 'aws', 'azure', 'gcp']);
 /** Integrations the mock shows installed: their dashboards are bundled with the UI for `make web-mock`. */
-const MOCK_INTEGRATIONS = ['postgres', 'mysql', 'redisdb', 'nginx', 'kafka', 'mongo', 'elastic', 'rabbitmq', 'cisco-asa'];
+const MOCK_INTEGRATIONS = ['postgres', 'mysql', 'redisdb', 'nginx', 'kafka', 'mongo', 'elastic', 'rabbitmq', 'cisco-asa', 'traefik-mesh', 'bind9', 'gitea', 'emqx'];
 
 /** Our banner for the integration (web/public/images/integrations/<id>-banner.svg), or null. */
 export function bannerFor(id) {
@@ -326,17 +330,20 @@ function withArtwork(widgets, id, name) {
 }
 
 /** Every catalog integration's dashboards from a checkout: one entry per integration with its metric prefix. */
-export async function coreBundle(source, catalog, revision = PINNED_REVISION) {
+export async function coreBundle(source, catalog, revision = PINNED_REVISION, extras = null) {
   const bundle = [];
   for (const c of catalog.integrations) {
     if (OWN_BUNDLES.has(c.id)) continue;
-    const dir = join(source, c.check);
+    const fromExtras = c.repository === 'integrations-extras';
+    if (fromExtras && !extras) continue;
+    const dir = join(fromExtras ? extras : source, c.check);
+    const [rev, repository] = fromExtras ? [EXTRAS_REVISION, 'DataDog/integrations-extras'] : [revision, 'DataDog/integrations-core'];
     if (!existsSync(join(dir, 'manifest.json'))) continue;
     const manifest = JSON.parse(await readFile(join(dir, 'manifest.json'), 'utf8'));
     const dashboards = [];
     for (const path of new Set(Object.values(manifest.assets?.dashboards ?? {}).map((p) => p.replace(/^\.\//, '')))) {
       if (!path.startsWith('assets/dashboards/') || !path.endsWith('.json') || path.includes('..') || !existsSync(join(dir, path))) continue;
-      const d = convertDashboard(JSON.parse(await readFile(join(dir, path), 'utf8')), c.check, path, revision);
+      const d = convertDashboard(JSON.parse(await readFile(join(dir, path), 'utf8')), c.check, path, rev, repository);
       dashboards.push({ ...d, logo: c.id, widgets: withArtwork(d.widgets, c.id, c.name) });
     }
     if (dashboards.length) bundle.push({ logo: c.id, prefix: c.metricPrefix ?? '', dashboards });
@@ -344,23 +351,25 @@ export async function coreBundle(source, catalog, revision = PINNED_REVISION) {
   return bundle.sort((a, b) => a.logo.localeCompare(b.logo));
 }
 
-/** `--all --source <checkout>`: the core bundle (gzip NDJSON), the units of every metric and the mock subset. */
-async function importAll(source, revision) {
+/** `--all --source <checkout> [--extras <checkout>]`: the bundle (gzip NDJSON), the units of every metric and the mock subset. */
+async function importAll(source, revision, extras) {
   const license = await readFile(join(source, 'LICENSE'), 'utf8');
-  if (!license.includes('Redistribution and use in source and binary forms')) throw new Error('Upstream license changed; review before importing');
+  const extrasLicense = extras ? await readFile(join(extras, 'LICENSE'), 'utf8') : null;
+  for (const l of [license, extrasLicense].filter(Boolean)) if (!l.includes('Redistribution and use in source and binary forms')) throw new Error('Upstream license changed; review before importing');
   const catalog = JSON.parse(await readFile(new URL('../web/src/api/integrations/catalog.generated.json', import.meta.url), 'utf8'));
-  const bundle = await coreBundle(source, catalog, revision);
+  const bundle = await coreBundle(source, catalog, revision, extras);
   const target = new URL('../server/seeds/integrations/core/', import.meta.url);
   await mkdir(target, { recursive: true });
   await writeFile(new URL('dashboards.ndjson.gz', target), gzipSync(bundle.map((b) => JSON.stringify(b)).join('\n') + '\n', { level: 9 }));
   const units = new Map();
   for (const c of catalog.integrations) {
-    const csv = join(source, c.check, 'metadata.csv');
+    if (c.repository === 'integrations-extras' && !extras) continue;
+    const csv = join(c.repository === 'integrations-extras' ? extras : source, c.check, 'metadata.csv');
     if (existsSync(csv)) for (const [metric, unit] of metricUnits(await readFile(csv, 'utf8'))) if (!units.has(metric) && /^[\w.]+$/.test(metric)) units.set(metric, unit);
   }
   await writeFile(
     new URL('units.csv', target),
-    `# Metric units from DataDog/integrations-core@${revision} (every integration's metadata.csv); BSD-3-Clause, see LICENSE.\n` +
+    `# Metric units from DataDog/integrations-core@${revision}${extras ? ` and DataDog/integrations-extras@${EXTRAS_REVISION}` : ''} (every integration's metadata.csv); BSD-3-Clause, see LICENSE${extras ? ' and LICENSE-integrations-extras' : ''}.\n` +
       [...units]
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([m, u]) => `${m},${u}`)
@@ -368,6 +377,7 @@ async function importAll(source, revision) {
       '\n',
   );
   await writeFile(new URL('LICENSE', target), license);
+  if (extrasLicense) await writeFile(new URL('LICENSE-integrations-extras', target), extrasLicense);
   const dashboards = bundle.filter((b) => MOCK_INTEGRATIONS.includes(b.logo)).flatMap((b) => b.dashboards);
   // The units of the metrics they chart, for the mock's series (the server reads units.csv).
   const charted = new Set([...JSON.stringify(dashboards).matchAll(/[a-z]+:([a-z][a-z0-9_]*\.[a-z0-9_.]+)\{/g)].map((m) => m[1]));
@@ -384,8 +394,9 @@ async function importAll(source, revision) {
 async function main() {
   if (process.argv.includes('--all')) {
     const source = process.argv[process.argv.indexOf('--source') + 1];
-    if (!process.argv.includes('--source') || !source) throw new Error('usage: --all --source <integrations-core checkout>');
-    return importAll(source, PINNED_REVISION);
+    if (!process.argv.includes('--source') || !source) throw new Error('usage: --all --source <integrations-core checkout> [--extras <integrations-extras checkout>]');
+    const extras = process.argv.includes('--extras') ? process.argv[process.argv.indexOf('--extras') + 1] : null;
+    return importAll(source, PINNED_REVISION, extras);
   }
   const integration = process.argv[2] ?? 'kubernetes';
   const revision = process.argv[3] ?? PINNED_REVISION;
