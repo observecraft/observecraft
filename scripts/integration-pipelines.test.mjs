@@ -68,3 +68,11 @@ test('lookup tables written as one block of lines become the list Datadog’s AP
   assert.deepEqual(p.processors[0].lookupTable, ['low, info', 'high, error']);
   assert.deepEqual(p.processors[1].processors[0].lookupTable, ['1,one']);
 });
+
+test('integrations-extras’ pipelines come with them, credited to their repository', () => {
+  const all = JSON.parse(readFileSync(new URL('../server/seeds/integrations/core/pipelines.json', import.meta.url), 'utf8'));
+  const tailscale = all.find((p) => p.id === 'tailscale');
+  assert.equal(tailscale.source.repository, 'DataDog/integrations-extras');
+  assert.ok(tailscale.processors.length > 0);
+  assert.ok(all.some((p) => p.id === 'logstash'));
+});

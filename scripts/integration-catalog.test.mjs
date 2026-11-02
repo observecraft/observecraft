@@ -119,7 +119,29 @@ test('a manifest becomes a catalog entry', () => {
     dashboards: ['redis'],
     monitors: ['Memory consumption is high'],
     configurable: true,
+    repository: 'integrations-core',
   });
+});
+
+test('integrations-extras entries say where they come from', () => {
+  assert.equal(catalogEntry('bind9', { app_id: 'bind9', tile: { title: 'bind9' }, author: { name: 'Community' } }, 'integrations-extras').repository, 'integrations-extras');
+});
+
+test('the catalog has integrations-extras’ Agent checks and log integrations, not its partner listings', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const catalog = JSON.parse(await readFile(new URL('../web/src/api/integrations/catalog.generated.json', import.meta.url), 'utf8'));
+  assert.match(catalog.source, /DataDog\/integrations-extras@[0-9a-f]{40}/);
+  const extras = catalog.integrations.filter((c) => c.repository === 'integrations-extras');
+  const ids = new Set(extras.map((c) => c.id));
+  for (const id of ['bind9', 'unbound', 'pihole', 'logstash', 'gitea', 'tailscale']) assert.ok(ids.has(id), id);
+  for (const id of ['rum-react', 'pagerduty-ui']) assert.ok(!ids.has(id), id);
+  assert.ok(extras.length >= 110, `${extras.length}`);
+  const traefik = catalog.integrations.find((c) => c.id === 'traefik-mesh');
+  assert.equal(traefik.repository, 'integrations-core');
+  // Datadog's one Traefik integration: its check reads Traefik Proxy (ingress controller included) as well as the mesh.
+  assert.equal(traefik.name, 'Traefik');
+  assert.match(traefik.description, /Proxy.*ingress controller.*Mesh/i);
+  assert.equal(new Set(catalog.integrations.map((c) => c.id)).size, catalog.integrations.length, 'unique ids');
 });
 
 test('integrations without metrics or configuration have empty fields, not missing ones', () => {

@@ -18,6 +18,7 @@ test('well-known integrations show their own brand', () => {
     couchdb: 'logos:couchdb-icon',
     cilium: 'si:cilium',
     linkerd: 'logos:linkerd',
+    'traefik-mesh': 'si:traefikproxy',
     argocd: 'logos:argo-icon',
     keycloak: 'si:keycloak',
     kong: 'logos:kong-icon',
@@ -69,9 +70,26 @@ test('every logo the resolver names exists in its icon set', () => {
   }
 });
 
+/** Brands with no logo we can use yet: neither icon set has them and their sites serve no icon we can fetch. */
+const WITHOUT_LOGO = [
+  'aimon',
+  'appgate-sdp',
+  'cato-networks',
+  'cybersixgill-actionable-alerts',
+  'kyoto-tycoon',
+  'lambdatest',
+  'resin',
+  'scaphandre',
+  'supervisord',
+  'tokumx',
+  'twemproxy',
+  'vertica',
+  'ziris',
+];
+
 test('every branded catalog integration has its logo', () => {
-  const missing = keys.filter((k) => !isGeneric(k.id) && !resolveLogo(k));
-  assert.ok(missing.length <= 7, `${missing.length} without a logo: ${missing.map((k) => k.id).join(', ')}`);
+  const missing = keys.filter((k) => !isGeneric(k.id) && !resolveLogo(k)).map((k) => k.id);
+  assert.deepEqual([...new Set(missing)].sort(), WITHOUT_LOGO);
 });
 
 test('downloaded SVGs carry no scripts, handlers or external references', () => {

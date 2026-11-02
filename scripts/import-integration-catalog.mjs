@@ -3,12 +3,14 @@
 // source) and its configuration spec (assets/configuration/spec.yaml) with the shared templates
 // resolved (agentSpecs/<check>.json), so the UI renders the Agent configuration form from it.
 // Template resolution follows datadog_checks_dev/.../configuration/{template,spec}.py.
-// node scripts/import-integration-catalog.mjs [--source <integrations-core checkout>] [commit SHA]
+// integrations-extras (BSD-3-Clause, --extras) adds its community Agent checks and the integrations with log pipelines;
+// its partner listings and documentation-only tiles send their data to Datadog itself and are left out.
+// node scripts/import-integration-catalog.mjs [--source <integrations-core checkout>] [--extras <integrations-extras checkout at EXTRAS_REVISION>] [commit SHA]
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { PINNED_REVISION } from './import-integration-dashboards.mjs';
+import { EXTRAS_REVISION, PINNED_REVISION } from './import-integration-dashboards.mjs';
 
 const yaml = createRequire(new URL('../web/package.json', import.meta.url))('js-yaml');
 const TEMPLATES_DIR = 'datadog_checks_dev/datadog_checks/dev/tooling/templates/configuration';
@@ -172,10 +174,16 @@ function compactOption(option) {
   return out;
 }
 
+/** Tiles we name differently from their manifest: Datadog's only Traefik integration is `traefik_mesh`, whose check
+ *  reads any Traefik Proxy (the Kubernetes ingress controller too), so it is found and shown as Traefik. */
+const TILES = {
+  'traefik-mesh': { name: 'Traefik', description: 'Monitor Traefik Proxy, as an ingress controller or on its own, and Traefik Mesh: entrypoints, routers, services and logs.' },
+};
+
 const metricChecks = (check) => (check === undefined ? [] : Array.isArray(check) ? check : [check]);
 
 /** A catalog entry from an integration's directory name and manifest.json. */
-export function catalogEntry(check, manifest) {
+export function catalogEntry(check, manifest, repository = 'integrations-core') {
   const integration = manifest.assets?.integration ?? {};
   return {
     id: manifest.app_id,
@@ -191,6 +199,8 @@ export function catalogEntry(check, manifest) {
     dashboards: Object.keys(manifest.assets?.dashboards ?? {}),
     monitors: Object.keys(manifest.assets?.monitors ?? {}),
     configurable: Boolean(integration.configuration?.spec),
+    repository,
+    ...TILES[manifest.app_id],
   };
 }
 
@@ -277,18 +287,37 @@ async function main() {
     return templateFiles.get(path);
   };
 
-  const dirs = await repo.list();
-  const loaded = await mapLimit(dirs, 16, async (check) => {
-    const text = await repo.read(`${check}/manifest.json`);
+  const extrasIndex = args.indexOf('--extras');
+  const extrasDir = extrasIndex >= 0 ? args.splice(extrasIndex, 2)[1] : null;
+  const extras = extrasDir ? source(extrasDir, EXTRAS_REVISION) : null;
+  // integrations-extras: what runs in the Agent (a check) or arrives as logs (a pipeline); its specs use core's templates.
+  const { existsSync, readdirSync } = await import('node:fs');
+  const extrasUseful = (check) =>
+    existsSync(join(extrasDir, check, 'datadog_checks')) ||
+    (existsSync(join(extrasDir, check, 'assets/logs')) && readdirSync(join(extrasDir, check, 'assets/logs')).some((f) => f.endsWith('.yaml') && !f.endsWith('_tests.yaml')));
+  const dirs = [
+    ...(await repo.list()).map((check) => [repo, check, 'integrations-core']),
+    ...(extras ? (await extras.list()).filter(extrasUseful).map((check) => [extras, check, 'integrations-extras']) : []),
+  ];
+  const loaded = await mapLimit(dirs, 16, async ([from, check, repository]) => {
+    const text = await from.read(`${check}/manifest.json`);
     if (!text) return null;
     const manifest = JSON.parse(text);
     if (!manifest.tile || manifest.display_on_public_website === false) return null;
-    const entry = catalogEntry(check, manifest);
+    const entry = catalogEntry(check, manifest, repository);
     const specPath = manifest.assets?.integration?.configuration?.spec;
-    const specText = specPath ? await repo.read(`${check}/${specPath}`) : undefined;
+    const specText = specPath ? await from.read(`${check}/${specPath}`) : undefined;
     // Some manifests name a spec the repository doesn't have (profile-only SNMP tiles, gke, …).
     if (!specText) entry.configurable = false;
-    return { entry, spec: specText ? yaml.load(specText) : null };
+    // A few community specs aren't valid YAML (duplicated keys): their integration has no form, the rest stays.
+    let spec = null;
+    try {
+      spec = specText ? yaml.load(specText) : null;
+    } catch (error) {
+      console.warn(`${check}: ${error.reason ?? error.message}`);
+      entry.configurable = false;
+    }
+    return { entry, spec };
   });
 
   // Templates are fetched up front (the resolver is synchronous): every path a spec can reference.
@@ -313,6 +342,7 @@ async function main() {
     if (!item) continue;
     integrations.push(item.entry);
     if (!item.spec) continue;
+    if (specs[item.entry.check]) throw new Error(`${item.entry.check}: in both repositories`);
     try {
       const resolved = resolveSpec(item.spec, templates);
       const file = resolved.files.find((f) => f.name === `${item.entry.check}.yaml`) ?? resolved.files[0];
@@ -325,13 +355,15 @@ async function main() {
   const catalog = finalizeCatalog(integrations).sort((a, b) => a.name.localeCompare(b.name));
 
   const out = new URL('../web/src/api/integrations/', import.meta.url);
-  await writeFile(new URL('catalog.generated.json', out), JSON.stringify({ source: `DataDog/integrations-core@${revision}`, integrations: catalog }) + '\n');
+  const sources = [`DataDog/integrations-core@${revision}`, ...(extras ? [`DataDog/integrations-extras@${EXTRAS_REVISION}`] : [])].join(', ');
+  await writeFile(new URL('catalog.generated.json', out), JSON.stringify({ source: sources, integrations: catalog }) + '\n');
   // One file per check, loaded when its integration is opened (import.meta.glob in the client).
   const specDir = new URL('agentSpecs/', out);
   await rm(specDir, { recursive: true, force: true });
   await mkdir(specDir);
   for (const [check, spec] of Object.entries(specs)) await writeFile(new URL(`${check}.json`, specDir), JSON.stringify(spec) + '\n');
   await writeFile(new URL('integrations-core.LICENSE', out), await repo.read('LICENSE'));
+  if (extras) await writeFile(new URL('integrations-extras.LICENSE', out), await extras.read('LICENSE'));
   console.log(`${catalog.length} integrations, ${Object.keys(specs).length} configuration specs`);
 }
 
