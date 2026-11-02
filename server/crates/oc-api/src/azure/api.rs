@@ -47,6 +47,9 @@ pub enum AzureError {
     /// A missing role assignment; `action` when Azure names it (`Microsoft.Insights/metrics/read`).
     Forbidden { action: Option<String>, message: String },
     Throttled(String),
+    /// A request Azure Monitor refuses for this resource type or these metrics (HTTP 400): a namespace
+    /// without platform metrics, a time grain the metrics don't have.
+    Rejected(String),
     Other(String),
 }
 
@@ -91,10 +94,11 @@ pub struct Rest {
 /// Classifies an Azure error response.
 pub fn classify(status: u16, body: &str) -> AzureError {
     let v: Value = serde_json::from_str(body).unwrap_or_default();
-    let message = v["error"]["message"].as_str().or(v["error_description"].as_str()).or(v["error"].as_str()).unwrap_or(body).to_string();
+    let message = v["error"]["message"].as_str().or(v["error_description"].as_str()).or(v["error"].as_str()).or(v["message"].as_str()).unwrap_or(body).to_string();
     match status {
         401 => AzureError::Auth(message),
         400 if v["error"].is_string() => AzureError::Auth(message),
+        400 => AzureError::Rejected(message),
         403 => {
             let action = message.split("perform action '").nth(1).and_then(|s| s.split('\'').next()).map(str::to_string);
             AzureError::Forbidden { action, message }
@@ -127,7 +131,7 @@ impl Rest {
         let body = res.text().await.unwrap_or_default();
         if status != 200 {
             return Err(match classify(status, &body) {
-                AzureError::Other(m) => AzureError::Auth(m),
+                AzureError::Other(m) | AzureError::Rejected(m) => AzureError::Auth(m),
                 e => e,
             });
         }
@@ -193,7 +197,9 @@ impl AzureApi for Rest {
 
     async fn metric_names(&self, c: &Credentials, resource_id: &str) -> Result<Vec<String>, AzureError> {
         let all = self.pages(c, format!("{}{resource_id}/providers/Microsoft.Insights/metricDefinitions?api-version=2018-01-01", self.endpoints.management)).await?;
-        Ok(all.iter().filter_map(|d| d["name"]["value"].as_str().map(str::to_string)).collect())
+        // The batch calls ask for one-minute points, which some metrics don't have (only hourly ones).
+        let per_minute = |d: &Value| d["metricAvailabilities"].as_array().is_none_or(|a| a.iter().any(|g| g["timeGrain"] == "PT1M"));
+        Ok(all.iter().filter(|d| per_minute(d)).filter_map(|d| d["name"]["value"].as_str().map(str::to_string)).collect())
     }
 
     async fn metrics(&self, c: &Credentials, subscription: &str, region: &str, resource_type: &str, resource_ids: &[String], metrics: &[String], aggregations: &[&str], start_ms: i64, end_ms: i64) -> Result<Vec<Series>, AzureError> {
@@ -253,6 +259,7 @@ mod tests {
             AzureError::Forbidden { action: Some("Microsoft.Insights/metrics/read".into()), message: "The client 'c' with object id 'o' does not have authorization to perform action 'Microsoft.Insights/metrics/read' over scope '/subscriptions/s'".into() }
         );
         assert!(matches!(classify(429, "{}"), AzureError::Throttled(_)));
+        assert!(matches!(classify(400, r#"{"code":"BadRequest","message":"Microsoft.Compute/restorePointCollections is not a supported platform metric namespace"}"#), AzureError::Rejected(m) if m.contains("restorePointCollections")));
         assert_eq!(resource_group("/subscriptions/s/resourceGroups/Storefront-RG/providers/Microsoft.Compute/virtualMachines/web-1"), "storefront-rg");
     }
 
@@ -292,7 +299,13 @@ mod tests {
             )
             .route(
                 "/subscriptions/sub-a/resourceGroups/Storefront/providers/Microsoft.Compute/virtualMachines/web-1/providers/Microsoft.Insights/metricDefinitions",
-                get(|| async { Json(json!({ "value": [{ "name": { "value": "Percentage CPU" } }, { "name": { "value": "Network In Total" } }] })) }),
+                get(|| async {
+                    Json(json!({ "value": [
+                        { "name": { "value": "Percentage CPU" }, "metricAvailabilities": [{ "timeGrain": "PT1M" }, { "timeGrain": "PT1H" }] },
+                        { "name": { "value": "Network In Total" } },
+                        { "name": { "value": "StorageUsed" }, "metricAvailabilities": [{ "timeGrain": "PT1H" }] }
+                    ] }))
+                }),
             )
             .route(
                 "/subscriptions/sub-a/metrics:getBatch",
@@ -320,6 +333,7 @@ mod tests {
         let resources = rest.resources(&c, "sub-a").await.unwrap();
         assert_eq!(resources.len(), 1);
         assert_eq!((resources[0].kind.as_str(), resources[0].resource_group.as_str(), resources[0].tags.clone()), ("Microsoft.Compute/virtualMachines", "storefront", vec!["env:prod".to_string()]));
+        // Metrics without a one-minute grain aren't read (the batch calls ask for PT1M).
         assert_eq!(rest.metric_names(&c, &resources[0].id).await.unwrap(), ["Percentage CPU", "Network In Total"]);
         let series = rest.metrics(&c, "sub-a", "westeurope", "Microsoft.Compute/virtualMachines", &[resources[0].id.clone()], &["Percentage CPU".into()], &["average", "maximum"], 1_700_000_000_000, 1_700_000_600_000).await.unwrap();
         assert_eq!(series.len(), 2);

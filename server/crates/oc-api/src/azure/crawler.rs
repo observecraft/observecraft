@@ -11,6 +11,8 @@
 //! - **Publishing.** Datadog names (`azure.vm.percentage_cpu`, `.total`, `.maximum`), tagged with the
 //!   subscription, the resource group, the region, the resource's name and its Azure tags; VMs are the
 //!   `host`. OTLP JSON to Kafka, the watermark advancing after the acknowledgement.
+//! - **Refusals.** A type or batch Azure Monitor refuses (HTTP 400: no platform metrics, no one-minute
+//!   grain) is skipped and kept as the run's warning; the rest is still published.
 //! - **Failures** are the registration's issues: it can't sign in (or uses secretless authentication,
 //!   which needs a federated identity ObserveCraft doesn't have), a missing role assignment (with the
 //!   action Azure names), throttling.
@@ -42,7 +44,7 @@ pub fn issue(e: &AzureError) -> Issue {
         AzureError::Auth(m) => Issue { kind: "auth", message: m.clone(), missing_action: None, backoff: Backoff::Interval },
         AzureError::Forbidden { action, message } => Issue { kind: "access_denied", message: message.clone(), missing_action: action.clone(), backoff: Backoff::Interval },
         AzureError::Throttled(m) => Issue { kind: "throttled", message: m.clone(), missing_action: None, backoff: Backoff::Exponential },
-        AzureError::Other(m) => Issue { kind: "other", message: m.clone(), missing_action: None, backoff: Backoff::Exponential },
+        AzureError::Rejected(m) | AzureError::Other(m) => Issue { kind: "other", message: m.clone(), missing_action: None, backoff: Backoff::Exponential },
     }
 }
 
@@ -76,10 +78,16 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
     let mut names_by_type: HashMap<String, Vec<String>> = HashMap::new();
     let aggregations: Vec<&str> = AGGREGATIONS.iter().map(|(a, _)| *a).collect();
     let mut points = vec![];
+    // A type or batch Azure Monitor refuses is skipped; the first refusal is the run's warning.
+    let mut warning = None;
     for ((kind, region), members) in &groups {
         if !names_by_type.contains_key(kind) {
             let names = match api.metric_names(creds, &members[0].id).await {
                 Ok(n) => n,
+                Err(e @ AzureError::Rejected(_)) => {
+                    warning.get_or_insert_with(|| issue(&e));
+                    vec![]
+                }
                 Err(e) => return Outcome::Failed(issue(&e)),
             };
             names_by_type.insert(kind.clone(), names);
@@ -93,6 +101,10 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
             for metric_chunk in names.chunks(METRICS_PER_CALL) {
                 let series = match api.metrics(creds, subscription, region, kind, &ids, metric_chunk, &aggregations, start, end).await {
                     Ok(s) => s,
+                    Err(e @ AzureError::Rejected(_)) => {
+                        warning.get_or_insert_with(|| issue(&e));
+                        continue;
+                    }
                     Err(e) => return Outcome::Failed(issue(&e)),
                 };
                 for s in series {
@@ -114,7 +126,7 @@ pub async fn crawl(api: &dyn AzureApi, sink: &dyn MetricSink, headers: &[(String
             return Outcome::Failed(Issue { kind: "other", message: format!("publishing to Kafka failed: {e}"), missing_action: None, backoff: Backoff::Exponential });
         }
     }
-    Outcome::Collected { end_ms: end, metrics: resources.len(), points: points.len(), warning: None }
+    Outcome::Collected { end_ms: end, metrics: resources.len(), points: points.len(), warning }
 }
 
 /// The Azure crawler: Azure Monitor through `api`, points to `sink`.
@@ -176,6 +188,8 @@ mod tests {
         resources: Vec<Resource>,
         names: HashMap<String, Vec<String>>,
         fail_metrics: Option<AzureError>,
+        /// Types whose batches Azure Monitor refuses.
+        rejected: Vec<String>,
         calls: StdMutex<Vec<Call>>,
     }
 
@@ -194,6 +208,9 @@ mod tests {
         async fn metrics(&self, _c: &Credentials, _s: &str, region: &str, kind: &str, ids: &[String], metrics: &[String], aggregations: &[&str], start: i64, end: i64) -> Result<Vec<Series>, AzureError> {
             if let Some(e) = &self.fail_metrics {
                 return Err(e.clone());
+            }
+            if self.rejected.iter().any(|k| k == kind) {
+                return Err(AzureError::Rejected(format!("{kind} is not a supported platform metric namespace")));
             }
             self.calls.lock().unwrap().push((kind.into(), region.into(), ids.len(), metrics.len(), start, end));
             Ok(ids.iter().flat_map(|id| metrics.iter().flat_map(move |m| aggregations.iter().map(move |a| Series { resource_id: id.to_uppercase(), metric: m.clone(), aggregation: a.to_string(), points: vec![(start, 1.0)] }))).collect())
@@ -268,6 +285,23 @@ mod tests {
         assert_eq!(crawl(&azure, &sink, &[], "acme", &creds(), &json!({}), "sub-a", None, NOW, 600_000).await, Outcome::Failed(issue(&denied)));
         assert!(sink.records.lock().unwrap().is_empty());
         assert_eq!(issue(&denied).missing_action.as_deref(), Some("Microsoft.Insights/metrics/read"));
+    }
+
+    #[tokio::test]
+    async fn a_batch_azure_refuses_is_skipped_with_a_warning() {
+        const RESTORE_POINTS: &str = "Microsoft.Compute/restorePointCollections";
+        let azure = FakeAzure {
+            resources: vec![resource("web-1", VM, "westeurope", &[]), resource("rp", RESTORE_POINTS, "westeurope", &[])],
+            names: HashMap::from([(VM.to_string(), vec!["Percentage CPU".to_string()]), (RESTORE_POINTS.to_string(), vec!["Anything".to_string()])]),
+            rejected: vec![RESTORE_POINTS.to_string()],
+            ..Default::default()
+        };
+        let sink = FakeSink::default();
+        let outcome = crawl(&azure, &sink, &[], "acme", &creds(), &json!({}), "sub-a", None, NOW, 600_000).await;
+        let Outcome::Collected { points, warning: Some(w), .. } = outcome else { panic!("{outcome:?}") };
+        assert_eq!((points, w.kind), (3, "other"));
+        assert!(w.message.contains(RESTORE_POINTS));
+        assert_eq!(published(&sink).len(), 3);
     }
 
     #[tokio::test]
