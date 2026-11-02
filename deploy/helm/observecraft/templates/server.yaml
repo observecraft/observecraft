@@ -24,6 +24,9 @@ spec:
     metadata:
       labels:
         {{- include "oc.selector" (list . "server") | nindent 8 }}
+        {{- with .Values.server.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       annotations:
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- with .Values.server.podAnnotations }}

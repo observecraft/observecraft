@@ -104,6 +104,10 @@ server:
     enabled: true
     maxUnavailable: 1
   podAnnotations: {}
+  # Extra labels on the server pods. AKS Workload Identity, for the cloud crawlers' AWS identity without keys:
+  # `azure.workload.identity/use: "true"` mounts a token from the cluster's issuer, which an AWS IAM OIDC provider
+  # trusts; extraEnv then sets AWS_ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE and OC_AWS_PRINCIPAL_ARN.
+  podLabels: {}
   nodeSelector: {}
   tolerations: []
   affinity: {}

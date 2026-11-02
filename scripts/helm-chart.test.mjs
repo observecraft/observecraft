@@ -99,3 +99,12 @@ test('external cache: the URL from the secret, no cache.auth needed', { skip: !h
   assert.match(server(r.out), /name: OC_CACHE_URL\n\s+valueFrom: \{ secretKeyRef: \{ name: my-secrets, key: cache-url \} \}/);
   assert.doesNotMatch(r.out, /oc-observecraft-valkey/);
 });
+
+test('server.podLabels label the server pods (e.g. AKS Workload Identity), next to the selector labels', { skip: !hasHelm }, () => {
+  const r = render(['server.podLabels.team=observability']);
+  assert.ok(r.ok, r.err);
+  const template = server(r.out).split('  template:')[1];
+  assert.match(template, /labels:\n(?:\s+\S+: \S+\n)*\s+team: observability\n/);
+  assert.match(server(r.out), /matchLabels:\n(?:\s+\S+: \S+\n)+/);
+  assert.doesNotMatch(server(r.out).split('  template:')[0], /team: observability/, 'not in the selector, which is immutable');
+});
