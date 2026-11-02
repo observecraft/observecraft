@@ -11,17 +11,18 @@ import { useTime } from '../../components/shell/TimeContext';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { hhmm } from '../../lib/format';
 import { formatQuery, parseQuery, type Term } from '../../lib/searchQuery';
-import { GROUP_KEYS, TrafficPanel, scopedQuery } from './NetworkAnalytics';
+import { TrafficPanel, scopedQuery } from './NetworkAnalytics';
+import { NetworkGroupSelect } from './NetworkGroupSelect';
 import { useTraffic } from './NetworkLayout';
 import { NetworkIntro } from './NetworkIntro';
 
 /** How DNS servers can be shown (Datadog's options). */
 const SERVER_GROUPS = [
-  { key: 'dns_server', label: 'dns_server' },
-  { key: 'host', label: 'host' },
-  { key: 'service', label: 'service' },
-  { key: 'ip', label: 'ip' },
-  { key: 'dns_query', label: 'dns_query' },
+  { key: 'dns_server', label: 'DNS Server' },
+  { key: 'host', label: 'Host' },
+  { key: 'service', label: 'Service' },
+  { key: 'ip', label: 'IP' },
+  { key: 'dns_query', label: 'DNS Query' },
 ];
 
 const FACET_LABELS: Record<string, string> = {
@@ -183,26 +184,8 @@ export function DnsAnalytics() {
         <QueryBar value={query} onChange={(v) => set({ q: v })} placeholder="Search DNS traffic by tags, such as client_service:checkout or server_dns_query:*.example.net" />
       </div>
       <div className="net-groupby">
-        <label className="net-chipset">
-          <span>View clients as</span>
-          <select value={clientGroupBy} onChange={(e) => set({ client: e.target.value === 'service' ? null : e.target.value })}>
-            {GROUP_KEYS.filter((g) => g.key !== 'port' && g.key !== 'domain').map((g) => (
-              <option key={g.key} value={g.key}>
-                {g.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="net-chipset">
-          <span>View servers as</span>
-          <select value={serverGroupBy} onChange={(e) => set({ server: e.target.value === 'dns_server' ? null : e.target.value })}>
-            {SERVER_GROUPS.map((g) => (
-              <option key={g.key} value={g.key}>
-                {g.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <NetworkGroupSelect value={clientGroupBy} label="View clients as" dns onChange={(value) => set({ client: value === 'service' ? null : value })} />
+        <NetworkGroupSelect value={serverGroupBy} label="View servers as" groups={SERVER_GROUPS} onChange={(value) => set({ server: value === 'dns_server' ? null : value })} />
       </div>
 
       {q.isError ? (

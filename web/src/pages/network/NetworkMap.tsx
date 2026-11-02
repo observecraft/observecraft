@@ -4,14 +4,25 @@ import type { EChartsOption } from 'echarts';
 import { useSearchParams } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import { networkFlows, type Flow } from '../../api/network/client';
+import { listServices } from '../../api/apm/client';
+import { BRAND_LOGOS } from '../../assets/brandLogos.generated';
 import { Chart } from '../../components/charts/Chart';
 import { useTime } from '../../components/shell/TimeContext';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { formatBytes } from '../../components/ui/Pager';
 import { token } from '../../theme/chartTheme';
-import { GROUP_KEYS, fmtLatency, fmtThroughput } from './NetworkAnalytics';
+import { fmtLatency, fmtThroughput } from './NetworkAnalytics';
+import { NetworkGroupSelect, networkGroupMark } from './NetworkGroupSelect';
 import { useTraffic } from './NetworkLayout';
 import { NetworkIntro } from './NetworkIntro';
+import { serviceLogo } from '../apm/visuals';
+
+/** ECharts image symbols use standalone SVGs, including a disc for contrast and the inspection ring. */
+function logoSymbol(logo: { body: string; width: number; height: number }, selected: boolean, unresolved: boolean): string {
+  const color = token(unresolved ? '--status-nodata' : '--chart-1');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" color="${color}"><circle cx="24" cy="24" r="22" fill="white" stroke="${token(selected ? '--text' : '--border-strong')}" stroke-width="${selected ? 3 : 1}"/><svg x="9" y="9" width="30" height="30" viewBox="0 0 ${logo.width} ${logo.height}">${logo.body}</svg></svg>`;
+  return `image://data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
 
 /** What edges show (Datadog's list). */
 const EDGE_METRICS: { key: string; label: string; value: (f: Flow) => number; fmt: (v: number) => string }[] = [
@@ -49,6 +60,11 @@ export function NetworkMap() {
     queryKey: ['network', 'map', range, tag, traffic],
     queryFn: () => networkFlows({ range, query: '', clientGroupBy: tag, serverGroupBy: tag, ...traffic, limit: 1000 }),
   });
+  const services = useQuery({
+    queryKey: ['apm', 'network-map-services', range],
+    queryFn: ({ signal }) => listServices({ range }, signal),
+    enabled: tag === 'service',
+  });
 
   const option = useMemo<EChartsOption | null>(() => {
     if (!q.data) return null;
@@ -63,6 +79,7 @@ export function NetworkMap() {
     const maxVol = Math.max(1, ...volume.values());
     const maxEdge = Math.max(1e-9, ...flows.map(metric.value));
     const primary = token('--chart-1');
+    const languages = new Map(services.data?.map((s) => [s.service, s.language]));
     return {
       tooltip: {
         formatter: (p: unknown) => {
@@ -82,12 +99,16 @@ export function NetworkMap() {
           edgeSymbolSize: 7,
           label: { show: true, position: 'right', fontSize: 12 },
           emphasis: { focus: 'adjacency', lineStyle: { width: 4 } },
-          data: [...volume].map(([name, v]) => ({
-            name,
-            value: v,
-            symbolSize: 14 + 26 * Math.sqrt(v / maxVol),
-            itemStyle: { color: name === 'N/A' ? token('--status-nodata') : primary, borderColor: name === inspect ? token('--text') : undefined, borderWidth: name === inspect ? 3 : 0 },
-          })),
+          data: [...volume].map(([name, v]) => {
+            const logo = tag === 'service' ? serviceLogo(name, languages.get(name)) : null;
+            return {
+              name,
+              value: v,
+              symbol: logoSymbol(logo ? BRAND_LOGOS[logo] : networkGroupMark(tag), name === inspect, name === 'N/A'),
+              symbolSize: 30 + 26 * Math.sqrt(v / maxVol),
+              itemStyle: { color: name === 'N/A' ? token('--status-nodata') : primary, borderColor: name === inspect ? token('--text') : undefined, borderWidth: name === inspect ? 3 : 0 },
+            };
+          }),
           links: flows.map((f) => ({
             source: f.client,
             target: f.server,
@@ -97,21 +118,12 @@ export function NetworkMap() {
         },
       ],
     };
-  }, [q.data, filter, inspect, metric]);
+  }, [q.data, services.data, tag, filter, inspect, metric]);
 
   return (
     <div className="net-page net-map-page">
       <div className="net-map-controls">
-        <label className="net-chipset">
-          <span>View</span>
-          <select value={tag} onChange={(e) => (set('tag', e.target.value === 'service' ? null : e.target.value), setInspect(null))}>
-            {GROUP_KEYS.map((g) => (
-              <option key={g.key} value={g.key}>
-                {g.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <NetworkGroupSelect value={tag} label="View" onChange={(value) => (set('tag', value === 'service' ? null : value), setInspect(null), setMenu(null))} />
         <label className="net-chipset">
           <span>Edges show</span>
           <select value={metric.key} onChange={(e) => set('edge', e.target.value === 'throughput_sent' ? null : e.target.value)}>
