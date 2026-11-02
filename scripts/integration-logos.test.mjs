@@ -92,6 +92,13 @@ test('every branded catalog integration has its logo', () => {
   assert.deepEqual([...new Set(missing)].sort(), WITHOUT_LOGO);
 });
 
+test('the sanitizer repeats until nothing it removes is left, nested or oddly written', () => {
+  const out = sanitizeSvg(
+    `<svg><scr<script>x</script>ipt>alert(1)</script ><path o<!---->nload="x()" onclick='y()' d="M0"/><!<!---->-- c --><a xlink:href='https://e.com'/><style>.a{fill:red}</style ><sty<style></style>le>.b{}</style></svg>`,
+  );
+  assert.doesNotMatch(out, /<script|<!--|\son\w+=|https:|<style/i, out);
+});
+
 test('downloaded SVGs carry no scripts, handlers or external references', () => {
   assert.equal(
     sanitizeSvg('<?xml version="1.0"?><svg onload="x()"><script>x()</script><a href="https://e.com"><path d="M0"/></a><use xlink:href="#a"/></svg>'),

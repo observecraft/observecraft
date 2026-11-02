@@ -189,6 +189,16 @@ const ALIASES = {
 };
 
 /** Moves `<style>` class rules onto the elements as inline styles: on a page, an icon's `.st1` would restyle every other icon. */
+/** Applies `clean` until the text stops changing: a removal can join fragments into what it removes (`<scr<script>ipt>`). */
+export function untilStable(text, clean) {
+  let previous;
+  do {
+    previous = text;
+    text = clean(text);
+  } while (text !== previous);
+  return text;
+}
+
 export function inlineStyles(svg) {
   const rules = new Map();
   for (const [, css] of svg.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g))
@@ -199,20 +209,23 @@ export function inlineStyles(svg) {
         .filter(Boolean);
       for (const sel of selectors.split(',').map((x) => x.trim())) if (/^\.[\w-]+$/.test(sel)) rules.set(sel.slice(1), [...(rules.get(sel.slice(1)) ?? []), ...decl]);
     }
-  return svg.replace(/<style[^>]*>[\s\S]*?<\/style>\s*/g, '').replace(/<([a-zA-Z]+)([^>]*?)\sclass="([^"]*)"([^>]*)>/g, (_, tag, before, classes, after) => {
-    const decl = classes.split(/\s+/).flatMap((c) => rules.get(c) ?? []);
-    const own = /\sstyle="([^"]*)"/.exec(before + after);
-    if (own)
-      decl.push(
-        ...own[1]
-          .split(';')
-          .map((d) => d.trim())
-          .filter(Boolean),
-      );
-    const rest = (before + after).replace(/\sstyle="[^"]*"/, '');
-    const [attrs, close] = rest.endsWith('/') ? [rest.slice(0, -1), '/'] : [rest, ''];
-    return `<${tag}${decl.length ? ` style="${decl.join(';')}"` : ''}${attrs}${close}>`;
-  });
+  return untilStable(svg, (s) => s.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>\s*/gi, '').replace(/<\/?style\b[^>]*>/gi, '')).replace(
+    /<([a-zA-Z]+)([^>]*?)\sclass="([^"]*)"([^>]*)>/g,
+    (_, tag, before, classes, after) => {
+      const decl = classes.split(/\s+/).flatMap((c) => rules.get(c) ?? []);
+      const own = /\sstyle="([^"]*)"/.exec(before + after);
+      if (own)
+        decl.push(
+          ...own[1]
+            .split(';')
+            .map((d) => d.trim())
+            .filter(Boolean),
+        );
+      const rest = (before + after).replace(/\sstyle="[^"]*"/, '');
+      const [attrs, close] = rest.endsWith('/') ? [rest.slice(0, -1), '/'] : [rest, ''];
+      return `<${tag}${decl.length ? ` style="${decl.join(';')}"` : ''}${attrs}${close}>`;
+    },
+  );
 }
 
 /** Every SVG below a directory. */
@@ -296,11 +309,12 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
         missing.push(`${s.id} (${s.name})`);
         continue;
       }
-      let svg = readFileSync(file, 'utf8')
-        .replace(/<\?xml[^>]*>\s*/, '')
-        .replace(/<!--[\s\S]*?-->\s*/g, '')
-        .replace(/<title>[^<]*<\/title>/g, '')
-        .trim();
+      let svg = untilStable(readFileSync(file, 'utf8'), (s) =>
+        s
+          .replace(/<\?xml[^>]*>\s*/, '')
+          .replace(/<!--[\s\S]*?-->\s*/g, '')
+          .replace(/<title>[^<]*<\/title>/g, ''),
+      ).trim();
       svg = inlineStyles(svg);
       writeFileSync(new URL(`${s.id}.svg`, out), `${svg}\n`);
     }

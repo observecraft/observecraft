@@ -12,7 +12,13 @@ export function readmeSegments(source: string): ReadmeSegment[] {
   const definitions = source.match(/^\[[^\]]+\]:\s*\S+.*$/gm) ?? [];
   const body = source.replace(/^\[[^\]]+\]:\s*\S+.*$/gm, '');
   const part = (markdown: string) => {
-    const text = markdown.replace(/<!--(?! xx[xz] tab)[\s\S]*?-->/g, '').trim();
+    // Repeated until stable: removing one comment can join the text around it into another.
+    let text = markdown;
+    for (let previous = ''; previous !== text;) {
+      previous = text;
+      text = text.replace(/<!--(?! xx[xz] tab)[\s\S]*?-->/g, '');
+    }
+    text = text.trim();
     return text && definitions.length ? `${text}\n\n${definitions.join('\n')}` : text;
   };
   const segments: ReadmeSegment[] = [];

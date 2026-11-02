@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
 import { MOCK_SERVICES, buildServiceDashboards, metricOf } from './cloud-service-dashboards.mjs';
+import { gcpPage } from './import-cloud-metrics.mjs';
 
 const seed = (path) => JSON.parse(readFileSync(new URL(`../server/seeds/${path}`, import.meta.url), 'utf8'));
 const aws = seed('integrations/cloud/aws-metrics.json');
@@ -134,4 +135,11 @@ test('mock mode shows the dashboards of the services its demo account collects',
   const mock = JSON.parse(readFileSync(new URL('../web/src/api/integrations/cloudServiceDashboards.generated.json', import.meta.url), 'utf8'));
   assert.deepEqual(mock.dashboards.map((d) => d.logo).sort(), [...MOCK_SERVICES].sort());
   assert.equal(mock.units['azure.vm.percentage_cpu'], 'percent');
+});
+
+test('Cloud Monitoring’s escaped text is decoded once (&amp;lt; stays the text &lt;)', () => {
+  const [m] = gcpPage(
+    '<tr class="met_type" id="compute/a/b"><td><code>a/b</code><br/>Bytes &amp;lt; limit &amp; more</td></tr><tr class="met_desc"><td><code>GAUGE</code><code>INT64</code><code>By</code><br/></td></tr>',
+  );
+  assert.equal(m.display, 'Bytes &lt; limit & more');
 });

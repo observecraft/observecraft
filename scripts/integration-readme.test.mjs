@@ -41,3 +41,8 @@ test('Markdown without tabs is one part; HTML comments are dropped', () => {
   assert.deepEqual(readmeSegments('Text <!-- note -->.'), [{ kind: 'markdown', markdown: 'Text .' }]);
   assert.deepEqual(readmeSegments(''), []);
 });
+
+test('HTML comments are removed however they are nested', () => {
+  const [part] = readmeSegments('Text <!<!-- a -->-- b --> after');
+  assert.doesNotMatch(part.markdown, /<!--/);
+});
