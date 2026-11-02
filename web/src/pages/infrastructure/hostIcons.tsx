@@ -1,7 +1,7 @@
 // Marks for clouds, OSes, collectors and software in the host list and filters.
 // Full-colour brand logos via BrandLogo (SVG Logos, CC0); Alibaba uses its Simple Icons mark in brand colour.
 import { Cpu, Server } from 'lucide-react';
-import { siAlibabacloud, siOracle, type SimpleIcon } from 'simple-icons';
+import { siAlibabacloud, type SimpleIcon } from 'simple-icons';
 import type { Cloud, CollectorKind, HostOs, Software } from '../../api/infrastructure/types';
 import { BrandLogo } from '../../components/brand/BrandLogo';
 
@@ -37,8 +37,8 @@ export function CloudIcon({ cloud, size = 16 }: { cloud: Cloud; size?: number })
     case 'gcp':
       return <BrandLogo name="gcp" size={size} title="Google Cloud" />;
     case 'oracle':
-      // The full-colour Oracle logo is a wordmark, illegible at icon size; use the brand ring mark.
-      return <SiMark icon={siOracle} size={size} title="Oracle Cloud" />;
+      // Simple Icons no longer carries Oracle's ring mark (removed in v16): SVG Logos' Oracle logo.
+      return <BrandLogo name="oracle" size={size} title="Oracle Cloud" />;
     case 'alibaba':
       return <SiMark icon={siAlibabacloud} size={size} title="Alibaba Cloud" />;
     case 'none':

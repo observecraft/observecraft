@@ -171,7 +171,12 @@ export function MetricsOverview() {
 
   return (
     <div className="mo-page" onScroll={onScroll}>
-      <section className="mo-hero" ref={(el) => (refs.current.overview = el)}>
+      <section
+        className="mo-hero"
+        ref={(el) => {
+          refs.current.overview = el;
+        }}
+      >
         <div className="mo-hero-head">
           <h1>How your metrics flow through ObserveCraft</h1>
           <span>PAST MONTH</span>
@@ -257,7 +262,12 @@ export function MetricsOverview() {
         ))}
       </nav>
 
-      <section className="mo-section" ref={(el) => (refs.current.sources = el)}>
+      <section
+        className="mo-section"
+        ref={(el) => {
+          refs.current.sources = el;
+        }}
+      >
         <h2>Your metrics by source</h2>
         <div className="mo-treemap-bar">
           <div className="btn-group" role="group" aria-label="Metrics">
@@ -281,7 +291,12 @@ export function MetricsOverview() {
         <div className="mo-treemap">{loaded && <OriginTreemap origins={treemap} value={(o) => byOrigin[o]} colors={colors} />}</div>
       </section>
 
-      <section className="mo-section" ref={(el) => (refs.current.generate = el)}>
+      <section
+        className="mo-section"
+        ref={(el) => {
+          refs.current.generate = el;
+        }}
+      >
         <h2>Generate metrics from any source</h2>
         <p className="muted mo-lead">Create metrics from Logs, APM and Events, or from formulas over the metrics you have.</p>
         <div className="mo-generate">
@@ -303,7 +318,12 @@ export function MetricsOverview() {
         </div>
       </section>
 
-      <section className="mo-section mo-processing" ref={(el) => (refs.current.processing = el)}>
+      <section
+        className="mo-section mo-processing"
+        ref={(el) => {
+          refs.current.processing = el;
+        }}
+      >
         <div className="mo-feature">
           <div>
             <h2>Choose the tags that matter the most</h2>
@@ -372,7 +392,12 @@ export function MetricsOverview() {
         </div>
       </section>
 
-      <section className="mo-section" ref={(el) => (refs.current.available = el)}>
+      <section
+        className="mo-section"
+        ref={(el) => {
+          refs.current.available = el;
+        }}
+      >
         <h2>Metrics available for querying</h2>
         <p className="muted mo-lead">Search a metric name to see its recent tags and data</p>
         <form

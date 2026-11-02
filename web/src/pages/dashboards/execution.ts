@@ -23,7 +23,7 @@ export function useDashboardExecution(widgets: Widget[], resolve: (q: string) =>
   const currentRange = useRef(range);
   currentRange.current = range;
   const [state, setState] = useState<{ key: string; frame?: DashboardQueryFrame; error: Error | null; version: number }>({ key: '', error: null, version: 0 });
-  const connection = useRef<{ key: string; abort: AbortController; dispose?: ReturnType<typeof setTimeout> }>();
+  const connection = useRef<{ key: string; abort: AbortController; dispose?: ReturnType<typeof setTimeout> }>(undefined);
   useEffect(() => {
     if (connection.current?.key === key && !connection.current.abort.signal.aborted) {
       clearTimeout(connection.current.dispose);

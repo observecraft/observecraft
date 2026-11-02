@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useDashboardExecution } from '../execution';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import type { Layout } from 'react-grid-layout';
+import type { Layout } from 'react-grid-layout/legacy';
 import { CalendarClock, Check, ChevronDown, Copy, Download, LayoutDashboard, Plus, Settings, Share, Radar, Siren, Star, Trash2, Upload, Variable, X } from 'lucide-react';
 import type { Dashboard, TemplateVarValues, Widget, WidgetDefinition, WidgetType } from '../../../api/dashboards/types';
 import { TimePicker } from '../../../components/shell/PageHeader';
@@ -98,7 +98,7 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
   const [title, setTitle] = useState(d.title);
   const [toast, setToast] = useState<{ text: string; undo?: Widget[] } | null>(null);
   const [copied, setCopied] = useState(false);
-  const toastTimer = useRef<number>();
+  const toastTimer = useRef<number>(undefined);
 
   // Template variable values live in the URL (?tpl_var_env=prod) so views are shareable.
   const values = useMemo<TemplateVarValues>(() => {
@@ -178,7 +178,7 @@ function DashboardBody({ dashboard: d }: { dashboard: Dashboard }) {
     [range, metrics, overlays, resolve, d.widgets, d.templateVariables, values, canEdit, saveWidgets, showToast],
   );
 
-  const onLayout = (layouts: Layout[]) => saveWidgets(applyLayouts(d.widgets, layouts));
+  const onLayout = (layouts: Layout) => saveWidgets(applyLayouts(d.widgets, layouts));
 
   const pick = (type: WidgetType) => {
     const size = DEFAULT_SIZE[type];
