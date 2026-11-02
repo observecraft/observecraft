@@ -11,7 +11,7 @@ COPY server/seeds/ /server/seeds/
 COPY CHANGELOG.md /CHANGELOG.md
 RUN VITE_API_MODE=live npm run build
 
-FROM rust:1.89-bookworm AS chef
+FROM rust:1.99-bookworm AS chef
 RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libclang-dev libxml2-dev libxmlsec1-dev && rm -rf /var/lib/apt/lists/*
 # cargo-chef is MIT/Apache-2.0. Pin it so cache recipes and install dependencies are reproducible.
 RUN cargo install cargo-chef --version 0.1.73 --locked
