@@ -199,14 +199,17 @@ export function inlineStyles(svg) {
         .filter(Boolean);
       for (const sel of selectors.split(',').map((x) => x.trim())) if (/^\.[\w-]+$/.test(sel)) rules.set(sel.slice(1), [...(rules.get(sel.slice(1)) ?? []), ...decl]);
     }
-  // Repeated until stable: removing one tag can join the text around it into another (`<sty<style></style>le>`).
+  // Each removal repeats until stable: removing one tag can join the text around it into another (`<sty<style></style>le>`).
   let unstyled = svg;
-  let previous;
+  let last;
   do {
-    previous = unstyled;
+    last = unstyled;
     unstyled = unstyled.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>\s*/gi, '');
+  } while (unstyled !== last);
+  do {
+    last = unstyled;
     unstyled = unstyled.replace(/<\/?style\b[^>]*>/gi, '');
-  } while (unstyled !== previous);
+  } while (unstyled !== last);
   return unstyled.replace(/<([a-zA-Z]+)([^>]*?)\sclass="([^"]*)"([^>]*)>/g, (_, tag, before, classes, after) => {
     const decl = classes.split(/\s+/).flatMap((c) => rules.get(c) ?? []);
     const own = /\sstyle="([^"]*)"/.exec(before + after);
@@ -304,13 +307,14 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
         missing.push(`${s.id} (${s.name})`);
         continue;
       }
-      let svg = readFileSync(file, 'utf8');
+      let svg = readFileSync(file, 'utf8')
+        .replace(/<\?xml[^>]*>\s*/, '')
+        .replace(/<title>[^<]*<\/title>/g, '');
+      // Repeated until stable: removing one comment can join the text around it into another.
       let previous;
       do {
         previous = svg;
-        svg = svg.replace(/<\?xml[^>]*>\s*/, '');
         svg = svg.replace(/<!--[\s\S]*?-->\s*/g, '');
-        svg = svg.replace(/<title>[^<]*<\/title>/g, '');
       } while (svg !== previous);
       svg = svg.trim();
       svg = inlineStyles(svg);
