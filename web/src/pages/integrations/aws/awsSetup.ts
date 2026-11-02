@@ -198,6 +198,8 @@ export const FORWARDER_TEMPLATE_URL = 'https://datadog-cloudformation-template.s
 
 /** AWS console quick-create link for the Datadog Forwarder stack, its logs sent to this install. The API key is entered in the console. */
 export function forwarderStackUrl({ region, intakeHost, intakePort, apiUrl }: ForwarderInput): string {
+  // The region becomes the console's host name: only an AWS region (eu-west-1, us-gov-west-1) gets there.
+  if (!/^[a-z]{2}(-[a-z]+)+-\d$/.test(region)) throw new Error(`Not an AWS region: ${region}`);
   const params = new URLSearchParams({
     stackName: 'observecraft-forwarder',
     templateURL: FORWARDER_TEMPLATE_URL,

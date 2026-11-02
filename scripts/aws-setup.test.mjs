@@ -74,3 +74,9 @@ test('account ids are 12 digits and role names follow IAM rules', () => {
   assert.equal(validRoleName('role with space'), false);
   assert.equal(validRoleName('x'.repeat(65)), false);
 });
+
+test('the forwarder link only takes an AWS region, so nothing else can reach the console URL', () => {
+  const input = { intakeHost: 'intake.example.com', intakePort: '443', apiUrl: 'https://observecraft.example.com' };
+  assert.equal(new URL(forwarderStackUrl({ ...input, region: 'us-gov-west-1' })).host, 'us-gov-west-1.console.aws.amazon.com');
+  for (const region of ['evil.example.com/', 'eu-west-1#x', 'javascript:alert(1)', '']) assert.throws(() => forwarderStackUrl({ ...input, region }), /region/, region);
+});

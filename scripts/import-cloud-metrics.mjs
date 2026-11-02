@@ -159,13 +159,14 @@ const GCP_UNITS = {
   ns: 'nanosecond',
 };
 
+// &amp; last, so an escaped entity (&amp;lt;) stays text instead of being decoded twice.
 const decode = (s) =>
   s
     .replace(/&#x27;/g, "'")
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"');
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&');
 
 /** A metrics list page: `[{type, display, stage, kind, value, unit, resources}]`. */
 export function gcpPage(html) {
