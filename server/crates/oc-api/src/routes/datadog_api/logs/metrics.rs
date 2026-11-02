@@ -53,7 +53,7 @@ fn metric_name(id: &str) -> String {
 }
 
 async fn find(st: &AppState, org: &str, name: &str) -> Result<Row, DdError> {
-    sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 AND name = $2"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 AND name = $2")))
         .bind(org)
         .bind(name)
         .fetch_optional(&st.postgres)
@@ -83,7 +83,7 @@ fn checked(mut i: LogMetricInput) -> Result<LogMetricInput, DdError> {
 }
 
 pub async fn list(State(st): State<AppState>, DdAuth(ctx): DdAuth) -> DocResult {
-    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 ORDER BY name")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 ORDER BY name"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     ok(json!({ "data": rows.iter().map(doc).collect::<Vec<_>>() }))
 }
 

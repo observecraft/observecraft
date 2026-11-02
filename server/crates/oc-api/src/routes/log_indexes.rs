@@ -118,7 +118,7 @@ struct HourCount {
 #[utoipa::path(get, path = "/api/v1/logs/indexes", operation_id = "list_log_indexes", responses((status = 200, body = LogIndexes)), tag = "logs")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<LogIndexes> {
     let settings = data_settings(&st, &ctx.org_id).await?;
-    let mut indexes: Vec<LogIndex> = sqlx::query_as(&format!("SELECT {INDEX_COLS} FROM log_indexes WHERE org_id = $1 ORDER BY position, created_at"))
+    let mut indexes: Vec<LogIndex> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {INDEX_COLS} FROM log_indexes WHERE org_id = $1 ORDER BY position, created_at")))
         .bind(&ctx.org_id)
         .fetch_all(&st.postgres)
         .await?;
@@ -205,7 +205,7 @@ pub(crate) fn validate(input: &mut LogIndexInput, max_retention: i32) -> Result<
 }
 
 async fn get_index(st: &AppState, org: &str, id: &str) -> Result<LogIndex, ApiError> {
-    sqlx::query_as(&format!("SELECT {INDEX_COLS} FROM log_indexes WHERE org_id = $1 AND id::text = $2"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {INDEX_COLS} FROM log_indexes WHERE org_id = $1 AND id::text = $2")))
         .bind(org)
         .bind(id)
         .fetch_optional(&st.postgres)

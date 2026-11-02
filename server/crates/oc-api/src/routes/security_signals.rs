@@ -291,9 +291,9 @@ pub struct SignalSearchPage {
 const FACETS: [&str; 9] = ["@workflow.triage.state", "status", "source", "@workflow.rule.type", "@workflow.rule.name", "service", "env", "assignee", "tactic"];
 
 pub async fn signals_in(st: &AppState, org: &str, range: TimeRange) -> Result<Vec<SecuritySignal>, ApiError> {
-    let rows: Vec<SignalRow> = sqlx::query_as(&format!(
+    let rows: Vec<SignalRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE s.org_id = $1 AND s.last_seen >= to_timestamp($2 / 1000.0) AND s.created_at <= to_timestamp($3 / 1000.0) ORDER BY s.created_at DESC LIMIT {SCAN_LIMIT}"
-    ))
+    )))
     .bind(org)
     .bind(range.from)
     .bind(range.to)
@@ -364,7 +364,7 @@ pub async fn search(State(st): State<AppState>, ctx: AuthContext, Json(req): Jso
 }
 
 pub async fn load_signal(st: &AppState, org: &str, id: &str) -> Result<SecuritySignal, ApiError> {
-    let row: Option<SignalRow> = sqlx::query_as(&format!("{SELECT} WHERE s.org_id = $1 AND s.id = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<SignalRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE s.org_id = $1 AND s.id = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.map(SecuritySignal::from).ok_or_else(|| ApiError::NotFound(format!("no signal {id}")))
 }
 

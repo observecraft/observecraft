@@ -533,20 +533,20 @@ async fn page_row(st: &AppState, org: &str, id: &str) -> Result<PageRow, ApiErro
     if !is_uuid(id) {
         return Err(page_not_found());
     }
-    let row: Option<PageRow> = sqlx::query_as(&format!("{} WHERE p.org_id = $1 AND p.id = $2::uuid", page_select())).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<PageRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{} WHERE p.org_id = $1 AND p.id = $2::uuid", page_select()))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.ok_or_else(page_not_found)
 }
 
 /// The page's open notices and those resolved in the last 60 days, newest first, with their updates.
 async fn notices(st: &AppState, org: &str, page_id: &str) -> Result<Vec<StatusPageNotice>, ApiError> {
-    let rows: Vec<NoticeRow> = sqlx::query_as(&format!(
+    let rows: Vec<NoticeRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT n.id::text AS id, n.title, n.status, n.impacts, n.incident_id, u.name AS created_by, {} AS started_at, {} AS resolved_at \
          FROM status_page_notices n LEFT JOIN users u ON u.id = n.created_by \
          WHERE n.org_id = $1 AND n.page_id = $2::uuid AND (n.resolved_at IS NULL OR n.resolved_at > now() - make_interval(days => $3)) \
          ORDER BY n.started_at DESC LIMIT $4",
         ms("n.started_at"),
         ms("n.resolved_at")
-    ))
+    )))
     .bind(org)
     .bind(page_id)
     .bind(HISTORY_DAYS)
@@ -554,12 +554,12 @@ async fn notices(st: &AppState, org: &str, page_id: &str) -> Result<Vec<StatusPa
     .fetch_all(&st.postgres)
     .await?;
     let ids: Vec<String> = rows.iter().map(|n| n.id.clone()).collect();
-    let updates: Vec<UpdateRow> = sqlx::query_as(&format!(
+    let updates: Vec<UpdateRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT x.id, x.notice_id::text AS notice_id, x.status, x.message, x.impacts, u.name AS created_by, {} AS created_at \
          FROM status_page_notice_updates x LEFT JOIN users u ON u.id = x.created_by \
          WHERE x.org_id = $1 AND x.notice_id = ANY($2::text[]::uuid[]) ORDER BY x.created_at DESC, x.id DESC",
         ms("x.created_at")
-    ))
+    )))
     .bind(org)
     .bind(&ids)
     .fetch_all(&st.postgres)
@@ -669,7 +669,7 @@ async fn touch(tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, ctx: &AuthContext
 
 #[utoipa::path(get, path = "/api/v1/status-pages", operation_id = "list_status_pages", responses((status = 200, body = Vec<StatusPageSummary>)), tag = "incidents")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<StatusPageSummary>> {
-    let pages: Vec<PageRow> = sqlx::query_as(&format!("{} WHERE p.org_id = $1 ORDER BY lower(p.name), p.slug", page_select())).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let pages: Vec<PageRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{} WHERE p.org_id = $1 ORDER BY lower(p.name), p.slug", page_select()))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     let open: Vec<(String, Value)> =
         sqlx::query_as("SELECT page_id::text, impacts FROM status_page_notices WHERE org_id = $1 AND resolved_at IS NULL").bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     let mut by_page: HashMap<String, Vec<Vec<NoticeImpact>>> = HashMap::new();

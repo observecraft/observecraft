@@ -820,7 +820,7 @@ pub async fn run(State(st): State<AppState>, ctx: AuthContext, access: LogAccess
             Source::ClickHouse { rest, binds } => clickhouse_source(t.cols, rest, binds, range),
             Source::Logs => logs_source(t.cols, org, range, &access),
             Source::Postgres { rest, order } => {
-                let (json,): (String,) = sqlx::query_as(&postgres_query(t.cols, rest, order)).bind(org).fetch_one(&st.postgres).await?;
+                let (json,): (String,) = sqlx::query_as(sqlx::AssertSqlSafe(postgres_query(t.cols, rest, order))).bind(org).fetch_one(&st.postgres).await?;
                 (json_subquery(t.cols), vec![Param::Str(json)])
             }
             Source::Inventory(inv) => {
@@ -949,13 +949,14 @@ fn validate(input: &mut SavedSqlQueryInput) -> Result<(), String> {
 }
 
 async fn get_query(st: &AppState, org: &str, id: &str) -> Result<SavedSqlQuery, ApiError> {
-    let row: Option<QueryRow> = sqlx::query_as(&format!("{QUERY_SELECT} WHERE org_id = $1 AND id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<QueryRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{QUERY_SELECT} WHERE org_id = $1 AND id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.map(SavedSqlQuery::from).ok_or_else(|| ApiError::NotFound("Query not found".into()))
 }
 
 #[utoipa::path(get, path = "/api/v1/sql/queries", operation_id = "list_sql_queries", responses((status = 200, body = Vec<SavedSqlQuery>)), tag = "sql")]
 pub async fn list_queries(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<SavedSqlQuery>> {
-    let rows: Vec<QueryRow> = sqlx::query_as(&format!("{QUERY_SELECT} WHERE org_id = $1 ORDER BY updated_at DESC LIMIT {MAX_SAVED_QUERIES}")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<QueryRow> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("{QUERY_SELECT} WHERE org_id = $1 ORDER BY updated_at DESC LIMIT {MAX_SAVED_QUERIES}"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(SavedSqlQuery::from).collect()))
 }
 

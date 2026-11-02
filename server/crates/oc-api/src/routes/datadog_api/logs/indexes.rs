@@ -86,7 +86,7 @@ fn doc(r: &Row, rate_limited: bool) -> Value {
 }
 
 async fn find(st: &AppState, org: &str, name: &str) -> Result<Row, DdError> {
-    sqlx::query_as(&format!("SELECT {COLS} FROM log_indexes WHERE org_id = $1 AND name = $2"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} FROM log_indexes WHERE org_id = $1 AND name = $2")))
         .bind(org)
         .bind(name)
         .fetch_optional(&st.postgres)
@@ -214,7 +214,7 @@ async fn rate_limited(st: &AppState, org: &str, r: &Row) -> bool {
 }
 
 pub async fn list(State(st): State<AppState>, DdAuth(ctx): DdAuth) -> DocResult {
-    let rows: Vec<Row> = sqlx::query_as(&format!("SELECT {COLS} FROM log_indexes WHERE org_id = $1 ORDER BY position, created_at")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} FROM log_indexes WHERE org_id = $1 ORDER BY position, created_at"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     let mut docs = Vec::with_capacity(rows.len());
     for r in &rows {
         docs.push(doc(r, rate_limited(&st, &ctx.org_id, r).await));

@@ -150,7 +150,7 @@ fn list_id(id: &str) -> Result<i64, DdError> {
 }
 
 async fn load(st: &AppState, org: &str, id: &str) -> Result<ListRow, DdError> {
-    let row: Option<ListRow> = sqlx::query_as(&format!("{SELECT} WHERE l.org_id = $1 AND l.datadog_id = $2")).bind(org).bind(list_id(id)?).fetch_optional(&st.postgres).await?;
+    let row: Option<ListRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE l.org_id = $1 AND l.datadog_id = $2"))).bind(org).bind(list_id(id)?).fetch_optional(&st.postgres).await?;
     row.ok_or_else(|| not_found(id))
 }
 
@@ -168,7 +168,7 @@ fn name(body: &Bytes) -> Result<String, DdError> {
 /// The org's dashboard lists (Datadog-compatible).
 #[utoipa::path(get, path = "/api/v1/dashboard/lists/manual", operation_id = "datadog_list_dashboard_lists", responses((status = 200, body = DatadogDashboardLists)), tag = "datadog-api")]
 pub async fn list(State(st): State<AppState>, DdAuth(ctx): DdAuth) -> Result<Json<DatadogDashboardLists>, DdError> {
-    let rows: Vec<ListRow> = sqlx::query_as(&format!("{SELECT} WHERE l.org_id = $1 ORDER BY lower(l.name), l.datadog_id")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<ListRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE l.org_id = $1 ORDER BY lower(l.name), l.datadog_id"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(DatadogDashboardLists { dashboard_lists: rows.into_iter().map(ListRow::datadog).collect() }))
 }
 

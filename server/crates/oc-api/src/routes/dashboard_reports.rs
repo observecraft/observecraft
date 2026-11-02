@@ -473,7 +473,7 @@ const SELECT: &str = "SELECT r.id::text, r.name, r.dashboard_id, d.title AS dash
     WHERE r.org_id = $1";
 
 async fn load(st: &AppState, org: &str, user: &str, id: &str) -> Result<DashboardReport, ApiError> {
-    let row: Option<ReportRow> = sqlx::query_as(&format!("{SELECT} AND r.id::text = $3")).bind(org).bind(user).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<ReportRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} AND r.id::text = $3"))).bind(org).bind(user).bind(id).fetch_optional(&st.postgres).await?;
     row.map(ReportRow::into_report).ok_or_else(|| ApiError::NotFound(format!("Report {id} not found")))
 }
 
@@ -540,7 +540,7 @@ async fn check_dashboard(st: &AppState, org: &str, id: &str) -> Result<(), ApiEr
 /// The org's reports (the web app filters "Created by you" and "Subscribed").
 #[utoipa::path(get, path = "/api/v1/dashboard-reports", operation_id = "list_dashboard_reports", responses((status = 200, body = Vec<DashboardReport>)), tag = "dashboards")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<DashboardReport>> {
-    let rows: Vec<ReportRow> = sqlx::query_as(&format!("{SELECT} ORDER BY lower(r.name), r.created_at")).bind(&ctx.org_id).bind(&ctx.user_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<ReportRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} ORDER BY lower(r.name), r.created_at"))).bind(&ctx.org_id).bind(&ctx.user_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(ReportRow::into_report).collect()))
 }
 

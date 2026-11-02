@@ -240,7 +240,7 @@ async fn load_playlist(st: &AppState, ctx: &AuthContext, id: &str) -> Result<Rep
     if !is_uuid(id) {
         return Err(not_found());
     }
-    let row: PlaylistRow = sqlx::query_as(&format!("{PLAYLIST_SELECT} WHERE p.org_id = $1 AND p.id = $2::uuid")).bind(&ctx.org_id).bind(id).fetch_optional(&st.postgres).await?.ok_or_else(not_found)?;
+    let row: PlaylistRow = sqlx::query_as(sqlx::AssertSqlSafe(format!("{PLAYLIST_SELECT} WHERE p.org_id = $1 AND p.id = $2::uuid"))).bind(&ctx.org_id).bind(id).fetch_optional(&st.postgres).await?.ok_or_else(not_found)?;
     let sessions: Vec<PlaylistSession> = sqlx::query_as("SELECT session_id, started_at FROM rum_replay_playlist_sessions WHERE org_id = $1 AND playlist_id = $2::uuid ORDER BY added_at DESC")
         .bind(&ctx.org_id)
         .bind(id)
@@ -251,7 +251,7 @@ async fn load_playlist(st: &AppState, ctx: &AuthContext, id: &str) -> Result<Rep
 
 #[utoipa::path(get, path = "/api/v1/rum/replay/playlists", operation_id = "list_replay_playlists", responses((status = 200, body = Vec<ReplayPlaylist>)), tag = "rum")]
 pub async fn list_playlists(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<ReplayPlaylist>> {
-    let rows: Vec<PlaylistRow> = sqlx::query_as(&format!("{PLAYLIST_SELECT} WHERE p.org_id = $1 ORDER BY p.updated_at DESC")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<PlaylistRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{PLAYLIST_SELECT} WHERE p.org_id = $1 ORDER BY p.updated_at DESC"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(|r| playlist(r, &ctx.user_id, vec![])).collect()))
 }
 

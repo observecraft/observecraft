@@ -397,7 +397,7 @@ fn variable_to_api(r: VariableRow, uses: &HashMap<String, Vec<SyntheticVariableU
 }
 
 async fn load_variable(st: &AppState, org: &str, id: &str) -> Result<SyntheticVariable, ApiError> {
-    let row: Option<VariableRow> = sqlx::query_as(&format!("{VARIABLE_SELECT} WHERE v.org_id = $1 AND v.id = $2::uuid")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<VariableRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{VARIABLE_SELECT} WHERE v.org_id = $1 AND v.id = $2::uuid"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     let row = row.ok_or_else(variable_not_found)?;
     Ok(variable_to_api(row, &variable_uses(st, org).await?))
 }
@@ -465,7 +465,7 @@ pub async fn update_settings(State(st): State<AppState>, Writer(ctx): Writer, Js
 
 #[utoipa::path(get, path = "/api/v1/synthetics/variables", operation_id = "list_synthetic_variables", responses((status = 200, body = Vec<SyntheticVariable>)), tag = "synthetics")]
 pub async fn list_variables(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<SyntheticVariable>> {
-    let rows: Vec<VariableRow> = sqlx::query_as(&format!("{VARIABLE_SELECT} WHERE v.org_id = $1 ORDER BY v.name")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<VariableRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{VARIABLE_SELECT} WHERE v.org_id = $1 ORDER BY v.name"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     let uses = variable_uses(&st, &ctx.org_id).await?;
     Ok(Json(rows.into_iter().map(|r| variable_to_api(r, &uses)).collect()))
 }

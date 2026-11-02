@@ -5,7 +5,7 @@ members = ["crates/oc-query", "crates/oc-store", "crates/oc-api", "crates/oc-int
 [workspace.package]
 edition = "2021"
 # The toolchain CI builds with (.github/workflows/ci.yml); the resolver picks dependency versions that support it.
-rust-version = "1.89"
+rust-version = "1.94"
 version = "0.1.0"
 license = "MIT"
 
@@ -19,7 +19,7 @@ rskafka = { version = "0.6", default-features = false, features = ["compression-
 reqwest = { version = "0.12", default-features = false, features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "migrate", "macros"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "postgres", "migrate", "macros"] }
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"

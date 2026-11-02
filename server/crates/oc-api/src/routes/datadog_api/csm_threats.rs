@@ -148,17 +148,17 @@ const RULE_SELECT: &str = "SELECT id, name, policy_id, description, expression, 
 
 pub async fn policies(st: &AppState, org: &str) -> Result<Vec<PolicyRow>, sqlx::Error> {
     ensure_defaults(st, org).await?;
-    sqlx::query_as(&format!("{POLICY_SELECT} WHERE org_id = $1 ORDER BY is_default DESC, created_at, name")).bind(org).fetch_all(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{POLICY_SELECT} WHERE org_id = $1 ORDER BY is_default DESC, created_at, name"))).bind(org).fetch_all(&st.postgres).await
 }
 
 pub async fn policy(st: &AppState, org: &str, id: &str) -> Result<Option<PolicyRow>, sqlx::Error> {
     ensure_defaults(st, org).await?;
-    sqlx::query_as(&format!("{POLICY_SELECT} WHERE org_id = $1 AND id = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{POLICY_SELECT} WHERE org_id = $1 AND id = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await
 }
 
 pub async fn rules(st: &AppState, org: &str, policy_id: Option<&str>) -> Result<Vec<RuleRow>, sqlx::Error> {
     ensure_defaults(st, org).await?;
-    sqlx::query_as(&format!("{RULE_SELECT} WHERE org_id = $1 AND ($2::text IS NULL OR policy_id = $2) ORDER BY is_default DESC, name"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{RULE_SELECT} WHERE org_id = $1 AND ($2::text IS NULL OR policy_id = $2) ORDER BY is_default DESC, name")))
         .bind(org)
         .bind(policy_id)
         .fetch_all(&st.postgres)
@@ -167,7 +167,7 @@ pub async fn rules(st: &AppState, org: &str, policy_id: Option<&str>) -> Result<
 
 pub async fn rule(st: &AppState, org: &str, id: &str) -> Result<Option<RuleRow>, sqlx::Error> {
     ensure_defaults(st, org).await?;
-    sqlx::query_as(&format!("{RULE_SELECT} WHERE org_id = $1 AND id = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{RULE_SELECT} WHERE org_id = $1 AND id = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await
 }
 
 /// (monitoring, blocking, disabled) rule counts per policy.

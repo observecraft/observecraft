@@ -672,11 +672,11 @@ impl Row {
 }
 
 async fn load(st: &AppState, org: &str, id: i64) -> Result<Option<Row>, DdError> {
-    Ok(sqlx::query_as(&format!("{SELECT} WHERE m.org_id = $1 AND m.id = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE m.org_id = $1 AND m.id = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?)
 }
 
 async fn load_all(st: &AppState, org: &str) -> Result<Vec<Row>, DdError> {
-    Ok(sqlx::query_as(&format!("{SELECT} WHERE m.org_id = $1 ORDER BY m.id")).bind(org).fetch_all(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE m.org_id = $1 ORDER BY m.id"))).bind(org).fetch_all(&st.postgres).await?)
 }
 
 fn not_found() -> DdError {

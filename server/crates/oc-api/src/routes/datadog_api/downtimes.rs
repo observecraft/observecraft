@@ -711,7 +711,7 @@ impl Row {
 
 /// The org's downtimes (with canceled ones of the last 30 days when `include_canceled`).
 pub(crate) async fn load_rows(st: &AppState, org: &str, include_canceled: bool) -> Result<Vec<Row>, DdError> {
-    Ok(sqlx::query_as(&format!("{SELECT} WHERE d.org_id = $1 AND (d.canceled_at IS NULL OR ($2 AND d.canceled_at > now() - interval '30 days')) ORDER BY d.id"))
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE d.org_id = $1 AND (d.canceled_at IS NULL OR ($2 AND d.canceled_at > now() - interval '30 days')) ORDER BY d.id")))
         .bind(org)
         .bind(include_canceled)
         .fetch_all(&st.postgres)
@@ -719,11 +719,11 @@ pub(crate) async fn load_rows(st: &AppState, org: &str, include_canceled: bool) 
 }
 
 async fn load_by_id(st: &AppState, org: &str, id: i64) -> Result<Option<Row>, DdError> {
-    Ok(sqlx::query_as(&format!("{SELECT} WHERE d.org_id = $1 AND d.id = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE d.org_id = $1 AND d.id = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?)
 }
 
 async fn load_by_uuid(st: &AppState, org: &str, uuid: &str) -> Result<Option<Row>, DdError> {
-    Ok(sqlx::query_as(&format!("{SELECT} WHERE d.org_id = $1 AND d.uuid = $2::uuid")).bind(org).bind(uuid).fetch_optional(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE d.org_id = $1 AND d.uuid = $2::uuid"))).bind(org).bind(uuid).fetch_optional(&st.postgres).await?)
 }
 
 fn bad_request(message: impl Into<String>) -> DdError {

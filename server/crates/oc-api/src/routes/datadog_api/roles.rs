@@ -61,7 +61,7 @@ pub fn role_doc(r: &RoleRow, org: &str) -> Value {
 }
 
 pub async fn find_role(st: &AppState, org: &str, id: &str) -> Result<Option<RoleRow>, DdError> {
-    Ok(sqlx::query_as(&format!("SELECT {ROLE_COLS} FROM roles r WHERE r.org_id = $1 AND r.id = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {ROLE_COLS} FROM roles r WHERE r.org_id = $1 AND r.id = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?)
 }
 
 /// Role documents for the given ids of the org (for `included`), in id order.
@@ -69,7 +69,8 @@ pub async fn role_docs(st: &AppState, org: &str, ids: &[String]) -> Result<Vec<V
     if ids.is_empty() {
         return Ok(vec![]);
     }
-    let rows: Vec<RoleRow> = sqlx::query_as(&format!("SELECT {ROLE_COLS} FROM roles r WHERE r.org_id = $1 AND r.id = ANY($2) ORDER BY r.id")).bind(org).bind(ids).fetch_all(&st.postgres).await?;
+    let rows: Vec<RoleRow> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {ROLE_COLS} FROM roles r WHERE r.org_id = $1 AND r.id = ANY($2) ORDER BY r.id"))).bind(org).bind(ids).fetch_all(&st.postgres).await?;
     Ok(rows.iter().map(|r| role_doc(r, org)).collect())
 }
 
@@ -335,10 +336,10 @@ async fn users_response(st: &AppState, org: &str, role: &RoleRow, q: &HashMap<St
         user: UserRow,
         filtered: i64,
     }
-    let rows: Vec<Row> = sqlx::query_as(&format!(
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT {USER_COLS}, count(*) OVER () AS filtered FROM users u JOIN user_roles ur ON ur.user_id = u.id AND ur.role_id = $2 \
          WHERE u.org_id = $1 AND ($3 = '' OR u.name ILIKE $4 OR u.email ILIKE $4) ORDER BY lower(u.name), u.id LIMIT $5 OFFSET $6"
-    ))
+    )))
     .bind(org)
     .bind(&role.id)
     .bind(&filter)

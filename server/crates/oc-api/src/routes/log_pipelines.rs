@@ -263,7 +263,7 @@ const COLS: &str = "p.id::text AS id, p.name, p.enabled, p.filter, p.processors,
 const FROM: &str = "FROM log_pipelines p LEFT JOIN users u ON u.id = p.updated_by";
 
 async fn get_pipeline(st: &AppState, org: &str, id: &str) -> Result<LogPipeline, ApiError> {
-    sqlx::query_as(&format!("SELECT {COLS} {FROM} WHERE p.org_id = $1 AND p.id::text = $2"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} {FROM} WHERE p.org_id = $1 AND p.id::text = $2")))
         .bind(org)
         .bind(id)
         .fetch_optional(&st.postgres)
@@ -305,7 +305,7 @@ async fn edited_by(st: &AppState, ctx: &AuthContext, id: &str) -> Result<(), Api
 
 #[utoipa::path(get, path = "/api/v1/logs/pipelines", operation_id = "list_log_pipelines", responses((status = 200, body = Vec<LogPipeline>)), tag = "logs")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<LogPipeline>> {
-    let rows = sqlx::query_as(&format!("SELECT {COLS} {FROM} WHERE p.org_id = $1 ORDER BY p.position, p.created_at")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} {FROM} WHERE p.org_id = $1 ORDER BY p.position, p.created_at"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows))
 }
 

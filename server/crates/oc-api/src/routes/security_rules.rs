@@ -418,13 +418,13 @@ impl From<RuleRow> for SecurityRule {
 
 pub async fn load_rules(st: &AppState, org: &str) -> Result<Vec<SecurityRule>, ApiError> {
     ensure_defaults(st, org).await?;
-    let rows: Vec<RuleRow> = sqlx::query_as(&format!("{SELECT} WHERE r.org_id = $1 ORDER BY r.is_default, r.name")).bind(org).fetch_all(&st.postgres).await?;
+    let rows: Vec<RuleRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE r.org_id = $1 ORDER BY r.is_default, r.name"))).bind(org).fetch_all(&st.postgres).await?;
     Ok(rows.into_iter().map(SecurityRule::from).collect())
 }
 
 pub async fn load_rule(st: &AppState, org: &str, id: &str) -> Result<SecurityRule, ApiError> {
     ensure_defaults(st, org).await?;
-    let row: Option<RuleRow> = sqlx::query_as(&format!("{SELECT} WHERE r.org_id = $1 AND r.id = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<RuleRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE r.org_id = $1 AND r.id = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.map(SecurityRule::from).ok_or_else(|| ApiError::NotFound(format!("no detection rule {id}")))
 }
 

@@ -65,7 +65,7 @@ const SELECT: &str = "SELECT d.id, d.monitor_id, m.name AS monitor_name, d.monit
 
 /// The org's downtimes that are, or may still become, active.
 pub(crate) async fn load_downtimes(st: &AppState, org: &str) -> Result<Vec<Downtime>, ApiError> {
-    Ok(sqlx::query_as(&format!("{SELECT} WHERE d.org_id = $1 AND d.canceled_at IS NULL")).bind(org).fetch_all(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE d.org_id = $1 AND d.canceled_at IS NULL"))).bind(org).fetch_all(&st.postgres).await?)
 }
 
 fn now_ms() -> i64 {
@@ -184,9 +184,9 @@ pub struct DowntimeSearchPage {
 
 #[utoipa::path(post, path = "/api/v1/downtimes/search", operation_id = "search_downtimes", request_body = DowntimeSearchRequest, responses((status = 200, body = DowntimeSearchPage)), tag = "monitors")]
 pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<DowntimeSearchRequest>) -> ApiResult<DowntimeSearchPage> {
-    let rows: Vec<Downtime> = sqlx::query_as(&format!(
+    let rows: Vec<Downtime> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE d.org_id = $1 AND (d.canceled_at IS NULL OR ($2 AND d.canceled_at > now() - interval '30 days'))"
-    ))
+    )))
     .bind(&org)
     .bind(req.include_canceled)
     .fetch_all(&st.postgres)
@@ -298,7 +298,7 @@ pub async fn create(State(st): State<AppState>, Writer(ctx): Writer, Json(input)
     .fetch_one(&st.postgres)
     .await?;
     ctx.audit(&st, "downtime.create", &format!("downtime:{id}"), &input.message).await;
-    let d: Downtime = sqlx::query_as(&format!("{SELECT} WHERE d.id = $1")).bind(id).fetch_one(&st.postgres).await?;
+    let d: Downtime = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE d.id = $1"))).bind(id).fetch_one(&st.postgres).await?;
     Ok(Json(d.item(now_ms())))
 }
 

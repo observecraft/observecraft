@@ -115,14 +115,14 @@ fn not_found() -> DdError {
 }
 
 pub async fn list_rows(st: &AppState, org: &str) -> Result<Vec<GcpRow>, sqlx::Error> {
-    sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 ORDER BY created_at, id")).bind(org).fetch_all(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 ORDER BY created_at, id"))).bind(org).fetch_all(&st.postgres).await
 }
 
 pub async fn get_row(st: &AppState, org: &str, id: &str) -> Result<Option<GcpRow>, sqlx::Error> {
     if !valid_uuid(id) {
         return Ok(None);
     }
-    sqlx::query_as(&format!("{SELECT} WHERE org_id = $1 AND id = $2::uuid")).bind(org).bind(id).fetch_optional(&st.postgres).await
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE org_id = $1 AND id = $2::uuid"))).bind(org).bind(id).fetch_optional(&st.postgres).await
 }
 
 fn conflict_or(e: sqlx::Error) -> DdError {

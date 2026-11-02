@@ -213,8 +213,8 @@ fn muted_until(row: &Row, downtimes: &[Downtime], now: i64) -> Option<Option<i64
 }
 
 pub(crate) async fn load_all(st: &AppState, org: &str) -> Result<(Vec<Loaded>, Vec<Downtime>), ApiError> {
-    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE m.org_id = $1")).bind(org).fetch_all(&st.postgres).await?;
-    let groups: Vec<GroupRow> = sqlx::query_as(&format!("{GROUP_SELECT} JOIN monitors m ON m.id = g.monitor_id WHERE m.org_id = $1 ORDER BY g.group_key"))
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE m.org_id = $1"))).bind(org).fetch_all(&st.postgres).await?;
+    let groups: Vec<GroupRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{GROUP_SELECT} JOIN monitors m ON m.id = g.monitor_id WHERE m.org_id = $1 ORDER BY g.group_key")))
         .bind(org)
         .fetch_all(&st.postgres)
         .await?;
@@ -235,13 +235,13 @@ pub(crate) async fn load_all(st: &AppState, org: &str) -> Result<(Vec<Loaded>, V
 }
 
 pub(crate) async fn load_one(st: &AppState, org: &str, id: i64) -> Result<(Loaded, Vec<Downtime>), ApiError> {
-    let row: Row = sqlx::query_as(&format!("{SELECT} WHERE m.org_id = $1 AND m.id = $2"))
+    let row: Row = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE m.org_id = $1 AND m.id = $2")))
         .bind(org)
         .bind(id)
         .fetch_optional(&st.postgres)
         .await?
         .ok_or_else(|| ApiError::NotFound(format!("monitor {id} not found")))?;
-    let groups: Vec<GroupRow> = sqlx::query_as(&format!("{GROUP_SELECT} WHERE g.monitor_id = $1 ORDER BY g.group_key")).bind(id).fetch_all(&st.postgres).await?;
+    let groups: Vec<GroupRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{GROUP_SELECT} WHERE g.monitor_id = $1 ORDER BY g.group_key"))).bind(id).fetch_all(&st.postgres).await?;
     let downtimes = load_downtimes(st, org).await?;
     Ok((Loaded::new(row, groups, &downtimes, now_ms()), downtimes))
 }
@@ -1222,10 +1222,10 @@ pub async fn evaluate_one(st: &AppState, id: i64) {
 }
 
 async fn evaluate_inner(st: &AppState, id: i64, now: i64) -> Result<(), ApiError> {
-    let Some(row): Option<Row> = sqlx::query_as(&format!("{SELECT} WHERE m.id = $1 AND m.type <> 'synthetics'")).bind(id).fetch_optional(&st.postgres).await? else {
+    let Some(row): Option<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE m.id = $1 AND m.type <> 'synthetics'"))).bind(id).fetch_optional(&st.postgres).await? else {
         return Ok(());
     };
-    let groups: Vec<GroupRow> = sqlx::query_as(&format!("{GROUP_SELECT} WHERE g.monitor_id = $1")).bind(id).fetch_all(&st.postgres).await?;
+    let groups: Vec<GroupRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{GROUP_SELECT} WHERE g.monitor_id = $1"))).bind(id).fetch_all(&st.postgres).await?;
     let downtimes = load_downtimes(st, &row.org_id).await?;
     let m = Loaded::new(row, groups, &downtimes, now);
     let Some(opts) = m.opts.clone() else { return Ok(()) };
@@ -1329,7 +1329,7 @@ async fn insert_event(
 /// Replays a new monitor over the last day so its history, status bars and the quality report
 /// have something to show (used by the demo seed).
 pub(crate) async fn backfill(st: &AppState, id: i64) -> Result<(), ApiError> {
-    let row: Row = sqlx::query_as(&format!("{SELECT} WHERE m.id = $1")).bind(id).fetch_one(&st.postgres).await?;
+    let row: Row = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE m.id = $1"))).bind(id).fetch_one(&st.postgres).await?;
     let Some(opts) = serde_json::from_value::<MonitorOptions>(row.definition.clone()).ok() else { return Ok(()) };
     let now = now_ms();
     let from = now - DAY_MS;

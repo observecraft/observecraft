@@ -84,7 +84,7 @@ fn doc(r: &Row) -> Value {
 
 async fn find(st: &AppState, org: &str, id: &str) -> Result<Row, DdError> {
     let Some(id) = uuid(id) else { return Err(not_found("Not found")) };
-    sqlx::query_as(&format!("{SELECT} WHERE a.org_id = $1 AND a.id = $2::uuid")).bind(org).bind(&id).fetch_optional(&st.postgres).await?.ok_or_else(|| not_found("Not found"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE a.org_id = $1 AND a.id = $2::uuid"))).bind(org).bind(&id).fetch_optional(&st.postgres).await?.ok_or_else(|| not_found("Not found"))
 }
 
 /// Where a Datadog destination is written: (endpoint, region, bucket, prefix, path style, access key).
@@ -161,7 +161,7 @@ fn conflict(e: sqlx::Error, name: &str) -> DdError {
 }
 
 pub async fn list(State(st): State<AppState>, DdAuth(ctx): DdAuth) -> DocResult {
-    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE a.org_id = $1 ORDER BY a.position, a.created_at")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE a.org_id = $1 ORDER BY a.position, a.created_at"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     ok(json!({ "data": rows.iter().map(doc).collect::<Vec<_>>() }))
 }
 

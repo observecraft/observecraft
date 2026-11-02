@@ -33,9 +33,7 @@ pub const SESSION_COOKIE: &str = "oc_session";
 /// Sessions slide with activity but never outlive this.
 const ABSOLUTE_SESSION_DAYS: i64 = 7;
 
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, utoipa::ToSchema,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Access {
     ReadOnly,
@@ -80,50 +78,27 @@ pub fn access_from_roles(org: &str, role_ids: &[String]) -> Access {
 // ================================================================ request helpers
 
 pub fn cookie(headers: &HeaderMap, name: &str) -> Option<String> {
-    headers
-        .get_all(COOKIE)
-        .iter()
-        .filter_map(|v| v.to_str().ok())
-        .flat_map(|v| v.split(';'))
-        .find_map(|kv| {
-            let (k, v) = kv.trim().split_once('=')?;
-            (k == name).then(|| v.to_string())
-        })
+    headers.get_all(COOKIE).iter().filter_map(|v| v.to_str().ok()).flat_map(|v| v.split(';')).find_map(|kv| {
+        let (k, v) = kv.trim().split_once('=')?;
+        (k == name).then(|| v.to_string())
+    })
 }
 
 pub fn session_cookie(st: &AppState, token: &str) -> HeaderValue {
-    let secure = if st.config.cookie_secure {
-        "; Secure"
-    } else {
-        ""
-    };
+    let secure = if st.config.cookie_secure { "; Secure" } else { "" };
     let max_age = st.config.session_hours * 3600;
-    HeaderValue::from_str(&format!(
-        "{SESSION_COOKIE}={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={max_age}{secure}"
-    ))
-    .expect("cookie header")
+    HeaderValue::from_str(&format!("{SESSION_COOKIE}={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={max_age}{secure}")).expect("cookie header")
 }
 
 pub fn clear_cookie(st: &AppState) -> HeaderValue {
-    let secure = if st.config.cookie_secure {
-        "; Secure"
-    } else {
-        ""
-    };
-    HeaderValue::from_str(&format!(
-        "{SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0{secure}"
-    ))
-    .expect("cookie header")
+    let secure = if st.config.cookie_secure { "; Secure" } else { "" };
+    HeaderValue::from_str(&format!("{SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0{secure}")).expect("cookie header")
 }
 
 /// Client address: the first `X-Forwarded-For` hop when running behind a trusted proxy, else the peer.
 pub fn client_ip(st: &AppState, headers: &HeaderMap, peer: Option<SocketAddr>) -> Option<String> {
     if st.config.trust_proxy {
-        if let Some(ip) = headers
-            .get("x-forwarded-for")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.split(',').next())
-        {
+        if let Some(ip) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).and_then(|v| v.split(',').next()) {
             return Some(ip.trim().to_string());
         }
     }
@@ -135,25 +110,14 @@ fn origin_allowed(st: &AppState, headers: &HeaderMap) -> bool {
         .get(ORIGIN)
         .and_then(|v| v.to_str().ok())
         .map(str::to_string)
-        .or_else(|| {
-            headers
-                .get(REFERER)
-                .and_then(|v| v.to_str().ok())
-                .and_then(|r| url::Url::parse(r).ok())
-                .map(|u| u.origin().ascii_serialization())
-        });
+        .or_else(|| headers.get(REFERER).and_then(|v| v.to_str().ok()).and_then(|r| url::Url::parse(r).ok()).map(|u| u.origin().ascii_serialization()));
     let Some(origin) = origin else { return false };
-    let public = url::Url::parse(&st.config.public_url)
-        .map(|u| u.origin().ascii_serialization())
-        .unwrap_or_default();
+    let public = url::Url::parse(&st.config.public_url).map(|u| u.origin().ascii_serialization()).unwrap_or_default();
     origin == public || st.config.cors_origins.iter().any(|o| *o == origin)
 }
 
 fn is_public(path: &str) -> bool {
-    !path.starts_with("/api/")
-        || path == "/api/openapi.json"
-        || path.starts_with("/api/v1/auth/")
-        || path.starts_with("/api/v1/public/")
+    !path.starts_with("/api/") || path == "/api/openapi.json" || path.starts_with("/api/v1/auth/") || path.starts_with("/api/v1/public/")
 }
 
 // ================================================================ middleware
@@ -175,16 +139,10 @@ struct Principal {
 const PRINCIPAL_SELECT: &str = "SELECT u.id::text AS user_id, u.org_id, u.account_id::text AS account_id, a.is_instance_admin AS instance_admin, \
     (o.status = 'active') AS org_active, u.name, u.status, \
     COALESCE((SELECT array_agg(role_id) FROM user_roles WHERE user_id = u.id), '{}') AS role_ids";
-const PRINCIPAL_JOIN: &str =
-    "JOIN accounts a ON a.id = u.account_id JOIN orgs o ON o.id = u.org_id";
+const PRINCIPAL_JOIN: &str = "JOIN accounts a ON a.id = u.account_id JOIN orgs o ON o.id = u.org_id";
 
 impl Principal {
-    fn context(
-        self,
-        credential: Credential,
-        session_hash: Option<Vec<u8>>,
-        ip: Option<String>,
-    ) -> AuthContext {
+    fn context(self, credential: Credential, session_hash: Option<Vec<u8>>, ip: Option<String>) -> AuthContext {
         AuthContext {
             access: access_from_roles(&self.org_id, &self.role_ids),
             user_id: self.user_id,
@@ -202,10 +160,10 @@ impl Principal {
 /// The user an application key acts as (active key, user and org), or None.
 pub async fn app_key_context(st: &AppState, key: &str, ip: Option<String>) -> Result<Option<AuthContext>, ApiError> {
     let hash = crypto::sha256(key.trim());
-    let p: Option<Principal> = sqlx::query_as(&format!(
+    let p: Option<Principal> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "{PRINCIPAL_SELECT}, false AS mfa_pending, (k.last_used_at IS NULL OR k.last_used_at < now() - interval '1 minute') AS stale \
          FROM app_keys k JOIN users u ON u.id = k.user_id {PRINCIPAL_JOIN} WHERE k.key_hash = $1 AND k.revoked_at IS NULL"
-    ))
+    )))
     .bind(&hash)
     .fetch_optional(&st.postgres)
     .await?;
@@ -219,17 +177,9 @@ pub async fn app_key_context(st: &AppState, key: &str, ip: Option<String>) -> Re
 }
 
 /// Resolves the request's credential (if any) to an [`AuthContext`].
-pub async fn authenticate(
-    st: &AppState,
-    headers: &HeaderMap,
-    peer: Option<SocketAddr>,
-) -> Result<Option<AuthContext>, ApiError> {
+pub async fn authenticate(st: &AppState, headers: &HeaderMap, peer: Option<SocketAddr>) -> Result<Option<AuthContext>, ApiError> {
     let ip = client_ip(st, headers, peer);
-    if let Some(key) = headers
-        .get(AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-    {
+    if let Some(key) = headers.get(AUTHORIZATION).and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")) {
         return match app_key_context(st, key, ip).await? {
             Some(ctx) => Ok(Some(ctx)),
             None => Err(ApiError::Unauthorized("invalid or revoked application key".into())),
@@ -239,10 +189,10 @@ pub async fn authenticate(
         return Ok(None);
     };
     let hash = crypto::sha256(&token);
-    let p: Option<Principal> = sqlx::query_as(&format!(
+    let p: Option<Principal> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "{PRINCIPAL_SELECT}, s.mfa_pending, (s.last_seen_at < now() - interval '1 minute') AS stale \
          FROM sessions s JOIN users u ON u.id = s.user_id {PRINCIPAL_JOIN} WHERE s.token_hash = $1 AND s.expires_at > now()"
-    ))
+    )))
     .bind(&hash)
     .fetch_optional(&st.postgres)
     .await?;
@@ -251,10 +201,10 @@ pub async fn authenticate(
     };
     if p.stale {
         // Sliding expiry, capped at the absolute lifetime.
-        sqlx::query(&format!(
+        sqlx::query(sqlx::AssertSqlSafe(format!(
             "UPDATE sessions SET last_seen_at = now(), ip = COALESCE($2, ip), \
              expires_at = least(now() + make_interval(hours => $3), created_at + interval '{ABSOLUTE_SESSION_DAYS} days') WHERE token_hash = $1"
-        ))
+        )))
         .bind(&hash)
         .bind(&ip)
         .bind(st.config.session_hours as i32)
@@ -266,10 +216,7 @@ pub async fn authenticate(
 
 /// Rejects unauthenticated API calls and attaches the [`AuthContext`] for handlers.
 pub async fn require(State(st): State<AppState>, mut req: Request, next: Next) -> Response {
-    let peer = req
-        .extensions()
-        .get::<ConnectInfo<SocketAddr>>()
-        .map(|c| c.0);
+    let peer = req.extensions().get::<ConnectInfo<SocketAddr>>().map(|c| c.0);
     let path = req.uri().path().to_string();
     let ctx = match authenticate(&st, req.headers(), peer).await {
         Ok(c) => c,
@@ -279,11 +226,7 @@ pub async fn require(State(st): State<AppState>, mut req: Request, next: Next) -
         let writes = !matches!(*req.method(), Method::GET | Method::HEAD | Method::OPTIONS);
         // The SAML ACS is a cross-site POST by design (the IdP's page submits it); it is validated by signature.
         let cross_site_by_design = path.starts_with("/api/v1/auth/saml/") && path.ends_with("/acs");
-        if ctx.credential == Credential::Session
-            && writes
-            && !cross_site_by_design
-            && !origin_allowed(&st, req.headers())
-        {
+        if ctx.credential == Credential::Session && writes && !cross_site_by_design && !origin_allowed(&st, req.headers()) {
             return ApiError::Forbidden("cross-origin request rejected".into()).into_response();
         }
         req.extensions_mut().insert(ctx.clone());
@@ -337,9 +280,7 @@ impl FromRequestParts<AppState> for Admin {
     async fn from_request_parts(parts: &mut Parts, st: &AppState) -> Result<Self, ApiError> {
         let ctx = <AuthContext as FromRequestParts<AppState>>::from_request_parts(parts, st).await?;
         if ctx.access < Access::Admin {
-            return Err(ApiError::Forbidden(
-                "organization admin role required".into(),
-            ));
+            return Err(ApiError::Forbidden("organization admin role required".into()));
         }
         Ok(Admin(ctx))
     }
@@ -353,9 +294,7 @@ impl FromRequestParts<AppState> for InstanceAdmin {
     async fn from_request_parts(parts: &mut Parts, st: &AppState) -> Result<Self, ApiError> {
         let ctx = <AuthContext as FromRequestParts<AppState>>::from_request_parts(parts, st).await?;
         if !ctx.instance_admin {
-            return Err(ApiError::Forbidden(
-                "instance administrator required".into(),
-            ));
+            return Err(ApiError::Forbidden("instance administrator required".into()));
         }
         Ok(InstanceAdmin(ctx))
     }
@@ -364,22 +303,10 @@ impl FromRequestParts<AppState> for InstanceAdmin {
 // ================================================================ sessions + audit
 
 /// Starts a session acting as membership `user_id`; returns the cookie token. `mfa_pending` sessions only unlock MFA verification.
-pub async fn create_session(
-    st: &AppState,
-    user_id: &str,
-    org_id: &str,
-    method: &str,
-    mfa_pending: bool,
-    ip: Option<&str>,
-    user_agent: Option<&str>,
-) -> Result<String, ApiError> {
+pub async fn create_session(st: &AppState, user_id: &str, org_id: &str, method: &str, mfa_pending: bool, ip: Option<&str>, user_agent: Option<&str>) -> Result<String, ApiError> {
     let token = crypto::random_token("ocs_");
     // An MFA challenge must be answered within 10 minutes.
-    let hours = if mfa_pending {
-        0
-    } else {
-        st.config.session_hours as i32
-    };
+    let hours = if mfa_pending { 0 } else { st.config.session_hours as i32 };
     let mins = if mfa_pending { 10 } else { 0 };
     let inserted = sqlx::query(
         "INSERT INTO sessions (token_hash, user_id, account_id, org_id, method, mfa_pending, ip, user_agent, expires_at) \
@@ -397,15 +324,10 @@ pub async fn create_session(
     .execute(&st.postgres)
     .await?;
     if inserted.rows_affected() == 0 {
-        return Err(ApiError::Unauthorized(
-            "not a member of this organization".into(),
-        ));
+        return Err(ApiError::Unauthorized("not a member of this organization".into()));
     }
     if !mfa_pending {
-        sqlx::query("UPDATE users SET last_login_at = now() WHERE id = $1::uuid")
-            .bind(user_id)
-            .execute(&st.postgres)
-            .await?;
+        sqlx::query("UPDATE users SET last_login_at = now() WHERE id = $1::uuid").bind(user_id).execute(&st.postgres).await?;
         sqlx::query("UPDATE accounts SET last_login_at = now(), failed_logins = 0, locked_until = NULL, last_org_id = $2 WHERE id = (SELECT account_id FROM users WHERE id = $1::uuid)")
             .bind(user_id)
             .bind(org_id)
@@ -416,16 +338,7 @@ pub async fn create_session(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn audit(
-    pg: &sqlx::PgPool,
-    org: &str,
-    actor_id: Option<&str>,
-    actor: &str,
-    action: &str,
-    target: &str,
-    detail: &str,
-    ip: Option<&str>,
-) {
+pub async fn audit(pg: &sqlx::PgPool, org: &str, actor_id: Option<&str>, actor: &str, action: &str, target: &str, detail: &str, ip: Option<&str>) {
     let r = sqlx::query("INSERT INTO audit_events (org_id, actor_id, actor, action, target, detail, ip) VALUES ($1, $2::uuid, $3, $4, $5, $6, $7)")
         .bind(org)
         .bind(actor_id)
@@ -442,13 +355,7 @@ pub async fn audit(
 }
 
 /// Instance-level events (organizations created, suspended, deleted); kept even when the org is gone.
-pub async fn instance_audit(
-    pg: &sqlx::PgPool,
-    ctx: &AuthContext,
-    action: &str,
-    target: &str,
-    detail: &str,
-) {
+pub async fn instance_audit(pg: &sqlx::PgPool, ctx: &AuthContext, action: &str, target: &str, detail: &str) {
     let r = sqlx::query("INSERT INTO instance_audit_events (actor_id, actor, action, target, detail, ip) VALUES ($1::uuid, $2, $3, $4, $5, $6)")
         .bind(&ctx.account_id)
         .bind(&ctx.name)
@@ -465,17 +372,7 @@ pub async fn instance_audit(
 
 impl AuthContext {
     pub async fn audit(&self, st: &AppState, action: &str, target: &str, detail: &str) {
-        audit(
-            &st.postgres,
-            &self.org_id,
-            Some(&self.user_id),
-            &self.name,
-            action,
-            target,
-            detail,
-            self.ip.as_deref(),
-        )
-        .await;
+        audit(&st.postgres, &self.org_id, Some(&self.user_id), &self.name, action, target, detail, self.ip.as_deref()).await;
     }
 }
 
@@ -518,32 +415,17 @@ mod tests {
 
     #[test]
     fn access_levels() {
-        assert_eq!(
-            access_from_roles("default", &["default-admin".into(), "x".into()]),
-            Access::Admin
-        );
-        assert_eq!(
-            access_from_roles("default", &["default-standard".into()]),
-            Access::Standard
-        );
-        assert_eq!(
-            access_from_roles("default", &["custom".into()]),
-            Access::ReadOnly
-        );
+        assert_eq!(access_from_roles("default", &["default-admin".into(), "x".into()]), Access::Admin);
+        assert_eq!(access_from_roles("default", &["default-standard".into()]), Access::Standard);
+        assert_eq!(access_from_roles("default", &["custom".into()]), Access::ReadOnly);
         // Another org's admin role grants nothing here.
-        assert_eq!(
-            access_from_roles("default", &["other-admin".into()]),
-            Access::ReadOnly
-        );
+        assert_eq!(access_from_roles("default", &["other-admin".into()]), Access::ReadOnly);
     }
 
     #[test]
     fn cookie_parsing() {
         let mut h = HeaderMap::new();
-        h.insert(
-            COOKIE,
-            HeaderValue::from_static("a=1; oc_session=ocs_abc; b=2"),
-        );
+        h.insert(COOKIE, HeaderValue::from_static("a=1; oc_session=ocs_abc; b=2"));
         assert_eq!(cookie(&h, SESSION_COOKIE).as_deref(), Some("ocs_abc"));
         assert_eq!(cookie(&h, "missing"), None);
     }

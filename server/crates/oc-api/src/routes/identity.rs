@@ -692,17 +692,17 @@ const AUDIT_WHERE: &str = "org_id = $1 AND ($2 = '' OR actor ILIKE $3 OR action 
 /// Audit events per value of `expr` (a column expression constant) under the filter.
 async fn audit_facet(st: &AppState, expr: &str, org: &str, text: &str, actors: &[String], categories: &[String]) -> Result<Vec<AuditFacetValue>, ApiError> {
     let sql = format!("SELECT {expr} AS value, count(*) AS count FROM audit_events WHERE {AUDIT_WHERE} GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 25");
-    Ok(sqlx::query_as(&sql).bind(org).bind(text).bind(ilike(text)).bind(actors).bind(categories).fetch_all(&st.postgres).await?)
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(sql.as_str())).bind(org).bind(text).bind(ilike(text)).bind(actors).bind(categories).fetch_all(&st.postgres).await?)
 }
 
 #[utoipa::path(get, path = "/api/v1/audit", params(AuditParams), responses((status = 200, body = AuditPage)), tag = "identity")]
 pub async fn audit_trail(State(st): State<AppState>, Admin(auth): Admin, Query(p): Query<AuditParams>) -> ApiResult<AuditPage> {
     let q = p.query.unwrap_or_default();
     let (actors, categories) = (csv_list(p.actor), csv_list(p.category));
-    let events: Vec<AuditEvent> = sqlx::query_as(&format!(
+    let events: Vec<AuditEvent> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT id, actor, action, target, detail, ip, (extract(epoch FROM created_at) * 1000)::bigint AS created_at, count(*) OVER () AS total \
          FROM audit_events WHERE {AUDIT_WHERE} ORDER BY created_at DESC, id DESC LIMIT $6 OFFSET $7"
-    ))
+    )))
     .bind(&auth.org_id)
     .bind(q.trim())
     .bind(ilike(q.trim()))

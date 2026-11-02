@@ -250,7 +250,7 @@ const SELECT: &str = "SELECT t.id::text AS id, t.name, t.description, t.file_nam
     FROM reference_tables t LEFT JOIN users c ON c.id = t.created_by LEFT JOIN users u ON u.id = t.updated_by";
 
 async fn get_table(st: &AppState, org: &str, name: &str) -> Result<Row, ApiError> {
-    let row: Option<Row> = sqlx::query_as(&format!("{SELECT} WHERE t.org_id = $1 AND t.name = $2")).bind(org).bind(name).fetch_optional(&st.postgres).await?;
+    let row: Option<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE t.org_id = $1 AND t.name = $2"))).bind(org).bind(name).fetch_optional(&st.postgres).await?;
     row.ok_or_else(|| ApiError::NotFound(format!("Reference table '{name}' not found")))
 }
 
@@ -286,7 +286,7 @@ const ROWS_WHERE: &str = "WHERE r.org_id = $1 AND r.table_id = $2::uuid AND ($3:
 
 #[utoipa::path(get, path = "/api/v1/reference-tables", operation_id = "list_reference_tables", responses((status = 200, body = Vec<ReferenceTable>)), tag = "integrations")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<ReferenceTable>> {
-    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE t.org_id = $1 ORDER BY t.name")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE t.org_id = $1 ORDER BY t.name"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(Into::into).collect()))
 }
 
@@ -340,9 +340,14 @@ pub async fn get_one(State(st): State<AppState>, ctx: AuthContext, Path(name): P
     }
     let pattern = p.query.as_deref().and_then(like_pattern);
     let (limit, offset) = page(p.limit, p.offset);
-    let (total,): (i64,) =
-        sqlx::query_as(&format!("SELECT count(*) FROM reference_table_rows r {ROWS_WHERE}")).bind(&ctx.org_id).bind(&id).bind(&pattern).bind(&column).fetch_one(&st.postgres).await?;
-    let data: Vec<(Value,)> = sqlx::query_as(&format!("SELECT r.data FROM reference_table_rows r {ROWS_WHERE} ORDER BY r.position LIMIT $5 OFFSET $6"))
+    let (total,): (i64,) = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT count(*) FROM reference_table_rows r {ROWS_WHERE}")))
+        .bind(&ctx.org_id)
+        .bind(&id)
+        .bind(&pattern)
+        .bind(&column)
+        .fetch_one(&st.postgres)
+        .await?;
+    let data: Vec<(Value,)> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT r.data FROM reference_table_rows r {ROWS_WHERE} ORDER BY r.position LIMIT $5 OFFSET $6")))
         .bind(&ctx.org_id)
         .bind(&id)
         .bind(&pattern)

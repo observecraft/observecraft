@@ -491,7 +491,12 @@ impl Row {
 }
 
 async fn load_one(st: &AppState, org: &str, id: &str) -> Result<Row, ApiError> {
-    sqlx::query_as(&format!("{SELECT} WHERE s.org_id = $1 AND s.id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?.ok_or_else(|| ApiError::NotFound(format!("SLO {id} not found")))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE s.org_id = $1 AND s.id::text = $2")))
+        .bind(org)
+        .bind(id)
+        .fetch_optional(&st.postgres)
+        .await?
+        .ok_or_else(|| ApiError::NotFound(format!("SLO {id} not found")))
 }
 
 #[derive(sqlx::FromRow, Clone)]
@@ -515,7 +520,7 @@ const CORRECTION_SELECT: &str = "SELECT c.id::text AS id, c.slo_id::text AS slo_
 
 /// The org's corrections that end after `since`.
 async fn load_corrections(st: &AppState, org: &str, since: i64) -> Result<Vec<CorrectionRow>, ApiError> {
-    Ok(sqlx::query_as(&format!("{CORRECTION_SELECT} WHERE c.org_id = $1 AND c.end_at > to_timestamp($2) ORDER BY c.start_at DESC"))
+    Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!("{CORRECTION_SELECT} WHERE c.org_id = $1 AND c.end_at > to_timestamp($2) ORDER BY c.start_at DESC")))
         .bind(org)
         .bind(since as f64 / 1000.0)
         .fetch_all(&st.postgres)
@@ -865,7 +870,7 @@ fn search_page(items: Vec<SloItem>, req: &SloSearchRequest) -> SloSearchPage {
 
 #[utoipa::path(post, path = "/api/v1/slos/search", operation_id = "search_slos", request_body = SloSearchRequest, responses((status = 200, body = SloSearchPage)), tag = "slos")]
 pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<SloSearchRequest>) -> ApiResult<SloSearchPage> {
-    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE s.org_id = $1")).bind(&org).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE s.org_id = $1"))).bind(&org).fetch_all(&st.postgres).await?;
     let corrections = load_corrections(&st, &org, now_ms() - SloWindow::NinetyDays.ms()).await?;
     let (st, org, corrections) = (&st, &org, &corrections);
     let items: Vec<SloItem> = futures::stream::iter(rows)
@@ -883,7 +888,7 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Js
 /// The status of each of the org's SLOs (by id) over its primary window, for the
 /// Datadog-compatible search ([`super::datadog_api::slos`]).
 pub(crate) async fn primary_statuses(st: &AppState, org: &str) -> Result<HashMap<String, SloStatus>, ApiError> {
-    let rows: Vec<Row> = sqlx::query_as(&format!("{SELECT} WHERE s.org_id = $1")).bind(org).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SELECT} WHERE s.org_id = $1"))).bind(org).fetch_all(&st.postgres).await?;
     let corrections = load_corrections(st, org, now_ms() - SloWindow::NinetyDays.ms()).await?;
     let corrections = &corrections;
     Ok(futures::stream::iter(rows)
@@ -1186,7 +1191,8 @@ pub(crate) async fn checked_correction(st: &AppState, org: &str, mut input: SloC
 }
 
 async fn correction(st: &AppState, org: &str, id: &str) -> Result<SloCorrection, ApiError> {
-    let row: Option<CorrectionRow> = sqlx::query_as(&format!("{CORRECTION_SELECT} WHERE c.org_id = $1 AND c.id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<CorrectionRow> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("{CORRECTION_SELECT} WHERE c.org_id = $1 AND c.id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.map(Into::into).ok_or_else(|| ApiError::NotFound(format!("correction {id} not found")))
 }
 
@@ -1201,7 +1207,7 @@ pub struct SloCorrectionParams {
 #[utoipa::path(get, path = "/api/v1/slo-corrections", operation_id = "list_slo_corrections", params(SloCorrectionParams), responses((status = 200, body = Vec<SloCorrection>)), tag = "slos")]
 pub async fn list_corrections(State(st): State<AppState>, OrgId(org): OrgId, Query(p): Query<SloCorrectionParams>) -> ApiResult<Vec<SloCorrection>> {
     let rows: Vec<CorrectionRow> =
-        sqlx::query_as(&format!("{CORRECTION_SELECT} WHERE c.org_id = $1 AND ($2::text IS NULL OR c.slo_id IS NULL OR c.slo_id::text = $2) ORDER BY c.start_at DESC LIMIT 1000"))
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("{CORRECTION_SELECT} WHERE c.org_id = $1 AND ($2::text IS NULL OR c.slo_id IS NULL OR c.slo_id::text = $2) ORDER BY c.start_at DESC LIMIT 1000")))
             .bind(&org)
             .bind(p.slo_id.filter(|s| !s.is_empty()))
             .fetch_all(&st.postgres)

@@ -104,7 +104,7 @@ impl ArchiveRow {
 }
 
 async fn load_archive(st: &AppState, org: &str, id: &str) -> Result<ArchiveRow, ApiError> {
-    sqlx::query_as(&format!("SELECT {ARCHIVE_COLS} FROM log_archives a WHERE a.org_id = $1 AND a.id::text = $2"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {ARCHIVE_COLS} FROM log_archives a WHERE a.org_id = $1 AND a.id::text = $2")))
         .bind(org)
         .bind(id)
         .fetch_optional(&st.postgres)
@@ -156,7 +156,7 @@ const ARCHIVE_SUMMARY: &str = "SELECT a.id::text, a.name, a.endpoint, a.region, 
 
 #[utoipa::path(get, path = "/api/v1/logs/archives", operation_id = "list_log_archives", responses((status = 200, body = Vec<LogArchive>)), tag = "archives")]
 pub async fn list(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<Vec<LogArchive>> {
-    let rows = sqlx::query_as(&format!("{ARCHIVE_SUMMARY} WHERE a.org_id = $1 GROUP BY a.id ORDER BY a.position, a.created_at"))
+    let rows = sqlx::query_as(sqlx::AssertSqlSafe(format!("{ARCHIVE_SUMMARY} WHERE a.org_id = $1 GROUP BY a.id ORDER BY a.position, a.created_at")))
         .bind(&org)
         .fetch_all(&st.postgres)
         .await?;
@@ -285,7 +285,7 @@ async fn insert_archive(st: &AppState, org: &str, name: &str, t: &ArchiveTarget,
 }
 
 async fn get_summary(st: &AppState, org: &str, id: &str) -> Result<LogArchive, ApiError> {
-    sqlx::query_as(&format!("{ARCHIVE_SUMMARY} WHERE a.org_id = $1 AND a.id::text = $2 GROUP BY a.id"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{ARCHIVE_SUMMARY} WHERE a.org_id = $1 AND a.id::text = $2 GROUP BY a.id")))
         .bind(org)
         .bind(id)
         .fetch_optional(&st.postgres)
@@ -614,7 +614,7 @@ fn search_owner<'a>(ctx: &'a AuthContext, access: &LogAccess) -> Option<&'a str>
 
 /// One search of the org (with `owner`, only if that user created it).
 async fn get_search(st: &AppState, org: &str, id: &str, owner: Option<&str>) -> Result<ArchiveSearch, ApiError> {
-    sqlx::query_as(&format!("{SEARCH_SELECT} WHERE s.org_id = $1 AND s.id::text = $2 AND ($3::uuid IS NULL OR s.created_by = $3::uuid)"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{SEARCH_SELECT} WHERE s.org_id = $1 AND s.id::text = $2 AND ($3::uuid IS NULL OR s.created_by = $3::uuid)")))
         .bind(org)
         .bind(id)
         .bind(owner)
@@ -711,7 +711,7 @@ fn duck_search(files: &[PathBuf], terms: &[oc_query::Term], restriction: Option<
 
 #[utoipa::path(get, path = "/api/v1/logs/archive-searches", operation_id = "list_archive_searches", responses((status = 200, body = Vec<ArchiveSearch>)), tag = "archives")]
 pub async fn list_searches(State(st): State<AppState>, ctx: AuthContext, access: LogAccess) -> ApiResult<Vec<ArchiveSearch>> {
-    let rows = sqlx::query_as(&format!("{SEARCH_SELECT} WHERE s.org_id = $1 AND ($2::uuid IS NULL OR s.created_by = $2::uuid) ORDER BY s.created_at DESC LIMIT 50"))
+    let rows = sqlx::query_as(sqlx::AssertSqlSafe(format!("{SEARCH_SELECT} WHERE s.org_id = $1 AND ($2::uuid IS NULL OR s.created_by = $2::uuid) ORDER BY s.created_at DESC LIMIT 50")))
         .bind(&ctx.org_id)
         .bind(search_owner(&ctx, &access))
         .fetch_all(&st.postgres)
@@ -851,7 +851,7 @@ pub async fn create_rehydration(State(st): State<AppState>, Writer(ctx): Writer,
 }
 
 async fn get_rehydration(st: &AppState, org: &str, id: &str) -> Result<Rehydration, ApiError> {
-    sqlx::query_as(&format!("{REHYDRATION_SELECT} WHERE r.org_id = $1 AND r.id::text = $2"))
+    sqlx::query_as(sqlx::AssertSqlSafe(format!("{REHYDRATION_SELECT} WHERE r.org_id = $1 AND r.id::text = $2")))
         .bind(org)
         .bind(id)
         .fetch_optional(&st.postgres)
@@ -938,7 +938,7 @@ async fn load_into_clickhouse(st: &AppState, file: &FsPath) -> Result<(), ApiErr
 
 #[utoipa::path(get, path = "/api/v1/logs/rehydrations", operation_id = "list_rehydrations", responses((status = 200, body = Vec<Rehydration>)), tag = "archives")]
 pub async fn list_rehydrations(State(st): State<AppState>, OrgId(org): OrgId) -> ApiResult<Vec<Rehydration>> {
-    let rows = sqlx::query_as(&format!("{REHYDRATION_SELECT} WHERE r.org_id = $1 ORDER BY r.created_at DESC LIMIT 100")).bind(&org).fetch_all(&st.postgres).await?;
+    let rows = sqlx::query_as(sqlx::AssertSqlSafe(format!("{REHYDRATION_SELECT} WHERE r.org_id = $1 ORDER BY r.created_at DESC LIMIT 100"))).bind(&org).fetch_all(&st.postgres).await?;
     Ok(Json(rows))
 }
 
@@ -991,8 +991,8 @@ async fn archiver_tick(st: &AppState) -> Result<(), ApiError> {
         return Ok(());
     }
     let result = async {
-        let archives: Vec<ArchiveRow> = sqlx::query_as(&format!("SELECT {ARCHIVE_COLS} FROM log_archives a JOIN orgs o ON o.id = a.org_id \
-             WHERE a.enabled AND o.status = 'active' AND a.endpoint <> '' AND a.secret_key_enc <> ''"))
+        let archives: Vec<ArchiveRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {ARCHIVE_COLS} FROM log_archives a JOIN orgs o ON o.id = a.org_id \
+             WHERE a.enabled AND o.status = 'active' AND a.endpoint <> '' AND a.secret_key_enc <> ''")))
             .fetch_all(&st.postgres)
             .await?;
         for a in &archives {

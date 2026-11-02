@@ -892,10 +892,10 @@ pub(crate) async fn upsert_seed(pg: &sqlx::PgPool, org: &str, user: Option<&str>
     } else {
         "DO NOTHING"
     };
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO dashboards (id, org_id, title, description, kind, logo, author_id, teams, definition) \
          VALUES ($1, $2, $3, $4, $5, $6, $7::uuid, $8, $9) ON CONFLICT (id) {refresh}"
-    ))
+    )))
     .bind(if org == "default" { id.to_string() } else { format!("{org}-{id}") })
     .bind(org)
     .bind(doc["title"].as_str().unwrap_or(id))

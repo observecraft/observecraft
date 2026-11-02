@@ -257,7 +257,8 @@ const COLS: &str = "id::text AS id, name, description, queries, expression, form
                     (extract(epoch FROM created_at) * 1000)::bigint AS created_at, (extract(epoch FROM updated_at) * 1000)::bigint AS updated_at";
 
 async fn get_derived(st: &AppState, org: &str, id: &str) -> Result<DerivedMetric, ApiError> {
-    let row: Option<Row> = sqlx::query_as(&format!("SELECT {COLS} FROM derived_metrics WHERE org_id = $1 AND id::text = $2")).bind(org).bind(id).fetch_optional(&st.postgres).await?;
+    let row: Option<Row> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} FROM derived_metrics WHERE org_id = $1 AND id::text = $2"))).bind(org).bind(id).fetch_optional(&st.postgres).await?;
     row.map(DerivedMetric::from).ok_or_else(|| ApiError::NotFound("Derived metric not found".into()))
 }
 
@@ -276,7 +277,7 @@ fn unique(e: sqlx::Error, name: &str) -> ApiError {
 
 #[utoipa::path(get, path = "/api/v1/metrics/derived", operation_id = "list_derived_metrics", responses((status = 200, body = Vec<DerivedMetric>)), tag = "metrics")]
 pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Vec<DerivedMetric>> {
-    let rows: Vec<Row> = sqlx::query_as(&format!("SELECT {COLS} FROM derived_metrics WHERE org_id = $1 ORDER BY name")).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
+    let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {COLS} FROM derived_metrics WHERE org_id = $1 ORDER BY name"))).bind(&ctx.org_id).fetch_all(&st.postgres).await?;
     Ok(Json(rows.into_iter().map(DerivedMetric::from).collect()))
 }
 
