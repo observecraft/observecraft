@@ -31,8 +31,8 @@ function HeroArt() {
   );
 }
 
-/** Where integrations are contributed: our guide (integrations-extras now publishes through Datadog's private platform). */
-const CONTRIBUTING = 'https://github.com/observecraft/observecraft/blob/main/CONTRIBUTING.md';
+/** How to install community integrations and build your own (Agent checks), and bring their assets here. */
+const GUIDE = 'https://github.com/observecraft/observecraft/blob/main/docs/integrations.md';
 
 /**
  * Integrations → Community: integrations-extras' community and partner integrations (Agent checks and log
@@ -90,9 +90,9 @@ export function CommunityPage() {
               <IntegrationCard key={i.id} item={i} onOpen={(id) => setParam('integration', id)} />
             ))}
             {!query && !category && (
-              <a className="int-card cm-contribute" href={CONTRIBUTING} target="_blank" rel="noreferrer">
+              <a className="int-card cm-contribute" href={GUIDE} target="_blank" rel="noreferrer">
                 <strong>Build an integration</strong>
-                <span className="btn btn-primary">Contribute</span>
+                <span className="btn btn-primary">Read the guide</span>
               </a>
             )}
             {items.slice(2).map((i) => (
