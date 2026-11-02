@@ -1,16 +1,20 @@
 //! Token generation, hashing and at-rest encryption.
 
-use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng as AeadRng};
+use aes_gcm::aead::{Aead, Generate, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use base64::Engine;
-use rand::RngCore;
 use sha2::{Digest, Sha256};
+
+/// Fills `buf` from the operating system's random number generator (tokens, secrets, salts).
+pub fn os_random(buf: &mut [u8]) {
+    rand::TryRng::try_fill_bytes(&mut rand::rngs::SysRng, buf).expect("the operating system's random number generator failed");
+}
 
 /// 256-bit random token, URL-safe, with a readable prefix (`ocs_` session, `ocak_` app key, …).
 pub fn random_token(prefix: &str) -> String {
     let mut b = [0u8; 32];
-    rand::rngs::OsRng.fill_bytes(&mut b);
+    os_random(&mut b);
     format!("{prefix}{}", URL_SAFE_NO_PAD.encode(b))
 }
 
@@ -31,8 +35,8 @@ impl SecretBox {
     }
 
     pub fn encrypt(&self, plaintext: &str) -> String {
-        // A fresh random 96-bit nonce per message.
-        let nonce = Aes256Gcm::generate_nonce(&mut AeadRng);
+        // A fresh random 96-bit nonce per message, from the operating system's generator.
+        let nonce = Nonce::generate();
         let ct = self.0.encrypt(&nonce, plaintext.as_bytes()).expect("aes-gcm encrypt");
         let mut out = nonce.to_vec();
         out.extend(ct);
@@ -43,7 +47,8 @@ impl SecretBox {
         let raw = STANDARD.decode(sealed.strip_prefix("v1:").ok_or_else(|| anyhow::anyhow!("unknown secret format"))?)?;
         anyhow::ensure!(raw.len() > 12, "sealed secret too short");
         let (nonce, ct) = raw.split_at(12);
-        let pt = self.0.decrypt(Nonce::from_slice(nonce), ct).map_err(|_| anyhow::anyhow!("secret cannot be decrypted (was OC_SECRET_KEY changed?)"))?;
+        let nonce = Nonce::try_from(nonce).map_err(|_| anyhow::anyhow!("sealed secret has a bad nonce"))?;
+        let pt = self.0.decrypt(&nonce, ct).map_err(|_| anyhow::anyhow!("secret cannot be decrypted (was OC_SECRET_KEY changed?)"))?;
         Ok(String::from_utf8(pt)?)
     }
 }

@@ -184,7 +184,7 @@ pub(crate) enum Outcome {
 }
 
 fn sign(secret: &str, body: &[u8]) -> String {
-    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).expect("hmac key");
+    let mut mac = <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(secret.as_bytes()).expect("hmac key");
     mac.update(body);
     mac.finalize().into_bytes().iter().map(|b| format!("{b:02x}")).collect()
 }

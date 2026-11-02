@@ -17,7 +17,7 @@ use std::sync::{Mutex, OnceLock};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use utoipa::ToSchema;
@@ -431,8 +431,8 @@ pub async fn load_rule(st: &AppState, org: &str, id: &str) -> Result<SecurityRul
 /// A Datadog-style id: three groups of three lower-case letters and digits.
 pub fn new_id() -> String {
     const CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
-    let mut rng = rand::thread_rng();
-    (0..3).map(|_| (0..3).map(|_| CHARS[rng.gen_range(0..CHARS.len())] as char).collect::<String>()).collect::<Vec<_>>().join("-")
+    let mut rng = rand::rng();
+    (0..3).map(|_| (0..3).map(|_| CHARS[rng.random_range(0..CHARS.len())] as char).collect::<String>()).collect::<Vec<_>>().join("-")
 }
 
 /// A number for a user (Datadog's author ids are numbers).

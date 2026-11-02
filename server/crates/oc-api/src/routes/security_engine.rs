@@ -20,7 +20,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use oc_query::{parse_query, LogsSchema, Param, Schema, Term};
-use rand::Rng;
+use rand::RngExt;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -268,8 +268,8 @@ async fn entities(st: &AppState, org: &str, access: &LogAccess, terms: &[Term], 
 
 fn new_signal_id() -> String {
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let mut rng = rand::thread_rng();
-    format!("AQAAA{}", (0..43).map(|_| CHARS[rng.gen_range(0..CHARS.len())] as char).collect::<String>())
+    let mut rng = rand::rng();
+    format!("AQAAA{}", (0..43).map(|_| CHARS[rng.random_range(0..CHARS.len())] as char).collect::<String>())
 }
 
 /// The signal's title: the rule's name, with the group's values when the rule extends its title,

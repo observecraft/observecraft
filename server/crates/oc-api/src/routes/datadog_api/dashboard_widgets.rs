@@ -394,8 +394,7 @@ pub fn assign_widget_ids(widgets: &mut [Value]) {
 
 /// Below 2^53, so JavaScript clients read it exactly.
 fn random_widget_id() -> i64 {
-    use rand::Rng;
-    rand::thread_rng().gen_range(1..(1_i64 << 52))
+    rand::random_range(1..(1_i64 << 52))
 }
 
 /// A stable Datadog id for a widget made in the UI (FNV-1a of its id, below 2^52).

@@ -1,15 +1,14 @@
 //! RFC 6238 TOTP (SHA-1, 30 s, 6 digits) — what authenticator apps implement.
 
 use data_encoding::BASE32_NOPAD;
-use hmac::{Hmac, Mac};
-use rand::RngCore;
+use hmac::{Hmac, KeyInit, Mac};
 use sha1::Sha1;
 
 const STEP: u64 = 30;
 
 pub fn new_secret() -> String {
     let mut b = [0u8; 20];
-    rand::rngs::OsRng.fill_bytes(&mut b);
+    super::crypto::os_random(&mut b);
     BASE32_NOPAD.encode(&b)
 }
 

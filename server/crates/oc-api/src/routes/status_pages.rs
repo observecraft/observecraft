@@ -365,10 +365,10 @@ fn check_slug(slug: &str) -> Result<(), String> {
 
 /// A new random component id (`c_` and 12 lowercase letters or digits).
 fn new_component_id() -> String {
-    use rand::Rng;
+    use rand::RngExt;
     const CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
-    let mut rng = rand::thread_rng();
-    let tail: String = (0..12).map(|_| CHARS[rng.gen_range(0..CHARS.len())] as char).collect();
+    let mut rng = rand::rng();
+    let tail: String = (0..12).map(|_| CHARS[rng.random_range(0..CHARS.len())] as char).collect();
     format!("c_{tail}")
 }
 
