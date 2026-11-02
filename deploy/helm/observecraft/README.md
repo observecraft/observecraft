@@ -133,6 +133,7 @@ only the traffic each component needs; secrets are generated once and kept acros
 | `cache.maxValueBytes` / `loadTimeoutSeconds` | `8 MiB` / `30` | Largest cached value (after compression); how long replicas wait for another replica's load of the same entry. |
 | `ingress.enabled` | `false` | Hosts `ingress.app.host`, `ingress.intake.host`, optional `ingress.intakeGrpc` for OTLP/gRPC; TLS through cert-manager (`ingress.certManagerClusterIssuer`) or your own secrets. |
 | `networkPolicy.enabled` | `true` | `networkPolicy.ingressFrom` limits who reaches the server and intake (your ingress controller). |
+| `serviceAccount.annotations`, `server.podLabels`, `extraEnv` | | The cloud integrations' identity, without keys. EKS: IRSA (`eks.amazonaws.com/role-arn`) or Pod Identity. AKS: Workload Identity (`server.podLabels` `azure.workload.identity/use: "true"`) with an AWS IAM OIDC provider for the cluster's issuer, audience `api://AzureADTokenExchange`, and `AWS_ROLE_ARN`, `AWS_WEB_IDENTITY_TOKEN_FILE=/var/run/secrets/azure/tokens/azure-identity-token` in `extraEnv`. Then `OC_AWS_PRINCIPAL_ARN` (the role customers' integration roles trust) and, for GCP, `OC_GCP_PRINCIPAL_EMAIL`. |
 | `global.storageClass`, `global.imageRegistry`, `global.imagePullSecrets` | | Cluster-wide overrides. |
 
 Every value is documented in [`values.yaml`](https://github.com/observecraft/observecraft/blob/main/deploy/helm/observecraft/values.yaml)
