@@ -61696,6 +61696,13 @@
           "kind"
         ],
         "properties": {
+          "issueId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Runs about this Error Tracking issue."
+          },
           "kind": {
             "type": "string"
           },
@@ -66939,6 +66946,13 @@
           "kind"
         ],
         "properties": {
+          "issueId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Investigate this Error Tracking issue."
+          },
           "kind": {
             "type": "string",
             "description": "investigation | security"

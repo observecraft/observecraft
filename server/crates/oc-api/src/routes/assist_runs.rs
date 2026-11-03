@@ -174,6 +174,17 @@ pub struct StartRun {
     pub question: Option<String>,
     /// Judge this security signal.
     pub signal_id: Option<String>,
+    /// Investigate this Error Tracking issue.
+    #[serde(default)]
+    pub issue_id: Option<String>,
+}
+
+/// An Error Tracking issue as the member sees it, over the last 14 days.
+async fn error_issue(st: &AppState, ctx: &AuthContext, id: &str) -> Result<crate::routes::error_tracking::IssueDetailOut, ApiError> {
+    let access = crate::log_access::for_user(st, ctx).await?;
+    let now = chrono::Utc::now().timestamp_millis();
+    let req = crate::routes::error_tracking::IssueDetailRequest { range: TimeRange { from: now - 14 * 86_400_000, to: now }, query: String::new() };
+    Ok(crate::routes::error_tracking::issue_detail(State(st.clone()), OrgId(ctx.org_id.clone()), access, Path(id.to_string()), Json(req)).await?.0)
 }
 
 /// Runs created in the last hour (all kinds) and automatic ones in the last day, against the org's limits.
@@ -197,6 +208,13 @@ pub(crate) async fn within_limits(st: &AppState, org: &str) -> Result<(), ApiErr
 pub async fn start_run(State(st): State<AppState>, ctx: AuthContext, Json(req): Json<StartRun>) -> ApiResult<RunSummary> {
     let kind = Kind::parse(&req.kind).filter(|k| matches!(k, Kind::Investigation | Kind::Security)).ok_or_else(|| ApiError::BadRequest("kind must be investigation or security".into()))?;
     let (title, subject) = match (kind, req.monitor_id, req.question.as_deref().map(str::trim).filter(|q| !q.is_empty()), req.signal_id.as_deref()) {
+        (Kind::Investigation, None, _, _) if req.issue_id.is_some() => {
+            let id = req.issue_id.clone().unwrap_or_default();
+            let i = error_issue(&st, &ctx, &id).await?.issue;
+            let message = i.message.lines().next().unwrap_or_default();
+            let title = format!("{} in {}: {message}", i.error_type, i.service);
+            (title.chars().take(140).collect(), json!({"issueId": id, "service": i.service}))
+        }
         (Kind::Investigation, Some(id), _, _) => {
             let m = monitors::get_one(State(st.clone()), OrgId(ctx.org_id.clone()), Path(id)).await?.0;
             let alert: Option<(String, Option<f64>, i64)> = sqlx::query_as(
@@ -219,7 +237,7 @@ pub async fn start_run(State(st): State<AppState>, ctx: AuthContext, Json(req): 
             let s = crate::routes::security_signals::load_signal(&st, &ctx.org_id, signal).await?;
             (s.title.clone(), json!({"signalId": signal}))
         }
-        _ => return Err(ApiError::BadRequest("Give a monitor, a question (up to 4000 characters) or a signal".into())),
+        _ => return Err(ApiError::BadRequest("Give a monitor, an error issue, a question (up to 4000 characters) or a signal".into())),
     };
     within_limits(&st, &ctx.org_id).await?;
     Ok(Json(insert_run(&st, &ctx.org_id, kind, &title, "manual", &subject, &ctx.user_id, &ctx.name).await?))
@@ -277,18 +295,23 @@ pub struct RunSearch {
     pub monitor_id: Option<i64>,
     pub status: Option<String>,
     pub limit: Option<i64>,
+    /// Runs about this Error Tracking issue.
+    #[serde(default)]
+    pub issue_id: Option<String>,
 }
 
 #[utoipa::path(post, path = "/api/v1/assist/runs/search", operation_id = "assist_search_runs", request_body = RunSearch, responses((status = 200, body = Vec<RunSummary>)), tag = "assist")]
 pub async fn search_runs(State(st): State<AppState>, ctx: AuthContext, Json(q): Json<RunSearch>) -> ApiResult<Vec<RunSummary>> {
     let rows = sqlx::query_as::<_, Row>(sqlx::AssertSqlSafe(format!(
-        "{ROW} WHERE org_id = $1 AND kind = $2 AND ($3::bigint IS NULL OR subject->>'monitorId' = $3::text) AND ($4::text IS NULL OR status = $4) ORDER BY created_at DESC LIMIT $5"
+        "{ROW} WHERE org_id = $1 AND kind = $2 AND ($3::bigint IS NULL OR subject->>'monitorId' = $3::text) AND ($4::text IS NULL OR status = $4) \
+         AND ($6::text IS NULL OR subject->>'issueId' = $6) ORDER BY created_at DESC LIMIT $5"
     )))
     .bind(&ctx.org_id)
     .bind(&q.kind)
     .bind(q.monitor_id)
     .bind(&q.status)
     .bind(q.limit.unwrap_or(100).clamp(1, 500))
+    .bind(&q.issue_id)
     .fetch_all(&st.postgres)
     .await?;
     Ok(Json(rows.iter().map(Row::summary).collect()))
@@ -425,6 +448,14 @@ async fn opening(st: &AppState, ctx: &AuthContext, kind: &str, title: &str, subj
     if let Some(signal) = subject["signalId"].as_str() {
         let s = crate::routes::security_signals::load_signal(st, &ctx.org_id, signal).await?;
         return Ok(format!("Triage this Cloud SIEM signal and give your verdict.\n\n{}", agent::truncate(&serde_json::to_string_pretty(&s).unwrap_or_default(), 8000)));
+    }
+    if let Some(id) = subject["issueId"].as_str() {
+        let issue = error_issue(st, ctx, id).await?;
+        return Ok(format!(
+            "Investigate this Error Tracking issue: why it happens, since when, what changed (deploys, versions, dependencies), how many users or requests it affects, \
+and where in the code it comes from.\n\n{}",
+            agent::truncate(&serde_json::to_string_pretty(&issue).unwrap_or_default(), 8000)
+        ));
     }
     if let Some(q) = subject["question"].as_str() {
         return Ok(format!("Investigate: {q}"));
@@ -1054,7 +1085,7 @@ mod tests {
         add_memory(State(st.clone()), Writer(ctx.clone()), Json(NewMemory { monitor_id: Some(monitor_id), text: "Spikes at 02:00 are the nightly batch".into() })).await.unwrap();
 
         // Started by hand: queued, then run by the worker.
-        let run = start_run(State(st.clone()), ctx.clone(), Json(StartRun { kind: "investigation".into(), monitor_id: Some(monitor_id), question: None, signal_id: None })).await.unwrap().0;
+        let run = start_run(State(st.clone()), ctx.clone(), Json(StartRun { kind: "investigation".into(), monitor_id: Some(monitor_id), question: None, signal_id: None, issue_id: None })).await.unwrap().0;
         assert_eq!((run.status.as_str(), run.trigger.as_str()), ("queued", "manual"));
         assert_eq!(work_once(&st, &ctx.org_id).await, 1);
         let r = get_run(State(st.clone()), ctx.clone(), Path(run.id.clone())).await.unwrap().0;
@@ -1086,11 +1117,17 @@ mod tests {
         assert!(enqueue_monitor_alert(&mut tx, &ctx.org_id, monitor_id, "High error rate on order-service", "service:order-service", Some(42.0)).await.unwrap());
         assert!(!enqueue_monitor_alert(&mut tx, &ctx.org_id, monitor_id, "High error rate on order-service", "service:order-service", Some(43.0)).await.unwrap(), "one a day");
         tx.commit().await.unwrap();
-        let listed = search_runs(State(st.clone()), ctx.clone(), Json(RunSearch { kind: "investigation".into(), monitor_id: Some(monitor_id), status: None, limit: None })).await.unwrap().0;
+        let listed = search_runs(State(st.clone()), ctx.clone(), Json(RunSearch { kind: "investigation".into(), monitor_id: Some(monitor_id), status: None, limit: None, issue_id: None })).await.unwrap().0;
         assert_eq!(listed.iter().map(|r| r.trigger.as_str()).collect::<Vec<_>>(), vec!["monitor", "manual"]);
 
+        // An Error Tracking issue that isn't there can't be investigated; runs are listed per issue.
+        let missing = StartRun { kind: "investigation".into(), monitor_id: None, question: None, signal_id: None, issue_id: Some("0123456789abcdef".into()) };
+        assert!(matches!(start_run(State(st.clone()), ctx.clone(), Json(missing)).await, Err(ApiError::NotFound(_))));
+        let none = search_runs(State(st.clone()), ctx.clone(), Json(RunSearch { kind: "investigation".into(), monitor_id: None, status: None, limit: None, issue_id: Some("0123456789abcdef".into()) })).await.unwrap().0;
+        assert!(none.is_empty());
+
         // Two an hour: the third is refused.
-        assert!(matches!(start_run(State(st.clone()), ctx.clone(), Json(StartRun { kind: "investigation".into(), monitor_id: None, question: Some("Why is checkout slow?".into()), signal_id: None })).await, Err(ApiError::TooManyRequests(_))));
+        assert!(matches!(start_run(State(st.clone()), ctx.clone(), Json(StartRun { kind: "investigation".into(), monitor_id: None, question: Some("Why is checkout slow?".into()), signal_id: None, issue_id: None })).await, Err(ApiError::TooManyRequests(_))));
 
         // Cancelled before it ran.
         let queued = listed[0].id.clone();

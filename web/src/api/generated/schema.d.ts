@@ -20017,6 +20017,8 @@ export interface components {
             range: components["schemas"]["TimeRange"];
         };
         RunSearch: {
+            /** @description Runs about this Error Tracking issue. */
+            issueId?: string | null;
             kind: string;
             /** Format: int64 */
             limit?: number | null;
@@ -21588,6 +21590,8 @@ export interface components {
         /** @enum {string} */
         StandardAttributeType: "string" | "integer" | "double" | "boolean";
         StartRun: {
+            /** @description Investigate this Error Tracking issue. */
+            issueId?: string | null;
             /** @description investigation | security */
             kind: string;
             /**
