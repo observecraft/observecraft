@@ -407,6 +407,49 @@ impl OrgTools {
     }
 }
 
+/// What a tool's result says, in a line a person can read (the first line of what the model sees too,
+/// and the step's summary in Assist's timelines).
+pub fn headline(name: &str, v: &Value) -> String {
+    let plural = |n: u64, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
+    // A page: its total (or length) and how many came back.
+    let page = |key: &str, one: &str, many: &str, none: &str| {
+        let shown = v[key].as_array().map(|a| a.len() as u64).unwrap_or(0);
+        let total = v["total"].as_u64().unwrap_or(shown);
+        match (total, shown) {
+            (0, _) => none.to_string(),
+            (t, s) if s > 0 && s < t => format!("{} (showing {s})", plural(t, one, many)),
+            (t, _) => plural(t, one, many),
+        }
+    };
+    let list = |one: &str, many: &str, none: &str| match v.as_array().map(|a| a.len() as u64) {
+        Some(0) | None => none.to_string(),
+        Some(n) => plural(n, one, many),
+    };
+    match name {
+        "search_logs" => page("logs", "log", "logs", "No logs found"),
+        "query_metrics" => list("series", "series", "No data"),
+        "list_services" => list("service", "services", "No services with traffic"),
+        "search_traces" => page("spans", "span", "spans", "No traces found"),
+        "search_monitors" => {
+            let alerting = v["monitors"].as_array().map(|m| m.iter().filter(|m| m["status"] == "alert").count()).unwrap_or(0);
+            let base = page("monitors", "monitor", "monitors", "No monitors found");
+            if alerting > 0 { format!("{base} ({alerting} alerting)") } else { base }
+        }
+        "get_monitor" => format!("{} ({})", v["name"].as_str().unwrap_or("Monitor"), v["status"].as_str().unwrap_or("unknown")),
+        "search_incidents" => page("incidents", "incident", "incidents", "No incidents found"),
+        "get_incident" => format!("IR-{}: {} ({})", v["id"], v["title"].as_str().unwrap_or(""), v["status"].as_str().unwrap_or("unknown")),
+        "search_error_issues" => page("issues", "issue", "issues", "No error issues found"),
+        "search_kubernetes" => page("items", "resource", "resources", "No resources found"),
+        "search_security_signals" => page("signals", "signal", "signals", "No signals found"),
+        "get_security_signal" => format!("{} ({})", v["title"].as_str().unwrap_or("Signal"), v["severity"].as_str().unwrap_or("unknown")),
+        "list_repo_files" => page("files", "file", "files", "No files"),
+        "search_repo_code" => page("matches", "match", "matches", "No matches"),
+        "read_repo_file" => format!("{}, {}", v["path"].as_str().unwrap_or("file"), plural(v["content"].as_str().map(|c| c.lines().count() as u64).unwrap_or(0), "line", "lines")),
+        "create_monitor" | "declare_incident" => format!("Created #{} {}", v["id"], v["name"].as_str().or(v["title"].as_str()).unwrap_or("")).trim_end().to_string(),
+        _ => "Done".into(),
+    }
+}
+
 impl Tools for OrgTools {
     fn specs(&self) -> Vec<ToolSpec> {
         self.enabled().map(|d| ToolSpec { name: d.name.to_string(), description: d.description.to_string(), schema: (d.schema)() }).collect()
@@ -423,7 +466,7 @@ impl Tools for OrgTools {
         if self.writes(name) && !may_write(self.ctx.access) {
             return Err(format!("{} has read-only access and can't use {name}", self.ctx.name));
         }
-        self.call(name, input).await.map(|v| v.to_string())
+        self.call(name, input).await.map(|v| format!("{}\n{v}", headline(name, &v)))
     }
 }
 
@@ -469,5 +512,21 @@ mod tests {
         // Only these change something, so only they wait for approval.
         let writes: Vec<_> = catalog().into_iter().filter(|c| c.2).map(|c| c.0).collect();
         assert_eq!(writes, vec!["create_monitor", "declare_incident"]);
+    }
+
+    #[test]
+    fn each_result_starts_with_a_line_a_person_can_read() {
+        assert_eq!(headline("search_logs", &json!({"total": 612, "logs": [1, 2, 3]})), "612 logs (showing 3)");
+        assert_eq!(headline("search_logs", &json!({"total": 0, "logs": []})), "No logs found");
+        assert_eq!(headline("query_metrics", &json!([{"series": "a"}, {"series": "b"}])), "2 series");
+        assert_eq!(headline("query_metrics", &json!([])), "No data");
+        assert_eq!(headline("search_monitors", &json!({"monitors": [{"status": "alert"}, {"status": "ok"}], "total": 2})), "2 monitors (1 alerting)");
+        assert_eq!(headline("search_incidents", &json!({"incidents": [], "total": 0})), "No incidents found");
+        assert_eq!(headline("search_kubernetes", &json!({"items": [1, 2], "total": 9})), "9 resources (showing 2)");
+        assert_eq!(headline("get_incident", &json!({"id": 97, "title": "Orders stuck", "status": "active"})), "IR-97: Orders stuck (active)");
+        assert_eq!(headline("get_monitor", &json!({"name": "High error rate", "status": "alert"})), "High error rate (alert)");
+        assert_eq!(headline("read_repo_file", &json!({"path": "app/cart.rb", "content": "a\nb\nc\n"})), "app/cart.rb, 3 lines");
+        assert_eq!(headline("create_monitor", &json!({"id": 42, "name": "High error rate"})), "Created #42 High error rate");
+        assert_eq!(headline("list_services", &json!([{"service": "a"}])), "1 service");
     }
 }

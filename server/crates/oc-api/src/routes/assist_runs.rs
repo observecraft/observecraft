@@ -30,30 +30,48 @@ use crate::state::{AppState, OrgId};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RunStep {
-    Text { text: String },
-    Tool { id: String, name: String, input: Value, status: String, summary: String },
+    Text {
+        text: String,
+        /// Epoch ms when it started.
+        #[serde(default)]
+        at: Option<i64>,
+    },
+    Tool {
+        id: String,
+        name: String,
+        input: Value,
+        status: String,
+        summary: String,
+        /// Epoch ms when it started, and how long it took.
+        #[serde(default)]
+        at: Option<i64>,
+        #[serde(default)]
+        ms: Option<i64>,
+    },
 }
 
-/// Applies one streamed event to the steps.
-pub fn apply(steps: &mut Vec<RunStep>, e: &agent::Event) {
+/// Applies one streamed event, received at `now` (epoch ms), to the steps.
+pub fn apply(steps: &mut Vec<RunStep>, e: &agent::Event, now: i64) {
+    let tool = |id: &String, name: &String, input: &Value, status: &str| RunStep::Tool { id: id.clone(), name: name.clone(), input: input.clone(), status: status.into(), summary: String::new(), at: Some(now), ms: None };
     match e {
         agent::Event::Text { text } => match steps.last_mut() {
-            Some(RunStep::Text { text: t }) => t.push_str(text),
-            _ => steps.push(RunStep::Text { text: text.clone() }),
+            Some(RunStep::Text { text: t, .. }) => t.push_str(text),
+            _ => steps.push(RunStep::Text { text: text.clone(), at: Some(now) }),
         },
-        agent::Event::ToolStart { id, name, input } => steps.push(RunStep::Tool { id: id.clone(), name: name.clone(), input: input.clone(), status: "running".into(), summary: String::new() }),
+        agent::Event::ToolStart { id, name, input } => steps.push(tool(id, name, input, "running")),
         agent::Event::ToolEnd { id, ok, summary } => {
             for s in steps.iter_mut().rev() {
-                if let RunStep::Tool { id: i, status, summary: sm, .. } = s {
+                if let RunStep::Tool { id: i, status, summary: sm, at, ms, .. } = s {
                     if i == id {
                         *status = if *ok { "ok" } else { "error" }.into();
                         *sm = summary.clone();
+                        *ms = at.map(|a| now - a);
                         break;
                     }
                 }
             }
         }
-        agent::Event::Approval { id, name, input } => steps.push(RunStep::Tool { id: id.clone(), name: name.clone(), input: input.clone(), status: "pending".into(), summary: String::new() }),
+        agent::Event::Approval { id, name, input } => steps.push(tool(id, name, input, "pending")),
     }
 }
 
@@ -593,7 +611,7 @@ async fn run(st: &AppState, org: &str, id: &str, steps: &Arc<Mutex<Vec<RunStep>>
     let cancelled = AtomicBool::new(false);
     let outcome = {
         let sink = steps.clone();
-        let mut emit = move |ev: agent::Event| apply(&mut sink.lock().unwrap(), &ev);
+        let mut emit = move |ev: agent::Event| apply(&mut sink.lock().unwrap(), &ev, chrono::Utc::now().timestamp_millis());
         let work = l.run(msgs, usage, &mut emit);
         let watch = watch(st, org, id, steps, &cancelled);
         tokio::select! {
@@ -1061,16 +1079,19 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn steps_follow_the_streamed_events() {
+    fn steps_follow_the_streamed_events_with_their_times() {
         let mut steps = Vec::new();
-        apply(&mut steps, &agent::Event::Text { text: "Looking at ".into() });
-        apply(&mut steps, &agent::Event::Text { text: "the logs.".into() });
-        apply(&mut steps, &agent::Event::ToolStart { id: "t1".into(), name: "search_logs".into(), input: json!({"query": "status:error"}) });
-        apply(&mut steps, &agent::Event::ToolEnd { id: "t1".into(), ok: true, summary: "{\"total\":3}".into() });
-        apply(&mut steps, &agent::Event::Text { text: "Found it.".into() });
+        apply(&mut steps, &agent::Event::Text { text: "Looking at ".into() }, 1_000);
+        apply(&mut steps, &agent::Event::Text { text: "the logs.".into() }, 1_200);
+        apply(&mut steps, &agent::Event::ToolStart { id: "t1".into(), name: "search_logs".into(), input: json!({"query": "status:error"}) }, 2_000);
+        apply(&mut steps, &agent::Event::ToolEnd { id: "t1".into(), ok: true, summary: "3 logs".into() }, 2_750);
+        apply(&mut steps, &agent::Event::Text { text: "Found it.".into() }, 3_000);
         assert_eq!(steps.len(), 3);
-        assert_eq!(steps[0], RunStep::Text { text: "Looking at the logs.".into() });
-        assert!(matches!(&steps[1], RunStep::Tool { status, summary, .. } if status == "ok" && summary == "{\"total\":3}"));
+        assert_eq!(steps[0], RunStep::Text { text: "Looking at the logs.".into(), at: Some(1_000) });
+        assert!(matches!(&steps[1], RunStep::Tool { status, summary, at: Some(2_000), ms: Some(750), .. } if status == "ok" && summary == "3 logs"));
+        // Steps saved before times were recorded still read.
+        let old: RunStep = serde_json::from_value(json!({"type": "tool", "id": "x", "name": "search_logs", "input": {}, "status": "ok", "summary": ""})).unwrap();
+        assert!(matches!(old, RunStep::Tool { at: None, ms: None, .. }));
     }
 
     /// An investigation of a monitor: queued, run by the worker as its member with the knowledge base and

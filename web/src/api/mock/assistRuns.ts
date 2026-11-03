@@ -74,11 +74,11 @@ function investigationScript(title: string, monitorId?: number | null): Script {
   return {
     steps: [
       text(`Looking at what changed around the alert on **${service}**.`),
-      ...(monitorId ? [tool('get_monitor', { id: monitorId }, `{"name":"${title}","status":"alert"}`)] : []),
-      tool('search_logs', { query: `service:${service} status:error`, from: '1h' }, '{"total":612,"logs":[{"message":"TimeoutError: inventory-service did not answer within 2s"}]}'),
-      tool('list_services', { from: '1h' }, `[{"service":"${service}","errorRate":0.062,"p95":2100}]`),
-      tool('query_metrics', { queries: [`avg:trace.http.request.duration{service:${service}}`], from: '4h' }, '[{"series":"p95","last":2.1,"min":0.18,"max":2.4}]'),
-      tool('search_traces', { query: `service:${service} status:error`, from: '1h' }, '{"traces":[{"resource":"POST /api/orders","duration":2100}]}'),
+      ...(monitorId ? [tool('get_monitor', { id: monitorId }, `${title} (alert)`)] : []),
+      tool('search_logs', { query: `service:${service} status:error`, from: '1h' }, '612 logs (showing 20)'),
+      tool('list_services', { from: '1h' }, '6 services'),
+      tool('query_metrics', { queries: [`avg:trace.http.request.duration{service:${service}}`], from: '4h' }, '1 series'),
+      tool('search_traces', { query: `service:${service} status:error`, from: '1h' }, '214 spans (showing 20)'),
       text('The errors started within a minute of a deploy of **inventory-service 3.2.1**; its spans show connection pool exhaustion.'),
     ],
     conclusion: {
@@ -104,9 +104,9 @@ function securityScript(title: string, severity: string, signalId: string): Scri
   const malicious = /miner|malware|exfil|reverse shell|ransom/i.test(title);
   const suspicious = !malicious && (severity === 'critical' || /root|admin|public|brute|without mfa/i.test(title));
   const steps = [
-    tool('get_security_signal', { id: signalId }, `{"title":"${title.replace(/"/g, "'")}","severity":"${severity}"}`),
-    tool('search_logs', { query: malicious ? 'source:runtime-security-agent' : 'source:okta @evt.outcome:FAILURE', from: '1d' }, malicious ? '{"total":38}' : '{"total":14}'),
-    tool('search_security_signals', { query: title.split(' ').slice(0, 3).join(' '), from: '7d' }, '{"signals":3}'),
+    tool('get_security_signal', { id: signalId }, `${title} (${severity})`),
+    tool('search_logs', { query: malicious ? 'source:runtime-security-agent' : 'source:okta @evt.outcome:FAILURE', from: '1d' }, malicious ? '38 logs' : '14 logs'),
+    tool('search_security_signals', { query: title.split(' ').slice(0, 3).join(' '), from: '7d' }, '3 signals'),
   ];
   if (malicious)
     return {
@@ -158,10 +158,10 @@ function securityScript(title: string, severity: string, signalId: string): Scri
 
 function agentScript(name: string, skills: string[]): Script {
   const steps: RunStep[] = [text(`Running **${name}**.`)];
-  if (skills.includes('errors')) steps.push(tool('search_error_issues', { from: '1d' }, '{"issues":[{"title":"TimeoutError in order-service","firstSeen":"today"}]}'));
-  if (skills.includes('logs')) steps.push(tool('search_logs', { query: 'status:error', from: '1d' }, '{"total":1284}'));
-  if (skills.includes('monitors')) steps.push(tool('search_monitors', { statuses: ['alert'] }, '{"monitors":[{"name":"High error rate on order-service"}]}'));
-  if (skills.includes('apm')) steps.push(tool('list_services', { from: '1d' }, '[{"service":"order-service","errorRate":0.062}]'));
+  if (skills.includes('errors')) steps.push(tool('search_error_issues', { from: '1d' }, '2 issues'));
+  if (skills.includes('logs')) steps.push(tool('search_logs', { query: 'status:error', from: '1d' }, '1284 logs (showing 20)'));
+  if (skills.includes('monitors')) steps.push(tool('search_monitors', { statuses: ['alert'] }, '1 monitor (1 alerting)'));
+  if (skills.includes('apm')) steps.push(tool('list_services', { from: '1d' }, '6 services'));
   return {
     steps,
     conclusion: {
@@ -200,9 +200,9 @@ function codeScript(repo: string, prompt: string): Script {
   return {
     steps: [
       text(`Looking for the code behind: ${prompt}`),
-      tool('search_repo_code', { repo, query: 'find_cart_in_progress' }, '{"matches":[{"path":"app/controllers/carts_controller.rb"}]}'),
-      tool('read_repo_file', { repo, path: 'app/controllers/carts_controller.rb' }, '{"path":"app/controllers/carts_controller.rb","content":"class CartsController …"}'),
-      tool('search_logs', { query: 'service:storefront-api @db.statement:*carts*', from: '1d' }, '{"total":4120}'),
+      tool('search_repo_code', { repo, query: 'find_cart_in_progress' }, '1 match'),
+      tool('read_repo_file', { repo, path: 'app/controllers/carts_controller.rb' }, 'app/controllers/carts_controller.rb, 10 lines'),
+      tool('search_logs', { query: 'service:storefront-api @db.statement:*carts*', from: '1d' }, '4120 logs (showing 20)'),
       tool('propose_change', { title: 'Query the open cart instead of loading every cart' }, 'Proposed. Now conclude.'),
     ],
     conclusion: {
@@ -283,12 +283,18 @@ function view(r: MockRun, now = Date.now()): RunDetail {
   const at = cancelled ? r.cancelledAt! : now;
   const shown = Math.max(0, Math.min(steps.length, Math.floor((at - r.summary.createdAt - QUEUED_MS) / STEP_MS) + 1));
   const status = cancelled ? 'cancelled' : elapsed < QUEUED_MS ? 'queued' : now < doneAt ? 'running' : 'concluded';
+  // Each step starts after the queue wait, one per STEP_MS (seeded runs spread over how long they took).
+  const per = r.tookMs ? (r.tookMs - QUEUED_MS) / Math.max(1, steps.length) : STEP_MS;
+  const timed = steps.map((s, i): RunStep => {
+    const at = r.summary.createdAt + QUEUED_MS + Math.round(i * per);
+    return s.type === 'tool' ? { ...s, at, ms: Math.round(per * 0.8) } : { ...s, at };
+  });
   const visible =
     elapsed < QUEUED_MS
       ? []
-      : steps
+      : timed
           .slice(0, status === 'concluded' ? steps.length : shown)
-          .map((s, i, all) => (status === 'running' && i === all.length - 1 && s.type === 'tool' ? { ...s, status: 'running', summary: '' } : s));
+          .map((s, i, all) => (status === 'running' && i === all.length - 1 && s.type === 'tool' ? { ...s, status: 'running', summary: '', ms: null } : s));
   const concluded = status === 'concluded';
   return {
     ...r.summary,
