@@ -1282,11 +1282,13 @@ pub async fn timeseries(
         ));
     }
     let points = req.points.unwrap_or(120).clamp(10, 1000);
-    let results = futures::future::try_join_all(
-        req.queries
-            .iter()
-            .map(|q| evaluate_formula(&st, &org, q, req.range, points)),
-    )
+    // A metric nobody sent (yet) has no data, as in Datadog: no series rather than an error.
+    let results = futures::future::try_join_all(req.queries.iter().map(|q| async {
+        match evaluate_formula(&st, &org, q, req.range, points).await {
+            Err(ApiError::BadRequest(m)) if m.starts_with("Unknown metric:") => Ok((None, vec![])),
+            other => other,
+        }
+    }))
     .await?;
     let metrics: Vec<String> = results.iter().filter_map(|(q, _)| q.as_ref().map(|q| q.metric.clone())).collect::<std::collections::HashSet<_>>().into_iter().collect();
     let units = series_units(&st, &org, &metrics).await?;
@@ -2424,6 +2426,20 @@ mod tests {
         assert_eq!(split_stat("system.cpu.utilization"), None);
         assert_eq!(quantile_of("p99"), Some(0.99));
         assert_eq!(quantile_of("avg"), None);
+    }
+
+    /// A metric nobody sent (yet) has no data, as in Datadog: an empty series, not an error, so a page
+    /// that charts it (a service's host load) shows "No data". Other query errors stay errors.
+    #[tokio::test]
+    async fn an_unknown_metric_has_no_data() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = states[0].clone();
+        let ctx = crate::test_support::admin_of_new_org(&st, "unknown-metric").await;
+        let range = TimeRange { from: 1_700_000_000_000, to: 1_700_003_600_000 };
+        let req = |q: &str| TimeseriesRequest { queries: vec![q.to_string()], range, points: Some(60) };
+        let Json(series) = timeseries(State(st.clone()), OrgId(ctx.org_id.clone()), Json(req("avg:system.proc.queue_length{host:i-0a1b2c3d4e5f60001}"))).await.unwrap();
+        assert!(series.is_empty());
+        assert!(matches!(timeseries(State(st), OrgId(ctx.org_id), Json(req("avg:system.cpu.user{"))).await, Err(ApiError::BadRequest(_))));
     }
 
     /// Tag values and the metric catalog come from the shared cache: replica B gets replica A's
