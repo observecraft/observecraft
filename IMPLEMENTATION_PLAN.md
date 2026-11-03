@@ -26,7 +26,7 @@ EffectiveCost; public on-demand → ListCost. Status and `error_messages` on the
 Success Criteria: unit tests on manifest discovery, column normalization (legacy `lineItem/UnblendedCost` and CUR 2.0
 `line_item_unblended_cost`), amortization per line item type and month replacement, over small Parquet and CSV
 fixtures written by the tests; a fake S3 for the job's run.
-Status: In Progress
+Status: Complete
 
 ## Stage 3: Azure bills
 Goal: per active Azure config, the latest run's `manifest.json` per month of each export (actual, amortized), its
@@ -34,7 +34,7 @@ blobs read with the app registration (Storage Blob Data Reader, REST) and loaded
 Amortized → EffectiveCost, per day, subscription, service, region, resource and tags.
 Success Criteria: unit tests on manifest selection (latest run of a month), column mapping of the 2021-10-01 dataset
 (CSV and Parquet) and the two datasets combined; a fake Blob service for the job's run.
-Status: Not Started
+Status: In Progress
 
 ## Stage 4: Cloud Cost setup page
 Goal: Cloud Cost → Settings lists the AWS and Azure configs with their status, last import and errors, and adds or

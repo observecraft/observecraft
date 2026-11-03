@@ -36,7 +36,8 @@ pub struct Config {
     /// accounts with (the STS delegate); customers grant it the Service Account Token Creator role.
     pub gcp_principal_email: Option<String>,
     /// `OC_CLOUD_CRAWLERS` (default `aws,azure,gcp`): the cloud integrations whose metrics this server
-    /// crawls (they publish to Kafka, so they need it); empty turns them off.
+    /// crawls (they publish to Kafka, so they need it) and whose bills it imports (Cloud Cost
+    /// Management's `cost_bill_configs`); empty turns them off.
     pub cloud_crawlers: Vec<String>,
     /// `OC_CLOUD_CRAWL_INTERVAL_SECS` (default 600, at least 60): how often each account's region,
     /// subscription or project is read.

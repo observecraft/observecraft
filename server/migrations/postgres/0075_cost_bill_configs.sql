@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS cost_bill_configs (
     scope             TEXT NOT NULL DEFAULT '',
     config            JSONB NOT NULL DEFAULT '{}',
     months            INTEGER NOT NULL DEFAULT 15,
+    -- What the import loaded: billing month (YYYY-MM) → the run of the bill it read (AWS assemblyId or
+    -- executionId, Azure runId), so a month is read again only when the provider rewrites it.
+    imported          JSONB NOT NULL DEFAULT '{}',
     -- active | disabled | archived
     status            TEXT NOT NULL DEFAULT 'active',
     status_updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
