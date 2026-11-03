@@ -108,6 +108,7 @@ pub struct Sdk {
 struct Clients {
     cloudwatch: aws_sdk_cloudwatch::Client,
     tagging: aws_sdk_resourcegroupstagging::Client,
+    s3: aws_sdk_s3::Client,
 }
 
 const CLIENT_TTL: Duration = Duration::from_secs(3600);
@@ -148,9 +149,29 @@ impl Sdk {
                 builder.credentials_provider(aws_sdk_cloudwatch::config::SharedCredentialsProvider::new(creds)).build()
             }
         };
-        let clients = Clients { cloudwatch: aws_sdk_cloudwatch::Client::new(&config), tagging: aws_sdk_resourcegroupstagging::Client::new(&config) };
+        let clients = Clients { cloudwatch: aws_sdk_cloudwatch::Client::new(&config), tagging: aws_sdk_resourcegroupstagging::Client::new(&config), s3: aws_sdk_s3::Client::new(&config) };
         cache.insert(target.clone(), (clients.clone(), Instant::now()));
         clients
+    }
+}
+
+impl Sdk {
+    /// The keys under `prefix` in the bucket (the region is the target's).
+    pub async fn list_objects(&self, target: &Target, bucket: &str, prefix: &str) -> Result<Vec<String>, AwsError> {
+        let client = self.clients(target).await.s3;
+        let mut pages = client.list_objects_v2().bucket(bucket).prefix(prefix).into_paginator().send();
+        let mut out = vec![];
+        while let Some(page) = pages.next().await {
+            out.extend(page.map_err(sdk_error)?.contents().iter().filter_map(|o| o.key().map(str::to_string)));
+        }
+        Ok(out)
+    }
+
+    pub async fn get_object(&self, target: &Target, bucket: &str, key: &str) -> Result<Vec<u8>, AwsError> {
+        let client = self.clients(target).await.s3;
+        let object = client.get_object().bucket(bucket).key(key).send().await.map_err(sdk_error)?;
+        let bytes = object.body.collect().await.map_err(|e| AwsError::Other(format!("reading s3://{bucket}/{key}: {e}")))?;
+        Ok(bytes.into_bytes().to_vec())
     }
 }
 

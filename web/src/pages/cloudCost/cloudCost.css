@@ -2112,3 +2112,188 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---------------------------------------------------------------- setup: providers (bills read) */
+
+.ccm-providers {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1200px;
+  padding: 20px 24px 40px;
+}
+
+.ccm-providers h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.ccm-providers-head {
+  margin: 0 0 12px;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+
+.ccm-provider-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ccm-provider-row {
+  padding: 14px 16px;
+}
+
+.ccm-provider-row + .ccm-provider-row {
+  border-top: 1px solid var(--border);
+}
+
+.ccm-provider-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ccm-provider-what {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ccm-provider-what > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ccm-provider-state {
+  padding: 1px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.ccm-provider-state.active {
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
+}
+
+.ccm-provider-state.disabled {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
+.ccm-provider-state.error {
+  background: var(--badge-error-bg);
+  color: var(--status-error);
+}
+
+.ccm-provider-import {
+  width: 170px;
+  font-size: var(--fs-sm);
+}
+
+.ccm-provider-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ccm-provider-errors {
+  margin: 10px 0 0 42px;
+  padding: 8px 12px 8px 28px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--status-error) 10%, var(--bg));
+  color: var(--status-error);
+}
+
+.ccm-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.ccm-provider-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.ccm-provider-card p {
+  flex: 1;
+  margin: 0;
+}
+
+.ccm-provider-card.soon {
+  background: var(--bg-subtle);
+}
+
+.ccm-provider-card-logo {
+  display: flex;
+  align-items: center;
+  height: 36px;
+}
+
+.ccm-provider-file {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+}
+
+/* Configure AWS / Azure for Cloud Cost: numbered steps and a footer bar. */
+
+.ccm-connect {
+  height: 100%;
+}
+
+.ccm-connect-body {
+  flex: 1;
+  overflow: auto;
+  max-width: 960px;
+}
+
+.ccm-connect-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 24px;
+  font-size: 22px;
+}
+
+.ccm-connect-logos {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+}
+
+.ccm-connect-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.ccm-connect-body h4 {
+  margin: 4px 0 0;
+}
+
+.ccm-connect-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.ccm-connect-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

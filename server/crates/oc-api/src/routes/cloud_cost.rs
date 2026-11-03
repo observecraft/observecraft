@@ -332,8 +332,11 @@ pub async fn insert(st: &AppState, lines: &[CostLine]) -> Result<(), ApiError> {
 /// Removes a file's line items: writes them again, deleted, with a newer version.
 pub async fn delete_file(st: &AppState, org: &str, file_id: &str) -> Result<(), ApiError> {
     let version = Utc::now().timestamp_millis() as u64;
+    // The rows are selected in a subquery: in the outer one, the REPLACE aliases would shadow the
+    // columns of the same names in WHERE (`IsDeleted = 0` would read `1 = 0`).
     let sql = format!(
-        "INSERT INTO {TABLE} SELECT * REPLACE (toUInt64(?) AS Version, toUInt8(1) AS IsDeleted) FROM {TABLE} FINAL WHERE OrgId = {{oc_org:String}} AND FileId = ? AND IsDeleted = 0"
+        "INSERT INTO {TABLE} SELECT * REPLACE (toUInt64(?) AS Version, toUInt8(1) AS IsDeleted) \
+         FROM (SELECT * FROM {TABLE} FINAL WHERE OrgId = {{oc_org:String}} AND FileId = ? AND IsDeleted = 0)"
     );
     st.ch(org).query(&sql).bind(version).bind(file_id).execute().await?;
     Ok(())
@@ -1519,4 +1522,42 @@ mod tests {
         assert_eq!(r.coverage_by_type.iter().map(|t| t.kind.as_str()).collect::<Vec<_>>(), vec!["Savings Plan", "On-Demand"]);
     }
 
+    #[tokio::test]
+    async fn deleting_a_file_removes_only_its_line_items() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "cost-delete").await;
+        let line = |file: &str, no: u32, billed: f64| CostLine {
+            org: org.clone(),
+            file_id: file.into(),
+            line_no: no,
+            date: "2026-10-01".into(),
+            provider: "aws".into(),
+            service: "AmazonEC2".into(),
+            sub_account: String::new(),
+            region: String::new(),
+            zone: String::new(),
+            category: "usage".into(),
+            description: String::new(),
+            resource_id: String::new(),
+            pricing_unit: String::new(),
+            quantity: 0.0,
+            billed,
+            effective: billed,
+            list: billed,
+            pricing_category: String::new(),
+            commitment_id: String::new(),
+            commitment_type: String::new(),
+            commitment_status: String::new(),
+            currency: "USD".into(),
+            tags: BTreeMap::new(),
+            source: "custom".into(),
+            version: 1,
+            deleted: 0,
+        };
+        insert(st, &[line("a", 0, 1.0), line("a", 1, 2.0), line("b", 0, 4.0)]).await.unwrap();
+        delete_file(st, &org, "a").await.unwrap();
+        let left: f64 = st.ch(&org).query(&format!("SELECT toFloat64(sum(BilledCost)) FROM {TABLE} FINAL WHERE OrgId = {{oc_org:String}} AND IsDeleted = 0")).fetch_one().await.unwrap();
+        assert_eq!(left, 4.0);
+    }
 }

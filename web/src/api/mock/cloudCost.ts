@@ -1,6 +1,12 @@
 // Mock Cloud Cost: the fictional bills the server's demo seed writes (routes/cloud_cost.rs, DEMO_LINES),
 // a year of AWS, Azure, Google Cloud and SaaS costs per day, queried as the server queries them.
 import type {
+  AwsBillInput,
+  AzureBillInput,
+  AzureExportInput,
+  BillConfig,
+  BillInput,
+  BillProvider,
   BudgetDoc,
   CommitmentsRequest,
   CommitmentsResult,
@@ -791,4 +797,110 @@ export async function commitments(req: CommitmentsRequest): Promise<CommitmentsR
     utilization: [...util].sort(([a], [b]) => a.localeCompare(b)).map(([kind, u]) => ({ kind, used: round(u.used), unused: round(u.unused) })),
     commitments: list,
   };
+}
+
+// ---------------------------------------------------------------- provider billConfigs (Cloud Cost → Settings)
+
+/** Datadog's timestamp format: `YYYY-MM-DDTHH:MM:SS.ffffff`, UTC without a zone. */
+const ddTime = (ms: number) => new Date(ms).toISOString().replace('Z', '000');
+
+/** The billing months before now, newest first (`2026-10`). */
+function pastMonths(n: number): string[] {
+  const d = new Date();
+  return Array.from({ length: n }, (_, i) => {
+    const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - i, 1));
+    return m.toISOString().slice(0, 7);
+  });
+}
+
+let billConfigs: BillConfig[] | null = null;
+let nextBillId = 2;
+const billStore = () =>
+  (billConfigs ??= [
+    {
+      id: '1',
+      provider: 'aws',
+      last_import_at: Date.now() - 3 * 3_600_000,
+      imported_months: pastMonths(6),
+      doc: {
+        type: 'aws_cur_config',
+        id: '1',
+        attributes: {
+          account_id: '123456789012',
+          bucket_name: 'example-org-cur',
+          bucket_region: 'us-east-1',
+          report_name: 'observecraft-costs',
+          report_prefix: 'cur',
+          months: 15,
+          status: 'active',
+          status_updated_at: ddTime(Date.now() - 40 * DAY),
+          created_at: ddTime(Date.now() - 40 * DAY),
+          updated_at: ddTime(Date.now() - 40 * DAY),
+          error_messages: [],
+        },
+      },
+    },
+  ]);
+
+const billFail = (message: string): never => {
+  throw new Error(message);
+};
+
+export async function listBillConfigs(): Promise<BillConfig[]> {
+  return structuredClone(billStore());
+}
+
+export async function createBillConfig<P extends BillProvider>(provider: P, attributes: BillInput<P>): Promise<BillConfig> {
+  const now = ddTime(Date.now());
+  const id = String(nextBillId++);
+  let config: BillConfig;
+  if (provider === 'aws') {
+    const a = attributes as AwsBillInput;
+    if (!/^\d{12}$/.test(a.account_id)) billFail('attribute "account_id" must be a 12-digit AWS account id');
+    if (a.report_prefix.startsWith('/') || a.report_prefix.endsWith('/')) billFail('attribute "report_prefix" can\'t start or end with "/"');
+    if (billStore().some((b) => b.doc.type === 'aws_cur_config' && b.doc.attributes.account_id === a.account_id)) billFail(`Cloud account ${a.account_id} is already configured`);
+    config = {
+      id,
+      provider: 'aws',
+      last_import_at: null,
+      imported_months: [],
+      doc: { type: 'aws_cur_config', id, attributes: { ...a, months: 15, status: 'active', status_updated_at: now, created_at: now, updated_at: now, error_messages: [] } },
+    };
+  } else {
+    const a = attributes as AzureBillInput;
+    if (!/^\/(subscriptions|providers)\/[^/]/i.test(a.scope)) billFail('attribute "scope" does not match the required format');
+    const exp = (dataset_type: 'actual' | 'amortized', e: AzureExportInput) => ({
+      dataset_type,
+      account_id: a.account_id,
+      client_id: a.client_id,
+      scope: a.scope,
+      ...e,
+      status: 'active' as const,
+      error_messages: [],
+      created_at: now,
+      updated_at: now,
+    });
+    config = {
+      id,
+      provider: 'azure',
+      last_import_at: null,
+      imported_months: [],
+      doc: { type: 'azure_uc_configs', id, attributes: { configs: [exp('amortized', a.amortized_bill_config), exp('actual', a.actual_bill_config)] } },
+    };
+  }
+  billStore().push(config);
+  return structuredClone(config);
+}
+
+export async function setBillConfigEnabled(provider: BillProvider, id: string, enabled: boolean): Promise<BillConfig> {
+  const b = billStore().find((x) => x.provider === provider && x.id === id) ?? billFail('Bill config not found');
+  const status = enabled ? 'active' : 'disabled';
+  const now = ddTime(Date.now());
+  if (b.doc.type === 'aws_cur_config') Object.assign(b.doc.attributes, { status, status_updated_at: now });
+  else for (const e of b.doc.attributes.configs) Object.assign(e, { status, updated_at: now });
+  return structuredClone(b);
+}
+
+export async function deleteBillConfig(provider: BillProvider, id: string): Promise<void> {
+  billConfigs = billStore().filter((b) => !(b.provider === provider && b.id === id));
 }

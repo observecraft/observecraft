@@ -100,6 +100,11 @@ or SDK features.
   pipelines store the UI's processor keys and answer Datadog's. Custom destinations are forwarded by the log indexer
   (`log_forwarding.rs`: HTTP, Splunk HEC, Elasticsearch). Archives created through the API need their bucket keys set
   in the UI (Datadog's API carries no secrets).
+- **Cloud Cost → Settings** (`datadog_api/cost_bills.rs`, `routes/cloud_cost_bills.rs`, `bills/`): the providers' bills
+  are `datadog_aws_cur_config` / `datadog_azure_uc_config` (`/api/v2/cost/aws_cur_config`, `/azure_uc_config`, Postgres
+  `cost_bill_configs`), read every 4 hours on the crawlers' jobs with the integrations' credentials (the AWS account's
+  role, the Azure app registration): each month's latest Cost and Usage Report (CUR 2.0 or classic) or Azure export run
+  (with or without `manifest.json`), loaded with DuckDB and replacing that month's rows of `otel.cloud_costs`.
 - **AWS integration** (`datadog_api/aws_integration.rs`): accounts are `datadog_integration_aws_account`
   (`/api/v2/integration/aws/accounts`, Postgres `aws_accounts`, secret access keys sealed), with the external id,
   available namespaces, log sources and IAM permissions endpoints; namespaces and log sources are our catalog
@@ -233,9 +238,9 @@ or SDK features.
   - Logs: forwarding to Microsoft Sentinel (needs Azure credentials), Azure Blob archives, archive readers (roles), the
     pipeline processors the engine doesn't run yet (array, decoder, schema, span id remapper: stored and skipped);
   - the profiler's Thread Timeline and Call Graph views, and Event Management's saved work item states, intelligent (learned) correlation, projects and event pipelines (correlators, maintenance windows and work item attributes exist);
-  - Cloud Cost Management's provider bills (`datadog_aws_cur_config`, `datadog_azure_uc_config`, `datadog_gcp_uc_config`),
-    tag pipelines and custom allocation rules (budgets, custom forecasts and custom costs files exist, `datadog_api/cost.rs`;
-    costs are the cost metrics `all.cost`, `aws.cost.amortized`, …, `cloud_cost.rs`);
+  - Cloud Cost Management's Google Cloud billing export (`datadog_gcp_uc_config`), tag pipelines and custom allocation
+    rules (budgets, custom forecasts, custom costs files, `datadog_api/cost.rs`, and the AWS and Azure bills exist; costs
+    are the cost metrics `all.cost`, `aws.cost.amortized`, …, `cloud_cost.rs`);
   - Cloud Security's cloud account scanning (provider APIs: misconfigurations of cloud resources, identity risks,
     attack paths), compliance frameworks and the resource map (its misconfigurations cover hosts and Kubernetes,
     `cloud_security_rules.rs`); the live debugger and remote configuration;

@@ -16,6 +16,7 @@ path = "src/main.rs"
 aws-config = { version = "1", features = ["behavior-version-latest"] }
 aws-sdk-sts = "1"
 aws-sdk-cloudwatch = "1"
+aws-sdk-s3 = "1"
 aws-sdk-resourcegroupstagging = "1"
 # GCP integration crawler: this install's Application Default Credentials (metadata server, workload identity, key file).
 gcp_auth = "0.12"

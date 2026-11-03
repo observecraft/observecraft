@@ -17,6 +17,7 @@
 //! Errors are Datadog's `{"errors": ["…"]}` with Datadog's status codes ([`DdError`]).
 
 pub mod cost;
+pub mod cost_bills;
 pub mod current_user;
 pub mod slo_corrections;
 pub mod slos;
@@ -159,6 +160,10 @@ fn cost_router() -> Router<AppState> {
         .route("/api/v2/cost/budget/{budget_id}/custom-forecast", get(cost::get_custom_forecast).delete(cost::delete_custom_forecast))
         .route("/api/v2/cost/custom_costs", get(cost::list_custom_costs).put(cost::upload_custom_costs))
         .route("/api/v2/cost/custom_costs/{file_id}", get(cost::get_custom_costs).delete(cost::delete_custom_costs))
+        .route("/api/v2/cost/aws_cur_config", get(cost_bills::list_aws).post(cost_bills::create_aws))
+        .route("/api/v2/cost/aws_cur_config/{cloud_account_id}", get(cost_bills::get_aws).patch(cost_bills::update_aws).delete(cost_bills::delete_aws))
+        .route("/api/v2/cost/azure_uc_config", get(cost_bills::list_azure).post(cost_bills::create_azure))
+        .route("/api/v2/cost/azure_uc_config/{cloud_account_id}", get(cost_bills::get_azure).patch(cost_bills::update_azure).delete(cost_bills::delete_azure))
 }
 
 /// `datadog_monitor`, `datadog_downtime_schedule` and `datadog_downtime` ([`monitors`], [`downtimes`]).

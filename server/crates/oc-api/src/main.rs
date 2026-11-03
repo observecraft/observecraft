@@ -8,6 +8,7 @@
 mod assist;
 mod auth;
 mod aws;
+mod bills;
 mod azure;
 mod cloud;
 mod gcp;
@@ -213,6 +214,15 @@ async fn main() -> anyhow::Result<()> {
             };
             tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), crawler, interval, concurrency)));
         }
+    }
+    // Cloud Cost Management's provider bills (`cost_bill_configs`), for the same clouds; written to ClickHouse directly.
+    if state.config.cloud_crawlers.iter().any(|c| c == "aws") {
+        let importer: Arc<dyn cloud::jobs::Crawler> = Arc::new(bills::import::AwsBills { store: aws::api::Sdk::from_env().await });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), importer, bills::import::INTERVAL_SECS, 2)));
+    }
+    if state.config.cloud_crawlers.iter().any(|c| c == "azure") {
+        let importer: Arc<dyn cloud::jobs::Crawler> = Arc::new(bills::import::AzureBills { store: Arc::new(azure::api::Rest::new(reqwest::Client::new(), Default::default())) });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), importer, bills::import::INTERVAL_SECS, 2)));
     }
     logproc::serve(state.clone()).await.context("log indexer")?;
 
