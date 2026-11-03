@@ -423,7 +423,8 @@ fn count_calls(msgs: &[Msg]) -> usize {
     msgs.iter().map(|m| if let Msg::Assistant { calls, .. } = m { calls.len() } else { 0 }).sum()
 }
 
-async fn configured(st: &AppState, org: &str) -> Result<HttpModel, ApiError> {
+async fn configured(st: &AppState, org: &str, user: &str) -> Result<HttpModel, ApiError> {
+    crate::routes::assist_usage::check_credits(st, org, Some(user)).await?;
     let r = resolve(st, org)
         .await?
         .ok_or_else(|| ApiError::BadRequest("Assist has no model: an admin sets one in Organization Settings → Assist AI (or the install's OC_ASSIST_PROVIDER).".into()))?;
@@ -439,7 +440,7 @@ async fn configured(st: &AppState, org: &str) -> Result<HttpModel, ApiError> {
 #[utoipa::path(post, path = "/api/v1/assist/chat", operation_id = "assist_chat", request_body = ChatRequest,
     responses((status = 200, body = AssistEvent, content_type = "text/event-stream")), tag = "assist")]
 pub async fn chat(State(st): State<AppState>, ctx: AuthContext, Json(req): Json<ChatRequest>) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiError> {
-    let model = configured(&st, &ctx.org_id).await?;
+    let model = configured(&st, &ctx.org_id, &ctx.user_id).await?;
     let message = req.message.trim().to_string();
     if message.is_empty() || message.chars().count() > MAX_MESSAGE {
         return Err(ApiError::BadRequest(format!("A message has 1 to {MAX_MESSAGE} characters")));
@@ -480,7 +481,7 @@ pub async fn chat(State(st): State<AppState>, ctx: AuthContext, Json(req): Json<
 #[utoipa::path(post, path = "/api/v1/assist/conversations/{id}/approve", operation_id = "assist_approve", params(("id" = String, Path)), request_body = ApproveRequest,
     responses((status = 200, body = AssistEvent, content_type = "text/event-stream")), tag = "assist")]
 pub async fn approve(State(st): State<AppState>, ctx: AuthContext, Path(id): Path<String>, Json(req): Json<ApproveRequest>) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiError> {
-    let model = configured(&st, &ctx.org_id).await?;
+    let model = configured(&st, &ctx.org_id, &ctx.user_id).await?;
     let row = load(&st, &ctx, &id).await?;
     let pending = row.pending.map(|p| p.0).unwrap_or_default();
     if pending.is_empty() {

@@ -983,6 +983,12 @@ struct RunRow {
 
 /// The member a run acts as, while they may still run workflows.
 async fn member(st: &AppState, org: &str, user: &str) -> Result<Option<(AuthContext, String)>, ApiError> {
+    member_with(st, org, user, Access::Standard).await
+}
+
+/// An active member of an active org with at least `min` access, as the context a background job acts
+/// as (and their email); None otherwise.
+pub(crate) async fn member_with(st: &AppState, org: &str, user: &str, min: Access) -> Result<Option<(AuthContext, String)>, ApiError> {
     #[derive(sqlx::FromRow)]
     struct Member {
         user_id: String,
@@ -1004,7 +1010,7 @@ async fn member(st: &AppState, org: &str, user: &str) -> Result<Option<(AuthCont
     .await?;
     let Some(Member { user_id, account_id, name, email, status, roles, org_active }) = row else { return Ok(None) };
     let access = access_from_roles(org, &roles);
-    if status != "active" || !org_active || access < Access::Standard {
+    if status != "active" || !org_active || access < min {
         return Ok(None);
     }
     let ctx = AuthContext { user_id, org_id: org.to_string(), account_id, instance_admin: false, name, access, credential: Credential::AppKey, session_hash: None, ip: None };

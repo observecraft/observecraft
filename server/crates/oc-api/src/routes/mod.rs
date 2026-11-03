@@ -5,7 +5,11 @@ pub mod azure_integration;
 pub mod gcp_integration;
 pub mod apps;
 pub mod assist;
+pub mod assist_agents;
+pub mod assist_code;
 pub mod assist_provider;
+pub mod assist_runs;
+pub mod assist_usage;
 pub mod archives;
 pub mod auth;
 pub mod catalog;
@@ -428,6 +432,39 @@ use crate::state::AppState;
         assist_provider::put_provider,
         assist_provider::delete_provider,
         assist_provider::test_provider,
+        assist_runs::start_run,
+        assist_runs::search_runs,
+        assist_runs::get_run,
+        assist_runs::cancel_run,
+        assist_runs::run_feedback,
+        assist_runs::get_run_settings,
+        assist_runs::put_run_settings,
+        assist_runs::list_memories,
+        assist_runs::add_memory,
+        assist_runs::delete_memory,
+        assist_runs::investigation_monitors,
+        assist_runs::set_monitor_auto,
+        assist_runs::investigation_report,
+        assist_runs::analyzed_signals,
+        assist_agents::list_agents,
+        assist_agents::get_agent,
+        assist_agents::create_agent,
+        assist_agents::update_agent,
+        assist_agents::delete_agent,
+        assist_agents::run_agent,
+        assist_agents::draft_agent,
+        assist_usage::get_credits,
+        assist_usage::put_credits,
+        assist_usage::usage,
+        assist_code::connections,
+        assist_code::list_repos,
+        assist_code::add_repo,
+        assist_code::remove_repo,
+        assist_code::get_settings,
+        assist_code::put_settings,
+        assist_code::start_session,
+        assist_code::pull_request,
+        assist_code::code_usage,
         notebooks::search,
         notebooks::get_one,
         notebooks::create,
@@ -1125,6 +1162,31 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/assist/reports", post(assist::report))
         .route("/api/v1/assist/provider", get(assist_provider::get_provider).put(assist_provider::put_provider).delete(assist_provider::delete_provider))
         .route("/api/v1/assist/provider/test", post(assist_provider::test_provider))
+        .route("/api/v1/assist/runs", post(assist_runs::start_run))
+        .route("/api/v1/assist/runs/search", post(assist_runs::search_runs))
+        .route("/api/v1/assist/runs/report", post(assist_runs::investigation_report))
+        .route("/api/v1/assist/runs/{id}", get(assist_runs::get_run))
+        .route("/api/v1/assist/runs/{id}/cancel", post(assist_runs::cancel_run))
+        .route("/api/v1/assist/runs/{id}/feedback", post(assist_runs::run_feedback))
+        .route("/api/v1/assist/run-settings", get(assist_runs::get_run_settings).put(assist_runs::put_run_settings))
+        .route("/api/v1/assist/memories", get(assist_runs::list_memories).post(assist_runs::add_memory))
+        .route("/api/v1/assist/memories/{id}", delete(assist_runs::delete_memory))
+        .route("/api/v1/assist/investigations/monitors", get(assist_runs::investigation_monitors))
+        .route("/api/v1/assist/security/signals", post(assist_runs::analyzed_signals))
+        .route("/api/v1/assist/agents", get(assist_agents::list_agents).post(assist_agents::create_agent))
+        .route("/api/v1/assist/agents/draft", post(assist_agents::draft_agent))
+        .route("/api/v1/assist/agents/{id}", get(assist_agents::get_agent).put(assist_agents::update_agent).delete(assist_agents::delete_agent))
+        .route("/api/v1/assist/agents/{id}/run", post(assist_agents::run_agent))
+        .route("/api/v1/assist/credits", get(assist_usage::get_credits).put(assist_usage::put_credits))
+        .route("/api/v1/assist/usage", post(assist_usage::usage))
+        .route("/api/v1/assist/code/connections", get(assist_code::connections))
+        .route("/api/v1/assist/code/repos", get(assist_code::list_repos).post(assist_code::add_repo))
+        .route("/api/v1/assist/code/repos/remove", post(assist_code::remove_repo))
+        .route("/api/v1/assist/code/settings", get(assist_code::get_settings).put(assist_code::put_settings))
+        .route("/api/v1/assist/code/sessions", post(assist_code::start_session))
+        .route("/api/v1/assist/code/sessions/{id}/pull-request", post(assist_code::pull_request))
+        .route("/api/v1/assist/code/usage", post(assist_code::code_usage))
+        .route("/api/v1/assist/investigations/monitors/{id}", axum::routing::put(assist_runs::set_monitor_auto))
         .route("/api/v1/notebooks", post(notebooks::create))
         .route("/api/v1/notebooks/search", post(notebooks::search))
         .route(
@@ -1926,6 +1988,10 @@ mod tests {
             include_str!("network.rs"),
             include_str!("assist.rs"),
             include_str!("assist_provider.rs"),
+            include_str!("assist_runs.rs"),
+            include_str!("assist_agents.rs"),
+            include_str!("assist_usage.rs"),
+            include_str!("assist_code.rs"),
             include_str!("notebooks.rs"),
             include_str!("profiles.rs"),
             include_str!("reference_tables.rs"),
@@ -2288,6 +2354,12 @@ mod tests {
             ("network.rs", include_str!("network.rs")),
             ("assist.rs", include_str!("assist.rs")),
             ("assist_provider.rs", include_str!("assist_provider.rs")),
+            ("assist_runs.rs", include_str!("assist_runs.rs")),
+            ("assist_agents.rs", include_str!("assist_agents.rs")),
+            ("assist_usage.rs", include_str!("assist_usage.rs")),
+            ("assist_code.rs", include_str!("assist_code.rs")),
+            ("../assist/code.rs", include_str!("../assist/code.rs")),
+            ("../assist/runs.rs", include_str!("../assist/runs.rs")),
             ("../assist/mod.rs", include_str!("../assist/mod.rs")),
             ("../assist/agent.rs", include_str!("../assist/agent.rs")),
             ("../assist/http.rs", include_str!("../assist/http.rs")),

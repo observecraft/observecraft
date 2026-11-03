@@ -154,6 +154,7 @@ async fn main() -> anyhow::Result<()> {
     }
     // Background jobs don't take the orgs' query slots (org_limits.rs).
     tokio::spawn(org_limits::background(routes::monitors::run_evaluator(state.clone())));
+    tokio::spawn(org_limits::background(routes::assist_runs::run_worker(state.clone())));
     routes::archives::ensure_demo_archive(&state)
         .await
         .context("demo log archive")?;

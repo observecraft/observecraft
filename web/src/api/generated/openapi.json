@@ -2168,6 +2168,210 @@
         }
       }
     },
+    "/api/v1/assist/agents": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_list_agents",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_create_agent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/agents/draft": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Turns a description into a draft agent (not saved).",
+        "operationId": "assist_draft_agent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentDraft"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/agents/{id}": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_get_agent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Saves the agent; it then runs as the member who saved it.",
+        "operationId": "assist_update_agent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_delete_agent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/agents/{id}/run": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_run_agent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunAgent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assist/chat": {
       "post": {
         "tags": [
@@ -2191,6 +2395,216 @@
               "text/event-stream": {
                 "schema": {
                   "$ref": "#/components/schemas/AssistEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/code/connections": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "The org's GitHub and GitLab connections (account names), set in Developer Portal → Settings.",
+        "operationId": "assist_code_connections",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeConnections"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/code/repos": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_list_code_repos",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepoView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Adds a repository sessions may read and change, once the org's connection can reach it.",
+        "operationId": "assist_add_code_repo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewRepo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/code/repos/remove": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_remove_code_repo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepoRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/code/sessions": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_start_code_session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewSession"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/code/sessions/{id}/pull-request": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Opens a pull (merge) request from the session's change, on a new branch.",
+        "operationId": "assist_open_pull_request",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PullRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/code/settings": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_get_code_settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_put_code_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/code/usage": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Sessions and their pull requests in the range; open pull requests' states are refreshed first.",
+        "operationId": "assist_code_usage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeUsageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeUsage"
                 }
               }
             }
@@ -2308,6 +2722,162 @@
         }
       }
     },
+    "/api/v1/assist/credits": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_get_credits",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditsView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_put_credits",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreditSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/investigations/monitors": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Every monitor with what Assist Investigation knows of it.",
+        "operationId": "assist_investigation_monitors",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvestigationMonitor"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/investigations/monitors/{id}": {
+      "put": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Turns automatic investigation of a monitor's alerts on or off; runs act as the member who turned it on.",
+        "operationId": "assist_set_monitor_auto",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonitorAuto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/memories": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_list_memories",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Memory"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_add_memory",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewMemory"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/memories/{id}": {
+      "delete": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_delete_memory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {}
+        }
+      }
+    },
     "/api/v1/assist/provider": {
       "get": {
         "tags": [
@@ -2417,6 +2987,249 @@
         }
       }
     },
+    "/api/v1/assist/run-settings": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_get_run_settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_put_run_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/runs": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Starts an investigation (of a monitor's latest alert, or of a question) or a security verdict.",
+        "operationId": "assist_start_run",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRun"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/runs/report": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_run_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/runs/search": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_search_runs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunSearch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/runs/{id}": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_get_run",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/runs/{id}/cancel": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_cancel_run",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/runs/{id}/feedback": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_run_feedback",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunFeedback"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/security/signals": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Signals in the range, newest first, with Assist's latest verdict on each.",
+        "operationId": "assist_analyzed_signals",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignalsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AnalyzedSignal"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assist/settings": {
       "get": {
         "tags": [
@@ -2467,6 +3280,35 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AssistStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/usage": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_usage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageReport"
                 }
               }
             }
@@ -30062,6 +30904,216 @@
           }
         }
       },
+      "AgentDraft": {
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "instructions",
+          "skills"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "schedule": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AgentInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "instructions",
+          "skills"
+        ],
+        "properties": {
+          "allowActions": {
+            "type": "boolean",
+            "description": "May use tools that change something without asking."
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "agent (default) | code: an Assist Code automation on `repo`."
+          },
+          "name": {
+            "type": "string"
+          },
+          "repo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The repository of a code automation."
+          },
+          "schedule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Five-field cron (`0 9 * * 1-5`); none: by hand only."
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Skills (groups of Assist's tools) the agent may use."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "timezone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "IANA zone of the schedule (default UTC)."
+          }
+        }
+      },
+      "AgentView": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "description",
+          "instructions",
+          "skills",
+          "allowActions",
+          "tags",
+          "timezone",
+          "enabled",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "runs"
+        ],
+        "properties": {
+          "allowActions": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "agent | code"
+          },
+          "lastRunAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "lastRunStatus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastVerdict": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "nextRunAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "repo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "schedule": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "AggregateData": {
         "type": "object",
         "required": [
@@ -31187,6 +32239,49 @@
           }
         }
       },
+      "AnalyzedSignal": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "severity",
+          "state",
+          "ruleName",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ruleName": {
+            "type": "string"
+          },
+          "run": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RunSummary",
+                "description": "The latest verdict run on it."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "severity": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
       "Anomaly": {
         "type": "object",
         "required": [
@@ -31785,6 +32880,50 @@
           },
           "prefix": {
             "type": "string"
+          }
+        }
+      },
+      "AppUsage": {
+        "type": "object",
+        "required": [
+          "app",
+          "users",
+          "uses",
+          "inputTokens",
+          "outputTokens",
+          "credits"
+        ],
+        "properties": {
+          "app": {
+            "type": "string",
+            "description": "chat | investigation | security | agent | code"
+          },
+          "credits": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "estCost": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "inputTokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "outputTokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "users": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "uses": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -34364,6 +35503,28 @@
           "feature_flag"
         ]
       },
+      "ChangedFile": {
+        "type": "object",
+        "description": "A file of a proposed change: its content before (none: a new file) and after.",
+        "required": [
+          "path",
+          "after"
+        ],
+        "properties": {
+          "after": {
+            "type": "string"
+          },
+          "before": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
       "ChatRequest": {
         "type": "object",
         "required": [
@@ -35448,6 +36609,45 @@
           }
         }
       },
+      "CodeChange": {
+        "type": "object",
+        "description": "The change a coding session proposes.",
+        "required": [
+          "title",
+          "files"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChangedFile"
+            }
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "CodeConnections": {
+        "type": "object",
+        "properties": {
+          "github": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "gitlab": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "CodeRequest": {
         "type": "object",
         "required": [
@@ -35664,6 +36864,75 @@
           "servicesAnalyzed": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "CodeSettings": {
+        "type": "object",
+        "required": [
+          "branchPrefix",
+          "draft",
+          "autoPullRequest"
+        ],
+        "properties": {
+          "autoPullRequest": {
+            "type": "boolean",
+            "description": "Open the pull request as soon as a session proposes a change."
+          },
+          "branchPrefix": {
+            "type": "string",
+            "description": "Branches are named `<prefix><title>-<id>`."
+          },
+          "draft": {
+            "type": "boolean",
+            "description": "Pull requests open as drafts."
+          }
+        }
+      },
+      "CodeUsage": {
+        "type": "object",
+        "required": [
+          "sessions",
+          "pullRequestsOpened",
+          "pullRequestsMerged",
+          "sessionsPerDay",
+          "pullRequestsPerDay"
+        ],
+        "properties": {
+          "pullRequestsMerged": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pullRequestsOpened": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pullRequestsPerDay": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeCount"
+            }
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessionsPerDay": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeCount"
+            }
+          }
+        }
+      },
+      "CodeUsageRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
           }
         }
       },
@@ -35953,6 +37222,46 @@
               "null"
             ],
             "description": "`total` (default) or `timeseries`."
+          }
+        }
+      },
+      "Conclusion": {
+        "type": "object",
+        "description": "How a run ended, as the model concluded it.",
+        "required": [
+          "summary",
+          "verdict",
+          "confidence"
+        ],
+        "properties": {
+          "confidence": {
+            "type": "string",
+            "description": "high | medium | low"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          },
+          "nextSteps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rootCause": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "description": "Markdown."
+          },
+          "verdict": {
+            "type": "string"
           }
         }
       },
@@ -36940,6 +38249,71 @@
             "description": "One-time link (72h) for the first admin. Share it until mail delivery is configured."
           }
         }
+      },
+      "CreditSettings": {
+        "type": "object",
+        "properties": {
+          "inputPricePerMtok": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "USD per million input tokens, to estimate cost."
+          },
+          "monthlyLimit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Credits per calendar month (UTC); none: unlimited."
+          },
+          "outputPricePerMtok": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "userDailyLimit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Credits per member per day (UTC); none: unlimited."
+          }
+        }
+      },
+      "CreditsView": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CreditSettings"
+          },
+          {
+            "type": "object",
+            "required": [
+              "usedThisMonth",
+              "myUsedToday",
+              "tokensPerCredit"
+            ],
+            "properties": {
+              "myUsedToday": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "tokensPerCredit": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "usedThisMonth": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          }
+        ]
       },
       "CsFilter": {
         "type": "object",
@@ -38704,6 +40078,28 @@
           }
         }
       },
+      "DayUsage": {
+        "type": "object",
+        "required": [
+          "at",
+          "users",
+          "credits"
+        ],
+        "properties": {
+          "at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "credits": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "users": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "DbEngine": {
         "type": "string",
         "enum": [
@@ -40287,6 +41683,18 @@
           "canceled"
         ]
       },
+      "DraftRequest": {
+        "type": "object",
+        "required": [
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "What the agent should monitor, investigate or automate."
+          }
+        }
+      },
       "EmailSubscriptions": {
         "type": "object",
         "required": [
@@ -40965,6 +42373,28 @@
           },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "Evidence": {
+        "type": "object",
+        "description": "A finding that supports the conclusion.",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "link": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A link inside the app (`/logs?query=…`) showing it."
+          },
+          "title": {
+            "type": "string"
           }
         }
       },
@@ -46088,6 +47518,78 @@
           }
         }
       },
+      "InvestigationMonitor": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "status",
+          "tags",
+          "teams",
+          "supported",
+          "autoInvestigate",
+          "investigations",
+          "memories",
+          "recentAlerts"
+        ],
+        "properties": {
+          "autoInvestigate": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "investigations": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "memories": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "recentAlerts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecentAlert"
+            },
+            "description": "Alerts in the last 7 days, newest first (at most 5)."
+          },
+          "status": {
+            "type": "string"
+          },
+          "supported": {
+            "type": "boolean",
+            "description": "Its data can be investigated (synthetic tests can't yet)."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
       "Invitation": {
         "type": "object",
         "required": [
@@ -50690,6 +52192,49 @@
           }
         }
       },
+      "Memory": {
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "createdBy",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "monitorId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "monitorName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceRun": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
       "MetricCardinality": {
         "type": "object",
         "required": [
@@ -51356,6 +52901,17 @@
           },
           "severity": {
             "type": "string"
+          }
+        }
+      },
+      "MonitorAuto": {
+        "type": "object",
+        "required": [
+          "autoInvestigate"
+        ],
+        "properties": {
+          "autoInvestigate": {
+            "type": "boolean"
           }
         }
       },
@@ -52353,6 +53909,64 @@
             "type": "integer",
             "format": "int64",
             "description": "Bucket start, epoch ms."
+          }
+        }
+      },
+      "NewMemory": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "monitorId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "For this monitor's investigations; none for every run."
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "NewRepo": {
+        "type": "object",
+        "required": [
+          "repo",
+          "provider"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "github | gitlab"
+          },
+          "repo": {
+            "type": "string",
+            "description": "owner/name"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "NewSession": {
+        "type": "object",
+        "required": [
+          "repo",
+          "prompt"
+        ],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "What to fix or change."
+          },
+          "repo": {
+            "type": "string"
           }
         }
       },
@@ -57237,6 +58851,31 @@
           }
         }
       },
+      "PullRequest": {
+        "type": "object",
+        "description": "A pull (merge) request opened from the change.",
+        "required": [
+          "url",
+          "number",
+          "branch",
+          "draft"
+        ],
+        "properties": {
+          "branch": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "boolean"
+          },
+          "number": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
       "PullRequestScan": {
         "type": "object",
         "required": [
@@ -57399,6 +59038,29 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "RecentAlert": {
+        "type": "object",
+        "required": [
+          "at",
+          "group"
+        ],
+        "properties": {
+          "at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "group": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           }
         }
       },
@@ -57940,6 +59602,48 @@
           },
           "viewId": {
             "type": "string"
+          }
+        }
+      },
+      "RepoRef": {
+        "type": "object",
+        "required": [
+          "repo"
+        ],
+        "properties": {
+          "repo": {
+            "type": "string"
+          }
+        }
+      },
+      "RepoView": {
+        "type": "object",
+        "required": [
+          "repo",
+          "provider",
+          "services",
+          "addedBy",
+          "addedAt"
+        ],
+        "properties": {
+          "addedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "addedBy": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -59799,6 +61503,410 @@
           },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "RunAgent": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Extra input for this run."
+          }
+        }
+      },
+      "RunCount": {
+        "type": "object",
+        "required": [
+          "name",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "RunDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RunSummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "steps"
+            ],
+            "properties": {
+              "change": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CodeChange",
+                    "description": "Coding sessions: the change proposed."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "conclusion": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Conclusion"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pullRequest": {
+                "description": "Coding sessions: the pull request opened from it ({url, number, branch, draft, state})."
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RunStep"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "RunFeedback": {
+        "type": "object",
+        "required": [
+          "feedback"
+        ],
+        "properties": {
+          "feedback": {
+            "type": "string",
+            "description": "helpful | not_helpful"
+          },
+          "remember": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Kept as a memory for later investigations of the same monitor."
+          }
+        }
+      },
+      "RunReport": {
+        "type": "object",
+        "required": [
+          "total",
+          "concluded",
+          "failed",
+          "helpful",
+          "notHelpful",
+          "overTime",
+          "byTrigger",
+          "byVerdict",
+          "byMonitor"
+        ],
+        "properties": {
+          "byMonitor": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunCount"
+            },
+            "description": "Investigations: by monitor name."
+          },
+          "byTrigger": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunCount"
+            }
+          },
+          "byVerdict": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunCount"
+            }
+          },
+          "concluded": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "helpful": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "meanSecondsToConclusion": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "From start to conclusion, on average."
+          },
+          "notHelpful": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "overTime": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeCount"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RunReportRequest": {
+        "type": "object",
+        "required": [
+          "range",
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "investigation | security | agent | code"
+          },
+          "monitorId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
+      "RunSearch": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "monitorId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "RunSettings": {
+        "type": "object",
+        "required": [
+          "knowledge",
+          "runsPerHour",
+          "automaticRunsPerDay",
+          "notify",
+          "securityAutoSeverities"
+        ],
+        "properties": {
+          "automaticRunsPerDay": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "knowledge": {
+            "type": "string",
+            "description": "The knowledge base every run reads (Markdown)."
+          },
+          "notify": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Channels (`@slack-ops`, an email) told when a run concludes."
+          },
+          "runsPerHour": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "securityAutoSeverities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Signals of these severities are judged automatically."
+          },
+          "securityRunAs": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The member automatic security runs act as."
+          }
+        }
+      },
+      "RunStep": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "text",
+              "type"
+            ],
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "input",
+              "status",
+              "summary",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "input": {},
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "tool"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What a run did, as it goes: its text and the tools it called."
+      },
+      "RunSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "status",
+          "trigger",
+          "subject",
+          "createdBy",
+          "createdAt",
+          "inputTokens",
+          "outputTokens"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "feedback": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finishedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "inputTokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "outputTokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rootCause": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "startedAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "description": "queued | running | concluded | failed | cancelled"
+          },
+          "subject": {},
+          "title": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "string",
+            "description": "manual | monitor | signal | schedule"
+          },
+          "verdict": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -62560,6 +64668,17 @@
           }
         }
       },
+      "SignalsRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
       "SloComparator": {
         "type": "string",
         "enum": [
@@ -64813,6 +66932,40 @@
           "double",
           "boolean"
         ]
+      },
+      "StartRun": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "investigation | security"
+          },
+          "monitorId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Investigate this monitor (its latest alert)."
+          },
+          "question": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Or investigate this, in the user's words."
+          },
+          "signalId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Judge this security signal."
+          }
+        }
       },
       "StaticFinding": {
         "type": "object",
@@ -68551,6 +70704,23 @@
           "last"
         ]
       },
+      "TimeCount": {
+        "type": "object",
+        "required": [
+          "at",
+          "count"
+        ],
+        "properties": {
+          "at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "TimeRange": {
         "type": "object",
         "required": [
@@ -69253,6 +71423,73 @@
           }
         }
       },
+      "UsageReport": {
+        "type": "object",
+        "required": [
+          "users",
+          "inputTokens",
+          "outputTokens",
+          "credits",
+          "daily",
+          "byApp",
+          "byUser"
+        ],
+        "properties": {
+          "byApp": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppUsage"
+            }
+          },
+          "byUser": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserUsage"
+            }
+          },
+          "credits": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "daily": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayUsage"
+            }
+          },
+          "estCost": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "From the token prices in AI Credits Management; none when they aren't set."
+          },
+          "inputTokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "outputTokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "users": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "UsageRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        }
+      },
       "UserPatch": {
         "type": "object",
         "properties": {
@@ -69423,6 +71660,31 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "UserUsage": {
+        "type": "object",
+        "required": [
+          "userId",
+          "name",
+          "uses",
+          "credits"
+        ],
+        "properties": {
+          "credits": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "uses": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

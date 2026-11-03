@@ -11,7 +11,7 @@ use super::agent::Tools;
 use super::llm::ToolSpec;
 use crate::auth::{AuthContext, Writer};
 use crate::error::ApiError;
-use crate::routes::{apm, error_tracking, incidents, kubernetes, logs, metrics, monitors};
+use crate::routes::{apm, error_tracking, incidents, kubernetes, logs, metrics, monitors, security_signals};
 use crate::state::{AppState, CurrentUser, OrgId};
 
 /// A group of tools a user can turn on or off (Assist → Settings → Skills).
@@ -28,6 +28,8 @@ pub const SKILLS: &[Skill] = &[
     Skill { name: "incidents", description: "Find incidents and declare new ones (with your approval)." },
     Skill { name: "errors", description: "Error Tracking issues: the errors services raise, grouped." },
     Skill { name: "kubernetes", description: "Kubernetes clusters, nodes, workloads and pods." },
+    Skill { name: "security", description: "Cloud SIEM security signals: what fired, on which rule, entities and matching queries." },
+    Skill { name: "code", description: "Read the code of the repositories added to Assist Code: list files, search and read them." },
 ];
 
 struct Def {
@@ -178,6 +180,41 @@ const DEFS: &[Def] = &[
                 &["kind"],
             )
         },
+    },
+    Def {
+        name: "search_security_signals",
+        skill: "security",
+        writes: false,
+        description: "Cloud SIEM signals in a time range, newest first: rule, severity, state, entities. Query by text or tags.",
+        schema: || object(json!({"query": {"type": "string"}, "state": {"type": "string", "enum": ["open", "under_review", "archived"]}, "from": {"type": "string", "description": RANGE_HELP}, "to": {"type": "string"}}), &[]),
+    },
+    Def {
+        name: "get_security_signal",
+        skill: "security",
+        writes: false,
+        description: "One signal in full: its rule, the log queries that matched, group values, entities and how often the rule fires.",
+        schema: || object(json!({"id": {"type": "string"}}), &["id"]),
+    },
+    Def {
+        name: "list_repo_files",
+        skill: "code",
+        writes: false,
+        description: "Files of a repository added to Assist Code (owner/name), optionally under a directory, on its default branch unless a ref is given.",
+        schema: || object(json!({"repo": {"type": "string"}, "path": {"type": "string", "description": "Directory, e.g. app/models"}, "ref": {"type": "string"}}), &["repo"]),
+    },
+    Def {
+        name: "search_repo_code",
+        skill: "code",
+        writes: false,
+        description: "Searches a repository's code for text (a function, an error message, a route); returns matching files.",
+        schema: || object(json!({"repo": {"type": "string"}, "query": {"type": "string"}}), &["repo", "query"]),
+    },
+    Def {
+        name: "read_repo_file",
+        skill: "code",
+        writes: false,
+        description: "A file's content from a repository added to Assist Code.",
+        schema: || object(json!({"repo": {"type": "string"}, "path": {"type": "string"}, "ref": {"type": "string"}}), &["repo", "path"]),
     },
 ];
 
@@ -343,6 +380,27 @@ impl OrgTools {
             "search_kubernetes" => {
                 let r: kubernetes::KubeSearchRequest = req(json!({"kind": input["kind"], "query": input["query"].as_str().unwrap_or(""), "limit": limit(input, 25, 50)}))?;
                 to_json(serde_json::to_value(kubernetes::search(st(), org(), Json(r)).await.map_err(err)?.0))
+            }
+            "search_security_signals" => {
+                let r: security_signals::SignalSearchRequest = req(json!({"range": parse_range(input, now, "1d")?, "query": input["query"].as_str().unwrap_or(""), "state": input["state"].as_str().unwrap_or(""), "limit": 25}))?;
+                to_json(serde_json::to_value(security_signals::search(st(), self.ctx.clone(), Json(r)).await.map_err(err)?.0))
+            }
+            "get_security_signal" => {
+                let id = input["id"].as_str().ok_or("Give the signal's id")?;
+                to_json(serde_json::to_value(security_signals::get(st(), self.ctx.clone(), Path(id.to_string())).await.map_err(err)?.0))
+            }
+            "list_repo_files" | "search_repo_code" | "read_repo_file" => {
+                let repo = input["repo"].as_str().ok_or("Give the repository (owner/name)")?;
+                let f = crate::assist::code::forge_for(&self.st, &self.ctx.org_id, repo).await?;
+                let reference = input["ref"].as_str().filter(|r| !r.is_empty());
+                match name {
+                    "list_repo_files" => {
+                        let files = crate::assist::code::list_files(&self.st, &f, repo, input["path"].as_str().unwrap_or(""), reference).await?;
+                        Ok(json!({"files": files.iter().take(500).collect::<Vec<_>>(), "total": files.len()}))
+                    }
+                    "search_repo_code" => Ok(json!({"matches": crate::assist::code::search(&self.st, &f, repo, input["query"].as_str().unwrap_or("")).await?})),
+                    _ => Ok(json!({"path": input["path"], "content": crate::assist::code::read_file(&self.st, &f, repo, input["path"].as_str().unwrap_or(""), reference).await?})),
+                }
             }
             other => Err(format!("Unknown tool {other}")),
         }
