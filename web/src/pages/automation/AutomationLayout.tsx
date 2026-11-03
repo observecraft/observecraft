@@ -3,7 +3,7 @@ import { ChevronDown, Zap } from 'lucide-react';
 import { usePopover } from '../../components/ui/Dropdown';
 import './automation.css';
 
-type Product = 'workflows' | 'apps' | 'datastores' | 'actions';
+type Product = 'agents' | 'workflows' | 'apps' | 'datastores' | 'actions';
 
 const SUB_TABS: Partial<Record<Product, { to: string; label: string; end?: boolean }[]>> = {
   workflows: [
@@ -20,6 +20,7 @@ const SUB_TABS: Partial<Record<Product, { to: string; label: string; end?: boole
 };
 
 export function productOf(pathname: string): Product {
+  if (pathname.startsWith('/automation/agents')) return 'agents';
   if (pathname.startsWith('/automation/apps')) return 'apps';
   if (pathname.startsWith('/automation/actions')) return 'actions';
   if (pathname.startsWith('/automation/datastores')) return 'datastores';
@@ -64,6 +65,7 @@ export function AutomationLayout() {
           Automation
         </div>
         <nav className="product-tabs">
+          <ProductTab to="/automation/agents" label="Agent Builder" active={product === 'agents'} />
           <ProductTab
             to="/automation"
             label="Workflow Automation"
