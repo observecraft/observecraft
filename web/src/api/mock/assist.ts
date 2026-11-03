@@ -25,6 +25,13 @@ const SKILLS: AssistStatus['skills'] = [
   { name: 'incidents', description: 'Find incidents and declare new ones (with your approval).', tools: ['search_incidents', 'get_incident', 'declare_incident'], writes: true },
   { name: 'errors', description: 'Error Tracking issues: the errors services raise, grouped.', tools: ['search_error_issues'], writes: false },
   { name: 'kubernetes', description: 'Kubernetes clusters, nodes, workloads and pods.', tools: ['search_kubernetes'], writes: false },
+  { name: 'security', description: 'Cloud SIEM security signals: what fired, on which rule, entities and matching queries.', tools: ['search_security_signals', 'get_security_signal'], writes: false },
+  {
+    name: 'code',
+    description: 'Read the code of the repositories added to Assist Code: list files, search and read them.',
+    tools: ['list_repo_files', 'search_repo_code', 'read_repo_file'],
+    writes: false,
+  },
 ];
 
 interface Conversation {

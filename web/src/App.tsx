@@ -86,6 +86,12 @@ import { StatusPageEditorPage } from './pages/statusPages/StatusPageEditorPage';
 import { StatusPagePage } from './pages/statusPages/StatusPagePage';
 import { StatusPagesPage } from './pages/statusPages/StatusPagesPage';
 import { AskAssistPanel } from './pages/assist/AskAssistPanel';
+import { AgentEditorPage, AgentRunPage, AgentsPage, NewAgentPage, SkillsLibraryPage } from './pages/assist/Agents';
+import { CodeAdminSettings, CodeAutomations, CodeLayout, CodeRepositories, CodeSessionPage, CodeSessions, CodeSettingsLayout, CodeUsagePage } from './pages/assist/Code';
+import { CreditsPage, UsagePage } from './pages/assist/CreditsUsage';
+import { InvestigationLayout, InvestigationList, InvestigationMonitors, InvestigationReports, InvestigationRun, NewInvestigation } from './pages/assist/Investigation';
+import { InvestigationSettingsLayout, KnowledgeBasePage, MemoriesPage, NotificationsPage, RateLimitsPage, SourceCodePage } from './pages/assist/InvestigationSettings';
+import { SecurityAnalystPage, SecurityRunPage } from './pages/assist/SecurityAnalyst';
 import { ChatPage } from './pages/assist/ChatPage';
 import { AssistReportsPage } from './pages/assist/ReportsPage';
 import { AssistSettingsPage } from './pages/assist/SettingsPage';
@@ -731,6 +737,12 @@ function Shell() {
               <Route path="apps" element={<AppsList />} />
               <Route path="apps/intro" element={<AppsIntro />} />
               <Route path="apps/blueprints" element={<AppsBlueprints />} />
+              <Route path="agents" element={<AgentsPage />} />
+              <Route path="agents/skills" element={<SkillsLibraryPage />} />
+              <Route path="agents/new" element={<NewAgentPage />} />
+              <Route path="agents/edit" element={<AgentEditorPage />} />
+              <Route path="agents/runs/:id" element={<AgentRunPage />} />
+              <Route path="agents/:id" element={<AgentEditorPage />} />
             </Route>
             <Route path="/automation/workflows/new" element={<NewWorkflowPage />} />
             <Route path="/automation/workflows/:id" element={<WorkflowEditorPage />} />
@@ -741,6 +753,34 @@ function Shell() {
             <Route path="/assist/c/:id" element={<ChatPage />} />
             <Route path="/assist/settings" element={<AssistSettingsPage />} />
             <Route path="/assist/reports" element={<AssistReportsPage />} />
+            <Route path="/assist/investigations" element={<InvestigationLayout />}>
+              <Route index element={<InvestigationList />} />
+              <Route path="monitors" element={<InvestigationMonitors />} />
+              <Route path="reports" element={<InvestigationReports />} />
+              <Route path="new" element={<NewInvestigation />} />
+              <Route path=":id" element={<InvestigationRun />} />
+            </Route>
+            <Route path="/assist/investigations/settings" element={<InvestigationSettingsLayout />}>
+              <Route index element={<KnowledgeBasePage />} />
+              <Route path="memories" element={<MemoriesPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
+              <Route path="rate-limits" element={<RateLimitsPage />} />
+              <Route path="source-code" element={<SourceCodePage />} />
+            </Route>
+            <Route path="/assist/security-analyst" element={<SecurityAnalystPage />} />
+            <Route path="/assist/security-analyst/:id" element={<SecurityRunPage />} />
+            <Route path="/assist/code" element={<CodeLayout />}>
+              <Route index element={<CodeSessions />} />
+              <Route path="automations" element={<CodeAutomations />} />
+              <Route path="usage" element={<CodeUsagePage />} />
+              <Route path="settings" element={<CodeSettingsLayout />}>
+                <Route index element={<CodeAdminSettings />} />
+                <Route path="repositories" element={<CodeRepositories />} />
+              </Route>
+            </Route>
+            <Route path="/assist/code/sessions/:id" element={<CodeSessionPage />} />
+            <Route path="/assist/credits" element={<CreditsPage />} />
+            <Route path="/assist/usage" element={<UsagePage />} />
             <Route path="/incidents" element={<IncidentsPage />} />
             <Route path="/incidents/:id" element={<IncidentPage />} />
             <Route path="/on-call" element={<OnCallLayout />}>
