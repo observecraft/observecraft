@@ -70,6 +70,12 @@ pub struct Config {
     pub internal_token: Option<String>,
     /// SMTP server for monitor notification emails (`smtps://user:pass@host:465`, `smtp://host:25?tls=required`).
     pub smtp_url: Option<String>,
+    /// Assist's model (`OC_ASSIST_*`, see `assist::provider_from`): `Ok(None)` when not set up, `Err`
+    /// when set up wrongly (the server then doesn't start).
+    pub assist: Result<Option<crate::assist::llm::Provider>, String>,
+    /// `OC_ASSIST_MAX_TOKENS`: the most a model turn writes (default 64000 for Anthropic, 4096 for
+    /// OpenAI-compatible servers, whose context is often smaller).
+    pub assist_max_tokens: Option<u32>,
     /// `OC_OSV_URL`: the OSV.dev API Code Security looks advisories up in (`off` or empty: no lookups,
     /// for instances without internet access).
     pub osv_url: Option<String>,
@@ -207,6 +213,8 @@ impl Config {
             logproc_addr: var("OC_LOGPROC_ADDR", "0.0.0.0:8090"),
             internal_token: env::var("OC_INTERNAL_TOKEN").ok().filter(|s| !s.is_empty()),
             smtp_url: env::var("OC_SMTP_URL").ok().filter(|s| !s.is_empty()),
+            assist: crate::assist::provider_from(|k| env::var(k).ok()),
+            assist_max_tokens: env::var("OC_ASSIST_MAX_TOKENS").ok().and_then(|v| v.trim().parse().ok()),
             osv_url: Some(var("OC_OSV_URL", "https://api.osv.dev")).filter(|s| !s.is_empty() && s != "off").map(|s| s.trim_end_matches('/').to_string()),
             kev_url: Some(var("OC_KEV_URL", "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json")).filter(|s| !s.is_empty() && s != "off"),
             smtp_from: var("OC_SMTP_FROM", "ObserveCraft <alerts@observecraft.local>"),

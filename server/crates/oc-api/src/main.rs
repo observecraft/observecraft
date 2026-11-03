@@ -5,6 +5,7 @@
 //!                                set OC_RUN_MIGRATIONS=false on the servers then)
 //! `observecraft-server openapi`  print the OpenAPI document (used to generate the web app's types)
 
+mod assist;
 mod auth;
 mod aws;
 mod azure;
@@ -63,6 +64,9 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let cfg = Config::from_env();
+    if let Err(e) = &cfg.assist {
+        anyhow::bail!("Assist is set up wrongly: {e}");
+    }
     let migrate_only = std::env::args().nth(1).as_deref() == Some("migrate");
     // Required by the server (not by `migrate`): fail at once when it is missing or unreachable.
     let cache = if migrate_only {

@@ -2168,6 +2168,233 @@
         }
       }
     },
+    "/api/v1/assist/chat": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Sends a message and streams the reply (`conversation`, `text`, `tool_start` / `tool_end`, `approval`,\n`error`, then `done`).",
+        "operationId": "assist_chat",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/conversations": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_list_conversations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/conversations/{id}": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_get_conversation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_delete_conversation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/conversations/{id}/approve": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Runs the pending calls the user approved (declining the others) and streams the rest of the reply.",
+        "operationId": "assist_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/reports": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Usage of Assist in the org (Assist → Reports).",
+        "operationId": "assist_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assist/settings": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_get_settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_update_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/status": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/audit": {
       "get": {
         "tags": [
@@ -31482,6 +31709,24 @@
           }
         }
       },
+      "ApproveRequest": {
+        "type": "object",
+        "required": [
+          "approved"
+        ],
+        "properties": {
+          "approved": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The ids of the calls the user approved; the other pending ones are declined."
+          },
+          "autoApprove": {
+            "type": "boolean"
+          }
+        }
+      },
       "AppsecFacet": {
         "type": "object",
         "required": [
@@ -32053,6 +32298,373 @@
           },
           "ok": {
             "type": "boolean"
+          }
+        }
+      },
+      "AssistDayCount": {
+        "type": "object",
+        "required": [
+          "at",
+          "count"
+        ],
+        "properties": {
+          "at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms of the day (UTC) or week start."
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AssistEvent": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "First, with the conversation the reply belongs to.",
+            "required": [
+              "id",
+              "title",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "conversation"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "text",
+              "type"
+            ],
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "input",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "input": {
+                "type": "object"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "tool_start"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "ok",
+              "summary",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "ok": {
+                "type": "boolean"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "tool_end"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "input",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "input": {
+                "type": "object"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "approval"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "type"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "error"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Last. `awaiting_approval`: the reply continues after `…/approve`.",
+            "required": [
+              "awaiting_approval",
+              "input_tokens",
+              "output_tokens",
+              "type"
+            ],
+            "properties": {
+              "awaiting_approval": {
+                "type": "boolean"
+              },
+              "input_tokens": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "output_tokens": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "done"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "One Server-Sent Event of a reply; the event name is its `type`."
+      },
+      "AssistReport": {
+        "type": "object",
+        "required": [
+          "totalUsers",
+          "totalMessages",
+          "totalConversations",
+          "inputTokens",
+          "outputTokens",
+          "weeklyActiveUsers",
+          "messagesPerDay",
+          "conversationsPerDay",
+          "messagesBySurface"
+        ],
+        "properties": {
+          "conversationsPerDay": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistDayCount"
+            }
+          },
+          "inputTokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "messagesBySurface": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistSurfaceCount"
+            }
+          },
+          "messagesPerDay": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistDayCount"
+            }
+          },
+          "outputTokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalConversations": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalMessages": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalUsers": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "weeklyActiveUsers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistDayCount"
+            }
+          }
+        }
+      },
+      "AssistReportRequest": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "surface": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "userId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "AssistSettings": {
+        "type": "object",
+        "required": [
+          "context",
+          "disabledSkills"
+        ],
+        "properties": {
+          "context": {
+            "type": "string",
+            "description": "Interests, preferences or instructions the model keeps in mind."
+          },
+          "disabledSkills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AssistSkill": {
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "tools",
+          "writes"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "writes": {
+            "type": "boolean",
+            "description": "Some of its tools change something (they ask for approval)."
+          }
+        }
+      },
+      "AssistStatus": {
+        "type": "object",
+        "required": [
+          "configured",
+          "skills"
+        ],
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "description": "A model is set up for this install (`OC_ASSIST_PROVIDER`)."
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistSkill"
+            }
+          }
+        }
+      },
+      "AssistSurfaceCount": {
+        "type": "object",
+        "required": [
+          "surface",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "surface": {
+            "type": "string"
           }
         }
       },
@@ -33508,6 +34120,35 @@
           "crash",
           "feature_flag"
         ]
+      },
+      "ChatRequest": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "autoApprove": {
+            "type": "boolean",
+            "description": "Run tools that change something without asking."
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Continue this conversation; a new one when absent."
+          },
+          "message": {
+            "type": "string"
+          },
+          "surface": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "chat (Assist Chat) | panel (Ask Assist on another page); for reports."
+          }
+        }
       },
       "CheckOutcome": {
         "type": "object",
@@ -35221,6 +35862,62 @@
           "status": {
             "type": "string",
             "description": "active | warning | available | disabled"
+          }
+        }
+      },
+      "ConversationSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "surface",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "surface": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          }
+        }
+      },
+      "ConversationView": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "surface",
+          "messages",
+          "awaitingApproval"
+        ],
+        "properties": {
+          "awaitingApproval": {
+            "type": "boolean",
+            "description": "Tool calls wait for the user's approval."
+          },
+          "id": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewMessage"
+            }
+          },
+          "surface": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
           }
         }
       },
@@ -68497,6 +69194,57 @@
           }
         }
       },
+      "ViewMessage": {
+        "type": "object",
+        "required": [
+          "role",
+          "text",
+          "tools"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "user | assistant"
+          },
+          "text": {
+            "type": "string"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewTool"
+            }
+          }
+        }
+      },
+      "ViewTool": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "input",
+          "status",
+          "summary"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "input": {
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "ok | error | pending (waiting for approval) | running"
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
       "VolumePoint": {
         "type": "object",
         "required": [
@@ -70756,6 +71504,10 @@
     {
       "name": "dashboards",
       "description": "Dashboards, dashboard lists and the monitor summary widget"
+    },
+    {
+      "name": "assist",
+      "description": "Assist: the AI assistant, a chat over the org's data with tools"
     },
     {
       "name": "notebooks",
