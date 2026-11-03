@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.11.0](https://github.com/observecraft/observecraft/compare/v0.10.1...v0.11.0) (2026-11-03)
+
+
+### Features
+
+* **assist:** Assist Chat, the Ask Assist panel, settings and usage reports ([c3dbddc](https://github.com/observecraft/observecraft/commit/c3dbddca8ddf5e1b021e90abf386f6480b910d48))
+* **assist:** chat with the org's data through tools, with approval for changes ([f498b3c](https://github.com/observecraft/observecraft/commit/f498b3c9f97cb77b568dcdc9eff182677b6f40fa))
+* **assist:** each organization sets its own model provider ([109d6a9](https://github.com/observecraft/observecraft/commit/109d6a9c07afb4e5742c8440ec0e5b563fa265cd))
+* **assist:** Investigation, Security Analyst, Agent Builder, Code, AI Credits and Usage pages ([42199fe](https://github.com/observecraft/observecraft/commit/42199fe0660a97b41cf842bea909858f2c39a1a6))
+* **assist:** investigations, security verdicts, agents, credits and code sessions ([83c2a88](https://github.com/observecraft/observecraft/commit/83c2a8816678c95b378be0f1a066992a2d5a03e7))
+* **cloud-cost:** read AWS and Azure bills ([#78](https://github.com/observecraft/observecraft/issues/78)) ([6fa3ff6](https://github.com/observecraft/observecraft/commit/6fa3ff6cd983a3c57a2892afda8451fbfbb91809))
+* **errors:** investigate an Error Tracking issue and propose its fix with Assist ([093d6bb](https://github.com/observecraft/observecraft/commit/093d6bbf6151ae856a3604c76c698efb1382e91a))
+* **incidents:** incident pages closer to the reference, investigated by Assist ([4ee1504](https://github.com/observecraft/observecraft/commit/4ee1504112e0620e041326fda2ae8411f6d12ec3))
+
+
+### Bug fixes
+
+* **assist:** Assist Chat's Reports and Settings side by side in the menu ([b83889d](https://github.com/observecraft/observecraft/commit/b83889d3cf29bc39756675d35a72ac250b3c822e))
+
 ## [0.10.1](https://github.com/observecraft/observecraft/compare/v0.10.0...v0.10.1) (2026-11-02)
 
 
