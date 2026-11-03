@@ -62327,6 +62327,14 @@
               "type"
             ],
             "properties": {
+              "at": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "description": "Epoch ms when it started."
+              },
               "text": {
                 "type": "string"
               },
@@ -62349,10 +62357,25 @@
               "type"
             ],
             "properties": {
+              "at": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "description": "Epoch ms when it started, and how long it took."
+              },
               "id": {
                 "type": "string"
               },
               "input": {},
+              "ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
+              },
               "name": {
                 "type": "string"
               },

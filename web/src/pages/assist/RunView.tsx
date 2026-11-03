@@ -4,11 +4,12 @@ import { useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ArrowLeft, CircleAlert, CircleCheck, ExternalLink, GitPullRequest, LoaderCircle, ThumbsDown, ThumbsUp, Wrench, X } from 'lucide-react';
-import type { CodeChange, RunDetail, RunStep } from '../../api/assist/client';
+import { ArrowLeft, CircleAlert, CircleCheck, ExternalLink, GitPullRequest, LoaderCircle, ThumbsDown, ThumbsUp, X } from 'lucide-react';
+import type { CodeChange, RunDetail } from '../../api/assist/client';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { lineDiff } from '../../lib/lineDiff';
 import { timeAgo } from '../../lib/format';
+import { RunTimeline } from './RunTimeline';
 import { useCancelRun, useOpenPullRequest, useRun, useRunFeedback } from './runsQueries';
 
 const VERDICT_TONE: Record<string, string> = {
@@ -74,29 +75,6 @@ const md = (text: string) => (
     </ReactMarkdown>
   </div>
 );
-
-function Step({ s }: { s: RunStep }) {
-  const [open, setOpen] = useState(false);
-  if (s.type === 'text') return s.text.trim() ? <div className="ai-step-text">{md(s.text)}</div> : null;
-  const icon =
-    s.status === 'running' ? <LoaderCircle size={13} className="ai-spin" /> : s.status === 'error' ? <CircleAlert size={13} className="ai-bad" /> : <CircleCheck size={13} className="ai-ok" />;
-  return (
-    <div className="ai-tool">
-      <button className="ai-tool-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        {icon}
-        <Wrench size={12} />
-        <code>{s.name}</code>
-        {s.summary && <span className="ai-tool-summary">{s.summary}</span>}
-      </button>
-      {open && (
-        <div className="ai-tool-body">
-          <pre>{JSON.stringify(s.input, null, 2)}</pre>
-          {s.summary && <pre className="ai-tool-result">{s.summary}</pre>}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function ChangeView({ change }: { change: CodeChange }) {
   return (
@@ -264,15 +242,7 @@ export function RunView({ id, back, backLabel, extra }: { id: string; back: stri
           <ChangeView change={r.change} />
         </section>
       )}
-      <section className="ai-card">
-        <h2>Steps {r.steps.length > 0 && <span className="ai-count">{r.steps.filter((s) => s.type === 'tool').length} tools</span>}</h2>
-        {r.status === 'queued' && <p className="muted">Waiting for a free slot…</p>}
-        <div className="ai-steps">
-          {r.steps.map((s, i) => (
-            <Step key={i} s={s} />
-          ))}
-        </div>
-      </section>
+      <RunTimeline run={r} />
     </div>
   );
 }

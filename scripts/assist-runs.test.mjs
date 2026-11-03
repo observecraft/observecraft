@@ -134,3 +134,23 @@ test('a line diff keeps, removes and adds lines in order', () => {
   assert.deepEqual(d[0], { kind: 'keep', text: 'a', oldLine: 1, newLine: 1 });
   assert.deepEqual(lineDiff('', 'new\n'), [{ kind: 'add', text: 'new', oldLine: null, newLine: 1 }]);
 });
+
+test('each step is described in words, with what it looked at', async () => {
+  const { describeStep, stepCounts } = await import('../web/src/pages/assist/stepText.ts');
+  assert.deepEqual(describeStep('search_logs', { query: 'service:server status:error', from: '1h' }), { kind: 'logs', title: 'Searched logs', what: 'service:server status:error', when: 'last 1h' });
+  assert.deepEqual(describeStep('search_logs', {}), { kind: 'logs', title: 'Searched logs', what: 'all logs', when: 'last 1h' });
+  assert.deepEqual(describeStep('query_metrics', { queries: ['avg:kubernetes.memory.usage{kube_namespace:lum}', 'b'], from: '4h' }), {
+    kind: 'metrics',
+    title: 'Queried 2 metrics',
+    what: 'avg:kubernetes.memory.usage{kube_namespace:lum}, b',
+    when: 'last 4h',
+  });
+  assert.equal(describeStep('search_kubernetes', { kind: 'pods', query: 'kube_namespace:lum' }).title, 'Looked at Kubernetes pods');
+  assert.equal(describeStep('get_incident', { id: 97 }).what, 'IR-97');
+  assert.equal(describeStep('conclude', {}).kind, 'conclude');
+  assert.equal(describeStep('something_new', { a: 1 }).title, 'Ran something new');
+  assert.deepEqual(stepCounts([{ type: 'tool', name: 'search_logs' }, { type: 'tool', name: 'search_logs' }, { type: 'text' }, { type: 'tool', name: 'query_metrics' }]), [
+    { kind: 'logs', count: 2 },
+    { kind: 'metrics', count: 1 },
+  ]);
+});

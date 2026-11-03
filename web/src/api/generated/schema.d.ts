@@ -20191,12 +20191,24 @@ export interface components {
         };
         /** @description What a run did, as it goes: its text and the tools it called. */
         RunStep: {
+            /**
+             * Format: int64
+             * @description Epoch ms when it started.
+             */
+            at?: number | null;
             text: string;
             /** @enum {string} */
             type: "text";
         } | {
+            /**
+             * Format: int64
+             * @description Epoch ms when it started, and how long it took.
+             */
+            at?: number | null;
             id: string;
             input: unknown;
+            /** Format: int64 */
+            ms?: number | null;
             name: string;
             status: string;
             summary: string;
