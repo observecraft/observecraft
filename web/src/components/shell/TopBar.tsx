@@ -4,7 +4,7 @@ import { ProfileMenu } from './ProfileMenu';
 import { SearchPalette } from './SearchPalette';
 import { ShowNavButton } from './Sidebar';
 
-export function TopBar({ onShowNav }: { onShowNav?: () => void }) {
+export function TopBar({ onShowNav, onAsk }: { onShowNav?: () => void; onAsk: () => void }) {
   const [searching, setSearching] = useState(false);
   // Ctrl+K / Cmd+K opens the search from anywhere.
   useEffect(() => {
@@ -29,7 +29,7 @@ export function TopBar({ onShowNav }: { onShowNav?: () => void }) {
       {searching && <SearchPalette onClose={() => setSearching(false)} />}
       <div className="topbar-right">
         <ProfileMenu />
-        <button className="ask-btn">
+        <button className="ask-btn" onClick={onAsk}>
           <Sparkles size={13} />
           Ask Assist
         </button>

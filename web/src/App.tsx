@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { IndexesPage } from './pages/logs/IndexesPage';
 import { PipelinesPage } from './pages/logs/PipelinesPage';
 import { GenerateMetricsPage } from './pages/logs/GenerateMetricsPage';
@@ -84,6 +85,10 @@ import { PublicStatusPage } from './pages/statusPages/PublicStatusPage';
 import { StatusPageEditorPage } from './pages/statusPages/StatusPageEditorPage';
 import { StatusPagePage } from './pages/statusPages/StatusPagePage';
 import { StatusPagesPage } from './pages/statusPages/StatusPagesPage';
+import { AskAssistPanel } from './pages/assist/AskAssistPanel';
+import { ChatPage } from './pages/assist/ChatPage';
+import { AssistReportsPage } from './pages/assist/ReportsPage';
+import { AssistSettingsPage } from './pages/assist/SettingsPage';
 import { AnalyticsPage as OnCallAnalyticsPage } from './pages/onCall/AnalyticsPage';
 import { OnCallLayout } from './pages/onCall/OnCallLayout';
 import { PagesPage as OnCallPagesPage } from './pages/onCall/PagesPage';
@@ -305,13 +310,15 @@ function ComingSoon() {
 /** The signed-in application: sidebar, top bar and every product route. */
 function Shell() {
   const [nav, setNav] = useNavMode();
+  const [asking, setAsking] = useState(false);
   return (
     <TimeProvider>
       <div className="app" data-nav={nav}>
         <Sidebar mode={nav} setMode={setNav} />
-        <TopBar onShowNav={nav === 'hidden' ? () => setNav('expanded') : undefined} />
+        <TopBar onShowNav={nav === 'hidden' ? () => setNav('expanded') : undefined} onAsk={() => setAsking((a) => !a)} />
         <PreferencesEffects />
         <main className="app-content">
+          <AskAssistPanel open={asking} onClose={() => setAsking(false)} />
           <Routes>
             <Route path="/" element={<HomeRedirect />} />
             <Route path="/logs" element={<LogsLayout />}>
@@ -729,6 +736,10 @@ function Shell() {
             <Route path="/automation/apps/new" element={<AppBuilderPage />} />
             <Route path="/automation/apps/:id/edit" element={<AppBuilderPage />} />
             <Route path="/automation/apps/:id" element={<AppViewPage />} />
+            <Route path="/assist" element={<ChatPage />} />
+            <Route path="/assist/c/:id" element={<ChatPage />} />
+            <Route path="/assist/settings" element={<AssistSettingsPage />} />
+            <Route path="/assist/reports" element={<AssistReportsPage />} />
             <Route path="/incidents" element={<IncidentsPage />} />
             <Route path="/incidents/:id" element={<IncidentPage />} />
             <Route path="/on-call" element={<OnCallLayout />}>
