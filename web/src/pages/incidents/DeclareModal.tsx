@@ -35,7 +35,7 @@ export function DeclareModal({ onClose, initialTitle = '', detection = 'employee
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
-  const commanderId = commander === undefined ? me.data?.id ?? null : commander;
+  const commanderId = commander === undefined ? (me.data?.id ?? null) : commander;
   const commanderUser = (users.data?.users ?? []).find((u) => u.id === commanderId) ?? (me.data && me.data.id === commanderId ? me.data : null);
 
   return createPortal(
@@ -68,7 +68,15 @@ export function DeclareModal({ onClose, initialTitle = '', detection = 'employee
               <span>
                 Title <span className="req">*</span>
               </span>
-              <input className="declare-input" placeholder={'Say what\'s happening. Example: "Login page is not loading"'} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={300} required autoFocus />
+              <input
+                className="declare-input"
+                placeholder={'Say what\'s happening. Example: "Login page is not loading"'}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={300}
+                required
+                autoFocus
+              />
             </label>
             <label className="declare-label">
               <span>
@@ -85,7 +93,14 @@ export function DeclareModal({ onClose, initialTitle = '', detection = 'employee
             </label>
             <div className="sev-cards" role="radiogroup" aria-label="Severity">
               {LEVELS.map((l) => (
-                <button key={l.value} type="button" role="radio" aria-checked={severity === l.value} className={`sev-card${severity === l.value ? ' active' : ''}`} onClick={() => setSeverity(l.value)}>
+                <button
+                  key={l.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={severity === l.value}
+                  className={`sev-card${severity === l.value ? ' active' : ''}`}
+                  onClick={() => setSeverity(l.value)}
+                >
                   <span className="sev-name">
                     {l.color && <i style={{ background: l.color }} />}
                     {l.label}

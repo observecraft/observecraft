@@ -72,6 +72,12 @@
 }
 
 .inc-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+  text-align: left;
   padding: 8px 14px;
   border-radius: var(--radius-sm);
   background: var(--bg-muted);
@@ -708,7 +714,6 @@
 .inc-attrs dd {
   margin: 0;
 }
-
 
 @media (max-width: 1400px) {
   .inc-overview {
@@ -1523,4 +1528,145 @@
   .pi-layout {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---------- incident header: actions row, responders ---------- */
+.inc-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 4px;
+}
+
+.inc-actions-sep {
+  width: 1px;
+  height: 26px;
+  margin: 0 4px;
+  background: var(--border-strong);
+}
+
+.inc-avatars {
+  display: inline-flex;
+}
+
+.inc-avatars > * + * {
+  margin-left: -8px;
+}
+
+.inc-avatars > * {
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+}
+
+.inc-card-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.inc-card-links .link-btn + .link-btn {
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+
+.inc-card-btn {
+  margin-left: auto;
+}
+
+.assist-card .muted {
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+}
+
+/* ---------- resolved incidents table ---------- */
+.inc-table-card {
+  margin: 8px 0 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.inc-table-count {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-lg);
+}
+
+.inc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-lg);
+}
+
+.inc-table th {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.inc-table td {
+  padding: 14px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.inc-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.inc-table td:first-child {
+  border-left: 6px solid transparent;
+  padding-left: 22px;
+}
+
+.inc-table tr.inc-border-resolved td:first-child {
+  border-left-color: var(--status-ok);
+}
+
+.inc-table td:first-child > a {
+  color: var(--text);
+}
+
+.inc-postmortem-link {
+  display: inline-block;
+  margin-top: 6px;
+}
+
+.inc-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 0;
+  color: #a066d3;
+}
+
+.inc-empty-state p,
+.inc-empty-state h2 {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.inc-empty-big {
+  margin-top: 12px;
+  padding: 120px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.inc-empty-big h2 {
+  font-size: 30px;
+  font-weight: var(--fw-regular);
+}
+
+.pg-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
 }

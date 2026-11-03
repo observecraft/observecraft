@@ -1,6 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMemo, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, ChevronDown, Download, Flag, PanelLeftClose, PanelLeftOpen, PhoneCall, Plus, Search, Star, Trash2, X } from 'lucide-react';
+import { useQueries } from '@tanstack/react-query';
+import { ArrowDown, ArrowUp, ChevronDown, Download, Flag, PanelLeftClose, PanelLeftOpen, PhoneCall, Plus, Search, Star, Trash2, Workflow, X } from 'lucide-react';
+import { listWorkflowRuns } from '../../api/workflows/client';
+import { Menu } from '../../components/ui/Dropdown';
+import { useWorkflows } from '../automation/queries';
 import type { IncidentDetail, TimelineEvent } from '../../api/incidents/client';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Modal } from '../../components/ui/Modal';
@@ -515,7 +519,7 @@ export function ResponseTeamTab({ inc }: { inc: IncidentDetail }) {
   const [search, setSearch] = useState('');
   const [adding, setAdding] = useState<{ userId: string; role: string } | null>(null);
   const members = (q.data ?? []).filter((m) => m.name.toLowerCase().includes(search.trim().toLowerCase()));
-  const active = (q.data ?? []).filter((m) => m.lastActiveAt && Date.now() - m.lastActiveAt < ACTIVE_MS).length;
+  const active = (q.data ?? []).filter((m) => m.lastActiveAt).length;
   return (
     <section className="settings-card">
       <div className="rt-head">
@@ -586,7 +590,7 @@ export function ResponseTeamTab({ inc }: { inc: IncidentDetail }) {
                 <td>
                   <span className="prop-chip">{ROLE_LABEL[m.role] ?? m.role}</span>
                 </td>
-                <td>{m.lastActiveAt && Date.now() - m.lastActiveAt < ACTIVE_MS ? <b className="tone-green">Active</b> : m.lastActiveAt ? `Active ${timeAgo(m.lastActiveAt)}` : 'Inactive'}</td>
+                <td>{m.lastActiveAt && Date.now() - m.lastActiveAt < ACTIVE_MS ? <b className="tone-green">Active now</b> : m.lastActiveAt ? fmtDateTime(m.lastActiveAt, false) : 'Inactive'}</td>
                 <td>{fmtDateTime(m.addedAt, false)}</td>
                 <td className="num">
                   {m.role !== 'incident_commander' && (
@@ -854,6 +858,87 @@ export function NotificationsTab({ inc }: { inc: IncidentDetail }) {
             </div>
           </form>
         </Modal>
+      )}
+    </section>
+  );
+}
+
+// ================================================================ automations
+
+/** Workflow runs started for this incident (its incident triggers), and the workflows that can run for it. */
+export function AutomationsTab({ inc }: { inc: IncidentDetail }) {
+  const navigate = useNavigate();
+  const workflows = useWorkflows();
+  const [perPage, setPerPage] = useState(10);
+  const withIncident = (workflows.data ?? []).filter((w) => w.published && (w.publishedSpec ?? w.spec).triggers.some((t) => t.kind === 'incident'));
+  const runs = useQueries({
+    queries: withIncident.map((w) => ({ queryKey: ['workflows', w.id, 'runs'], queryFn: ({ signal }: { signal: AbortSignal }) => listWorkflowRuns(w.id, signal) })),
+  });
+  const mine = runs
+    .flatMap((r) => r.data ?? [])
+    .filter((r) => r.triggeredBy === `Incident IR-${inc.id}` || (r.trigger as { incident?: { id?: number } }).incident?.id === inc.id)
+    .sort((a, b) => b.createdAt - a.createdAt);
+  return (
+    <section className="settings-card">
+      <div className="pg-bar">
+        <span className="muted">Workflows with an incident trigger run on its declaration and updates.</span>
+        <Menu
+          triggerClassName="btn"
+          trigger={
+            <>
+              <Workflow size={14} /> Run Automation
+            </>
+          }
+          items={
+            (workflows.data ?? []).filter((w) => w.published).length
+              ? (workflows.data ?? []).filter((w) => w.published).map((w) => ({ label: w.name, onClick: () => navigate(`/automation/workflows/${w.id}`) }))
+              : [{ label: 'Create a workflow', onClick: () => navigate('/automation/workflows/new') }]
+          }
+        />
+      </div>
+      <table className="settings-table">
+        <thead>
+          <tr>
+            <th>AUTOMATION NAME</th>
+            <th>TRIGGER</th>
+            <th>STATUS</th>
+            <th>STARTED</th>
+            <th>ENDED</th>
+          </tr>
+        </thead>
+        <tbody>
+          {mine.slice(0, perPage).map((r) => (
+            <tr key={`${r.workflowId}-${r.id}`}>
+              <td>
+                <Link to={`/automation/workflows/${r.workflowId}?run=${r.id}`}>{r.workflowName}</Link>
+              </td>
+              <td>{String((r.trigger as { event?: string }).event ?? r.triggerKind)}</td>
+              <td>{r.status}</td>
+              <td>{r.startedAt ? fmtDateTime(r.startedAt, false) : '—'}</td>
+              <td>{r.finishedAt ? fmtDateTime(r.finishedAt, false) : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {workflows.isPending ? (
+        <Loading />
+      ) : (
+        mine.length === 0 && (
+          <div className="inc-empty-state">
+            <Workflow size={46} />
+            <p>No automations have run for this incident.</p>
+          </div>
+        )
+      )}
+      {mine.length > 10 && (
+        <div className="pg-foot">
+          Results per page:{' '}
+          <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))}>
+            {[10, 25, 50].map((n) => (
+              <option key={n}>{n}</option>
+            ))}
+          </select>
+        </div>
       )}
     </section>
   );

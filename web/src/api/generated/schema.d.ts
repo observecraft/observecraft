@@ -20017,6 +20017,11 @@ export interface components {
             range: components["schemas"]["TimeRange"];
         };
         RunSearch: {
+            /**
+             * Format: int64
+             * @description Runs about this incident.
+             */
+            incidentId?: number | null;
             /** @description Runs about this Error Tracking issue. */
             issueId?: string | null;
             kind: string;
@@ -21590,6 +21595,11 @@ export interface components {
         /** @enum {string} */
         StandardAttributeType: "string" | "integer" | "double" | "boolean";
         StartRun: {
+            /**
+             * Format: int64
+             * @description Investigate this incident (IR-<n>).
+             */
+            incidentId?: number | null;
             /** @description Investigate this Error Tracking issue. */
             issueId?: string | null;
             /** @description investigation | security */
