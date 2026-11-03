@@ -40,7 +40,7 @@ Status: Complete
 Goal: Cloud Cost → Settings lists the AWS and Azure configs with their status, last import and errors, and adds or
 archives them (the same records); mocks for `make web-mock`; docs (`docs/datadog-api.md`, CLAUDE.md "Still missing").
 Success Criteria: web typecheck; the page in the browser, live and mock.
-Status: In Progress
+Status: Complete
 
 ## Stage 5: Lumenova (outside this repo)
 Goal: terraform-aws-organization: a CUR 2.0 export in the management account to an S3 bucket, and S3 read on it for

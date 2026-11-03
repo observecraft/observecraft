@@ -197,6 +197,8 @@ import { CostTagsPage } from './pages/cloudCost/CostTagsPage';
 import { BudgetsPage } from './pages/cloudCost/BudgetsPage';
 import { BudgetDetailPage } from './pages/cloudCost/BudgetDetailPage';
 import { BudgetEditorPage } from './pages/cloudCost/BudgetEditorPage';
+import { ConnectAwsBillPage, ConnectAzureBillPage } from './pages/cloudCost/ConnectBillPage';
+import { ProvidersPage } from './pages/cloudCost/ProvidersPage';
 import { CommitmentsPage } from './pages/cloudCost/CommitmentsPage';
 import { UnitCostsPage } from './pages/cloudCost/UnitCostsPage';
 import { PoliciesPage } from './pages/infrastructure/PoliciesPage';
@@ -509,6 +511,8 @@ function Shell() {
             <Route path="/slo/:id/edit" element={<SloEditor />} />
             <Route path="/cloud-cost/budgets/new" element={<BudgetEditorPage />} />
             <Route path="/cloud-cost/budgets/:id/edit" element={<BudgetEditorPage />} />
+            <Route path="/cloud-cost/settings/aws" element={<ConnectAwsBillPage />} />
+            <Route path="/cloud-cost/settings/azure" element={<ConnectAzureBillPage />} />
             <Route path="/cloud-cost" element={<CloudCostLayout />}>
               <Route index element={<CloudCostOverviewPage />} />
               <Route path="containers" element={<ContainersCostPage />} />
@@ -524,6 +528,7 @@ function Shell() {
               <Route path="budgets/:id" element={<BudgetDetailPage />} />
               <Route path="commitments" element={<CommitmentsPage />} />
               <Route path="unit-costs" element={<UnitCostsPage />} />
+              <Route path="settings" element={<ProvidersPage />} />
               <Route path="*" element={<CloudCostComingSoon />} />
             </Route>
             <Route path="/llm" element={<LlmLayout />}>

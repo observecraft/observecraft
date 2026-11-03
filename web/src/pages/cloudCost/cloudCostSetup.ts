@@ -1,5 +1,5 @@
 // How costs reach ObserveCraft: custom costs files (FOCUS line items) uploaded through the Cloud Cost API,
-// the same call as Datadog's (PUT /api/v2/cost/custom_costs). Cloud providers' bills aren't read yet.
+// the same call as Datadog's (PUT /api/v2/cost/custom_costs). AWS and Azure bills are read from Cloud Cost → Settings.
 import type { SetupOption } from '../setup/SetupOptions';
 
 const EXAMPLE = `[
@@ -21,7 +21,7 @@ export function cloudCostSetup(origin: string): SetupOption[] {
       id: 'custom-costs',
       name: 'Custom costs file',
       summary:
-        "Upload costs as a JSON list of line items, from any provider or SaaS vendor. Each line item is spread evenly over the days of its charge period. Reading AWS, Azure and Google Cloud bills directly isn't available yet: export them and upload the line items.",
+        'Upload costs as a JSON list of line items, from any provider or SaaS vendor. Each line item is spread evenly over the days of its charge period. AWS and Azure bills are read directly: connect them in Cloud Cost → Settings. Use custom costs files for the other providers.',
       steps: [
         {
           title: 'Write the line items',
