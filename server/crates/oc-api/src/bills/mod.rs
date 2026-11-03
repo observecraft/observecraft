@@ -2,6 +2,7 @@
 //! the `cost_bill_configs` point at (`routes::datadog_api::cost_bills`), read into `otel.cloud_costs`.
 
 pub mod aws;
+pub mod azure;
 pub mod import;
 
 use std::collections::BTreeMap;

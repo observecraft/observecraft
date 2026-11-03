@@ -71,16 +71,23 @@ pub struct Endpoints {
     pub management: String,
     /// `{region}` is replaced by the resources' region.
     pub metrics: String,
+    /// Blob Storage; `{account}` is replaced by the storage account.
+    pub blob: String,
 }
 
 impl Default for Endpoints {
     fn default() -> Self {
-        Endpoints { login: "https://login.microsoftonline.com".into(), management: "https://management.azure.com".into(), metrics: "https://{region}.metrics.monitor.azure.com".into() }
+        Endpoints { login: "https://login.microsoftonline.com".into(), management: "https://management.azure.com".into(), metrics: "https://{region}.metrics.monitor.azure.com".into(), blob: "https://{account}.blob.core.windows.net".into() }
     }
 }
 
 const MANAGEMENT_SCOPE: &str = "https://management.azure.com/.default";
 const METRICS_SCOPE: &str = "https://metrics.monitor.azure.com/.default";
+const STORAGE_SCOPE: &str = "https://storage.azure.com/.default";
+/// The Blob Storage REST version the calls ask for.
+const BLOB_VERSION: &str = "2021-08-06";
+/// What reading a cost export's blobs needs (the Storage Blob Data Reader role).
+pub const BLOB_READ: &str = "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read";
 
 /// An access token and when it stops being reused.
 type Token = (String, Instant);
@@ -106,6 +113,22 @@ pub fn classify(status: u16, body: &str) -> AzureError {
         429 => AzureError::Throttled(message),
         _ => AzureError::Other(format!("HTTP {status}: {message}")),
     }
+}
+
+/// A Blob Storage error (XML: `<Error><Code>…</Code><Message>…</Message></Error>`).
+fn blob_error(status: u16, body: &str) -> AzureError {
+    let tag = |t: &str| body.split(&format!("<{t}>")).nth(1).and_then(|s| s.split(&format!("</{t}>")).next()).unwrap_or_default().to_string();
+    let message = [tag("Code"), tag("Message")].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(": ");
+    match status {
+        401 => AzureError::Auth(message),
+        403 => AzureError::Forbidden { action: Some(BLOB_READ.into()), message },
+        429 | 503 => AzureError::Throttled(message),
+        _ => AzureError::Other(format!("HTTP {status}: {message}")),
+    }
+}
+
+fn unescape_xml(s: &str) -> String {
+    s.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'").replace("&amp;", "&")
 }
 
 fn iso(ms: i64) -> String {
@@ -150,6 +173,56 @@ impl Rest {
             return Err(classify(status, &body));
         }
         serde_json::from_str(&body).map_err(|e| AzureError::Other(e.to_string()))
+    }
+
+    fn blob_url(&self, account: &str, container: &str, name: Option<&str>) -> Result<url::Url, AzureError> {
+        let mut url = url::Url::parse(&self.endpoints.blob.replace("{account}", account)).map_err(|e| AzureError::Other(format!("storage account {account}: {e}")))?;
+        {
+            let mut segments = url.path_segments_mut().map_err(|_| AzureError::Other("blob endpoint".into()))?;
+            segments.pop_if_empty().push(container);
+            for part in name.unwrap_or_default().split('/').filter(|p| !p.is_empty()) {
+                segments.push(part);
+            }
+        }
+        Ok(url)
+    }
+
+    async fn blob_request(&self, c: &Credentials, url: url::Url) -> Result<reqwest::Response, AzureError> {
+        let token = self.token(c, STORAGE_SCOPE).await?;
+        let res = self.http.get(url).bearer_auth(token).header("x-ms-version", BLOB_VERSION).send().await.map_err(|e| AzureError::Other(e.to_string()))?;
+        let status = res.status().as_u16();
+        if (200..300).contains(&status) {
+            return Ok(res);
+        }
+        Err(blob_error(status, &res.text().await.unwrap_or_default()))
+    }
+
+    /// The blobs under `prefix` in a container, with their last modification (epoch ms).
+    pub async fn list_blobs(&self, c: &Credentials, account: &str, container: &str, prefix: &str) -> Result<Vec<(String, i64)>, AzureError> {
+        let (mut out, mut marker) = (vec![], String::new());
+        loop {
+            let mut url = self.blob_url(account, container, None)?;
+            url.query_pairs_mut().append_pair("restype", "container").append_pair("comp", "list").append_pair("prefix", prefix);
+            if !marker.is_empty() {
+                url.query_pairs_mut().append_pair("marker", &marker);
+            }
+            let body = self.blob_request(c, url).await?.text().await.map_err(|e| AzureError::Other(e.to_string()))?;
+            let tag = |s: &str, t: &str| s.split(&format!("<{t}>")).nth(1).and_then(|s| s.split(&format!("</{t}>")).next()).map(str::to_string);
+            for blob in body.split("<Blob>").skip(1) {
+                let Some(name) = tag(blob, "Name") else { continue };
+                let modified = tag(blob, "Last-Modified").and_then(|m| chrono::DateTime::parse_from_rfc2822(&m).ok()).map_or(0, |d| d.timestamp_millis());
+                out.push((unescape_xml(&name), modified));
+            }
+            match tag(&body, "NextMarker").filter(|m| !m.is_empty()) {
+                Some(next) => marker = next,
+                None => return Ok(out),
+            }
+        }
+    }
+
+    pub async fn get_blob(&self, c: &Credentials, account: &str, container: &str, name: &str) -> Result<Vec<u8>, AzureError> {
+        let res = self.blob_request(c, self.blob_url(account, container, Some(name))?).await?;
+        Ok(res.bytes().await.map_err(|e| AzureError::Other(e.to_string()))?.to_vec())
     }
 
     /// Every page of a Resource Manager list (`value`, `nextLink`).
@@ -320,15 +393,48 @@ mod tests {
                     ] }] }] }] }))
                 }),
             )
+            .route(
+                "/examplecostexports/costs",
+                get(move |h: HeaderMap, Query(q): Query<HashMap<String, String>>| async move {
+                    assert_eq!(bearer(&h), "Bearer tok-https://storage.azure.com/.default");
+                    assert!(h.contains_key("x-ms-version"));
+                    assert_eq!((q["restype"].as_str(), q["comp"].as_str(), q["prefix"].as_str()), ("container", "list", "cost-exports/observecraft-actual/"));
+                    let blob = |name: &str, modified: &str| format!("<Blob><Name>{name}</Name><Properties><Last-Modified>{modified}</Last-Modified></Properties></Blob>");
+                    if q.get("marker").map(String::as_str) == Some("page-2") {
+                        return format!("<?xml version=\"1.0\" encoding=\"utf-8\"?><EnumerationResults><Blobs>{}</Blobs><NextMarker /></EnumerationResults>", blob("cost-exports/observecraft-actual/20261001-20261031/run-2/manifest.json", "Mon, 02 Nov 2026 10:00:00 GMT"));
+                    }
+                    format!("<?xml version=\"1.0\" encoding=\"utf-8\"?><EnumerationResults><Blobs>{}</Blobs><NextMarker>page-2</NextMarker></EnumerationResults>", blob("cost-exports/observecraft-actual/a&amp;b.csv", "Sun, 01 Nov 2026 10:00:00 GMT"))
+                }),
+            )
+            .route("/examplecostexports/costs/{*name}", get(|axum::extract::Path(name): axum::extract::Path<String>| async move { format!("bytes of {name}") }))
+            .route(
+                "/deniedaccount/costs",
+                get(|| async { (axum::http::StatusCode::FORBIDDEN, "<?xml version=\"1.0\" encoding=\"utf-8\"?><Error><Code>AuthorizationPermissionMismatch</Code><Message>This request is not authorized to perform this operation using this permission.</Message></Error>") }),
+            )
             .with_state(seen.clone());
         tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
         (base, seen)
     }
 
     #[tokio::test]
+    async fn blobs_are_listed_page_by_page_and_downloaded() {
+        let (base, _) = fake_azure().await;
+        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: format!("{base}/{{account}}") });
+        let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
+        let blobs = rest.list_blobs(&c, "examplecostexports", "costs", "cost-exports/observecraft-actual/").await.unwrap();
+        assert_eq!(
+            blobs,
+            [("cost-exports/observecraft-actual/a&b.csv".to_string(), 1_793_527_200_000), ("cost-exports/observecraft-actual/20261001-20261031/run-2/manifest.json".to_string(), 1_793_613_600_000)]
+        );
+        assert_eq!(rest.get_blob(&c, "examplecostexports", "costs", "cost-exports/x y.json").await.unwrap(), b"bytes of cost-exports/x y.json");
+        let denied = rest.list_blobs(&c, "deniedaccount", "costs", "p/").await.unwrap_err();
+        assert!(matches!(&denied, AzureError::Forbidden { action: Some(a), message } if a == BLOB_READ && message.contains("not authorized")), "{denied:?}");
+    }
+
+    #[tokio::test]
     async fn the_rest_client_signs_in_lists_and_reads_batches() {
         let (base, seen) = fake_azure().await;
-        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone() });
+        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base.clone() });
         let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
         let resources = rest.resources(&c, "sub-a").await.unwrap();
         assert_eq!(resources.len(), 1);
@@ -351,7 +457,7 @@ mod tests {
     #[tokio::test]
     async fn subscriptions_follow_next_links_and_skip_disabled_ones() {
         let (base, _) = fake_azure().await;
-        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base });
+        let rest = Rest::new(reqwest::Client::new(), Endpoints { login: base.clone(), management: base.clone(), metrics: base.clone(), blob: base });
         let c = Credentials { tenant_id: "tenant-1".into(), client_id: "client-1".into(), client_secret: "s3cret".into() };
         assert_eq!(rest.subscriptions(&c).await.unwrap(), ["sub-a"]);
     }
