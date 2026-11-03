@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CalendarCheck, ChevronDown, ChevronRight, Megaphone, MessageSquare, Plus, Sparkles, Video } from 'lucide-react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { CalendarCheck, ChevronDown, ChevronRight, Megaphone, MessageSquare, PhoneCall, Plus, Video } from 'lucide-react';
 import { SEVERITIES, SEVERITY_LABEL, type IncidentDetail, type IncidentStatus } from '../../api/incidents/client';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
 import { Menu, Select } from '../../components/ui/Dropdown';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { timeAgo } from '../../lib/format';
 import { useUsers } from '../settings/queries';
-import { NotificationsTab, PagesTab, PostIncidentTab, ResponseTeamTab, TimelineTab } from './IncidentTabs';
-import { durationLong, durationShort, fmtDateTime, useAddFollowup, useAddImpact, useIncident, useToggleFollowup, useUpdateIncident } from './queries';
+import { IncidentInvestigation } from '../assist/IssueAssist';
+import { AutomationsTab, NotificationsTab, PagesTab, PostIncidentTab, ResponseTeamTab, TimelineTab } from './IncidentTabs';
+import { durationLong, durationShort, fmtDateTime, useAddFollowup, useAddImpact, useIncident, usePages, useToggleFollowup, useUpdateIncident } from './queries';
 import '../settings/settings.css';
 import { NOTEBOOK_TEMPLATES, fromTemplate } from '../../api/notebooks/templates';
 import { useCreateNotebook } from '../notebooks/queries';
@@ -37,7 +38,8 @@ export function IncidentPage() {
 }
 
 function Body({ inc }: { inc: IncidentDetail }) {
-  const [tab, setTab] = useState<Tab>('overview');
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => (TABS.some(([t]) => t === params.get('tab')) ? (params.get('tab') as Tab) : 'overview'));
   const update = useUpdateIncident(inc.id);
   const users = useUsers({ query: '', statuses: ['active'], offset: 0, limit: 200 });
   const end = inc.resolvedAt ?? Date.now();
@@ -102,31 +104,45 @@ function Body({ inc }: { inc: IncidentDetail }) {
           triggerClassName="icon-plain"
         />
         <span className="inc-bar-label">Responders</span>
-        <span className={inc.responders.length ? '' : 'muted'}>{inc.responders.length ? inc.responders.map((r) => r.name).join(', ') : 'No one'}</span>
+        {inc.responders.length ? (
+          <span className="inc-avatars" title={inc.responders.map((r) => r.name).join(', ')}>
+            {inc.responders.map((r) => (
+              <UserAvatar key={r.id} id={r.id} name={r.name} size={30} />
+            ))}
+          </span>
+        ) : (
+          <span className="muted">No one</span>
+        )}
         <span className="inc-bar-label">Duration</span>
         <span className="age-chip" title={durationLong(end - inc.declaredAt)}>
           {durationShort(end - inc.declaredAt)}
         </span>
-        <div className="inc-bar-right">
-          <button className="btn" disabled title="Connect a chat integration (Slack, Microsoft Teams) first">
-            <MessageSquare size={14} /> Add Chat
-          </button>
-          <button className="btn" disabled title="Connect a video integration (Zoom, Google Meet) first">
-            <Video size={14} /> Add Video Conference
-          </button>
-          <Menu
-            trigger={
-              <>
-                Actions <ChevronDown size={14} />
-              </>
-            }
-            items={[
-              { label: 'Copy link', onClick: () => navigator.clipboard?.writeText(window.location.href) },
-              { label: inc.customerImpact ? 'Clear customer impact' : 'Mark customer impact', onClick: () => update.mutate({ customerImpact: !inc.customerImpact }) },
-              { label: 'Create postmortem notebook', onClick: postmortemNotebook, disabled: createNotebook.isPending },
-            ]}
-          />
-        </div>
+      </div>
+      <div className="inc-actions-row">
+        <button className="btn" disabled title="Connect a chat integration (Slack, Microsoft Teams) first">
+          <MessageSquare size={14} /> Add Chat
+        </button>
+        <button className="btn" disabled title="Connect a video integration (Zoom, Google Meet) first">
+          <Video size={14} /> Add Video Conference
+        </button>
+        <span className="inc-actions-sep" />
+        <Menu
+          align="left"
+          trigger={
+            <>
+              Actions <ChevronDown size={14} />
+            </>
+          }
+          items={[
+            { label: 'Page Team', onClick: () => setTab('pages') },
+            { label: 'Send Notification', onClick: () => setTab('notifications') },
+            { label: 'Trigger Automation', onClick: () => setTab('automations') },
+            { label: 'Open Postmortem', onClick: () => setTab('post') },
+            { label: inc.customerImpact ? 'Clear customer impact' : 'Mark customer impact', onClick: () => update.mutate({ customerImpact: !inc.customerImpact }) },
+            { label: 'Create postmortem notebook', onClick: postmortemNotebook, disabled: createNotebook.isPending },
+            { label: 'Copy link', onClick: () => navigator.clipboard?.writeText(window.location.href) },
+          ]}
+        />
       </div>
       {update.isError && <p className="form-error inc-pad">{(update.error as Error).message}</p>}
       {createNotebook.isError && <p className="form-error inc-pad">{createNotebook.error.message}</p>}
@@ -151,12 +167,26 @@ function Body({ inc }: { inc: IncidentDetail }) {
         ) : tab === 'pages' ? (
           <PagesTab inc={inc} />
         ) : (
-          <section className="settings-card settings-empty">
-            <p className="muted">No automations ran for this incident. Automations (auto-paging, status-page updates, channel creation) arrive with workflow integrations.</p>
-          </section>
+          <AutomationsTab inc={inc} />
         )}
       </div>
     </div>
+  );
+}
+
+/** Pages sent for the incident, or a button to page a team. */
+function PagesCard({ inc, onTab }: { inc: IncidentDetail; onTab: (t: Tab) => void }) {
+  const pages = usePages(inc.id);
+  const n = pages.data?.length ?? 0;
+  return (
+    <section className="settings-card">
+      <div className="card-head">
+        <PhoneCall size={18} /> <b>{n ? `${n} page${n === 1 ? '' : 's'} sent` : 'No pages sent'}</b>
+        <button className="btn btn-sm inc-card-btn" onClick={() => onTab('pages')}>
+          <PhoneCall size={14} /> {n ? 'View' : 'Page'}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -205,7 +235,13 @@ function ListEdit({ values, onSave }: { values: string[]; onSave: (v: string[]) 
   if (!editing)
     return (
       <button className={`inc-editable${values.length ? '' : ' placeholder'}`} onClick={() => (setDraft(values.join(', ')), setEditing(true))}>
-        {values.length ? values.map((v) => <span key={v} className="prop-chip">{v}</span>) : 'Select values'}
+        {values.length
+          ? values.map((v) => (
+              <span key={v} className="prop-chip">
+                {v}
+              </span>
+            ))
+          : 'Select values'}
       </button>
     );
   return (
@@ -213,7 +249,12 @@ function ListEdit({ values, onSave }: { values: string[]; onSave: (v: string[]) 
       className="inc-edit"
       onSubmit={(e) => {
         e.preventDefault();
-        onSave(draft.split(',').map((s) => s.trim()).filter(Boolean));
+        onSave(
+          draft
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
+        );
         setEditing(false);
       }}
     >
@@ -264,27 +305,45 @@ function Overview({ inc, onTab }: { inc: IncidentDetail; onTab: (t: Tab) => void
             <div className="life-step">
               <i className="life-dot green" />
               <b className="tone-green">RESOLVED</b> <span className="muted">{fmtDateTime(inc.resolvedAt, false)}</span>
-              <div className="muted life-sub">Time to Resolved: {durationLong(inc.resolvedAt - inc.declaredAt).split(' ').slice(0, 4).join(' ')}</div>
+              <div className="muted life-sub">
+                Time to Resolved:{' '}
+                {durationLong(inc.resolvedAt - inc.declaredAt)
+                  .split(' ')
+                  .slice(0, 4)
+                  .join(' ')}
+              </div>
             </div>
           )}
         </section>
+        <PagesCard inc={inc} onTab={onTab} />
         <section className="settings-card">
           <div className="card-head">
-            <Megaphone size={18} /> <b>Latest Notifications</b>
-            {inc.notifications.length > 0 && (
+            <Megaphone size={18} /> <b>{inc.notifications.length ? 'Latest Notifications' : 'No notifications sent'}</b>
+            {inc.notifications.length > 0 ? (
               <button className="link-btn" onClick={() => onTab('notifications')}>
                 View all ({inc.notifications.length})
               </button>
+            ) : (
+              <button className="link-btn" onClick={() => onTab('notifications')}>
+                <Plus size={14} /> Add
+              </button>
             )}
           </div>
-          {inc.notifications.length === 0 ? <p className="muted">No notifications sent.</p> : <Notification body={inc.notifications[0].body} at={inc.notifications[0].createdAt} />}
+          {inc.notifications.length > 0 && <Notification body={inc.notifications[0].body} at={inc.notifications[0].createdAt} />}
         </section>
         <section className="settings-card">
           <div className="card-head">
             <CalendarCheck size={18} /> <b>{inc.followups.length ? 'Follow-ups' : 'No follow-ups'}</b>
-            <button className="link-btn" onClick={() => setFollowup('')}>
-              <Plus size={14} /> Add
-            </button>
+            <span className="inc-card-links">
+              {inc.followups.length > 0 && (
+                <button className="link-btn" onClick={() => onTab('post')}>
+                  View all ({inc.followups.length})
+                </button>
+              )}
+              <button className="link-btn" onClick={() => setFollowup('')}>
+                <Plus size={14} /> Add
+              </button>
+            </span>
           </div>
           {inc.followups.map((f) => (
             <label key={f.id} className="inc-check">
@@ -343,12 +402,7 @@ function Overview({ inc, onTab }: { inc: IncidentDetail; onTab: (t: Tab) => void
             </form>
           )}
           <h2>Investigation</h2>
-          <div className="assist-card">
-            <Sparkles size={18} /> <b>Assist Investigation</b>
-            <button className="btn" disabled title="AI investigation isn't available yet">
-              <Sparkles size={14} /> Investigate
-            </button>
-          </div>
+          <IncidentInvestigation incidentId={inc.id} />
           <h2>Why it happened</h2>
           <dl className="inc-props">
             <dt>Root Cause</dt>

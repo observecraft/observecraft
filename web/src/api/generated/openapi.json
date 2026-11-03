@@ -61696,6 +61696,14 @@
           "kind"
         ],
         "properties": {
+          "incidentId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Runs about this incident."
+          },
           "issueId": {
             "type": [
               "string",
@@ -66946,6 +66954,14 @@
           "kind"
         ],
         "properties": {
+          "incidentId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Investigate this incident (IR-<n>)."
+          },
           "issueId": {
             "type": [
               "string",

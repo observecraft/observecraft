@@ -66,6 +66,19 @@ test('an Error Tracking issue is investigated and its investigations are listed'
   await assert.rejects(mock.startRun({ kind: 'investigation', issueId: 'ffffffffffffffff', monitorId: null, question: null, signalId: null }), /no such issue/);
 });
 
+test('an incident is investigated and its investigations are listed', async () => {
+  mock.resetAssistRunsMock();
+  const run = await mock.startRun({ kind: 'investigation', incidentId: 95, issueId: null, monitorId: null, question: null, signalId: null });
+  assert.equal(run.subject.incidentId, 95);
+  assert.match(run.title, /CDN/);
+  const listed = await mock.searchRuns({ kind: 'investigation', incidentId: 95, issueId: null, monitorId: null, status: null, limit: 5 });
+  assert.deepEqual(
+    listed.map((r) => r.id),
+    [run.id],
+  );
+  await assert.rejects(mock.startRun({ kind: 'investigation', incidentId: 99999, issueId: null, monitorId: null, question: null, signalId: null }), /No such incident/);
+});
+
 test('runs are refused past the hourly limit', async () => {
   mock.resetAssistRunsMock();
   await mock.putRunSettings({ knowledge: '', runsPerHour: 1, automaticRunsPerDay: 10, notify: [], securityAutoSeverities: [], securityRunAs: null });

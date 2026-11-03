@@ -56,6 +56,19 @@ function Accordion({ title, children, defaultOpen = false }: { title: string; ch
   );
 }
 
+/** A section of facets (ASSESSMENT, PROPERTIES…), collapsible. */
+function FacetGroup({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <>
+      <button className="inc-group-title" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />} {title}
+      </button>
+      {open && children}
+    </>
+  );
+}
+
 function csv(rows: IncidentSummary[]) {
   const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
   const lines = [['id', 'title', 'status', 'severity', 'type', 'commander', 'declared', 'resolved'].join(',')].concat(
@@ -134,6 +147,9 @@ export function IncidentsPage() {
           </button>
         </nav>
         <div className="inc-header-actions">
+          <Link className="btn" to="/release-notes">
+            Release Notes
+          </Link>
           <button className="btn" disabled title="Incident settings (types, severities, notification rules) are not configurable yet">
             <Settings size={14} /> Settings
           </button>
@@ -166,56 +182,56 @@ export function IncidentsPage() {
                 ))}
               </Accordion>
             </div>
-            <div className="inc-group-title">ASSESSMENT</div>
-            <Accordion title="Status" defaultOpen>
-              {STATUSES.map((s) => (
-                <label key={s.id} className="inc-check">
-                  <input type="checkbox" className="checkbox" checked={statuses.includes(s.id)} onChange={() => setStatuses(toggle(statuses, s.id))} />
-                  <i className={`inc-dot inc-bg-${s.id}`} />
-                  {s.label}
-                  <span className="inc-count">{q.data?.counts[s.id] ?? '–'}</span>
-                </label>
-              ))}
-            </Accordion>
-            <Accordion title="Severity">
-              {SEVERITIES.map((s) => (
-                <label key={s} className="inc-check">
-                  <input type="checkbox" className="checkbox" checked={severities.includes(s)} onChange={() => setSeverities(toggle(severities, s))} />
-                  {s} <span className="muted">{SEVERITY_LABEL[s]}</span>
-                  <span className="inc-count">{q.data?.severityCounts[s] ?? 0}</span>
-                </label>
-              ))}
-            </Accordion>
-            <div className="inc-group-title">IMPACT</div>
-            <Accordion title="Customer Impact">
-              {(['yes', 'no'] as const).map((v) => (
-                <label key={v} className="inc-check">
-                  <input type="checkbox" className="checkbox" checked={customerImpact === (v === 'yes')} onChange={() => setCustomerImpact((c) => (c === (v === 'yes') ? null : v === 'yes'))} />
-                  {v === 'yes' ? 'Customers impacted' : 'No customer impact'}
-                  <span className="inc-count">{q.data?.impactCounts[v] ?? 0}</span>
-                </label>
-              ))}
-            </Accordion>
-            <Accordion title="Services">
-              <FacetChecks counts={q.data?.serviceCounts} selected={services} onToggle={(v) => setServices(toggle(services, v))} />
-            </Accordion>
-            <div className="inc-group-title">RESPONSE</div>
-            <Accordion title="Time to Resolve">
-              {RESOLVE_TIMES.map(([key, label]) => (
-                <label key={key} className="inc-check">
-                  <input type="checkbox" className="checkbox" checked={resolveTimes.includes(key)} onChange={() => setResolveTimes(toggle(resolveTimes, key))} />
-                  {label}
-                  <span className="inc-count">{q.data?.resolveTimeCounts[key] ?? 0}</span>
-                </label>
-              ))}
-            </Accordion>
-            <div className="inc-group-title">DETECTION</div>
-            <Accordion title="Detection Method">
-              <FacetChecks counts={q.data?.detectionCounts} selected={detectionMethods} onToggle={(v) => setDetectionMethods(toggle(detectionMethods, v))} />
-            </Accordion>
-            <Accordion title="Incident Type">
-              <FacetChecks counts={q.data?.typeCounts} selected={incidentTypes} onToggle={(v) => setIncidentTypes(toggle(incidentTypes, v))} />
-            </Accordion>
+            <FacetGroup title="ASSESSMENT" defaultOpen>
+              <Accordion title="Status" defaultOpen>
+                {STATUSES.map((s) => (
+                  <label key={s.id} className="inc-check">
+                    <input type="checkbox" className="checkbox" checked={statuses.includes(s.id)} onChange={() => setStatuses(toggle(statuses, s.id))} />
+                    <i className={`inc-dot inc-bg-${s.id}`} />
+                    {s.label}
+                    <span className="inc-count">{q.data?.counts[s.id] ?? '–'}</span>
+                  </label>
+                ))}
+              </Accordion>
+              <Accordion title="Severity">
+                {SEVERITIES.map((s) => (
+                  <label key={s} className="inc-check">
+                    <input type="checkbox" className="checkbox" checked={severities.includes(s)} onChange={() => setSeverities(toggle(severities, s))} />
+                    {s} <span className="muted">{SEVERITY_LABEL[s]}</span>
+                    <span className="inc-count">{q.data?.severityCounts[s] ?? 0}</span>
+                  </label>
+                ))}
+              </Accordion>
+              <Accordion title="Time to Resolve (hours)">
+                {RESOLVE_TIMES.map(([key, label]) => (
+                  <label key={key} className="inc-check">
+                    <input type="checkbox" className="checkbox" checked={resolveTimes.includes(key)} onChange={() => setResolveTimes(toggle(resolveTimes, key))} />
+                    {label}
+                    <span className="inc-count">{q.data?.resolveTimeCounts[key] ?? 0}</span>
+                  </label>
+                ))}
+              </Accordion>
+              <Accordion title="Customer Impact">
+                {(['yes', 'no'] as const).map((v) => (
+                  <label key={v} className="inc-check">
+                    <input type="checkbox" className="checkbox" checked={customerImpact === (v === 'yes')} onChange={() => setCustomerImpact((c) => (c === (v === 'yes') ? null : v === 'yes'))} />
+                    {v === 'yes' ? 'Customers impacted' : 'No customer impact'}
+                    <span className="inc-count">{q.data?.impactCounts[v] ?? 0}</span>
+                  </label>
+                ))}
+              </Accordion>
+              <Accordion title="Incident Type">
+                <FacetChecks counts={q.data?.typeCounts} selected={incidentTypes} onToggle={(v) => setIncidentTypes(toggle(incidentTypes, v))} />
+              </Accordion>
+            </FacetGroup>
+            <FacetGroup title="PROPERTIES">
+              <Accordion title="Services">
+                <FacetChecks counts={q.data?.serviceCounts} selected={services} onToggle={(v) => setServices(toggle(services, v))} />
+              </Accordion>
+              <Accordion title="Detection Method">
+                <FacetChecks counts={q.data?.detectionCounts} selected={detectionMethods} onToggle={(v) => setDetectionMethods(toggle(detectionMethods, v))} />
+              </Accordion>
+            </FacetGroup>
           </aside>
         )}
         <main className="inc-main">
@@ -250,7 +266,17 @@ export function IncidentsPage() {
           ) : (
             <>
               <Group title={live.length === 1 ? 'There is 1 live incident.' : `There are ${live.length} live incidents.`} items={live} />
-              <Group title={`Resolved incidents (${resolved.length})`} items={resolved} />
+              {resolved.length > 0 && <Group title={resolved.length === 1 ? 'There is 1 resolved incident.' : `There are ${resolved.length} resolved incidents.`} items={resolved} table />}
+              {live.length === 0 && resolved.length === 0 && (
+                <div className="inc-empty-state inc-empty-big">
+                  <Siren size={56} />
+                  <h2>No Incidents have been declared</h2>
+                  <p className="muted">Investigate, collect signals, and build your response teams.</p>
+                  <button className="link-btn" onClick={() => setDeclaring(true)}>
+                    Declare an incident
+                  </button>
+                </div>
+              )}
               {q.data.total > q.data.incidents.length && (
                 <p className="muted inc-more">
                   Showing the {q.data.incidents.length} most relevant of {q.data.total}. Narrow the filters to see more.
@@ -265,16 +291,72 @@ export function IncidentsPage() {
   );
 }
 
-function Group({ title, items }: { title: string; items: IncidentSummary[] }) {
+function Group({ title, items, table }: { title: string; items: IncidentSummary[]; table?: boolean }) {
   const [open, setOpen] = useState(true);
-  if (items.length === 0 && title.startsWith('Resolved')) return null;
   return (
     <section className="inc-group">
       <button className="inc-group-head" onClick={() => setOpen((o) => !o)}>
         {open ? <ChevronDown size={20} /> : <ChevronRight size={20} />} {title}
       </button>
-      {open && items.map((i) => <IncidentCard key={i.id} i={i} />)}
+      {open && (table ? <ResolvedTable items={items} /> : items.map((i) => <IncidentCard key={i.id} i={i} />))}
     </section>
+  );
+}
+
+/** Resolved incidents as a table: name (and postmortem), severity, duration, start, commander, type. */
+function ResolvedTable({ items }: { items: IncidentSummary[] }) {
+  return (
+    <div className="inc-table-card">
+      <div className="inc-table-count">
+        {items.length} incident{items.length === 1 ? '' : 's'}
+      </div>
+      <table className="inc-table">
+        <thead>
+          <tr>
+            <th>NAME</th>
+            <th>SEVERITY</th>
+            <th>DURATION</th>
+            <th>STARTED</th>
+            <th>COMMANDER</th>
+            <th>TYPE</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((i) => (
+            <tr key={i.id} className={`inc-row inc-border-${i.status}`}>
+              <td>
+                <Link to={`/incidents/${i.id}`}>
+                  IR-{i.id}: {i.test && '[TEST] '}
+                  {i.title}
+                </Link>
+                <div>
+                  <Link className="inc-postmortem-link" to={`/incidents/${i.id}?tab=post`}>
+                    Postmortem
+                  </Link>
+                </div>
+              </td>
+              <td>
+                <b>{i.severity}</b>
+              </td>
+              <td>
+                <span className="age-chip">{durationShort((i.resolvedAt ?? Date.now()) - i.declaredAt)}</span>
+              </td>
+              <td className="muted">{fmtDateTime(i.declaredAt)}</td>
+              <td>
+                {i.commander ? (
+                  <span className="person-chip">
+                    <UserAvatar id={i.commander.id} name={i.commander.name} size={18} /> {i.commander.name}
+                  </span>
+                ) : (
+                  <span className="muted">Unassigned</span>
+                )}
+              </td>
+              <td>{i.incidentType}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

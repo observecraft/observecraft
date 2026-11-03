@@ -96,7 +96,8 @@ export const useAddResponder = (id: number) => useIncidentMutation(({ userId, ro
 export const useRemoveResponder = (id: number) => useIncidentMutation((userId: string) => removeResponder(id, userId));
 export const useCreatePage = (id: number) => useIncidentMutation(({ team, title }: { team: string; title: string }) => createPage(id, team, title));
 export const useUpdatePage = (id: number) => useIncidentMutation(({ pageId, status }: { pageId: number; status: 'acknowledged' | 'resolved' }) => updatePage(id, pageId, status));
-export const useCreateNotification = (id: number) => useIncidentMutation(({ recipients, subject, body }: { recipients: string[]; subject: string; body: string }) => createNotification(id, recipients, subject, body));
+export const useCreateNotification = (id: number) =>
+  useIncidentMutation(({ recipients, subject, body }: { recipients: string[]; subject: string; body: string }) => createNotification(id, recipients, subject, body));
 export const useAddDocument = (id: number) => useIncidentMutation(({ title, url }: { title: string; url: string }) => addDocument(id, title, url));
 export const useRemoveDocument = (id: number) => useIncidentMutation((docId: number) => removeDocument(id, docId));
 export const useGeneratePostmortem = (id: number) => useIncidentMutation((template: 'standard' | 'brief') => generatePostmortem(id, template));

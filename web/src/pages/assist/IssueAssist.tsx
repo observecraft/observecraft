@@ -102,3 +102,24 @@ export function IssueFix({ issue }: { issue: IssueDetail }) {
     </>
   );
 }
+
+/** An incident's Investigation section: the latest Assist investigation of it, or the button to start one. */
+export function IncidentInvestigation({ incidentId }: { incidentId: number }) {
+  const runs = useRuns({ kind: 'investigation', incidentId, limit: 1, monitorId: null, status: null });
+  const start = useStartRun();
+  const latest = runs.data?.[0];
+  const busy = latest && (latest.status === 'queued' || latest.status === 'running');
+  return (
+    <>
+      <div className="assist-card">
+        <Sparkles size={18} /> <b>Assist Investigation</b>
+        {!latest && !runs.isPending && <span className="muted">Assist hasn't investigated this incident yet</span>}
+        <button className="btn" disabled={start.isPending || busy} onClick={() => start.mutate({ kind: 'investigation', incidentId, issueId: null, monitorId: null, question: null, signalId: null })}>
+          <Sparkles size={14} /> {start.isPending ? 'Starting…' : latest ? 'Investigate again' : 'Investigate'}
+        </button>
+      </div>
+      {start.error && <div className="investigate-note ai-bad">{(start.error as Error).message}</div>}
+      {latest && <RunLine id={latest.id} to={`/assist/investigations/${latest.id}`} />}
+    </>
+  );
+}

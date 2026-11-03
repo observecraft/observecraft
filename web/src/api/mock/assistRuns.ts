@@ -32,6 +32,7 @@ import type {
 } from '../assist/types';
 import type { TimeRange } from '../types';
 import { getIssue } from './errorTracking';
+import { getIncident } from './incidents';
 import { searchMonitors } from './monitors';
 import { signalsBetween } from './security';
 
@@ -342,6 +343,15 @@ export async function startRun(r: StartRun): Promise<RunSummary> {
     if (!m) throw new Error('No such monitor');
     return add('investigation', m.name, { monitorId: m.id }, investigationScript(m.name, m.id));
   }
+  if (r.kind === 'investigation' && r.incidentId != null) {
+    let inc: Awaited<ReturnType<typeof getIncident>>;
+    try {
+      inc = await getIncident(r.incidentId);
+    } catch {
+      throw new Error('No such incident');
+    }
+    return add('investigation', inc.title, { incidentId: inc.id }, investigationScript(`${inc.title} ${inc.services.join(' ')}`));
+  }
   if (r.kind === 'investigation' && r.issueId) {
     const now = Date.now();
     let issue: Awaited<ReturnType<typeof getIssue>>;
@@ -369,6 +379,7 @@ export async function searchRuns(q: RunSearch): Promise<RunSummary[]> {
   return db()
     .filter((r) => r.summary.kind === q.kind && (q.monitorId == null || (r.summary.subject as { monitorId?: number }).monitorId === q.monitorId))
     .filter((r) => !q.issueId || (r.summary.subject as { issueId?: string }).issueId === q.issueId)
+    .filter((r) => q.incidentId == null || (r.summary.subject as { incidentId?: number }).incidentId === q.incidentId)
     .map(summaryOf)
     .filter((r) => !q.status || r.status === q.status)
     .slice(0, q.limit ?? 100);
