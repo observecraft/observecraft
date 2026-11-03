@@ -1252,6 +1252,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cloud-cost/bill-configs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's AWS and Azure bill configs with their imports. */
+        get: operations["cloud_cost_bill_configs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-cost/bill-configs/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add an AWS (`aws_cur_config`) or Azure (`azure_uc_config`) bill config: Datadog's create attributes. */
+        post: operations["cloud_cost_create_bill_config"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-cost/bill-configs/{provider}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove (archive) a bill config: its costs stay. */
+        delete: operations["cloud_cost_delete_bill_config"];
+        options?: never;
+        head?: never;
+        /** Turn a bill config's import on or off. */
+        patch: operations["cloud_cost_update_bill_config"];
+        trace?: never;
+    };
     "/api/v1/cloud-cost/budgets": {
         parameters: {
             query?: never;
@@ -11848,6 +11900,21 @@ export interface components {
         };
         /** @enum {string} */
         CorrectionCategory: "scheduled_maintenance" | "outside_business_hours" | "deployment" | "other";
+        /** @description A provider's bill config: Datadog's document of it, and its import. */
+        CostBillConfig: {
+            /** @description `aws_cur_config` or `azure_uc_configs`, as Datadog's API answers it. */
+            doc: Record<string, never>;
+            id: string;
+            /** @description The billing months read (Azure's prefixed by their export: `actual:2026-10`). */
+            imported_months: string[];
+            /**
+             * Format: int64
+             * @description The last successful import, epoch ms.
+             */
+            last_import_at?: number | null;
+            /** @description `aws` or `azure` */
+            provider: string;
+        };
         /** @description A budget for the Cloud Cost pages: this month's amount, cost so far and forecast. */
         CostBudgetSummary: {
             /** Format: int32 */
@@ -13112,6 +13179,9 @@ export interface components {
             /** @description Scheduled dashboard reports sent to this address. */
             reports: components["schemas"]["ReportSubscription"][];
             verified: boolean;
+        };
+        EnabledBody: {
+            enabled: boolean;
         };
         EndpointPage: {
             endpoints: components["schemas"]["ApiEndpointView"][];
@@ -25120,6 +25190,120 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CiRepository"][];
                 };
+            };
+        };
+    };
+    cloud_cost_bill_configs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostBillConfig"][];
+                };
+            };
+        };
+    };
+    cloud_cost_create_bill_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostBillConfig"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cloud_cost_delete_bill_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cloud_cost_update_bill_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnabledBody"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostBillConfig"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

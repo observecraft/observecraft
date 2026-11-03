@@ -85,6 +85,7 @@ pub mod profiles;
 pub mod reference_tables;
 pub mod resource_changes;
 pub mod cloud_cost;
+pub mod cloud_cost_bills;
 pub mod code_security;
 pub mod code_security_model;
 pub mod resource_policies;
@@ -154,6 +155,10 @@ use crate::state::AppState;
         datadog_api::cost::list_custom_costs,
         datadog_api::cost::get_custom_costs,
         datadog_api::cost::delete_custom_costs,
+        cloud_cost_bills::list,
+        cloud_cost_bills::create,
+        cloud_cost_bills::set_enabled,
+        cloud_cost_bills::remove,
         datadog_api::cost_bills::list_aws,
         datadog_api::cost_bills::get_aws,
         datadog_api::cost_bills::create_aws,
@@ -1259,6 +1264,9 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/code-security/triage", post(code_security::triage))
         .route("/api/v1/code-security/setup", get(code_security::setup))
         .route("/api/v1/cloud-cost/budgets", get(datadog_api::cost::budget_summaries).put(datadog_api::cost::ui_save_budget))
+        .route("/api/v1/cloud-cost/bill-configs", get(cloud_cost_bills::list))
+        .route("/api/v1/cloud-cost/bill-configs/{provider}", post(cloud_cost_bills::create))
+        .route("/api/v1/cloud-cost/bill-configs/{provider}/{id}", patch(cloud_cost_bills::set_enabled).delete(cloud_cost_bills::remove))
         .route("/api/v1/cloud-cost/budgets/{budget_id}", get(datadog_api::cost::ui_budget).delete(datadog_api::cost::ui_delete_budget))
         .route("/api/v1/infrastructure/policies/attributes", get(resource_policies::attributes))
         .route("/api/v1/infrastructure/policies/preview", post(resource_policies::preview))

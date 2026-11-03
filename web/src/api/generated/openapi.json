@@ -2959,6 +2959,149 @@
         }
       }
     },
+    "/api/v1/cloud-cost/bill-configs": {
+      "get": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "The org's AWS and Azure bill configs with their imports.",
+        "operationId": "cloud_cost_bill_configs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CostBillConfig"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cloud-cost/bill-configs/{provider}": {
+      "post": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "Add an AWS (`aws_cur_config`) or Azure (`azure_uc_config`) bill config: Datadog's create attributes.",
+        "operationId": "cloud_cost_create_bill_config",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostBillConfig"
+                }
+              }
+            }
+          },
+          "400": {},
+          "404": {}
+        }
+      }
+    },
+    "/api/v1/cloud-cost/bill-configs/{provider}/{id}": {
+      "delete": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "Remove (archive) a bill config: its costs stay.",
+        "operationId": "cloud_cost_delete_bill_config",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {}
+        }
+      },
+      "patch": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "Turn a bill config's import on or off.",
+        "operationId": "cloud_cost_update_bill_config",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnabledBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostBillConfig"
+                }
+              }
+            }
+          },
+          "404": {}
+        }
+      }
+    },
     "/api/v1/cloud-cost/budgets": {
       "get": {
         "tags": [
@@ -35578,6 +35721,44 @@
           "other"
         ]
       },
+      "CostBillConfig": {
+        "type": "object",
+        "description": "A provider's bill config: Datadog's document of it, and its import.",
+        "required": [
+          "id",
+          "provider",
+          "doc",
+          "imported_months"
+        ],
+        "properties": {
+          "doc": {
+            "type": "object",
+            "description": "`aws_cur_config` or `azure_uc_configs`, as Datadog's API answers it."
+          },
+          "id": {
+            "type": "string"
+          },
+          "imported_months": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The billing months read (Azure's prefixed by their export: `actual:2026-10`)."
+          },
+          "last_import_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The last successful import, epoch ms."
+          },
+          "provider": {
+            "type": "string",
+            "description": "`aws` or `azure`"
+          }
+        }
+      },
       "CostBudgetSummary": {
         "type": "object",
         "description": "A budget for the Cloud Cost pages: this month's amount, cost so far and forecast.",
@@ -39724,6 +39905,17 @@
             "description": "Scheduled dashboard reports sent to this address."
           },
           "verified": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EnabledBody": {
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
             "type": "boolean"
           }
         }

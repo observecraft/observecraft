@@ -21,8 +21,8 @@ use super::{DdAuth, DdError};
 use crate::auth::Access;
 use crate::state::AppState;
 
-const AWS: &str = "aws";
-const AZURE: &str = "azure";
+pub const AWS: &str = "aws";
+pub const AZURE: &str = "azure";
 /// Months of bills imported, as Datadog's default.
 const DEFAULT_MONTHS: i32 = 15;
 const MAX_MONTHS: i32 = 36;
@@ -39,6 +39,10 @@ pub struct ConfigRow {
     created_at: String,
     updated_at: String,
     errors: Vec<String>,
+    /// The import's last successful run, epoch ms.
+    pub last_import_at: Option<i64>,
+    /// Billing months read (`YYYY-MM`, Azure `actual:YYYY-MM`) → the run read.
+    pub imported: Value,
 }
 
 /// Datadog's timestamps: microseconds, no zone.
@@ -49,7 +53,8 @@ fn ts(column: &str) -> String {
 fn cols() -> String {
     format!(
         "c.id, c.account_id, c.scope, c.config, c.months, c.status, {}, {}, {}, \
-         COALESCE((SELECT array_agg(j.error_message ORDER BY j.scope) FROM cloud_crawl_jobs j WHERE j.org_id = c.org_id AND j.account_id = c.uid AND j.error_message IS NOT NULL), '{{}}') AS errors",
+         COALESCE((SELECT array_agg(j.error_message ORDER BY j.scope) FROM cloud_crawl_jobs j WHERE j.org_id = c.org_id AND j.account_id = c.uid AND j.error_message IS NOT NULL), '{{}}') AS errors, \
+         (SELECT (extract(epoch FROM max(j.last_success_at)) * 1000)::bigint FROM cloud_crawl_jobs j WHERE j.org_id = c.org_id AND j.account_id = c.uid) AS last_import_at, c.imported",
         ts("status_updated_at"),
         ts("created_at"),
         ts("updated_at")
@@ -73,7 +78,7 @@ fn not_found(id: &str) -> DdError {
     DdError::new(StatusCode::NOT_FOUND, format!("Cloud account with ID {id} was not found"))
 }
 
-async fn find_one(st: &AppState, org: &str, provider: &str, id: &str) -> Result<ConfigRow, DdError> {
+pub async fn find_one(st: &AppState, org: &str, provider: &str, id: &str) -> Result<ConfigRow, DdError> {
     let n = id.parse::<i64>().map_err(|_| not_found(id))?;
     find(st, org, provider, Some(n)).await?.into_iter().next().ok_or_else(|| not_found(id))
 }
@@ -132,7 +137,7 @@ async fn insert(st: &AppState, org: &str, provider: &str, account_id: &str, scop
     }
 }
 
-async fn set_enabled(st: &AppState, org: &str, id: i64, enabled: bool) -> Result<(), sqlx::Error> {
+pub async fn set_enabled(st: &AppState, org: &str, id: i64, enabled: bool) -> Result<(), sqlx::Error> {
     let status = if enabled { "active" } else { "disabled" };
     sqlx::query("UPDATE cost_bill_configs SET status = $3, status_updated_at = CASE WHEN status = $3 THEN status_updated_at ELSE now() END, updated_at = now() WHERE org_id = $1 AND id = $2")
         .bind(org)
@@ -143,7 +148,7 @@ async fn set_enabled(st: &AppState, org: &str, id: i64, enabled: bool) -> Result
     Ok(())
 }
 
-async fn archive(st: &AppState, org: &str, provider: &str, id: &str) -> Result<StatusCode, DdError> {
+pub async fn archive(st: &AppState, org: &str, provider: &str, id: &str) -> Result<StatusCode, DdError> {
     let row = find_one(st, org, provider, id).await?;
     sqlx::query("UPDATE cost_bill_configs SET status = 'archived', status_updated_at = now(), updated_at = now() WHERE org_id = $1 AND id = $2").bind(org).bind(row.id).execute(&st.postgres).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -158,7 +163,7 @@ fn common(r: &ConfigRow) -> Value {
 
 // ================================================================ AWS
 
-fn aws_doc(r: &ConfigRow) -> Value {
+pub fn aws_doc(r: &ConfigRow) -> Value {
     let mut a = common(r);
     for key in ["bucket_name", "bucket_region", "report_name", "report_prefix"] {
         a[key] = r.config[key].clone();
@@ -190,7 +195,12 @@ pub async fn get_aws(State(st): State<AppState>, DdAuth(ctx): DdAuth, Path(id): 
 pub async fn create_aws(State(st): State<AppState>, DdAuth(ctx): DdAuth, raw: Bytes) -> DocResult {
     require(&ctx, Access::Admin)?;
     let doc = body(&raw)?;
-    let attrs = &data(&doc)?["attributes"];
+    let id = create_aws_config(&st, &ctx.org_id, &data(&doc)?["attributes"]).await?;
+    ok(json!({ "data": aws_doc(&find_one(&st, &ctx.org_id, AWS, &id.to_string()).await?) }))
+}
+
+/// Validates and stores an AWS CUR config from its attributes (Datadog's create request).
+pub async fn create_aws_config(st: &AppState, org: &str, attrs: &Value) -> Result<i64, DdError> {
     let account_id = required(attrs, "account_id")?;
     if account_id.len() != 12 || !account_id.bytes().all(|b| b.is_ascii_digit()) {
         return Err(bad_request("attribute \"account_id\" must be a 12-digit AWS account id"));
@@ -206,8 +216,7 @@ pub async fn create_aws(State(st): State<AppState>, DdAuth(ctx): DdAuth, raw: By
         "report_prefix": prefix,
         "account_filters": account_filters(attrs.get("account_filters").unwrap_or(&Value::Null))?,
     });
-    let id = insert(&st, &ctx.org_id, AWS, &account_id, "", &config, months(attrs)?).await?;
-    ok(json!({ "data": aws_doc(&find_one(&st, &ctx.org_id, AWS, &id.to_string()).await?) }))
+    insert(st, org, AWS, &account_id, "", &config, months(attrs)?).await
 }
 
 /// Update an AWS CUR config (Datadog-compatible): `is_enabled`, `account_filters`; answers a list.
@@ -262,7 +271,7 @@ pub fn valid_scope(scope: &str) -> bool {
 /// An Azure pair's two exports.
 pub const DATASETS: [&str; 2] = ["amortized", "actual"];
 
-fn azure_doc(r: &ConfigRow) -> Value {
+pub fn azure_doc(r: &ConfigRow) -> Value {
     let configs: Vec<Value> = DATASETS
         .iter()
         .map(|dataset| {
@@ -306,7 +315,12 @@ pub async fn get_azure(State(st): State<AppState>, DdAuth(ctx): DdAuth, Path(id)
 pub async fn create_azure(State(st): State<AppState>, DdAuth(ctx): DdAuth, raw: Bytes) -> DocResult {
     require(&ctx, Access::Admin)?;
     let doc = body(&raw)?;
-    let attrs = &data(&doc)?["attributes"];
+    let id = create_azure_config(&st, &ctx.org_id, &data(&doc)?["attributes"]).await?;
+    ok(json!({ "data": azure_doc(&find_one(&st, &ctx.org_id, AZURE, &id.to_string()).await?) }))
+}
+
+/// Validates and stores an Azure UC config pair from its attributes (Datadog's create request).
+pub async fn create_azure_config(st: &AppState, org: &str, attrs: &Value) -> Result<i64, DdError> {
     let account_id = required(attrs, "account_id")?;
     let client_id = required(attrs, "client_id")?;
     let scope = required(attrs, "scope")?;
@@ -314,8 +328,7 @@ pub async fn create_azure(State(st): State<AppState>, DdAuth(ctx): DdAuth, raw: 
         return Err(bad_request("attribute \"scope\" does not match the required format"));
     }
     let config = json!({ "client_id": client_id, "actual": bill_config(attrs, "actual_bill_config")?, "amortized": bill_config(attrs, "amortized_bill_config")? });
-    let id = insert(&st, &ctx.org_id, AZURE, &account_id, &scope, &config, months(attrs)?).await?;
-    ok(json!({ "data": azure_doc(&find_one(&st, &ctx.org_id, AZURE, &id.to_string()).await?) }))
+    insert(st, org, AZURE, &account_id, &scope, &config, months(attrs)?).await
 }
 
 /// Enable or disable an Azure UC config pair (Datadog-compatible).
