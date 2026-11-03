@@ -21,7 +21,7 @@ const ITEMS = [...NAV_SECTIONS.flat(), ...NAV_FOOTER];
 // Products the reference calls "Bits …" are "Assist …" here.
 const REFERENCE = {
   'Assist AI': [
-    'Assist Chat!NEW = | Reports, Settings',
+    'Assist Chat!NEW = Reports | Settings',
     'Assist Investigation!NEW = +New Investigation, Investigations List, Monitors | Reports, Settings',
     'Assist Code!NEW = Sessions, Automations | Usage, Settings',
     'Assist Security Analyst!NEW',
