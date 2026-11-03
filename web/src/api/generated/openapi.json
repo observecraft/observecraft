@@ -2308,6 +2308,85 @@
         }
       }
     },
+    "/api/v1/assist/provider": {
+      "get": {
+        "tags": [
+          "assist"
+        ],
+        "operationId": "assist_get_provider",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistProviderView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Sets the organization's provider. Saved without `apiKey`, the stored key stays.",
+        "operationId": "assist_put_provider",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistProviderUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {}
+        }
+      },
+      "delete": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Removes the organization's provider: Assist uses the install's again, if any.",
+        "operationId": "assist_delete_provider",
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/assist/provider/test": {
+      "post": {
+        "tags": [
+          "assist"
+        ],
+        "summary": "Sends one short request to the provider described (with the stored key unless it brings one), so an\nadmin knows it answers before saving it.",
+        "operationId": "assist_test_provider",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistProviderUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistProviderTest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assist/reports": {
       "post": {
         "tags": [
@@ -32492,6 +32571,156 @@
         ],
         "description": "One Server-Sent Event of a reply; the event name is its `type`."
       },
+      "AssistInstallProvider": {
+        "type": "object",
+        "required": [
+          "provider",
+          "model"
+        ],
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        }
+      },
+      "AssistOrgProvider": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AssistProviderSettings"
+          },
+          {
+            "type": "object",
+            "required": [
+              "hasKey",
+              "updatedBy",
+              "updatedAt"
+            ],
+            "properties": {
+              "hasKey": {
+                "type": "boolean",
+                "description": "An API key is stored (it is never returned)."
+              },
+              "updatedAt": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Epoch ms."
+              },
+              "updatedBy": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "AssistProviderSettings": {
+        "type": "object",
+        "description": "An organization's model, as its admins set it (the key travels apart: it is sealed, never shown).",
+        "required": [
+          "provider"
+        ],
+        "properties": {
+          "baseUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required for `openai` (e.g. `https://api.openai.com/v1`); Anthropic defaults to its API."
+          },
+          "fallbacks": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Anthropic only: let the API answer with a fallback model when the chosen one is overloaded."
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required for `openai`; Anthropic defaults to its current model."
+          },
+          "provider": {
+            "type": "string",
+            "description": "`anthropic` or `openai` (any OpenAI-compatible server)."
+          }
+        }
+      },
+      "AssistProviderTest": {
+        "type": "object",
+        "required": [
+          "ok",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AssistProviderUpdate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AssistProviderSettings"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "apiKey": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "A new key; omitted keeps the stored one, empty removes it."
+              }
+            }
+          }
+        ]
+      },
+      "AssistProviderView": {
+        "type": "object",
+        "required": [
+          "source",
+          "allowPrivate"
+        ],
+        "properties": {
+          "allowPrivate": {
+            "type": "boolean",
+            "description": "Organizations may use private addresses (`OC_ASSIST_ALLOW_PRIVATE`)."
+          },
+          "install": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AssistInstallProvider",
+                "description": "The install's default (`OC_ASSIST_*`), used when the organization sets none."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "org": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AssistOrgProvider"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "type": "string",
+            "description": "What Assist uses for this organization: `org`, `install` or `none`."
+          }
+        }
+      },
       "AssistReport": {
         "type": "object",
         "required": [
@@ -32630,7 +32859,14 @@
         "properties": {
           "configured": {
             "type": "boolean",
-            "description": "A model is set up for this install (`OC_ASSIST_PROVIDER`)."
+            "description": "A model is set up: the organization's own or the install's (`OC_ASSIST_PROVIDER`)."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the organization's provider can't be used."
           },
           "model": {
             "type": [
@@ -32649,6 +32885,13 @@
             "items": {
               "$ref": "#/components/schemas/AssistSkill"
             }
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`org` or `install`."
           }
         }
       },

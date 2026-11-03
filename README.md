@@ -320,8 +320,9 @@ most important ones:
 | `OC_RAW_LOGS_HOURS` | `72` | Every log stays this long unindexed, as the source of archives |
 | `OC_LOGPROC_ADDR` / `OC_INTERNAL_TOKEN` | `0.0.0.0:8090` / — | Internal listener: the log indexer Vector posts to, and the server's own metrics (`GET /metrics`, Prometheus text: `oc_cache_*`). Keep it off the public network; the token is optional |
 | `OC_SMTP_URL` / `OC_SMTP_FROM` | — | SMTP server for monitor emails (`smtps://user:pass@host:465`) |
-| `OC_ASSIST_PROVIDER` | — | Assist's model: `anthropic` (the Messages API) or `openai` (any OpenAI-compatible chat completions endpoint: OpenAI, Azure OpenAI, vLLM, LiteLLM, Ollama). Unset: Assist says it isn't set up |
+| `OC_ASSIST_PROVIDER` | — | The install's default model for Assist: `anthropic` (the Messages API) or `openai` (any OpenAI-compatible chat completions endpoint: OpenAI, Azure OpenAI, vLLM, LiteLLM, Ollama). Each organization can set its own in Organization Settings → Assist AI (key sealed), which replaces this one for it. Unset and no organization provider: Assist says it isn't set up |
 | `OC_ASSIST_API_KEY` / `OC_ASSIST_MODEL` / `OC_ASSIST_BASE_URL` | — / `claude-opus-5` (anthropic) / `https://api.anthropic.com` | The provider's key (required for anthropic), model (required for openai) and URL (required for openai, e.g. `https://api.openai.com/v1`) |
+| `OC_ASSIST_ALLOW_PRIVATE` | `false` | Lets organizations point Assist at private addresses (a model on the install's network); leave off on multi-tenant installs |
 | `OC_ASSIST_FALLBACKS` / `OC_ASSIST_MAX_TOKENS` | `true` / 64000 (anthropic), 4096 (openai) | Anthropic's server-side fallback when the model declines a request; the most a model turn writes |
 | `OC_SYNTHETICS_ALLOW_PRIVATE` | `false` | Let synthetic tests reach loopback, private, link-local (cloud metadata) and other internal addresses |
 | `OC_DATA_DIR` | `.oc-data` | Local cache for Archive Search and rehydration |

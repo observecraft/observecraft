@@ -28,7 +28,7 @@ export function AssistSettingsPage() {
       <Link className="btn btn-sm ai-back" to="/assist">
         <ArrowLeft size={14} /> Back
       </Link>
-      {!status.data.configured && <NotConfigured />}
+      {!status.data.configured && <NotConfigured error={status.data.error} />}
       <section>
         <h2>User Context</h2>
         <p className="muted">Assist keeps this in mind in every conversation: your role, the services you own, how you like answers.</p>
@@ -96,7 +96,9 @@ export function AssistSettingsPage() {
         <p className="muted">
           {status.data.configured ? (
             <>
-              <b>{status.data.model}</b> through {status.data.provider === 'anthropic' ? 'Anthropic' : 'an OpenAI-compatible endpoint'}, set for this install by its administrator.
+              <b>{status.data.model}</b> through {status.data.provider === 'anthropic' ? 'Anthropic' : 'an OpenAI-compatible server'},{' '}
+              {status.data.source === 'org' ? "this organization's provider" : "the install's default"}. Admins change it in{' '}
+              <Link to="/organization-settings/assist">Organization Settings → Assist AI</Link>.
             </>
           ) : (
             'Not set up.'

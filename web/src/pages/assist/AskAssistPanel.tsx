@@ -43,7 +43,7 @@ function Panel({ hidden, onClose, onNew }: { hidden: boolean; onClose: () => voi
         </span>
       </header>
       <div className="ai-panel-body">
-        {status.data && !status.data.configured && <NotConfigured />}
+        {status.data && !status.data.configured && <NotConfigured error={status.data.error} />}
         {chat.messages.length === 0 ? (
           <p className="muted ai-panel-hint">Ask about your logs, metrics, traces, monitors, incidents or Kubernetes. Assist reads them for you and links what it finds.</p>
         ) : (

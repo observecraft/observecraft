@@ -5,6 +5,7 @@ pub mod azure_integration;
 pub mod gcp_integration;
 pub mod apps;
 pub mod assist;
+pub mod assist_provider;
 pub mod archives;
 pub mod auth;
 pub mod catalog;
@@ -423,6 +424,10 @@ use crate::state::AppState;
         assist::chat,
         assist::approve,
         assist::report,
+        assist_provider::get_provider,
+        assist_provider::put_provider,
+        assist_provider::delete_provider,
+        assist_provider::test_provider,
         notebooks::search,
         notebooks::get_one,
         notebooks::create,
@@ -1118,6 +1123,8 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/assist/conversations/{id}/approve", post(assist::approve))
         .route("/api/v1/assist/chat", post(assist::chat))
         .route("/api/v1/assist/reports", post(assist::report))
+        .route("/api/v1/assist/provider", get(assist_provider::get_provider).put(assist_provider::put_provider).delete(assist_provider::delete_provider))
+        .route("/api/v1/assist/provider/test", post(assist_provider::test_provider))
         .route("/api/v1/notebooks", post(notebooks::create))
         .route("/api/v1/notebooks/search", post(notebooks::search))
         .route(
@@ -1918,6 +1925,7 @@ mod tests {
             include_str!("fleet.rs"),
             include_str!("network.rs"),
             include_str!("assist.rs"),
+            include_str!("assist_provider.rs"),
             include_str!("notebooks.rs"),
             include_str!("profiles.rs"),
             include_str!("reference_tables.rs"),
@@ -2279,12 +2287,14 @@ mod tests {
             ("monitors.rs", include_str!("monitors.rs")),
             ("network.rs", include_str!("network.rs")),
             ("assist.rs", include_str!("assist.rs")),
+            ("assist_provider.rs", include_str!("assist_provider.rs")),
             ("../assist/mod.rs", include_str!("../assist/mod.rs")),
             ("../assist/agent.rs", include_str!("../assist/agent.rs")),
             ("../assist/http.rs", include_str!("../assist/http.rs")),
             ("../assist/llm.rs", include_str!("../assist/llm.rs")),
             ("../assist/prompt.rs", include_str!("../assist/prompt.rs")),
             ("../assist/tools.rs", include_str!("../assist/tools.rs")),
+            ("../assist/testing.rs", include_str!("../assist/testing.rs")),
             ("notebooks.rs", include_str!("notebooks.rs")),
             ("notifications.rs", include_str!("notifications.rs")),
             ("on_call.rs", include_str!("on_call.rs")),

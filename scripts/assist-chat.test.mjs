@@ -86,3 +86,27 @@ test('the usage report counts messages, conversations and surfaces in the range'
     ['panel'],
   );
 });
+
+test("an organization's provider replaces the install's, and its key is never shown", async () => {
+  mock.resetAssistMock();
+  assert.equal((await mock.getProvider()).source, 'install');
+
+  const settings = { provider: 'openai', model: 'gpt-5', baseUrl: 'https://llm.example.com/v1' };
+  await mock.putProvider({ ...settings, apiKey: 'sk-org-secret' });
+  const view = await mock.getProvider();
+  assert.equal(view.source, 'org');
+  assert.equal(view.org.hasKey, true);
+  assert.doesNotMatch(JSON.stringify(view), /sk-org-secret/);
+  assert.deepEqual([(await mock.status()).source, (await mock.status()).model], ['org', 'gpt-5']);
+
+  await mock.putProvider({ ...settings, model: 'gpt-5-mini' });
+  assert.equal((await mock.getProvider()).org.hasKey, true, 'saved without a key keeps it');
+  assert.equal((await mock.testProvider({ ...settings, model: 'gpt-5-mini' })).ok, true);
+
+  await assert.rejects(mock.putProvider({ ...settings, baseUrl: 'http://10.0.0.5/v1' }), /https/);
+  await assert.rejects(mock.putProvider({ provider: 'anthropic', apiKey: '' }), /API key/);
+
+  await mock.deleteProvider();
+  assert.equal((await mock.getProvider()).source, 'install');
+  assert.equal((await mock.status()).model, 'claude-opus-5');
+});

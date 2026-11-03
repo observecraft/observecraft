@@ -8,6 +8,32 @@ use super::llm::{Msg, Provider, SseParser, ToolSpec, Turn};
 pub struct HttpModel {
     pub provider: Provider,
     pub max_tokens: u32,
+    pub reach: Reach,
+}
+
+/// Where the provider's address comes from.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Reach {
+    /// The install's own configuration.
+    Trusted,
+    /// An organization's: the host is resolved and checked at each request and the connection pinned to
+    /// that address (no DNS rebinding), without redirects.
+    Public { allow_private: bool },
+}
+
+/// The client for one request.
+async fn client_for(provider: &Provider, reach: Reach) -> Result<reqwest::Client, String> {
+    let Reach::Public { allow_private } = reach else { return Ok(client().clone()) };
+    let url = url::Url::parse(provider.base_url()).map_err(|e| format!("Invalid base URL: {e}"))?;
+    let host = url.host_str().ok_or("The base URL has no host")?.to_string();
+    let port = url.port_or_known_default().unwrap_or(443);
+    let addr = crate::routes::synthetics_net::resolve(&host, port, allow_private).await.map_err(super::private_target)?;
+    reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .redirect(reqwest::redirect::Policy::none())
+        .resolve(host.trim_start_matches('[').trim_end_matches(']'), addr)
+        .build()
+        .map_err(|e| e.to_string())
 }
 
 fn client() -> &'static reqwest::Client {
@@ -30,7 +56,7 @@ async fn error_text(resp: reqwest::Response) -> String {
 impl Model for HttpModel {
     async fn turn(&self, system: &str, tools: &[ToolSpec], msgs: &[Msg], on_text: &mut (dyn FnMut(&str) + Send)) -> Result<Turn, String> {
         let r = self.provider.request(system, tools, msgs, self.max_tokens);
-        let mut req = client().post(&r.url).json(&r.body);
+        let mut req = client_for(&self.provider, self.reach).await?.post(&r.url).json(&r.body);
         for (k, v) in &r.headers {
             req = req.header(*k, v);
         }
