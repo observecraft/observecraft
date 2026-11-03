@@ -8720,6 +8720,80 @@ export interface paths {
         patch: operations["datadog_update_application_key"];
         trace?: never;
     };
+    "/api/v2/cost/aws_cur_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the AWS CUR configs (Datadog-compatible). */
+        get: operations["datadog_list_cost_aws_cur_configs"];
+        put?: never;
+        /** Create an AWS CUR config (Datadog-compatible): where the account's Cost and Usage Report is delivered. */
+        post: operations["datadog_create_cost_aws_cur_config"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/cost/aws_cur_config/{cloud_account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an AWS CUR config (Datadog-compatible). */
+        get: operations["datadog_get_cost_aws_cur_config"];
+        put?: never;
+        post?: never;
+        /** Delete (archive) an AWS CUR config (Datadog-compatible). */
+        delete: operations["datadog_delete_cost_aws_cur_config"];
+        options?: never;
+        head?: never;
+        /** Update an AWS CUR config (Datadog-compatible): `is_enabled`, `account_filters`; answers a list. */
+        patch: operations["datadog_update_cost_aws_cur_config"];
+        trace?: never;
+    };
+    "/api/v2/cost/azure_uc_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the Azure UC configs (Datadog-compatible). */
+        get: operations["datadog_list_cost_azure_uc_configs"];
+        put?: never;
+        /** Create an Azure UC config pair (Datadog-compatible): the actual and amortized cost exports of a scope. */
+        post: operations["datadog_create_cost_azure_uc_configs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/cost/azure_uc_config/{cloud_account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an Azure UC config pair (Datadog-compatible). */
+        get: operations["datadog_get_cost_azure_uc_config"];
+        put?: never;
+        post?: never;
+        /** Delete (archive) an Azure UC config pair (Datadog-compatible). */
+        delete: operations["datadog_delete_cost_azure_uc_config"];
+        options?: never;
+        head?: never;
+        /** Enable or disable an Azure UC config pair (Datadog-compatible). */
+        patch: operations["datadog_update_cost_azure_uc_configs"];
+        trace?: never;
+    };
     "/api/v2/cost/budget": {
         parameters: {
             query?: never;
@@ -41330,6 +41404,292 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["DatadogIamDocument"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_cost_aws_cur_configs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+        };
+    };
+    datadog_create_cost_aws_cur_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_cost_aws_cur_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cloud_account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_cost_aws_cur_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cloud_account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_update_cost_aws_cur_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cloud_account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_list_cost_azure_uc_configs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+        };
+    };
+    datadog_create_cost_azure_uc_configs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_get_cost_azure_uc_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cloud_account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogIamDocument"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_delete_cost_azure_uc_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cloud_account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatadogErrors"];
+                };
+            };
+        };
+    };
+    datadog_update_cost_azure_uc_configs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cloud_account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
             };
         };
         responses: {

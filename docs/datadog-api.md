@@ -99,7 +99,8 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 | `datadog_cost_budget`, `datadog_cost_budget` (data source) | `PUT /api/v2/cost/budget`, `GET`/`DELETE /api/v2/cost/budget/{id}`, `GET /api/v2/cost/budgets`, `POST /api/v2/cost/budget/validate` | ✅ [details](#cloud-cost) |
 | `datadog_cost_custom_forecast` | `PUT /api/v2/cost/budget/custom-forecast`, `GET`/`DELETE /api/v2/cost/budget/{id}/custom-forecast` | ✅ [details](#cloud-cost) |
 | Custom costs files (API clients) | `PUT`/`GET /api/v2/cost/custom_costs`, `GET`/`DELETE /api/v2/cost/custom_costs/{id}` | ✅ [details](#cloud-cost) |
-| `datadog_aws_cur_config`, `datadog_azure_uc_config`, `datadog_gcp_uc_config`, `datadog_tag_pipeline_ruleset(s)`, `datadog_custom_allocation_rule(s)` | `/api/v2/cost/*_config`, `/api/v2/tags/enrichment`, `/api/v2/cost/arbitrary_rule` | Not yet |
+| `datadog_aws_cur_config`, `datadog_azure_uc_config` | `/api/v2/cost/aws_cur_config`, `/api/v2/cost/azure_uc_config` (list, create, get, update, delete) | ✅ [details](#cloud-cost) |
+| `datadog_gcp_uc_config`, `datadog_tag_pipeline_ruleset(s)`, `datadog_custom_allocation_rule(s)` | `/api/v2/cost/gcp_uc_config`, `/api/v2/tags/enrichment`, `/api/v2/cost/arbitrary_rule` | Not yet |
 | `datadog_apm_retention_filter`, `datadog_apm_retention_filter_order` | `/api/v2/apm/config/retention-filters` (create, list, get, update, delete), `PUT /api/v2/apm/config/retention-filters-execution-order` | ✅ [details](#apm-retention-filters-and-span-based-metrics) |
 | `datadog_spans_metric` | `/api/v2/apm/config/metrics` (create, list, get, update, delete) | ✅ [details](#apm-retention-filters-and-span-based-metrics) |
 | `datadog_integration_aws_account`, `datadog_integration_aws_external_id`, data sources `datadog_integration_aws_available_namespaces` / `datadog_integration_aws_iam_permissions` | `/api/v2/integration/aws/accounts` (create, list, get, update, delete), `/available_namespaces`, `/logs/services`, `/generate_new_external_id`, `/iam_permissions[/standard\|/resource_collection]` | ✅ [details](#aws-integration) |
@@ -110,8 +111,15 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 
 Costs are daily line items in the FOCUS columns (`otel.cloud_costs`). They come from custom costs files: a JSON list
 of line items (`ProviderName`, `ChargeDescription`, `ChargePeriodStart`, `ChargePeriodEnd`, `BilledCost`,
-`BillingCurrency` `USD`, `Tags`), each spread evenly over the days of its charge period (the end date excluded). The
-cloud providers' bills (AWS CUR, Azure and Google Cloud cost exports) aren't read yet.
+`BillingCurrency` `USD`, `Tags`), each spread evenly over the days of its charge period (the end date excluded).
+
+The providers' bills are configured as Datadog's: `aws_cur_config` (where the management account's Cost and Usage
+Report is delivered: bucket, region, report name and prefix, account filters) and `azure_uc_config` (a scope's actual
+and amortized cost exports: storage account, container, path and export name of each). Ids are numeric strings; an
+Azure pair is one id, its `configs` the amortized export, then the actual one. AWS `PATCH` sets `is_enabled` or
+`account_filters` and answers a list, Azure's sets `is_enabled`; `DELETE` archives the config (it leaves the API and
+stops importing, its costs stay). One config per AWS account, or per Azure tenant and scope; writes need an admin.
+Google Cloud's billing export isn't read yet.
 
 They are queried as Datadog's cost metrics, in dashboards (`data_source: cloud_cost` or `metrics`), monitors, notebooks
 and budgets: `all.cost`, `<provider>.cost.amortized` (`aws`, `azure`, `gcp`, or a custom provider's name) and

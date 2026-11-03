@@ -24006,6 +24006,351 @@
         }
       }
     },
+    "/api/v2/cost/aws_cur_config": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "List the AWS CUR configs (Datadog-compatible).",
+        "operationId": "datadog_list_cost_aws_cur_configs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Create an AWS CUR config (Datadog-compatible): where the account's Cost and Usage Report is delivered.",
+        "operationId": "datadog_create_cost_aws_cur_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/cost/aws_cur_config/{cloud_account_id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Get an AWS CUR config (Datadog-compatible).",
+        "operationId": "datadog_get_cost_aws_cur_config",
+        "parameters": [
+          {
+            "name": "cloud_account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Delete (archive) an AWS CUR config (Datadog-compatible).",
+        "operationId": "datadog_delete_cost_aws_cur_config",
+        "parameters": [
+          {
+            "name": "cloud_account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Update an AWS CUR config (Datadog-compatible): `is_enabled`, `account_filters`; answers a list.",
+        "operationId": "datadog_update_cost_aws_cur_config",
+        "parameters": [
+          {
+            "name": "cloud_account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/cost/azure_uc_config": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "List the Azure UC configs (Datadog-compatible).",
+        "operationId": "datadog_list_cost_azure_uc_configs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Create an Azure UC config pair (Datadog-compatible): the actual and amortized cost exports of a scope.",
+        "operationId": "datadog_create_cost_azure_uc_configs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/cost/azure_uc_config/{cloud_account_id}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Get an Azure UC config pair (Datadog-compatible).",
+        "operationId": "datadog_get_cost_azure_uc_config",
+        "parameters": [
+          {
+            "name": "cloud_account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Delete (archive) an Azure UC config pair (Datadog-compatible).",
+        "operationId": "datadog_delete_cost_azure_uc_config",
+        "parameters": [
+          {
+            "name": "cloud_account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datadog-api"
+        ],
+        "summary": "Enable or disable an Azure UC config pair (Datadog-compatible).",
+        "operationId": "datadog_update_cost_azure_uc_configs",
+        "parameters": [
+          {
+            "name": "cloud_account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogIamDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatadogErrors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/cost/budget": {
       "put": {
         "tags": [

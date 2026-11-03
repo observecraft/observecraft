@@ -73,6 +73,7 @@ fn not_replayed(version: &str, feature: &str) -> Option<NotReplayed> {
         // permission settings, nor the scenarios that set avatars, banners or modules.
         // Budgets and custom costs files; not the cloud accounts, tag pipelines, allocation rules or
         // commitments, nor the recordings of fixed upstream ids (`Get Custom Costs File returns "OK"`).
+        // The AWS CUR and Azure UC configs are replayed by `cost_bills`, their fixed ids mapped to ours.
         ("v2", "Cloud Cost Management") => Some(NotReplayed::AllBut(&[
             "Delete Custom Costs file returns \"Not Found\" response",
             "Delete a budget returns \"Bad Request\" response",
@@ -332,6 +333,11 @@ pub struct Replayer {
 impl Replayer {
     pub fn new(base: &str, api_key: &str, app_key: &str) -> Self {
         Replayer { base: base.trim_end_matches('/').into(), api_key: api_key.into(), app_key: app_key.into(), http: reqwest::Client::new(), ids: HashMap::new(), ignore: vec![] }
+    }
+
+    /// Answers a recorded id with one of ours: scenarios recorded against fixed upstream ids (`/100`).
+    pub fn map_id(&mut self, recorded: &str, ours: Value) {
+        self.ids.insert(recorded.to_string(), ours);
     }
 
     /// Replays a scenario's cassette; returns the exchanges and every mismatch found.
