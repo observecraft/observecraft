@@ -228,7 +228,7 @@ function ResourceChart({ scope, measure }: { scope: ServiceScope; measure: ResMe
 type ResSort = 'requests' | 'totalMs' | 'p95Ms' | 'errors' | 'errorRate';
 
 export function ResourcesSection({ scope, onPick }: { scope: ServiceScope; onPick: (resource: string) => void }) {
-  const q = useResources({ range: scope.range, env: scope.env, service: scope.service });
+  const q = useResources({ range: scope.range, env: scope.env, service: scope.service, operation: scope.operation });
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<ResSort>('totalMs');
   const [page, setPage] = useState(0);

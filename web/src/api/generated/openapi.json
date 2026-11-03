@@ -61034,6 +61034,13 @@
               "null"
             ]
           },
+          "operation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "With a service: its operation; its primary one when absent, all with `*`."
+          },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
           },
@@ -64478,6 +64485,13 @@
               "null"
             ]
           },
+          "operation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The operation shown (`http.server.request`): the service's primary one when absent, all with `*`."
+          },
           "range": {
             "$ref": "#/components/schemas/TimeRange"
           },
@@ -64592,6 +64606,8 @@
           "versions",
           "resources",
           "hosts",
+          "operation",
+          "operations",
           "series",
           "bucketMs"
         ],
@@ -64636,6 +64652,16 @@
               "string",
               "null"
             ]
+          },
+          "operation": {
+            "type": "string",
+            "description": "The operation shown (`*`: all), and the service's operations, the most requested first."
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "p95Ms": {
             "type": "number",

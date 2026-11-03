@@ -273,6 +273,9 @@ export function getServiceSummary(s: ServiceScope): S['ServiceSummary'] {
     versions: uniq((x) => x.version),
     resources: uniq((x) => x.name),
     hosts: uniq((x) => SERVICES[x.service].host),
+    // The demo's services have one entry operation each.
+    operation: s.operation === '*' ? '*' : inst ? 'http.server.request' : 'client.request',
+    operations: [inst ? 'http.server.request' : 'client.request'],
     series,
     bucketMs: size,
   };
