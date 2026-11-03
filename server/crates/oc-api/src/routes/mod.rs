@@ -4,6 +4,7 @@ pub mod aws_integration;
 pub mod azure_integration;
 pub mod gcp_integration;
 pub mod apps;
+pub mod assist;
 pub mod archives;
 pub mod auth;
 pub mod catalog;
@@ -413,6 +414,15 @@ use crate::state::AppState;
         dashboards::create_list,
         dashboards::add_to_list,
         dashboards::monitor_summary,
+        assist::status,
+        assist::get_settings,
+        assist::update_settings,
+        assist::list_conversations,
+        assist::get_conversation,
+        assist::delete_conversation,
+        assist::chat,
+        assist::approve,
+        assist::report,
         notebooks::search,
         notebooks::get_one,
         notebooks::create,
@@ -999,6 +1009,7 @@ use crate::state::AppState;
         (name = "apm", description = "Services, endpoints, dependencies and traces computed from spans"),
         (name = "metrics", description = "Metric queries for dashboards (OTel metrics and span-derived trace.* metrics)"),
         (name = "dashboards", description = "Dashboards, dashboard lists and the monitor summary widget"),
+        (name = "assist", description = "Assist: the AI assistant, a chat over the org's data with tools"),
         (name = "notebooks", description = "Notebooks: documents of Markdown and live query cells"),
         (name = "infrastructure", description = "Hosts, built from host metrics, spans and logs"),
         (name = "fleet", description = "Fleet Automation: the Datadog Agents and OpenTelemetry Collectors sending data, their versions, checks and reported configuration (read-only)"),
@@ -1100,6 +1111,13 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/tags/{key}/values", get(metrics::tag_values))
         .route("/api/v1/dashboards", post(dashboards::create))
         .route("/api/v1/dashboards/search", post(dashboards::search))
+        .route("/api/v1/assist/status", get(assist::status))
+        .route("/api/v1/assist/settings", get(assist::get_settings).put(assist::update_settings))
+        .route("/api/v1/assist/conversations", get(assist::list_conversations))
+        .route("/api/v1/assist/conversations/{id}", get(assist::get_conversation).delete(assist::delete_conversation))
+        .route("/api/v1/assist/conversations/{id}/approve", post(assist::approve))
+        .route("/api/v1/assist/chat", post(assist::chat))
+        .route("/api/v1/assist/reports", post(assist::report))
         .route("/api/v1/notebooks", post(notebooks::create))
         .route("/api/v1/notebooks/search", post(notebooks::search))
         .route(
@@ -1899,6 +1917,7 @@ mod tests {
             include_str!("feature_flags.rs"),
             include_str!("fleet.rs"),
             include_str!("network.rs"),
+            include_str!("assist.rs"),
             include_str!("notebooks.rs"),
             include_str!("profiles.rs"),
             include_str!("reference_tables.rs"),
@@ -2259,6 +2278,13 @@ mod tests {
             ("monitor_formula.rs", include_str!("monitor_formula.rs")),
             ("monitors.rs", include_str!("monitors.rs")),
             ("network.rs", include_str!("network.rs")),
+            ("assist.rs", include_str!("assist.rs")),
+            ("../assist/mod.rs", include_str!("../assist/mod.rs")),
+            ("../assist/agent.rs", include_str!("../assist/agent.rs")),
+            ("../assist/http.rs", include_str!("../assist/http.rs")),
+            ("../assist/llm.rs", include_str!("../assist/llm.rs")),
+            ("../assist/prompt.rs", include_str!("../assist/prompt.rs")),
+            ("../assist/tools.rs", include_str!("../assist/tools.rs")),
             ("notebooks.rs", include_str!("notebooks.rs")),
             ("notifications.rs", include_str!("notifications.rs")),
             ("on_call.rs", include_str!("on_call.rs")),
