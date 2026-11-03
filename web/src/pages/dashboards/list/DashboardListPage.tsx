@@ -12,6 +12,7 @@ import { useAddToList, useCloneDashboard, useCreateList, useDashboardSearch, use
 import { CreateDashboardModal } from './CreateDashboardModal';
 import { DashboardsHeader } from './DashboardsHeader';
 import '../dashboards.css';
+import { UrlSearchInput } from '../../../components/ui/UrlSearchInput';
 
 const PAGE = 50;
 
@@ -142,7 +143,7 @@ export function DashboardListPage({ quickGraph = false }: { quickGraph?: boolean
       <div className="dl-scroll">
         <label className="int-search dl-search">
           <Search size={16} />
-          <input placeholder="Search dashboards" value={query} onChange={(e) => set({ q: e.target.value, offset: null })} />
+          <UrlSearchInput placeholder="Search dashboards" value={query} onChange={(q) => set({ q, offset: null })} />
         </label>
 
         <div className="dl-body">
