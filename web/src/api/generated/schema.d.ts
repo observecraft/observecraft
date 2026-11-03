@@ -13,8 +13,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Checks widget definitions the way a dashboard write does, one result per widget (the provider
-         *     calls it during `plan`; Datadog-compatible). */
+        /**
+         * Checks widget definitions the way a dashboard write does, one result per widget (the provider
+         *     calls it during `plan`; Datadog-compatible).
+         */
         post: operations["datadog_validate_dashboard_widgets"];
         delete?: never;
         options?: never;
@@ -876,8 +878,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Sends a message and streams the reply (`conversation`, `text`, `tool_start` / `tool_end`, `approval`,
-         *     `error`, then `done`). */
+        /**
+         * Sends a message and streams the reply (`conversation`, `text`, `tool_start` / `tool_end`, `approval`,
+         *     `error`, then `done`).
+         */
         post: operations["assist_chat"];
         delete?: never;
         options?: never;
@@ -928,6 +932,44 @@ export interface paths {
         put?: never;
         /** Runs the pending calls the user approved (declining the others) and streams the rest of the reply. */
         post: operations["assist_approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/provider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist_get_provider"];
+        /** Sets the organization's provider. Saved without `apiKey`, the stored key stays. */
+        put: operations["assist_put_provider"];
+        post?: never;
+        /** Removes the organization's provider: Assist uses the install's again, if any. */
+        delete: operations["assist_delete_provider"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/provider/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sends one short request to the provider described (with the stored key unless it brings one), so an
+         *     admin knows it answers before saving it.
+         */
+        post: operations["assist_test_provider"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1025,8 +1067,10 @@ export interface paths {
         };
         get: operations["link_info"];
         put?: never;
-        /** Accepts an invite / reset link and signs in (MFA still applies if enabled). A new account sets its
-         *     password here; an existing account joins the org by confirming its current password. */
+        /**
+         * Accepts an invite / reset link and signs in (MFA still applies if enabled). A new account sets its
+         *     password here; an existing account joins the org by confirming its current password.
+         */
         post: operations["accept_link"];
         delete?: never;
         options?: never;
@@ -1174,9 +1218,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** "Sign in with your organization": picks the SSO login for an email address. The answer doesn't
+        /**
+         * "Sign in with your organization": picks the SSO login for an email address. The answer doesn't
          *     depend on whether the account exists (the install's org is used when the email is unknown), so it
-         *     can't be used to probe for users. */
+         *     can't be used to probe for users.
+         */
         post: operations["discover_sso"];
         delete?: never;
         options?: never;
@@ -1371,8 +1417,10 @@ export interface paths {
         };
         /** The org's budgets with this month's figures (Cloud Cost → Plan, Overview). */
         get: operations["cloud_cost_budgets"];
-        /** Create or replace a budget from Plan → Budgets: the same document and checks as
-         *     `PUT /api/v2/cost/budget`, so Terraform and the page manage the same budgets. */
+        /**
+         * Create or replace a budget from Plan → Budgets: the same document and checks as
+         *     `PUT /api/v2/cost/budget`, so Terraform and the page manage the same budgets.
+         */
         put: operations["cloud_cost_save_budget"];
         post?: never;
         delete?: never;
@@ -1388,8 +1436,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** A budget with its entries and what each month cost so far and is forecast to cost, as Datadog's
-         *     API answers it (`GET /api/v2/cost/budget/{id}?actual=true&forecast=true`), for Plan → Budgets. */
+        /**
+         * A budget with its entries and what each month cost so far and is forecast to cost, as Datadog's
+         *     API answers it (`GET /api/v2/cost/budget/{id}?actual=true&forecast=true`), for Plan → Budgets.
+         */
         get: operations["cloud_cost_budget"];
         put?: never;
         post?: never;
@@ -1459,8 +1509,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Unit prices: per group of tags, the usage and what it cost amortized and on demand (Plan → Unit
-         *     Costs divides them). Only usage with a quantity; unused commitments are left out. */
+        /**
+         * Unit prices: per group of tags, the usage and what it cost amortized and on demand (Plan → Unit
+         *     Costs divides them). Only usage with a quantity; unused commitments are left out.
+         */
         post: operations["cloud_cost_unit_costs"];
         delete?: never;
         options?: never;
@@ -1779,9 +1831,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The org's dashboards as Datadog summaries (Datadog-compatible). `filter[deleted]=true` lists
+        /**
+         * The org's dashboards as Datadog summaries (Datadog-compatible). `filter[deleted]=true` lists
          *     deleted ones; `filter[shared]=true` lists none (sharing isn't part of this API); `count` and
-         *     `start` page. */
+         *     `start` page.
+         */
         get: operations["datadog_list_dashboards"];
         put?: never;
         /** Creates a dashboard from a Datadog dashboard document (Datadog-compatible). */
@@ -2241,9 +2295,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Evaluates the gate of a service, environment and identifier now, records the evaluation and
+        /**
+         * Evaluates the gate of a service, environment and identifier now, records the evaluation and
          *     answers with its verdict. Called by CI/CD pipelines with an application key
-         *     (`Authorization: Bearer ocak_…`); `pass` says whether the deployment may go on. */
+         *     (`Authorization: Bearer ocak_…`); `pass` says whether the deployment may go on.
+         */
         post: operations["evaluate_deployment_gate"];
         delete?: never;
         options?: never;
@@ -2627,8 +2683,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Triage Inbox: the range's warning and error events correlated into work items, one per affected
-         *     object (the Agent's aggregation key) or, without one, per source and title. */
+        /**
+         * Triage Inbox: the range's warning and error events correlated into work items, one per affected
+         *     object (the Agent's aggregation key) or, without one, per source and title.
+         */
         post: operations["event_work_items"];
         delete?: never;
         options?: never;
@@ -2729,8 +2787,10 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get_feature_flag"];
-        /** Changes a flag's details and variants (its key stays). Environments that serve a removed
-         *     variant must be changed first. */
+        /**
+         * Changes a flag's details and variants (its key stays). Environments that serve a removed
+         *     variant must be changed first.
+         */
         put: operations["update_feature_flag"];
         post?: never;
         delete: operations["delete_feature_flag"];
@@ -2747,8 +2807,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Sets a flag's configuration in one environment: on or off, targeting rules, the default and
-         *     a progressive rollout. */
+        /**
+         * Sets a flag's configuration in one environment: on or off, targeting rules, the default and
+         *     a progressive rollout.
+         */
         put: operations["update_feature_flag_environment"];
         post?: never;
         delete?: never;
@@ -3323,8 +3385,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Policies with their compliance (counting only resources matching the page's filters), the
-         *     templates with a preview score, and the filters' values. */
+        /**
+         * Policies with their compliance (counting only resources matching the page's filters), the
+         *     templates with a preview score, and the filters' values.
+         */
         post: operations["search_resource_policies"];
         delete?: never;
         options?: never;
@@ -3442,8 +3506,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Permanently deletes an organization: its users, content and settings now, its telemetry in the
-         *     background. Accounts that belong to other organizations keep those memberships. */
+        /**
+         * Permanently deletes an organization: its users, content and settings now, its telemetry in the
+         *     background. Accounts that belong to other organizations keep those memberships.
+         */
         delete: operations["instance_delete_org"];
         options?: never;
         head?: never;
@@ -4086,9 +4152,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Top values per facet. Each facet ignores its own filter so unchecked values keep their counts.
+        /**
+         * Top values per facet. Each facet ignores its own filter so unchecked values keep their counts.
          *     Standard facets are counted from the facet aggregate when the search and the reader's
-         *     restriction allow; other counts read the newest logs of the range, about a million at most. */
+         *     restriction allow; other counts read the newest logs of the range, about a million at most.
+         */
         post: operations["facets"];
         delete?: never;
         options?: never;
@@ -4521,8 +4589,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Checks a query and counts the logs of the last hour it matches. Admins read every log, so the
-         *     count is the query's alone. */
+        /**
+         * Checks a query and counts the logs of the last hour it matches. Admins read every log, so the
+         *     count is the query's alone.
+         */
         post: operations["preview_log_restriction_query"];
         delete?: never;
         options?: never;
@@ -4968,9 +5038,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Moves this browser session to another of the account's organizations (a new session token is issued).
+        /**
+         * Moves this browser session to another of the account's organizations (a new session token is issued).
          *     Sessions started with single sign-on are bound to that organization; an org that requires SSO can
-         *     only be entered through its identity provider (admins excepted). */
+         *     only be entered through its identity provider (admins excepted).
+         */
         post: operations["switch_org"];
         delete?: never;
         options?: never;
@@ -5151,8 +5223,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The org's monitors, filtered as the `datadog_monitor(s)` data sources ask (`name`, `tags`,
-         *     `monitor_tags`), paged with `page` / `page_size` or `id_offset`. */
+        /**
+         * The org's monitors, filtered as the `datadog_monitor(s)` data sources ask (`name`, `tags`,
+         *     `monitor_tags`), paged with `page` / `page_size` or `id_offset`.
+         */
         get: operations["datadog_list_monitors"];
         put?: never;
         /** Create a monitor from a Datadog monitor document. */
@@ -5187,8 +5261,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Search monitors: `status:alert`, `type:log`, `muted:true`, `tag:"env:prod"`, `priority:p1`
-         *     terms and free text on the name, with counts per status, muted, tag and type. */
+        /**
+         * Search monitors: `status:alert`, `type:log`, `muted:true`, `tag:"env:prod"`, `priority:p1`
+         *     terms and free text on the name, with counts per status, muted, tag and type.
+         */
         get: operations["datadog_search_monitors"];
         put?: never;
         post?: never;
@@ -5276,8 +5352,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mute (creates a downtime per monitor), unmute (cancels the monitor's downtimes), resolve (sets
-         *     every triggered group back to OK until the next evaluation says otherwise) or delete. */
+        /**
+         * Mute (creates a downtime per monitor), unmute (cancels the monitor's downtimes), resolve (sets
+         *     every triggered group back to OK until the next evaluation says otherwise) or delete.
+         */
         post: operations["bulk"];
         delete?: never;
         options?: never;
@@ -5440,8 +5518,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** DNS traffic between clients and the DNS servers they query (Network Analytics' DNS view): the
-         *     Agent's DNS stats per connection, domain and query type. */
+        /**
+         * DNS traffic between clients and the DNS servers they query (Network Analytics' DNS view): the
+         *     Agent's DNS stats per connection, domain and query type.
+         */
         post: operations["network_dns"];
         delete?: never;
         options?: never;
@@ -5458,8 +5538,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Flows between the client and server groups in the range, biggest first, with the summary
-         *     series and the facets. */
+        /**
+         * Flows between the client and server groups in the range, biggest first, with the summary
+         *     series and the facets.
+         */
         post: operations["network_flows"];
         delete?: never;
         options?: never;
@@ -6100,8 +6182,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Every entity of the catalog: services, datastores, queues, endpoints and external providers seen
-         *     in telemetry over the range, merged with the org's definitions, service metadata and repositories. */
+        /**
+         * Every entity of the catalog: services, datastores, queues, endpoints and external providers seen
+         *     in telemetry over the range, merged with the org's definitions, service metadata and repositories.
+         */
         post: operations["portal_catalog"];
         delete?: never;
         options?: never;
@@ -6188,8 +6272,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Imports entity definition documents (YAML or JSON, apiVersion v3): all are validated first, then
-         *     each creates or replaces the definition of its kind and name. */
+        /**
+         * Imports entity definition documents (YAML or JSON, apiVersion v3): all are validated first, then
+         *     each creates or replaces the definition of its kind and name.
+         */
         post: operations["import_portal_entities"];
         delete?: never;
         options?: never;
@@ -6346,8 +6432,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Teams Performance: incidents per team over time, mean time to resolve, and each team's services,
-         *     SLOs, monitors and On-Call schedules. */
+        /**
+         * Teams Performance: incidents per team over time, mean time to resolve, and each team's services,
+         *     SLOs, monitors and On-Call schedules.
+         */
         post: operations["portal_teams_report"];
         delete?: never;
         options?: never;
@@ -6464,8 +6552,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Checks a pull request's commit against the enabled rules that apply to its repository. Called
-         *     from CI with an application key (`Authorization: Bearer ocak_…`); `pass` is the check's result. */
+        /**
+         * Checks a pull request's commit against the enabled rules that apply to its repository. Called
+         *     from CI with an application key (`Authorization: Bearer ocak_…`); `pass` is the check's result.
+         */
         post: operations["evaluate_pr_gates"];
         delete?: never;
         options?: never;
@@ -6614,8 +6704,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The read-only page at `/status/<slug>`, without sign-in. Public pages answer to anyone; internal
-         *     pages only to signed-in members of the page's org. Everyone else gets 404, as for an unknown slug. */
+        /**
+         * The read-only page at `/status/<slug>`, without sign-in. Public pages answer to anyone; internal
+         *     pages only to signed-in members of the page's org. Everyone else gets 404, as for an unknown slug.
+         */
         get: operations["get_public_status_page"];
         put?: never;
         post?: never;
@@ -6651,8 +6743,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** A single POST SSE stream sends a full snapshot then aligned bucket replacements every 10s.
-         *     Identical subscriptions within the same organization share the plan, scans and retained history. */
+        /**
+         * A single POST SSE stream sends a full snapshot then aligned bucket replacements every 10s.
+         *     Identical subscriptions within the same organization share the plan, scans and retained history.
+         */
         post: operations["dashboard_live"];
         delete?: never;
         options?: never;
@@ -7102,8 +7196,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reports outcomes of a custom rule per service (pass, fail or skip, with remarks); replaces
-         *     earlier outcomes of the same services. */
+        /**
+         * Reports outcomes of a custom rule per service (pass, fail or skip, with remarks); replaces
+         *     earlier outcomes of the same services.
+         */
         post: operations["set_scorecard_outcomes"];
         delete?: never;
         options?: never;
@@ -7829,8 +7925,10 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get_status_page"];
-        /** Replaces the page's fields and components. Components sent with the id of an existing one keep
-         *     it (and its notice history); the others get new ids. */
+        /**
+         * Replaces the page's fields and components. Components sent with the id of an existing one keep
+         *     it (and its notice history); the others get new ids.
+         */
         put: operations["update_status_page"];
         post?: never;
         delete: operations["delete_status_page"];
@@ -8300,8 +8398,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Anomalies Watchdog found over the past day: APM error rate and latency per service, error logs
-         *     per service (only the logs the reader may see) and host CPU, memory and disk usage. */
+        /**
+         * Anomalies Watchdog found over the past day: APM error rate and latency per service, error logs
+         *     per service (only the logs the reader may see) and host CPU, memory and disk usage.
+         */
         get: operations["watchdog_alerts"];
         put?: never;
         post?: never;
@@ -8435,8 +8535,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Starts the published workflow from a script: an application key authenticates the call and the
-         *     workflow's token (`X-Workflow-Token`) proves it may start this one. */
+        /**
+         * Starts the published workflow from a script: an application key authenticates the call and the
+         *     workflow's token (`X-Workflow-Token`) proves it may start this one.
+         */
         post: operations["trigger_workflow"];
         delete?: never;
         options?: never;
@@ -9936,8 +10038,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Issues invitation links for pending users (Datadog-compatible). No email is sent: an admin
-         *     shares the link from Organization Settings → Users. */
+        /**
+         * Issues invitation links for pending users (Datadog-compatible). No email is sent: an admin
+         *     shares the link from Organization Settings → Users.
+         */
         post: operations["datadog_send_invitations"];
         delete?: never;
         options?: never;
@@ -10951,6 +11055,47 @@ export interface components {
             /** @enum {string} */
             type: "done";
         };
+        AssistInstallProvider: {
+            model: string;
+            provider: string;
+        };
+        AssistOrgProvider: components["schemas"]["AssistProviderSettings"] & {
+            /** @description An API key is stored (it is never returned). */
+            hasKey: boolean;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+            updatedBy: string;
+        };
+        /** @description An organization's model, as its admins set it (the key travels apart: it is sealed, never shown). */
+        AssistProviderSettings: {
+            /** @description Required for `openai` (e.g. `https://api.openai.com/v1`); Anthropic defaults to its API. */
+            baseUrl?: string | null;
+            /** @description Anthropic only: let the API answer with a fallback model when the chosen one is overloaded. */
+            fallbacks?: boolean | null;
+            /** @description Required for `openai`; Anthropic defaults to its current model. */
+            model?: string | null;
+            /** @description `anthropic` or `openai` (any OpenAI-compatible server). */
+            provider: string;
+        };
+        AssistProviderTest: {
+            message: string;
+            ok: boolean;
+        };
+        AssistProviderUpdate: components["schemas"]["AssistProviderSettings"] & {
+            /** @description A new key; omitted keeps the stored one, empty removes it. */
+            apiKey?: string | null;
+        };
+        AssistProviderView: {
+            /** @description Organizations may use private addresses (`OC_ASSIST_ALLOW_PRIVATE`). */
+            allowPrivate: boolean;
+            install?: components["schemas"]["AssistInstallProvider"] | null;
+            org?: components["schemas"]["AssistOrgProvider"] | null;
+            /** @description What Assist uses for this organization: `org`, `install` or `none`. */
+            source: string;
+        };
         AssistReport: {
             conversationsPerDay: components["schemas"]["AssistDayCount"][];
             /** Format: int64 */
@@ -10985,11 +11130,15 @@ export interface components {
             writes: boolean;
         };
         AssistStatus: {
-            /** @description A model is set up for this install (`OC_ASSIST_PROVIDER`). */
+            /** @description A model is set up: the organization's own or the install's (`OC_ASSIST_PROVIDER`). */
             configured: boolean;
+            /** @description Why the organization's provider can't be used. */
+            error?: string | null;
             model?: string | null;
             provider?: string | null;
             skills: components["schemas"]["AssistSkill"][];
+            /** @description `org` or `install`. */
+            source?: string | null;
         };
         AssistSurfaceCount: {
             /** Format: int64 */
@@ -11559,8 +11708,10 @@ export interface components {
         CiQuery: {
             filters?: components["schemas"]["CiFilters"];
             level?: components["schemas"]["CiLevel"];
-            /** @description Words match pipeline/job names and repositories; `key:value` terms filter on status,
-             *     pipeline, repository (repo), branch, provider, team, sha, job, stage or author. */
+            /**
+             * @description Words match pipeline/job names and repositories; `key:value` terms filter on status,
+             *     pipeline, repository (repo), branch, provider, team, sha, job, stage or author.
+             */
             query?: string;
             range: components["schemas"]["TimeRange"];
         };
@@ -12033,8 +12184,10 @@ export interface components {
             /** Format: int64 */
             distinctValues: number;
             key: string;
-            /** @description `focus` (the bill's standard columns), `aws` / `azure` / `gcp` (provider tags), `kubernetes`, or
-             *     `resource` (tags on the billed resources). */
+            /**
+             * @description `focus` (the bill's standard columns), `aws` / `azure` / `gcp` (provider tags), `kubernetes`, or
+             *     `resource` (tags on the billed resources).
+             */
             source: string;
             /** @description Its values, costliest first (at most 50). */
             values: components["schemas"]["CostTagValue"][];
@@ -12352,9 +12505,11 @@ export interface components {
             points?: number | null;
             query: string;
         };
-        /** @description A series as `points`, or, as sent to clients when its buckets are aligned (most of them), as
+        /**
+         * @description A series as `points`, or, as sent to clients when its buckets are aligned (most of them), as
          *     `values` every `step_ms` of its result from `start` (null where a bucket is empty): a timestamp
-         *     per point would be most of the JSON. */
+         *     per point would be most of the JSON.
+         */
         DashboardMetricSeries: {
             name: string;
             points?: [
@@ -12638,8 +12793,10 @@ export interface components {
         DatadogErrors: {
             errors: string[];
         };
-        /** @description A Datadog JSON:API document (`data`, `included`, `meta`), as the compatible identity routes send and receive them.
-         *     (Handlers build these as JSON; the type documents them in the OpenAPI spec.) */
+        /**
+         * @description A Datadog JSON:API document (`data`, `included`, `meta`), as the compatible identity routes send and receive them.
+         *     (Handlers build these as JSON; the type documents them in the OpenAPI spec.)
+         */
         DatadogIamDocument: {
             data: unknown;
             included?: unknown[] | null;
@@ -13021,8 +13178,10 @@ export interface components {
             /** @description `client_service:checkout server_dns_query:*.example.net`, plus free text on the names. */
             query?: string;
             range: components["schemas"]["TimeRange"];
-            /** @description How DNS servers are shown: dns_server (pod or task, else host, else IP), host, service, ip
-             *     or dns_query (the domain queried). */
+            /**
+             * @description How DNS servers are shown: dns_server (pod or task, else host, else IP), host, service, ip
+             *     or dns_query (the domain queried).
+             */
             serverGroupBy?: string;
             /** @description Clients without a value for their group-by tag (`N/A`). */
             showUnresolved?: boolean;
@@ -13836,8 +13995,10 @@ export interface components {
             agent: components["schemas"]["FleetAgent"];
             /** @description The checks the Datadog Agent runs, with their status. */
             checks: components["schemas"]["FleetCheck"][];
-            /** @description What the agent reports about its configuration, as YAML with secrets redacted; null when it
-             *     reports nothing (OpenTelemetry Collectors). */
+            /**
+             * @description What the agent reports about its configuration, as YAML with secrets redacted; null when it
+             *     reports nothing (OpenTelemetry Collectors).
+             */
             configYaml?: string | null;
             /** @description Recent errors in the agent's own logs, newest first (only logs the viewer may read). */
             errors: components["schemas"]["FleetLogLine"][];
@@ -14043,12 +14204,16 @@ export interface components {
             totalBytes: number;
         };
         FlowRequest: {
-            /** @description Tag the clients are grouped by: service, env, availability-zone, kube_namespace, pod_name,
-             *     kube_service, host, container_name, short_image, ip, port, domain. */
+            /**
+             * @description Tag the clients are grouped by: service, env, availability-zone, kube_namespace, pod_name,
+             *     kube_service, host, container_name, short_image, ip, port, domain.
+             */
             clientGroupBy?: string;
             limit: number;
-            /** @description `client_service:checkout server_env:prod -server_port:53`, plus free text matched against
-             *     the client and server names. */
+            /**
+             * @description `client_service:checkout server_env:prod -server_port:53`, plus free text matched against
+             *     the client and server names.
+             */
             query?: string;
             range: components["schemas"]["TimeRange"];
             serverGroupBy?: string;
@@ -14109,8 +14274,10 @@ export interface components {
             /** @description ok | warn | alert | nodata, at evaluation time. */
             status: string;
         };
-        /** @description One rule of a gate. `query` is used by monitor rules; the window and thresholds by faulty
-         *     deployment detection. */
+        /**
+         * @description One rule of a gate. `query` is used by monitor rules; the window and thresholds by faulty
+         *     deployment detection.
+         */
         GateRule: {
             /** @description A dry-run rule is evaluated and recorded but never fails the gate. */
             dryRun?: boolean;
@@ -14172,8 +14339,10 @@ export interface components {
             projects: components["schemas"]["ScopeStatus"][];
         };
         GcpSetup: {
-            /** @description This install's service account (`OC_GCP_PRINCIPAL_EMAIL`): customers grant it the Service Account
-             *     Token Creator role on their service account. None until it is configured. */
+            /**
+             * @description This install's service account (`OC_GCP_PRINCIPAL_EMAIL`): customers grant it the Service Account
+             *     Token Creator role on their service account. None until it is configured.
+             */
             principal_email?: string | null;
         };
         GeneratePostmortem: {
@@ -15356,8 +15525,10 @@ export interface components {
         KubeGroup: {
             count: number;
             cpu: components["schemas"]["KubeUtilization"];
-            /** @description Every member sets CPU (memory) requests and limits. Datadog shows no utilization for a
-             *     group with a container that lacks them. */
+            /**
+             * @description Every member sets CPU (memory) requests and limits. Datadog shows no utilization for a
+             *     group with a container that lacks them.
+             */
             cpuComplete: boolean;
             /** @description The group's values joined with ", " (one per group-by key). */
             key: string;
@@ -15487,8 +15658,10 @@ export interface components {
             tags: string[];
             /** @description HPAs and ingresses: scale target or backend, "min-max", hosts. */
             target?: string | null;
-            /** @description ECS: `family:revision`, `fargate` / `ec2`, HEALTHY / UNHEALTHY / UNKNOWN, reservations
-             *     (vCPU, bytes), and task / service counts. */
+            /**
+             * @description ECS: `family:revision`, `fargate` / `ec2`, HEALTHY / UNHEALTHY / UNKNOWN, reservations
+             *     (vCPU, bytes), and task / service counts.
+             */
             taskDefinition?: string | null;
             taskHealth?: string | null;
             /** Format: int32 */
@@ -15710,8 +15883,10 @@ export interface components {
         };
         LinkInfo: {
             email: string;
-            /** @description The email already has an ObserveCraft password (e.g. from another organization): an invite is
-             *     accepted by entering it, not by choosing a new one. */
+            /**
+             * @description The email already has an ObserveCraft password (e.g. from another organization): an invite is
+             *     accepted by entering it, not by choosing a new one.
+             */
             existingAccount: boolean;
             name: string;
             orgName: string;
@@ -17707,8 +17882,10 @@ export interface components {
             owner: string;
             /** Format: double */
             p95Ms?: number | null;
-            /** @description Datastores, queues and external providers: the services calling them; systems: their
-             *     components; repositories: the services built from them. */
+            /**
+             * @description Datastores, queues and external providers: the services calling them; systems: their
+             *     components; repositories: the services built from them.
+             */
             related: string[];
             repoUrl: string;
             /** Format: double */
@@ -18263,8 +18440,10 @@ export interface components {
             service?: string;
         };
         ProfileSeries: {
-            /** @description `[epoch ms, value]`: units per second for summed types (CPU nanoseconds per second = cores),
-             *     the average for gauges. */
+            /**
+             * @description `[epoch ms, value]`: units per second for summed types (CPU nanoseconds per second = cores),
+             *     the average for gauges.
+             */
             points: [
                 number,
                 number
@@ -18389,8 +18568,10 @@ export interface components {
         };
         /** @enum {string} */
         RecommendationKind: "repeated_sequential_calls" | "high_error_rate" | "slow_endpoint";
-        /** @description An evaluation result recorded on the span by the application or an evaluator
-         *     (`gen_ai.evaluation.result` events or `gen_ai.evaluation.*` attributes). */
+        /**
+         * @description An evaluation result recorded on the span by the application or an evaluator
+         *     (`gen_ai.evaluation.result` events or `gen_ai.evaluation.*` attributes).
+         */
         RecordedEvaluation: {
             explanation: string;
             label: string;
@@ -18737,8 +18918,10 @@ export interface components {
             scope?: string;
         };
         ResourcePolicySearchRequest: {
-            /** @description The page's filters as a catalog query (`team:checkout region:eu-west-1 env:prod`): scores count
-             *     only the resources matching it. */
+            /**
+             * @description The page's filters as a catalog query (`team:checkout region:eu-west-1 env:prod`): scores count
+             *     only the resources matching it.
+             */
             query?: string;
         };
         ResourcePolicySnapshot: {
@@ -19015,9 +19198,11 @@ export interface components {
         };
         /** @description One event (or session): its time, type and fields. */
         RumEventRow: {
-            /** @description Fields as dotted paths. Sessions carry `session.time_spent` (ms), `session.view.count`,
+            /**
+             * @description Fields as dotted paths. Sessions carry `session.time_spent` (ms), `session.view.count`,
              *     `session.error.count`, `session.action.count`, `session.frustration.count`,
-             *     `session.initial_view.name`, `session.last_view.name` and `session.last_event_at` (ms). */
+             *     `session.initial_view.name`, `session.last_view.name` and `session.last_event_at` (ms).
+             */
             attributes: {
                 [key: string]: string;
             };
@@ -21139,8 +21324,10 @@ export interface components {
             title: string;
         };
         SurveyResponseInput: {
-            /** @description Answer per question id: 1–5 (Likert), 0–10 (NPS), an option (single choice), options (multiple
-             *     choice) or text. */
+            /**
+             * @description Answer per question id: 1–5 (Likert), 0–10 (NPS), an option (single choice), options (multiple
+             *     choice) or text.
+             */
             answers: {
                 [key: string]: unknown;
             };
@@ -21258,19 +21445,23 @@ export interface components {
              * @default 300
              */
             frequencySeconds: number;
-            /** @default [
+            /**
+             * @default [
              *       "observecraft-server"
-             *     ] */
+             *     ]
+             */
             locations: string[];
             /**
              * Format: int32
              * @default 0
              */
             minFailureDurationMinutes: number;
-            /** @default {
+            /**
+             * @default {
              *       "count": 0,
              *       "intervalMs": 300
-             *     } */
+             *     }
+             */
             retry: components["schemas"]["SyntheticRetry"];
             /** @default [] */
             tags: string[];
@@ -21321,8 +21512,10 @@ export interface components {
         };
         /** @enum {string} */
         SyntheticOperator: "is" | "isNot" | "lessThan" | "moreThan" | "contains" | "doesNotContain" | "matches" | "doesNotMatch" | "isInMoreThan";
-        /** @description What a test sends. HTTP tests use `method`, `url`, `headers`, `body`, `basicAuth` and
-         *     `followRedirects`; SSL, DNS and TCP tests use `host` and `port`; DNS tests may name a server. */
+        /**
+         * @description What a test sends. HTTP tests use `method`, `url`, `headers`, `body`, `basicAuth` and
+         *     `followRedirects`; SSL, DNS and TCP tests use `host` and `port`; DNS tests may name a server.
+         */
         SyntheticRequest: {
             /**
              * @description HTTP(S) and SSL: accept self-signed and otherwise untrusted certificates.
@@ -22070,8 +22263,10 @@ export interface components {
             name: string;
         };
         TriageRequest: {
-            /** @description `vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>`, `iast:<hash>`, `api-finding:…` (App & API
-             *     Protection) or `workload-finding:<rule>:<resource>` (Workload Protection). */
+            /**
+             * @description `vuln:<advisory>:<ecosystem>:<package>`, `finding:<id>`, `iast:<hash>`, `api-finding:…` (App & API
+             *     Protection) or `workload-finding:<rule>:<resource>` (Workload Protection).
+             */
             key: string;
             reason?: string;
             /** @description open | muted */
@@ -22399,8 +22594,10 @@ export interface components {
             attributes: {
                 [key: string]: string;
             };
-            /** @description The correlator that grouped its events (Event Management → Settings); none for the default
-             *     grouping per affected object. */
+            /**
+             * @description The correlator that grouped its events (Event Management → Settings); none for the default
+             *     grouping per affected object.
+             */
             correlator?: string | null;
             /** Format: int64 */
             count: number;
@@ -24714,6 +24911,86 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": components["schemas"]["AssistEvent"];
+                };
+            };
+        };
+    };
+    assist_get_provider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistProviderView"];
+                };
+            };
+        };
+    };
+    assist_put_provider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistProviderUpdate"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_delete_provider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_test_provider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistProviderUpdate"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistProviderTest"];
                 };
             };
         };

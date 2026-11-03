@@ -62,6 +62,7 @@ export const ORG_NAV: { section: string; items: Item[] }[] = [
     section: 'PRODUCTS',
     items: [
       { to: '/apm/settings', label: 'APM', chevron: true },
+      { to: 'assist', label: 'Assist AI', badge: 'NEW' },
       { to: '/ci/settings', label: 'CI', chevron: true },
       { to: 'cloud-cost', label: 'Cloud Cost', soon: true },
       { to: '/event/settings', label: 'Event Management', chevron: true },

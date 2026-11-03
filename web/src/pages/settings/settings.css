@@ -1256,3 +1256,32 @@
   cursor: pointer;
   font: inherit;
 }
+
+/* ---------- Assist AI ---------- */
+.ap-page .settings-card p {
+  margin: 0 0 6px;
+}
+
+.ap-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 520px;
+  margin: 12px 0 0 28px;
+}
+
+.ap-hint {
+  font-weight: var(--fw-regular);
+}
+
+.ap-test {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ap-test .form-ok,
+.ap-test .form-error {
+  width: auto;
+  margin: 0;
+}

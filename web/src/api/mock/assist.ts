@@ -1,7 +1,21 @@
 // In-browser Assist for mock mode: scripted replies over the demo domain (no model), streamed like the
 // server's (routes/assist.rs): a tool or two, then the answer word by word; asking to create a monitor
 // pauses for approval. Conversations, settings and usage live in memory for the session.
-import type { AssistEvent, AssistReport, AssistReportRequest, AssistSettings, AssistStatus, ChatRequest, ConversationSummary, ConversationView, ViewMessage, ViewTool } from '../assist/types';
+import type {
+  AssistEvent,
+  AssistProviderTest,
+  AssistProviderUpdate,
+  AssistProviderView,
+  AssistReport,
+  AssistReportRequest,
+  AssistSettings,
+  AssistStatus,
+  ChatRequest,
+  ConversationSummary,
+  ConversationView,
+  ViewMessage,
+  ViewTool,
+} from '../assist/types';
 
 const SKILLS: AssistStatus['skills'] = [
   { name: 'logs', description: 'Search log events and find error patterns in them.', tools: ['search_logs'], writes: false },
@@ -83,8 +97,53 @@ function usageRows(): UsageRow[] {
   return usage;
 }
 
+/** The install's model (OC_ASSIST_*), and the organization's own once an admin sets one. */
+const INSTALL = { provider: 'anthropic', model: 'claude-opus-5' };
+let orgProvider: NonNullable<AssistProviderView['org']> | null = null;
+
 export async function status(): Promise<AssistStatus> {
-  return { configured: true, provider: 'anthropic', model: 'claude-opus-5', skills: SKILLS };
+  const p = orgProvider ? { provider: orgProvider.provider, model: orgProvider.model ?? INSTALL.model } : INSTALL;
+  return { configured: true, source: orgProvider ? 'org' : 'install', ...p, skills: SKILLS };
+}
+
+export async function getProvider(): Promise<AssistProviderView> {
+  return { source: orgProvider ? 'org' : 'install', org: orgProvider && structuredClone(orgProvider), install: INSTALL, allowPrivate: false };
+}
+
+/** The server's checks (assist::org_provider), in short. */
+function checkProvider(u: AssistProviderUpdate, hasKey: boolean) {
+  const url = u.baseUrl?.trim();
+  if (url && !/^https:\/\/[^/@\s]+/.test(url)) throw new Error('The base URL must be https');
+  if (url && /^https:\/\/(10\.|127\.|169\.254\.|192\.168\.|localhost)/.test(url)) throw new Error('Private addresses are disabled on this server (OC_ASSIST_ALLOW_PRIVATE)');
+  if (u.provider === 'anthropic' && !hasKey) throw new Error('Anthropic needs an API key');
+  if (u.provider === 'openai' && !url) throw new Error('An OpenAI-compatible provider needs its base URL (e.g. https://api.openai.com/v1)');
+  if (u.provider === 'openai' && !u.model?.trim()) throw new Error('An OpenAI-compatible provider needs a model name');
+  if (u.provider !== 'anthropic' && u.provider !== 'openai') throw new Error(`The provider must be anthropic or openai, not ${u.provider}`);
+}
+
+export async function putProvider(u: AssistProviderUpdate): Promise<void> {
+  const hasKey = u.apiKey == null ? !!orgProvider?.hasKey : u.apiKey.trim() !== '';
+  checkProvider(u, hasKey);
+  const anthropic = u.provider === 'anthropic';
+  orgProvider = {
+    provider: u.provider,
+    model: u.model?.trim() || (anthropic ? INSTALL.model : null),
+    baseUrl: u.baseUrl?.trim().replace(/\/$/, '') || (anthropic ? 'https://api.anthropic.com' : null),
+    fallbacks: anthropic ? (u.fallbacks ?? true) : null,
+    hasKey,
+    updatedBy: 'Alex Morgan',
+    updatedAt: Date.now(),
+  };
+}
+
+export async function deleteProvider(): Promise<void> {
+  orgProvider = null;
+}
+
+export async function testProvider(u: AssistProviderUpdate): Promise<AssistProviderTest> {
+  checkProvider(u, u.apiKey == null ? !!orgProvider?.hasKey : u.apiKey.trim() !== '');
+  await new Promise((r) => setTimeout(r, 400));
+  return { ok: true, message: `${u.model?.trim() || INSTALL.model} answered` };
 }
 
 export async function getSettings(): Promise<AssistSettings> {
@@ -274,5 +333,6 @@ export function resetAssistMock(): void {
   conversations = null;
   usage = null;
   settings = { context: '', disabledSkills: [] };
+  orgProvider = null;
   pendingAnswers.clear();
 }

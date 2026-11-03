@@ -1,4 +1,5 @@
-// Assist (AI chat). In "live" mode the Rust API (routes/assist.rs) answers with the install's model;
+// Assist (AI chat). In "live" mode the Rust API (routes/assist.rs) answers with the organization's model
+// (or the install's);
 // otherwise the in-browser mock (mock/assist.ts) plays scripted replies over the demo data.
 //   GET    /api/v1/assist/status                       getAssistStatus
 //   GET    /api/v1/assist/settings  (+ PUT)            getAssistSettings / updateAssistSettings
@@ -7,9 +8,23 @@
 //   POST   /api/v1/assist/chat                         sendMessage (Server-Sent Events)
 //   POST   /api/v1/assist/conversations/:id/approve    approveActions (Server-Sent Events)
 //   POST   /api/v1/assist/reports                      assistReport
+//   GET    /api/v1/assist/provider (+ PUT, DELETE)     getAssistProvider / putAssistProvider / deleteAssistProvider (admins)
+//   POST   /api/v1/assist/provider/test                testAssistProvider (admins)
 import { API_MODE, del, get, post, postStream, postStreamTo, put } from '../http';
 import * as mock from '../mock/assist';
-import type { AssistEvent, AssistReport, AssistReportRequest, AssistSettings, AssistStatus, ChatRequest, ConversationSummary, ConversationView } from './types';
+import type {
+  AssistEvent,
+  AssistProviderTest,
+  AssistProviderUpdate,
+  AssistProviderView,
+  AssistReport,
+  AssistReportRequest,
+  AssistSettings,
+  AssistStatus,
+  ChatRequest,
+  ConversationSummary,
+  ConversationView,
+} from './types';
 
 export * from './types';
 
@@ -21,6 +36,11 @@ export const updateAssistSettings = (s: AssistSettings): Promise<void> => (live 
 export const listConversations = (): Promise<ConversationSummary[]> => (live ? get('/api/v1/assist/conversations', {}) : mock.listConversations());
 export const getConversation = (id: string, signal?: AbortSignal): Promise<ConversationView> => (live ? get('/api/v1/assist/conversations/{id}', { id }, signal) : mock.getConversation(id));
 export const deleteConversation = (id: string): Promise<void> => (live ? del('/api/v1/assist/conversations/{id}', { id }) : mock.deleteConversation(id));
+export const getAssistProvider = (): Promise<AssistProviderView> => (live ? get('/api/v1/assist/provider', {}) : mock.getProvider());
+export const putAssistProvider = (u: AssistProviderUpdate): Promise<void> => (live ? put('/api/v1/assist/provider', {}, u) : mock.putProvider(u));
+export const deleteAssistProvider = (): Promise<void> => (live ? del('/api/v1/assist/provider', {}) : mock.deleteProvider());
+/** Sends one short request to the provider described (with the stored key unless it brings one). */
+export const testAssistProvider = (u: AssistProviderUpdate): Promise<AssistProviderTest> => (live ? post('/api/v1/assist/provider/test', u) : mock.testProvider(u));
 export const assistReport = (req: AssistReportRequest, signal?: AbortSignal): Promise<AssistReport> => (live ? post('/api/v1/assist/reports', req, signal) : mock.report(req));
 
 /** Sends a message; `onEvent` gets the reply as it streams (conversation, text, tool_start/end, approval, error, done). */

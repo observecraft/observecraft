@@ -19,6 +19,7 @@ use crate::assist::llm::{Msg, Provider, ToolCall, Usage};
 use crate::assist::prompt::{system_prompt, PromptInput};
 use crate::assist::tools::{self, OrgTools};
 use crate::auth::AuthContext;
+use crate::routes::assist_provider::resolve;
 use crate::error::{ApiError, ApiResult};
 use crate::routes::logs::TimeRange;
 use crate::state::AppState;
@@ -38,27 +39,31 @@ pub struct AssistSkill {
 #[derive(Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AssistStatus {
-    /// A model is set up for this install (`OC_ASSIST_PROVIDER`).
+    /// A model is set up: the organization's own or the install's (`OC_ASSIST_PROVIDER`).
     pub configured: bool,
+    /// `org` or `install`.
+    pub source: Option<String>,
+    /// Why the organization's provider can't be used.
+    pub error: Option<String>,
     pub provider: Option<String>,
     pub model: Option<String>,
     pub skills: Vec<AssistSkill>,
 }
 
-fn provider(st: &AppState) -> Option<&Provider> {
-    st.config.assist.as_ref().ok().and_then(Option::as_ref)
-}
-
 #[utoipa::path(get, path = "/api/v1/assist/status", operation_id = "assist_status", responses((status = 200, body = AssistStatus)), tag = "assist")]
-pub async fn status(State(st): State<AppState>, _: AuthContext) -> ApiResult<AssistStatus> {
-    let p = provider(&st);
+pub async fn status(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<AssistStatus> {
+    let (resolved, error) = match resolve(&st, &ctx.org_id).await {
+        Ok(r) => (r, None),
+        Err(ApiError::BadRequest(e)) => (None, Some(e)),
+        Err(e) => return Err(e),
+    };
+    let p = resolved.as_ref().map(|r| &r.provider);
     let catalog = tools::catalog();
     Ok(Json(AssistStatus {
         configured: p.is_some(),
-        provider: p.map(|p| match p {
-            Provider::Anthropic { .. } => "anthropic".into(),
-            Provider::OpenAi { .. } => "openai".into(),
-        }),
+        source: resolved.as_ref().map(|r| r.source.to_string()),
+        error,
+        provider: p.map(|p| p.kind().to_string()),
         model: p.map(|p| p.model().to_string()),
         skills: tools::SKILLS
             .iter()
@@ -351,7 +356,7 @@ struct Reply {
 }
 
 /// Streams the reply and saves the conversation when it ends, even if the client went away.
-fn stream(reply: Reply, provider: Provider, max_tokens: u32, first: Option<AssistEvent>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+fn stream(reply: Reply, model: HttpModel, first: Option<AssistEvent>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<Event, Infallible>>();
     let send = move |e: AssistEvent| {
         if let Ok(ev) = Event::default().event(e.name()).json_data(&e) {
@@ -371,7 +376,6 @@ fn stream(reply: Reply, provider: Provider, max_tokens: u32, first: Option<Assis
             can_write: tools::may_write(ctx.access),
         });
         let org_tools = OrgTools { st: st.clone(), ctx: ctx.clone(), disabled: settings.disabled_skills };
-        let model = HttpModel { provider, max_tokens };
         let l = Loop { model: &model, tools: &org_tools, system: &system, auto_approve };
         let mut usage = Usage::default();
         let calls_before = count_calls(&msgs);
@@ -419,13 +423,15 @@ fn count_calls(msgs: &[Msg]) -> usize {
     msgs.iter().map(|m| if let Msg::Assistant { calls, .. } = m { calls.len() } else { 0 }).sum()
 }
 
-fn configured(st: &AppState) -> Result<(Provider, u32), ApiError> {
-    let p = provider(st).cloned().ok_or_else(|| ApiError::BadRequest("Assist isn't set up on this install: set OC_ASSIST_PROVIDER and its key (see the README).".into()))?;
-    let max_tokens = st.config.assist_max_tokens.unwrap_or(match p {
+async fn configured(st: &AppState, org: &str) -> Result<HttpModel, ApiError> {
+    let r = resolve(st, org)
+        .await?
+        .ok_or_else(|| ApiError::BadRequest("Assist has no model: an admin sets one in Organization Settings → Assist AI (or the install's OC_ASSIST_PROVIDER).".into()))?;
+    let max_tokens = st.config.assist_max_tokens.unwrap_or(match r.provider {
         Provider::Anthropic { .. } => 64_000,
         Provider::OpenAi { .. } => 4_096,
     });
-    Ok((p, max_tokens))
+    Ok(HttpModel { provider: r.provider, max_tokens, reach: r.reach })
 }
 
 /// Sends a message and streams the reply (`conversation`, `text`, `tool_start` / `tool_end`, `approval`,
@@ -433,7 +439,7 @@ fn configured(st: &AppState) -> Result<(Provider, u32), ApiError> {
 #[utoipa::path(post, path = "/api/v1/assist/chat", operation_id = "assist_chat", request_body = ChatRequest,
     responses((status = 200, body = AssistEvent, content_type = "text/event-stream")), tag = "assist")]
 pub async fn chat(State(st): State<AppState>, ctx: AuthContext, Json(req): Json<ChatRequest>) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiError> {
-    let (provider, max_tokens) = configured(&st)?;
+    let model = configured(&st, &ctx.org_id).await?;
     let message = req.message.trim().to_string();
     if message.is_empty() || message.chars().count() > MAX_MESSAGE {
         return Err(ApiError::BadRequest(format!("A message has 1 to {MAX_MESSAGE} characters")));
@@ -467,21 +473,21 @@ pub async fn chat(State(st): State<AppState>, ctx: AuthContext, Json(req): Json<
     msgs.push(Msg::User(message));
     let first = AssistEvent::Conversation { id: id.clone(), title };
     let reply = Reply { st, ctx, id, surface, new_conversation, msgs, pending: Vec::new(), approved: None, auto_approve: req.auto_approve };
-    Ok(stream(reply, provider, max_tokens, Some(first)))
+    Ok(stream(reply, model, Some(first)))
 }
 
 /// Runs the pending calls the user approved (declining the others) and streams the rest of the reply.
 #[utoipa::path(post, path = "/api/v1/assist/conversations/{id}/approve", operation_id = "assist_approve", params(("id" = String, Path)), request_body = ApproveRequest,
     responses((status = 200, body = AssistEvent, content_type = "text/event-stream")), tag = "assist")]
 pub async fn approve(State(st): State<AppState>, ctx: AuthContext, Path(id): Path<String>, Json(req): Json<ApproveRequest>) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiError> {
-    let (provider, max_tokens) = configured(&st)?;
+    let model = configured(&st, &ctx.org_id).await?;
     let row = load(&st, &ctx, &id).await?;
     let pending = row.pending.map(|p| p.0).unwrap_or_default();
     if pending.is_empty() {
         return Err(ApiError::Conflict("Nothing is waiting for approval".into()));
     }
     let reply = Reply { st, ctx, id, surface: row.surface, new_conversation: false, msgs: row.messages.0, pending, approved: Some(req.approved), auto_approve: req.auto_approve };
-    Ok(stream(reply, provider, max_tokens, None))
+    Ok(stream(reply, model, None))
 }
 
 // ---------------------------------------------------------------- reports
@@ -578,6 +584,7 @@ pub async fn report(State(st): State<AppState>, ctx: AuthContext, Json(req): Jso
 mod tests {
     use super::*;
     use crate::assist::llm::ToolResult;
+    use crate::assist::testing::{events, fake_anthropic, sse_text, sse_tool};
     use serde_json::json;
 
     fn call(id: &str) -> ToolCall {
@@ -605,58 +612,6 @@ mod tests {
     fn a_conversation_is_titled_by_its_first_line() {
         assert_eq!(title_of("\n  Why is checkout slow?\nDetails…"), "Why is checkout slow?");
         assert_eq!(title_of(&"x".repeat(200)).chars().count(), 80);
-    }
-
-    /// The Anthropic Messages API, scripted: each request gets the next SSE body; the request bodies are kept.
-    async fn fake_anthropic(replies: Vec<String>) -> (String, std::sync::Arc<std::sync::Mutex<Vec<Value>>>) {
-        use axum::response::IntoResponse;
-        let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<Value>::new()));
-        let replies = std::sync::Arc::new(std::sync::Mutex::new(replies.into_iter().rev().collect::<Vec<_>>()));
-        let (s, r) = (seen.clone(), replies.clone());
-        let app = axum::Router::new().route(
-            "/v1/messages",
-            axum::routing::post(move |Json(body): Json<Value>| {
-                let (s, r) = (s.clone(), r.clone());
-                async move {
-                    s.lock().unwrap().push(body);
-                    let reply = r.lock().unwrap().pop().unwrap_or_default();
-                    ([("content-type", "text/event-stream")], reply).into_response()
-                }
-            }),
-        );
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
-        (format!("http://{addr}"), seen)
-    }
-
-    fn sse_text(text: &str) -> String {
-        format!(
-            "event: message_start\ndata: {}\n\nevent: content_block_start\ndata: {}\n\nevent: content_block_delta\ndata: {}\n\nevent: message_delta\ndata: {}\n\n",
-            json!({"type": "message_start", "message": {"usage": {"input_tokens": 100}}}),
-            json!({"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}}),
-            json!({"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": text}}),
-            json!({"type": "message_delta", "delta": {"stop_reason": "end_turn"}, "usage": {"output_tokens": 7}}),
-        )
-    }
-
-    fn sse_tool(id: &str, name: &str, input: Value) -> String {
-        format!(
-            "data: {}\n\ndata: {}\n\ndata: {}\n\ndata: {}\n\ndata: {}\n\n",
-            json!({"type": "message_start", "message": {"usage": {"input_tokens": 90}}}),
-            json!({"type": "content_block_start", "index": 0, "content_block": {"type": "tool_use", "id": id, "name": name, "input": {}}}),
-            json!({"type": "content_block_delta", "index": 0, "delta": {"type": "input_json_delta", "partial_json": input.to_string()}}),
-            json!({"type": "content_block_stop", "index": 0}),
-            json!({"type": "message_delta", "delta": {"stop_reason": "tool_use"}, "usage": {"output_tokens": 5}}),
-        )
-    }
-
-    /// The SSE events of a reply, by name, once it has ended.
-    async fn events(sse: Sse<impl Stream<Item = Result<Event, Infallible>> + Send + 'static>) -> Vec<(String, Value)> {
-        use axum::response::IntoResponse;
-        let body = tokio::time::timeout(std::time::Duration::from_secs(30), axum::body::to_bytes(sse.into_response().into_body(), usize::MAX)).await.expect("the reply ended").unwrap();
-        let mut parser = crate::assist::llm::SseParser::default();
-        parser.feed(&body).into_iter().map(|(e, d)| (e, serde_json::from_str(&d).unwrap())).collect()
     }
 
     /// The whole loop against a scripted model: a tool answered, a write paused for approval and

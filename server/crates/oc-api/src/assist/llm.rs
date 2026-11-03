@@ -122,6 +122,20 @@ impl Provider {
         }
     }
 
+    pub fn base_url(&self) -> &str {
+        match self {
+            Provider::Anthropic { base_url, .. } | Provider::OpenAi { base_url, .. } => base_url,
+        }
+    }
+
+    /// `anthropic` or `openai`.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Provider::Anthropic { .. } => "anthropic",
+            Provider::OpenAi { .. } => "openai",
+        }
+    }
+
     /// The streamed request of one turn. The system prompt and the tools come first and don't change
     /// within a conversation, so the provider's prompt cache holds them.
     pub fn request(&self, system: &str, tools: &[ToolSpec], msgs: &[Msg], max_tokens: u32) -> Request {

@@ -109,7 +109,7 @@ function Chat({ initial, onCreated }: { initial: Parameters<typeof useAssistChat
       <div className="ai-body">
         {history && <HistoryList current={chat.id} />}
         <div className={`ai-main${empty ? ' home' : ''}`}>
-          {status.data && !status.data.configured && <NotConfigured />}
+          {status.data && !status.data.configured && <NotConfigured error={status.data.error} />}
           {empty ? (
             <div className="ai-home">
               <div className="ai-kicker">
@@ -183,11 +183,17 @@ function HistoryList({ current }: { current?: string }) {
   );
 }
 
-export function NotConfigured() {
+export function NotConfigured({ error }: { error?: string | null }) {
   return (
     <div className="ai-setup">
-      <b>Assist needs a model.</b> An administrator sets one for this install: <code>OC_ASSIST_PROVIDER=anthropic</code> with <code>OC_ASSIST_API_KEY</code>, or <code>OC_ASSIST_PROVIDER=openai</code>{' '}
-      with <code>OC_ASSIST_BASE_URL</code> and <code>OC_ASSIST_MODEL</code> for any OpenAI-compatible server (vLLM, LiteLLM, Ollama, Azure OpenAI).
+      {error ? (
+        <b>{error}</b>
+      ) : (
+        <>
+          <b>Assist needs a model.</b> An organization admin sets one in <Link to="/organization-settings/assist">Organization Settings → Assist AI</Link>: an Anthropic key, or any OpenAI-compatible
+          server (OpenAI, Azure OpenAI, vLLM, LiteLLM, Ollama). Operators can also set a default for the whole install with <code>OC_ASSIST_PROVIDER</code>.
+        </>
+      )}
     </div>
   );
 }

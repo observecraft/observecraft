@@ -89,6 +89,7 @@ import { AskAssistPanel } from './pages/assist/AskAssistPanel';
 import { ChatPage } from './pages/assist/ChatPage';
 import { AssistReportsPage } from './pages/assist/ReportsPage';
 import { AssistSettingsPage } from './pages/assist/SettingsPage';
+import { AssistProviderPage } from './pages/settings/AssistProviderPage';
 import { AnalyticsPage as OnCallAnalyticsPage } from './pages/onCall/AnalyticsPage';
 import { OnCallLayout } from './pages/onCall/OnCallLayout';
 import { PagesPage as OnCallPagesPage } from './pages/onCall/PagesPage';
@@ -782,6 +783,7 @@ function Shell() {
               <Route path="roles" element={<RolesPage />} />
               <Route path="login-methods" element={<LoginMethodsPage />} />
               <Route path="audit-trail" element={<AuditTrailPage />} />
+              <Route path="assist" element={<AssistProviderPage />} />
               <Route path="*" element={<OrgComingSoon />} />
             </Route>
             <Route path="*" element={<ComingSoon />} />
