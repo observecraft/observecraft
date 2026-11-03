@@ -341,17 +341,19 @@ async fn upsert_signal(st: &AppState, org: &str, access: &LogAccess, rule: &Secu
             let queries: Vec<Value> = rule.queries.iter().zip(query_names(&rule.queries)).map(|(q, n)| json!({ "name": n, "query": q.query })).collect();
             let mut tags = rule.tags.clone();
             tags.extend(group.iter().filter(|(k, _)| !k.starts_with('@')).map(|(k, v)| format!("{k}:{v}")));
+            let signal_id = new_signal_id();
+            let title = signal_title(rule, &case.name, group);
             sqlx::query(
                 "INSERT INTO security_signals (org_id, id, rule_id, rule_name, rule_type, title, message, severity, case_name, condition, group_key, group_values, queries, \
                  source, services, env, tags, entities, events_matched, first_seen, last_seen) \
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, to_timestamp($20 / 1000.0), to_timestamp($21 / 1000.0))",
             )
             .bind(org)
-            .bind(new_signal_id())
+            .bind(&signal_id)
             .bind(&rule.id)
             .bind(&rule.name)
             .bind(&rule.kind)
-            .bind(signal_title(rule, &case.name, group))
+            .bind(&title)
             .bind(&rule.message)
             .bind(&case.status)
             .bind(&case.name)
@@ -369,6 +371,8 @@ async fn upsert_signal(st: &AppState, org: &str, access: &LogAccess, rule: &Secu
             .bind(now)
             .execute(&st.postgres)
             .await?;
+            // Signals of the severities the org chose are triaged by Assist's Security Analyst.
+            super::assist_runs::enqueue_signal(st, org, &signal_id, &title, &case.status).await?;
         }
     }
     Ok(())

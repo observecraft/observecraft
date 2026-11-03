@@ -3,9 +3,11 @@
 //! The model is Anthropic's or any OpenAI-compatible endpoint: the organization's own (Organization
 //! Settings → Assist AI) or else the install's (`OC_ASSIST_*`).
 pub mod agent;
+pub mod code;
 pub mod http;
 pub mod llm;
 pub mod prompt;
+pub mod runs;
 pub mod tools;
 #[cfg(test)]
 pub mod testing;

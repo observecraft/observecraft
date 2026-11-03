@@ -869,6 +869,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/assist/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist_list_agents"];
+        put?: never;
+        post: operations["assist_create_agent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/agents/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Turns a description into a draft agent (not saved). */
+        post: operations["assist_draft_agent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/agents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist_get_agent"];
+        /** Saves the agent; it then runs as the member who saved it. */
+        put: operations["assist_update_agent"];
+        post?: never;
+        delete: operations["assist_delete_agent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/agents/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assist_run_agent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/assist/chat": {
         parameters: {
             query?: never;
@@ -883,6 +949,122 @@ export interface paths {
          *     `error`, then `done`).
          */
         post: operations["assist_chat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/code/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's GitHub and GitLab connections (account names), set in Developer Portal → Settings. */
+        get: operations["assist_code_connections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/code/repos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist_list_code_repos"];
+        put?: never;
+        /** Adds a repository sessions may read and change, once the org's connection can reach it. */
+        post: operations["assist_add_code_repo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/code/repos/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assist_remove_code_repo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/code/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assist_start_code_session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/code/sessions/{id}/pull-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Opens a pull (merge) request from the session's change, on a new branch. */
+        post: operations["assist_open_pull_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/code/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist_get_code_settings"];
+        put: operations["assist_put_code_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/code/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sessions and their pull requests in the range; open pull requests' states are refreshed first. */
+        post: operations["assist_code_usage"];
         delete?: never;
         options?: never;
         head?: never;
@@ -933,6 +1115,88 @@ export interface paths {
         /** Runs the pending calls the user approved (declining the others) and streams the rest of the reply. */
         post: operations["assist_approve"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist_get_credits"];
+        put: operations["assist_put_credits"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/investigations/monitors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every monitor with what Assist Investigation knows of it. */
+        get: operations["assist_investigation_monitors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/investigations/monitors/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Turns automatic investigation of a monitor's alerts on or off; runs act as the member who turned it on. */
+        put: operations["assist_set_monitor_auto"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/memories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist_list_memories"];
+        put?: never;
+        post: operations["assist_add_memory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/memories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["assist_delete_memory"];
         options?: never;
         head?: never;
         patch?: never;
@@ -993,6 +1257,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/assist/run-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist_get_run_settings"];
+        put: operations["assist_put_run_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Starts an investigation (of a monitor's latest alert, or of a question) or a security verdict. */
+        post: operations["assist_start_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/runs/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assist_run_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/runs/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assist_search_runs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/runs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assist_get_run"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/runs/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assist_cancel_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/runs/{id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assist_run_feedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/security/signals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Signals in the range, newest first, with Assist's latest verdict on each. */
+        post: operations["assist_analyzed_signals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/assist/settings": {
         parameters: {
             query?: never;
@@ -1019,6 +1413,22 @@ export interface paths {
         get: operations["assist_status"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assist/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assist_usage"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10322,6 +10732,60 @@ export interface components {
             introduced: string;
             last_affected?: string;
         };
+        AgentDraft: {
+            description: string;
+            instructions: string;
+            name: string;
+            schedule?: string | null;
+            skills: string[];
+        };
+        AgentInput: {
+            /** @description May use tools that change something without asking. */
+            allowActions?: boolean;
+            description?: string;
+            enabled?: boolean;
+            instructions: string;
+            /** @description agent (default) | code: an Assist Code automation on `repo`. */
+            kind?: string | null;
+            name: string;
+            /** @description The repository of a code automation. */
+            repo?: string | null;
+            /** @description Five-field cron (`0 9 * * 1-5`); none: by hand only. */
+            schedule?: string | null;
+            /** @description Skills (groups of Assist's tools) the agent may use. */
+            skills: string[];
+            tags?: string[];
+            /** @description IANA zone of the schedule (default UTC). */
+            timezone?: string | null;
+        };
+        AgentView: {
+            allowActions: boolean;
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            description: string;
+            enabled: boolean;
+            id: string;
+            instructions: string;
+            /** @description agent | code */
+            kind: string;
+            /** Format: int64 */
+            lastRunAt?: number | null;
+            lastRunStatus?: string | null;
+            lastVerdict?: string | null;
+            name: string;
+            /** Format: int64 */
+            nextRunAt?: number | null;
+            repo?: string | null;
+            /** Format: int64 */
+            runs: number;
+            schedule?: string | null;
+            skills: string[];
+            tags: string[];
+            timezone: string;
+            /** Format: int64 */
+            updatedAt: number;
+        };
         AggregateData: {
             buckets: components["schemas"]["Bucket"][];
         };
@@ -10634,6 +11098,16 @@ export interface components {
             /** Format: double */
             value?: number | null;
         };
+        AnalyzedSignal: {
+            /** Format: int64 */
+            createdAt: number;
+            id: string;
+            ruleName: string;
+            run?: components["schemas"]["RunSummary"] | null;
+            severity: string;
+            state: string;
+            title: string;
+        };
         Anomaly: {
             /** Format: double */
             current: number;
@@ -10845,6 +11319,22 @@ export interface components {
             lastUsedAt?: number | null;
             name: string;
             prefix: string;
+        };
+        AppUsage: {
+            /** @description chat | investigation | security | agent | code */
+            app: string;
+            /** Format: int64 */
+            credits: number;
+            /** Format: double */
+            estCost?: number | null;
+            /** Format: int64 */
+            inputTokens: number;
+            /** Format: int64 */
+            outputTokens: number;
+            /** Format: int64 */
+            users: number;
+            /** Format: int64 */
+            uses: number;
         };
         ApproveRequest: {
             /** @description The ids of the calls the user approved; the other pending ones are declined. */
@@ -11556,6 +12046,12 @@ export interface components {
         ChangeSource: "kubernetes" | "apm" | "ci" | "events" | "audit";
         /** @enum {string} */
         ChangeType: "deployment" | "rollout" | "scale" | "config" | "crash" | "feature_flag";
+        /** @description A file of a proposed change: its content before (none: a new file) and after. */
+        ChangedFile: {
+            after: string;
+            before?: string | null;
+            path: string;
+        };
         ChatRequest: {
             /** @description Run tools that change something without asking. */
             autoApprove?: boolean;
@@ -11881,6 +12377,16 @@ export interface components {
              */
             workloadIdleCost: number;
         };
+        /** @description The change a coding session proposes. */
+        CodeChange: {
+            description?: string;
+            files: components["schemas"]["ChangedFile"][];
+            title: string;
+        };
+        CodeConnections: {
+            github?: string | null;
+            gitlab?: string | null;
+        };
         CodeRequest: {
             /** @description 6-digit code from the authenticator app. */
             code: string;
@@ -11935,6 +12441,27 @@ export interface components {
             runtimeCode: components["schemas"]["SeverityCounts"];
             secrets: components["schemas"]["SeverityCounts"];
             servicesAnalyzed: number;
+        };
+        CodeSettings: {
+            /** @description Open the pull request as soon as a session proposes a change. */
+            autoPullRequest: boolean;
+            /** @description Branches are named `<prefix><title>-<id>`. */
+            branchPrefix: string;
+            /** @description Pull requests open as drafts. */
+            draft: boolean;
+        };
+        CodeUsage: {
+            /** Format: int64 */
+            pullRequestsMerged: number;
+            /** Format: int64 */
+            pullRequestsOpened: number;
+            pullRequestsPerDay: components["schemas"]["TimeCount"][];
+            /** Format: int64 */
+            sessions: number;
+            sessionsPerDay: components["schemas"]["TimeCount"][];
+        };
+        CodeUsageRequest: {
+            range: components["schemas"]["TimeRange"];
         };
         /** @enum {string} */
         CollectorKind: "observecraft" | "otel" | "datadog";
@@ -12037,6 +12564,17 @@ export interface components {
             metric?: string | null;
             /** @description `total` (default) or `timeseries`. */
             type?: string | null;
+        };
+        /** @description How a run ended, as the model concluded it. */
+        Conclusion: {
+            /** @description high | medium | low */
+            confidence: string;
+            evidence?: components["schemas"]["Evidence"][];
+            nextSteps?: string[];
+            rootCause?: string | null;
+            /** @description Markdown. */
+            summary: string;
+            verdict: string;
         };
         ContainerRecommendation: {
             /** Format: double */
@@ -12349,6 +12887,33 @@ export interface components {
             id: string;
             /** @description One-time link (72h) for the first admin. Share it until mail delivery is configured. */
             inviteUrl: string;
+        };
+        CreditSettings: {
+            /**
+             * Format: double
+             * @description USD per million input tokens, to estimate cost.
+             */
+            inputPricePerMtok?: number | null;
+            /**
+             * Format: int64
+             * @description Credits per calendar month (UTC); none: unlimited.
+             */
+            monthlyLimit?: number | null;
+            /** Format: double */
+            outputPricePerMtok?: number | null;
+            /**
+             * Format: int64
+             * @description Credits per member per day (UTC); none: unlimited.
+             */
+            userDailyLimit?: number | null;
+        };
+        CreditsView: components["schemas"]["CreditSettings"] & {
+            /** Format: int64 */
+            myUsedToday: number;
+            /** Format: int64 */
+            tokensPerCredit: number;
+            /** Format: int64 */
+            usedThisMonth: number;
         };
         CsFilter: {
             /** @default  */
@@ -12862,6 +13427,14 @@ export interface components {
             libraries: number;
             secrets: number;
         };
+        DayUsage: {
+            /** Format: int64 */
+            at: number;
+            /** Format: int64 */
+            credits: number;
+            /** Format: int64 */
+            users: number;
+        };
         /** @enum {string} */
         DbEngine: "postgres" | "mysql" | "redis" | "mongodb" | "sqlserver";
         DbFacet: {
@@ -13357,6 +13930,10 @@ export interface components {
         };
         /** @enum {string} */
         DowntimeStatus: "active" | "scheduled" | "ended" | "canceled";
+        DraftRequest: {
+            /** @description What the agent should monitor, investigate or automate. */
+            description: string;
+        };
         EmailSubscriptions: {
             email: string;
             /** @description Email can be sent from this install (`OC_SMTP_URL`). */
@@ -13564,6 +14141,13 @@ export interface components {
             offset?: number;
             query?: string;
             range: components["schemas"]["TimeRange"];
+        };
+        /** @description A finding that supports the conclusion. */
+        Evidence: {
+            detail?: string;
+            /** @description A link inside the app (`/logs?query=…`) showing it. */
+            link?: string | null;
+            title: string;
         };
         ExclusionFilter: {
             enabled: boolean;
@@ -15118,6 +15702,26 @@ export interface components {
             service: string;
             vulnerabilities: components["schemas"]["SeverityCounts"];
         };
+        InvestigationMonitor: {
+            autoInvestigate: boolean;
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            investigations: number;
+            /** Format: int64 */
+            memories: number;
+            name: string;
+            /** Format: int32 */
+            priority?: number | null;
+            /** @description Alerts in the last 7 days, newest first (at most 5). */
+            recentAlerts: components["schemas"]["RecentAlert"][];
+            status: string;
+            /** @description Its data can be investigated (synthetic tests can't yet). */
+            supported: boolean;
+            tags: string[];
+            teams: string[];
+            type: string;
+        };
         Invitation: {
             email: string;
             id: string;
@@ -16471,6 +17075,17 @@ export interface components {
             id: string;
             name: string;
         };
+        Memory: {
+            /** Format: int64 */
+            createdAt: number;
+            createdBy: string;
+            id: string;
+            /** Format: int64 */
+            monitorId?: number | null;
+            monitorName?: string | null;
+            sourceRun?: string | null;
+            text: string;
+        };
         MetricCardinality: {
             /**
              * Format: int64
@@ -16681,6 +17296,9 @@ export interface components {
             name: string;
             remediation: string;
             severity: string;
+        };
+        MonitorAuto: {
+            autoInvestigate: boolean;
         };
         MonitorBulkRequest: {
             action: components["schemas"]["BulkAction"];
@@ -16989,6 +17607,26 @@ export interface components {
              * @description Bucket start, epoch ms.
              */
             t: number;
+        };
+        NewMemory: {
+            /**
+             * Format: int64
+             * @description For this monitor's investigations; none for every run.
+             */
+            monitorId?: number | null;
+            text: string;
+        };
+        NewRepo: {
+            /** @description github | gitlab */
+            provider: string;
+            /** @description owner/name */
+            repo: string;
+            services?: string[];
+        };
+        NewSession: {
+            /** @description What to fix or change. */
+            prompt: string;
+            repo: string;
         };
         /** @enum {string} */
         NodeAutoscaler: "karpenter" | "cluster_autoscaler" | "none";
@@ -18501,6 +19139,14 @@ export interface components {
             visibility: components["schemas"]["StatusPageVisibility"];
             visualization: components["schemas"]["StatusPageVisualization"];
         };
+        /** @description A pull (merge) request opened from the change. */
+        PullRequest: {
+            branch: string;
+            draft: boolean;
+            /** Format: int64 */
+            number: number;
+            url: string;
+        };
         PullRequestScan: {
             baseBranch: string;
             branch: string;
@@ -18546,6 +19192,13 @@ export interface components {
         ReassignOnCallPage: {
             policyId?: string | null;
             team?: string | null;
+        };
+        RecentAlert: {
+            /** Format: int64 */
+            at: number;
+            group: string;
+            /** Format: double */
+            value?: number | null;
         };
         Recommendation: {
             id: string;
@@ -18720,6 +19373,17 @@ export interface components {
              */
             start: number;
             viewId: string;
+        };
+        RepoRef: {
+            repo: string;
+        };
+        RepoView: {
+            /** Format: int64 */
+            addedAt: number;
+            addedBy: string;
+            provider: string;
+            repo: string;
+            services: string[];
         };
         ReportSchedule: {
             /** @description daily | weekly | monthly */
@@ -19300,6 +19964,121 @@ export interface components {
         RumSummaryRequest: {
             applicationId: string;
             range: components["schemas"]["TimeRange"];
+        };
+        RunAgent: {
+            /** @description Extra input for this run. */
+            input?: string | null;
+        };
+        RunCount: {
+            /** Format: int64 */
+            count: number;
+            name: string;
+        };
+        RunDetail: components["schemas"]["RunSummary"] & {
+            change?: components["schemas"]["CodeChange"] | null;
+            conclusion?: components["schemas"]["Conclusion"] | null;
+            /** @description Coding sessions: the pull request opened from it ({url, number, branch, draft, state}). */
+            pullRequest?: unknown;
+            steps: components["schemas"]["RunStep"][];
+        };
+        RunFeedback: {
+            /** @description helpful | not_helpful */
+            feedback: string;
+            /** @description Kept as a memory for later investigations of the same monitor. */
+            remember?: string | null;
+        };
+        RunReport: {
+            /** @description Investigations: by monitor name. */
+            byMonitor: components["schemas"]["RunCount"][];
+            byTrigger: components["schemas"]["RunCount"][];
+            byVerdict: components["schemas"]["RunCount"][];
+            /** Format: int64 */
+            concluded: number;
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            helpful: number;
+            /**
+             * Format: double
+             * @description From start to conclusion, on average.
+             */
+            meanSecondsToConclusion?: number | null;
+            /** Format: int64 */
+            notHelpful: number;
+            overTime: components["schemas"]["TimeCount"][];
+            /** Format: int64 */
+            total: number;
+        };
+        RunReportRequest: {
+            /** @description investigation | security | agent | code */
+            kind: string;
+            /** Format: int64 */
+            monitorId?: number | null;
+            range: components["schemas"]["TimeRange"];
+        };
+        RunSearch: {
+            kind: string;
+            /** Format: int64 */
+            limit?: number | null;
+            /** Format: int64 */
+            monitorId?: number | null;
+            status?: string | null;
+        };
+        RunSettings: {
+            /** Format: int32 */
+            automaticRunsPerDay: number;
+            /** @description The knowledge base every run reads (Markdown). */
+            knowledge: string;
+            /** @description Channels (`@slack-ops`, an email) told when a run concludes. */
+            notify: string[];
+            /** Format: int32 */
+            runsPerHour: number;
+            /** @description Signals of these severities are judged automatically. */
+            securityAutoSeverities: string[];
+            /** @description The member automatic security runs act as. */
+            securityRunAs?: string | null;
+        };
+        /** @description What a run did, as it goes: its text and the tools it called. */
+        RunStep: {
+            text: string;
+            /** @enum {string} */
+            type: "text";
+        } | {
+            id: string;
+            input: unknown;
+            name: string;
+            status: string;
+            summary: string;
+            /** @enum {string} */
+            type: "tool";
+        };
+        RunSummary: {
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            createdAt: number;
+            createdBy: string;
+            error?: string | null;
+            feedback?: string | null;
+            /** Format: int64 */
+            finishedAt?: number | null;
+            id: string;
+            /** Format: int64 */
+            inputTokens: number;
+            kind: string;
+            /** Format: int64 */
+            outputTokens: number;
+            rootCause?: string | null;
+            /** Format: int64 */
+            startedAt?: number | null;
+            /** @description queued | running | concluded | failed | cancelled */
+            status: string;
+            subject: unknown;
+            title: string;
+            /** @description manual | monitor | signal | schedule */
+            trigger: string;
+            verdict?: string | null;
         };
         RuntimeCodeVulnerability: components["schemas"]["IastVulnerability"] & {
             /** Format: int64 */
@@ -20114,6 +20893,9 @@ export interface components {
             id: string;
             name: string;
         };
+        SignalsRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
         /** @enum {string} */
         SloComparator: "<" | "<=" | ">" | ">=";
         SloCorrection: {
@@ -20805,6 +21587,19 @@ export interface components {
         };
         /** @enum {string} */
         StandardAttributeType: "string" | "integer" | "double" | "boolean";
+        StartRun: {
+            /** @description investigation | security */
+            kind: string;
+            /**
+             * Format: int64
+             * @description Investigate this monitor (its latest alert).
+             */
+            monitorId?: number | null;
+            /** @description Or investigate this, in the user's words. */
+            question?: string | null;
+            /** @description Judge this security signal. */
+            signalId?: string | null;
+        };
         StaticFinding: {
             branch: string;
             commitSha: string;
@@ -22144,6 +22939,12 @@ export interface components {
         };
         /** @enum {string} */
         TimeAggregator: "avg" | "sum" | "min" | "max" | "last";
+        TimeCount: {
+            /** Format: int64 */
+            at: number;
+            /** Format: int64 */
+            count: number;
+        };
         TimeRange: {
             /**
              * Format: int64
@@ -22389,6 +23190,27 @@ export interface components {
             query?: string;
             range: components["schemas"]["TimeRange"];
         };
+        UsageReport: {
+            byApp: components["schemas"]["AppUsage"][];
+            byUser: components["schemas"]["UserUsage"][];
+            /** Format: int64 */
+            credits: number;
+            daily: components["schemas"]["DayUsage"][];
+            /**
+             * Format: double
+             * @description From the token prices in AI Credits Management; none when they aren't set.
+             */
+            estCost?: number | null;
+            /** Format: int64 */
+            inputTokens: number;
+            /** Format: int64 */
+            outputTokens: number;
+            /** Format: int64 */
+            users: number;
+        };
+        UsageRequest: {
+            range: components["schemas"]["TimeRange"];
+        };
         UserPatch: {
             /** @description Replaces the user's roles. */
             roleIds?: string[] | null;
@@ -22432,6 +23254,14 @@ export interface components {
             roles: components["schemas"]["RoleRef"][];
             status: components["schemas"]["UserStatus"];
             title?: string | null;
+        };
+        UserUsage: {
+            /** Format: int64 */
+            credits: number;
+            name: string;
+            userId: string;
+            /** Format: int64 */
+            uses: number;
         };
         VerificationSent: {
             email: string;
@@ -24808,6 +25638,161 @@ export interface operations {
             };
         };
     };
+    assist_list_agents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentView"][];
+                };
+            };
+        };
+    };
+    assist_create_agent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentView"];
+                };
+            };
+        };
+    };
+    assist_draft_agent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDraft"];
+                };
+            };
+        };
+    };
+    assist_get_agent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentView"];
+                };
+            };
+        };
+    };
+    assist_update_agent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentView"];
+                };
+            };
+        };
+    };
+    assist_delete_agent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_run_agent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunAgent"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunSummary"];
+                };
+            };
+        };
+    };
     assist_chat: {
         parameters: {
             query?: never;
@@ -24827,6 +25812,193 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": components["schemas"]["AssistEvent"];
+                };
+            };
+        };
+    };
+    assist_code_connections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeConnections"];
+                };
+            };
+        };
+    };
+    assist_list_code_repos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoView"][];
+                };
+            };
+        };
+    };
+    assist_add_code_repo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewRepo"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_remove_code_repo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepoRef"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_start_code_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewSession"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunSummary"];
+                };
+            };
+        };
+    };
+    assist_open_pull_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequest"];
+                };
+            };
+        };
+    };
+    assist_get_code_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeSettings"];
+                };
+            };
+        };
+    };
+    assist_put_code_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeSettings"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_code_usage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeUsageRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeUsage"];
                 };
             };
         };
@@ -24912,6 +26084,147 @@ export interface operations {
                 content: {
                     "text/event-stream": components["schemas"]["AssistEvent"];
                 };
+            };
+        };
+    };
+    assist_get_credits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditsView"];
+                };
+            };
+        };
+    };
+    assist_put_credits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreditSettings"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_investigation_monitors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestigationMonitor"][];
+                };
+            };
+        };
+    };
+    assist_set_monitor_auto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonitorAuto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_list_memories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Memory"][];
+                };
+            };
+        };
+    };
+    assist_add_memory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewMemory"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_delete_memory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -25018,6 +26331,201 @@ export interface operations {
             };
         };
     };
+    assist_get_run_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunSettings"];
+                };
+            };
+        };
+    };
+    assist_put_run_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunSettings"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_start_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartRun"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunSummary"];
+                };
+            };
+        };
+    };
+    assist_run_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunReportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunReport"];
+                };
+            };
+        };
+    };
+    assist_search_runs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunSearch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunSummary"][];
+                };
+            };
+        };
+    };
+    assist_get_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunDetail"];
+                };
+            };
+        };
+    };
+    assist_cancel_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_run_feedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunFeedback"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assist_analyzed_signals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignalsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyzedSignal"][];
+                };
+            };
+        };
+    };
     assist_get_settings: {
         parameters: {
             query?: never;
@@ -25073,6 +26581,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssistStatus"];
+                };
+            };
+        };
+    };
+    assist_usage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UsageRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageReport"];
                 };
             };
         };

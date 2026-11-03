@@ -354,10 +354,10 @@ fn merge_entities(i: &EntityInputs) -> Vec<PortalHomeEntity> {
 
 // ================================================================ storage
 
-struct StoredConnector {
-    base_url: String,
-    account: String,
-    secret: String,
+pub(crate) struct StoredConnector {
+    pub base_url: String,
+    pub account: String,
+    pub secret: String,
 }
 
 type ConnectorRow = (String, String, String, Option<i64>, Option<bool>, String, i64);
@@ -398,7 +398,7 @@ async fn list_connectors(st: &AppState, org: &str) -> Result<Vec<PortalConnector
     Ok(PortalProvider::ALL.into_iter().map(|p| connector_out(p, rows.iter().find(|r| r.0 == p.as_str()))).collect())
 }
 
-async fn stored_connector(st: &AppState, org: &str, provider: PortalProvider) -> Result<Option<StoredConnector>, ApiError> {
+pub(crate) async fn stored_connector(st: &AppState, org: &str, provider: PortalProvider) -> Result<Option<StoredConnector>, ApiError> {
     let row: Option<(String, String, String)> =
         sqlx::query_as("SELECT base_url, account, secret_enc FROM portal_connectors WHERE org_id = $1 AND provider = $2").bind(org).bind(provider.as_str()).fetch_optional(&st.postgres).await?;
     match row {

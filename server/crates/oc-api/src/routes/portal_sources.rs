@@ -221,11 +221,11 @@ pub struct HttpCall {
 }
 
 impl HttpCall {
-    fn get(url: String, auth: Auth) -> Self {
+    pub(crate) fn get(url: String, auth: Auth) -> Self {
         HttpCall { post: false, url, auth, body: None }
     }
 
-    fn post(url: String, auth: Auth, body: Value) -> Self {
+    pub(crate) fn post(url: String, auth: Auth, body: Value) -> Self {
         HttpCall { post: true, url, auth, body: Some(body) }
     }
 }

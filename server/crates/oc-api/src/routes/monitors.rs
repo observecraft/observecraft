@@ -1322,6 +1322,10 @@ async fn insert_event(
         for r in &who {
             sqlx::query("INSERT INTO notification_deliveries (event_id, org_id, recipient) VALUES ($1, $2, $3)").bind(event_id).bind(&row.org_id).bind(r).execute(&mut **tx).await?;
         }
+        // Monitors that ask for it have their alerts investigated by Assist.
+        if !muted && to == MonitorStatus::Alert {
+            super::assist_runs::enqueue_monitor_alert(tx, &row.org_id, row.id, &row.name, key, value).await?;
+        }
     }
     Ok(())
 }
