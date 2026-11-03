@@ -4,7 +4,8 @@
 //!
 //! - **Layout**: `<container>/<path>/<export>/<yyyymmdd-yyyymmdd>/<runId>/manifest.json` and the files it
 //!   lists (`blobs[].blobName`); without overwrite, every daily run of a month is a new `runId` folder,
-//!   and the latest one (by its manifest's last modification) has the month to date.
+//!   and the latest one (by its manifest's last modification) has the month to date. Exports of the classic
+//!   API have no manifest: each run is one more file of the month's folder, the latest one is read.
 //! - **Columns** are matched however the dataset version spells them (`CostInBillingCurrency`,
 //!   `costInBillingCurrency`, `cost_in_billing_currency`): Enterprise Agreement, Microsoft Customer
 //!   Agreement and pay-as-you-go details.
@@ -18,24 +19,32 @@ use serde_json::Value;
 
 use super::{columns, ident, reader, tags_from_json, BillLine};
 
-/// The latest run of each billing month (`YYYY-MM`) of the export `export` under `path`: its manifest
-/// and run id. `blobs` are the names under the export with their last modification (epoch ms).
+/// The latest run of each billing month (`YYYY-MM`) of the export `export` under `path`: its manifest, or
+/// for exports without one (the classic exports API) its latest data file, and the run's id. `blobs` are
+/// the names under the export with their last modification (epoch ms).
 pub fn month_runs(blobs: Vec<(String, i64)>, path: &str, export: &str) -> BTreeMap<String, (String, String)> {
     let path = path.trim_matches('/');
     let base = if path.is_empty() { format!("{export}/") } else { format!("{path}/{export}/") };
-    let mut latest: BTreeMap<String, (String, String, i64)> = BTreeMap::new();
+    let is_range = |r: &str| r.len() == 17 && r.as_bytes()[8] == b'-' && r[..8].bytes().all(|b| b.is_ascii_digit());
+    // month → (has a manifest, last modified, blob, run)
+    let mut latest: BTreeMap<String, (bool, i64, String, String)> = BTreeMap::new();
     for (name, modified) in blobs {
         let Some(rest) = name.strip_prefix(&base) else { continue };
-        let ["manifest.json", run, range] = rest.rsplitn(3, '/').collect::<Vec<_>>()[..] else { continue };
-        if range.len() != 17 || range.as_bytes()[8] != b'-' || !range[..8].bytes().all(|b| b.is_ascii_digit()) || run.contains('/') {
+        let parts: Vec<&str> = rest.split('/').collect();
+        let (range, manifest, run) = match parts.as_slice() {
+            [range, run, "manifest.json"] => (*range, true, run.to_string()),
+            [range, file] if [".csv", ".csv.gz", ".parquet"].iter().any(|x| file.ends_with(x)) => (*range, false, file.to_string()),
+            _ => continue,
+        };
+        if !is_range(range) {
             continue;
         }
         let month = format!("{}-{}", &range[..4], &range[4..6]);
-        if latest.get(&month).is_none_or(|(_, _, m)| modified > *m) {
-            latest.insert(month, (name.clone(), run.to_string(), modified));
+        if latest.get(&month).is_none_or(|(m, at, _, _)| (manifest, modified) > (*m, *at)) {
+            latest.insert(month, (manifest, modified, name.clone(), run));
         }
     }
-    latest.into_iter().map(|(month, (name, run, _))| (month, (name, run))).collect()
+    latest.into_iter().map(|(month, (_, _, name, run))| (month, (name, run))).collect()
 }
 
 /// The blobs a run's manifest lists.
@@ -185,6 +194,22 @@ mod tests {
                 ])
             );
         }
+    }
+
+    #[test]
+    fn exports_without_a_manifest_have_their_latest_file() {
+        // The classic exports API: each daily run writes the month to date as one more file of the month's folder.
+        let blobs = vec![
+            ("cost-exports/observecraft-actual/20261001-20261031/observecraft-actual_0a1b.csv".to_string(), 100),
+            ("cost-exports/observecraft-actual/20261001-20261031/observecraft-actual_2c3d.csv".to_string(), 200),
+        ];
+        assert_eq!(
+            month_runs(blobs, "cost-exports", "observecraft-actual"),
+            BTreeMap::from([(
+                "2026-10".to_string(),
+                ("cost-exports/observecraft-actual/20261001-20261031/observecraft-actual_2c3d.csv".to_string(), "observecraft-actual_2c3d.csv".to_string())
+            )])
+        );
     }
 
     #[test]

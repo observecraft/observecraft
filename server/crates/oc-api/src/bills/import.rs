@@ -320,12 +320,16 @@ impl Crawler for AzureBills {
                 if c.imported[&imported_key].as_str() == Some(run.as_str()) {
                     continue;
                 }
-                let files = match self.store.get(&creds, &account, &container, &manifest).await {
-                    Ok(bytes) => match super::azure::manifest_blobs(&bytes) {
-                        Ok(f) => f,
-                        Err(e) => return Ok(other(format!("{account}/{container}/{manifest}: {e}"))),
-                    },
-                    Err(e) => return Ok(Outcome::Failed(crate::azure::crawler::issue(&e))),
+                let files = if !manifest.ends_with("/manifest.json") {
+                    vec![manifest.clone()]
+                } else {
+                    match self.store.get(&creds, &account, &container, &manifest).await {
+                        Ok(bytes) => match super::azure::manifest_blobs(&bytes) {
+                            Ok(f) => f,
+                            Err(e) => return Ok(other(format!("{account}/{container}/{manifest}: {e}"))),
+                        },
+                        Err(e) => return Ok(Outcome::Failed(crate::azure::crawler::issue(&e))),
+                    }
                 };
                 let mut dir = match BillDir::new(format!("oc-bill-{}-{dataset}-{month}-{}", key.account_id, std::process::id())) {
                     Ok(d) => d,
