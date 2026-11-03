@@ -34,14 +34,17 @@ pub(crate) const OPERATION: &str = "multiIf(SpanAttributes['operation.name'] != 
      SpanAttributes['db.system'] != '', concat(SpanAttributes['db.system'], '.query'), \
      concat(lower(toString(SpanKind)), '.request'))";
 /// What a client span calls: its `peer.service`, otherwise (Datadog's tracers don't set it by default) the
-/// service Datadog infers: the database, the messaging destination or the host.
+/// service Datadog infers: the database, the messaging destination or the host (from the URL when the tracer
+/// sets only that; not with ClickHouse's `domain()`, which drops Kubernetes services' one-label hosts).
+/// (`??` is a literal `?` for the clickhouse crate, whose binds are `?`.)
 pub(crate) const INFERRED_PEER: &str = "multiIf(SpanAttributes['peer.service'] != '', SpanAttributes['peer.service'], \
      SpanAttributes['db.system'] != '', multiIf(SpanAttributes['db.name'] != '', SpanAttributes['db.name'], SpanAttributes['db.namespace'] != '', SpanAttributes['db.namespace'], \
        SpanAttributes['net.peer.name'] != '', SpanAttributes['net.peer.name'], SpanAttributes['server.address'] != '', SpanAttributes['server.address'], SpanAttributes['db.system']), \
      SpanAttributes['messaging.system'] != '', multiIf(SpanAttributes['messaging.destination.name'] != '', SpanAttributes['messaging.destination.name'], \
        SpanAttributes['messaging.destination'] != '', SpanAttributes['messaging.destination'], SpanAttributes['messaging.system']), \
      SpanAttributes['server.address'] != '', SpanAttributes['server.address'], SpanAttributes['net.peer.name'] != '', SpanAttributes['net.peer.name'], \
-     SpanAttributes['out.host'] != '', SpanAttributes['out.host'], '')";
+     SpanAttributes['out.host'] != '', SpanAttributes['out.host'], \
+     extract(if(SpanAttributes['http.url'] != '', SpanAttributes['http.url'], SpanAttributes['url.full']), '^[a-zA-Z][a-zA-Z0-9+.-]*://(??:[^@/]*@)??([^:/??#]+)'))";
 /// A database call's statement by its shape (literals as `?`, `IN` lists as one), or its span name without one.
 /// (`??` is a literal `?` for the clickhouse crate, whose binds are `?`.)
 const DB_STATEMENT: &str = "if(multiIf(SpanAttributes['db.statement'] != '', SpanAttributes['db.statement'], SpanAttributes['db.query.text'] != '', SpanAttributes['db.query.text'], SpanAttributes['sql.query']) = '', \
@@ -1314,7 +1317,8 @@ mod tests {
             .iter()
             .enumerate()
             .map(|(i, (name, kind, ms, attrs))| {
-                let attrs: Vec<String> = attrs.iter().map(|(k, v)| format!("'{k}', '{}'", v.replace('\'', "\\'"))).collect();
+                // `??`: a literal `?` for the clickhouse crate.
+                let attrs: Vec<String> = attrs.iter().map(|(k, v)| format!("'{k}', '{}'", v.replace('\'', "\\'").replace('?', "??"))).collect();
                 format!(
                     "(fromUnixTimestamp64Milli(toInt64({})), '{i:032x}', '{i:016x}', '{name}', '{kind}', 'storefront-api', map('deployment.environment', 'prod', 'oc.org_id', '{org}'), map({}), {}, 'Ok')",
                     start + i as i64 * 1000,
@@ -1390,6 +1394,9 @@ mod tests {
                 ("GET", "Client", 1, &[("db.system", "redis"), ("net.peer.name", "redis-master")]),
                 ("GET /v1/prices", "Client", 20, &[("http.method", "GET"), ("server.address", "catalog-service")]),
                 ("GET /v1/stock", "Client", 20, &[("peer.service", "inventory-service"), ("server.address", "inventory.example.internal")]),
+                // Datadog's tracers put the address only in the URL; Kubernetes services have one-label hosts.
+                ("POST", "Client", 30, &[("http.method", "POST"), ("http.url", "http://pricing-scaled:8080/predict?model=v2")]),
+                ("POST", "Client", 30, &[("http.method", "POST"), ("url.full", "https://user@llm.example.com:443/v1/chat")]),
             ],
         )
         .await;
@@ -1401,7 +1408,9 @@ mod tests {
             [
                 ("catalog-service".to_string(), None),
                 ("inventory-service".to_string(), None),
+                ("llm.example.com".to_string(), None),
                 ("orders".to_string(), Some("postgresql".to_string())),
+                ("pricing-scaled".to_string(), None),
                 ("redis-master".to_string(), Some("redis".to_string())),
             ]
         );
