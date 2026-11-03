@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.12.1](https://github.com/observecraft/observecraft/compare/v0.12.0...v0.12.1) (2026-11-03)
+
+
+### Bug fixes
+
+* **apm:** a service page shows its primary operation, inferred dependencies and statement shapes ([da7c974](https://github.com/observecraft/observecraft/commit/da7c974a1fee666a1dcb0f9cd34c285d4fd85bdb))
+* **apm:** infer a dependency's host from the URL of its HTTP calls ([5120576](https://github.com/observecraft/observecraft/commit/51205766ea6ca844e656f3374df7dcad1ff3db43))
+* **metrics:** a metric nobody sent has no data instead of a 400 ([1065cfb](https://github.com/observecraft/observecraft/commit/1065cfb192c7d5897e2082318a318d9c78fe393a))
+* read ClickHouse rows without the client's schema validation ([bc6e935](https://github.com/observecraft/observecraft/commit/bc6e935cc4289ed9ee5b09eec2b2eef96664c9ab))
+* **web:** search boxes kept in the URL no longer lose characters ([e0a88ef](https://github.com/observecraft/observecraft/commit/e0a88ef66ae39d15f2977532d3bb503ed76a9bc4))
+
 ## [0.12.0](https://github.com/observecraft/observecraft/compare/v0.11.0...v0.12.0) (2026-11-03)
 
 
