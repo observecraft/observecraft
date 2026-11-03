@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0](https://github.com/observecraft/observecraft/compare/v0.11.0...v0.12.0) (2026-11-03)
+
+
+### Features
+
+* **assist:** a run's progress as a readable timeline ([#80](https://github.com/observecraft/observecraft/issues/80)) ([9df7518](https://github.com/observecraft/observecraft/commit/9df7518b296345c6543b73cba23550c129530aea))
+
+
+### Bug fixes
+
+* **cloud-cost:** read an Azure export file again once it changed ([#81](https://github.com/observecraft/observecraft/issues/81)) ([0591501](https://github.com/observecraft/observecraft/commit/05915017a1f400ea1deee24daf4be35b7ee95118))
+
 ## [0.11.0](https://github.com/observecraft/observecraft/compare/v0.10.1...v0.11.0) (2026-11-03)
 
 
