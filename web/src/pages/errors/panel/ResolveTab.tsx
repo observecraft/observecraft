@@ -1,7 +1,8 @@
-import { FileCode2, GitPullRequest, Sparkles } from 'lucide-react';
+import { FileCode2, Sparkles } from 'lucide-react';
 import type { IssueDetail } from '../../../api/errorTracking/types';
+import { IssueFix } from '../../assist/IssueAssist';
 
-/** Preview: where the fix belongs. Code suggestions need a source-code integration (not built yet). */
+/** Where the fix belongs, and a fix proposed by Assist Code in the service's repository. */
 export function ResolveTab({ issue }: { issue: IssueDetail }) {
   return (
     <div className="resolve">
@@ -22,12 +23,7 @@ export function ResolveTab({ issue }: { issue: IssueDetail }) {
         <h4>
           <Sparkles size={15} className="brand-icon" /> Suggested fix
         </h4>
-        <p className="muted-text">
-          Connect a source code repository to get code-level fix suggestions and open a pull request from here.
-        </p>
-        <button className="btn" disabled>
-          <GitPullRequest size={14} /> Connect repository
-        </button>
+        <IssueFix issue={issue} />
       </section>
     </div>
   );

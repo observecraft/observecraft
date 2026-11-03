@@ -1438,3 +1438,16 @@
     padding: var(--sp-3);
   }
 }
+
+/* Assist on an Error Tracking issue */
+.ai-issue-run {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-style: solid;
+  color: var(--text);
+}
+
+.ai-issue-summary {
+  font-size: var(--fs-sm);
+}

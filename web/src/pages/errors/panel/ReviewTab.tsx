@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { EChartsOption } from 'echarts';
-import { ArrowDownToLine, ArrowRight, Copy, Eye, MonitorSmartphone, Plus, SendHorizontal, Sparkles } from 'lucide-react';
+import { ArrowDownToLine, ArrowRight, Copy, Eye, MonitorSmartphone, Plus, SendHorizontal } from 'lucide-react';
 import type { IssueDetail, QuerySuggestion } from '../../../api/errorTracking/types';
 import type { TimeRange } from '../../../api/types';
 import { Chart } from '../../../components/charts/Chart';
@@ -10,6 +10,7 @@ import { Select } from '../../../components/ui/Dropdown';
 import { formatLongDate, timeAgo } from '../../../lib/format';
 import { addTerm } from '../../../lib/searchQuery';
 import { token } from '../../../theme/chartTheme';
+import { IssueInvestigation } from '../../assist/IssueAssist';
 import { AssigneeSelect } from '../issueControls';
 import { Avatar } from '../issueVisuals';
 import { useAddComment, useTeams } from '../queries';
@@ -57,7 +58,6 @@ function histogramOption(issue: IssueDetail): EChartsOption {
 
 export function ReviewTab({ issue, range, isRefreshing }: Props) {
   const [query, setQuery] = useState('');
-  const [investigate, setInvestigate] = useState(false);
   const sampleRef = useRef<HTMLDivElement>(null);
   const option = useMemo(() => histogramOption(issue), [issue]);
   const goToSample = () => sampleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -71,19 +71,7 @@ export function ReviewTab({ issue, range, isRefreshing }: Props) {
 
   return (
     <div className={`ip-review${isRefreshing ? ' is-stale' : ''}`}>
-      <div className="investigate-banner">
-        <Sparkles size={16} className="brand-icon" />
-        <strong>Assist Investigation</strong>
-        <span className="muted-text">Investigate this issue, find the root cause, and generate a fix.</span>
-        <button className="btn btn-brand" onClick={() => setInvestigate(true)}>
-          <Sparkles size={13} /> Investigate this issue
-        </button>
-      </div>
-      {investigate && (
-        <div className="investigate-note">
-          AI investigation isn't connected yet. Once the backend is in place, this will analyse the stack trace, recent deploys and correlated logs for {issue.service}.
-        </div>
-      )}
+      <IssueInvestigation issue={issue} />
 
       <div className="ip-filter-row">
         <div className="ip-filter-query">

@@ -15,6 +15,7 @@ registerHooks({
 });
 const mock = await import('../web/src/api/mock/assistRuns.ts');
 const { lineDiff } = await import('../web/src/lib/lineDiff.ts');
+const errors = await import('../web/src/api/mock/errorTracking.ts');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -36,6 +37,33 @@ test('an investigation is queued, runs its steps and concludes; a cancelled one 
   assert.equal((await mock.getRun(other.id)).status, 'cancelled');
   const report = await mock.runReport({ kind: 'investigation', range: { from: Date.now() - 60_000, to: Date.now() + 1 }, monitorId: null });
   assert.equal(report.total, 2);
+});
+
+test('an Error Tracking issue is investigated and its investigations are listed', async () => {
+  mock.resetAssistRunsMock();
+  const issues = await errors.searchIssues({
+    range: { from: Date.now() - 7 * 86_400_000, to: Date.now() },
+    query: '',
+    state: 'all',
+    persona: 'all',
+    source: 'all',
+    assignee: 'all',
+    suspectedCause: 'all',
+    team: 'all',
+    investigationReady: false,
+    sort: 'count',
+    limit: 5,
+  });
+  const issue = issues.issues[0];
+  const run = await mock.startRun({ kind: 'investigation', issueId: issue.id, monitorId: null, question: null, signalId: null });
+  assert.ok(run.title.includes(issue.service), run.title);
+  assert.equal(run.subject.issueId, issue.id);
+  const listed = await mock.searchRuns({ kind: 'investigation', issueId: issue.id, monitorId: null, status: null, limit: 5 });
+  assert.deepEqual(
+    listed.map((r) => r.id),
+    [run.id],
+  );
+  await assert.rejects(mock.startRun({ kind: 'investigation', issueId: 'ffffffffffffffff', monitorId: null, question: null, signalId: null }), /no such issue/);
 });
 
 test('runs are refused past the hourly limit', async () => {
