@@ -33,7 +33,8 @@ pub fn month_runs(blobs: Vec<(String, i64)>, path: &str, export: &str) -> BTreeM
         let parts: Vec<&str> = rest.split('/').collect();
         let (range, manifest, run) = match parts.as_slice() {
             [range, run, "manifest.json"] => (*range, true, run.to_string()),
-            [range, file] if [".csv", ".csv.gz", ".parquet"].iter().any(|x| file.ends_with(x)) => (*range, false, file.to_string()),
+            // The file can change under the same name (read while the export was still writing it).
+            [range, file] if [".csv", ".csv.gz", ".parquet"].iter().any(|x| file.ends_with(x)) => (*range, false, format!("{file}@{modified}")),
             _ => continue,
         };
         if !is_range(range) {
@@ -204,12 +205,17 @@ mod tests {
             ("cost-exports/observecraft-actual/20261001-20261031/observecraft-actual_2c3d.csv".to_string(), 200),
         ];
         assert_eq!(
-            month_runs(blobs, "cost-exports", "observecraft-actual"),
+            month_runs(blobs.clone(), "cost-exports", "observecraft-actual"),
             BTreeMap::from([(
                 "2026-10".to_string(),
-                ("cost-exports/observecraft-actual/20261001-20261031/observecraft-actual_2c3d.csv".to_string(), "observecraft-actual_2c3d.csv".to_string())
+                ("cost-exports/observecraft-actual/20261001-20261031/observecraft-actual_2c3d.csv".to_string(), "observecraft-actual_2c3d.csv@200".to_string())
             )])
         );
+        // A file read while the export was still writing it is read again once it changed: the run is the file
+        // and its last modification.
+        let mut later = blobs;
+        later[1].1 = 300;
+        assert_eq!(month_runs(later, "cost-exports", "observecraft-actual")["2026-10"].1, "observecraft-actual_2c3d.csv@300");
     }
 
     #[test]
