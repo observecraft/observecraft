@@ -982,6 +982,16 @@ pub(crate) async fn log_counts(st: &AppState, org: &str, access: &LogAccess, sea
 mod tests {
     use super::*;
 
+    /// Rows are read by position, as before clickhouse 0.14: its schema validation rejected rows the server
+    /// reads on purpose (here the histogram's `UInt64` bucket into `i64`), failing Logs, APM and CI pages.
+    #[tokio::test]
+    async fn rows_are_read_without_the_clients_schema_validation() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let rows = st.ch("any-org").query("SELECT toUInt64(1700000000000) AS t, 'error' AS status, toUInt64(3) AS n").fetch_all::<BucketRow>().await.unwrap();
+        assert_eq!((rows[0].t, rows[0].status.as_str(), rows[0].n), (1_700_000_000_000, "error", 3));
+    }
+
     #[test]
     fn patterns_replace_the_variable_parts_of_a_message() {
         assert_eq!(pattern_of("GET /api/v1/orders/48213 200 in 12.5ms"), "GET /api/v1/orders/* * in *ms");

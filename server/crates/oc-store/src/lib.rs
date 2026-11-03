@@ -176,7 +176,11 @@ pub fn clickhouse(cfg: &ClickHouseConfig) -> Client {
 pub fn configure(client: Client, cfg: &ClickHouseConfig) -> Client {
     // Exact log aggregate states must be finalized in sort order. A view's SETTINGS clause is
     // not inherited by its caller; without this, long ranges retain all UUID sets in memory.
+    // Rows are read by position, as before clickhouse 0.14: its schema validation (on by default) rejects
+    // what the server reads on purpose, an `i64` from a `UInt64` bucket or a struct that names a column
+    // otherwise than the query.
     let client = client
+        .with_validation(false)
         .with_url(&cfg.url)
         .with_user(&cfg.user)
         .with_password(&cfg.password)
