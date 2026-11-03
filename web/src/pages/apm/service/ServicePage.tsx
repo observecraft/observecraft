@@ -89,11 +89,13 @@ export function ServicePage() {
   const env = params.get('env');
   const resource = params.get('resource');
   const version = params.get('version');
+  // Unset: the service's primary operation (the server picks it), `*`: all.
+  const operation = params.get('operation');
   const mode = (GROUPS.find((g) => g.id === params.get('mode'))?.id ?? 'health') as Mode;
-  const scope: ServiceScope = { range, service, env, resource, version };
+  const scope: ServiceScope = { range, service, env, resource, version, operation };
   const summary = useServiceSummary(scope);
   // The selectors list every env/resource/version, so they come from an unfiltered summary.
-  const options = useServiceSummary({ range, service, env });
+  const options = useServiceSummary({ range, service, env, operation });
   const entity = useServiceEntity(service, env);
   const { stars, toggle } = useStars();
   const [traceId, setTraceId] = useState<string | null>(null);
@@ -269,6 +271,26 @@ export function ServicePage() {
                   {mode === 'health' && (
                     <Select
                       label="Operation"
+                      value={operation ?? opt?.operation ?? ''}
+                      onChange={(v) =>
+                        setParams(
+                          (p) => {
+                            const next = new URLSearchParams(p);
+                            // The primary operation is the default: no parameter. `*` asks for all of them.
+                            if (v === opt?.operations[0]) next.delete('operation');
+                            else next.set('operation', v);
+                            next.delete('resource');
+                            return next;
+                          },
+                          { replace: true },
+                        )
+                      }
+                      options={[...(opt?.operations ?? []).map((o) => ({ value: o, label: o })), { value: ALL, label: 'All operations' }]}
+                    />
+                  )}
+                  {mode === 'health' && (
+                    <Select
+                      label="Resource"
                       value={resource ?? ALL}
                       onChange={(v) => setParam('resource', v)}
                       options={[{ value: ALL, label: 'All resources' }, ...(opt?.resources ?? []).map((r) => ({ value: r, label: r }))]}

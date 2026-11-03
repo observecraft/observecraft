@@ -25,6 +25,31 @@ use crate::state::{AppState, OrgId};
 pub(crate) const ENTRY: &str = "SpanKind IN ('Server', 'Consumer')";
 const OUTBOUND: &str = "SpanKind IN ('Client', 'Producer')";
 const PEER: &str = "SpanAttributes['peer.service']";
+/// A span's operation, as Datadog names it: the tracers' own (`operation.name`, kept by the intake), otherwise
+/// Datadog's names for OpenTelemetry spans (`http.server.request`, `grpc.client.request`, `kafka.consumer`, …).
+pub(crate) const OPERATION: &str = "multiIf(SpanAttributes['operation.name'] != '', SpanAttributes['operation.name'], \
+     SpanAttributes['http.request.method'] != '' OR SpanAttributes['http.method'] != '', concat('http.', lower(toString(SpanKind)), '.request'), \
+     SpanAttributes['rpc.system'] != '', concat(SpanAttributes['rpc.system'], '.', lower(toString(SpanKind)), '.request'), \
+     SpanAttributes['messaging.system'] != '', concat(SpanAttributes['messaging.system'], '.', lower(toString(SpanKind))), \
+     SpanAttributes['db.system'] != '', concat(SpanAttributes['db.system'], '.query'), \
+     concat(lower(toString(SpanKind)), '.request'))";
+/// What a client span calls: its `peer.service`, otherwise (Datadog's tracers don't set it by default) the
+/// service Datadog infers: the database, the messaging destination or the host.
+pub(crate) const INFERRED_PEER: &str = "multiIf(SpanAttributes['peer.service'] != '', SpanAttributes['peer.service'], \
+     SpanAttributes['db.system'] != '', multiIf(SpanAttributes['db.name'] != '', SpanAttributes['db.name'], SpanAttributes['db.namespace'] != '', SpanAttributes['db.namespace'], \
+       SpanAttributes['net.peer.name'] != '', SpanAttributes['net.peer.name'], SpanAttributes['server.address'] != '', SpanAttributes['server.address'], SpanAttributes['db.system']), \
+     SpanAttributes['messaging.system'] != '', multiIf(SpanAttributes['messaging.destination.name'] != '', SpanAttributes['messaging.destination.name'], \
+       SpanAttributes['messaging.destination'] != '', SpanAttributes['messaging.destination'], SpanAttributes['messaging.system']), \
+     SpanAttributes['server.address'] != '', SpanAttributes['server.address'], SpanAttributes['net.peer.name'] != '', SpanAttributes['net.peer.name'], \
+     SpanAttributes['out.host'] != '', SpanAttributes['out.host'], '')";
+/// A database call's statement by its shape (literals as `?`, `IN` lists as one), or its span name without one.
+/// (`??` is a literal `?` for the clickhouse crate, whose binds are `?`.)
+const DB_STATEMENT: &str = "if(multiIf(SpanAttributes['db.statement'] != '', SpanAttributes['db.statement'], SpanAttributes['db.query.text'] != '', SpanAttributes['db.query.text'], SpanAttributes['sql.query']) = '', \
+     toString(SpanName), \
+     replaceRegexpAll(replaceRegexpAll(replaceRegexpAll(multiIf(SpanAttributes['db.statement'] != '', SpanAttributes['db.statement'], SpanAttributes['db.query.text'] != '', SpanAttributes['db.query.text'], SpanAttributes['sql.query']), \
+       '\\'(??:[^\\']|\\'\\')*\\'', '??'), '([^\\w$.])-??\\d+(??:\\.\\d+)??', '\\1??'), '(??i)IN\\s*\\(\\s*\\??(??:\\s*,\\s*\\??)*\\s*\\)', 'IN (??)'))";
+/// `operation` asking for every operation of a service.
+pub const ALL_OPERATIONS: &str = "*";
 
 fn time_clause(range: TimeRange) -> (String, Vec<Param>) {
     ("Timestamp >= fromUnixTimestamp64Milli(?) AND Timestamp <= fromUnixTimestamp64Milli(?)".into(), vec![Param::Int(range.from), Param::Int(range.to)])
@@ -256,6 +281,9 @@ pub struct ResourcesRequest {
     pub env: Option<String>,
     /// Restrict to one service (instrumented or inferred).
     pub service: Option<String>,
+    /// With a service: its operation; its primary one when absent, all with `*`.
+    #[serde(default)]
+    pub operation: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -293,7 +321,7 @@ fn service_filter(service: &str, instrumented: bool) -> (String, Vec<Param>, &'s
     if instrumented {
         (format!("ServiceName = ? AND {ENTRY}"), vec![Param::Str(service.into())], "toString(ServiceName)")
     } else {
-        (format!("{PEER} = ? AND {OUTBOUND}"), vec![Param::Str(service.into())], PEER)
+        (format!("{INFERRED_PEER} = ? AND {OUTBOUND}"), vec![Param::Str(service.into())], INFERRED_PEER)
     }
 }
 
@@ -309,6 +337,11 @@ pub async fn resources(State(st): State<AppState>, OrgId(org): OrgId, Json(req):
             let (f, p, expr) = service_filter(s, instrumented);
             clause.push_str(&format!(" AND {f}"));
             params.extend(p);
+            let ops = operations(&st, &org, &clause, &params).await?;
+            if let Some(op) = chosen_operation(&req.operation, &ops) {
+                clause.push_str(&format!(" AND {OPERATION} = ?"));
+                params.push(Param::Str(op));
+            }
             expr
         }
         None => {
@@ -359,6 +392,9 @@ pub struct ServiceRequest {
     /// Restrict to one resource (span name).
     pub resource: Option<String>,
     pub version: Option<String>,
+    /// The operation shown (`http.server.request`): the service's primary one when absent, all with `*`.
+    #[serde(default)]
+    pub operation: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -397,6 +433,9 @@ pub struct ServiceSummary {
     pub versions: Vec<String>,
     pub resources: Vec<String>,
     pub hosts: Vec<String>,
+    /// The operation shown (`*`: all), and the service's operations, the most requested first.
+    pub operation: String,
+    pub operations: Vec<String>,
     pub series: Vec<SeriesPoint>,
     /// Bucket width of `series`, ms.
     pub bucket_ms: i64,
@@ -432,11 +471,48 @@ pub(crate) fn bucket_ms(range: TimeRange, target_buckets: i64) -> i64 {
         .unwrap_or(43_200_000)
 }
 
+/// A service's operations in a clause's spans, the most requested first.
+async fn operations(st: &AppState, org: &str, clause: &str, params: &[Param]) -> Result<Vec<String>, ApiError> {
+    #[derive(clickhouse::Row, Deserialize)]
+    struct Op {
+        op: String,
+        #[allow(dead_code)]
+        hits: u64,
+    }
+    let rows = bind(
+        st.ch(org).query(&format!("SELECT {OPERATION} AS op, count() AS hits FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} GROUP BY op ORDER BY hits DESC, op LIMIT 20")),
+        params,
+    )
+    .fetch_all::<Op>()
+    .await?;
+    Ok(rows.into_iter().map(|r| r.op).collect())
+}
+
+/// The operation asked for, the primary one when none is, or None for all (`*`).
+fn chosen_operation(asked: &Option<String>, ops: &[String]) -> Option<String> {
+    match asked.as_deref().filter(|o| !o.is_empty()) {
+        Some(ALL_OPERATIONS) => None,
+        Some(o) => Some(o.to_string()),
+        None => ops.first().cloned(),
+    }
+}
+
+/// The request with its operation resolved (None: all), and the service's operations.
+async fn with_operation(st: &AppState, org: &str, req: &ServiceRequest, instrumented: bool) -> Result<(ServiceRequest, Vec<String>), ApiError> {
+    let (clause, params) = narrow(&ServiceRequest { resource: None, version: None, operation: None, ..req_clone(req) }, instrumented);
+    let ops = operations(st, org, &clause, &params).await?;
+    Ok((ServiceRequest { operation: chosen_operation(&req.operation, &ops), ..req_clone(req) }, ops))
+}
+
 fn narrow(req: &ServiceRequest, instrumented: bool) -> (String, Vec<Param>) {
     let (mut clause, mut params) = base(req.range, &req.env, "");
     let (f, p, _) = service_filter(&req.service, instrumented);
     clause.push_str(&format!(" AND {f}"));
     params.extend(p);
+    if let Some(op) = &req.operation {
+        clause.push_str(&format!(" AND {OPERATION} = ?"));
+        params.push(Param::Str(op.clone()));
+    }
     if let Some(r) = req.resource.as_deref().filter(|r| !r.is_empty()) {
         clause.push_str(" AND SpanName = ?");
         params.push(Param::Str(r.into()));
@@ -453,6 +529,7 @@ fn narrow(req: &ServiceRequest, instrumented: bool) -> (String, Vec<Param>) {
 pub async fn service(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ServiceRequest>) -> ApiResult<ServiceSummary> {
     req.range.validate()?;
     let instrumented = instrumented_services(&st, &org, req.range).await?.contains(&req.service);
+    let (req, ops) = with_operation(&st, &org, &req, instrumented).await?;
     let (clause, params) = narrow(&req, instrumented);
     let size = bucket_ms(req.range, 60);
     let mut sparams = vec![Param::Int(size / 1000)];
@@ -477,12 +554,14 @@ pub async fn service(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
         )),
         &mparams,
     );
-    let (series, meta) = tokio::try_join!(series_q.fetch_all::<BucketAgg>(), meta_q.fetch_one::<Meta>())?;
+    // The range's p95 (not the slowest bucket's).
+    let p95_q = bind(st.ch(&org).query(&format!("SELECT quantile(0.95)(Duration) / 1e6 FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause}")), &params);
+    let (series, meta, p95) = tokio::try_join!(series_q.fetch_all::<BucketAgg>(), meta_q.fetch_one::<Meta>(), p95_q.fetch_one::<f64>())?;
 
     let requests: u64 = series.iter().map(|b| b.hits).sum();
     let errors: u64 = series.iter().map(|b| b.errors).sum();
     let error_rate = rate(errors, requests);
-    let p95 = series.iter().filter(|b| b.hits > 0).map(|b| finite(b.p95)).fold(0.0, f64::max);
+    let p95 = if requests == 0 { 0.0 } else { finite(p95) };
     let health = if error_rate > 0.05 { Health::Critical } else if error_rate > 0.01 { Health::Warn } else { Health::Ok };
     let kind = if instrumented {
         if meta.web == 1 {
@@ -513,6 +592,8 @@ pub async fn service(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
         versions: clean(meta.versions),
         resources: clean(meta.resources),
         hosts: clean(meta.hosts),
+        operation: req.operation.clone().unwrap_or_else(|| ALL_OPERATIONS.to_string()),
+        operations: ops,
         series: series
             .into_iter()
             .map(|b| SeriesPoint { t: b.t, hits: b.hits, errors: b.errors, p50_ms: finite(b.p50), p95_ms: finite(b.p95), p99_ms: finite(b.p99) })
@@ -522,7 +603,7 @@ pub async fn service(State(st): State<AppState>, OrgId(org): OrgId, Json(req): J
 }
 
 fn req_clone(r: &ServiceRequest) -> ServiceRequest {
-    ServiceRequest { range: r.range, service: r.service.clone(), env: r.env.clone(), resource: r.resource.clone(), version: r.version.clone() }
+    ServiceRequest { range: r.range, service: r.service.clone(), env: r.env.clone(), resource: r.resource.clone(), version: r.version.clone(), operation: r.operation.clone() }
 }
 
 // ================================================================ deployments
@@ -553,6 +634,7 @@ struct DeployAgg {
 #[utoipa::path(post, path = "/api/v1/apm/deployments", request_body = ServiceRequest, responses((status = 200, body = Vec<Deployment>)), tag = "apm")]
 pub async fn deployments(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json<ServiceRequest>) -> ApiResult<Vec<Deployment>> {
     req.range.validate()?;
+    let (req, _) = with_operation(&st, &org, &req, true).await?;
     let (clause, params) = narrow(&ServiceRequest { version: None, ..req_clone(&req) }, true);
     let rows = bind(
         st.ch(&org).query(&format!(
@@ -614,7 +696,8 @@ struct EdgeAgg {
 async fn edges(st: &AppState, org: &str, req: &ServiceRequest, downstream: bool, known: &HashMap<String, String>) -> Result<Vec<Dependency>, ApiError> {
     const BUCKETS: i64 = 20;
     let (clause, mut params) = base(req.range, &req.env, "");
-    let (peer_expr, filter) = if downstream { (PEER, "toString(ServiceName) = ?") } else { ("toString(ServiceName)", "SpanAttributes['peer.service'] = ?") };
+    let upstream_filter = format!("{INFERRED_PEER} = ?");
+    let (peer_expr, filter) = if downstream { (INFERRED_PEER, "toString(ServiceName) = ?") } else { ("toString(ServiceName)", upstream_filter.as_str()) };
     let size = ((req.range.to - req.range.from) / BUCKETS).max(1);
     let mut all = vec![Param::Int(req.range.from), Param::Int(size)];
     all.append(&mut params);
@@ -623,7 +706,7 @@ async fn edges(st: &AppState, org: &str, req: &ServiceRequest, downstream: bool,
         st.ch(org).query(&format!(
             "SELECT {peer_expr} AS peer, intDiv(toInt64(toUnixTimestamp64Milli(Timestamp)) - ?, ?) AS bucket, count() AS hits, countIf(StatusCode = 'Error') AS errors, \
              quantile(0.95)(Duration) / 1e6 AS p95, any(SpanAttributes['db.system']) AS db_system, any(SpanAttributes['messaging.system']) AS messaging \
-             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND {OUTBOUND} AND {PEER} != '' AND {filter} GROUP BY peer, bucket"
+             FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND {OUTBOUND} AND {INFERRED_PEER} != '' AND {filter} GROUP BY peer, bucket"
         )),
         &all,
     )
@@ -711,7 +794,7 @@ pub async fn databases(State(st): State<AppState>, OrgId(org): OrgId, Json(req):
     params.push(Param::Str(req.service.clone()));
     let rows = bind(
         st.ch(&org).query(&format!(
-            "SELECT SpanAttributes['db.system'] AS db_system, SpanAttributes['db.name'] AS db_name, SpanAttributes['db.statement'] AS statement, \
+            "SELECT SpanAttributes['db.system'] AS db_system, SpanAttributes['db.name'] AS db_name, {DB_STATEMENT} AS statement, \
              count() AS hits, countIf(StatusCode = 'Error') AS errors, quantile(0.95)(Duration) / 1e6 AS p95, sum(Duration) AS total \
              FROM otel.otel_traces WHERE OrgId = {{oc_org:String}} AND {clause} AND SpanKind = 'Client' AND ServiceName = ? AND SpanAttributes['db.system'] != '' \
              GROUP BY db_system, db_name, statement ORDER BY total DESC LIMIT 100"
@@ -1218,4 +1301,131 @@ pub async fn envs(State(st): State<AppState>, OrgId(org): OrgId, Json(req): Json
     let mut envs: Vec<String> = row.envs.into_iter().filter(|e| !e.is_empty()).collect();
     envs.sort();
     Ok(Json(envs))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Spans of `storefront-api`: `(name, kind, duration ms, span attributes)`, one second apart, a minute ago.
+    async fn spans(st: &AppState, org: &str, rows: &[(&str, &str, u64, &[(&str, &str)])]) {
+        let start = chrono::Utc::now().timestamp_millis() - 60_000;
+        let values: Vec<String> = rows
+            .iter()
+            .enumerate()
+            .map(|(i, (name, kind, ms, attrs))| {
+                let attrs: Vec<String> = attrs.iter().map(|(k, v)| format!("'{k}', '{}'", v.replace('\'', "\\'"))).collect();
+                format!(
+                    "(fromUnixTimestamp64Milli(toInt64({})), '{i:032x}', '{i:016x}', '{name}', '{kind}', 'storefront-api', map('deployment.environment', 'prod', 'oc.org_id', '{org}'), map({}), {}, 'Ok')",
+                    start + i as i64 * 1000,
+                    attrs.join(", "),
+                    ms * 1_000_000
+                )
+            })
+            .collect();
+        st.ch(org)
+            .query(&format!(
+                "INSERT INTO otel.otel_traces (Timestamp, TraceId, SpanId, SpanName, SpanKind, ServiceName, ResourceAttributes, SpanAttributes, Duration, StatusCode) VALUES {}",
+                values.join(", ")
+            ))
+            .execute()
+            .await
+            .expect("insert spans");
+    }
+
+    fn req(org_range: TimeRange, operation: Option<&str>) -> ServiceRequest {
+        ServiceRequest { range: org_range, service: "storefront-api".into(), env: None, resource: None, version: None, operation: operation.map(str::to_string) }
+    }
+
+    fn range() -> TimeRange {
+        let now = chrono::Utc::now().timestamp_millis();
+        TimeRange { from: now - 600_000, to: now }
+    }
+
+    /// As Datadog's service page: the primary operation (the one with the most requests) unless another is
+    /// chosen, so long-lived WebSocket sessions don't make every request look slow.
+    #[tokio::test]
+    async fn a_service_shows_its_primary_operation() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "apm-operation").await;
+        let http: &[(&str, &str)] = &[("operation.name", "http.server.request"), ("http.method", "GET")];
+        let ws: &[(&str, &str)] = &[("operation.name", "server.request")];
+        // 25 fast requests, then (alone in its bucket) a slow one, and a WebSocket session.
+        let mut rows: Vec<(&str, &str, u64, &[(&str, &str)])> = (0..25).map(|i| (if i % 2 == 0 { "GET /cart" } else { "GET /orders" }, "Server", 10 + i % 5, http)).collect();
+        rows.push(("GET /cart", "Server", 900, http));
+        rows.push(("HTTP", "Server", 60_000, ws));
+        spans(st, &org, &rows).await;
+
+        let Json(s) = service(State(st.clone()), OrgId(org.clone()), Json(req(range(), None))).await.unwrap();
+        assert_eq!((s.operation.as_str(), s.operations.clone()), ("http.server.request", vec!["http.server.request".to_string(), "server.request".to_string()]));
+        assert_eq!(s.requests, 26);
+        // The range's p95, not the slowest bucket's.
+        assert!(s.p95_ms < 100.0, "{}", s.p95_ms);
+        assert_eq!(s.resources, ["GET /cart", "GET /orders"]);
+
+        let Json(ws) = service(State(st.clone()), OrgId(org.clone()), Json(req(range(), Some("server.request")))).await.unwrap();
+        assert_eq!((ws.operation.as_str(), ws.requests), ("server.request", 1));
+        let Json(all) = service(State(st.clone()), OrgId(org.clone()), Json(req(range(), Some("*")))).await.unwrap();
+        assert_eq!(all.requests, 27);
+
+        let Json(rs) = resources(State(st.clone()), OrgId(org.clone()), Json(ResourcesRequest { range: range(), env: None, service: Some("storefront-api".into()), operation: None })).await.unwrap();
+        assert!(rs.iter().all(|r| r.resource != "HTTP"), "the WebSocket sessions are another operation's");
+        let Json(deploys) = deployments(State(st.clone()), OrgId(org), Json(req(range(), None))).await.unwrap();
+        assert_eq!(deploys.iter().map(|d| d.requests).sum::<u64>(), 26);
+    }
+
+    /// Without `peer.service` (Datadog's tracers don't set it by default), databases, caches and hosts are
+    /// inferred from the client spans, as Datadog's inferred services.
+    #[tokio::test]
+    async fn dependencies_are_inferred_without_peer_service() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "apm-inferred").await;
+        spans(
+            st,
+            &org,
+            &[
+                ("SELECT", "Client", 3, &[("db.system", "postgresql"), ("db.name", "orders"), ("net.peer.name", "postgres.example.internal")]),
+                ("GET", "Client", 1, &[("db.system", "redis"), ("net.peer.name", "redis-master")]),
+                ("GET /v1/prices", "Client", 20, &[("http.method", "GET"), ("server.address", "catalog-service")]),
+                ("GET /v1/stock", "Client", 20, &[("peer.service", "inventory-service"), ("server.address", "inventory.example.internal")]),
+            ],
+        )
+        .await;
+        let Json(d) = dependencies(State(st.clone()), OrgId(org), Json(req(range(), None))).await.unwrap();
+        let mut down: Vec<(String, Option<String>)> = d.downstream.iter().map(|d| (d.service.clone(), d.technology.clone())).collect();
+        down.sort();
+        assert_eq!(
+            down,
+            [
+                ("catalog-service".to_string(), None),
+                ("inventory-service".to_string(), None),
+                ("orders".to_string(), Some("postgresql".to_string())),
+                ("redis-master".to_string(), Some("redis".to_string())),
+            ]
+        );
+    }
+
+    /// Statements are grouped by their shape (literals as `?`), and calls without one by their span name.
+    #[tokio::test]
+    async fn database_calls_are_grouped_by_statement_shape() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "apm-databases").await;
+        let pg = |s: &'static str| -> Vec<(&'static str, &'static str)> { vec![("db.system", "postgresql"), ("db.name", "orders"), ("db.statement", s)] };
+        let (a, b, c) = (pg("SELECT * FROM orders WHERE id = 42 LIMIT 10"), pg("SELECT * FROM orders WHERE id = 7 LIMIT 20"), pg("SELECT * FROM orders WHERE status IN ('new', 'paid') AND note = 'it''s'"));
+        spans(st, &org, &[("SELECT", "Client", 3, &a), ("SELECT", "Client", 3, &b), ("SELECT", "Client", 3, &c), ("connect", "Client", 1, &[("db.system", "postgresql"), ("db.name", "orders")])]).await;
+        let Json(rows) = databases(State(st.clone()), OrgId(org), Json(req(range(), None))).await.unwrap();
+        let mut got: Vec<(String, u64)> = rows.iter().map(|r| (r.statement.clone(), r.requests)).collect();
+        got.sort();
+        assert_eq!(
+            got,
+            [
+                ("SELECT * FROM orders WHERE id = ? LIMIT ?".to_string(), 2),
+                ("SELECT * FROM orders WHERE status IN (?) AND note = ?".to_string(), 1),
+                ("connect".to_string(), 1),
+            ]
+        );
+    }
 }

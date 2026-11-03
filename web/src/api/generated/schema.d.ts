@@ -19788,6 +19788,8 @@ export interface components {
         };
         ResourcesRequest: {
             env?: string | null;
+            /** @description With a service: its operation; its primary one when absent, all with `*`. */
+            operation?: string | null;
             range: components["schemas"]["TimeRange"];
             /** @description Restrict to one service (instrumented or inferred). */
             service?: string | null;
@@ -20826,6 +20828,8 @@ export interface components {
         };
         ServiceRequest: {
             env?: string | null;
+            /** @description The operation shown (`http.server.request`): the service's primary one when absent, all with `*`. */
+            operation?: string | null;
             range: components["schemas"]["TimeRange"];
             /** @description Restrict to one resource (span name). */
             resource?: string | null;
@@ -20875,6 +20879,9 @@ export interface components {
             instrumented: boolean;
             kind: components["schemas"]["ServiceKind"];
             language?: string | null;
+            /** @description The operation shown (`*`: all), and the service's operations, the most requested first. */
+            operation: string;
+            operations: string[];
             /** Format: double */
             p95Ms: number;
             /** Format: double */

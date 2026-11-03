@@ -34,6 +34,8 @@ export interface ServiceScope extends ApmScope {
   service: string;
   resource?: string | null;
   version?: string | null;
+  /** The operation shown: the service's primary one when unset, all with `*`. */
+  operation?: string | null;
 }
 
 const live = API_MODE === 'live';
@@ -59,19 +61,19 @@ export async function listAnomalies(s: ApmScope, signal?: AbortSignal) {
 }
 
 /** Resources (endpoints) of one service, or of every instrumented service when `service` is unset. */
-export async function listResources(s: ApmScope & { service?: string | null }, signal?: AbortSignal) {
+export async function listResources(s: ApmScope & { service?: string | null; operation?: string | null }, signal?: AbortSignal) {
   if (!live) return mock.listResources(s);
-  return post('/api/v1/apm/resources', { range: s.range, env: s.env, service: s.service }, signal);
+  return post('/api/v1/apm/resources', { range: s.range, env: s.env, service: s.service, operation: s.operation }, signal);
 }
 
 export async function getServiceSummary(s: ServiceScope, signal?: AbortSignal) {
   if (!live) return mock.getServiceSummary(s);
-  return post('/api/v1/apm/service', { range: s.range, env: s.env, service: s.service, resource: s.resource, version: s.version }, signal);
+  return post('/api/v1/apm/service', { range: s.range, env: s.env, service: s.service, resource: s.resource, version: s.version, operation: s.operation }, signal);
 }
 
 export async function listDeployments(s: ServiceScope, signal?: AbortSignal) {
   if (!live) return mock.listDeployments(s);
-  return post('/api/v1/apm/deployments', { range: s.range, env: s.env, service: s.service }, signal);
+  return post('/api/v1/apm/deployments', { range: s.range, env: s.env, service: s.service, operation: s.operation }, signal);
 }
 
 export async function getDependencies(s: ServiceScope, signal?: AbortSignal) {
