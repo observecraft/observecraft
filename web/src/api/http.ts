@@ -97,7 +97,22 @@ export function del<P extends DeletePath>(path: P, params: Record<PathParams<P>,
 /** POST SSE keeps the query plan out of URLs and uses the same auth/error handling as JSON calls. */
 type StreamOk<P extends PostPath> = PostOp<P> extends { responses: { 200: { content: { 'text/event-stream': infer R } } } } ? R : never;
 export async function postStream<P extends PostPath>(path: P, body: Body<P>, onEvent: (event: string, data: StreamOk<P>) => void, signal: AbortSignal): Promise<void> {
-  const res = await checkedFetch(path, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'text/event-stream' }, body: JSON.stringify(body), signal });
-  if (!res.body || !res.headers.get('content-type')?.includes('text/event-stream')) throw new Error('Expected a dashboard event stream');
+  await streamFrom<P>(path, body, onEvent, signal);
+}
+
+/** postStream to a templated path (`/assist/conversations/{id}/approve`). */
+export async function postStreamTo<P extends PostPath>(
+  path: P,
+  params: Record<PathParams<P>, string>,
+  body: Body<P>,
+  onEvent: (event: string, data: StreamOk<P>) => void,
+  signal: AbortSignal,
+): Promise<void> {
+  await streamFrom<P>(fill(path, params), body, onEvent, signal);
+}
+
+async function streamFrom<P extends PostPath>(url: string, body: Body<P>, onEvent: (event: string, data: StreamOk<P>) => void, signal: AbortSignal): Promise<void> {
+  const res = await checkedFetch(url, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'text/event-stream' }, body: JSON.stringify(body), signal });
+  if (!res.body || !res.headers.get('content-type')?.includes('text/event-stream')) throw new Error('Expected an event stream');
   await readEventStream(res.body, (event, data) => onEvent(event, data as StreamOk<P>));
 }
