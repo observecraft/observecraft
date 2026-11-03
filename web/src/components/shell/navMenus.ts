@@ -72,16 +72,7 @@ export const NAV_SECTIONS: NavItem[][] = [
       to: '/assist',
       icon: Sparkles,
       menu: [
-        group(
-          'Assist Chat',
-          '/assist',
-          [],
-          [
-            ['Reports', '/assist/reports'],
-            ['Settings', '/assist/settings'],
-          ],
-          'NEW',
-        ),
+        group('Assist Chat', '/assist', [['Reports', '/assist/reports']], [['Settings', '/assist/settings']], 'NEW'),
         group(
           'Assist Investigation',
           '/assist/investigations',
