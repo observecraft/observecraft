@@ -10,6 +10,7 @@ import { Initials } from '../dashboards/list/DashboardListPage';
 import { useCreateSpreadsheet, useDeleteSpreadsheets, useSpreadsheetSearch, useUpdateSpreadsheet } from './queries';
 import '../dashboards/dashboards.css';
 import './sheets.css';
+import { UrlSearchInput } from '../../components/ui/UrlSearchInput';
 
 const VIEWS: { key: SpreadsheetView; label: string; icon: typeof User }[] = [
   { key: 'all', label: 'All Spreadsheets', icon: Table2 },
@@ -88,7 +89,7 @@ export function SheetsListPage() {
       <div className="dl-scroll">
         <label className="int-search dl-search">
           <Search size={16} />
-          <input placeholder="Search All Spreadsheets" value={query} onChange={(e) => set({ q: e.target.value })} />
+          <UrlSearchInput placeholder="Search All Spreadsheets" value={query} onChange={(q) => set({ q })} />
         </label>
         <div className="dl-body">
           {showControls && (

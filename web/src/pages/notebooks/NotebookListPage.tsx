@@ -11,6 +11,7 @@ import { Initials } from '../dashboards/list/DashboardListPage';
 import { useCloneNotebook, useCreateNotebook, useDeleteNotebook, useNotebookFavorite, useNotebookSearch, useRestoreNotebook } from './queries';
 import '../dashboards/dashboards.css';
 import './notebooks.css';
+import { UrlSearchInput } from '../../components/ui/UrlSearchInput';
 
 const PAGE = 50;
 
@@ -189,7 +190,7 @@ export function NotebookListPage() {
             <div className="nb-filters">
               <label className="nb-search">
                 <Search size={16} />
-                <input placeholder="Search by title, keyword or author" value={query} onChange={(e) => set({ q: e.target.value, offset: null })} />
+                <UrlSearchInput placeholder="Search by title, keyword or author" value={query} onChange={(q) => set({ q, offset: null })} />
               </label>
               <Select
                 label="Author"
