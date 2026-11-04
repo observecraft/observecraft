@@ -12,6 +12,7 @@ mod bills;
 mod azure;
 mod cloud;
 mod gcp;
+mod gitlab;
 mod cache;
 mod config;
 mod demo;
@@ -214,6 +215,10 @@ async fn main() -> anyhow::Result<()> {
             };
             tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), crawler, interval, concurrency)));
         }
+        // Software Delivery's GitLab CI poller: finished pipelines as CI/CD traces (OTLP JSON traces).
+        let traces: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, gitlab::crawler::TRACES_TOPIC));
+        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(gitlab::crawler::GitlabCrawler { api: Arc::new(gitlab::api::Rest { allow_private: state.config.portal_allow_private }), sink: traces });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, gitlab::crawler::INTERVAL_SECS, concurrency)));
     }
     // Cloud Cost Management's provider bills (`cost_bill_configs`), for the same clouds; written to ClickHouse directly.
     if state.config.cloud_crawlers.iter().any(|c| c == "aws") {

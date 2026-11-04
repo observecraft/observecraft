@@ -12,8 +12,9 @@
 //   POST /api/v1/ci/dora                doraMetrics
 //   GET  /api/v1/ci/repositories        ciRepositories
 import type { components } from '../generated/schema';
-import { API_MODE, get, post, put } from '../http';
+import { API_MODE, del, get, post, postTo, put } from '../http';
 import * as mock from '../mock/ci';
+import * as gitlabMock from '../mock/gitlabCi';
 
 type S = components['schemas'];
 export type CiLevel = S['CiLevel'];
@@ -81,4 +82,39 @@ export async function doraMetrics(range: TimeRange, env: string | null, services
 export async function ciRepositories() {
   if (API_MODE !== 'live') return mock.ciRepositories();
   return get('/api/v1/ci/repositories', {});
+}
+
+// Software Delivery → Settings → GitLab CI: the connection the server polls GitLab's API with.
+//   GET    /api/v1/ci/gitlab        gitlabCiStatus
+//   PUT    /api/v1/ci/gitlab        saveGitlabCi (admins)
+//   DELETE /api/v1/ci/gitlab        deleteGitlabCi (admins)
+//   POST   /api/v1/ci/gitlab/test   testGitlabCi (admins)
+//   POST   /api/v1/ci/gitlab/sync   syncGitlabCi (admins)
+export type GitlabCiInput = S['GitlabCiInput'];
+export type GitlabCiStatus = S['GitlabCiStatus'];
+export type GitlabCiTest = S['GitlabCiTest'];
+
+export async function gitlabCiStatus(): Promise<GitlabCiStatus> {
+  if (API_MODE !== 'live') return gitlabMock.gitlabCiStatus();
+  return get('/api/v1/ci/gitlab', {});
+}
+
+export async function saveGitlabCi(input: GitlabCiInput): Promise<GitlabCiStatus> {
+  if (API_MODE !== 'live') return gitlabMock.saveGitlabCi(input);
+  return put('/api/v1/ci/gitlab', {}, input);
+}
+
+export async function deleteGitlabCi(): Promise<void> {
+  if (API_MODE !== 'live') return gitlabMock.deleteGitlabCi();
+  return del('/api/v1/ci/gitlab', {});
+}
+
+export async function testGitlabCi(input: GitlabCiInput): Promise<GitlabCiTest> {
+  if (API_MODE !== 'live') return gitlabMock.testGitlabCi(input);
+  return post('/api/v1/ci/gitlab/test', input);
+}
+
+export async function syncGitlabCi(): Promise<void> {
+  if (API_MODE !== 'live') return gitlabMock.syncGitlabCi();
+  await postTo('/api/v1/ci/gitlab/sync', {}, undefined);
 }

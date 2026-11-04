@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { API_MODE } from '../../api/http';
 import { Link } from 'react-router-dom';
-import { BookOpen, Check, ChevronDown, ExternalLink, LayoutDashboard, Newspaper, Plus, Search, Siren, TriangleAlert, X } from 'lucide-react';
+import { BookOpen, Check, ChevronDown, ExternalLink, GitBranch, LayoutDashboard, Newspaper, Plus, Search, Siren, TriangleAlert, X } from 'lucide-react';
 import type { IntegrationDocs } from '../../api/integrations/catalog';
 import type { IntegrationDetail, IntegrationStatus } from '../../api/integrations/types';
 import { CodeBlock } from '../../components/code/CodeBlock';
@@ -13,6 +13,9 @@ import { AgentConfigForm } from './AgentConfigForm';
 import { IntegrationLogo } from './IntegrationLogo';
 import { useInstallToggle, useIntegration, useIntegrationDashboards, useIntegrationDocs } from './queries';
 import { ReadmeMarkdown } from './ReadmeMarkdown';
+
+/** Integrations whose CI pipelines Software Delivery imports: the setup step of that provider. */
+const CI_SETUP: Record<string, string> = { gitlab: '/ci/settings?provider=gitlab#add-repository' };
 
 const TABS = ['Overview', 'Configure', 'Data Collected', 'Hosts', 'Monitoring Resources', 'Support', 'Release Notes'] as const;
 type Tab = (typeof TABS)[number];
@@ -67,6 +70,11 @@ function Body({ detail: d, onClose, onCategory }: { detail: IntegrationDetail; o
           </p>
         </div>
         <div className="im-actions">
+          {CI_SETUP[d.id] && (
+            <Link className="btn" to={CI_SETUP[d.id]}>
+              <GitBranch size={14} /> Set up CI pipelines
+            </Link>
+          )}
           {installed ? (
             <div className="btn-group">
               <span className="btn im-installed">

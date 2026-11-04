@@ -1769,6 +1769,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ci/gitlab": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The GitLab CI connection and its sync status (no token). */
+        get: operations["ci_gitlab_status"];
+        /**
+         * Saves the GitLab CI connection (admins). The token is sealed; leave it out to keep the saved one
+         *     (only while the URL stays the same).
+         */
+        put: operations["ci_gitlab_save"];
+        post?: never;
+        /** Removes the GitLab CI connection, its token and its polling (admins). Imported pipelines stay. */
+        delete: operations["ci_gitlab_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ci/gitlab/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Polls GitLab now instead of within the minute (admins). */
+        post: operations["ci_gitlab_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ci/gitlab/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tests a connection before or after saving it (admins): the token's user and scopes, and the projects found. */
+        post: operations["ci_gitlab_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ci/overview": {
         parameters: {
             query?: never;
@@ -15077,6 +15133,99 @@ export interface components {
             /** @description standard | brief */
             template: string;
         };
+        /** @description The connection as saved; the token is never answered. */
+        GitlabCiConnection: {
+            baseUrl: string;
+            groupPath: string;
+            includeSubgroups: boolean;
+            projectPaths: string[];
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+        };
+        /** @description What an admin enters. */
+        GitlabCiInput: {
+            /**
+             * @description `https://gitlab.com` (empty) or the self-managed instance's URL.
+             * @default
+             */
+            baseUrl: string;
+            /**
+             * @description A group to follow (`example-org` or `example-org/platform`).
+             * @default
+             */
+            groupPath: string;
+            /** @default false */
+            includeSubgroups: boolean;
+            /**
+             * @description Projects to follow (`example-org/storefront-api`).
+             * @default []
+             */
+            projectPaths: string[];
+            /**
+             * @description A personal, group or project access token with `read_api`; leave it out to keep the saved one.
+             * @default null
+             */
+            token: string | null;
+        };
+        /** @description A followed project's polling. */
+        GitlabCiProject: {
+            error?: components["schemas"]["CrawlIssue"] | null;
+            /** Format: int64 */
+            id: number;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful poll.
+             */
+            lastSyncAt?: number | null;
+            path: string;
+            /**
+             * Format: int64
+             * @description Epoch ms: pipelines updated up to here were read.
+             */
+            syncedUntil?: number | null;
+        };
+        GitlabCiStatus: {
+            connection?: components["schemas"]["GitlabCiConnection"] | null;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last project list (discovery).
+             */
+            discoveredAt?: number | null;
+            discoveryError?: components["schemas"]["CrawlIssue"] | null;
+            /** Format: int64 */
+            jobsImported: number;
+            /**
+             * Format: int64
+             * @description Epoch ms of the latest exported pipeline.
+             */
+            lastImportAt?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms of the latest successful project poll.
+             */
+            lastSyncAt?: number | null;
+            /**
+             * Format: int64
+             * @description Pipelines and jobs exported (the last 35 days).
+             */
+            pipelinesImported: number;
+            projects: components["schemas"]["GitlabCiProject"][];
+        };
+        /** @description The outcome of testing a connection. */
+        GitlabCiTest: {
+            message: string;
+            ok: boolean;
+            /** @description Projects the connection would follow, and a few of their paths. */
+            projects: number;
+            sample: string[];
+            /** @description The token's scopes, when GitLab reports them. */
+            scopes: string[];
+            /** @description The token's user. */
+            user?: string | null;
+        };
         GpuDevice: {
             cluster?: string | null;
             driver?: string | null;
@@ -27302,6 +27451,137 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ci_gitlab_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitlabCiStatus"];
+                };
+            };
+        };
+    };
+    ci_gitlab_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitlabCiInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitlabCiStatus"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    ci_gitlab_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    ci_gitlab_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    ci_gitlab_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitlabCiInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitlabCiTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };

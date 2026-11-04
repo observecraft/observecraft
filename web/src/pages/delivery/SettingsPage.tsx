@@ -1,8 +1,25 @@
 import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { Check } from 'lucide-react';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
+import { IntegrationLogo } from '../integrations/IntegrationLogo';
+import { Step } from '../integrations/Step';
 import { Ext, PROVIDER_LABEL, StatusPill, fmtAgo } from './common';
+import { GitlabCiSetup } from './GitlabCiSetup';
 import { useRepositories } from './queries';
+import '../integrations/integrations.css';
+import '../integrations/aws/aws.css';
+
+/** CI providers of step 1: GitLab is pulled through its API, the others send OpenTelemetry traces. */
+const PROVIDERS: { id: string; name: string; logo: string }[] = [
+  { id: 'gitlab', name: 'GitLab CI', logo: 'gitlab' },
+  { id: 'github_actions', name: 'GitHub Actions', logo: 'github' },
+  { id: 'jenkins', name: 'Jenkins', logo: 'jenkins' },
+  { id: 'circleci', name: 'CircleCI', logo: 'circleci' },
+  { id: 'buildkite', name: 'Buildkite', logo: 'buildkite' },
+  { id: 'azure_pipelines', name: 'Azure Pipelines', logo: 'tile:azure-devops' },
+  { id: 'otel', name: 'Other (OpenTelemetry)', logo: 'opentelemetry' },
+];
 
 const RESOURCE_ATTRS: [string, string, boolean][] = [
   ['cicd.pipeline.name', 'Pipeline (workflow) name — routes the trace to CI/CD', true],
@@ -52,6 +69,9 @@ const EXAMPLE = `curl -X POST http://<collector>:4318/v1/traces -H 'Content-Type
 export function SettingsPage() {
   const repos = useRepositories();
   const { hash } = useLocation();
+  const [params, setParams] = useSearchParams();
+  const provider = params.get('provider') ?? 'gitlab';
+  const setProvider = (id: string) => setParams((p) => new URLSearchParams({ ...Object.fromEntries(p), provider: id }), { replace: true });
   useEffect(() => {
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth' });
   }, [hash]);
@@ -96,44 +116,71 @@ export function SettingsPage() {
           </table>
         )}
       </section>
-      <section className="ci-card" id="add-repository">
+      <section className="ci-card ci-setup" id="add-repository">
         <h3>Add a repository</h3>
-        <p>
-          ObserveCraft reads CI/CD runs as <b>OpenTelemetry traces</b>: one trace per pipeline run, with a span for the pipeline, one per job, and optionally steps and test cases. Send them to the
-          OpenTelemetry Collector's OTLP endpoint (port 4317 gRPC / 4318 HTTP) from your CI provider's OpenTelemetry integration or exporter. Any trace whose resource has{' '}
-          <code>cicd.pipeline.name</code> is stored as CI data (kept 30 days) instead of APM.
-        </p>
-        <h4>Resource attributes (per run)</h4>
-        <table className="ci-table ci-attr-table">
-          <tbody>
-            {RESOURCE_ATTRS.map(([k, v, req]) => (
-              <tr key={k}>
-                <td>
-                  <code>{k}</code>
-                  {req && <span className="ci-req">required</span>}
-                </td>
-                <td>{v}</td>
-              </tr>
+        <Step n={1} title="Choose your CI provider" open onToggle={() => {}} done>
+          <div className="rt-sources">
+            {PROVIDERS.map((p) => (
+              <button key={p.id} type="button" className={`rt-source${provider === p.id ? ' selected' : ''}`} onClick={() => setProvider(p.id)}>
+                <IntegrationLogo logo={p.logo} name={p.name} size={28} />
+                <span>
+                  {provider === p.id && <Check size={14} />} {p.name}
+                </span>
+              </button>
             ))}
-          </tbody>
-        </table>
-        <h4>Span attributes</h4>
-        <table className="ci-table ci-attr-table">
-          <tbody>
-            {SPAN_ATTRS.map(([k, v]) => (
-              <tr key={k}>
-                <td>
-                  <code>{k}</code>
-                </td>
-                <td>{v}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <h4>Minimal example</h4>
-        <pre className="ci-code">{EXAMPLE}</pre>
-        <p className="muted">Pipeline runs appear in the Explorer within seconds. Flaky-test detection needs test case spans; DORA metrics need deploy jobs with deployment.environment.name.</p>
+          </div>
+        </Step>
+        {provider === 'gitlab' ? (
+          <GitlabCiSetup />
+        ) : (
+          <Step n={2} title="Send pipelines as OpenTelemetry traces" open onToggle={() => {}}>
+            <OtlpInstructions />
+          </Step>
+        )}
       </section>
+    </div>
+  );
+}
+
+/** How to send pipelines from any CI provider as OpenTelemetry traces. */
+function OtlpInstructions() {
+  return (
+    <div className="ci-otlp">
+      <p>
+        ObserveCraft reads CI/CD runs as <b>OpenTelemetry traces</b>: one trace per pipeline run, with a span for the pipeline, one per job, and optionally steps and test cases. Send them to the
+        OpenTelemetry Collector's OTLP endpoint (port 4317 gRPC / 4318 HTTP) from your CI provider's OpenTelemetry integration or exporter. Any trace whose resource has <code>cicd.pipeline.name</code>{' '}
+        is stored as CI data (kept 30 days) instead of APM.
+      </p>
+      <h4>Resource attributes (per run)</h4>
+      <table className="ci-table ci-attr-table">
+        <tbody>
+          {RESOURCE_ATTRS.map(([k, v, req]) => (
+            <tr key={k}>
+              <td>
+                <code>{k}</code>
+                {req && <span className="ci-req">required</span>}
+              </td>
+              <td>{v}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h4>Span attributes</h4>
+      <table className="ci-table ci-attr-table">
+        <tbody>
+          {SPAN_ATTRS.map(([k, v]) => (
+            <tr key={k}>
+              <td>
+                <code>{k}</code>
+              </td>
+              <td>{v}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h4>Minimal example</h4>
+      <pre className="ci-code">{EXAMPLE}</pre>
+      <p className="muted">Pipeline runs appear in the Explorer within seconds. Flaky-test detection needs test case spans; DORA metrics need deploy jobs with deployment.environment.name.</p>
     </div>
   );
 }

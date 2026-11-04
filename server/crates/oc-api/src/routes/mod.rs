@@ -31,6 +31,7 @@ pub mod event_settings;
 pub mod events;
 pub mod feature_flags;
 pub mod fleet;
+pub mod gitlab_ci;
 pub mod gpu;
 pub mod serverless;
 pub mod sql_editor;
@@ -1046,6 +1047,11 @@ use crate::state::AppState;
         ci::set_flaky_state,
         ci::dora,
         ci::repositories,
+        gitlab_ci::get_gitlab,
+        gitlab_ci::put_gitlab,
+        gitlab_ci::delete_gitlab,
+        gitlab_ci::test_gitlab,
+        gitlab_ci::sync_gitlab,
         spans::search,
         spans::facets,
         spans::analytics,
@@ -1295,6 +1301,9 @@ pub fn router() -> Router<AppState> {
         )
         .route("/api/v1/ci/dora", post(ci::dora))
         .route("/api/v1/ci/repositories", get(ci::repositories))
+        .route("/api/v1/ci/gitlab", get(gitlab_ci::get_gitlab).put(gitlab_ci::put_gitlab).delete(gitlab_ci::delete_gitlab))
+        .route("/api/v1/ci/gitlab/test", post(gitlab_ci::test_gitlab))
+        .route("/api/v1/ci/gitlab/sync", post(gitlab_ci::sync_gitlab))
         .route("/api/v1/events/search", post(events::search))
         .route("/api/v1/events/fields", post(events::fields))
         .route("/api/v1/events/work-items", post(events::work_items))
@@ -1940,6 +1949,7 @@ mod tests {
             include_str!("catalog.rs"),
             include_str!("changes.rs"),
             include_str!("ci.rs"),
+            include_str!("gitlab_ci.rs"),
             include_str!("sso.rs"),
             include_str!("spans.rs"),
             include_str!("dashboards.rs"),
@@ -2111,6 +2121,7 @@ mod tests {
             ("changes.rs", include_str!("changes.rs")),
             ("cloud_map.rs", include_str!("cloud_map.rs")),
             ("ci.rs", include_str!("ci.rs")),
+            ("gitlab_ci.rs", include_str!("gitlab_ci.rs")),
             ("deployment_gates.rs", include_str!("deployment_gates.rs")),
             ("pr_gates.rs", include_str!("pr_gates.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),
@@ -2271,6 +2282,11 @@ mod tests {
             ("../cloud/kafka.rs", include_str!("../cloud/kafka.rs")),
             ("../cloud/naming.rs", include_str!("../cloud/naming.rs")),
             ("../cloud/testing.rs", include_str!("../cloud/testing.rs")),
+            ("../gitlab/mod.rs", include_str!("../gitlab/mod.rs")),
+            ("../gitlab/api.rs", include_str!("../gitlab/api.rs")),
+            ("../gitlab/crawler.rs", include_str!("../gitlab/crawler.rs")),
+            ("../gitlab/fixtures.rs", include_str!("../gitlab/fixtures.rs")),
+            ("../gitlab/otlp.rs", include_str!("../gitlab/otlp.rs")),
             ("../azure/mod.rs", include_str!("../azure/mod.rs")),
             ("../azure/api.rs", include_str!("../azure/api.rs")),
             ("../azure/crawler.rs", include_str!("../azure/crawler.rs")),
@@ -2299,6 +2315,7 @@ mod tests {
             ("changes.rs", include_str!("changes.rs")),
             ("cloud_map.rs", include_str!("cloud_map.rs")),
             ("ci.rs", include_str!("ci.rs")),
+            ("gitlab_ci.rs", include_str!("gitlab_ci.rs")),
             ("deployment_gates.rs", include_str!("deployment_gates.rs")),
             ("pr_gates.rs", include_str!("pr_gates.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),

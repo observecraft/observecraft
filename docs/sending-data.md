@@ -400,6 +400,45 @@ options are the same:
 
 Prometheus `remote_write` isn't accepted, the same as Datadog.
 
+## CI/CD pipelines
+
+Software Delivery (pipelines explorer, flaky tests, DORA) reads pipeline runs as OpenTelemetry traces: any trace
+whose resource has `cicd.pipeline.name` is stored as CI data (`otel.otel_ci_traces`, 30 days) instead of APM.
+*Software Delivery → Settings → Add a repository* lists the attributes the pages read.
+
+### GitLab CI (pulled through GitLab's API)
+
+For GitLab.com and self-managed GitLab, ObserveCraft fetches the pipelines itself: GitLab never connects to
+ObserveCraft, so this works when ObserveCraft has no public ingress (the server only needs outbound HTTPS to GitLab).
+
+1. Create a personal, group or project access token with the **`read_api`** scope (a group access token on the group
+   you follow is the usual choice; a project token only sees its project).
+2. In *Software Delivery → Settings → Add a repository*, choose **GitLab CI**, GitLab.com or self-managed (with its
+   URL), enter the token and the group to follow (with or without its subgroups) and/or project paths. **Test
+   connection** shows the token's user, its scopes and the projects found. Organization admins only.
+3. Save. Within a minute the server lists the projects, reads the last 7 days of finished pipelines, then polls each
+   project every minute.
+
+How it works:
+
+- Each finished pipeline (success, failed, canceled, skipped) becomes one trace: the pipeline is the root span
+  (`cicd.pipeline.result`), each job that ran a child span (`cicd.pipeline.task.name`, `ci.stage.name`, result,
+  runner, `ci.job.allow_failure`, the failure reason as `error.type`). The repository is the project's path, the
+  pipeline name GitLab's pipeline name or else the project's path; the commit's author, title and time come from
+  GitLab (`vcs.revision.committed_at` gives DORA's lead time). Jobs that deployed to an environment (GitLab
+  deployments) carry `deployment.environment.name` and `deployment.service.name` (the project's name), so a
+  `production` environment feeds the DORA metrics.
+- Trace and span ids are derived from the project, pipeline and job ids, and exported pipelines are remembered: a
+  pipeline is sent once. Retrying a job after its pipeline finished doesn't send the pipeline again.
+- The traces go through Kafka (`oc.otlp-json.traces`, with the organization's headers) like everything the intake
+  accepts, so `OC_KAFKA_BROKERS` must be set on the server.
+- Limits: at most 100 GitLab requests per project and minute, 500 projects per connection; HTTP 429 from GitLab
+  backs the project off (1 minute, doubling). Errors (a refused token, a missing group) are shown in the setup's
+  last step, never with the token.
+- The token is stored encrypted. Requests go through the same SSRF guard as the Developer Portal's connectors: an
+  instance on a private address needs `OC_PORTAL_ALLOW_PRIVATE=true` on the server.
+- Not imported yet: test reports (flaky tests need test case spans) and job logs.
+
 ## Limits and errors
 
 - Each organization is rate limited (Helm: `intake.orgRequestsPerSecond`, `intake.orgMegabytesPerSecond`). Over the
