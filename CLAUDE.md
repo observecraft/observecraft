@@ -118,6 +118,11 @@ or SDK features.
   Postgres `gcp_accounts`, impersonated by `OC_GCP_PRINCIPAL_EMAIL`). Their crawlers (`oc-api/src/azure/`,
   `oc-api/src/gcp/`) share the AWS one's jobs and Kafka sink (`oc-api/src/cloud/`): a discovery job per account lists
   its subscriptions or projects, each becoming a job; `OC_CLOUD_CRAWLERS` picks the clouds.
+- **Cloud Cost → Recommendations** (`routes/cloud_cost_recommendations.rs`, `GET /api/v1/cloud-cost/recommendations`):
+  our own rules over 14 days of the AWS / Azure crawlers' metrics (idle EC2 instances and Azure VMs, downsizing, RDS
+  without connections, idle EBS volumes and managed disks, unused NAT gateways, idle load balancers, unused public IPs);
+  costs from the bills' `ResourceId`, else a typical size's list price marked as an estimate. Instance and volume types
+  aren't collected, so gp2 → gp3 and type-specific rightsizing aren't there.
 - **Kubernetes** (Integrations → Kubernetes, `routes/kubernetes_integration.rs`; Kubernetes → Autoscaling, Remediation,
   Live Rollouts): installed with the official Datadog chart (the Install tab generates its values) or the
   observecraft-agent chart. Autoscaling (`kubernetes_autoscaling.rs`) reads the inventory, the Cluster Agent's

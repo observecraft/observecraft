@@ -1945,6 +1945,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cloud-cost/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cost-saving recommendations for the org's AWS and Azure resources, with their totals. */
+        get: operations["cloud_cost_recommendations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cloud-cost/tags": {
         parameters: {
             query?: never;
@@ -12702,6 +12719,12 @@ export interface components {
             summary: string;
             verdict: string;
         };
+        ConnectedAccounts: {
+            /** Format: int64 */
+            aws: number;
+            /** Format: int64 */
+            azure: number;
+        };
         ContainerRecommendation: {
             /** Format: double */
             cpuAvg?: number | null;
@@ -12833,6 +12856,42 @@ export interface components {
             series: components["schemas"]["CostSeries"][];
             /** Format: double */
             total: number;
+        };
+        /** @description One recommendation: a resource, what to do with it, why, and what it saves. */
+        CostRecommendation: {
+            /** @description AWS account id or Azure subscription id. */
+            account: string;
+            /** @description How to act on it. */
+            action: string;
+            /** @description What a `list_price` cost assumes. */
+            costBasis: string;
+            /** @description `bill` (the imported bills) or `list_price` (an estimate from a typical size's list price). */
+            costSource: string;
+            evidence: components["schemas"]["RecommendationEvidence"][];
+            /** @description `<resource type>:<resource id>` */
+            id: string;
+            /**
+             * Format: double
+             * @description Estimated monthly cost (USD).
+             */
+            monthlyCost: number;
+            /** Format: double */
+            monthlySavings: number;
+            /** Format: double */
+            observedDays: number;
+            /** @description `aws` or `azure` */
+            provider: string;
+            /** @description The rule's finding with its evidence values ("Max CPU 1.2% … over 14 days"). */
+            reason: string;
+            recommendationLabel: string;
+            recommendationType: string;
+            region: string;
+            resourceId: string;
+            resourceName: string;
+            resourceType: string;
+            resourceTypeLabel: string;
+            /** @description `key:value` */
+            tags: string[];
         };
         CostSeries: {
             /**
@@ -19363,8 +19422,42 @@ export interface components {
              */
             value: number;
         };
+        RecommendationEvidence: {
+            label: string;
+            value: string;
+        };
+        /** @description A recommendation type's (or resource type's) share. */
+        RecommendationGroup: {
+            count: number;
+            id: string;
+            label: string;
+            /** Format: double */
+            monthlyCost: number;
+            /** Format: double */
+            monthlySavings: number;
+        };
         /** @enum {string} */
         RecommendationKind: "repeated_sequential_calls" | "high_error_rate" | "slow_endpoint";
+        RecommendationsResult: {
+            /** @description The connected AWS accounts and Azure app registrations. */
+            accounts: components["schemas"]["ConnectedAccounts"];
+            /** Format: double */
+            annualSavings: number;
+            /** @description Per recommendation type, largest savings first. */
+            byType: components["schemas"]["RecommendationGroup"][];
+            count: number;
+            /** Format: int64 */
+            lookbackDays: number;
+            /** Format: double */
+            monthlyCost: number;
+            /** Format: double */
+            monthlySavings: number;
+            recommendationTypes: components["schemas"]["RecommendationGroup"][];
+            /** @description Largest savings first. */
+            recommendations: components["schemas"]["CostRecommendation"][];
+            /** @description The filters' choices: every resource and recommendation type found (before filtering). */
+            resourceTypes: components["schemas"]["RecommendationGroup"][];
+        };
         /**
          * @description An evaluation result recorded on the span by the application or an evaluator
          *     (`gen_ai.evaluation.result` events or `gen_ai.evaluation.*` attributes).
@@ -27630,6 +27723,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CostQueryResult"];
+                };
+            };
+        };
+    };
+    cloud_cost_recommendations: {
+        parameters: {
+            query?: {
+                /** @description `aws` or `azure` */
+                provider?: string;
+                resourceType?: string;
+                recommendationType?: string;
+                /** @description Comma-separated `key:value` tags (`*` wildcards); a recommendation needs all of them. */
+                tags?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationsResult"];
                 };
             };
         };
