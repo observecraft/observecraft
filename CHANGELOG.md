@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.0](https://github.com/observecraft/observecraft/compare/v0.12.2...v0.13.0) (2026-11-04)
+
+
+### Features
+
+* **ci:** GitLab CI integration that pulls pipelines through GitLab's API ([c62ac68](https://github.com/observecraft/observecraft/commit/c62ac68a1881e6b6eb6636b2bf3f6f226807e21a))
+* **cloud-cost:** recommendations for AWS and Azure resources ([a78d7c7](https://github.com/observecraft/observecraft/commit/a78d7c7fdf079ebb6dcc6c3b6f44f017bf1859ac))
+
 ## [0.12.2](https://github.com/observecraft/observecraft/compare/v0.12.1...v0.12.2) (2026-11-04)
 
 
