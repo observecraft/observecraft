@@ -581,13 +581,20 @@ fn error_message(body: &[u8]) -> String {
 
 /// Sends `call` to its (admin-configured) host through the SSRF guard and returns the JSON answer.
 pub async fn send(call: &HttpCall, allow_private: bool) -> Result<Value, String> {
-    let url = url::Url::parse(&call.url).map_err(|e| format!("Invalid URL: {e}"))?;
+    send_with_status(call, allow_private).await.map_err(|(_, e)| e)
+}
+
+/// [`send`], with the HTTP status of a failed answer (None when no answer came: refused host,
+/// network error, timeout), for callers that back off on throttling.
+pub async fn send_with_status(call: &HttpCall, allow_private: bool) -> Result<Value, (Option<u16>, String)> {
+    let no_answer = |e: String| (None, e);
+    let url = url::Url::parse(&call.url).map_err(|e| no_answer(format!("Invalid URL: {e}")))?;
     if !(url.scheme() == "https" || (url.scheme() == "http" && allow_private)) {
-        return Err("Only https URLs can be called".into());
+        return Err(no_answer("Only https URLs can be called".into()));
     }
-    let host = url.host_str().ok_or("The URL has no host")?.to_string();
-    let port = url.port_or_known_default().ok_or("The URL has no port")?;
-    let addr = resolve(&host, port, allow_private).await?;
+    let host = url.host_str().ok_or_else(|| no_answer("The URL has no host".into()))?.to_string();
+    let port = url.port_or_known_default().ok_or_else(|| no_answer("The URL has no port".into()))?;
+    let addr = resolve(&host, port, allow_private).await.map_err(no_answer)?;
     let mut builder = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .no_proxy()
@@ -598,7 +605,7 @@ pub async fn send(call: &HttpCall, allow_private: bool) -> Result<Value, String>
     if matches!(url.host(), Some(url::Host::Domain(_))) {
         builder = builder.resolve(&host, addr);
     }
-    let client = builder.build().map_err(|e| describe(&e))?;
+    let client = builder.build().map_err(|e| no_answer(describe(&e)))?;
     let mut rb = if call.post { client.post(url) } else { client.get(url) };
     rb = rb.header(reqwest::header::ACCEPT, "application/json");
     rb = match &call.auth {
@@ -610,12 +617,12 @@ pub async fn send(call: &HttpCall, allow_private: bool) -> Result<Value, String>
     if let Some(body) = &call.body {
         rb = rb.json(body);
     }
-    let mut resp = rb.send().await.map_err(|e| describe(&e))?;
+    let mut resp = rb.send().await.map_err(|e| no_answer(describe(&e)))?;
     let status = resp.status();
     let mut body = Vec::new();
-    while let Some(chunk) = resp.chunk().await.map_err(|e| describe(&e))? {
+    while let Some(chunk) = resp.chunk().await.map_err(|e| (Some(status.as_u16()), describe(&e)))? {
         if body.len() + chunk.len() > MAX_RESPONSE_BYTES {
-            return Err(format!("The answer is larger than {} MB", MAX_RESPONSE_BYTES >> 20));
+            return Err((Some(status.as_u16()), format!("The answer is larger than {} MB", MAX_RESPONSE_BYTES >> 20)));
         }
         body.extend_from_slice(&chunk);
     }
@@ -628,9 +635,9 @@ pub async fn send(call: &HttpCall, allow_private: bool) -> Result<Value, String>
             300..=399 => "the server redirected (check the base URL)".to_string(),
             s => format!("HTTP {s}"),
         };
-        return Err(if detail.is_empty() { format!("The provider answered: {what}") } else { format!("The provider answered: {what} ({detail})") });
+        return Err((Some(status.as_u16()), if detail.is_empty() { format!("The provider answered: {what}") } else { format!("The provider answered: {what} ({detail})") }));
     }
-    serde_json::from_slice(&body).map_err(|_| "The provider's answer is not JSON".to_string())
+    serde_json::from_slice(&body).map_err(|_| (Some(status.as_u16()), "The provider's answer is not JSON".to_string()))
 }
 
 #[cfg(test)]
@@ -840,5 +847,15 @@ mod tests {
         assert!(!err.contains("super-secret-token"));
         let (base, _) = fake_server(302, "").await;
         assert!(send(&gitlab_user_call(&base, "t"), true).await.unwrap_err().contains("redirected"));
+    }
+
+    #[tokio::test]
+    async fn failures_keep_the_http_status() {
+        let (base, _) = fake_server(429, r#"{"message":"Retry later"}"#).await;
+        let (status, err) = send_with_status(&gitlab_user_call(&base, "glpat-secret"), true).await.unwrap_err();
+        assert_eq!(status, Some(429));
+        assert!(err.contains("HTTP 429") && !err.contains("glpat-secret"), "{err}");
+        let (status, _) = send_with_status(&gitlab_user_call("https://localhost:1", "t"), false).await.unwrap_err();
+        assert_eq!(status, None);
     }
 }

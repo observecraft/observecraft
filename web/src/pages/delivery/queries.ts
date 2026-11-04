@@ -4,6 +4,11 @@ import {
   aggregations,
   ciOverview,
   ciRepositories,
+  deleteGitlabCi,
+  gitlabCiStatus,
+  saveGitlabCi,
+  syncGitlabCi,
+  testGitlabCi,
   doraMetrics,
   executionCharts,
   executionFacets,
@@ -13,6 +18,7 @@ import {
   setFlakyState,
   type CiQuery,
   type FlakyState,
+  type GitlabCiInput,
   type TimeRange,
 } from '../../api/ci/client';
 
@@ -84,4 +90,23 @@ export function useSetFlakyState() {
     mutationFn: (v: { repository: string; suite: string; name: string; state: FlakyState }) => setFlakyState(v.repository, v.suite, v.name, v.state),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ci', 'flaky'] }),
   });
+}
+
+/** The GitLab CI connection and its sync status; refreshed every 15 s while the first pipelines arrive. */
+export const useGitlabCi = () =>
+  useQuery({
+    queryKey: ['ci', 'gitlab'],
+    queryFn: gitlabCiStatus,
+    refetchInterval: (q) => (q.state.data?.connection ? 15_000 : false),
+  });
+
+export function useGitlabCiMutations() {
+  const qc = useQueryClient();
+  const refresh = () => qc.invalidateQueries({ queryKey: ['ci'] });
+  return {
+    test: useMutation({ mutationFn: (input: GitlabCiInput) => testGitlabCi(input) }),
+    save: useMutation({ mutationFn: (input: GitlabCiInput) => saveGitlabCi(input), onSuccess: refresh }),
+    remove: useMutation({ mutationFn: deleteGitlabCi, onSuccess: refresh }),
+    sync: useMutation({ mutationFn: syncGitlabCi, onSuccess: refresh }),
+  };
 }

@@ -66,7 +66,7 @@ visibility in one place, built on OpenTelemetry and ClickHouse.**
 | ☸️ | **Containers** | Kubernetes Overview and Explorer (pods, workloads, nodes, network, policies, storage, access control, CRDs, containers, container images) with facets, group-by, map and side panels (YAML, logs, APM, metrics, events, monitors); Resource Utilization; ECS Explorer (tasks, task definitions, services, clusters). Collector manifests in `deploy/examples/kubernetes`, ECS (FireLens + ADOT) in `deploy/examples/ecs` |
 | 🚨 | **Monitors** | Metric, APM, log and change monitors; warn/alert thresholds with recovery; backtesting; downtimes; notifications to webhooks (HMAC-signed), Slack and email with retries; quality checks |
 | 🧯 | **Incidents** | Declare, triage, timeline, impacts, follow-ups and analytics |
-| 🚀 | **Software Delivery** | CI pipeline explorer, flaky-test management, DORA metrics from OpenTelemetry CI/CD semantic conventions |
+| 🚀 | **Software Delivery** | CI pipeline explorer, flaky-test management, DORA metrics from OpenTelemetry CI/CD semantic conventions; GitLab CI pipelines pulled through GitLab's API (no inbound access needed) |
 | 🔐 | **Identity & tenancy** | Organizations with an instance admin console, one account across orgs, password + TOTP MFA, SAML 2.0, OIDC, roles, teams, SAML group mappings, application and ingest API keys, audit trail |
 
 <details>

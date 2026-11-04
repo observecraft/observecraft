@@ -865,3 +865,59 @@
   color: #e6e8ee;
   font-size: var(--fs-md);
 }
+
+/* Settings → Add a repository: the CI provider setup steps. */
+.ci-setup .rt-step:last-of-type {
+  padding-bottom: 0;
+}
+
+.ci-setup .ci-installs {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  max-width: 720px;
+}
+
+.ci-setup .rt-field {
+  max-width: 560px;
+}
+
+.ci-setup .rt-field textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font: inherit;
+  font-family: var(--font-mono);
+  resize: vertical;
+}
+
+.ci-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ci-sync {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 18px;
+  margin: 0;
+}
+
+.ci-sync dt {
+  color: var(--text-muted);
+}
+
+.ci-sync dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ci-otlp {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ci-otlp h4 {
+  margin: 10px 0 0;
+}

@@ -4026,6 +4026,142 @@
         }
       }
     },
+    "/api/v1/ci/gitlab": {
+      "get": {
+        "tags": [
+          "ci"
+        ],
+        "summary": "The GitLab CI connection and its sync status (no token).",
+        "operationId": "ci_gitlab_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabCiStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ci"
+        ],
+        "summary": "Saves the GitLab CI connection (admins). The token is sealed; leave it out to keep the saved one\n(only while the URL stays the same).",
+        "operationId": "ci_gitlab_save",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitlabCiInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabCiStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "ci"
+        ],
+        "summary": "Removes the GitLab CI connection, its token and its polling (admins). Imported pipelines stay.",
+        "operationId": "ci_gitlab_delete",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ci/gitlab/sync": {
+      "post": {
+        "tags": [
+          "ci"
+        ],
+        "summary": "Polls GitLab now instead of within the minute (admins).",
+        "operationId": "ci_gitlab_sync",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ci/gitlab/test": {
+      "post": {
+        "tags": [
+          "ci"
+        ],
+        "summary": "Tests a connection before or after saving it (admins): the token's user and scopes, and the projects found.",
+        "operationId": "ci_gitlab_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitlabCiInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabCiTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ci/overview": {
       "post": {
         "tags": [
@@ -45485,6 +45621,234 @@
           "template": {
             "type": "string",
             "description": "standard | brief"
+          }
+        }
+      },
+      "GitlabCiConnection": {
+        "type": "object",
+        "description": "The connection as saved; the token is never answered.",
+        "required": [
+          "baseUrl",
+          "groupPath",
+          "includeSubgroups",
+          "projectPaths",
+          "updatedAt"
+        ],
+        "properties": {
+          "baseUrl": {
+            "type": "string"
+          },
+          "groupPath": {
+            "type": "string"
+          },
+          "includeSubgroups": {
+            "type": "boolean"
+          },
+          "projectPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          }
+        }
+      },
+      "GitlabCiInput": {
+        "type": "object",
+        "description": "What an admin enters.",
+        "properties": {
+          "baseUrl": {
+            "type": "string",
+            "description": "`https://gitlab.com` (empty) or the self-managed instance's URL.",
+            "default": ""
+          },
+          "groupPath": {
+            "type": "string",
+            "description": "A group to follow (`example-org` or `example-org/platform`).",
+            "default": ""
+          },
+          "includeSubgroups": {
+            "type": "boolean",
+            "default": false
+          },
+          "projectPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Projects to follow (`example-org/storefront-api`).",
+            "default": []
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A personal, group or project access token with `read_api`; leave it out to keep the saved one.",
+            "default": null
+          }
+        }
+      },
+      "GitlabCiProject": {
+        "type": "object",
+        "description": "A followed project's polling.",
+        "required": [
+          "id",
+          "path"
+        ],
+        "properties": {
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CrawlIssue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "lastSyncAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last successful poll."
+          },
+          "path": {
+            "type": "string"
+          },
+          "syncedUntil": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms: pipelines updated up to here were read."
+          }
+        }
+      },
+      "GitlabCiStatus": {
+        "type": "object",
+        "required": [
+          "projects",
+          "pipelinesImported",
+          "jobsImported"
+        ],
+        "properties": {
+          "connection": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GitlabCiConnection",
+                "description": "None until an admin connects GitLab."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "discoveredAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last project list (discovery)."
+          },
+          "discoveryError": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CrawlIssue",
+                "description": "Why the project list couldn't be read (token refused, group not found, …)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "jobsImported": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lastImportAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the latest exported pipeline."
+          },
+          "lastSyncAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the latest successful project poll."
+          },
+          "pipelinesImported": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Pipelines and jobs exported (the last 35 days)."
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitlabCiProject"
+            }
+          }
+        }
+      },
+      "GitlabCiTest": {
+        "type": "object",
+        "description": "The outcome of testing a connection.",
+        "required": [
+          "ok",
+          "message",
+          "scopes",
+          "projects",
+          "sample"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "projects": {
+            "type": "integer",
+            "description": "Projects the connection would follow, and a few of their paths.",
+            "minimum": 0
+          },
+          "sample": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The token's scopes, when GitLab reports them."
+          },
+          "user": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The token's user."
           }
         }
       },
