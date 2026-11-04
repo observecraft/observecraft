@@ -25,7 +25,9 @@ metadata:
     {{- include "oc.componentLabels" (list . "collector") | nindent 4 }}
 spec:
   serviceName: {{ $fullname }}-collector-headless
+  {{- if not .Values.collector.autoscaling.enabled }}
   replicas: {{ .Values.collector.replicas }}
+  {{- end }}
   podManagementPolicy: Parallel
   selector:
     matchLabels:
@@ -59,6 +61,9 @@ spec:
             # Client-side balancing over every Vector pod (gRPC connections are long-lived).
             - { name: OC_VECTOR_OTLP_ENDPOINT, value: "dns:///{{ $fullname }}-vector-headless:4317" }
             - { name: OC_COLLECTOR_MEMORY_LIMIT_MIB, value: {{ .Values.collector.memoryLimitMiB | quote }} }
+            # The Go runtime collects garbage harder as the heap nears this, so fetched data waiting
+            # for a busy pipeline slows consumption instead of passing the container's limit.
+            - { name: GOMEMLIMIT, value: "{{ .Values.collector.memoryLimitMiB }}MiB" }
             - { name: OC_KAFKA_BROKERS, value: {{ include "oc.kafkaBrokers" . | quote }} }
             - { name: CLICKHOUSE_USER, value: {{ include "oc.clickhouseIngestUser" . | quote }} }
             - name: CLICKHOUSE_PASSWORD
@@ -115,6 +120,33 @@ spec:
     {{- include "oc.selector" (list . "collector") | nindent 4 }}
   ports:
     - { name: otlp-http, port: 4318 }
+{{- if .Values.collector.autoscaling.enabled }}
+{{- if gt (int .Values.collector.autoscaling.maxReplicas) (int .Values.kafka.partitions) }}
+{{- fail (printf "collector.autoscaling.maxReplicas (%d) is more than kafka.partitions (%d): a consumer beyond the partition count gets none and sits idle." (int .Values.collector.autoscaling.maxReplicas) (int .Values.kafka.partitions)) }}
+{{- end }}
+---
+# Scales the collectors on their Kafka consumer lag (needs KEDA in the cluster): a backlog after an
+# outage brings more consumers, each with bounded memory, and they scale back down once caught up.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ $fullname }}-collector
+  labels:
+    {{- include "oc.componentLabels" (list . "collector") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: {{ $fullname }}-collector
+  minReplicaCount: {{ .Values.collector.autoscaling.minReplicas }}
+  maxReplicaCount: {{ .Values.collector.autoscaling.maxReplicas }}
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: {{ include "oc.kafkaBrokers" . }}
+        consumerGroup: oc-collector
+        lagThreshold: {{ .Values.collector.autoscaling.lagThreshold | quote }}
+{{- end }}
 {{- if .Values.collector.podDisruptionBudget.enabled }}
 ---
 apiVersion: policy/v1

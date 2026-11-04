@@ -27,9 +27,14 @@ receivers:
     # A record the pipeline refused (the export queue full, ClickHouse down long enough) is retried
     # instead of pausing its partition until a rebalance.
     error_backoff: { enabled: true, initial_interval: 1s, max_interval: 30s }
+    # Memory goes to fetched batches, held decompressed until their worker takes them (Agent payloads
+    # compress 10-30x): one small fetch buffered per partition. Throughput comes from records in flight
+    # instead (cheap: one decoded request each), enough to fill the exporters' batches without waiting
+    # for their flush timeout. With GOMEMLIMIT, a backlog then drains slower rather than OOMKilling us.
+    max_partition_fetch_size: 262144
     # Each partition in its own worker, several requests in flight: waiting for the queue on one
     # partition doesn't hold the others (ordering within an org isn't needed for telemetry).
-    partition_processing: { independent: true, max_buffered_batches: 4, max_in_flight: { records: 8 } }
+    partition_processing: { independent: true, max_buffered_batches: 1, max_in_flight: { records: 64 } }
     traces: { topics: [oc.otlp.traces], encoding: otlp_proto }
     metrics: { topics: [oc.otlp.metrics], encoding: otlp_proto }
     logs: { topics: [oc.otlp.logs], encoding: otlp_proto }
@@ -42,9 +47,9 @@ receivers:
     # A record the pipeline refused (the export queue full, ClickHouse down long enough) is retried
     # instead of pausing its partition until a rebalance.
     error_backoff: { enabled: true, initial_interval: 1s, max_interval: 30s }
-    # Each partition in its own worker, several requests in flight: waiting for the queue on one
-    # partition doesn't hold the others (ordering within an org isn't needed for telemetry).
-    partition_processing: { independent: true, max_buffered_batches: 4, max_in_flight: { records: 8 } }
+    # Fetch buffering and records in flight as kafka/otlp.
+    max_partition_fetch_size: 262144
+    partition_processing: { independent: true, max_buffered_batches: 1, max_in_flight: { records: 64 } }
     traces: { topics: [oc.otlp-json.traces], encoding: otlp_json }
     metrics: { topics: [oc.otlp-json.metrics], encoding: otlp_json }
     logs: { topics: [oc.otlp-json.logs], encoding: otlp_json }
