@@ -213,6 +213,7 @@ import { ConnectAwsBillPage, ConnectAzureBillPage } from './pages/cloudCost/Conn
 import { ProvidersPage } from './pages/cloudCost/ProvidersPage';
 import { CommitmentsPage } from './pages/cloudCost/CommitmentsPage';
 import { UnitCostsPage } from './pages/cloudCost/UnitCostsPage';
+import { RecommendationsPage as CostRecommendationsPage } from './pages/cloudCost/RecommendationsPage';
 import { PoliciesPage } from './pages/infrastructure/PoliciesPage';
 import { PolicyDetailPage } from './pages/infrastructure/PolicyDetailPage';
 import { PolicyEditorPage } from './pages/infrastructure/PolicyEditorPage';
@@ -542,6 +543,7 @@ function Shell() {
               <Route path="budgets/:id" element={<BudgetDetailPage />} />
               <Route path="commitments" element={<CommitmentsPage />} />
               <Route path="unit-costs" element={<UnitCostsPage />} />
+              <Route path="recommendations" element={<CostRecommendationsPage />} />
               <Route path="settings" element={<ProvidersPage />} />
               <Route path="*" element={<CloudCostComingSoon />} />
             </Route>

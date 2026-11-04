@@ -13,9 +13,11 @@
 //   POST /api/v1/cloud-cost/bill-configs/{provider}  createBillConfig   Datadog's create attributes
 //   PATCH /api/v1/cloud-cost/bill-configs/{provider}/{id}  setBillConfigEnabled
 //   DELETE /api/v1/cloud-cost/bill-configs/{provider}/{id}  deleteBillConfig   archives it; the costs stay
+//   GET  /api/v1/cloud-cost/recommendations  costRecommendations  waste found in the AWS and Azure accounts' metrics, with totals
 import type { components } from '../generated/schema';
 import { API_MODE, del, get, patch, post, postTo, put } from '../http';
 import * as mock from '../mock/cloudCost';
+import * as recommendationsMock from '../mock/cloudCostRecommendations';
 
 const live = API_MODE === 'live';
 
@@ -32,6 +34,17 @@ export type UnitCostRow = components['schemas']['UnitCostRow'];
 export type CommitmentsRequest = components['schemas']['CommitmentsRequest'];
 export type CommitmentsResult = components['schemas']['CommitmentsResult'];
 export type Commitment = components['schemas']['Commitment'];
+export type CostRecommendation = components['schemas']['CostRecommendation'];
+export type RecommendationsResult = components['schemas']['RecommendationsResult'];
+export type RecommendationGroup = components['schemas']['RecommendationGroup'];
+
+/** Filters of the recommendations; `tags` are `key:value` (`*` wildcards), all required. */
+export interface RecommendationFilters {
+  provider?: string;
+  resourceType?: string;
+  recommendationType?: string;
+  tags?: string[];
+}
 
 export type BillProvider = 'aws' | 'azure';
 export type BillStatus = 'active' | 'disabled';
@@ -188,4 +201,14 @@ export async function setBillConfigEnabled(provider: BillProvider, id: string, e
 export async function deleteBillConfig(provider: BillProvider, id: string): Promise<void> {
   if (!live) return mock.deleteBillConfig(provider, id);
   return del('/api/v1/cloud-cost/bill-configs/{provider}/{id}', { provider, id });
+}
+
+export async function costRecommendations(f: RecommendationFilters, signal?: AbortSignal): Promise<RecommendationsResult> {
+  if (!live) return recommendationsMock.recommendations(f);
+  const query: Record<string, string> = {};
+  if (f.provider) query.provider = f.provider;
+  if (f.resourceType) query.resourceType = f.resourceType;
+  if (f.recommendationType) query.recommendationType = f.recommendationType;
+  if (f.tags?.length) query.tags = f.tags.join(',');
+  return get('/api/v1/cloud-cost/recommendations', {}, signal, query);
 }

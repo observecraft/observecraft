@@ -92,6 +92,7 @@ pub mod reference_tables;
 pub mod resource_changes;
 pub mod cloud_cost;
 pub mod cloud_cost_bills;
+pub mod cloud_cost_recommendations;
 pub mod code_security;
 pub mod code_security_model;
 pub mod resource_policies;
@@ -544,6 +545,7 @@ use crate::state::AppState;
         cloud_cost::tags,
         cloud_cost::unit_costs,
         cloud_cost::commitments,
+        cloud_cost_recommendations::recommendations,
         code_security::list_library_vulnerabilities,
         code_security::list_advisories,
         code_security::get_advisory,
@@ -1337,6 +1339,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/cloud-cost/tags", post(cloud_cost::tags))
         .route("/api/v1/cloud-cost/unit-costs", post(cloud_cost::unit_costs))
         .route("/api/v1/cloud-cost/commitments", post(cloud_cost::commitments))
+        .route("/api/v1/cloud-cost/recommendations", get(cloud_cost_recommendations::recommendations))
         .route("/api/v1/code-security/summary", get(code_security::summary))
         .route("/api/v1/code-security/library-vulnerabilities", post(code_security::list_library_vulnerabilities))
         .route("/api/v1/code-security/advisories", post(code_security::list_advisories))
@@ -2286,6 +2289,7 @@ mod tests {
             ("../aws/naming.rs", include_str!("../aws/naming.rs")),
             ("cloud_cost.rs", include_str!("cloud_cost.rs")),
             ("cloud_cost_bills.rs", include_str!("cloud_cost_bills.rs")),
+            ("cloud_cost_recommendations.rs", include_str!("cloud_cost_recommendations.rs")),
             ("code_security.rs", include_str!("code_security.rs")),
             ("code_security_model.rs", include_str!("code_security_model.rs")),
             ("datadog_api/cost.rs", include_str!("datadog_api/cost.rs")),

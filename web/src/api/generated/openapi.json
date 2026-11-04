@@ -4408,6 +4408,62 @@
         }
       }
     },
+    "/api/v1/cloud-cost/recommendations": {
+      "get": {
+        "tags": [
+          "cloud-cost"
+        ],
+        "summary": "Cost-saving recommendations for the org's AWS and Azure resources, with their totals.",
+        "operationId": "cloud_cost_recommendations",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "description": "`aws` or `azure`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resourceType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recommendationType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "description": "Comma-separated `key:value` tags (`*` wildcards); a recommendation needs all of them.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationsResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/cloud-cost/tags": {
       "post": {
         "tags": [
@@ -37753,6 +37809,23 @@
           }
         }
       },
+      "ConnectedAccounts": {
+        "type": "object",
+        "required": [
+          "aws",
+          "azure"
+        ],
+        "properties": {
+          "aws": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "azure": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "ContainerRecommendation": {
         "type": "object",
         "required": [
@@ -38156,6 +38229,108 @@
           "total": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "CostRecommendation": {
+        "type": "object",
+        "description": "One recommendation: a resource, what to do with it, why, and what it saves.",
+        "required": [
+          "id",
+          "provider",
+          "account",
+          "region",
+          "resourceId",
+          "resourceName",
+          "resourceType",
+          "resourceTypeLabel",
+          "recommendationType",
+          "recommendationLabel",
+          "reason",
+          "evidence",
+          "action",
+          "monthlyCost",
+          "costSource",
+          "costBasis",
+          "monthlySavings",
+          "observedDays",
+          "tags"
+        ],
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "AWS account id or Azure subscription id."
+          },
+          "action": {
+            "type": "string",
+            "description": "How to act on it."
+          },
+          "costBasis": {
+            "type": "string",
+            "description": "What a `list_price` cost assumes."
+          },
+          "costSource": {
+            "type": "string",
+            "description": "`bill` (the imported bills) or `list_price` (an estimate from a typical size's list price)."
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendationEvidence"
+            }
+          },
+          "id": {
+            "type": "string",
+            "description": "`<resource type>:<resource id>`"
+          },
+          "monthlyCost": {
+            "type": "number",
+            "format": "double",
+            "description": "Estimated monthly cost (USD)."
+          },
+          "monthlySavings": {
+            "type": "number",
+            "format": "double"
+          },
+          "observedDays": {
+            "type": "number",
+            "format": "double"
+          },
+          "provider": {
+            "type": "string",
+            "description": "`aws` or `azure`"
+          },
+          "reason": {
+            "type": "string",
+            "description": "The rule's finding with its evidence values (\"Max CPU 1.2% … over 14 days\")."
+          },
+          "recommendationLabel": {
+            "type": "string"
+          },
+          "recommendationType": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "resourceName": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "resourceTypeLabel": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`key:value`"
           }
         }
       },
@@ -59647,6 +59822,52 @@
           }
         }
       },
+      "RecommendationEvidence": {
+        "type": "object",
+        "required": [
+          "label",
+          "value"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "RecommendationGroup": {
+        "type": "object",
+        "description": "A recommendation type's (or resource type's) share.",
+        "required": [
+          "id",
+          "label",
+          "count",
+          "monthlyCost",
+          "monthlySavings"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "monthlyCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "monthlySavings": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "RecommendationKind": {
         "type": "string",
         "enum": [
@@ -59654,6 +59875,74 @@
           "high_error_rate",
           "slow_endpoint"
         ]
+      },
+      "RecommendationsResult": {
+        "type": "object",
+        "required": [
+          "recommendations",
+          "count",
+          "monthlyCost",
+          "monthlySavings",
+          "annualSavings",
+          "byType",
+          "resourceTypes",
+          "recommendationTypes",
+          "accounts",
+          "lookbackDays"
+        ],
+        "properties": {
+          "accounts": {
+            "$ref": "#/components/schemas/ConnectedAccounts",
+            "description": "The connected AWS accounts and Azure app registrations."
+          },
+          "annualSavings": {
+            "type": "number",
+            "format": "double"
+          },
+          "byType": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendationGroup"
+            },
+            "description": "Per recommendation type, largest savings first."
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lookbackDays": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "monthlyCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "monthlySavings": {
+            "type": "number",
+            "format": "double"
+          },
+          "recommendationTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendationGroup"
+            }
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostRecommendation"
+            },
+            "description": "Largest savings first."
+          },
+          "resourceTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendationGroup"
+            },
+            "description": "The filters' choices: every resource and recommendation type found (before filtering)."
+          }
+        }
       },
       "RecordedEvaluation": {
         "type": "object",
