@@ -193,6 +193,11 @@ metadata:
   name: {{ $fullname }}-kafka-topics-{{ .Release.Revision }}
   labels:
     {{- include "oc.componentLabels" (list . "kafka-topics") | nindent 4 }}
+  # Argo CD renders .Release.Revision as 1 every time, and a Job's spec can't change: as a Sync hook
+  # it is deleted and created again on each sync, so changed topic settings (retention) are applied.
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 20
   ttlSecondsAfterFinished: 3600

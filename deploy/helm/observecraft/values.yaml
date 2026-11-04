@@ -146,12 +146,22 @@ collector:
     repository: otel/opentelemetry-collector-contrib
     tag: "0.163.2"
   replicas: 2
+  # -- The memory limiter's limit and GOMEMLIMIT: keep it ~75% of limits.memory. Under it the collector
+  # drains a Kafka backlog more slowly instead of being OOMKilled.
   memoryLimitMiB: 1536
   persistence:
     size: 10Gi
   resources:
     requests: { cpu: 250m, memory: 512Mi }
     limits: { memory: 2Gi }
+  # -- Scale on the oc-collector consumer lag with KEDA (keda.sh, installed separately); replaces replicas.
+  # Reads the brokers without authentication. maxReplicas can't exceed kafka.partitions.
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    # -- Lag (records) per replica KEDA aims for.
+    lagThreshold: 1000
   podDisruptionBudget:
     enabled: true
     maxUnavailable: 1

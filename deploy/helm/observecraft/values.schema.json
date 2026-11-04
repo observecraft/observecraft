@@ -373,6 +373,10 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 100
+            },
+            "lagThreshold": {
+              "type": "integer",
+              "minimum": 1
             }
           }
         },

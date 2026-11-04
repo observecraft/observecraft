@@ -120,6 +120,8 @@ only the traffic each component needs; secrets are generated once and kept acros
 | `query.concurrencyPerOrg` / `queueTimeoutMs` | `16` / `10000` | Queries of one organization running at once per server replica; more wait up to the timeout, then get 429 (retry shortly). Background jobs (rollups, monitors) are exempt. |
 | `smtp.url` / `smtp.from` | | Email for monitor notifications (put the URL in the secret key `smtp-url`). |
 | `server.replicas`, `intake.replicas` | `2` | Plus `autoscaling.*`, `podDisruptionBudget.*`, `resources`, scheduling for each component. |
+| `collector.memoryLimitMiB` | `1536` | The collector's memory limiter and Go heap limit (`GOMEMLIMIT`); keep it ~75% of `collector.resources.limits.memory`. A Kafka backlog then drains more slowly instead of OOMKilling the collector. |
+| `collector.autoscaling.*` | off | Scales the collectors with [KEDA](https://keda.sh) (installed separately) on the `oc-collector` consumer lag: `minReplicas`, `maxReplicas` (at most `kafka.partitions`), `lagThreshold` records per replica. |
 | `intake.orgRequestsPerSecond` / `orgMegabytesPerSecond` | `500` / `50` | Per-organization ingest limits (over them, senders get 429 and retry). |
 | `clickhouse.mode` | `bundled` | `bundled`, `operator` (Altinity, sharded and replicated) or `external`. |
 | `clickhouse.quota.*` | enabled | Per-organization ClickHouse query quota. |

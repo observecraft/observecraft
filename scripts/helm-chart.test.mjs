@@ -108,3 +108,57 @@ test('server.podLabels label the server pods (e.g. AKS Workload Identity), next 
   assert.match(server(r.out), /matchLabels:\n(?:\s+\S+: \S+\n)+/);
   assert.doesNotMatch(server(r.out).split('  template:')[0], /team: observability/, 'not in the selector, which is immutable');
 });
+
+const collector = (out) => doc(out, 'StatefulSet', 'oc-observecraft-collector');
+const collectorConfig = (out) => doc(out, 'ConfigMap', 'oc-observecraft-pipeline');
+
+test('collector: the Go heap is held under the memory limiter limit (GOMEMLIMIT), so a backlog slows it instead of OOMKilling it', { skip: !hasHelm }, () => {
+  const r = render(['collector.memoryLimitMiB=3072']);
+  assert.ok(r.ok, r.err);
+  assert.match(collector(r.out), /name: OC_COLLECTOR_MEMORY_LIMIT_MIB, value: "3072"/);
+  assert.match(collector(r.out), /name: GOMEMLIMIT, value: "3072MiB"/);
+});
+
+test('collector: Kafka receivers buffer one small fetch per partition and keep 64 records in flight', { skip: !hasHelm }, () => {
+  const r = render();
+  assert.ok(r.ok, r.err);
+  const config = collectorConfig(r.out);
+  for (const receiver of ['kafka/otlp', 'kafka/otlp_json']) {
+    const block = config.split(`  ${receiver}:\n`)[1].split(/\n  \S/)[0];
+    assert.match(block, /max_partition_fetch_size: 262144/, receiver);
+    assert.match(block, /partition_processing: \{ independent: true, max_buffered_batches: 1, max_in_flight: \{ records: 64 \} \}/, receiver);
+  }
+});
+
+test('kafka topics job: an Argo CD Sync hook, recreated on every sync (a Job spec is immutable)', { skip: !hasHelm }, () => {
+  const r = render();
+  assert.ok(r.ok, r.err);
+  const job = r.out.split(/^---$/m).find((d) => /^kind: Job$/m.test(d) && /kafka-topics/.test(d));
+  assert.ok(job, 'topics job is rendered');
+  assert.match(job, /argocd\.argoproj\.io\/hook: Sync/);
+  assert.match(job, /argocd\.argoproj\.io\/hook-delete-policy: BeforeHookCreation/);
+});
+
+test('collector.autoscaling: a KEDA ScaledObject on the oc-collector consumer lag, and no fixed replica count', { skip: !hasHelm }, () => {
+  const off = render();
+  assert.ok(off.ok, off.err);
+  assert.doesNotMatch(off.out, /^kind: ScaledObject$/m);
+  assert.match(collector(off.out), /^  replicas: 2$/m);
+
+  const r = render(['collector.autoscaling.enabled=true', 'collector.autoscaling.minReplicas=1', 'collector.autoscaling.maxReplicas=4', 'collector.autoscaling.lagThreshold=500']);
+  assert.ok(r.ok, r.err);
+  assert.doesNotMatch(collector(r.out), /^  replicas:/m, 'KEDA owns the replica count');
+  const scaled = doc(r.out, 'ScaledObject', 'oc-observecraft-collector');
+  assert.match(scaled, /scaleTargetRef:\n\s+apiVersion: apps\/v1\n\s+kind: StatefulSet\n\s+name: oc-observecraft-collector/);
+  assert.match(scaled, /minReplicaCount: 1\n\s+maxReplicaCount: 4/);
+  assert.match(scaled, /type: kafka/);
+  assert.match(scaled, /bootstrapServers: oc-observecraft-kafka:9092/);
+  assert.match(scaled, /consumerGroup: oc-collector\n/);
+  assert.match(scaled, /lagThreshold: "500"/);
+});
+
+test('collector.autoscaling: never more replicas than Kafka partitions (extra consumers would sit idle)', { skip: !hasHelm }, () => {
+  const r = render(['collector.autoscaling.enabled=true', 'collector.autoscaling.maxReplicas=20', 'kafka.partitions=12']);
+  assert.ok(!r.ok, 'render must fail');
+  assert.match(r.err, /maxReplicas.*kafka\.partitions/);
+});
