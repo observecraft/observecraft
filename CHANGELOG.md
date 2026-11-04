@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.2](https://github.com/observecraft/observecraft/compare/v0.12.1...v0.12.2) (2026-11-04)
+
+
+### Bug fixes
+
+* **helm:** bound the collector's memory on a Kafka backlog, optional KEDA scaling on consumer lag ([877cc30](https://github.com/observecraft/observecraft/commit/877cc30aaaf94b98e94954b6cc14b1e0bff144c8))
+
 ## [0.12.1](https://github.com/observecraft/observecraft/compare/v0.12.0...v0.12.1) (2026-11-03)
 
 
