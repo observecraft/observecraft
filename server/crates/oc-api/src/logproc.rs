@@ -371,9 +371,13 @@ fn string_map(v: Option<&Value>) -> HashMap<String, String> {
 
 /// Process pipelines once, before looking up the persisted event identities and timestamps.
 fn prepare_batch(ix: &Indexer, body: &[u8], now: i64) -> Vec<Value> {
-    let mut rows = Vec::new();
-    for line in body.split(|b| *b == b'\n').filter(|l| !l.is_empty()) {
-        let Ok(mut ev) = serde_json::from_slice::<Value>(line) else { continue };
+    prepare_rows(ix, body.split(|b| *b == b'\n').filter(|l| !l.is_empty()).filter_map(|line| serde_json::from_slice::<Value>(line).ok()).collect(), now)
+}
+
+/// [`prepare_batch`] of rows already parsed (the Kafka ingester's).
+pub(crate) fn prepare_rows(ix: &Indexer, input: Vec<Value>, now: i64) -> Vec<Value> {
+    let mut rows = Vec::with_capacity(input.len());
+    for mut ev in input {
         let org_id = ev.get("org_id").and_then(Value::as_str).unwrap_or("").to_string();
         let org_pipelines = ix.pipelines.read().unwrap().get(&org_id).cloned().unwrap_or_default();
         let clock = ev.get("id").and_then(Value::as_str).map(|id| log_metrics::processing_clock(id, now)).unwrap_or(now);
@@ -485,8 +489,20 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
     };
     drop(slot_timer);
     let now = now_ms();
-    let rules = ix.rules.read().unwrap().clone();
     let prepared = prepare_batch(&ix, &body, now);
+    match index(&st, &ix, prepared).await {
+        Ok(()) => StatusCode::OK,
+        Err(e) => {
+            tracing::warn!(error = %e, "indexing logs failed");
+            StatusCode::SERVICE_UNAVAILABLE
+        }
+    }
+}
+
+/// Admits prepared rows to their indexes and stores the kept ones in `oc.logs_dedup`, with their generated
+/// metrics durably queued. An error leaves the batch to be delivered again; committed prefixes replay safely.
+pub(crate) async fn index(st: &AppState, ix: &Indexer, prepared: Vec<Value>) -> Result<(), String> {
+    let rules = ix.rules.read().unwrap().clone();
     let quota_rows: Vec<&Value> = {
         prepared
             .iter()
@@ -499,15 +515,12 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
             .collect()
     };
     let lookup_timer = ingest_stats::timer(Stage::PersistedLookup);
-    let mut existing = match persisted_admissions(&st, &quota_rows).await {
+    let mut existing = match persisted_admissions(st, &quota_rows).await {
         Ok(existing) => existing,
-        Err(e) => {
-            tracing::warn!(error = %e, "checking persisted log admissions failed");
-            return StatusCode::SERVICE_UNAVAILABLE;
-        }
+        Err(e) => return Err(format!("checking persisted log admissions: {e}")),
     };
     drop(lookup_timer);
-    let mut reservations = Reservations::new(&ix);
+    let mut reservations = Reservations::new(ix);
     let has_metrics = prepared
         .iter()
         .any(|ev| ev.get("org_id").and_then(Value::as_str).is_some_and(|org| reservations.metric_definitions.contains_key(org)));
@@ -538,41 +551,28 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
         }
         drop(gate_timer);
         let admission_timer = ingest_stats::timer(Stage::Admission);
-        let admission = tokio::time::timeout(Duration::from_secs(20), quota::admit(&st, &ix, chunk, &mut existing, &mut reservations, now_ms(), &rules)).await;
+        let admission = tokio::time::timeout(Duration::from_secs(20), quota::admit(st, ix, chunk, &mut existing, &mut reservations, now_ms(), &rules)).await;
         drop(admission_timer);
         let (rows, _seen, kept) = match admission {
             Ok(Ok(result)) => result,
-            failure => {
-                tracing::warn!(error = ?failure, "reserving shared log quota failed");
-                return StatusCode::SERVICE_UNAVAILABLE;
-            }
+            failure => return Err(format!("reserving shared log quota: {failure:?}")),
         };
         // A committed admission has cleared counts; cancellation/errors instead drop Reservations
         // with the guards still held, so rollback cannot clobber another request's working copy.
         reservations.guards.clear();
-        if let Err(e) = pending.push(&st, rows, kept).await {
-            tracing::warn!(error = %e, "indexing logs failed");
-            return StatusCode::SERVICE_UNAVAILABLE;
-        }
+        pending.push(st, rows, kept).await?;
         let (points, dropped) = reservations.metrics.take_contributions();
         for ((org, metric), logs) in dropped {
             tracing::warn!(%org, %metric, logs, max_series = log_metrics::MAX_SERIES_PER_METRIC, "generated metric has too many series: logs of new series not counted");
         }
         let outbox_timer = ingest_stats::timer(Stage::OutboxEnqueue);
-        if let Err(e) = crate::log_metric_outbox::enqueue(&st, points).await {
-            tracing::warn!(error = %e, "persisting generated metric exports failed");
-            // Both log storage and the durable metric spool must succeed before Vector can commit.
-            return StatusCode::SERVICE_UNAVAILABLE;
-        }
+        // Both log storage and the durable metric spool must succeed before the sender can commit.
+        crate::log_metric_outbox::enqueue(st, points).await.map_err(|e| format!("persisting generated metric exports: {e}"))?;
         drop(outbox_timer);
         reservations.counts.clear();
         existing.extend(reservations.admitted.drain());
     }
-    if let Err(e) = pending.flush(&st).await {
-        tracing::warn!(error = %e, "flushing indexed logs failed");
-        return StatusCode::SERVICE_UNAVAILABLE;
-    }
-    StatusCode::OK
+    pending.flush(st).await
 }
 
 /// `INSERT INTO <table> … FORMAT JSONEachRow` of NDJSON rows.
@@ -627,6 +627,9 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
     });
     tokio::spawn(crate::log_metric_outbox::run(st.clone()));
     tokio::spawn(quota::run(st.clone()));
+    if st.config.log_ingest_kafka {
+        crate::log_ingest::spawn(st.clone(), ix.clone()).await?;
+    }
     let addr = st.config.logproc_addr.clone();
     let profiles = Router::new()
         .route("/ingest/profiles", post(crate::routes::profiles::ingest))
@@ -650,6 +653,26 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
         }
     });
     Ok(())
+}
+
+/// [`admit_batch`] without durable quota, for other modules' tests.
+#[cfg(test)]
+pub(crate) fn admit_for_tests(ix: &Indexer, rows: Vec<Value>) -> (Vec<u8>, usize, usize) {
+    let mut reservations = Reservations::new(ix);
+    let rules = ix.rules.read().unwrap().clone();
+    let result = admit_batch(ix, rows, &Admissions::new(), &mut reservations, now_ms(), &rules);
+    reservations.counts.clear();
+    result
+}
+
+/// An indexer keeping every log of `orgs` in one `main` index, for other modules' tests.
+#[cfg(test)]
+pub(crate) fn test_indexer(orgs: &[&str]) -> Arc<Indexer> {
+    let ix = Indexer::default();
+    for org in orgs {
+        ix.rules.write().unwrap().insert(org.to_string(), Arc::new(vec![IndexRule { name: "main".into(), terms: vec![], retention_days: 7, daily_quota: None, reset_hour: 0, exclusions: vec![] }]));
+    }
+    Arc::new(ix)
 }
 
 #[cfg(test)]

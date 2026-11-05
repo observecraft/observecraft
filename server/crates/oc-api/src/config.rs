@@ -67,6 +67,9 @@ pub struct Config {
     pub retention: Retention,
     /// Internal listener of the log indexer (Vector posts every log there).
     pub logproc_addr: String,
+    /// `OC_LOG_INGEST=kafka`: the server reads the log topics itself (`log_ingest`) instead of Vector posting
+    /// normalized logs to the indexer (`vector`, the default).
+    pub log_ingest_kafka: bool,
     /// Optional bearer token Vector must send to the log indexer.
     pub internal_token: Option<String>,
     /// SMTP server for monitor notification emails (`smtps://user:pass@host:465`, `smtp://host:25?tls=required`).
@@ -215,6 +218,7 @@ impl Config {
             }),
             data_dir: var("OC_DATA_DIR", ".oc-data"),
             logproc_addr: var("OC_LOGPROC_ADDR", "0.0.0.0:8090"),
+            log_ingest_kafka: var("OC_LOG_INGEST", "vector") == "kafka",
             internal_token: env::var("OC_INTERNAL_TOKEN").ok().filter(|s| !s.is_empty()),
             smtp_url: env::var("OC_SMTP_URL").ok().filter(|s| !s.is_empty()),
             assist: crate::assist::provider_from(|k| env::var(k).ok()),

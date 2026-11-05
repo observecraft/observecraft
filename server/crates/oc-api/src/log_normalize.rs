@@ -13,9 +13,6 @@
 //! are encoded as JSON with sorted keys, `flatten` joins nested keys with `.` and drops empty objects.
 //! `log_normalize/cases.ndjson` holds the rows Vector made from the same inputs (`scripts/log-normalize-golden.mjs`).
 
-// The Kafka ingester (stage 2 of IMPLEMENTATION_PLAN.md) is its caller.
-#![allow(dead_code)]
-
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
