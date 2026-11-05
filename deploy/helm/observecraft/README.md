@@ -122,7 +122,7 @@ only the traffic each component needs; secrets are generated once and kept acros
 | `server.replicas`, `intake.replicas` | `2` | Plus `autoscaling.*`, `podDisruptionBudget.*`, `resources`, scheduling for each component. |
 | `collector.memoryLimitMiB` | `1536` | The collector's memory limiter and Go heap limit (`GOMEMLIMIT`); keep it ~75% of `collector.resources.limits.memory`. A Kafka backlog then drains more slowly instead of OOMKilling the collector. |
 | `collector.autoscaling.*` | off | Scales the collectors with [KEDA](https://keda.sh) (installed separately) on the `oc-collector` consumer lag: `minReplicas`, `maxReplicas` (at most `kafka.partitions`), `lagThreshold` records per replica. |
-| `intake.orgRequestsPerSecond` / `orgMegabytesPerSecond` | `500` / `50` | Per-organization ingest limits (over them, senders get 429 and retry). |
+| `intake.orgRequestsPerSecond` / `orgMegabytesPerSecond` | `0` / `0` | Per-organization ingest limits in requests/s and MiB/s (over them, senders get 429 and retry); `0` is unlimited. Instance admins can still limit one organization. |
 | `clickhouse.mode` | `bundled` | `bundled`, `operator` (Altinity, sharded and replicated) or `external`. |
 | `clickhouse.quota.*` | enabled | Per-organization ClickHouse query quota. |
 | `clickhouse.bundled.coldStorage.*` | off | Moves metric samples and rollups older than `moveAfterDays` to an S3-compatible bucket (e.g. RustFS); they stay queryable. `endpoint` is the path-style bucket URL with a prefix, `existingSecret` holds `access-key-id` and `secret-access-key`. With `operator` or `external` ClickHouse, declare an `observecraft_tiered` storage policy (volumes `default` and `cold`) yourself and set `OC_METRICS_COLD_AFTER_DAYS` in `extraEnv`. |

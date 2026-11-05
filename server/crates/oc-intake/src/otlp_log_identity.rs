@@ -376,6 +376,8 @@ mod tests {
             metrics_5m_days: 90,
             metrics_1h_days: 395,
             flag_environment_id: None,
+            ingest_mbps: None,
+            ingest_rps: None,
         };
         for json in [false, true] {
             let input = if json {

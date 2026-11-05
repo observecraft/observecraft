@@ -88,6 +88,9 @@ pub struct InstanceOrg {
     pub max_log_retention_days: i32,
     pub max_span_retention_days: i32,
     pub max_indexes: i32,
+    /// The org's ingest limits (null: the install's).
+    pub ingest_mbps: Option<f64>,
+    pub ingest_rps: Option<f64>,
     /// Longest metric retention at full resolution and as rollups.
     #[sqlx(skip)]
     pub max_metrics: MetricRetention,
@@ -121,7 +124,7 @@ pub async fn list_orgs(State(st): State<AppState>, _: InstanceAdmin) -> ApiResul
          (SELECT count(*) FROM users u WHERE u.org_id = o.id AND u.status = 'active') AS members, \
          COALESCE((SELECT array_agg(a.email ORDER BY a.email) FROM users u JOIN accounts a ON a.id = u.account_id \
                    JOIN user_roles r ON r.user_id = u.id AND r.role_id = o.id || '-admin' WHERE u.org_id = o.id AND u.status <> 'deactivated'), '{}') AS admins, \
-         COALESCE(d.max_log_retention_days, 30) AS max_log_retention_days, COALESCE(d.max_span_retention_days, 30) AS max_span_retention_days, COALESCE(d.max_indexes, 20) AS max_indexes, \
+         COALESCE(d.max_log_retention_days, 30) AS max_log_retention_days, COALESCE(d.max_span_retention_days, 30) AS max_span_retention_days, COALESCE(d.max_indexes, 20) AS max_indexes, d.ingest_mbps, d.ingest_rps, \
          d.metrics_retention_days, d.metrics_5m_days, d.metrics_1h_days, d.max_metrics_retention_days, d.max_metrics_5m_days, d.max_metrics_1h_days \
          FROM orgs o LEFT JOIN org_data_settings d ON d.org_id = o.id ORDER BY (o.id = $1) DESC, lower(o.name)",
     )
@@ -272,6 +275,19 @@ pub struct OrgLimits {
     pub max_indexes: i32,
     /// Longest metric retentions (tiers, full resolution ≤ 5-minute ≤ 1-hour); unchanged when absent.
     pub max_metrics: Option<MetricRetention>,
+    /// What the intake accepts from the org's keys; unchanged when absent.
+    #[serde(default)]
+    pub ingest: Option<IngestLimits>,
+}
+
+/// An org's ingest limits; null follows the install's (`OC_INTAKE_ORG_MBPS` / `OC_INTAKE_ORG_RPS`, unlimited by
+/// default).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct IngestLimits {
+    /// MiB per second.
+    pub mbps: Option<f64>,
+    /// Requests per second.
+    pub rps: Option<f64>,
 }
 
 /// Sets what an org may configure. Lowering a ceiling also lowers settings above it.
@@ -286,6 +302,9 @@ pub async fn update_limits(State(st): State<AppState>, InstanceAdmin(ctx): Insta
     }
     if let Some(m) = l.max_metrics {
         validate_metric_limits(m).map_err(ApiError::BadRequest)?;
+    }
+    if l.ingest.is_some_and(|i| [i.mbps, i.rps].into_iter().flatten().any(|v| !(v > 0.0 && v.is_finite()))) {
+        return Err(ApiError::BadRequest("An ingest limit is a positive number; null means the install's".into()));
     }
     super::log_indexes::data_settings(&st, &id).await?;
     let mut tx = st.postgres.begin().await?;
@@ -319,11 +338,18 @@ pub async fn update_limits(State(st): State<AppState>, InstanceAdmin(ctx): Insta
     .bind(l.max_indexes)
     .execute(&mut *tx)
     .await?;
+    if let Some(i) = l.ingest {
+        sqlx::query("UPDATE org_data_settings SET ingest_mbps = $2, ingest_rps = $3 WHERE org_id = $1").bind(&id).bind(i.mbps).bind(i.rps).execute(&mut *tx).await?;
+    }
     sqlx::query("UPDATE log_indexes SET retention_days = least(retention_days, $2) WHERE org_id = $1").bind(&id).bind(l.max_log_retention_days).execute(&mut *tx).await?;
     tx.commit().await?;
     let mut detail = format!("logs ≤ {} d, spans ≤ {} d, {} indexes", l.max_log_retention_days, l.max_span_retention_days, l.max_indexes);
     if let Some(m) = l.max_metrics {
         detail.push_str(&format!(", metrics ≤ {} / {} / {} d", m.raw, m.rollup_5m, m.rollup_1h));
+    }
+    if let Some(i) = l.ingest {
+        let limit = |v: Option<f64>, unit: &str| v.map_or_else(|| "install default".to_string(), |v| format!("{v} {unit}"));
+        detail.push_str(&format!(", ingest {} / {}", limit(i.mbps, "MiB/s"), limit(i.rps, "requests/s")));
     }
     auth::instance_audit(&st.postgres, &ctx, "org.limits_changed", &id, &detail).await;
     Ok(StatusCode::NO_CONTENT)
@@ -397,6 +423,27 @@ pub async fn audit(State(st): State<AppState>, _: InstanceAdmin) -> ApiResult<Ve
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn instance_admins_set_and_clear_an_orgs_ingest_limits() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let ctx = crate::test_support::admin_of_new_org(st, "ingest-limits").await;
+        let org = ctx.org_id.clone();
+        let limits = |ingest: Option<IngestLimits>| OrgLimits { max_log_retention_days: 7, max_span_retention_days: 7, max_indexes: 5, max_metrics: None, ingest };
+        let stored = || async {
+            sqlx::query_as::<_, (Option<f64>, Option<f64>)>("SELECT ingest_mbps, ingest_rps FROM org_data_settings WHERE org_id = $1").bind(&org).fetch_one(&st.postgres).await.unwrap()
+        };
+        update_limits(State(st.clone()), InstanceAdmin(ctx.clone()), Path(org.clone()), Json(limits(Some(IngestLimits { mbps: Some(25.0), rps: Some(100.0) })))).await.unwrap();
+        assert_eq!(stored().await, (Some(25.0), Some(100.0)));
+        // Absent leaves them; explicit nulls go back to the install's.
+        update_limits(State(st.clone()), InstanceAdmin(ctx.clone()), Path(org.clone()), Json(limits(None))).await.unwrap();
+        assert_eq!(stored().await, (Some(25.0), Some(100.0)));
+        update_limits(State(st.clone()), InstanceAdmin(ctx.clone()), Path(org.clone()), Json(limits(Some(IngestLimits { mbps: None, rps: None })))).await.unwrap();
+        assert_eq!(stored().await, (None, None));
+        let bad = update_limits(State(st.clone()), InstanceAdmin(ctx), Path(org), Json(limits(Some(IngestLimits { mbps: Some(0.0), rps: None })))).await;
+        assert!(bad.is_err(), "a limit is positive; null means none");
+    }
 
     #[test]
     fn org_ids() {

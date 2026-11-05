@@ -1148,7 +1148,7 @@ mod tests {
     #[tokio::test]
     async fn converted_metrics_of_known_series_are_sent_marked() {
         let (st, seen) = intake_with_fake_collector().await;
-        let org = crate::KeyOrg { org_id: "acme".into(), span_retention_days: 0, metrics_retention_days: 0, metrics_5m_days: 0, metrics_1h_days: 0, flag_environment_id: None };
+        let org = crate::KeyOrg { org_id: "acme".into(), span_retention_days: 0, metrics_retention_days: 0, metrics_5m_days: 0, metrics_1h_days: 0, flag_environment_id: None, ingest_mbps: None, ingest_rps: None };
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
         let series = |t: i64, pods: &[&str]| -> Vec<Series> {
             pods.iter()

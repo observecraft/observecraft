@@ -163,8 +163,9 @@ impl Config {
                 .unwrap_or(16)
                 * 1024
                 * 1024,
-            org_rps: env("OC_INTAKE_ORG_RPS", "500").parse().unwrap_or(500.0),
-            org_bytes_per_sec: env("OC_INTAKE_ORG_MBPS", "50").parse::<f64>().unwrap_or(50.0) * 1024.0 * 1024.0,
+            // 0: unlimited (the default); instance admins can still limit an org (`org_data_settings`).
+            org_rps: env("OC_INTAKE_ORG_RPS", "0").parse().unwrap_or(0.0),
+            org_bytes_per_sec: env("OC_INTAKE_ORG_MBPS", "0").parse::<f64>().unwrap_or(0.0) * 1024.0 * 1024.0,
             series_cache: env("OC_INTAKE_SERIES_CACHE", "2000000").parse().unwrap_or(2_000_000),
             kafka_brokers: std::env::var("OC_KAFKA_BROKERS").ok().filter(|v| !v.trim().is_empty()),
             kafka_spread: env("OC_KAFKA_ORG_SPREAD", &kafka::DEFAULT_ORG_SPREAD.to_string()).parse().unwrap_or(kafka::DEFAULT_ORG_SPREAD),
@@ -182,6 +183,9 @@ pub struct KeyOrg {
     pub metrics_1h_days: i32,
     /// The feature flag environment its OFREP evaluations use when the context names none.
     pub flag_environment_id: Option<String>,
+    /// The org's own ingest limits (MiB/s, requests/s); None follows the install's.
+    pub ingest_mbps: Option<f64>,
+    pub ingest_rps: Option<f64>,
 }
 
 /// Headers every forwarded body carries; the collector turns them into resource attributes
@@ -296,7 +300,8 @@ async fn resolve(st: &Shared, key: &str) -> anyhow::Result<Option<KeyOrg>> {
     }
     let org: Option<KeyOrg> = sqlx::query_as(
         "SELECT k.org_id, COALESCE(s.span_retention_days, 0) AS span_retention_days, COALESCE(s.metrics_retention_days, 0) AS metrics_retention_days, \
-         COALESCE(s.metrics_5m_days, 0) AS metrics_5m_days, COALESCE(s.metrics_1h_days, 0) AS metrics_1h_days, k.flag_environment_id::text AS flag_environment_id FROM ingest_keys k JOIN orgs o ON o.id = k.org_id \
+         COALESCE(s.metrics_5m_days, 0) AS metrics_5m_days, COALESCE(s.metrics_1h_days, 0) AS metrics_1h_days, k.flag_environment_id::text AS flag_environment_id, \
+         s.ingest_mbps, s.ingest_rps FROM ingest_keys k JOIN orgs o ON o.id = k.org_id \
          LEFT JOIN org_data_settings s ON s.org_id = k.org_id WHERE k.key_hash = $1 AND k.revoked_at IS NULL AND o.status = 'active'",
     )
     .bind(&hash)
@@ -309,13 +314,16 @@ async fn resolve(st: &Shared, key: &str) -> anyhow::Result<Option<KeyOrg>> {
     Ok(org)
 }
 
-fn within_limits(st: &Shared, org: &str, bytes: usize) -> bool {
+/// Whether the org may send `bytes` now: its own limits, else the install's; 0 (the default) is unlimited.
+fn within_limits(st: &Shared, org: &KeyOrg, bytes: usize) -> bool {
+    let rps = org.ingest_rps.unwrap_or(st.cfg.org_rps);
+    let bps = org.ingest_mbps.map_or(st.cfg.org_bytes_per_sec, |m| m * 1024.0 * 1024.0);
+    if rps <= 0.0 && bps <= 0.0 {
+        return true;
+    }
     let mut limits = st.limits.lock().unwrap();
-    let l = limits.entry(org.to_string()).or_insert_with(|| Limits {
-        requests: Bucket { tokens: st.cfg.org_rps, at: Instant::now() },
-        bytes: Bucket { tokens: st.cfg.org_bytes_per_sec, at: Instant::now() },
-    });
-    l.requests.take(1.0, st.cfg.org_rps) && l.bytes.take(bytes as f64, st.cfg.org_bytes_per_sec)
+    let l = limits.entry(org.org_id.clone()).or_insert_with(|| Limits { requests: Bucket { tokens: rps, at: Instant::now() }, bytes: Bucket { tokens: bps, at: Instant::now() } });
+    (rps <= 0.0 || l.requests.take(1.0, rps)) && (bps <= 0.0 || l.bytes.take(bytes as f64, bps))
 }
 
 /// Why a request was turned away.
@@ -365,7 +373,7 @@ async fn admit(st: &Shared, headers: &HeaderMap, bytes: usize) -> Result<KeyOrg,
             ));
         }
     };
-    if !within_limits(st, &org.org_id, bytes) {
+    if !within_limits(st, &org, bytes) {
         return Err(Rejection::new(
             StatusCode::TOO_MANY_REQUESTS,
             "rate limit exceeded for this organization",
@@ -861,7 +869,7 @@ mod tests {
         st.keys.lock().unwrap().insert(
             Sha256::digest(b"ocik_autoscaling_test").to_vec(),
             CachedKey {
-                org: Some(KeyOrg { org_id: "example-org".into(), span_retention_days: 15, metrics_retention_days: 30, metrics_5m_days: 90, metrics_1h_days: 395, flag_environment_id: None }),
+                org: Some(KeyOrg { org_id: "example-org".into(), span_retention_days: 15, metrics_retention_days: 30, metrics_5m_days: 90, metrics_1h_days: 395, flag_environment_id: None, ingest_mbps: None, ingest_rps: None }),
                 at: Instant::now(),
                 touched: Some(Instant::now()),
             },
@@ -878,9 +886,31 @@ mod tests {
     }
     use super::*;
 
+    #[tokio::test]
+    async fn ingest_is_unlimited_unless_the_install_or_the_org_sets_a_limit() {
+        let mut cfg = Config::from_env();
+        (cfg.org_rps, cfg.org_bytes_per_sec) = (0.0, 0.0);
+        let st = test_state(cfg);
+        let org = |id: &str, mbps: Option<f64>, rps: Option<f64>| KeyOrg { org_id: id.into(), span_retention_days: 0, metrics_retention_days: 0, metrics_5m_days: 0, metrics_1h_days: 0, flag_environment_id: None, ingest_mbps: mbps, ingest_rps: rps };
+        let free = org("free", None, None);
+        assert!((0..10_000).all(|_| within_limits(&st, &free, 100 << 20)), "no limit by default");
+        let bytes = org("bytes", Some(1.0), None);
+        assert!(within_limits(&st, &bytes, 512 << 10));
+        assert!(!within_limits(&st, &bytes, 1 << 20), "1 MiB/s for this org");
+        let requests = org("requests", None, Some(2.0));
+        assert!(within_limits(&st, &requests, 1) && within_limits(&st, &requests, 1));
+        assert!(!within_limits(&st, &requests, 1), "2 requests/s for this org");
+        // An install-wide limit applies to orgs without their own.
+        let mut cfg = Config::from_env();
+        (cfg.org_rps, cfg.org_bytes_per_sec) = (1.0, 0.0);
+        let st = test_state(cfg);
+        assert!(within_limits(&st, &free, 1) && !within_limits(&st, &free, 1));
+        assert!((0..100).all(|_| within_limits(&st, &org("own", None, Some(1000.0)), 1)), "the org's own limit wins");
+    }
+
     #[test]
     fn org_headers_carry_its_retention() {
-        let org = KeyOrg { org_id: "acme".into(), span_retention_days: 15, metrics_retention_days: 30, metrics_5m_days: 90, metrics_1h_days: 395, flag_environment_id: None };
+        let org = KeyOrg { org_id: "acme".into(), span_retention_days: 15, metrics_retention_days: 30, metrics_5m_days: 90, metrics_1h_days: 395, flag_environment_id: None, ingest_mbps: None, ingest_rps: None };
         assert_eq!(
             org_headers(&org),
             [

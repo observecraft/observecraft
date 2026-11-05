@@ -282,7 +282,7 @@ pub async fn authenticate(st: &Shared, headers: &HeaderMap, query: &BTreeMap<Str
                 return Err(Rejection { status: StatusCode::SERVICE_UNAVAILABLE, message: "temporarily unavailable" });
             }
         };
-        if !within_limits(st, &app.org.org_id, bytes) {
+        if !within_limits(st, &app.org, bytes) {
             return Err(Rejection { status: StatusCode::TOO_MANY_REQUESTS, message: "rate limit exceeded for this organization" });
         }
         return Ok(app);
