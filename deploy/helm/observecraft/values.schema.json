@@ -320,6 +320,10 @@
           "type": "number",
           "minimum": 0
         },
+        "seriesCache": {
+          "type": "integer",
+          "minimum": 0
+        },
         "maxBodyMegabytes": {
           "type": "integer",
           "minimum": 1

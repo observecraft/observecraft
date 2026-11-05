@@ -123,6 +123,10 @@ intake:
   orgRequestsPerSecond: 0
   orgMegabytesPerSecond: 0
   maxBodyMegabytes: 16
+  # Series × hour entries an intake replica remembers as already forwarded (~20 bytes each), so ClickHouse writes a
+  # series and its tags about once an hour. Keep it above the active series a replica sees (each replica may see
+  # all of them); past it, every point rewrites its series and tags rows. 0 turns marking off.
+  seriesCache: 6000000
   resources:
     requests: { cpu: 100m, memory: 128Mi }
     limits: { memory: 512Mi }
