@@ -48,7 +48,8 @@
 //! OC_INTAKE_CODE_SCANS_URL (http://localhost:8090/ingest/code-scans),
 //! OC_INTAKE_FLAG_EVALUATIONS_URL (http://localhost:8090/ingest/feature-flag-evaluations), OC_INTERNAL_TOKEN,
 //! OC_INTAKE_MAX_BODY_MB (16), OC_INTAKE_ORG_RPS (500), OC_INTAKE_ORG_MBPS (50),
-//! OC_INTAKE_SERIES_CACHE (2000000 series × hour entries; 0 = no series marking, see `series_cache`).
+//! OC_INTAKE_SERIES_CACHE (6000000 series × hour entries, ~20 bytes each; 0 = no series marking, see `series_cache`).
+//! It must exceed the active series a replica sees: past it, points keep rewriting their series and tags rows.
 
 mod check_messages;
 mod datadog;
@@ -166,7 +167,7 @@ impl Config {
             // 0: unlimited (the default); instance admins can still limit an org (`org_data_settings`).
             org_rps: env("OC_INTAKE_ORG_RPS", "0").parse().unwrap_or(0.0),
             org_bytes_per_sec: env("OC_INTAKE_ORG_MBPS", "0").parse::<f64>().unwrap_or(0.0) * 1024.0 * 1024.0,
-            series_cache: env("OC_INTAKE_SERIES_CACHE", "2000000").parse().unwrap_or(2_000_000),
+            series_cache: env("OC_INTAKE_SERIES_CACHE", "6000000").parse().unwrap_or(6_000_000),
             kafka_brokers: std::env::var("OC_KAFKA_BROKERS").ok().filter(|v| !v.trim().is_empty()),
             kafka_spread: env("OC_KAFKA_ORG_SPREAD", &kafka::DEFAULT_ORG_SPREAD.to_string()).parse().unwrap_or(kafka::DEFAULT_ORG_SPREAD),
         }

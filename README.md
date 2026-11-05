@@ -334,7 +334,8 @@ most important ones:
 
 The intake (`oc-intake`) has its own settings: `OC_INTAKE_ADDR` (HTTP, `:4318`), `OC_INTAKE_GRPC_ADDR` (OTLP/gRPC,
 `:4317`), `OC_INTAKE_COLLECTOR_URL`, `OC_INTAKE_LOGS_URL`, `OC_INTAKE_AUTOSCALING_URL` (the server's internal listener for the
-Datadog Cluster Agent's external recommender calls), `OC_INTAKE_MAX_BODY_MB` (16), and per-organization limits
+Datadog Cluster Agent's external recommender calls), `OC_INTAKE_MAX_BODY_MB` (16), `OC_INTAKE_SERIES_CACHE` (6,000,000: series a replica remembers as forwarded in the
+hour, ~20 bytes each; keep it above the active series it sees), and per-organization limits
 `OC_INTAKE_ORG_RPS` (requests/s) and `OC_INTAKE_ORG_MBPS` (MiB/s), unlimited (`0`) by default; instance admins can
 also limit one organization (Instance → Organizations → Limits).
 

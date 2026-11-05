@@ -69,7 +69,9 @@ receivers:
 processors:
   memory_limiter:
     check_interval: 1s
-    limit_mib: ${env:OC_COLLECTOR_MEMORY_LIMIT_MIB:-512}
+    # The chart sets it with GOMEMLIMIT (collector.memoryLimitMiB). Lower, ~1M active series stall it: it refuses
+    # data, forces GC and drains nothing.
+    limit_mib: ${env:OC_COLLECTOR_MEMORY_LIMIT_MIB:-1536}
   resourcedetection:
     detectors: [env, system]
     # Keep host.name etc. sent by the application; only fill in what is missing.

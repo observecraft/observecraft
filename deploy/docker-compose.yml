@@ -139,6 +139,8 @@ services:
     environment:
       <<: *ch-auth
       OC_HOST_NAME: ${OC_HOST_NAME:-docker-dev-host}
+      # The memory limiter's limit and the Go runtime's, as the chart sets them (collector.memoryLimitMiB).
+      GOMEMLIMIT: 1536MiB
       # Organization the collector's own host metrics belong to.
       OC_HOST_ORG: ${OC_HOST_ORG:-default}
     # Root only so it can write its queue to the named volume (the image's user can't).

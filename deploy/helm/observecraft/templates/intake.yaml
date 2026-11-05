@@ -57,6 +57,7 @@ spec:
             - { name: OC_INTAKE_ORG_RPS, value: {{ .Values.intake.orgRequestsPerSecond | quote }} }
             - { name: OC_INTAKE_ORG_MBPS, value: {{ .Values.intake.orgMegabytesPerSecond | quote }} }
             - { name: OC_INTAKE_MAX_BODY_MB, value: {{ .Values.intake.maxBodyMegabytes | quote }} }
+            - { name: OC_INTAKE_SERIES_CACHE, value: {{ .Values.intake.seriesCache | int64 | quote }} }
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
