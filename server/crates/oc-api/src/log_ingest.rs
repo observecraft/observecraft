@@ -39,6 +39,10 @@ static RAW_COPY: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| std::en
 const LIVE_IN_FLIGHT: usize = 8;
 /// How long a fetch waits for records.
 const FETCH_WAIT_MS: i32 = 500;
+/// A batch is stored once its records reach this size (decompressed)…
+const BATCH_BYTES: usize = 24 * 1024 * 1024;
+/// …or once its first record waited this long: larger inserts make fewer parts for ClickHouse to merge.
+const BATCH_WAIT: Duration = Duration::from_secs(1);
 
 /// Partitions each of `owners` servers holds when `total` are shared.
 fn fair_share(total: usize, owners: usize) -> usize {
@@ -147,28 +151,31 @@ fn rows_of(topic: Topic, records: Vec<Record>) -> Vec<Row> {
 }
 
 /// Stores rows: the 72-hour copy and the indexed rows together, then live tail (best effort).
-async fn store(st: &AppState, ix: &Indexer, live: &Arc<Live>, rows: Vec<Row>) -> Result<(), String> {
+async fn store(st: &AppState, ix: &Arc<Indexer>, live: &Arc<Live>, rows: Vec<Row>) -> Result<(), String> {
     if rows.is_empty() {
         return Ok(());
     }
+    let now = chrono::Utc::now().timestamp_millis();
+    let ix_rows = ix.clone();
     let (raw, values, by_org) = tokio::task::spawn_blocking(move || {
-        let mut raw = Vec::with_capacity(rows.len() * 512);
+        let mut rows = rows;
+        // The 72-hour copy and live tail get the logs as normalized, before the org's pipelines (as from Vector).
+        let mut raw = Vec::with_capacity(rows.len() * 2048);
         let mut by_org: HashMap<String, Vec<Vec<u8>>> = HashMap::new();
-        let mut values = Vec::with_capacity(rows.len());
         for row in &rows {
             let start = raw.len();
             if serde_json::to_writer(&mut raw, row).is_ok() {
                 by_org.entry(row.org_id.clone()).or_default().push(raw[start..].to_vec());
                 raw.push(b'\n');
             }
-            values.extend(serde_json::to_value(row).ok());
         }
+        logproc::prepare_normalized(&ix_rows, &mut rows, now);
+        let values: Vec<_> = rows.iter().filter_map(|row| serde_json::to_value(row).ok()).collect();
         (raw, values, by_org)
     })
     .await
     .map_err(|e| e.to_string())?;
-    let now = chrono::Utc::now().timestamp_millis();
-    let prepared = logproc::prepare_rows(ix, values, now);
+    let prepared = values;
     let raw_copy = async {
         if *RAW_COPY {
             logproc::insert_rows(st, "oc.logs_raw_dedup", raw).await
@@ -243,24 +250,37 @@ impl Live {
 }
 
 /// Reads one fetch from `offset` and stores its logs; returns the next offset (unchanged when nothing came).
-async fn drain(st: &AppState, ix: &Indexer, live: &Arc<Live>, pc: &PartitionClient, topic: Topic, offset: i64) -> Result<i64, String> {
-    let (records, _high_watermark) = match pc.fetch_records(offset, 1..FETCH_BYTES, FETCH_WAIT_MS).await {
-        Ok(fetched) => fetched,
-        Err(e) => {
-            // Records past retention: start again from the earliest kept.
-            let earliest = pc.get_offset(OffsetAt::Earliest).await.map_err(|e| e.to_string())?;
-            if offset < earliest {
-                tracing::warn!(offset, earliest, "log records expired before they were read");
-                return Ok(earliest);
+async fn drain(st: &AppState, ix: &Arc<Indexer>, live: &Arc<Live>, pc: &PartitionClient, topic: Topic, offset: i64) -> Result<i64, String> {
+    let (mut records, mut size, mut next) = (Vec::new(), 0usize, offset);
+    let started = std::time::Instant::now();
+    while size < BATCH_BYTES && (records.is_empty() || started.elapsed() < BATCH_WAIT) {
+        let fetched = match pc.fetch_records(next, 1..FETCH_BYTES, FETCH_WAIT_MS).await {
+            Ok((fetched, _high_watermark)) => fetched,
+            Err(_) if !records.is_empty() => break,
+            Err(e) => {
+                // Records past retention: start again from the earliest kept.
+                let earliest = pc.get_offset(OffsetAt::Earliest).await.map_err(|e| e.to_string())?;
+                if next < earliest {
+                    tracing::warn!(offset = next, earliest, "log records expired before they were read");
+                    return Ok(earliest);
+                }
+                return Err(e.to_string());
             }
-            return Err(e.to_string());
-        }
-    };
-    // A compressed batch may start before the offset asked for.
-    let records: Vec<_> = records.into_iter().filter(|r| r.offset >= offset).collect();
-    let Some(next) = records.last().map(|r| r.offset + 1) else { return Ok(offset) };
+        };
+        // A compressed batch may start before the offset asked for.
+        let fresh: Vec<_> = fetched.into_iter().filter(|r| r.offset >= next).collect();
+        let Some(last) = fresh.last().map(|r| r.offset) else {
+            if records.is_empty() {
+                return Ok(offset);
+            }
+            break;
+        };
+        next = last + 1;
+        size += fresh.iter().map(|r| r.record.value.as_ref().map_or(0, Vec::len)).sum::<usize>();
+        records.extend(fresh.into_iter().map(|r| r.record));
+    }
     let _slot = STORE_SLOTS.acquire().await.map_err(|e| e.to_string())?;
-    let rows = tokio::task::spawn_blocking(move || rows_of(topic, records.into_iter().map(|r| r.record).collect())).await.map_err(|e| e.to_string())?;
+    let rows = tokio::task::spawn_blocking(move || rows_of(topic, records)).await.map_err(|e| e.to_string())?;
     store(st, ix, live, rows).await?;
     Ok(next)
 }
@@ -400,6 +420,77 @@ mod tests {
         let (out, _, kept) = logproc::admit_for_tests(&ix, prepared);
         time("admit", t);
         eprintln!("rows {} kept {kept} raw {} MiB indexed {} MiB", rows.len(), raw.len() >> 20, out.len() >> 20);
+    }
+
+    /// The whole path's cost on real records (`OC_TEST_KAFKA_BROKERS`, records already on `oc.otlp.logs`):
+    /// `cargo test --release -- --ignored real_record_costs --nocapture`.
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore]
+    async fn real_record_costs() {
+        let brokers = std::env::var("OC_TEST_KAFKA_BROKERS").expect("OC_TEST_KAFKA_BROKERS");
+        let client = ClientBuilder::new(vec![brokers]).build().await.unwrap();
+        let pc = client.partition_client("oc.otlp.logs", 0, UnknownTopicHandling::Retry).await.unwrap();
+        let start = pc.get_offset(OffsetAt::Earliest).await.unwrap();
+        let (fetched, _) = pc.fetch_records(start, 1..64 * 1024 * 1024, 1000).await.unwrap();
+        let records: Vec<Record> = fetched.into_iter().take(40).map(|r| r.record).collect();
+        let bytes: usize = records.iter().map(|r| r.value.as_ref().map_or(0, Vec::len)).sum();
+        let t = std::time::Instant::now();
+        let events: Vec<_> = records.iter().flat_map(|r| log_records::events(Topic::Otlp, r).unwrap()).collect();
+        let n = events.len();
+        eprintln!("{} records, {n} logs, {} B/log as OTLP", records.len(), bytes / n.max(1));
+        let time = |label: &str, t: std::time::Instant| eprintln!("{label:<14} {:>8.2} µs/log", t.elapsed().as_secs_f64() * 1e6 / n as f64);
+        time("decode", t);
+        let now = chrono::Utc::now();
+        let t = std::time::Instant::now();
+        let rows: Vec<Row> = events.into_iter().filter_map(|e| log_normalize::normalize(e, now)).collect();
+        time("normalize", t);
+        let t = std::time::Instant::now();
+        let mut raw = Vec::new();
+        for row in &rows {
+            serde_json::to_writer(&mut raw, row).unwrap();
+            raw.push(b'\n');
+        }
+        time("raw json", t);
+        let t = std::time::Instant::now();
+        let compressed = zstd::bulk::compress(&raw, 3).unwrap();
+        time("live zstd", t);
+        let orgs: Vec<String> = rows.iter().map(|r| r.org_id.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+        let ix = logproc::test_indexer(&orgs.iter().map(String::as_str).collect::<Vec<_>>());
+        let mut rows = rows;
+        let t = std::time::Instant::now();
+        logproc::prepare_normalized(&ix, &mut rows, now.timestamp_millis());
+        time("pipelines", t);
+        let t = std::time::Instant::now();
+        let prepared: Vec<_> = rows.iter().map(|r| serde_json::to_value(r).unwrap()).collect();
+        time("to_value", t);
+        let t = std::time::Instant::now();
+        let (out, _, _) = logproc::admit_for_tests(&ix, prepared);
+        time("admit", t);
+        eprintln!("raw {} B/log, indexed {} B/log, live zstd {} B/log", raw.len() / n, out.len() / n, compressed.len() / n);
+    }
+
+    /// The typed path (`prepare_normalized`) indexes the same rows as the JSON one (`prepare_rows`).
+    #[test]
+    fn typed_pipelines_match_the_json_path() {
+        let now = chrono::Utc::now();
+        let rows: Vec<Row> = include_str!("log_normalize/cases.ndjson")
+            .lines()
+            .filter_map(|l| {
+                let case: serde_json::Value = serde_json::from_str(l).unwrap();
+                let mut fields = case["event"].as_object().unwrap().clone();
+                fields.remove("_t");
+                log_normalize::normalize(crate::log_normalize::LogEvent { fields, timestamp: Some(now) }, now)
+            })
+            .collect();
+        let orgs: Vec<String> = rows.iter().map(|r| r.org_id.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+        let ix = logproc::test_indexer(&orgs.iter().map(String::as_str).collect::<Vec<_>>());
+        let json_path = logproc::prepare_rows(&ix, rows.iter().map(|r| serde_json::to_value(r).unwrap()).collect(), now.timestamp_millis());
+        let mut typed = rows.clone();
+        logproc::prepare_normalized(&ix, &mut typed, now.timestamp_millis());
+        let typed: Vec<_> = typed.iter().map(|r| serde_json::to_value(r).unwrap()).collect();
+        let remapped = json_path.iter().zip(&rows).filter(|(a, r)| **a != serde_json::to_value(r).unwrap()).count();
+        assert!(remapped > 0, "some cases carry standard attribute aliases");
+        assert_eq!(typed, json_path);
     }
 
     #[test]

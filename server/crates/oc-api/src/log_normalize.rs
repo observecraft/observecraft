@@ -47,6 +47,9 @@ pub struct Row {
     pub tags: BTreeMap<String, String>,
     pub attr: BTreeMap<String, String>,
     pub attributes: String,
+    /// `attributes` as typed JSON, for the indexer's pipelines (not serialized).
+    #[serde(skip)]
+    pub attrs: Map<String, Value>,
     pub trace_id: String,
     pub span_id: String,
     pub severity_number: i64,
@@ -84,19 +87,9 @@ fn text_of(map: &Map<String, Value>, key: &str) -> String {
     map.get(key).and_then(to_string).unwrap_or_default()
 }
 
-/// VRL's `encode_json`: object keys sorted.
+/// VRL's `encode_json`: object keys sorted (serde_json's `Map` is ordered by key).
 fn encode_json(v: &Value) -> String {
-    fn sorted(v: &Value) -> Value {
-        match v {
-            Value::Object(m) => {
-                let keys: BTreeMap<&String, &Value> = m.iter().collect();
-                Value::Object(keys.into_iter().map(|(k, v)| (k.clone(), sorted(v))).collect())
-            }
-            Value::Array(a) => Value::Array(a.iter().map(sorted).collect()),
-            other => other.clone(),
-        }
-    }
-    serde_json::to_string(&sorted(v)).unwrap_or_default()
+    serde_json::to_string(v).unwrap_or_default()
 }
 
 /// VRL's `flatten`: nested objects' keys joined with `.`; empty objects disappear, arrays stay.
@@ -254,9 +247,9 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
     let LogEvent { mut fields, timestamp } = event;
     let kind = fields.get("source_type").and_then(to_string).unwrap_or_default();
     let otlp = kind == "opentelemetry";
-    let mut res = fields.get("resources").and_then(Value::as_object).cloned().unwrap_or_default();
-    let mut attrs = fields.get("attributes").and_then(Value::as_object).cloned().unwrap_or_default();
-    let root_tags = fields.get("tags").and_then(Value::as_object).cloned().unwrap_or_default();
+    let mut res = match fields.remove("resources") { Some(Value::Object(m)) => m, _ => Map::new() };
+    let mut attrs = match fields.remove("attributes") { Some(Value::Object(m)) => m, _ => Map::new() };
+    let root_tags = match fields.remove("tags") { Some(Value::Object(m)) => m, _ => Map::new() };
     // A source sets the event time; a JSON log's own `timestamp` field otherwise.
     let event_time: Option<Value> = match timestamp {
         Some(_) => None,
@@ -582,7 +575,8 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
         message: msg,
         tags,
         attr,
-        attributes: encode_json(&Value::Object(attrs)),
+        attributes: encode_json(&Value::Object(attrs.clone())),
+        attrs,
         trace_id,
         span_id,
         severity_number: sev,

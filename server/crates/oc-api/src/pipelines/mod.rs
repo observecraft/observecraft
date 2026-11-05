@@ -70,14 +70,20 @@ pub fn process_row(pipelines: &[Pipeline], standard: &Remapper, row: &mut Value,
         return false;
     }
     let mut log = Log::from_row(row);
-    let mut changed = false;
-    for p in pipelines {
-        changed |= p.apply(&mut log, now_ms);
-    }
-    changed |= standard.apply(&mut log);
+    let changed = process_log(pipelines, standard, &mut log, now_ms);
     if changed {
         log.write_row(row);
     }
+    changed
+}
+
+/// [`process_row`] on a log already built: the org's pipelines in order, then its standard attributes.
+pub fn process_log(pipelines: &[Pipeline], standard: &Remapper, log: &mut Log, now_ms: i64) -> bool {
+    let mut changed = false;
+    for p in pipelines {
+        changed |= p.apply(log, now_ms);
+    }
+    changed |= standard.apply(log);
     changed
 }
 
