@@ -5,7 +5,8 @@
 //! <prefix>/org=<org>/dt=2026-10-25/hour=14/archive-<id>.parquet
 //! ```
 //!
-//! - **Writing**: ClickHouse renders the hour as Parquet from `oc.logs_raw` (every ingested log, so
+//! - **Writing**: ClickHouse renders the hour as Parquet from every ingested log ([`every_log`]: the indexed ones and
+//!   the 72-hour copy of the rest, so
 //!   archives also hold logs that no index keeps); the server uploads it (presigned PUT).
 //!   Re-running an hour overwrites the same object, so retries are idempotent.
 //! - **Archive Search**: downloads only the partitions inside the requested range into a local cache
@@ -46,6 +47,16 @@ const MAX_ATTEMPTS: i32 = 5;
 const MAX_SEARCH_FILES: usize = 2_000;
 const MAX_REHYDRATE_ROWS: i64 = 2_000_000;
 /// Archived columns, in the order DuckDB reads them back.
+/// The columns of a log both tables have.
+const EVERY_LOG_COLUMNS: &str = "org_id, id, timestamp, status, service, host, source, message, tags, attr, attributes, trace_id, span_id, severity_number, scope";
+
+/// Every ingested log `clause` matches, as a subquery: the indexed ones (`logs_read`) and the 72-hour copy of the
+/// rest (`logs_raw_read`). Vector's path and older rows have every log in the copy, so readers dedupe by id
+/// (`LIMIT 1 BY id`). `clause`'s parameters are bound twice, once per table.
+pub(crate) fn every_log(clause: &str) -> String {
+    format!("(SELECT {EVERY_LOG_COLUMNS} FROM logs_raw_read WHERE {clause} UNION ALL SELECT {EVERY_LOG_COLUMNS} FROM logs_read WHERE {clause})")
+}
+
 const ARCHIVE_SELECT: &str = "org_id, toString(id) AS id, timestamp, status, service, host, source, message, tags, attr, attributes, trace_id, span_id, severity_number, scope";
 
 fn now_ms() -> i64 {
@@ -465,13 +476,14 @@ async fn archive_hour(st: &AppState, a: &ArchiveRow, store: &Store, hour: i64) -
     let clause = format!("org_id = ? AND timestamp >= fromUnixTimestamp64Milli(?) AND timestamp < fromUnixTimestamp64Milli(?) AND ({})", f.clause);
     let mut params = vec![Param::Str(a.org_id.clone()), Param::Int(hour), Param::Int(hour + HOUR_MS)];
     params.extend(f.params);
-    let rows: u64 = bind(st.clickhouse.query(&format!("SELECT count() FROM logs_raw_read WHERE {clause}")), &params).fetch_one().await?;
+    let params: Vec<Param> = params.iter().chain(params.iter()).cloned().collect();
+    let rows: u64 = bind(st.clickhouse.query(&format!("SELECT uniqExact(id) FROM {}", every_log(&clause))), &params).fetch_one().await?;
     if rows == 0 {
         return Ok((0, 0, None));
     }
     // Strings as UTF-8 strings (not binary) so every Parquet reader sees text.
     let ch = st.clickhouse.clone().with_setting("output_format_parquet_string_as_string", "1").with_setting("output_format_parquet_compression_method", "zstd");
-    let mut cursor = bind(ch.query(&format!("SELECT {ARCHIVE_SELECT} FROM logs_raw_read WHERE {clause} ORDER BY timestamp")), &params).fetch_bytes("Parquet")?;
+    let mut cursor = bind(ch.query(&format!("SELECT {ARCHIVE_SELECT} FROM {} ORDER BY timestamp LIMIT 1 BY id", every_log(&clause))), &params).fetch_bytes("Parquet")?;
     let mut body = Vec::new();
     while let Some(chunk) = cursor.next().await? {
         body.extend_from_slice(&chunk);
@@ -1046,6 +1058,29 @@ pub async fn ensure_demo_archive(st: &AppState) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Indexed logs, the logs no index keeps and Vector's (in both tables) are each archived once.
+    #[tokio::test]
+    async fn every_log_counts_indexed_unindexed_and_vectors_once() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let st = &states[0];
+        let org = crate::test_support::new_org(st, "archive-every-log").await;
+        let now = chrono::Utc::now().timestamp_millis();
+        let row = |id: &str, msg: &str| serde_json::json!({ "org_id": org, "id": id, "timestamp": now, "service": "billing", "status": "info", "message": msg, "tags": {}, "attr": {} }).to_string();
+        let (indexed, unindexed, vectors) = ("00000000-0000-7000-8000-000000000001", "00000000-0000-7000-8000-000000000002", "00000000-0000-7000-8000-000000000003");
+        crate::logproc::insert_rows(st, "oc.logs_dedup", format!("{}\n{}\n", row(indexed, "kept"), row(vectors, "vector")).into_bytes()).await.unwrap();
+        crate::logproc::insert_rows(st, "oc.logs_raw_dedup", format!("{}\n{}\n", row(unindexed, "excluded"), row(vectors, "vector")).into_bytes()).await.unwrap();
+        let clause = "org_id = ?";
+        let ids: Vec<String> = st
+            .clickhouse
+            .query(&format!("SELECT toString(id) FROM {} ORDER BY id LIMIT 1 BY id", every_log(clause)))
+            .bind(&org)
+            .bind(&org)
+            .fetch_all()
+            .await
+            .unwrap();
+        assert_eq!(ids, [indexed, unindexed, vectors]);
+    }
 
     #[test]
     fn partitions_are_hive_style_utc_hours() {

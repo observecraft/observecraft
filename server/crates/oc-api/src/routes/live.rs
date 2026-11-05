@@ -100,6 +100,11 @@ pub async fn live(State(st): State<AppState>, ctx: AuthContext, mut access: LogA
                 return;
             }
         };
+        // The Kafka log ingester publishes the org's logs while a session renews this mark.
+        let mut watch_renewed = Instant::now();
+        if let Err(e) = crate::live_feed::watch(&st.postgres, &ctx.org_id).await {
+            tracing::warn!(error = %e, "live tail: marking the session failed");
+        }
         let cap = ((DISPLAY_CAP_PER_SEC * TICK.as_secs_f64()).ceil() as usize).max(1);
         let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(1);
         let mut rng = Rng(seed | 1);
@@ -149,6 +154,12 @@ pub async fn live(State(st): State<AppState>, ctx: AuthContext, mut access: LogA
                     }
                 }
                 _ = tick.tick() => {
+                    if watch_renewed.elapsed() >= crate::live_feed::WATCH_RENEW {
+                        watch_renewed = Instant::now();
+                        if let Err(e) = crate::live_feed::watch(&st.postgres, &ctx.org_id).await {
+                            tracing::warn!(error = %e, "live tail: renewing the session mark failed");
+                        }
+                    }
                     if access_read.elapsed() >= ACCESS_REFRESH {
                         access_read = Instant::now();
                         match log_access::for_user(&st, &ctx).await {

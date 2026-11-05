@@ -6,6 +6,9 @@
 //! reader on this server, started at the partition's latest offset when its first session subscribes
 //! and stopped when its last one leaves; it hands each record to the sessions of the record's org.
 //! Nothing is committed: live tail shows what arrives while it's open, as before with NATS.
+//!
+//! The Kafka log ingester (`log_ingest`) publishes an org's logs only while one of its sessions, on any server,
+//! is open: sessions mark their org in Postgres (`live_tail_watchers`) and renew the mark while they run.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -16,6 +19,29 @@ use rskafka::client::{Client, ClientBuilder};
 use tokio::sync::broadcast;
 
 pub const TOPIC: &str = "oc.logs.live";
+/// How long a session's mark lasts without renewal (sessions renew it every [`WATCH_RENEW`]).
+const WATCH_FOR: Duration = Duration::from_secs(30);
+pub const WATCH_RENEW: Duration = Duration::from_secs(10);
+
+/// Marks `org` as having an open live tail session.
+pub async fn watch(pg: &sqlx::PgPool, org: &str) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO live_tail_watchers (org_id, until) VALUES ($1, now() + make_interval(secs => $2))
+         ON CONFLICT (org_id) DO UPDATE SET until = EXCLUDED.until",
+    )
+    .bind(org)
+    .bind(WATCH_FOR.as_secs_f64())
+    .execute(pg)
+    .await
+    .map(|_| ())
+}
+
+/// The orgs with an open live tail session on any server.
+pub async fn watched(pg: &sqlx::PgPool) -> Result<std::collections::HashSet<String>, sqlx::Error> {
+    let orgs: Vec<String> = sqlx::query_scalar("SELECT org_id FROM live_tail_watchers WHERE until > now()").fetch_all(pg).await?;
+    Ok(orgs.into_iter().collect())
+}
+
 /// Records a slow session may lag behind before it skips ahead.
 const SESSION_BUFFER: usize = 4096;
 
@@ -205,6 +231,20 @@ mod tests {
         assert_eq!(murmur2(b"lkjh234lh9fiuh90y23oiuhsafujhadof229phr9h19h89h8") as i32, -58897971);
         assert_eq!(murmur2(b"abc") as i32, 479470107);
         assert!((0..12).contains(&partition_of("acme", 12)));
+    }
+
+    #[tokio::test]
+    async fn an_org_is_watched_while_its_sessions_renew() {
+        let Some((_, states)) = crate::test_support::replicas(1).await else { return };
+        let pg = &states[0].postgres;
+        let (watched_org, other) = (crate::test_support::new_org(&states[0], "live-watched").await, crate::test_support::new_org(&states[0], "live-other").await);
+        watch(pg, &watched_org).await.unwrap();
+        let orgs = watched(pg).await.unwrap();
+        assert!(orgs.contains(&watched_org));
+        assert!(!orgs.contains(&other));
+        // A session that stopped renewing lapses.
+        sqlx::query("UPDATE live_tail_watchers SET until = now() - interval '1 second' WHERE org_id = $1").bind(&watched_org).execute(pg).await.unwrap();
+        assert!(!watched(pg).await.unwrap().contains(&watched_org));
     }
 
     /// Against a live Kafka with the `oc.logs.live` topic (`OC_TEST_KAFKA_BROKERS`, e.g. localhost:19092).

@@ -289,6 +289,8 @@ struct Reservations<'a> {
     metrics: Aggregator,
     admitted: Admissions,
     metric_definitions: HashMap<String, Arc<OrgMetrics>>,
+    /// When set, the logs no index keeps (processed), for the Kafka ingester's 72-hour copy.
+    unindexed: Option<Vec<u8>>,
     // Drop rolls back uncommitted working counters BEFORE releasing these local locks.
     guards: Vec<tokio::sync::OwnedMutexGuard<()>>,
 }
@@ -298,6 +300,7 @@ impl<'a> Reservations<'a> {
         Self {
             ix,
             counts: HashMap::new(),
+            unindexed: None,
             metrics: Aggregator::default(),
             admitted: Admissions::new(),
             metric_definitions: ix.log_metrics.read().unwrap().clone(),
@@ -321,7 +324,93 @@ type Admissions = HashMap<(String, String), (String, u16)>;
 
 /// Reuse persisted admissions after a lost response or a restart. Only quota-bearing orgs need
 /// this read. Bound each lookup and prune partitions using the processed event timestamps.
-async fn persisted_admissions(st: &AppState, rows: &[&Value]) -> Result<Admissions, String> {
+/// A log the indexer admits: Vector's rows (JSON) or the Kafka ingester's (`log_normalize::Row`).
+pub(crate) trait IndexRow: Send {
+    fn org_id(&self) -> &str;
+    fn id(&self) -> &str;
+    fn ts_ms(&self) -> Option<i64>;
+    /// Calls `f` with the log's search fields.
+    fn with_fields<R>(&self, f: impl FnOnce(&Fields<'_>) -> R) -> R;
+    /// The log as custom destinations receive it.
+    fn to_value(&self) -> Value;
+    /// Appends the indexed row (a JSONEachRow line) kept by `index`.
+    fn write_indexed(&mut self, out: &mut Vec<u8>, index: &str, retention: u16) -> bool;
+    /// Appends the row as no index keeps it (the 72-hour copy).
+    fn write_unindexed(&self, out: &mut Vec<u8>) -> bool {
+        let ok = serde_json::to_writer(&mut *out, &self.to_value()).is_ok();
+        if ok {
+            out.push(b'\n');
+        }
+        ok
+    }
+}
+
+impl IndexRow for Value {
+    fn org_id(&self) -> &str {
+        self.get("org_id").and_then(Value::as_str).unwrap_or("")
+    }
+    fn id(&self) -> &str {
+        self.get("id").and_then(Value::as_str).unwrap_or("")
+    }
+    fn ts_ms(&self) -> Option<i64> {
+        self.get("ts_ms").and_then(Value::as_i64)
+    }
+    fn with_fields<R>(&self, f: impl FnOnce(&Fields<'_>) -> R) -> R {
+        let s = |k: &str| self.get(k).and_then(Value::as_str).unwrap_or("");
+        let (tags, attr) = (string_map(self.get("tags")), string_map(self.get("attr")));
+        f(&Fields { service: s("service"), status: s("status"), host: s("host"), source: s("source"), message: s("message"), tags: &tags, attr: &attr, index: None })
+    }
+    fn to_value(&self) -> Value {
+        self.clone()
+    }
+    fn write_indexed(&mut self, out: &mut Vec<u8>, index: &str, retention: u16) -> bool {
+        if let Some(o) = self.as_object_mut() {
+            o.insert("index_name".into(), Value::String(index.to_string()));
+            o.insert("retention_days".into(), Value::from(retention));
+        }
+        let ok = serde_json::to_writer(&mut *out, self).is_ok();
+        if ok {
+            out.push(b'\n');
+        }
+        ok
+    }
+}
+
+impl IndexRow for crate::log_normalize::Row {
+    fn org_id(&self) -> &str {
+        &self.org_id
+    }
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn ts_ms(&self) -> Option<i64> {
+        Some(self.ts_ms)
+    }
+    fn with_fields<R>(&self, f: impl FnOnce(&Fields<'_>) -> R) -> R {
+        f(&Fields { service: &self.service, status: &self.status, host: &self.host, source: &self.source, message: &self.message, tags: &self.tags, attr: &self.attr, index: None })
+    }
+    fn to_value(&self) -> Value {
+        serde_json::to_value(self).unwrap_or(Value::Null)
+    }
+    fn write_unindexed(&self, out: &mut Vec<u8>) -> bool {
+        let ok = serde_json::to_writer(&mut *out, self).is_ok();
+        if ok {
+            out.push(b'\n');
+        }
+        ok
+    }
+    fn write_indexed(&mut self, out: &mut Vec<u8>, index: &str, retention: u16) -> bool {
+        self.index_name = Some(index.to_string());
+        self.retention_days = Some(retention);
+        let ok = serde_json::to_writer(&mut *out, self).is_ok();
+        if ok {
+            out.push(b'\n');
+        }
+        ok
+    }
+}
+
+async fn persisted_admissions<R: IndexRow>(st: &AppState, rows: &[&R]) -> Result<Admissions, String> {
     #[derive(clickhouse::Row, Deserialize)]
     struct Admission {
         event_id: String,
@@ -330,9 +419,9 @@ async fn persisted_admissions(st: &AppState, rows: &[&Value]) -> Result<Admissio
     }
     let mut by_org: HashMap<&str, Vec<(&str, i64)>> = HashMap::new();
     for ev in rows {
-        let org = ev.get("org_id").and_then(Value::as_str).ok_or("missing quota organization")?;
-        let id = ev.get("id").and_then(Value::as_str).ok_or("missing quota event ID")?;
-        let ts = ev.get("ts_ms").and_then(Value::as_i64).ok_or("missing quota event timestamp")?;
+        let org = Some(ev.org_id()).filter(|o| !o.is_empty()).ok_or("missing quota organization")?;
+        let id = Some(ev.id()).filter(|i| !i.is_empty()).ok_or("missing quota event ID")?;
+        let ts = ev.ts_ms().ok_or("missing quota event timestamp")?;
         by_org.entry(org).or_default().push((id, ts));
     }
     let mut out = Admissions::new();
@@ -424,44 +513,30 @@ pub(crate) fn prepare_rows(ix: &Indexer, input: Vec<Value>, now: i64) -> Vec<Val
     rows
 }
 
-fn admit_batch(ix: &Indexer, rows: Vec<Value>, existing: &Admissions, reservations: &mut Reservations<'_>, now: i64, rules: &HashMap<String, Arc<Vec<IndexRule>>>) -> (Vec<u8>, usize, usize) {
+fn admit_batch<R: IndexRow>(ix: &Indexer, rows: Vec<R>, existing: &Admissions, reservations: &mut Reservations<'_>, now: i64, rules: &HashMap<String, Arc<Vec<IndexRule>>>) -> (Vec<u8>, usize, usize) {
     let (mut out, mut kept) = (Vec::new(), 0);
     let seen = rows.len();
     let mut decisions = HashMap::new();
     for mut ev in rows {
-        let s = |k: &str| ev.get(k).and_then(Value::as_str).unwrap_or("").to_string();
-        let (org, id) = (s("org_id"), s("id"));
-        let (service, status, host, source, message) = (s("service"), s("status"), s("host"), s("source"), s("message"));
-        let (tags, attr) = (string_map(ev.get("tags")), string_map(ev.get("attr")));
-        let f = Fields {
-            service: &service,
-            status: &status,
-            host: &host,
-            source: &source,
-            message: &message,
-            tags: &tags,
-            attr: &attr,
-            index: None,
-        };
-        let org_metrics = reservations.metric_definitions.get(&org).cloned();
-        if let Some(m) = org_metrics {
-            let ts = ev.get("ts_ms").and_then(Value::as_i64).unwrap_or(now);
-            reservations.metrics.record_event(&org, &m, &f, ts, log_metrics::processing_clock(&id, now), &id);
-        }
-        ix.forwarder.record(&org, &f, &ev);
+        let (org, id) = (ev.org_id().to_string(), ev.id().to_string());
         // Duplicate identities in one batch spend one slot, including before any row is persisted.
         let key = (org.clone(), id.clone());
-        let decision = decisions
-            .entry(key.clone())
-            .or_insert_with(|| existing.get(&key).cloned().or_else(|| ix.route(&org, &id, &f, now, reservations, rules)));
-        let Some((index, retention)) = decision else { continue };
-        reservations.admitted.insert((org, id), (index.clone(), *retention));
-        if let Some(o) = ev.as_object_mut() {
-            o.insert("index_name".into(), Value::String(index.clone()));
-            o.insert("retention_days".into(), Value::from(*retention));
-        }
-        if serde_json::to_writer(&mut out, &ev).is_ok() {
-            out.push(b'\n');
+        let decision = ev.with_fields(|f| {
+            if let Some(m) = reservations.metric_definitions.get(&org).cloned() {
+                let ts = ev.ts_ms().unwrap_or(now);
+                reservations.metrics.record_event(&org, &m, f, ts, log_metrics::processing_clock(&id, now), &id);
+            }
+            ix.forwarder.record_with(&org, f, || ev.to_value());
+            decisions.entry(key.clone()).or_insert_with(|| existing.get(&key).cloned().or_else(|| ix.route(&org, &id, f, now, reservations, rules))).clone()
+        });
+        let Some((index, retention)) = decision else {
+            if let Some(out) = reservations.unindexed.as_mut() {
+                ev.write_unindexed(out);
+            }
+            continue;
+        };
+        reservations.admitted.insert((org, id), (index.clone(), retention));
+        if ev.write_indexed(&mut out, &index, retention) {
             kept += 1;
         }
     }
@@ -527,8 +602,8 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
     drop(slot_timer);
     let now = now_ms();
     let prepared = prepare_batch(&ix, &body, now);
-    match index(&st, &ix, prepared).await {
-        Ok(()) => StatusCode::OK,
+    match index(&st, &ix, prepared, false).await {
+        Ok(_) => StatusCode::OK,
         Err(e) => {
             tracing::warn!(error = %e, "indexing logs failed");
             StatusCode::SERVICE_UNAVAILABLE
@@ -538,17 +613,13 @@ async fn ingest(State((st, ix)): State<(AppState, Arc<Indexer>)>, headers: Heade
 
 /// Admits prepared rows to their indexes and stores the kept ones in `oc.logs_dedup`, with their generated
 /// metrics durably queued. An error leaves the batch to be delivered again; committed prefixes replay safely.
-pub(crate) async fn index(st: &AppState, ix: &Indexer, prepared: Vec<Value>) -> Result<(), String> {
+/// With `unindexed`, returns the logs no index kept (JSONEachRow, processed), for the 72-hour copy.
+pub(crate) async fn index<R: IndexRow>(st: &AppState, ix: &Indexer, prepared: Vec<R>, unindexed: bool) -> Result<Vec<u8>, String> {
     let rules = ix.rules.read().unwrap().clone();
-    let quota_rows: Vec<&Value> = {
+    let quota_rows: Vec<&R> = {
         prepared
             .iter()
-            .filter(|ev| {
-                ev.get("org_id")
-                    .and_then(Value::as_str)
-                    .and_then(|org| rules.get(org))
-                    .is_some_and(|rs| rs.iter().any(|r| r.daily_quota.is_some()))
-            })
+            .filter(|ev| rules.get(ev.org_id()).is_some_and(|rs| rs.iter().any(|r| r.daily_quota.is_some())))
             .collect()
     };
     let lookup_timer = ingest_stats::timer(Stage::PersistedLookup);
@@ -558,9 +629,10 @@ pub(crate) async fn index(st: &AppState, ix: &Indexer, prepared: Vec<Value>) -> 
     };
     drop(lookup_timer);
     let mut reservations = Reservations::new(ix);
+    let mut skipped = Vec::new();
     let has_metrics = prepared
         .iter()
-        .any(|ev| ev.get("org_id").and_then(Value::as_str).is_some_and(|org| reservations.metric_definitions.contains_key(org)));
+        .any(|ev| reservations.metric_definitions.contains_key(ev.org_id()));
     // Quota metadata does not expand per-event metric series, so it can amortize transactions
     // over larger chunks. Keep generated metric expansion at its existing memory bound.
     let chunk_size = if has_metrics { 512 } else if !quota_rows.is_empty() { 2048 } else { usize::MAX };
@@ -575,9 +647,8 @@ pub(crate) async fn index(st: &AppState, ix: &Indexer, prepared: Vec<Value>) -> 
         }
         // Only the admission transaction needs the working-counter locks. Never retain them
         // through ClickHouse/outbox I/O. Stable org order also applies to mixed chunks.
-        let orgs: std::collections::BTreeSet<_> = chunk.iter().filter_map(|ev| {
-            ev.get("org_id").and_then(Value::as_str).filter(|org| rules.get(*org).is_some_and(|rs| rs.iter().any(|r| r.daily_quota.is_some())))
-        }).collect();
+        let orgs: std::collections::BTreeSet<_> =
+            chunk.iter().map(|ev| ev.org_id()).filter(|org| rules.get(*org).is_some_and(|rs| rs.iter().any(|r| r.daily_quota.is_some()))).collect();
         let locks: Vec<_> = {
             let mut gates = ix.quota_orgs.lock().unwrap();
             orgs.into_iter().map(|org| gates.entry(org.to_string()).or_default().clone()).collect()
@@ -587,6 +658,7 @@ pub(crate) async fn index(st: &AppState, ix: &Indexer, prepared: Vec<Value>) -> 
             reservations.guards.push(lock.lock_owned().await);
         }
         drop(gate_timer);
+        reservations.unindexed = unindexed.then(Vec::new);
         let admission_timer = ingest_stats::timer(Stage::Admission);
         let admission = tokio::time::timeout(Duration::from_secs(20), quota::admit(st, ix, chunk, &mut existing, &mut reservations, now_ms(), &rules)).await;
         drop(admission_timer);
@@ -597,6 +669,7 @@ pub(crate) async fn index(st: &AppState, ix: &Indexer, prepared: Vec<Value>) -> 
         // A committed admission has cleared counts; cancellation/errors instead drop Reservations
         // with the guards still held, so rollback cannot clobber another request's working copy.
         reservations.guards.clear();
+        skipped.extend(reservations.unindexed.take().unwrap_or_default());
         pending.push(st, rows, kept).await?;
         let (points, dropped) = reservations.metrics.take_contributions();
         for ((org, metric), logs) in dropped {
@@ -609,7 +682,8 @@ pub(crate) async fn index(st: &AppState, ix: &Indexer, prepared: Vec<Value>) -> 
         reservations.counts.clear();
         existing.extend(reservations.admitted.drain());
     }
-    pending.flush(st).await
+    pending.flush(st).await?;
+    Ok(skipped)
 }
 
 /// `INSERT INTO <table> … FORMAT JSONEachRow` of NDJSON rows.
@@ -694,7 +768,7 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
 
 /// [`admit_batch`] without durable quota, for other modules' tests.
 #[cfg(test)]
-pub(crate) fn admit_for_tests(ix: &Indexer, rows: Vec<Value>) -> (Vec<u8>, usize, usize) {
+pub(crate) fn admit_for_tests<R: IndexRow>(ix: &Indexer, rows: Vec<R>) -> (Vec<u8>, usize, usize) {
     let mut reservations = Reservations::new(ix);
     let rules = ix.rules.read().unwrap().clone();
     let result = admit_batch(ix, rows, &Admissions::new(), &mut reservations, now_ms(), &rules);
