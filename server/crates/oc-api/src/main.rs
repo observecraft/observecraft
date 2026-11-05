@@ -23,6 +23,7 @@ mod log_access;
 mod log_forwarding;
 mod log_metric_outbox;
 mod log_metrics;
+mod log_normalize;
 mod logproc;
 mod metric_rollups;
 mod org_limits;
