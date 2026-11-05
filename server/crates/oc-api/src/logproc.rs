@@ -374,6 +374,44 @@ fn prepare_batch(ix: &Indexer, body: &[u8], now: i64) -> Vec<Value> {
     prepare_rows(ix, body.split(|b| *b == b'\n').filter(|l| !l.is_empty()).filter_map(|line| serde_json::from_slice::<Value>(line).ok()).collect(), now)
 }
 
+/// [`prepare_batch`] for the Kafka ingester's rows, before they become JSON: pipelines and standard attributes
+/// run on the typed attributes `log_normalize` kept, so nothing is parsed again.
+pub(crate) fn prepare_normalized(ix: &Indexer, rows: &mut [crate::log_normalize::Row], now: i64) {
+    let all = ix.pipelines.read().unwrap().clone();
+    for row in rows {
+        let org_pipelines = all.get(&row.org_id).cloned().unwrap_or_default();
+        let standard = ix.standard_for(&row.org_id);
+        if org_pipelines.is_empty() && !standard.names_an_alias(row.attr.keys()) {
+            continue;
+        }
+        let mut log = pipelines::log::Log::default();
+        log.message = row.message.clone();
+        log.status = row.status.clone();
+        log.service = row.service.clone();
+        log.host = row.host.clone();
+        log.source = row.source.clone();
+        log.trace_id = row.trace_id.clone();
+        log.tags = row.tags.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+        log.attrs = std::mem::take(&mut row.attrs);
+        if pipelines::process_log(&org_pipelines, &ix.standard_for(&row.org_id), &mut log, log_metrics::processing_clock(&row.id, now)) {
+            row.message = log.message;
+            row.status = log.status;
+            row.service = log.service;
+            row.host = log.host;
+            row.source = log.source;
+            row.trace_id = log.trace_id;
+            row.tags = log.tags.into_iter().collect();
+            row.attr = pipelines::log::flatten(&log.attrs).into_iter().collect();
+            row.attributes = serde_json::to_string(&log.attrs).unwrap_or_default();
+            if let Some(at) = log.timestamp_ms.and_then(chrono::DateTime::from_timestamp_millis) {
+                row.timestamp = at;
+                row.ts_ms = at.timestamp_millis();
+            }
+        }
+        row.attrs = log.attrs;
+    }
+}
+
 /// [`prepare_batch`] of rows already parsed (the Kafka ingester's).
 pub(crate) fn prepare_rows(ix: &Indexer, input: Vec<Value>, now: i64) -> Vec<Value> {
     let mut rows = Vec::with_capacity(input.len());
@@ -444,8 +482,8 @@ fn route_batch(ix: &Indexer, body: &[u8]) -> (Vec<u8>, usize, usize) {
 
 // Keep metric expansion bounded independently of indexed storage batching. Each admission is
 // durable before reaching this buffer; a failure/cancellation leaves Kafka as the source owner.
-const INDEX_WRITE_EVENTS: usize = 8192;
-const INDEX_WRITE_BYTES: usize = 8 * 1024 * 1024;
+const INDEX_WRITE_EVENTS: usize = 65_536;
+const INDEX_WRITE_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Default)]
 struct PendingRows {

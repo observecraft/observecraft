@@ -262,10 +262,10 @@ impl Remapper {
         let scalar = |v: &Value| !v.is_object() && !v.is_array() && !v.is_null();
         let mut changed = false;
         for r in &self.rules {
-            if log.get(&r.target).is_some() {
+            if log.peek(&r.target).is_some() {
                 continue;
             }
-            let found = r.aliases.iter().find_map(|a| log.get(a).filter(scalar).and_then(|v| cast(v, &r.format)).map(|v| (a, v)));
+            let found = r.aliases.iter().find_map(|a| log.peek(a).filter(|v| scalar(v)).and_then(|v| cast(v.into_owned(), &r.format)).map(|v| (a, v)));
             let Some((alias, v)) = found else { continue };
             if !r.preserve_source {
                 log.remove(alias);
@@ -274,6 +274,11 @@ impl Remapper {
             changed = true;
         }
         changed
+    }
+
+    /// Whether flattened attributes name an alias.
+    pub fn names_an_alias<'a>(&self, mut keys: impl Iterator<Item = &'a String>) -> bool {
+        !self.rules.is_empty() && keys.any(|k| self.aliases.contains(k))
     }
 
     /// Whether the indexer row may hold an alias: its flattened `attr` names one, or it has no `attr`.

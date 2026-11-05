@@ -70,11 +70,17 @@ impl Log {
     /// An attribute by path (`http.status_code`). `message` is the log's message; `service`,
     /// `status`, `host` and `source` fall back to the log's own when no attribute has the name.
     pub fn get(&self, path: &str) -> Option<Value> {
+        self.peek(path).map(std::borrow::Cow::into_owned)
+    }
+
+    /// [`Log::get`] without copying attribute values.
+    pub fn peek(&self, path: &str) -> Option<std::borrow::Cow<'_, Value>> {
+        use std::borrow::Cow;
         if path == "message" {
-            return Some(Value::from(self.message.as_str()));
+            return Some(Cow::Owned(Value::from(self.message.as_str())));
         }
         if let Some(v) = lookup(&self.attrs, path) {
-            return Some(v.clone());
+            return Some(Cow::Borrowed(v));
         }
         let reserved = match path {
             "service" => &self.service,
@@ -83,7 +89,7 @@ impl Log {
             "source" => &self.source,
             _ => return None,
         };
-        (!reserved.is_empty()).then(|| Value::from(reserved.as_str()))
+        (!reserved.is_empty()).then(|| Cow::Owned(Value::from(reserved.as_str())))
     }
 
     /// Sets an attribute by path, creating nested objects (`message` sets the message).
