@@ -61,9 +61,9 @@ intake ─► Kafka oc.otlp.signals ─► OTel Collector ─► ClickHouse otel
 
 ## Consequences
 
-On the benchmark (same laptop): ~89k lines/s stored with no lag, everything the generator sent at a 100k target,
-at ~86 millicores per 1k lines/s for the whole stack (ClickHouse, Kafka, intake, server) and 123 MiB per million
-lines on disk, against 3.1k lines/s and 361 MiB before. ClickStack measured ~40 millicores and 79 MiB, VictoriaLogs
+On the benchmark (same laptop, docs/benchmarks/2026-11-06-kafka-ingester.md): ~89k lines/s stored with no lag,
+everything the generator sent, at ~97 millicores per 1k lines/s for the whole default stack (ClickHouse, Kafka,
+intake, server, Collector) and 123 MiB per million lines on disk, against 3.1k lines/s and 361 MiB before. ClickStack measured ~40 millicores and 79 MiB, VictoriaLogs
 ~10 millicores and 58 MiB.
 
 - Details of new logs show attribute values as text (`"200"`), as custom destinations receive them.
