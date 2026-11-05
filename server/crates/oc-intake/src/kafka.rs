@@ -6,8 +6,8 @@
 //!
 //! Each partition has one batching producer: concurrent requests to a partition are written in one
 //! produce call after a short linger, zstd-compressed. An organization's records spread over
-//! `spread` consecutive partitions from the one its name hashes to, so one large organization isn't
-//! bound to a single partition (and consumer) while each org still touches few partitions.
+//! `spread` consecutive partitions from the one its name hashes to ([`DEFAULT_ORG_SPREAD`]: all of a
+//! default topic's), so one large organization isn't bound to a single partition (and consumer).
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -45,6 +45,11 @@ impl Sink {
         }
     }
 }
+
+/// Partitions an org's records spread over unless `OC_KAFKA_ORG_SPREAD` says otherwise: the chart's
+/// topic partitions (12). With 4, one org's logs were read by 4 Collector workers and stored at ~3k
+/// lines/s on the logs-benchmark ingest test; with 12, ~13k (docs/benchmarks/2026-11-05-logs-benchmark.md).
+pub const DEFAULT_ORG_SPREAD: usize = 12;
 
 /// Largest batch a partition producer sends in one request (bytes, before compression).
 const MAX_BATCH_BYTES: usize = 16 * 1024 * 1024;
@@ -122,6 +127,14 @@ pub fn partition_for(org: &str, turn: usize, spread: usize, partitions: i32) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// By default an org uses every partition of a topic made with the chart's defaults (12), so
+    /// one org's records are read by as many consumers as there are partitions.
+    #[test]
+    fn by_default_an_org_spreads_over_the_charts_twelve_partitions() {
+        let parts: std::collections::BTreeSet<i32> = (0..100).map(|t| partition_for("acme", t, DEFAULT_ORG_SPREAD, 12)).collect();
+        assert_eq!(parts.len(), 12);
+    }
 
     #[test]
     fn orgs_spread_over_a_stable_set_of_partitions() {
