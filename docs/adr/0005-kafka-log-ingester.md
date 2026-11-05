@@ -39,7 +39,7 @@ intake ─► Kafka oc.otlp.signals ─► OTel Collector ─► ClickHouse otel
   and the workspace avoids librdkafka. Delivery is at least once; ids come from the intake, so a replay rewrites
   the same rows (ReplacingMergeTree).
 - **Batches**: 1 MiB fetches, accumulated per partition up to 24 MiB or 1 s; at most `OC_LOG_INGEST_CONCURRENCY`
-  (6) batches decoded and stored at once, which bounds memory.
+  (by default the CPUs it may use, 4–16) batches decoded and stored at once, which bounds memory.
 - **The indexer runs on typed rows** (`logproc::IndexRow`): pipelines and standard attributes on the attributes
   normalization kept, admission without `serde_json::Value`. Vector's JSON rows still go through the same code.
 - **Attributes are stored once**, in `attr` (strings). `attributes` (typed JSON) is empty for these rows; readers
