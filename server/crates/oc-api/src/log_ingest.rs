@@ -29,10 +29,17 @@ const LEASE: Duration = Duration::from_secs(30);
 const SYNC_EVERY: Duration = Duration::from_secs(5);
 /// Largest fetch from one partition (compressed bytes; an OTLP batch expands several times when decoded).
 const FETCH_BYTES: i32 = 1024 * 1024;
-/// Batches decoded and being stored at once, across partitions (`OC_LOG_INGEST_CONCURRENCY`, default 6):
-/// bounds the server's memory to about 200 MiB each.
-static STORE_SLOTS: std::sync::LazyLock<tokio::sync::Semaphore> =
-    std::sync::LazyLock::new(|| tokio::sync::Semaphore::new(std::env::var("OC_LOG_INGEST_CONCURRENCY").ok().and_then(|v| v.parse().ok()).filter(|n| *n > 0).unwrap_or(6)));
+/// Batches decoded and being stored at once, across partitions (`OC_LOG_INGEST_CONCURRENCY`, by default the CPUs the
+/// server may use, 4 to 16): bounds the server's memory to about 200 MiB each.
+static STORE_SLOTS: std::sync::LazyLock<tokio::sync::Semaphore> = std::sync::LazyLock::new(|| {
+    let cpus = std::thread::available_parallelism().map_or(4, |n| n.get());
+    tokio::sync::Semaphore::new(concurrency(std::env::var("OC_LOG_INGEST_CONCURRENCY").ok().as_deref(), cpus))
+});
+
+/// `OC_LOG_INGEST_CONCURRENCY` when set, else `cpus` within 4..=16.
+fn concurrency(setting: Option<&str>, cpus: usize) -> usize {
+    setting.and_then(|v| v.parse().ok()).filter(|n| *n > 0).unwrap_or(cpus.clamp(4, 16))
+}
 /// `OC_LOG_INGEST_RAW=false` skips the 72-hour copy of the logs no index keeps (`oc.logs_raw_dedup`; archives
 /// read it with the indexed logs).
 static RAW_COPY: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| std::env::var("OC_LOG_INGEST_RAW").map_or(true, |v| v != "false"));
@@ -311,9 +318,17 @@ impl Outputs {
         self.live.produce(records).await
     }
 }
+/// What a partition's next batch is.
+enum Fetched {
+    /// Records, and the offset after them.
+    Batch(Vec<Record>, i64),
+    Nothing,
+    /// The offset asked for is past retention: the earliest kept.
+    Expired(i64),
+}
 
-/// Reads one fetch from `offset` and stores its logs; returns the next offset (unchanged when nothing came).
-async fn drain(st: &AppState, ix: &Arc<Indexer>, out: &Arc<Outputs>, pc: &PartitionClient, topic: Topic, offset: i64) -> Result<i64, String> {
+/// Fetches from `offset` until the batch reaches [`BATCH_BYTES`] or its first record waited [`BATCH_WAIT`].
+async fn collect(pc: &PartitionClient, offset: i64) -> Result<Fetched, String> {
     let (mut records, mut size, mut next) = (Vec::new(), 0usize, offset);
     let started = std::time::Instant::now();
     while size < BATCH_BYTES && (records.is_empty() || started.elapsed() < BATCH_WAIT) {
@@ -321,11 +336,10 @@ async fn drain(st: &AppState, ix: &Arc<Indexer>, out: &Arc<Outputs>, pc: &Partit
             Ok((fetched, _high_watermark)) => fetched,
             Err(_) if !records.is_empty() => break,
             Err(e) => {
-                // Records past retention: start again from the earliest kept.
                 let earliest = pc.get_offset(OffsetAt::Earliest).await.map_err(|e| e.to_string())?;
                 if next < earliest {
                     tracing::warn!(offset = next, earliest, "log records expired before they were read");
-                    return Ok(earliest);
+                    return Ok(Fetched::Expired(earliest));
                 }
                 return Err(e.to_string());
             }
@@ -334,7 +348,7 @@ async fn drain(st: &AppState, ix: &Arc<Indexer>, out: &Arc<Outputs>, pc: &Partit
         let fresh: Vec<_> = fetched.into_iter().filter(|r| r.offset >= next).collect();
         let Some(last) = fresh.last().map(|r| r.offset) else {
             if records.is_empty() {
-                return Ok(offset);
+                return Ok(Fetched::Nothing);
             }
             break;
         };
@@ -342,16 +356,31 @@ async fn drain(st: &AppState, ix: &Arc<Indexer>, out: &Arc<Outputs>, pc: &Partit
         size += fresh.iter().map(|r| r.record.value.as_ref().map_or(0, Vec::len)).sum::<usize>();
         records.extend(fresh.into_iter().map(|r| r.record));
     }
+    Ok(Fetched::Batch(records, next))
+}
+
+/// Decodes a batch and stores it: the other signals to their topic, the logs to ClickHouse and live tail.
+async fn process(st: AppState, ix: Arc<Indexer>, out: Arc<Outputs>, topic: Topic, records: Vec<Record>) -> Result<(), String> {
     let _slot = STORE_SLOTS.acquire().await.map_err(|e| e.to_string())?;
     let (rows, signals) = tokio::task::spawn_blocking(move || rows_of(topic, records)).await.map_err(|e| e.to_string())?;
     if !signals.is_empty() {
         out.signals.produce(signals).await.map_err(|e| format!("passing on other signals: {e}"))?;
     }
-    store(st, ix, out, rows).await?;
-    Ok(next)
+    store(&st, &ix, &out, rows).await
 }
 
-/// Reads a partition while this server holds it.
+/// One batch from `offset`, stored; the next offset (unchanged when nothing came).
+#[cfg(test)]
+async fn drain(st: &AppState, ix: &Arc<Indexer>, out: &Arc<Outputs>, pc: &PartitionClient, topic: Topic, offset: i64) -> Result<i64, String> {
+    match collect(pc, offset).await? {
+        Fetched::Batch(records, next) => process(st.clone(), ix.clone(), out.clone(), topic, records).await.map(|()| next),
+        Fetched::Nothing => Ok(offset),
+        Fetched::Expired(earliest) => Ok(earliest),
+    }
+}
+
+/// Reads a partition while this server holds it. A batch is stored while the next one is fetched; offsets
+/// are committed in order, and a batch that fails is read again from the last committed offset.
 async fn read_partition(st: AppState, ix: Arc<Indexer>, out: Arc<Outputs>, leases: Arc<Leases>, topic: (Topic, String), partition: i32, offset: Option<i64>) {
     let pc = loop {
         match out.client.partition_client(topic.1.clone(), partition, UnknownTopicHandling::Retry).await {
@@ -362,29 +391,49 @@ async fn read_partition(st: AppState, ix: Arc<Indexer>, out: Arc<Outputs>, lease
             }
         }
     };
-    let mut offset = match offset {
+    let mut committed = match offset {
         Some(o) => o,
         None => pc.get_offset(OffsetAt::Earliest).await.unwrap_or(0),
     };
+    let mut next = committed;
+    let mut storing: Option<(JoinHandle<Result<(), String>>, i64)> = None;
     let mut backoff = Duration::from_millis(500);
     loop {
-        match drain(&st, &ix, &out, &pc, topic.0, offset).await {
-            Ok(next) if next == offset => {}
-            Ok(next) => {
-                match leases.commit(&st.postgres, &topic.1, partition, next).await {
-                    Ok(true) => {}
-                    Ok(false) => return,
-                    Err(e) => {
-                        tracing::warn!(topic = %topic.1, partition, error = %e, "committing a log offset failed");
-                        tokio::time::sleep(backoff).await;
-                        continue;
-                    }
+        let fetched = collect(&pc, next).await;
+        if let Some((task, end)) = storing.take() {
+            let stored = task.await.map_err(|e| e.to_string()).and_then(|r| r);
+            let commit = match stored {
+                Ok(()) => leases.commit(&st.postgres, &topic.1, partition, end).await.map_err(|e| format!("committing the offset: {e}")),
+                Err(e) => Err(e),
+            };
+            match commit {
+                Ok(true) => {
+                    committed = end;
+                    backoff = Duration::from_millis(500);
                 }
-                offset = next;
-                backoff = Duration::from_millis(500);
+                Ok(false) => return,
+                Err(e) => {
+                    tracing::warn!(topic = %topic.1, partition, offset = committed, error = %e, "ingesting logs failed; retrying");
+                    next = committed;
+                    tokio::time::sleep(backoff).await;
+                    backoff = (backoff * 2).min(Duration::from_secs(30));
+                    continue;
+                }
             }
+        }
+        match fetched {
+            Ok(Fetched::Batch(records, end)) => {
+                next = end;
+                storing = Some((tokio::spawn(process(st.clone(), ix.clone(), out.clone(), topic.0, records)), end));
+            }
+            Ok(Fetched::Nothing) => {}
+            Ok(Fetched::Expired(earliest)) => match leases.commit(&st.postgres, &topic.1, partition, earliest).await {
+                Ok(true) => (committed, next) = (earliest, earliest),
+                Ok(false) => return,
+                Err(e) => tracing::warn!(topic = %topic.1, partition, error = %e, "committing a log offset failed"),
+            },
             Err(e) => {
-                tracing::warn!(topic = %topic.1, partition, offset, error = %e, "ingesting logs failed; retrying");
+                tracing::warn!(topic = %topic.1, partition, offset = next, error = %e, "reading logs failed; retrying");
                 tokio::time::sleep(backoff).await;
                 backoff = (backoff * 2).min(Duration::from_secs(30));
             }
@@ -604,6 +653,15 @@ mod tests {
         assert_eq!(typed_kept, json_kept);
         assert!(typed_kept > 100);
         assert_eq!(lines(typed_out), lines(json_out));
+    }
+
+    #[test]
+    fn batches_stored_at_once_follow_the_cpus() {
+        assert_eq!(concurrency(None, 2), 4);
+        assert_eq!(concurrency(None, 12), 12);
+        assert_eq!(concurrency(None, 64), 16);
+        assert_eq!(concurrency(Some("3"), 64), 3);
+        assert_eq!(concurrency(Some("0"), 8), 8);
     }
 
     #[test]
