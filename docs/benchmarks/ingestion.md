@@ -1,5 +1,8 @@
 # JSON log ingestion benchmark
 
+Latest: logs and metrics after the Kafka log ingester, [2026-11-06](2026-11-06-kafka-ingester.md). The harness below
+measures the earlier Vector path (`OC_LOG_INGEST=vector`).
+
 Measured examples and identified capacity gaps: [2026-10-31 results](2026-10-31-ingestion.md).
 First optimization and paired comparison: [Vector normalization](2026-10-31-normalization.md).
 Indexed batching, quota concurrency and longer runs:
