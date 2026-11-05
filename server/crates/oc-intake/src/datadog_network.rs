@@ -348,7 +348,7 @@ pub async fn connections(State(st): State<Shared>, headers: HeaderMap, body: Byt
     drop(body);
     match converted {
         Ok(Some((req, n))) if n > 0 => {
-            let target = crate::kafka::Sink::Logs;
+            let target = crate::kafka::Sink::Signals;
             match send(&st, &org, target, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&req)).await {
                 Ok(up) if up.status.is_success() => {}
                 Ok(up) => {

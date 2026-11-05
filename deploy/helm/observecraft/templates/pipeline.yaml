@@ -11,6 +11,8 @@ metadata:
 data:
   collector.yaml: |
     {{- .Files.Get "files/collector.yaml" | nindent 4 }}
+  logs.yaml: |
+    {{- .Files.Get (printf "files/logs-%s.yaml" .Values.server.logIngest) | nindent 4 }}
   aggregator.yaml: |
     {{- .Files.Get "files/vector-aggregator.yaml" | nindent 4 }}
   normalize.vrl: |
@@ -37,7 +39,7 @@ spec:
       labels:
         {{- include "oc.selector" (list . "collector") | nindent 8 }}
       annotations:
-        checksum/config: {{ .Files.Get "files/collector.yaml" | sha256sum }}
+        checksum/config: {{ print (.Files.Get "files/collector.yaml") (.Files.Get (printf "files/logs-%s.yaml" .Values.server.logIngest)) | sha256sum }}
     spec:
       automountServiceAccountToken: false
       {{- include "oc.pullSecrets" . | nindent 6 }}
@@ -50,7 +52,8 @@ spec:
       containers:
         - name: collector
           image: {{ include "oc.imageOf" (list . .Values.collector.image) }}
-          args: [--config=/etc/otelcol/collector.yaml]
+          # logs.yaml: whether application logs are the server's (server.logIngest: kafka) or Vector's.
+          args: [--config=/etc/otelcol/collector.yaml, --config=/etc/otelcol/logs.yaml]
           {{- include "oc.containerSecurity" . | nindent 10 }}
           ports:
             - { name: otlp-http, containerPort: 4318 }
@@ -84,7 +87,7 @@ spec:
         - name: config
           configMap:
             name: {{ $fullname }}-pipeline
-            items: [{ key: collector.yaml, path: collector.yaml }]
+            items: [{ key: collector.yaml, path: collector.yaml }, { key: logs.yaml, path: logs.yaml }]
   volumeClaimTemplates:
     - metadata:
         name: queue
@@ -161,8 +164,9 @@ spec:
     matchLabels:
       {{- include "oc.selector" (list . "collector") | nindent 6 }}
 {{- end }}
+{{- if eq .Values.server.logIngest "vector" }}
 ---
-# ---------------------------------------------------------------- vector
+# ---------------------------------------------------------------- vector (server.logIngest: vector only)
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -277,4 +281,5 @@ spec:
   selector:
     matchLabels:
       {{- include "oc.selector" (list . "vector") | nindent 6 }}
+{{- end }}
 {{- end }}

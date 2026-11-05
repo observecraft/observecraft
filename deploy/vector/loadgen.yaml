@@ -39,8 +39,10 @@ transforms:
       parts = split(string!(.message), "|", limit: 3)
       svc = string!(parts[0])
       .service = svc
-      # Agents on the trusted vector protocol name their organization themselves.
+      # A trusted agent writing to Kafka names its organization itself: the record's x-oc-org header (the log
+      # ingester replaces this field with the record's headers).
       .org_id = "default"
+      ._oc_kafka_headers = { "x-oc-org": "default" }
       .level = parts[1]
       .message = parts[2]
 
@@ -73,7 +75,15 @@ transforms:
       .attributes.duration_ms = random_int(4, 900)
 
 sinks:
-  aggregator:
-    type: vector
+  # Straight to the ingestion buffer, as the intake writes JSON logs: the server's log ingester (or, with
+  # OC_LOG_INGEST=vector, the Vector aggregator) reads it.
+  kafka:
+    type: kafka
     inputs: [shape]
-    address: vector-aggregator:6000
+    bootstrap_servers: kafka:9092
+    topic: oc.logs.json
+    key_field: org_id
+    headers_key: _oc_kafka_headers
+    compression: zstd
+    encoding:
+      codec: json

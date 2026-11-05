@@ -50,6 +50,7 @@ spec:
           env:
             {{- include "oc.serverEnv" . | nindent 12 }}
             - { name: OC_KAFKA_BROKERS, value: {{ include "oc.kafkaBrokers" . | quote }} }
+            - { name: OC_LOG_INGEST, value: {{ .Values.server.logIngest | quote }} }
             {{- include "oc.cacheEnv" . | nindent 12 }}
             - { name: OC_PUBLIC_URL, value: {{ include "oc.publicUrl" . | quote }} }
             - { name: OC_CORS_ORIGINS, value: {{ include "oc.publicUrl" . | quote }} }

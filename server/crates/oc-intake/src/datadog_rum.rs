@@ -323,7 +323,7 @@ pub async fn post(State(st): State<Shared>, RawQuery(query): RawQuery, headers: 
     }
     let ctx = Context { tags: ddtags(q.get("ddtags").map(String::as_str).unwrap_or("")), client_ip: client_ip(&headers), user_agent: headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).map(str::to_string) };
     let req = to_otlp(&list, &ctx, now_ms());
-    match send(&st, &app.org, crate::kafka::Sink::Logs, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&req)).await {
+    match send(&st, &app.org, crate::kafka::Sink::Signals, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&req)).await {
         Ok(up) if up.status.is_success() => accepted(),
         Ok(up) => {
             tracing::warn!(status = %up.status, "collector refused converted RUM events");

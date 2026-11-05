@@ -1,0 +1,35 @@
+# OC_LOG_INGEST=vector, the path before the server's Kafka log ingester: the Collector also reads application logs
+# and sends them to the Vector aggregator, which normalizes and indexes them (and an intake without Kafka sends
+# them here over OTLP). Merged over collector.yaml (`--config` twice).
+receivers:
+  kafka/otlp:
+    logs: { topics: [oc.otlp.signals, oc.otlp.logs], encoding: otlp_proto }
+
+connectors:
+  routing/logs:
+    default_pipelines: [logs/app]
+
+exporters:
+  otlp/vector:
+    endpoint: ${env:OC_VECTOR_OTLP_ENDPOINT:-vector-aggregator:4317}
+    tls:
+      insecure: true
+    retry_on_failure:
+      enabled: true
+      max_elapsed_time: 0s
+    sending_queue:
+      wait_for_result: true
+      block_on_overflow: true
+      sizer: bytes
+      queue_size: 33554432
+      batch: { sizer: items, flush_timeout: 1s, min_size: 10000, max_size: 50000 }
+
+service:
+  pipelines:
+    logs:
+      receivers: [kafka/otlp, kafka/otlp_json, otlp]
+      processors: [memory_limiter, resource/org, resourcedetection]
+      exporters: [routing/logs]
+    logs/app:
+      receivers: [routing/logs]
+      exporters: [otlp/vector]

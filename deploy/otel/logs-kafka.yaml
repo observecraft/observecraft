@@ -1,0 +1,3 @@
+# OC_LOG_INGEST=kafka (the default): application logs are the server's, collector.yaml unchanged. Merged over it
+# (`--config` twice), as logs-vector.yaml is for OC_LOG_INGEST=vector.
+processors: {}

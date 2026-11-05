@@ -3,7 +3,7 @@ COMPOSE := docker compose -f deploy/docker-compose.yml
 
 .PHONY: up down cluster-up cluster-down logs ps server intake tracegen load-orgs load storage-report web web-mock test openapi datadog-fixtures tf-compat build images charts clean-data
 
-up:            ## Start storage, cache, pipeline and synthetic load (logs are indexed by `make server` on the host)
+up:            ## Start storage, cache, pipeline and synthetic load (logs are ingested by `make server` on the host)
 	OC_LOGPROC_URL=http://host.docker.internal:8090/ingest/logs $(COMPOSE) up -d
 down:          ## Stop the stack (keeps data)
 	$(COMPOSE) down

@@ -27,8 +27,11 @@ pub enum Sink {
     Traces,
     Metrics,
     Logs,
-    /// Datadog / JSON log events (Vector normalizes them).
+    /// Datadog / JSON log events (the server's log ingester normalizes them).
     JsonLogs,
+    /// Other signals carried as OTLP logs (`oc.signal`: Datadog events, RUM, replay, network connections,
+    /// orchestrator objects), which the Collector writes to their own tables.
+    Signals,
 }
 
 impl Sink {
@@ -42,6 +45,7 @@ impl Sink {
             (Sink::Metrics, true) => "oc.otlp-json.metrics",
             (Sink::Logs, true) => "oc.otlp-json.logs",
             (Sink::JsonLogs, _) => "oc.logs.json",
+            (Sink::Signals, _) => "oc.otlp.signals",
         }
     }
 }
@@ -152,5 +156,7 @@ mod tests {
         assert_eq!(Sink::Traces.topic(false), "oc.otlp.traces");
         assert_eq!(Sink::Metrics.topic(true), "oc.otlp-json.metrics");
         assert_eq!(Sink::JsonLogs.topic(false), "oc.logs.json");
+        // Datadog events, RUM, replay, network and orchestrator payloads converted to OTLP logs: the Collector's.
+        assert_eq!(Sink::Signals.topic(false), "oc.otlp.signals");
     }
 }

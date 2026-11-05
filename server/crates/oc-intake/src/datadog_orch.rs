@@ -192,7 +192,7 @@ pub async fn manifests(State(st): State<Shared>, headers: HeaderMap, raw: Bytes)
     if n == 0 {
         return StatusCode::ACCEPTED.into_response();
     }
-    let target = crate::kafka::Sink::Logs;
+    let target = crate::kafka::Sink::Signals;
     match send(&st, &org, target, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&req)).await {
         Ok(up) if up.status.is_success() => StatusCode::ACCEPTED.into_response(),
         Ok(up) => {

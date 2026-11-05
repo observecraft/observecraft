@@ -2,10 +2,11 @@
 #   make up            → storage + pipeline + synthetic load
 #   make server        → API on :8080 (cargo run), or `docker compose --profile app up` for the container
 #
-# Data flow (docs/adr/0004-kafka-ingestion-buffer.md):
-#   senders ──► intake ──► Kafka oc.otlp.* ──► otel-collector ──► ClickHouse otel.*
-#                     └──► Kafka oc.logs.json ─┐        └─logs──► vector-aggregator ──► ClickHouse oc.logs
-#   loadgen (Vector agent) ──vector────────────┴──► vector-aggregator ──► Kafka oc.logs.live (live tail)
+# Data flow (docs/adr/0004-kafka-ingestion-buffer.md, docs/adr/0005-kafka-log-ingester.md):
+#   senders ──► intake ──► Kafka oc.otlp.{traces,metrics,signals} ──► otel-collector ──► ClickHouse otel.*
+#                     └──► Kafka oc.otlp.logs, oc.otlp-json.logs, oc.logs.json ──► server (log ingester) ──► ClickHouse oc.logs
+#   loadgen (Vector agent) ──► Kafka oc.logs.json ───────────────────────────────┘        └──► Kafka oc.logs.live (live tail)
+# OC_LOG_INGEST=vector (with `--profile vector`) restores the earlier log path through vector-aggregator.
 name: observecraft
 
 x-ch-auth: &ch-auth
@@ -108,7 +109,9 @@ services:
       timeout: 3s
       retries: 30
 
+  # Only for OC_LOG_INGEST=vector (`--profile vector`): the server reads the log topics itself by default.
   vector-aggregator:
+    profiles: ["vector"]
     image: timberio/vector:0.42.0-debian
     restart: unless-stopped
     command: ["--config", "/etc/vector/aggregator.yaml"]
@@ -132,7 +135,7 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.163.2
     restart: unless-stopped
-    command: ["--config=/etc/otelcol-contrib/config.yaml", "--config=/etc/otelcol-contrib/hostmetrics.yaml"]
+    command: ["--config=/etc/otelcol-contrib/config.yaml", "--config=/etc/otelcol-contrib/logs-${OC_LOG_INGEST:-kafka}.yaml", "--config=/etc/otelcol-contrib/hostmetrics.yaml"]
     environment:
       <<: *ch-auth
       OC_HOST_NAME: ${OC_HOST_NAME:-docker-dev-host}
@@ -143,6 +146,8 @@ services:
     volumes:
       - ./otel/collector.yaml:/etc/otelcol-contrib/config.yaml:ro
       - ./otel/hostmetrics.yaml:/etc/otelcol-contrib/hostmetrics.yaml:ro
+      - ./otel/logs-kafka.yaml:/etc/otelcol-contrib/logs-kafka.yaml:ro
+      - ./otel/logs-vector.yaml:/etc/otelcol-contrib/logs-vector.yaml:ro
       # Export queue on disk: spans and metrics survive a restart or a ClickHouse outage.
       - collector-queue:/var/lib/otelcol/queue
     # Internal only: senders go through oc-intake (:4318), which authenticates them. Published on
@@ -151,7 +156,7 @@ services:
       - "127.0.0.1:14318:4318" # OTLP HTTP
     depends_on:
       clickhouse: { condition: service_healthy }
-      vector-aggregator: { condition: service_started }
+      kafka-topics: { condition: service_completed_successfully }
 
   # S3-compatible object storage (RustFS) for log archives: a local stand-in for S3 / GCS / R2.
   # S3 API on :9100 (in the network: rustfs:9000), web console on :9101.
@@ -176,7 +181,7 @@ services:
     volumes:
       - ./vector/loadgen.yaml:/etc/vector/vector.yaml:ro
     depends_on:
-      vector-aggregator: { condition: service_started }
+      kafka-topics: { condition: service_completed_successfully }
 
   server:
     profiles: ["app"]
@@ -189,6 +194,8 @@ services:
       OC_CLICKHOUSE_URL: http://clickhouse:8123
       OC_POSTGRES_URL: postgres://observecraft:observecraft@postgres:5432/observecraft
       OC_KAFKA_BROKERS: kafka:9092
+      # kafka: the server reads the log topics itself; vector: the earlier path (with `--profile vector`).
+      OC_LOG_INGEST: ${OC_LOG_INGEST:-kafka}
       OC_CACHE_URL: redis://valkey:6379/0
       OC_CORS_ORIGINS: ${OC_CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
       # The containerised server also serves the web app on :8080.

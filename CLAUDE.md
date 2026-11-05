@@ -285,7 +285,7 @@ or SDK features.
 ## Commands
 
 ```bash
-make up         # ClickHouse, Postgres, Kafka, Valkey, Vector, OTel Collector, RustFS, synthetic logs
+make up         # ClickHouse, Postgres, Kafka, Valkey, OTel Collector, RustFS, synthetic logs
 make server     # API on :8080 (applies migrations)
 make intake     # intake on :4318
 make tracegen   # demo traces, logs, metrics, CI pipelines
@@ -307,7 +307,10 @@ browser (live and, where relevant, mock mode).
   topic per signal (`oc.otlp.*`, `oc.otlp-json.*`, `oc.logs.json`), keyed by org, with the org's headers
   (`x-oc-org`, retention) as record headers, and answers once Kafka acknowledged (`acks=all`). New telemetry paths
   in the intake go through `send_with` with a `Sink`, never straight to the Collector or Vector; consumers commit
-  offsets only after storing. Live tail reads `oc.logs.live` (`live_feed.rs`).
+  offsets only after storing. Live tail reads `oc.logs.live` (`live_feed.rs`). Logs are the server's
+  (docs/adr/0005-kafka-log-ingester.md): `log_ingest.rs` reads the log topics, `log_normalize.rs` must stay row for
+  row what `deploy/vector/normalize.vrl` makes (change both, regenerate `scripts/log-normalize-golden.mjs`), other
+  signals carried as OTLP logs (`oc.signal`) go to `oc.otlp.signals` (`Sink::Signals`) for the Collector.
 - **SQL.** Bind every user-supplied value as a parameter; never interpolate it.
 - **Migrations.** Add a new numbered file; never edit a merged one. ClickHouse DDL must work single-node and clustered:
   use the placeholders documented at the top of `server/migrations/clickhouse/0001_schema.sql`.
