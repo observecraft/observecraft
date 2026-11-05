@@ -130,7 +130,13 @@ pub async fn list(State(st): State<AppState>, ctx: AuthContext) -> ApiResult<Log
         )
         .bind(&ctx.org_id)
         .fetch_all::<HourCount>();
-    let raw = st.clickhouse.query("SELECT count() FROM logs_raw_read WHERE org_id = ? AND timestamp >= toStartOfDay(now())").bind(&ctx.org_id).fetch_one::<u64>();
+    // Approximate (`uniq`): every log once, indexed or not.
+    let raw = st
+        .clickhouse
+        .query(&format!("SELECT uniq(id) FROM {}", super::archives::every_log("org_id = ? AND timestamp >= toStartOfDay(now())")))
+        .bind(&ctx.org_id)
+        .bind(&ctx.org_id)
+        .fetch_one::<u64>();
     let (hours, ingested_today) = tokio::try_join!(hours, raw)?;
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64;
     let mut by_index: HashMap<String, Vec<(i64, u64)>> = HashMap::new();

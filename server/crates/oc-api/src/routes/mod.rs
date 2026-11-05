@@ -2207,6 +2207,9 @@ mod tests {
             ("../logproc.rs", include_str!("../logproc.rs")),
             ("../log_quota.rs", include_str!("../log_quota.rs")),
             ("../live_feed.rs", include_str!("../live_feed.rs")),
+            ("../log_ingest.rs", include_str!("../log_ingest.rs")),
+            ("../log_normalize.rs", include_str!("../log_normalize.rs")),
+            ("../log_records.rs", include_str!("../log_records.rs")),
             ("../metric_rollups.rs", include_str!("../metric_rollups.rs")),
         ];
         let mut missing = Vec::new();
@@ -2493,6 +2496,9 @@ mod tests {
             ("../log_quota.rs", include_str!("../log_quota.rs")),
             ("../logproc.rs", include_str!("../logproc.rs")),
             ("../live_feed.rs", include_str!("../live_feed.rs")),
+            ("../log_ingest.rs", include_str!("../log_ingest.rs")),
+            ("../log_normalize.rs", include_str!("../log_normalize.rs")),
+            ("../log_records.rs", include_str!("../log_records.rs")),
             ("../main.rs", include_str!("../main.rs")),
             ("../metric_rollups.rs", include_str!("../metric_rollups.rs")),
             ("../org_limits.rs", include_str!("../org_limits.rs")),
@@ -2591,11 +2597,6 @@ mod tests {
                 "per-index volumes on the index settings (counts)",
             ),
             (
-                "log_indexes.rs",
-                "SELECT count() FROM logs_raw_read WHERE org_id = ?",
-                "today's ingested volume (a count)",
-            ),
-            (
                 "datadog_api/logs/indexes.rs",
                 "SELECT count() FROM logs WHERE org_id = ? AND index_name = ?",
                 "whether an index reached its daily quota (a count)",
@@ -2603,7 +2604,7 @@ mod tests {
             (
                 "archives.rs",
                 "FROM logs_raw_read WHERE {clause}",
-                "the archiver writing the org's logs to its archives (background)",
+                "every log of a clause (`every_log`): the archiver (background) and today's ingested volume (a count)",
             ),
             (
                 "instance.rs",

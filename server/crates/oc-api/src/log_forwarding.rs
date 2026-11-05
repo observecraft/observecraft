@@ -188,13 +188,15 @@ impl Forwarder {
         Ok(())
     }
 
-    /// Queues a processed log for every destination of its org whose query matches.
-    pub fn record(&self, org: &str, f: &Fields<'_>, ev: &Value) {
+    /// Queues a processed log for every destination of its org whose query matches; `ev` builds it only when
+    /// one does.
+    pub fn record_with(&self, org: &str, f: &Fields<'_>, ev: impl FnOnce() -> Value) {
         let Some(dests) = self.by_org.read().unwrap().get(org).cloned() else { return };
         let matching: Vec<&Arc<Destination>> = dests.iter().filter(|d| d.target != Target::Sentinel && matches(&d.terms, f)).collect();
         if matching.is_empty() {
             return;
         }
+        let ev = &ev();
         let mut q = self.queue.lock().unwrap();
         for d in matching {
             let e = q.entry(d.id.clone()).or_insert_with(|| Queued { dest: d.clone(), logs: Vec::new(), dropped: 0 });

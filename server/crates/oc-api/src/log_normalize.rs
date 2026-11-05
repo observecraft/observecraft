@@ -13,7 +13,7 @@
 //! are encoded as JSON with sorted keys, `flatten` joins nested keys with `.` and drops empty objects.
 //! `log_normalize/cases.ndjson` holds the rows Vector made from the same inputs (`scripts/log-normalize-golden.mjs`).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::LazyLock;
 
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
@@ -44,16 +44,31 @@ pub struct Row {
     pub host: String,
     pub source: String,
     pub message: String,
-    pub tags: BTreeMap<String, String>,
-    pub attr: BTreeMap<String, String>,
+    #[serde(serialize_with = "sorted")]
+    pub tags: HashMap<String, String>,
+    #[serde(serialize_with = "sorted")]
+    pub attr: HashMap<String, String>,
     /// The attributes as typed JSON (Vector's `attributes`), for the indexer's pipelines. Not stored: `attr`
     /// holds them, and readers nest it again (`pipelines::log::attributes_json`).
     #[serde(skip)]
     pub attrs: Map<String, Value>,
+    /// Set by the indexer once an index keeps the log.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retention_days: Option<u16>,
     pub trace_id: String,
     pub span_id: String,
     pub severity_number: i64,
     pub scope: String,
+}
+
+/// A map in key order: ClickHouse stores a `Map` as arrays in the order given, and the same order in every row
+/// compresses and merges far better.
+fn sorted<S: serde::Serializer>(m: &HashMap<String, String>, s: S) -> Result<S::Ok, S::Error> {
+    let mut entries: Vec<(&String, &String)> = m.iter().collect();
+    entries.sort_unstable_by(|a, b| a.0.cmp(b.0));
+    s.collect_map(entries)
 }
 
 fn rfc3339<S: serde::Serializer>(t: &DateTime<Utc>, s: S) -> Result<S::Ok, S::Error> {
@@ -554,12 +569,12 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
         }
     }
 
-    let mut tags: BTreeMap<String, String> = root_tags.iter().map(|(k, v)| (k.clone(), text(v))).collect();
+    let mut tags: HashMap<String, String> = root_tags.iter().map(|(k, v)| (k.clone(), text(v))).collect();
     tags.extend(r.iter().map(|(k, v)| (k.clone(), text(v))));
     tags.extend(dd);
 
     attrs.retain(|k, _| !used.contains(&k.as_str()));
-    let attr: BTreeMap<String, String> = flatten(&attrs).iter().map(|(k, v)| (k.clone(), text(v))).collect();
+    let attr: HashMap<String, String> = flatten(&attrs).iter().map(|(k, v)| (k.clone(), text(v))).collect();
     let scope = fields.get("scope").and_then(Value::as_object).and_then(|s| s.get("name")).and_then(to_string).unwrap_or_default();
     let id = if V7.is_match(&ingest_id) { ingest_id } else { uuid_v7(ts) };
 
@@ -576,6 +591,8 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
         tags,
         attr,
         attrs,
+        index_name: None,
+        retention_days: None,
         trace_id,
         span_id,
         severity_number: sev,
@@ -640,6 +657,19 @@ mod tests {
     }
 
     /// A generated id is a UUIDv7 of the log's time, so ids sort as the logs do.
+    /// Maps are written in key order, the same in every row: ClickHouse stores a `Map` as arrays in the order given.
+    #[test]
+    fn rows_serialize_maps_in_key_order() {
+        let fields = serde_json::json!({ "source_type": "kafka", "_oc_kafka_headers": { "x-oc-org": "org-1" }, "message": "hi", "zeta": 1, "alpha": 2, "mid": 3, "ddtags": "z:1,a:2,m:3" });
+        let row = normalize(LogEvent { fields: fields.as_object().unwrap().clone(), timestamp: None }, chrono::Utc::now()).unwrap();
+        let json = serde_json::to_string(&row).unwrap();
+        let (a, m, z) = (json.find("\"alpha\"").unwrap(), json.find("\"mid\"").unwrap(), json.find("\"zeta\"").unwrap());
+        assert!(a < m && m < z, "{json}");
+        let tags = &json[json.find("\"tags\"").unwrap()..json.find("\"attr\"").unwrap()];
+        let (ta, tm, tz) = (tags.find("\"a\"").unwrap(), tags.find("\"m\"").unwrap(), tags.find("\"z\"").unwrap());
+        assert!(ta < tm && tm < tz, "{tags}");
+    }
+
     #[test]
     fn generated_ids_carry_the_logs_millisecond() {
         let now = chrono::Utc::now();

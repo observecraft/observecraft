@@ -7,10 +7,10 @@ use std::collections::{BTreeSet, HashSet};
 
 /// Caller holds the process-local org locks. Database advisory locks coordinate every replica.
 /// Lock order is stable across mixed-org batches; no lock is held during metric outbox enqueue.
-pub(super) async fn admit(
+pub(super) async fn admit<R: IndexRow>(
     st: &AppState,
     ix: &Indexer,
-    rows: Vec<Value>,
+    rows: Vec<R>,
     existing: &mut Admissions,
     reservations: &mut Reservations<'_>,
     now: i64,
@@ -18,11 +18,8 @@ pub(super) async fn admit(
 ) -> Result<(Vec<u8>, usize, usize), String> {
     let mut orgs = BTreeSet::new();
     for row in &rows {
-        if let Some(org) = row
-            .get("org_id")
-            .and_then(Value::as_str)
-            .filter(|org| rules.get(*org).is_some_and(|rs| rs.iter().any(|r| r.daily_quota.is_some())))
-        {
+        let org = row.org_id();
+        if rules.get(org).is_some_and(|rs| rs.iter().any(|r| r.daily_quota.is_some())) {
             orgs.insert(org.to_owned());
         }
     }
@@ -38,8 +35,9 @@ pub(super) async fn admit(
         lock(&mut tx, org).await?;
         let ids: Vec<&str> = rows
             .iter()
-            .filter(|r| r.get("org_id").and_then(Value::as_str) == Some(org))
-            .filter_map(|r| r.get("id").and_then(Value::as_str))
+            .filter(|r| r.org_id() == org)
+            .map(|r| r.id())
+            .filter(|id| !id.is_empty())
             .collect();
         let admissions: Vec<(String, String, i32)> =
             sqlx::query_as("SELECT event_id::text, index_name, retention_days FROM log_quota_admissions WHERE org_id = $1 AND event_id = ANY(SELECT unnest($2::text[])::uuid)")

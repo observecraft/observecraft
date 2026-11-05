@@ -8,7 +8,7 @@
 //! partition another server takes over (a restart, a scale-out) is read again from there. Delivery is
 //! at least once; stored rows are deduplicated by id (`oc.logs_dedup` is a ReplacingMergeTree).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -33,8 +33,11 @@ const FETCH_BYTES: i32 = 1024 * 1024;
 /// bounds the server's memory to about 200 MiB each.
 static STORE_SLOTS: std::sync::LazyLock<tokio::sync::Semaphore> =
     std::sync::LazyLock::new(|| tokio::sync::Semaphore::new(std::env::var("OC_LOG_INGEST_CONCURRENCY").ok().and_then(|v| v.parse().ok()).filter(|n| *n > 0).unwrap_or(6)));
-/// `OC_LOG_INGEST_RAW=false` skips the 72-hour copy (`oc.logs_raw_dedup`; replays and rehydration read it).
+/// `OC_LOG_INGEST_RAW=false` skips the 72-hour copy of the logs no index keeps (`oc.logs_raw_dedup`; archives
+/// read it with the indexed logs).
 static RAW_COPY: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| std::env::var("OC_LOG_INGEST_RAW").map_or(true, |v| v != "false"));
+/// How often the orgs with a live tail session are read again.
+const WATCHED_EVERY: Duration = Duration::from_secs(2);
 /// Live tail batches being published at once; more are dropped, as Vector's `drop_newest` buffer did.
 const LIVE_IN_FLIGHT: usize = 8;
 /// How long a fetch waits for records.
@@ -156,43 +159,46 @@ async fn store(st: &AppState, ix: &Arc<Indexer>, live: &Arc<Live>, rows: Vec<Row
         return Ok(());
     }
     let now = chrono::Utc::now().timestamp_millis();
-    let ix_rows = ix.clone();
-    let (raw, values, by_org) = tokio::task::spawn_blocking(move || {
+    let (ix_rows, watched) = (ix.clone(), live.watched());
+    let (rows, by_org) = tokio::task::spawn_blocking(move || {
         let mut rows = rows;
-        // The 72-hour copy and live tail get the logs as normalized, before the org's pipelines (as from Vector).
-        let mut raw = Vec::with_capacity(rows.len() * 2048);
-        let mut by_org: HashMap<String, Vec<Vec<u8>>> = HashMap::new();
-        for row in &rows {
-            let start = raw.len();
-            if serde_json::to_writer(&mut raw, row).is_ok() {
-                by_org.entry(row.org_id.clone()).or_default().push(raw[start..].to_vec());
-                raw.push(b'\n');
-            }
-        }
+        // Live tail gets the logs as normalized, before the org's pipelines (as from Vector).
+        let by_org = live_payloads(&rows, &watched);
         logproc::prepare_normalized(&ix_rows, &mut rows, now);
-        let values: Vec<_> = rows.iter().filter_map(|row| serde_json::to_value(row).ok()).collect();
-        (raw, values, by_org)
+        (rows, by_org)
     })
     .await
     .map_err(|e| e.to_string())?;
-    let prepared = values;
-    let raw_copy = async {
-        if *RAW_COPY {
-            logproc::insert_rows(st, "oc.logs_raw_dedup", raw).await
-        } else {
-            Ok(())
-        }
-    };
-    let (raw_stored, indexed) = tokio::join!(raw_copy, logproc::index(st, ix, prepared));
-    raw_stored.map_err(|e| format!("storing raw logs: {e}"))?;
-    indexed.map_err(|e| format!("indexing logs: {e}"))?;
-    live.publish(by_org);
+    // The 72-hour copy holds what no index keeps, processed: archives read it with the indexed logs.
+    let unindexed = logproc::index(st, ix, rows, *RAW_COPY).await.map_err(|e| format!("indexing logs: {e}"))?;
+    if !unindexed.is_empty() {
+        logproc::insert_rows(st, "oc.logs_raw_dedup", unindexed).await.map_err(|e| format!("storing unindexed logs: {e}"))?;
+    }
+    if !by_org.is_empty() {
+        live.publish(by_org);
+    }
     Ok(())
+}
+
+/// Live tail's records: the logs of orgs with an open session, as normalized, grouped by org.
+fn live_payloads(rows: &[Row], watched: &HashSet<String>) -> HashMap<String, Vec<Vec<u8>>> {
+    let mut by_org: HashMap<String, Vec<Vec<u8>>> = HashMap::new();
+    if watched.is_empty() {
+        return by_org;
+    }
+    for row in rows.iter().filter(|r| watched.contains(&r.org_id)) {
+        if let Ok(json) = serde_json::to_vec(row) {
+            by_org.entry(row.org_id.clone()).or_default().push(json);
+        }
+    }
+    by_org
 }
 
 /// Live tail's producer: each org's logs on its `oc.logs.live` partition, as Vector's `live` sink keyed them.
 struct Live {
     client: Arc<Client>,
+    /// Orgs with an open live tail session (`live_feed::watched`): only their logs are published.
+    watched: std::sync::RwLock<Arc<HashSet<String>>>,
     in_flight: Arc<tokio::sync::Semaphore>,
     partitions: tokio::sync::OnceCell<i32>,
     clients: tokio::sync::Mutex<HashMap<i32, Arc<PartitionClient>>>,
@@ -200,7 +206,26 @@ struct Live {
 
 impl Live {
     fn new(client: Arc<Client>) -> Self {
-        Live { client, in_flight: Arc::new(tokio::sync::Semaphore::new(LIVE_IN_FLIGHT)), partitions: Default::default(), clients: Default::default() }
+        Live { client, watched: Default::default(), in_flight: Arc::new(tokio::sync::Semaphore::new(LIVE_IN_FLIGHT)), partitions: Default::default(), clients: Default::default() }
+    }
+
+    fn watched(&self) -> Arc<HashSet<String>> {
+        self.watched.read().unwrap().clone()
+    }
+
+    /// Keeps the watched orgs current.
+    fn follow_sessions(self: &Arc<Self>, pg: sqlx::PgPool) {
+        let live = self.clone();
+        tokio::spawn(async move {
+            let mut tick = tokio::time::interval(WATCHED_EVERY);
+            loop {
+                tick.tick().await;
+                match crate::live_feed::watched(&pg).await {
+                    Ok(orgs) => *live.watched.write().unwrap() = Arc::new(orgs),
+                    Err(e) => tracing::warn!(error = %e, "reading live tail sessions failed"),
+                }
+            }
+        });
     }
 
     fn publish(self: &Arc<Self>, by_org: HashMap<String, Vec<Vec<u8>>>) {
@@ -331,6 +356,7 @@ pub async fn spawn(st: AppState, ix: Arc<Indexer>) -> anyhow::Result<()> {
     let brokers = st.config.kafka_brokers.clone().ok_or_else(|| anyhow::anyhow!("OC_LOG_INGEST=kafka needs OC_KAFKA_BROKERS"))?;
     let client = Arc::new(ClientBuilder::new(brokers.split(',').map(|b| b.trim().to_string()).collect()).client_id("observecraft-log-ingester").build().await?);
     let live = Arc::new(Live::new(client.clone()));
+    live.follow_sessions(st.postgres.clone());
     let leases = Arc::new(Leases::new());
     tokio::spawn(async move {
         let mut readers: HashMap<(String, i32), JoinHandle<()>> = HashMap::new();
@@ -408,18 +434,16 @@ mod tests {
         let mut raw = Vec::new();
         for row in &rows { serde_json::to_writer(&mut raw, row).unwrap(); raw.push(b'\n'); }
         time("raw json", t);
-        let t = std::time::Instant::now();
-        let values: Vec<_> = rows.iter().map(|r| serde_json::to_value(r).unwrap()).collect();
-        time("to_value", t);
         let orgs: Vec<String> = rows.iter().map(|r| r.org_id.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
         let ix = logproc::test_indexer(&orgs.iter().map(String::as_str).collect::<Vec<_>>());
+        let (n_rows, mut rows) = (rows.len(), rows);
         let t = std::time::Instant::now();
-        let prepared = logproc::prepare_rows(&ix, values, now.timestamp_millis());
+        logproc::prepare_normalized(&ix, &mut rows, now.timestamp_millis());
         time("pipelines", t);
         let t = std::time::Instant::now();
-        let (out, _, kept) = logproc::admit_for_tests(&ix, prepared);
+        let (out, _, kept) = logproc::admit_for_tests(&ix, rows);
         time("admit", t);
-        eprintln!("rows {} kept {kept} raw {} MiB indexed {} MiB", rows.len(), raw.len() >> 20, out.len() >> 20);
+        eprintln!("rows {n_rows} kept {kept} raw {} MiB indexed {} MiB", raw.len() >> 20, out.len() >> 20);
     }
 
     /// The whole path's cost on real records (`OC_TEST_KAFKA_BROKERS`, records already on `oc.otlp.logs`):
@@ -461,10 +485,7 @@ mod tests {
         logproc::prepare_normalized(&ix, &mut rows, now.timestamp_millis());
         time("pipelines", t);
         let t = std::time::Instant::now();
-        let prepared: Vec<_> = rows.iter().map(|r| serde_json::to_value(r).unwrap()).collect();
-        time("to_value", t);
-        let t = std::time::Instant::now();
-        let (out, _, _) = logproc::admit_for_tests(&ix, prepared);
+        let (out, _, _) = logproc::admit_for_tests(&ix, rows);
         time("admit", t);
         eprintln!("raw {} B/log, indexed {} B/log, live zstd {} B/log", raw.len() / n, out.len() / n, compressed.len() / n);
     }
@@ -500,6 +521,48 @@ mod tests {
         let typed: Vec<_> = typed.iter().map(|r| serde_json::to_value(r).unwrap()).collect();
         assert!(remapped > 0, "some cases carry standard attribute aliases");
         assert_eq!(typed, json_path);
+    }
+
+    #[test]
+    fn live_tail_gets_only_watched_orgs_logs_as_normalized() {
+        let now = chrono::Utc::now();
+        let row = |org: &str| {
+            let fields = serde_json::json!({ "source_type": "kafka", "_oc_kafka_headers": { "x-oc-org": org }, "message": "hi", "user_agent": "curl" });
+            log_normalize::normalize(crate::log_normalize::LogEvent { fields: fields.as_object().unwrap().clone(), timestamp: Some(now) }, now).unwrap()
+        };
+        let rows = vec![row("acme"), row("other"), row("acme")];
+        let watched: std::collections::HashSet<String> = ["acme".to_string()].into();
+        let live = live_payloads(&rows, &watched);
+        assert_eq!(live.keys().collect::<Vec<_>>(), ["acme"]);
+        assert_eq!(live["acme"].len(), 2);
+        let first: serde_json::Value = serde_json::from_slice(&live["acme"][0]).unwrap();
+        assert_eq!((first["message"].as_str(), first["attr"]["user_agent"].as_str()), (Some("hi"), Some("curl")));
+        assert!(live_payloads(&rows, &Default::default()).is_empty());
+    }
+
+    /// Rows admitted as `Row` write the same indexed lines as the same rows admitted as JSON.
+    #[test]
+    fn typed_admission_matches_json_admission() {
+        let now = chrono::Utc::now();
+        let mut rows: Vec<Row> = include_str!("log_normalize/cases.ndjson")
+            .lines()
+            .filter_map(|l| {
+                let case: serde_json::Value = serde_json::from_str(l).unwrap();
+                let mut fields = case["event"].as_object().unwrap().clone();
+                fields.remove("_t");
+                log_normalize::normalize(crate::log_normalize::LogEvent { fields, timestamp: Some(now) }, now)
+            })
+            .collect();
+        let orgs: Vec<String> = rows.iter().map(|r| r.org_id.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+        let ix = logproc::test_indexer(&orgs.iter().map(String::as_str).collect::<Vec<_>>());
+        logproc::prepare_normalized(&ix, &mut rows, now.timestamp_millis());
+        let values: Vec<serde_json::Value> = rows.iter().map(|r| serde_json::to_value(r).unwrap()).collect();
+        let lines = |out: Vec<u8>| out.split(|b| *b == b'\n').filter(|l| !l.is_empty()).map(|l| serde_json::from_slice::<serde_json::Value>(l).unwrap()).collect::<Vec<_>>();
+        let (json_out, _, json_kept) = logproc::admit_for_tests(&ix, values);
+        let (typed_out, _, typed_kept) = logproc::admit_for_tests(&ix, rows);
+        assert_eq!(typed_kept, json_kept);
+        assert!(typed_kept > 100);
+        assert_eq!(lines(typed_out), lines(json_out));
     }
 
     #[test]
