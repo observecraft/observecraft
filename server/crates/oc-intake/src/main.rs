@@ -39,7 +39,7 @@
 //!
 //! Each org is rate limited (requests and bytes per second); over the limit answers 429.
 //!
-//! Env: OC_KAFKA_BROKERS (unset: HTTP forwarding), OC_KAFKA_ORG_SPREAD (4 partitions per org),
+//! Env: OC_KAFKA_BROKERS (unset: HTTP forwarding), OC_KAFKA_ORG_SPREAD (12 partitions per org),
 //! OC_INTAKE_ADDR (0.0.0.0:4318), OC_INTAKE_GRPC_ADDR (0.0.0.0:4317), OC_POSTGRES_URL,
 //! OC_INTAKE_COLLECTOR_URL (http://localhost:14318), OC_INTAKE_LOGS_URL (http://localhost:8687),
 //! OC_INTAKE_PROFILES_URL (http://localhost:8090/ingest/profiles),
@@ -167,7 +167,7 @@ impl Config {
             org_bytes_per_sec: env("OC_INTAKE_ORG_MBPS", "50").parse::<f64>().unwrap_or(50.0) * 1024.0 * 1024.0,
             series_cache: env("OC_INTAKE_SERIES_CACHE", "2000000").parse().unwrap_or(2_000_000),
             kafka_brokers: std::env::var("OC_KAFKA_BROKERS").ok().filter(|v| !v.trim().is_empty()),
-            kafka_spread: env("OC_KAFKA_ORG_SPREAD", "4").parse().unwrap_or(4),
+            kafka_spread: env("OC_KAFKA_ORG_SPREAD", &kafka::DEFAULT_ORG_SPREAD.to_string()).parse().unwrap_or(kafka::DEFAULT_ORG_SPREAD),
         }
     }
 }
