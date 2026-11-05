@@ -15919,6 +15919,22 @@ export interface components {
              */
             revokedAt?: number | null;
         };
+        /**
+         * @description An org's ingest limits; null follows the install's (`OC_INTAKE_ORG_MBPS` / `OC_INTAKE_ORG_RPS`, unlimited by
+         *     default).
+         */
+        IngestLimits: {
+            /**
+             * Format: double
+             * @description MiB per second.
+             */
+            mbps?: number | null;
+            /**
+             * Format: double
+             * @description Requests per second.
+             */
+            rps?: number | null;
+        };
         Ingestion: {
             /**
              * Format: int64
@@ -15985,6 +16001,13 @@ export interface components {
             /** Format: int64 */
             createdAt: number;
             id: string;
+            /**
+             * Format: double
+             * @description The org's ingest limits (null: the install's).
+             */
+            ingestMbps?: number | null;
+            /** Format: double */
+            ingestRps?: number | null;
             /**
              * Format: int64
              * @description Logs received in the last 24 hours.
@@ -18546,6 +18569,7 @@ export interface components {
             spanRetentionDays?: number | null;
         };
         OrgLimits: {
+            ingest?: components["schemas"]["IngestLimits"] | null;
             /** Format: int32 */
             maxIndexes: number;
             /** Format: int32 */

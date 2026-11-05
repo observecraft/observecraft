@@ -48177,6 +48177,28 @@
           }
         }
       },
+      "IngestLimits": {
+        "type": "object",
+        "description": "An org's ingest limits; null follows the install's (`OC_INTAKE_ORG_MBPS` / `OC_INTAKE_ORG_RPS`, unlimited by\ndefault).",
+        "properties": {
+          "mbps": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "MiB per second."
+          },
+          "rps": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Requests per second."
+          }
+        }
+      },
       "Ingestion": {
         "type": "object",
         "required": [
@@ -48377,6 +48399,21 @@
           },
           "id": {
             "type": "string"
+          },
+          "ingestMbps": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "The org's ingest limits (null: the install's)."
+          },
+          "ingestRps": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "logs24h": {
             "type": "integer",
@@ -56935,6 +56972,17 @@
           "maxIndexes"
         ],
         "properties": {
+          "ingest": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/IngestLimits",
+                "description": "What the intake accepts from the org's keys; unchanged when absent."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "maxIndexes": {
             "type": "integer",
             "format": "int32"

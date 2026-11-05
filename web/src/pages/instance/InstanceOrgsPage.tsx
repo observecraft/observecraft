@@ -96,6 +96,8 @@ export function InstanceOrgsPage() {
                 <td>{compact(o.spans24h)}</td>
                 <td className="muted small" title="Longest log, span and metric retention (full resolution / 5-minute / 1-hour rollups) and number of log indexes the org may configure">
                   logs ≤ {o.maxLogRetentionDays} d · spans ≤ {o.maxSpanRetentionDays} d · metrics ≤ {o.maxMetrics.raw}/{o.maxMetrics.rollup5m}/{o.maxMetrics.rollup1h} d · {o.maxIndexes} indexes
+                  {o.ingestMbps != null && ` · ingest ≤ ${o.ingestMbps} MiB/s`}
+                  {o.ingestRps != null && ` · ≤ ${o.ingestRps} requests/s`}
                 </td>
                 <td>{timeAgo(o.createdAt)}</td>
                 <td className="col-actions">
@@ -104,7 +106,7 @@ export function InstanceOrgsPage() {
                     triggerClassName="icon-plain"
                     items={[
                       { label: 'Rename', onClick: () => onRename(o) },
-                      { label: 'Retention limits…', onClick: () => setLimits(o) },
+                      { label: 'Limits…', onClick: () => setLimits(o) },
                       ...(o.primary
                         ? []
                         : [
@@ -251,14 +253,24 @@ function LimitsModal({ org, onClose, onSaved }: { org: InstanceOrg; onClose: () 
   const [spans, setSpans] = useState(org.maxSpanRetentionDays);
   const [indexes, setIndexes] = useState(org.maxIndexes);
   const [metrics, setMetrics] = useState<MetricRetention>(org.maxMetrics);
+  // Empty: the install's (unlimited unless OC_INTAKE_ORG_MBPS / OC_INTAKE_ORG_RPS set one).
+  const [mbps, setMbps] = useState(org.ingestMbps == null ? '' : String(org.ingestMbps));
+  const [rps, setRps] = useState(org.ingestRps == null ? '' : String(org.ingestRps));
   // The metric retention tiers (the same for every org).
   const tiers = useQuery({ queryKey: ['data-settings'], queryFn: dataSettings }).data?.metricRetentionTiers ?? [];
   const save = useMutation({
-    mutationFn: () => updateOrgLimits(org.id, { maxLogRetentionDays: logs, maxSpanRetentionDays: spans, maxIndexes: indexes, maxMetrics: metrics }),
+    mutationFn: () =>
+      updateOrgLimits(org.id, {
+        maxLogRetentionDays: logs,
+        maxSpanRetentionDays: spans,
+        maxIndexes: indexes,
+        maxMetrics: metrics,
+        ingest: { mbps: mbps.trim() === '' ? null : Number(mbps), rps: rps.trim() === '' ? null : Number(rps) },
+      }),
     onSuccess: onSaved,
   });
   return (
-    <Modal onClose={onClose} label="Retention limits" width={520} height="auto">
+    <Modal onClose={onClose} label="Limits" width={520} height="auto">
       <form
         className="small-modal"
         onSubmit={(e) => {
@@ -267,7 +279,7 @@ function LimitsModal({ org, onClose, onSaved }: { org: InstanceOrg; onClose: () 
         }}
       >
         <div className="modal-title-row">
-          <h3>Retention limits — {org.name}</h3>
+          <h3>Limits — {org.name}</h3>
           <button type="button" className="icon-plain" onClick={onClose} title="Close">
             <X size={18} />
           </button>
@@ -305,6 +317,14 @@ function LimitsModal({ org, onClose, onSaved }: { org: InstanceOrg; onClose: () 
             </select>
           </label>
         ))}
+        <label className="form-label">
+          Ingest limit (MiB/s)
+          <input type="number" min={0.1} step="any" placeholder="No limit" value={mbps} onChange={(e) => setMbps(e.target.value)} />
+        </label>
+        <label className="form-label">
+          Ingest requests per second
+          <input type="number" min={1} step="any" placeholder="No limit" value={rps} onChange={(e) => setRps(e.target.value)} />
+        </label>
         {save.error && <p className="form-error">{(save.error as Error).message}</p>}
         <div className="small-modal-actions">
           <button type="button" className="btn" onClick={onClose}>

@@ -115,9 +115,10 @@ server:
 
 intake:
   replicas: 2
-  # Per-organization limits; over them a sender gets 429 and retries.
-  orgRequestsPerSecond: 500
-  orgMegabytesPerSecond: 50
+  # Per-organization limits (requests/s, MiB/s); over them a sender gets 429 and retries. 0 = unlimited;
+  # instance admins can still limit one organization (Instance → Organizations → Limits).
+  orgRequestsPerSecond: 0
+  orgMegabytesPerSecond: 0
   maxBodyMegabytes: 16
   resources:
     requests: { cpu: 100m, memory: 128Mi }

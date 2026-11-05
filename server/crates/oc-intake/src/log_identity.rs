@@ -74,6 +74,8 @@ mod tests {
             metrics_5m_days: 90,
             metrics_1h_days: 395,
             flag_environment_id: None,
+            ingest_mbps: None,
+            ingest_rps: None,
         };
         let input = br#"[{"message":"same"},{"message":"same","_oc_ingest":{"id":"forged"}}]"#;
         let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
