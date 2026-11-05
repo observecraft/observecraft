@@ -91,6 +91,9 @@ seedDemo: false
 extraEnv: []
 
 server:
+  # kafka: the servers read the log topics themselves (partitions shared through Postgres leases); vector: the
+  # earlier path through the Vector aggregator (deployed only then).
+  logIngest: kafka
   replicas: 2
   resources:
     requests: { cpu: 250m, memory: 512Mi }

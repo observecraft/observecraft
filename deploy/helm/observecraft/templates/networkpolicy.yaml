@@ -7,8 +7,10 @@
   "server" (list (list 8080 (list "ingress")) (list 8090 (list "vector" "intake")))
   "intake" (list (list 4318 (list "*")) (list 4317 (list "*")))
   "collector" (list (list 4318 (list "intake")) (list 4317 (list "intake")))
-  "vector" (list (list 4317 (list "collector")) (list 8687 (list "intake")))
 -}}
+{{- if eq .Values.server.logIngest "vector" }}
+{{- $_ := set $rules "vector" (list (list 4317 (list "collector")) (list 8687 (list "intake"))) }}
+{{- end }}
 {{- if eq .Values.clickhouse.mode "bundled" }}
 {{- $_ := set $rules "clickhouse" (list (list 8123 (list "server" "vector")) (list 9000 (list "server" "collector"))) }}
 {{- end }}

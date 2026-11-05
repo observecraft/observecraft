@@ -739,7 +739,10 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
     tokio::spawn(crate::log_metric_outbox::run(st.clone()));
     tokio::spawn(quota::run(st.clone()));
     if st.config.log_ingest_kafka {
-        crate::log_ingest::spawn(st.clone(), ix.clone()).await?;
+        match st.config.kafka_brokers {
+            Some(_) => crate::log_ingest::spawn(st.clone(), ix.clone()).await?,
+            None => tracing::warn!("OC_LOG_INGEST=kafka without OC_KAFKA_BROKERS: logs aren't ingested (OC_LOG_INGEST=vector for an install without Kafka)"),
+        }
     }
     let addr = st.config.logproc_addr.clone();
     let profiles = Router::new()

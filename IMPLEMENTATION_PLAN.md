@@ -38,12 +38,14 @@ Goal: one table per indexed log (the 72-hour raw copy optional), attributes stor
 (org, service, host, time).
 Success Criteria: Logs Explorer, facets, histogram, live tail and archives on the new table (their tests); the
 benchmark's disk per million lines.
-Status: In Progress: attributes are stored once (`attr`; readers nest it again when `attributes` is empty, values
-as text): 123 MiB per million lines instead of 191, merges halved. Stream ordering and the optional raw copy
-(OC_LOG_INGEST_RAW) remain.
+Status: Complete: attributes stored once (`attr`), maps in key order, the 72-hour copy holds only unindexed logs
+(archives read indexed + unindexed), live tail on demand; 123 MiB per million lines. Stream ordering was not needed
+(ORDER BY org, service, time already groups similar rows).
 
 ## Stage 5: Switch over
 Goal: Compose and the Helm chart run the Kafka ingester by default, Vector off the log path, with the documented
 way back; docs and CLAUDE.md updated.
 Success Criteria: the full benchmark ramp, a run on the dev cluster.
-Status: Not Started
+Status: Complete in Compose and Helm (OC_LOG_INGEST / server.logIngest, default kafka; other signals on
+oc.otlp.signals for the Collector; loadgen writes to Kafka; docs/adr/0005-kafka-log-ingester.md). A run on the dev
+cluster remains.

@@ -406,7 +406,7 @@ fn http_target(cfg: &Config, sink: Sink) -> String {
     match sink {
         Sink::Traces => format!("{}/v1/traces", cfg.collector_url),
         Sink::Metrics => format!("{}/v1/metrics", cfg.collector_url),
-        Sink::Logs => format!("{}/v1/logs", cfg.collector_url),
+        Sink::Logs | Sink::Signals => format!("{}/v1/logs", cfg.collector_url),
         Sink::JsonLogs => cfg.logs_url.clone(),
     }
 }

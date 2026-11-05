@@ -1,6 +1,7 @@
 # ADR-0004: Kafka as the durable ingestion buffer (replacing NATS)
 
-Status: accepted (2026-10-30)
+Status: accepted (2026-10-30); for logs, amended by [ADR-0005](0005-kafka-log-ingester.md) (the server reads the log
+topics itself, without the Collector and Vector)
 
 ## Context
 

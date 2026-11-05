@@ -110,7 +110,7 @@ pub async fn post(State(st): State<Shared>, RawQuery(query): RawQuery, headers: 
     if !app.keep || records.is_empty() {
         return accepted();
     }
-    match send(&st, &app.org, crate::kafka::Sink::Logs, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&to_otlp(records))).await {
+    match send(&st, &app.org, crate::kafka::Sink::Signals, Some(&HeaderValue::from_static("application/x-protobuf")), None, otlp::encode(&to_otlp(records))).await {
         Ok(up) if up.status.is_success() => accepted(),
         Ok(up) => {
             tracing::warn!(status = %up.status, "collector refused replay segments");

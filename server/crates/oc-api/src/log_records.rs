@@ -131,19 +131,33 @@ pub struct KeyValueList {
 }
 
 /// The events of one Kafka record.
+#[cfg(test)]
 pub fn events(topic: Topic, record: &Record) -> Result<Vec<LogEvent>, String> {
+    decode(topic, record).map(|(events, _)| events)
+}
+
+/// The log events of one Kafka record, and its resources carrying another signal, re-encoded as an OTLP
+/// protobuf request for the Collector's topic (`oc.otlp.signals`): senders such as the cluster collector mark
+/// Kubernetes objects on the ordinary logs endpoint.
+pub fn decode(topic: Topic, record: &Record) -> Result<(Vec<LogEvent>, Option<Vec<u8>>), String> {
     let value = record.value.as_deref().unwrap_or_default();
-    match topic {
-        Topic::Otlp => {
-            let req = <ExportLogsServiceRequest as prost::Message>::decode(value).map_err(|e| format!("OTLP logs: {e}"))?;
-            Ok(otlp_events(&req, record))
-        }
+    let req = match topic {
+        Topic::Otlp => <ExportLogsServiceRequest as prost::Message>::decode(value).map_err(|e| format!("OTLP logs: {e}"))?,
         Topic::OtlpJson => {
             let body: Value = serde_json::from_slice(value).map_err(|e| format!("OTLP JSON logs: {e}"))?;
-            Ok(otlp_events(&otlp_from_json(&body)?, record))
+            otlp_from_json(&body)?
         }
-        Topic::Json => json_events(value, record),
-    }
+        Topic::Json => return json_events(value, record).map(|events| (events, None)),
+    };
+    let signals: Vec<ResourceLogs> = req.resource_logs.iter().filter(|rl| other_signal(rl)).cloned().collect();
+    let signals = (!signals.is_empty()).then(|| prost::Message::encode_to_vec(&ExportLogsServiceRequest { resource_logs: signals }));
+    Ok((otlp_events(&req, record), signals))
+}
+
+fn other_signal(rl: &ResourceLogs) -> bool {
+    rl.resource.as_ref().is_some_and(|r| {
+        r.attributes.iter().any(|kv| kv.key == "oc.signal" && matches!(kv.value.as_ref().and_then(|v| v.value.as_ref()), Some(any_value::Value::StringValue(s)) if OTHER_SIGNALS.contains(&s.as_str())))
+    })
 }
 
 fn header(record: &Record, name: &str) -> Option<String> {
@@ -203,11 +217,8 @@ fn hex(bytes: &[u8]) -> String {
 fn otlp_events(req: &ExportLogsServiceRequest, record: &Record) -> Vec<LogEvent> {
     let org = header(record, "x-oc-org");
     let mut out = Vec::new();
-    for rl in &req.resource_logs {
+    for rl in req.resource_logs.iter().filter(|rl| !other_signal(rl)) {
         let mut resources = rl.resource.as_ref().map(|r| key_values(&r.attributes)).unwrap_or_default();
-        if resources.get("oc.signal").and_then(Value::as_str).is_some_and(|s| OTHER_SIGNALS.contains(&s)) {
-            continue;
-        }
         resources.remove("oc.org_id");
         if let Some(org) = &org {
             resources.insert("oc.org_id".into(), Value::String(org.clone()));
@@ -441,6 +452,15 @@ mod tests {
         assert_eq!(got[0].timestamp.unwrap().to_rfc3339(), "2026-11-05T10:00:00.123+00:00");
         let row = crate::log_normalize::normalize(got[0].clone(), chrono::Utc::now()).unwrap();
         assert_eq!((row.org_id.as_str(), row.service.as_str(), row.status.as_str(), row.id.as_str()), ("acme", "billing", "error", "019a4000-0000-7000-8000-000000000001"));
+    }
+
+    #[test]
+    fn other_signals_are_passed_on_whole_as_protobuf() {
+        let (_, signals) = decode(Topic::Otlp, &record(request().encode_to_vec(), Some("acme"))).unwrap();
+        let passed = ExportLogsServiceRequest::decode(signals.expect("the dd.events resource").as_slice()).unwrap();
+        assert_eq!(passed.resource_logs, vec![request().resource_logs[1].clone()]);
+        let (_, none) = decode(Topic::Otlp, &record(ExportLogsServiceRequest { resource_logs: vec![request().resource_logs[0].clone()] }.encode_to_vec(), Some("acme"))).unwrap();
+        assert!(none.is_none());
     }
 
     #[test]

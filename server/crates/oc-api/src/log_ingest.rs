@@ -36,6 +36,8 @@ static STORE_SLOTS: std::sync::LazyLock<tokio::sync::Semaphore> =
 /// `OC_LOG_INGEST_RAW=false` skips the 72-hour copy of the logs no index keeps (`oc.logs_raw_dedup`; archives
 /// read it with the indexed logs).
 static RAW_COPY: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| std::env::var("OC_LOG_INGEST_RAW").map_or(true, |v| v != "false"));
+/// The Collector's topic for other signals carried as OTLP logs (`oc.signal`).
+const SIGNALS_TOPIC: &str = "oc.otlp.signals";
 /// How often the orgs with a live tail session are read again.
 const WATCHED_EVERY: Duration = Duration::from_secs(2);
 /// Live tail batches being published at once; more are dropped, as Vector's `drop_newest` buffer did.
@@ -140,26 +142,33 @@ impl Leases {
     }
 }
 
-/// The rows of a fetch's records: decoding and normalization, off the async workers.
-fn rows_of(topic: Topic, records: Vec<Record>) -> Vec<Row> {
+/// The rows of a fetch's records, and the other signals some of them carried (`(org, record)` for
+/// `oc.otlp.signals`, with the record's key and headers): decoding and normalization, off the async workers.
+fn rows_of(topic: Topic, records: Vec<Record>) -> (Vec<Row>, Vec<(String, Record)>) {
     let now = chrono::Utc::now();
-    let mut rows = Vec::new();
-    for record in &records {
-        match log_records::events(topic, record) {
-            Ok(events) => rows.extend(events.into_iter().filter_map(|e| log_normalize::normalize(e, now))),
+    let (mut rows, mut signals) = (Vec::new(), Vec::new());
+    for record in records {
+        match log_records::decode(topic, &record) {
+            Ok((events, passed)) => {
+                rows.extend(events.into_iter().filter_map(|e| log_normalize::normalize(e, now)));
+                if let Some(value) = passed {
+                    let org = record.headers.get("x-oc-org").map(|o| String::from_utf8_lossy(o).into_owned()).unwrap_or_default();
+                    signals.push((org, Record { value: Some(value), ..record }));
+                }
+            }
             Err(e) => tracing::warn!(error = %e, "skipping an undecodable log record"),
         }
     }
-    rows
+    (rows, signals)
 }
 
 /// Stores rows: the 72-hour copy and the indexed rows together, then live tail (best effort).
-async fn store(st: &AppState, ix: &Arc<Indexer>, live: &Arc<Live>, rows: Vec<Row>) -> Result<(), String> {
+async fn store(st: &AppState, ix: &Arc<Indexer>, out: &Arc<Outputs>, rows: Vec<Row>) -> Result<(), String> {
     if rows.is_empty() {
         return Ok(());
     }
     let now = chrono::Utc::now().timestamp_millis();
-    let (ix_rows, watched) = (ix.clone(), live.watched());
+    let (ix_rows, watched) = (ix.clone(), out.watched());
     let (rows, by_org) = tokio::task::spawn_blocking(move || {
         let mut rows = rows;
         // Live tail gets the logs as normalized, before the org's pipelines (as from Vector).
@@ -175,7 +184,7 @@ async fn store(st: &AppState, ix: &Arc<Indexer>, live: &Arc<Live>, rows: Vec<Row
         logproc::insert_rows(st, "oc.logs_raw_dedup", unindexed).await.map_err(|e| format!("storing unindexed logs: {e}"))?;
     }
     if !by_org.is_empty() {
-        live.publish(by_org);
+        out.publish(by_org);
     }
     Ok(())
 }
@@ -194,19 +203,70 @@ fn live_payloads(rows: &[Row], watched: &HashSet<String>) -> HashMap<String, Vec
     by_org
 }
 
-/// Live tail's producer: each org's logs on its `oc.logs.live` partition, as Vector's `live` sink keyed them.
-struct Live {
+/// Records for one topic, keyed by org on the org's partition (`live_feed::partition_of`, as Vector's sinks keyed them).
+struct TopicProducer {
     client: Arc<Client>,
-    /// Orgs with an open live tail session (`live_feed::watched`): only their logs are published.
-    watched: std::sync::RwLock<Arc<HashSet<String>>>,
-    in_flight: Arc<tokio::sync::Semaphore>,
+    topic: &'static str,
     partitions: tokio::sync::OnceCell<i32>,
     clients: tokio::sync::Mutex<HashMap<i32, Arc<PartitionClient>>>,
 }
 
-impl Live {
+impl TopicProducer {
+    fn new(client: Arc<Client>, topic: &'static str) -> Self {
+        TopicProducer { client, topic, partitions: Default::default(), clients: Default::default() }
+    }
+
+    /// Writes `(org, record)`s and waits for Kafka's acknowledgement.
+    async fn produce(&self, records: Vec<(String, Record)>) -> Result<(), String> {
+        let count = *self
+            .partitions
+            .get_or_try_init(|| async {
+                let topics = self.client.list_topics().await.map_err(|e| e.to_string())?;
+                topics.iter().find(|t| t.name == self.topic).map(|t| t.partitions.len() as i32).ok_or_else(|| format!("Kafka topic {} doesn't exist", self.topic))
+            })
+            .await?;
+        let mut per_partition: HashMap<i32, Vec<Record>> = HashMap::new();
+        for (org, record) in records {
+            per_partition.entry(crate::live_feed::partition_of(&org, count)).or_default().push(record);
+        }
+        for (partition, records) in per_partition {
+            let pc = {
+                let mut clients = self.clients.lock().await;
+                match clients.get(&partition) {
+                    Some(pc) => pc.clone(),
+                    None => {
+                        let pc = Arc::new(self.client.partition_client(self.topic, partition, UnknownTopicHandling::Retry).await.map_err(|e| e.to_string())?);
+                        clients.insert(partition, pc.clone());
+                        pc
+                    }
+                }
+            };
+            pc.produce(records, Compression::Zstd).await.map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+}
+
+/// What the ingester writes back to Kafka: live tail (`oc.logs.live`, best effort) and the other signals some
+/// senders put on the logs topics (`oc.otlp.signals`, for the Collector, before the offset moves).
+struct Outputs {
+    client: Arc<Client>,
+    live: TopicProducer,
+    signals: TopicProducer,
+    /// Orgs with an open live tail session (`live_feed::watched`): only their logs are published.
+    watched: std::sync::RwLock<Arc<HashSet<String>>>,
+    in_flight: Arc<tokio::sync::Semaphore>,
+}
+
+impl Outputs {
     fn new(client: Arc<Client>) -> Self {
-        Live { client, watched: Default::default(), in_flight: Arc::new(tokio::sync::Semaphore::new(LIVE_IN_FLIGHT)), partitions: Default::default(), clients: Default::default() }
+        Outputs {
+            live: TopicProducer::new(client.clone(), crate::live_feed::TOPIC),
+            signals: TopicProducer::new(client.clone(), SIGNALS_TOPIC),
+            client,
+            watched: Default::default(),
+            in_flight: Arc::new(tokio::sync::Semaphore::new(LIVE_IN_FLIGHT)),
+        }
     }
 
     fn watched(&self) -> Arc<HashSet<String>> {
@@ -243,39 +303,17 @@ impl Live {
     }
 
     async fn produce(&self, by_org: HashMap<String, Vec<Vec<u8>>>) -> Result<(), String> {
-        let count = *self
-            .partitions
-            .get_or_try_init(|| async {
-                let topics = self.client.list_topics().await.map_err(|e| e.to_string())?;
-                topics.iter().find(|t| t.name == crate::live_feed::TOPIC).map(|t| t.partitions.len() as i32).ok_or_else(|| "no live tail topic".to_string())
-            })
-            .await?;
-        let mut per_partition: HashMap<i32, Vec<Record>> = HashMap::new();
         let timestamp = chrono::Utc::now();
-        for (org, logs) in by_org {
-            let records = per_partition.entry(crate::live_feed::partition_of(&org, count)).or_default();
-            records.extend(logs.into_iter().map(|log| Record { key: Some(org.as_bytes().to_vec()), value: Some(log), headers: Default::default(), timestamp }));
-        }
-        for (partition, records) in per_partition {
-            let pc = {
-                let mut clients = self.clients.lock().await;
-                match clients.get(&partition) {
-                    Some(pc) => pc.clone(),
-                    None => {
-                        let pc = Arc::new(self.client.partition_client(crate::live_feed::TOPIC, partition, UnknownTopicHandling::Retry).await.map_err(|e| e.to_string())?);
-                        clients.insert(partition, pc.clone());
-                        pc
-                    }
-                }
-            };
-            pc.produce(records, Compression::Zstd).await.map_err(|e| e.to_string())?;
-        }
-        Ok(())
+        let records = by_org
+            .into_iter()
+            .flat_map(|(org, logs)| logs.into_iter().map(move |log| (org.clone(), Record { key: Some(org.as_bytes().to_vec()), value: Some(log), headers: Default::default(), timestamp })))
+            .collect();
+        self.live.produce(records).await
     }
 }
 
 /// Reads one fetch from `offset` and stores its logs; returns the next offset (unchanged when nothing came).
-async fn drain(st: &AppState, ix: &Arc<Indexer>, live: &Arc<Live>, pc: &PartitionClient, topic: Topic, offset: i64) -> Result<i64, String> {
+async fn drain(st: &AppState, ix: &Arc<Indexer>, out: &Arc<Outputs>, pc: &PartitionClient, topic: Topic, offset: i64) -> Result<i64, String> {
     let (mut records, mut size, mut next) = (Vec::new(), 0usize, offset);
     let started = std::time::Instant::now();
     while size < BATCH_BYTES && (records.is_empty() || started.elapsed() < BATCH_WAIT) {
@@ -305,15 +343,18 @@ async fn drain(st: &AppState, ix: &Arc<Indexer>, live: &Arc<Live>, pc: &Partitio
         records.extend(fresh.into_iter().map(|r| r.record));
     }
     let _slot = STORE_SLOTS.acquire().await.map_err(|e| e.to_string())?;
-    let rows = tokio::task::spawn_blocking(move || rows_of(topic, records)).await.map_err(|e| e.to_string())?;
-    store(st, ix, live, rows).await?;
+    let (rows, signals) = tokio::task::spawn_blocking(move || rows_of(topic, records)).await.map_err(|e| e.to_string())?;
+    if !signals.is_empty() {
+        out.signals.produce(signals).await.map_err(|e| format!("passing on other signals: {e}"))?;
+    }
+    store(st, ix, out, rows).await?;
     Ok(next)
 }
 
 /// Reads a partition while this server holds it.
-async fn read_partition(st: AppState, ix: Arc<Indexer>, live: Arc<Live>, leases: Arc<Leases>, topic: (Topic, String), partition: i32, offset: Option<i64>) {
+async fn read_partition(st: AppState, ix: Arc<Indexer>, out: Arc<Outputs>, leases: Arc<Leases>, topic: (Topic, String), partition: i32, offset: Option<i64>) {
     let pc = loop {
-        match live.client.partition_client(topic.1.clone(), partition, UnknownTopicHandling::Retry).await {
+        match out.client.partition_client(topic.1.clone(), partition, UnknownTopicHandling::Retry).await {
             Ok(pc) => break pc,
             Err(e) => {
                 tracing::warn!(topic = %topic.1, partition, error = %e, "connecting to a log partition failed");
@@ -327,7 +368,7 @@ async fn read_partition(st: AppState, ix: Arc<Indexer>, live: Arc<Live>, leases:
     };
     let mut backoff = Duration::from_millis(500);
     loop {
-        match drain(&st, &ix, &live, &pc, topic.0, offset).await {
+        match drain(&st, &ix, &out, &pc, topic.0, offset).await {
             Ok(next) if next == offset => {}
             Ok(next) => {
                 match leases.commit(&st.postgres, &topic.1, partition, next).await {
@@ -355,8 +396,8 @@ async fn read_partition(st: AppState, ix: Arc<Indexer>, live: Arc<Live>, leases:
 pub async fn spawn(st: AppState, ix: Arc<Indexer>) -> anyhow::Result<()> {
     let brokers = st.config.kafka_brokers.clone().ok_or_else(|| anyhow::anyhow!("OC_LOG_INGEST=kafka needs OC_KAFKA_BROKERS"))?;
     let client = Arc::new(ClientBuilder::new(brokers.split(',').map(|b| b.trim().to_string()).collect()).client_id("observecraft-log-ingester").build().await?);
-    let live = Arc::new(Live::new(client.clone()));
-    live.follow_sessions(st.postgres.clone());
+    let out = Arc::new(Outputs::new(client.clone()));
+    out.follow_sessions(st.postgres.clone());
     let leases = Arc::new(Leases::new());
     tokio::spawn(async move {
         let mut readers: HashMap<(String, i32), JoinHandle<()>> = HashMap::new();
@@ -395,7 +436,7 @@ pub async fn spawn(st: AppState, ix: Arc<Indexer>) -> anyhow::Result<()> {
                     continue;
                 }
                 let Some((topic, _)) = Topic::ALL.into_iter().find(|(_, n)| *n == name) else { continue };
-                readers.insert(key, tokio::spawn(read_partition(st.clone(), ix.clone(), live.clone(), leases.clone(), (topic, name), partition, offset)));
+                readers.insert(key, tokio::spawn(read_partition(st.clone(), ix.clone(), out.clone(), leases.clone(), (topic, name), partition, offset)));
             }
         }
     });
@@ -610,7 +651,7 @@ mod tests {
         let org = crate::test_support::new_org(st, "kafka-ingest").await;
         let ix = logproc::test_indexer(&[&org]);
         let client = Arc::new(ClientBuilder::new(vec![brokers]).build().await.unwrap());
-        let live = Arc::new(Live::new(client.clone()));
+        let live = Arc::new(Outputs::new(client.clone()));
         let pc = client.partition_client("oc.otlp.logs", 0, UnknownTopicHandling::Retry).await.unwrap();
         let kv = |k: &str, v: &str| KeyValue { key: k.into(), value: Some(AnyValue { value: Some(any_value::Value::StringValue(v.into())) }) };
         // Stamped as the intake stamps them (`oc.ingest_id`), so every reader of the partition stores the same ids.
@@ -621,12 +662,26 @@ mod tests {
             ..Default::default()
         };
         let req = ExportLogsServiceRequest {
-            resource_logs: vec![ResourceLogs { resource: Some(Resource { attributes: vec![kv("service.name", "order-service")] }), scope_logs: vec![ScopeLogs { scope: None, log_records: vec![log("ERROR payment declined"), log("order accepted")] }] }],
+            resource_logs: vec![
+                ResourceLogs { resource: Some(Resource { attributes: vec![kv("service.name", "order-service")] }), scope_logs: vec![ScopeLogs { scope: None, log_records: vec![log("ERROR payment declined"), log("order accepted")] }] },
+                // Another signal on the logs topic (a cluster collector's Kubernetes objects): passed on to the Collector.
+                ResourceLogs { resource: Some(Resource { attributes: vec![kv("oc.signal", "k8s.objects")] }), scope_logs: vec![ScopeLogs { scope: None, log_records: vec![log("pod added")] }] },
+            ],
         };
         let record = Record { key: Some(org.as_bytes().to_vec()), value: Some(req.encode_to_vec()), headers: [("x-oc-org".to_string(), org.as_bytes().to_vec())].into(), timestamp: chrono::Utc::now() };
+        let signals_pc = client.partition_client(SIGNALS_TOPIC, crate::live_feed::partition_of(&org, client.list_topics().await.unwrap().iter().find(|t| t.name == SIGNALS_TOPIC).expect("oc.otlp.signals").partitions.len() as i32), UnknownTopicHandling::Retry).await.unwrap();
+        let signals_from = signals_pc.get_offset(OffsetAt::Latest).await.unwrap();
         let offsets = pc.produce(vec![record], Compression::NoCompression).await.unwrap();
         let next = drain(st, &ix, &live, &pc, Topic::Otlp, offsets[0]).await.unwrap();
         assert!(next > offsets[0]);
+        let (passed, _) = signals_pc.fetch_records(signals_from, 1..1 << 20, 1000).await.unwrap();
+        let passed: Vec<_> = passed.into_iter().filter(|r| r.record.headers.get("x-oc-org").map(Vec::as_slice) == Some(org.as_bytes())).collect();
+        // At least once: another server reading the partition (a running stack) passes it on too.
+        assert!(!passed.is_empty(), "the k8s.objects resource reaches the Collector's topic with the org's header");
+        for p in &passed {
+            let req = ExportLogsServiceRequest::decode(p.record.value.as_deref().unwrap()).unwrap();
+            assert_eq!(req.resource_logs.len(), 1, "only the signal's resource");
+        }
         let count = |table: &'static str| {
             let org = org.clone();
             // Distinct ids: delivery is at least once (another server reading the partition stores them too).

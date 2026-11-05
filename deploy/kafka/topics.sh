@@ -33,6 +33,7 @@ for signal in traces metrics logs; do
   topic "oc.otlp.$signal" "$RETENTION_MS"
   topic "oc.otlp-json.$signal" "$RETENTION_MS"
 done
+topic oc.otlp.signals "$RETENTION_MS"
 topic oc.logs.json "$RETENTION_MS"
 topic oc.logs.live "$LIVE_RETENTION_MS"
 echo "Kafka topics ready"

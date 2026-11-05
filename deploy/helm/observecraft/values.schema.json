@@ -169,6 +169,10 @@
     "server": {
       "type": "object",
       "properties": {
+        "logIngest": {
+          "type": "string",
+          "enum": ["kafka", "vector"]
+        },
         "replicas": {
           "type": "integer",
           "minimum": 1

@@ -9,7 +9,11 @@
 # replacement for Kafka ownership; losing a consumer must leave unexported records replayable.
 # There is no batch processor in front of the exporters (it would acknowledge buffered data). The OTLP receiver stays for
 # an intake running without Kafka (OC_KAFKA_BROKERS unset).
-#   logs            → Vector aggregator (single normalization point, same path as agent logs)
+#   logs            → application logs are the server's (OC_LOG_INGEST=kafka: it reads oc.otlp.logs,
+#                     oc.otlp-json.logs and oc.logs.json itself); the Collector reads oc.otlp.signals, the other
+#                     signals carried as OTLP logs (oc.signal), into their tables. logs-vector.yaml restores the
+#                     earlier path (OC_LOG_INGEST=vector: application logs → the Vector aggregator), which an
+#                     intake without Kafka needs.
 #   traces, metrics → ClickHouse `otel` database via the contrib ClickHouse exporter (tables owned by
 #                     the server's ClickHouse migrations, hence create_schema: false)
 #   CI/CD traces    → `otel.otel_ci_traces` (any trace whose resource has cicd.pipeline.name), kept 30 days
@@ -37,7 +41,7 @@ receivers:
     partition_processing: { independent: true, max_buffered_batches: 1, max_in_flight: { records: 64 } }
     traces: { topics: [oc.otlp.traces], encoding: otlp_proto }
     metrics: { topics: [oc.otlp.metrics], encoding: otlp_proto }
-    logs: { topics: [oc.otlp.logs], encoding: otlp_proto }
+    logs: { topics: [oc.otlp.signals], encoding: otlp_proto }
   kafka/otlp_json:
     brokers: ["${env:OC_KAFKA_BROKERS:-kafka:9092}"]
     group_id: oc-collector-json
@@ -95,7 +99,8 @@ connectors:
   # Kubernetes object snapshots and events (the cluster collector marks them oc.signal = k8s.objects)
   # are inventory for the Kubernetes Explorer, not log lines.
   routing/logs:
-    default_pipelines: [logs/app]
+    # Application logs aren't read here (logs-vector.yaml routes them to Vector).
+    default_pipelines: [logs/unrouted]
     error_mode: ignore
     table:
       - statement: route() where attributes["oc.signal"] == "k8s.objects"
@@ -122,19 +127,7 @@ connectors:
         pipelines: [traces/ci]
 
 exporters:
-  otlp/vector:
-    endpoint: ${env:OC_VECTOR_OTLP_ENDPOINT:-vector-aggregator:4317}
-    tls:
-      insecure: true
-    retry_on_failure:
-      enabled: true
-      max_elapsed_time: 0s
-    sending_queue:
-      wait_for_result: true
-      block_on_overflow: true
-      sizer: bytes
-      queue_size: 33554432
-      batch: { sizer: items, flush_timeout: 1s, min_size: 10000, max_size: 50000 }
+  nop: {}
   clickhouse:
     endpoint: ${env:OC_CLICKHOUSE_TCP_ENDPOINT:-tcp://clickhouse:9000?dial_timeout=10s}
     database: otel
@@ -257,12 +250,12 @@ service:
   extensions: [health_check]
   pipelines:
     logs:
-      receivers: [kafka/otlp, kafka/otlp_json, otlp]
+      receivers: [kafka/otlp, otlp]
       processors: [memory_limiter, resource/org, resourcedetection]
       exporters: [routing/logs]
-    logs/app:
+    logs/unrouted:
       receivers: [routing/logs]
-      exporters: [otlp/vector]
+      exporters: [nop]
     logs/k8s:
       receivers: [routing/logs]
       exporters: [clickhouse/k8s]
