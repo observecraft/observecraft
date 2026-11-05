@@ -101,9 +101,16 @@ impl Destination {
     pub fn payload(&self, ev: &Value) -> Value {
         let s = |k: &str| ev.get(k).and_then(Value::as_str).unwrap_or("").to_string();
         let mut out = match ev.get("attributes") {
-            Some(Value::String(a)) => serde_json::from_str::<Map<String, Value>>(a).unwrap_or_default(),
+            Some(Value::String(a)) if !a.is_empty() => serde_json::from_str::<Map<String, Value>>(a).unwrap_or_default(),
             Some(Value::Object(a)) => a.clone(),
-            _ => Map::new(),
+            // Rows stored without `attributes` (the Kafka ingester's): their flattened `attr`.
+            _ => {
+                let attr = ev.get("attr").and_then(Value::as_object).map(|o| o.iter().map(|(k, v)| (k.clone(), v.as_str().map_or_else(|| v.to_string(), str::to_string))).collect::<Vec<_>>());
+                match crate::pipelines::log::attributes_json("", attr.unwrap_or_default()) {
+                    Value::Object(m) => m,
+                    _ => Map::new(),
+                }
+            }
         };
         for (k, v) in [("message", s("message")), ("status", s("status")), ("service", s("service")), ("host", s("host")), ("ddsource", s("source"))] {
             if !v.is_empty() {
@@ -362,6 +369,15 @@ mod tests {
         let t = Destination::target(&json!({"type": "splunk_hec", "endpoint": "https://splunk.example.com", "sourcetype": null}), &json!({"access_token": "t"}));
         assert!(matches!(t, Target::Splunk { sourcetype: SourceType::Omitted, .. }));
         assert_eq!(Destination::target(&json!({"type": "microsoft_sentinel"}), &Value::Null), Target::Sentinel);
+    }
+
+    #[test]
+    fn payloads_of_logs_stored_without_attributes_use_attr() {
+        let d = Destination { id: "d".into(), terms: vec![], target: Target::Sentinel, forward_tags: false, tags_list: vec![], allow_list: true };
+        let ev = json!({"message": "m", "service": "billing", "tags": {}, "attr": {"http.status_code": "500", "http.method": "GET"}, "ts_ms": 1000});
+        let p = d.payload(&ev);
+        assert_eq!(p["http"], json!({"status_code": "500", "method": "GET"}));
+        assert_eq!(p["service"], "billing");
     }
 
     #[test]

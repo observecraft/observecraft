@@ -134,7 +134,7 @@ pub async fn live(State(st): State<AppState>, ctx: AuthContext, mut access: LogA
                         source: r.source,
                         message: r.message,
                         tags: r.tags,
-                        attributes: serde_json::from_str(&r.attributes).unwrap_or(serde_json::Value::Null),
+                        attributes: crate::pipelines::log::attributes_json(&r.attributes, r.attr.clone()),
                         trace_id: super::logs::non_empty(r.trace_id),
                         span_id: super::logs::non_empty(r.span_id),
                     };

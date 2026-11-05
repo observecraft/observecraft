@@ -24,19 +24,23 @@ generated metrics, forwarding, live tail) and commits offsets only after storage
 chooses the path, `vector` keeping today's.
 Success Criteria: the indexer's existing tests; restart and rebalance tests with a real Kafka (no loss, no
 duplicates beyond the ReplacingMergeTree's); the benchmark.
-Status: Not Started
+Status: Complete (Postgres leases and offsets, no consumer groups: rskafka has none and the workspace avoids
+librdkafka; 1 MiB fetches, batches of up to 24 MiB / 1 s, at most OC_LOG_INGEST_CONCURRENCY stored at once)
 
 ## Stage 3: Binary inserts
 Goal: rows go to ClickHouse as RowBinary in large batches instead of JSONEachRow.
 Success Criteria: the indexer's storage tests; the benchmark (stored lines/s, CPU).
-Status: Not Started
+Status: Dropped: ClickHouse spends ~2 s of CPU parsing a run's JSON inserts, against ~85 s merging; the server's
+indexed path instead runs pipelines on typed attributes (prepare_normalized) and sends larger batches
 
 ## Stage 4: Storage schema
 Goal: one table per indexed log (the 72-hour raw copy optional), attributes stored once, rows ordered by stream
 (org, service, host, time).
 Success Criteria: Logs Explorer, facets, histogram, live tail and archives on the new table (their tests); the
 benchmark's disk per million lines.
-Status: Not Started
+Status: In Progress: attributes are stored once (`attr`; readers nest it again when `attributes` is empty, values
+as text): 123 MiB per million lines instead of 191, merges halved. Stream ordering and the optional raw copy
+(OC_LOG_INGEST_RAW) remain.
 
 ## Stage 5: Switch over
 Goal: Compose and the Helm chart run the Kafka ingester by default, Vector off the log path, with the documented

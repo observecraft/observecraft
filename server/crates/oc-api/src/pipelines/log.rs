@@ -181,6 +181,43 @@ pub fn text(v: &Value) -> String {
     }
 }
 
+/// A log's attributes as JSON: its typed `attributes` when they were stored, else its flattened `attr` nested
+/// again by dots, values as text and arrays as arrays (the Kafka ingester stores `attr` only).
+pub fn attributes_json(attributes: &str, attr: impl IntoIterator<Item = (String, String)>) -> Value {
+    if !attributes.is_empty() {
+        if let Ok(v) = serde_json::from_str::<Value>(attributes) {
+            return v;
+        }
+    }
+    let mut flat: Vec<(String, String)> = attr.into_iter().collect();
+    // A value sorts before the keys it prefixes, so a clash keeps the deeper key whole.
+    flat.sort();
+    let mut out = Map::new();
+    for (key, value) in flat {
+        let parts: Vec<&str> = key.split('.').collect();
+        let mut m = &mut out;
+        let mut i = 0;
+        while i + 1 < parts.len() && m.get(parts[i]).is_none_or(Value::is_object) {
+            m = m.entry(parts[i].to_string()).or_insert_with(|| Value::Object(Map::new())).as_object_mut().expect("an object");
+            i += 1;
+        }
+        let value = match value.starts_with('[') {
+            true => serde_json::from_str::<Value>(&value).ok().filter(Value::is_array).unwrap_or(Value::String(value)),
+            false => Value::String(value),
+        };
+        m.insert(parts[i..].join("."), value);
+    }
+    Value::Object(out)
+}
+
+/// [`attributes_json`] from the `attributes` column and `toJSONString(attr)`.
+pub fn attributes_of_columns(attributes: &str, attr_json: &str) -> Value {
+    if !attributes.is_empty() {
+        return attributes_json(attributes, std::iter::empty());
+    }
+    attributes_json("", serde_json::from_str::<HashMap<String, String>>(attr_json).unwrap_or_default())
+}
+
 /// Nested attributes flattened to `a.b.c` keys with text values (normalize.vrl's `attr`).
 pub fn flatten(attrs: &Map<String, Value>) -> HashMap<String, String> {
     fn walk(prefix: &str, m: &Map<String, Value>, out: &mut HashMap<String, String>) {
@@ -201,6 +238,20 @@ pub fn flatten(attrs: &Map<String, Value>) -> HashMap<String, String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn attributes_come_from_attr_when_not_stored() {
+        let attr = [("http.status_code".to_string(), "500".to_string()), ("http.method".to_string(), "GET".to_string()), ("user".to_string(), "u-1".to_string())];
+        assert_eq!(attributes_json("", attr.clone()), json!({"http": {"status_code": "500", "method": "GET"}, "user": "u-1"}));
+        assert_eq!(attributes_json(r#"{"http":{"status_code":500}}"#, attr), json!({"http": {"status_code": 500}}), "stored typed attributes win");
+        // A key that is both a value and a prefix keeps both, the value under its full name.
+        let clash = [("a".to_string(), "1".to_string()), ("a.b".to_string(), "2".to_string())];
+        assert_eq!(attributes_json("", clash), json!({"a": "1", "a.b": "2"}));
+        assert_eq!(attributes_json("", Vec::<(String, String)>::new()), json!({}));
+        // Arrays were flattened as their JSON (normalize.vrl, log_normalize): they come back as arrays.
+        let args = [("process.args".to_string(), r#"["ls","-la"]"#.to_string()), ("note".to_string(), "[not json".to_string())];
+        assert_eq!(attributes_json("", args), json!({"process": {"args": ["ls", "-la"]}, "note": "[not json"}));
+    }
+
     use super::*;
     use serde_json::json;
 
