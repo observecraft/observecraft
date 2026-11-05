@@ -46,8 +46,8 @@ pub struct Row {
     pub message: String,
     pub tags: BTreeMap<String, String>,
     pub attr: BTreeMap<String, String>,
-    pub attributes: String,
-    /// `attributes` as typed JSON, for the indexer's pipelines (not serialized).
+    /// The attributes as typed JSON (Vector's `attributes`), for the indexer's pipelines. Not stored: `attr`
+    /// holds them, and readers nest it again (`pipelines::log::attributes_json`).
     #[serde(skip)]
     pub attrs: Map<String, Value>,
     pub trace_id: String,
@@ -575,13 +575,18 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
         message: msg,
         tags,
         attr,
-        attributes: encode_json(&Value::Object(attrs.clone())),
         attrs,
         trace_id,
         span_id,
         severity_number: sev,
         scope,
     })
+}
+
+/// A fresh UUIDv7, for other modules' tests.
+#[cfg(test)]
+pub fn tests_uuid_v7() -> String {
+    uuid_v7(Utc::now())
 }
 
 /// `replace(s, r'^.*/', "")`.
@@ -607,7 +612,12 @@ mod tests {
             let name = case["name"].as_str().unwrap();
             let mut fields: Map<String, Value> = case["event"].as_object().unwrap().clone();
             let timestamp = fields.remove("_t").and_then(|t| chrono::DateTime::parse_from_rfc3339(t.as_str()?).ok()).map(|t| t.with_timezone(&chrono::Utc));
-            let row = normalize(LogEvent { fields, timestamp }, now).map(|r| serde_json::to_value(r).unwrap());
+            // The typed attributes aren't stored, but they are still Vector's `attributes`.
+            let row = normalize(LogEvent { fields, timestamp }, now).map(|r| {
+                let mut v = serde_json::to_value(&r).unwrap();
+                v["attributes"] = Value::String(encode_json(&Value::Object(r.attrs)));
+                v
+            });
             let mut expected = case["expected"].clone();
             let (Some(mut got), false) = (row.clone(), expected.is_null()) else {
                 if row.is_some() != !expected.is_null() {

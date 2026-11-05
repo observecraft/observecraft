@@ -484,11 +484,20 @@ mod tests {
             .collect();
         let orgs: Vec<String> = rows.iter().map(|r| r.org_id.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
         let ix = logproc::test_indexer(&orgs.iter().map(String::as_str).collect::<Vec<_>>());
-        let json_path = logproc::prepare_rows(&ix, rows.iter().map(|r| serde_json::to_value(r).unwrap()).collect(), now.timestamp_millis());
+        // Vector's rows carry the typed attributes as `attributes`; the typed path doesn't store them.
+        let vector_row = |r: &Row| {
+            let mut v = serde_json::to_value(r).unwrap();
+            v["attributes"] = serde_json::Value::String(serde_json::to_string(&r.attrs).unwrap());
+            v
+        };
+        let mut json_path = logproc::prepare_rows(&ix, rows.iter().map(vector_row).collect(), now.timestamp_millis());
+        let remapped = json_path.iter().zip(&rows).filter(|(a, r)| **a != vector_row(r)).count();
+        for row in &mut json_path {
+            row.as_object_mut().unwrap().remove("attributes");
+        }
         let mut typed = rows.clone();
         logproc::prepare_normalized(&ix, &mut typed, now.timestamp_millis());
         let typed: Vec<_> = typed.iter().map(|r| serde_json::to_value(r).unwrap()).collect();
-        let remapped = json_path.iter().zip(&rows).filter(|(a, r)| **a != serde_json::to_value(r).unwrap()).count();
         assert!(remapped > 0, "some cases carry standard attribute aliases");
         assert_eq!(typed, json_path);
     }
@@ -541,7 +550,13 @@ mod tests {
         let live = Arc::new(Live::new(client.clone()));
         let pc = client.partition_client("oc.otlp.logs", 0, UnknownTopicHandling::Retry).await.unwrap();
         let kv = |k: &str, v: &str| KeyValue { key: k.into(), value: Some(AnyValue { value: Some(any_value::Value::StringValue(v.into())) }) };
-        let log = |msg: &str| LogRecord { time_unix_nano: chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64, body: Some(AnyValue { value: Some(any_value::Value::StringValue(msg.into())) }), ..Default::default() };
+        // Stamped as the intake stamps them (`oc.ingest_id`), so every reader of the partition stores the same ids.
+        let log = |msg: &str| LogRecord {
+            time_unix_nano: chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64,
+            body: Some(AnyValue { value: Some(any_value::Value::StringValue(msg.into())) }),
+            attributes: vec![kv("oc.ingest_id", &log_normalize::tests_uuid_v7())],
+            ..Default::default()
+        };
         let req = ExportLogsServiceRequest {
             resource_logs: vec![ResourceLogs { resource: Some(Resource { attributes: vec![kv("service.name", "order-service")] }), scope_logs: vec![ScopeLogs { scope: None, log_records: vec![log("ERROR payment declined"), log("order accepted")] }] }],
         };
@@ -551,11 +566,15 @@ mod tests {
         assert!(next > offsets[0]);
         let count = |table: &'static str| {
             let org = org.clone();
-            async move { st.clickhouse.query(&format!("SELECT count() FROM {table} WHERE org_id = ?")).bind(&org).fetch_one::<u64>().await.unwrap() }
+            // Distinct ids: delivery is at least once (another server reading the partition stores them too).
+            async move { st.clickhouse.query(&format!("SELECT uniqExact(id) FROM {table} WHERE org_id = ?")).bind(&org).fetch_one::<u64>().await.unwrap() }
         };
         assert_eq!(count("logs_read").await, 2);
         assert_eq!(count("logs_raw_dedup").await, 2);
         let statuses: Vec<String> = st.clickhouse.query("SELECT status FROM logs_read WHERE org_id = ? ORDER BY status").bind(&org).fetch_all().await.unwrap();
         assert_eq!(statuses, ["error", "info"]);
+        // Attributes are stored once, flattened in `attr`.
+        let stored: Vec<(String, String)> = st.clickhouse.query("SELECT attributes, toJSONString(attr) FROM logs_read WHERE org_id = ? LIMIT 1").bind(&org).fetch_all().await.unwrap();
+        assert_eq!(stored[0].0, "");
     }
 }

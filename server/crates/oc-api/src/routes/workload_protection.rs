@@ -424,6 +424,7 @@ struct EventRow {
     service: String,
     tags_json: String,
     attributes: String,
+    attr_json: String,
 }
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -483,7 +484,7 @@ pub async fn events(State(st): State<AppState>, ctx: AuthContext, access: LogAcc
     params.push(Param::Int(limit as i64));
     let rows: Vec<EventRow> = bind(
         st.ch(org).query(&format!(
-            "SELECT toString(id) AS id, toUnixTimestamp64Milli(timestamp) AS ts, host, service, toJSONString(tags) AS tags_json, attributes FROM {} WHERE {} ORDER BY timestamp DESC LIMIT ?",
+            "SELECT toString(id) AS id, toUnixTimestamp64Milli(timestamp) AS ts, host, service, toJSONString(tags) AS tags_json, attributes, if(attributes = '', toJSONString(attr), '') AS attr_json FROM {} WHERE {} ORDER BY timestamp DESC LIMIT ?",
             s.table, s.clause
         )),
         &params,
@@ -504,7 +505,7 @@ pub async fn events(State(st): State<AppState>, ctx: AuthContext, access: LogAcc
         .into_iter()
         .map(|r| {
             let tags: Map<String, Value> = serde_json::from_str(&r.tags_json).unwrap_or_default();
-            let attributes: Value = serde_json::from_str(&r.attributes).unwrap_or(Value::Null);
+            let attributes = crate::pipelines::log::attributes_of_columns(&r.attributes, &r.attr_json);
             event_of(r.id, r.ts, r.host, r.service, &tags, attributes)
         })
         .collect();

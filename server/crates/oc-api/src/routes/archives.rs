@@ -678,7 +678,8 @@ fn duck_search(files: &[PathBuf], terms: &[oc_query::Term], restriction: Option<
     let total: i64 = conn.query_row(&format!("SELECT count(*) FROM {from} WHERE {clause}"), duckdb::params_from_iter(duck_params(&params)), |r| r.get(0)).map_err(duck_err)?;
     let mut stmt = conn
         .prepare(&format!(
-            "SELECT id, epoch_ms(timestamp), status, service, host, source, message, to_json(tags)::VARCHAR, attributes, trace_id, span_id \
+            "SELECT id, epoch_ms(timestamp), status, service, host, source, message, to_json(tags)::VARCHAR, attributes, trace_id, span_id, \
+             CASE WHEN attributes = '' THEN to_json(attr)::VARCHAR ELSE '' END \
              FROM {from} WHERE {clause} ORDER BY timestamp DESC LIMIT {max}"
         ))
         .map_err(duck_err)?;
@@ -696,7 +697,7 @@ fn duck_search(files: &[PathBuf], terms: &[oc_query::Term], restriction: Option<
                 source: r.get(5)?,
                 message: r.get(6)?,
                 tags: serde_json::from_str(&tags).unwrap_or_default(),
-                attributes: serde_json::from_str(&attributes).unwrap_or(Value::Null),
+                attributes: crate::pipelines::log::attributes_of_columns(&attributes, &r.get::<_, Option<String>>(11)?.unwrap_or_default()),
                 trace_id: r.get::<_, Option<String>>(9)?.and_then(opt),
                 span_id: r.get::<_, Option<String>>(10)?.and_then(opt),
             })

@@ -91,6 +91,8 @@ struct LogRow {
     /// JSON of the tags map (not aliased `tags`: the alias would shadow the column in WHERE).
     tags_json: String,
     attributes: String,
+    /// JSON of `attr`, for rows stored without `attributes` (the Kafka ingester's).
+    attr_json: String,
     trace_id: String,
     span_id: String,
 }
@@ -111,7 +113,7 @@ impl From<LogRow> for LogEvent {
             source: r.source,
             message: r.message,
             tags: serde_json::from_str(&r.tags_json).unwrap_or_default(),
-            attributes: serde_json::from_str(&r.attributes).unwrap_or(serde_json::Value::Null),
+            attributes: crate::pipelines::log::attributes_of_columns(&r.attributes, &r.attr_json),
             trace_id: non_empty(r.trace_id),
             span_id: non_empty(r.span_id),
         }
@@ -219,7 +221,7 @@ pub async fn search(State(st): State<AppState>, OrgId(org): OrgId, access: LogAc
     let rows_q = bind(
         st.ch(&org).query(&format!(
             "SELECT toString(id) AS id, toUnixTimestamp64Milli(timestamp) AS ts, status, service, host, source, message, \
-             toJSONString(tags) AS tags_json, attributes, trace_id, span_id FROM {table} WHERE {page_clause} ORDER BY timestamp DESC, id DESC LIMIT ?"
+             toJSONString(tags) AS tags_json, attributes, if(attributes = '', toJSONString(attr), '') AS attr_json, trace_id, span_id FROM {table} WHERE {page_clause} ORDER BY timestamp DESC, id DESC LIMIT ?"
         )),
         &page_params,
     );

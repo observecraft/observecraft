@@ -755,6 +755,7 @@ struct LogRow {
     message: String,
     tags_json: String,
     attributes: String,
+    attr_json: String,
 }
 
 /// The newest (or oldest) error logs in range that belong to the issue (its service and message shape).
@@ -770,7 +771,7 @@ async fn issue_logs(st: &AppState, org: &str, access: &LogAccess, range: TimeRan
         st.ch(org).query(&format!(
             "SELECT toString(id) AS id, toUnixTimestamp64Milli(timestamp) AS t, toString(service) AS service, \
              toString(error_kind) AS kind, \
-             substringUTF8(message, 1, 5000) AS message, toJSONString(mapUpdate(tags, map('host', toString(host)))) AS tags_json, attributes \
+             substringUTF8(message, 1, 5000) AS message, toJSONString(mapUpdate(tags, map('host', toString(host)))) AS tags_json, attributes, if(attributes = '', toJSONString(attr), '') AS attr_json \
              FROM {} WHERE {} AND {TRACKED_LOG_SQL} AND error_kind = ? AND error_key = ? \
              ORDER BY timestamp {} LIMIT ?",
             s.table,
@@ -904,7 +905,7 @@ pub async fn issue_samples(State(st): State<AppState>, OrgId(org): OrgId, access
     let available = logs.len();
     let index = req.index.min(available.saturating_sub(1));
     let sample = logs.into_iter().nth(index).map(|l| {
-        let mut json: serde_json::Value = serde_json::from_str(&l.attributes).unwrap_or(serde_json::json!({}));
+        let mut json = crate::pipelines::log::attributes_of_columns(&l.attributes, &l.attr_json);
         if let Some(o) = json.as_object_mut() {
             o.insert("message".into(), serde_json::Value::String(l.message.clone()));
         }

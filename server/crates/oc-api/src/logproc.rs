@@ -402,7 +402,6 @@ pub(crate) fn prepare_normalized(ix: &Indexer, rows: &mut [crate::log_normalize:
             row.trace_id = log.trace_id;
             row.tags = log.tags.into_iter().collect();
             row.attr = pipelines::log::flatten(&log.attrs).into_iter().collect();
-            row.attributes = serde_json::to_string(&log.attrs).unwrap_or_default();
             if let Some(at) = log.timestamp_ms.and_then(chrono::DateTime::from_timestamp_millis) {
                 row.timestamp = at;
                 row.ts_ms = at.timestamp_millis();
@@ -911,7 +910,7 @@ mod tests {
                         async { "" }
                     }),
                 )
-                .layer(axum::extract::DefaultBodyLimit::max(16 * 1024 * 1024));
+                .layer(axum::extract::DefaultBodyLimit::max(4 * INDEX_WRITE_BYTES));
             axum::serve(listener, app).await.unwrap();
         });
         let mut pending = PendingRows::default();
