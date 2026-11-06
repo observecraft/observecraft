@@ -46497,9 +46497,13 @@
           "groupPath",
           "includeSubgroups",
           "projectPaths",
+          "allProjects",
           "updatedAt"
         ],
         "properties": {
+          "allProjects": {
+            "type": "boolean"
+          },
           "baseUrl": {
             "type": "string"
           },
@@ -46526,6 +46530,11 @@
         "type": "object",
         "description": "What an admin enters.",
         "properties": {
+          "allProjects": {
+            "type": "boolean",
+            "description": "Every project the token sees, active in the last 30 days (with an admin's or auditor's token: the\nwhole instance).",
+            "default": false
+          },
           "baseUrl": {
             "type": "string",
             "description": "`https://gitlab.com` (empty) or the self-managed instance's URL.",

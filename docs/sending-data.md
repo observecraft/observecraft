@@ -416,7 +416,10 @@ ObserveCraft, so this works when ObserveCraft has no public ingress (the server 
    you follow is the usual choice; a project token only sees its project).
 2. In *Software Delivery → Settings → Add a repository*, choose **GitLab CI**, GitLab.com or self-managed (with its
    URL), enter the token and the group to follow (with or without its subgroups) and/or project paths. **Test
-   connection** shows the token's user, its scopes and the projects found. Organization admins only.
+   connection** shows the token's user, its scopes and the projects found. Organization admins only. To follow a
+   whole self-managed instance, tick **Every project the token can see** and use the token of an auditor (GitLab
+   EE: read-only access to every project) or an administrator: the projects active in the last 30 days are
+   followed (at most 500), and the hourly discovery adds those that become active.
 3. Save. Within a minute the server lists the projects, reads the last 7 days of finished pipelines, then polls each
    project every minute.
 

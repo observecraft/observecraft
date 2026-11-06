@@ -35,6 +35,8 @@ pub const CURSOR_OVERLAP_MS: i64 = 60_000;
 pub const MAX_REQUESTS_PER_RUN: usize = 100;
 /// Projects followed per connection.
 pub const MAX_PROJECTS: usize = 500;
+/// With `all_projects`, the projects active in this many days (the hourly discovery adds those that wake up).
+pub const ACTIVE_PROJECTS_DAYS: i64 = 30;
 /// Pages of deployments read per run (environments of deploy jobs).
 const MAX_DEPLOYMENT_PAGES: usize = 3;
 /// How long exported pipelines are remembered (beyond the CI table's 30 days).
@@ -48,6 +50,8 @@ pub struct Connection {
     pub group_path: String,
     pub include_subgroups: bool,
     pub project_paths: Vec<String>,
+    /// Every project the token sees (active lately), instead of or besides a group and listed projects.
+    pub all_projects: bool,
 }
 
 /// Which pipelines were exported already.
@@ -141,7 +145,7 @@ impl Budget<'_> {
 }
 
 /// The projects a connection follows: `(id, path_with_namespace)`, by id.
-pub async fn discover(api: &dyn GitlabApi, conn: &Connection) -> Result<Vec<(u64, String)>, GitlabError> {
+pub async fn discover(api: &dyn GitlabApi, conn: &Connection, now_ms: i64) -> Result<Vec<(u64, String)>, GitlabError> {
     let mut found: BTreeMap<u64, String> = BTreeMap::new();
     let mut add = |p: &Value| {
         if let (Some(id), Some(path)) = (p["id"].as_u64(), p["path_with_namespace"].as_str()) {
@@ -151,6 +155,19 @@ pub async fn discover(api: &dyn GitlabApi, conn: &Connection) -> Result<Vec<(u64
     if !conn.group_path.is_empty() {
         for page in 1.. {
             let items = match api.get(&conn.base_url, &conn.token, &api::group_projects_path(&conn.group_path, conn.include_subgroups, page)).await? {
+                Value::Array(items) => items,
+                _ => return Err(GitlabError::Other("GitLab answered with something other than a list of projects".into())),
+            };
+            items.iter().for_each(&mut add);
+            if items.len() < PER_PAGE || page * PER_PAGE >= MAX_PROJECTS {
+                break;
+            }
+        }
+    }
+    if conn.all_projects {
+        let since = now_ms - ACTIVE_PROJECTS_DAYS * 86_400_000;
+        for page in 1.. {
+            let items = match api.get(&conn.base_url, &conn.token, &api::visible_projects_path(since, page)).await? {
                 Value::Array(items) => items,
                 _ => return Err(GitlabError::Other("GitLab answered with something other than a list of projects".into())),
             };
@@ -283,11 +300,16 @@ pub struct GitlabCrawler {
 
 /// An org's connection with its token unsealed, and its id.
 pub async fn connection(st: &AppState, org: &str) -> Result<Option<(String, Connection)>, sqlx::Error> {
-    let row: Option<(String, String, String, String, bool, Vec<String>)> =
-        sqlx::query_as("SELECT id::text, base_url, token_enc, group_path, include_subgroups, project_paths FROM gitlab_ci_connections WHERE org_id = $1").bind(org).fetch_optional(&st.postgres).await?;
-    Ok(row.and_then(|(id, base_url, sealed, group_path, include_subgroups, project_paths)| {
+    /// id, base_url, token_enc, group_path, include_subgroups, project_paths, all_projects
+    type Row = (String, String, String, String, bool, Vec<String>, bool);
+    let row: Option<Row> =
+        sqlx::query_as("SELECT id::text, base_url, token_enc, group_path, include_subgroups, project_paths, all_projects FROM gitlab_ci_connections WHERE org_id = $1")
+            .bind(org)
+            .fetch_optional(&st.postgres)
+            .await?;
+    Ok(row.and_then(|(id, base_url, sealed, group_path, include_subgroups, project_paths, all_projects)| {
         let token = st.secrets.decrypt(&sealed).ok()?;
-        Some((id, Connection { base_url, token, group_path, include_subgroups, project_paths }))
+        Some((id, Connection { base_url, token, group_path, include_subgroups, project_paths, all_projects }))
     }))
 }
 
@@ -310,7 +332,7 @@ impl Crawler for GitlabCrawler {
         }
         if job.scope.is_empty() {
             sqlx::query("DELETE FROM gitlab_ci_exported WHERE org_id = $1 AND exported_at < now() - make_interval(days => $2)").bind(&job.org_id).bind(LEDGER_DAYS as i32).execute(&st.postgres).await?;
-            return Ok(match discover(self.api.as_ref(), &conn).await {
+            return Ok(match discover(self.api.as_ref(), &conn, now_ms).await {
                 Ok(projects) => Outcome::Discovered(projects.iter().map(|(id, path)| scope(*id, path)).collect()),
                 Err(e) => Outcome::Failed(issue(&e)),
             });
@@ -346,7 +368,7 @@ mod tests {
     }
 
     fn conn() -> Connection {
-        Connection { base_url: "https://gitlab.example.com".into(), token: "glpat-test".into(), group_path: String::new(), include_subgroups: true, project_paths: vec![] }
+        Connection { base_url: "https://gitlab.example.com".into(), token: "glpat-test".into(), group_path: String::new(), include_subgroups: true, project_paths: vec![], all_projects: false }
     }
 
     const NOW: i64 = 1_793_710_000_000;
@@ -486,12 +508,26 @@ mod tests {
         g.answer(api::project_path("example-org/storefront-api"), fixtures::project());
         g.answer(api::project_path("other-group/billing"), json!({"id": 7, "path_with_namespace": "other-group/billing"}));
         let c = Connection { group_path: "example-org".into(), project_paths: vec!["example-org/storefront-api".into(), "other-group/billing".into()], ..conn() };
-        let found = discover(&g, &c).await.unwrap();
+        let found = discover(&g, &c, NOW).await.unwrap();
         assert_eq!(found.len(), PER_PAGE + 2);
         assert_eq!(found[0], (7, "other-group/billing".to_string()));
         assert!(found.contains(&(4211, "example-org/storefront-api".to_string())));
 
         let missing = Connection { project_paths: vec!["example-org/gone".into()], ..conn() };
-        assert!(matches!(discover(&g, &missing).await, Err(GitlabError::NotFound(_))));
+        assert!(matches!(discover(&g, &missing, NOW).await, Err(GitlabError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn all_projects_are_those_the_token_sees_active_lately() {
+        let g = FakeGitlab::default();
+        let since = NOW - ACTIVE_PROJECTS_DAYS * 86_400_000;
+        let page1: Vec<Value> = (0..PER_PAGE as u64).map(|i| json!({"id": 100 + i, "path_with_namespace": format!("group-{}/svc-{i}", i % 7)})).collect();
+        g.answer(api::visible_projects_path(since, 1), json!(page1));
+        g.answer(api::visible_projects_path(since, 2), json!([{"id": 4211, "path_with_namespace": "example-org/storefront-api"}]));
+        let c = Connection { all_projects: true, project_paths: vec![], ..conn() };
+        let found = discover(&g, &c, NOW).await.unwrap();
+        assert_eq!(found.len(), PER_PAGE + 1);
+        assert!(found.contains(&(4211, "example-org/storefront-api".to_string())));
+        assert!(api::visible_projects_path(since, 1).contains("archived=false"));
     }
 }
