@@ -16,6 +16,7 @@ const OWN_PAGES: Record<string, string> = {
   azure: '/integrations/azure',
   'google-cloud': '/integrations/gcp',
   kubernetes: '/integrations/kubernetes',
+  slack: '/integrations/slack',
   authentik: '/integrations/authentik',
 };
 

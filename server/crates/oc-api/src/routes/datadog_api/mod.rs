@@ -39,6 +39,7 @@ pub mod appsec;
 pub mod csm_threats;
 pub mod rum;
 pub mod security_monitoring;
+pub mod slack_integration;
 pub mod teams;
 pub mod users;
 pub mod validate;
@@ -94,6 +95,14 @@ pub fn router() -> Router<AppState> {
         .merge(cost_router())
         .merge(logs::router())
         .merge(aws_router())
+        .route(
+            "/api/v1/integration/slack/configuration/accounts/{account_name}/channels",
+            get(slack_integration::list).post(slack_integration::create),
+        )
+        .route(
+            "/api/v1/integration/slack/configuration/accounts/{account_name}/channels/{channel_name}",
+            get(slack_integration::get).patch(slack_integration::update).delete(slack_integration::delete),
+        )
         .route(
             "/api/v1/integration/azure",
             get(azure_integration::list).post(azure_integration::create).put(azure_integration::update).delete(azure_integration::delete),

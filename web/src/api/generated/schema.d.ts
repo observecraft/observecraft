@@ -4102,6 +4102,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integration/slack/configuration/accounts/{account_name}/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_list_slack_channels"];
+        put?: never;
+        post: operations["datadog_create_slack_channel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integration/slack/configuration/accounts/{account_name}/channels/{channel_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["datadog_get_slack_channel"];
+        put?: never;
+        post?: never;
+        delete: operations["datadog_delete_slack_channel"];
+        options?: never;
+        head?: never;
+        patch: operations["datadog_update_slack_channel"];
+        trace?: never;
+    };
     "/api/v1/integrations/authentik": {
         parameters: {
             query?: never;
@@ -4351,6 +4383,139 @@ export interface paths {
         get: operations["gcp_setup"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/slack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The org's Slack workspaces and channels, and what connecting one needs. */
+        get: operations["get_slack_integration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/slack/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Connects a workspace with its own Slack app's bot token (or reconnects the account with that name). */
+        post: operations["connect_slack_account"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/slack/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["disconnect_slack_account"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/slack/accounts/{id}/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_slack_channel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/slack/accounts/{id}/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The workspace's channels the bot can see, for the channel picker. */
+        get: operations["list_slack_conversations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/slack/channels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_slack_channel"];
+        options?: never;
+        head?: never;
+        patch: operations["update_slack_channel"];
+        trace?: never;
+    };
+    "/api/v1/integrations/slack/channels/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends a sample monitor alert to the channel. */
+        post: operations["test_slack_channel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/slack/oauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Starts "Add to Slack": the URL of Slack's consent page for this install's app. */
+        post: operations["start_slack_oauth"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7282,6 +7447,43 @@ export interface paths {
         put?: never;
         /** Profiles in the range, newest first (Profile List). */
         post: operations["search_profiles"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/slack/interactive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Button presses on messages the bot posted (Mute 1h / 4h / 1d). Always answers 200 quickly, as
+         *     Slack expects; the outcome goes back to the presser as an ephemeral message.
+         */
+        post: operations["slack_interactive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/slack/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Slack sends the browser back here after the consent page; the state names the org and member. */
+        get: operations["slack_oauth_callback"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -12884,6 +13086,14 @@ export interface components {
             summary: string;
             verdict: string;
         };
+        ConnectSlackAccount: {
+            /** @description Bot User OAuth Token (`xoxb-…`) of the workspace's Slack app. */
+            botToken: string;
+            /** @description Account name (`@slack-<name>-<channel>`). */
+            name: string;
+            /** @description The app's signing secret, for mute buttons. */
+            signingSecret?: string | null;
+        };
         ConnectedAccounts: {
             /** Format: int64 */
             aws: number;
@@ -14041,6 +14251,19 @@ export interface components {
         DiscoverResult: {
             /** @description Where to send the browser; absent when no organization offers SSO. */
             loginUrl?: string | null;
+        };
+        /** @description What a monitor notification shows (Datadog's `SlackIntegrationChannelDisplay`). */
+        Display: {
+            /** @description The monitor's message. */
+            message: boolean;
+            /** @description Buttons to mute the monitor from Slack. */
+            mute_buttons: boolean;
+            /** @description The @-handles the message notified. */
+            notified: boolean;
+            /** @description A graph snapshot (stored; not drawn yet). */
+            snapshot: boolean;
+            /** @description The scope that alerted and the monitor's tags. */
+            tags: boolean;
         };
         DistributionRequest: {
             query: string;
@@ -18258,7 +18481,12 @@ export interface components {
             /** @description webhook | slack */
             kind: string;
             signed: boolean;
-            /** @description Host of the URL (the full URL is a credential and never returned). */
+            /**
+             * @description webhook: an incoming-webhook channel of this list; slack_app: a channel of a connected Slack
+             *     workspace, managed in Integrations → Slack.
+             */
+            source: string;
+            /** @description Host of the URL (the full URL is a credential and never returned), or the Slack workspace and channel. */
             target: string;
         };
         Occurrence: {
@@ -21446,6 +21674,62 @@ export interface components {
         SignalsRequest: {
             range: components["schemas"]["TimeRange"];
         };
+        SlackAccount: {
+            botUserId: string;
+            channels: components["schemas"]["SlackChannel"][];
+            /** Format: int64 */
+            createdAt: number;
+            id: string;
+            /** @description oauth | token */
+            installedVia: string;
+            /** @description Mute buttons can be verified (this install's signing secret, or the workspace app's own). */
+            interactive: boolean;
+            /** @description Scopes of [`BOT_SCOPES`] the OAuth install didn't grant (empty for token installs: not reported by Slack). */
+            missingScopes: string[];
+            name: string;
+            teamId: string;
+            teamName: string;
+        };
+        SlackChannel: {
+            /** @description Slack's conversation id once a message was delivered. */
+            conversationId?: string | null;
+            /** Format: int64 */
+            createdAt: number;
+            display: components["schemas"]["Display"];
+            /** @description Mention it as `@<handle>`. */
+            handle: string;
+            id: string;
+            /** @description As configured: `#checkout-alerts`. */
+            name: string;
+        };
+        SlackChannelInput: {
+            display?: components["schemas"]["Display"] | null;
+            /** @description `#checkout-alerts`; optional on update. */
+            name?: string | null;
+        };
+        SlackConversation: {
+            id: string;
+            /** @description The bot is in it (private channels need that). */
+            isMember: boolean;
+            isPrivate: boolean;
+            name: string;
+        };
+        SlackOAuthStart: {
+            /** @description Slack's authorize page; open it in the browser. */
+            url: string;
+        };
+        SlackOverview: {
+            accounts: components["schemas"]["SlackAccount"][];
+            /** @description A Slack app manifest for workspaces that connect with their own app's bot token. */
+            appManifest: string;
+            /** @description Where Slack posts button presses (the app's Interactivity Request URL). */
+            interactivityUrl: string;
+            /** @description "Add to Slack" is available (this install has a Slack app). */
+            oauthAvailable: boolean;
+            /** @description Where Slack sends OAuth installs back. */
+            redirectUrl: string;
+            scopes: string[];
+        };
         /** @enum {string} */
         SloComparator: "<" | "<=" | ">" | ">=";
         SloCorrection: {
@@ -22156,6 +22440,10 @@ export interface components {
             question?: string | null;
             /** @description Judge this security signal. */
             signalId?: string | null;
+        };
+        StartSlackOAuth: {
+            /** @description Account name for the workspace being connected. */
+            name: string;
         };
         StaticFinding: {
             branch: string;
@@ -32537,6 +32825,176 @@ export interface operations {
             };
         };
     };
+    datadog_list_slack_channels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_create_slack_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_get_slack_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_name: string;
+                channel_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_delete_slack_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_name: string;
+                channel_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    datadog_update_slack_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_name: string;
+                channel_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
     authentik_status: {
         parameters: {
             query?: never;
@@ -33171,6 +33629,201 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GcpSetup"];
+                };
+            };
+        };
+    };
+    get_slack_integration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlackOverview"];
+                };
+            };
+        };
+    };
+    connect_slack_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectSlackAccount"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlackAccount"];
+                };
+            };
+        };
+    };
+    disconnect_slack_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_slack_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlackChannelInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlackChannel"];
+                };
+            };
+        };
+    };
+    list_slack_conversations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlackConversation"][];
+                };
+            };
+        };
+    };
+    delete_slack_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_slack_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlackChannelInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlackChannel"];
+                };
+            };
+        };
+    };
+    test_slack_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestDelivery"];
+                };
+            };
+        };
+    };
+    start_slack_oauth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartSlackOAuth"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlackOAuthStart"];
                 };
             };
         };
@@ -39081,6 +39734,53 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProfileList"];
                 };
+            };
+        };
+    };
+    slack_interactive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": string;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    slack_oauth_callback: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

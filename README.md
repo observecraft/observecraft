@@ -309,6 +309,8 @@ starts `OC_LOG_INGEST_HANDOVER_MINUTES`, 30, before the newest log Vector stored
 | `OC_PUBLIC_URL` | `http://localhost:5173` | Origin users open the app on (SSO redirects, login links, notification links) |
 | `OC_AWS_PRINCIPAL_ARN` | unset | The AWS IAM role the server assumes customers' AWS integration roles with; their roles trust it (Integrations → Amazon Web Services) |
 | `OC_GCP_PRINCIPAL_EMAIL` | unset | The GCP service account the server impersonates customers' service accounts with (the STS delegate); they grant it Service Account Token Creator |
+| `OC_SLACK_CLIENT_ID`, `OC_SLACK_CLIENT_SECRET` | unset | This install's Slack app, for "Add to Slack" in Integrations → Slack (without them, workspaces connect with their own app's bot token) |
+| `OC_SLACK_SIGNING_SECRET` | unset | That app's signing secret: verifies the mute buttons of Slack alerts |
 | `OC_CLOUD_CRAWLERS` | `aws,azure,gcp` | The cloud integrations whose metrics the server crawls (CloudWatch, Azure Monitor, Cloud Monitoring); needs `OC_KAFKA_BROKERS` |
 | `OC_CLOUD_CRAWL_INTERVAL_SECS` | `600` | How often each account's region, subscription or project is read |
 | `OC_CLOUD_CRAWL_CONCURRENCY` | `8` | Crawl jobs one server runs at a time per cloud (add servers to crawl more) |

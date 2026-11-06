@@ -74,6 +74,7 @@ pub mod network;
 pub mod notebooks;
 pub mod notifications;
 pub mod on_call;
+pub mod slack;
 pub mod on_call_escalation;
 pub mod on_call_schedule;
 pub mod portal_home;
@@ -658,6 +659,22 @@ use crate::state::AppState;
         notifications::delete,
         notifications::test,
         notifications::deliveries,
+        slack::overview,
+        slack::connect,
+        slack::disconnect,
+        slack::conversations,
+        slack::add_channel,
+        slack::edit_channel,
+        slack::remove_channel,
+        slack::test_channel,
+        slack::oauth_start,
+        slack::oauth_callback,
+        slack::interactive,
+        datadog_api::slack_integration::list,
+        datadog_api::slack_integration::create,
+        datadog_api::slack_integration::get,
+        datadog_api::slack_integration::update,
+        datadog_api::slack_integration::delete,
         on_call::list_schedules,
         on_call::get_schedule,
         on_call::create_schedule,
@@ -1791,6 +1808,16 @@ pub fn router() -> Router<AppState> {
             "/api/v1/notification-channels/{id}",
             delete(notifications::delete),
         )
+        .route("/api/v1/integrations/slack", get(slack::overview))
+        .route("/api/v1/integrations/slack/accounts", post(slack::connect))
+        .route("/api/v1/integrations/slack/accounts/{id}", delete(slack::disconnect))
+        .route("/api/v1/integrations/slack/accounts/{id}/conversations", get(slack::conversations))
+        .route("/api/v1/integrations/slack/accounts/{id}/channels", post(slack::add_channel))
+        .route("/api/v1/integrations/slack/channels/{id}", patch(slack::edit_channel).delete(slack::remove_channel))
+        .route("/api/v1/integrations/slack/channels/{id}/test", post(slack::test_channel))
+        .route("/api/v1/integrations/slack/oauth", post(slack::oauth_start))
+        .route("/api/v1/public/slack/oauth/callback", get(slack::oauth_callback))
+        .route("/api/v1/public/slack/interactive", post(slack::interactive))
         .route(
             "/api/v1/notification-deliveries",
             get(notifications::deliveries),
@@ -2339,6 +2366,8 @@ mod tests {
             ("cloud_map.rs", include_str!("cloud_map.rs")),
             ("ci.rs", include_str!("ci.rs")),
             ("gitlab_ci.rs", include_str!("gitlab_ci.rs")),
+            ("slack.rs", include_str!("slack.rs")),
+            ("datadog_api/slack_integration.rs", include_str!("datadog_api/slack_integration.rs")),
             ("deployment_gates.rs", include_str!("deployment_gates.rs")),
             ("pr_gates.rs", include_str!("pr_gates.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),

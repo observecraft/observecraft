@@ -7,6 +7,7 @@
 // node scripts/import-cloud-metrics.mjs --aws <extracted aws-cdk-lib package directory> [--aws-docs <a.json,b.json>]
 //   --azure <supported-metrics directory> --azure-revision <commit>
 //   --gcp <directory of the metrics_gcp_*.html, metrics_kubernetes.html and resources.html pages>
+// node scripts/import-cloud-metrics.mjs --aws-datadog   (only re-applies scripts/aws-datadog-metrics.json to aws-metrics.json)
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -109,9 +110,24 @@ export function awsMetrics(packageDir, docs = []) {
       .sort()
       .map((ns) => [ns, out[ns]]),
   );
-  return {
+  return withDatadogNamespaces({
     source: `aws-cdk-lib@${version} (Apache-2.0), lib/*/lib/*-canned-metrics.generated.*${docs.length ? '; the other namespaces from their CloudWatch metrics pages of the AWS documentation (doc)' : ''}`,
     namespaces: sorted,
+  });
+}
+
+/** The namespaces whose metrics follow Datadog's AWS integration (scripts/aws-datadog-metrics.json: statistics, units,
+ *  names and dimension sets as Datadog publishes them; `datadog: true`), in place of aws-cdk-lib's or the docs'. */
+export function withDatadogNamespaces(result, curated = JSON.parse(readFileSync(new URL('./aws-datadog-metrics.json', import.meta.url), 'utf8')).namespaces) {
+  const namespaces = { ...result.namespaces, ...curated };
+  const note = '; CloudFront, ECS, ECS Container Insights, RDS, RDS Proxy and WAF as Datadog publishes them (scripts/aws-datadog-metrics.json)';
+  return {
+    source: result.source.replace(note, '') + note,
+    namespaces: Object.fromEntries(
+      Object.keys(namespaces)
+        .sort()
+        .map((ns) => [ns, namespaces[ns]]),
+    ),
   };
 }
 
@@ -220,6 +236,12 @@ export function gcpMetrics(dir) {
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const arg = (name) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : null);
+  if (process.argv.includes('--aws-datadog')) {
+    const path = new URL('aws-metrics.json', OUT);
+    writeFileSync(path, JSON.stringify(withDatadogNamespaces(JSON.parse(readFileSync(path, 'utf8'))), null, 1) + '\n');
+    console.log('AWS: Datadog namespaces applied');
+    process.exit(0);
+  }
   if (!arg('--aws') && !arg('--azure') && !arg('--gcp'))
     throw new Error('usage: node scripts/import-cloud-metrics.mjs [--aws <dir> [--aws-docs <files>]] [--azure <dir> --azure-revision <commit>] [--gcp <dir>]');
   if (arg('--aws')) {
