@@ -22,6 +22,7 @@ import {
   pctChange,
   pctLabel,
   providerColor,
+  providerLabel,
   providerVendor,
   shortDate,
   signedMoney,
@@ -31,7 +32,7 @@ import {
   type Filters,
 } from './costModel';
 import { CloudCostIntro } from './CloudCostIntro';
-import { ChangePill, CostFilterBar, ProviderIcon, SectionTitle, ShareBar, TrendIcon } from './widgets';
+import { ChangePill, CostFilterBar, ProviderIcon, SectionTitle, ShareBar, TrendIcon, costAxisTooltip } from './widgets';
 import { escapeHtml } from '../../lib/html';
 
 type Trend = '3m' | '6m' | '1y' | 'mtd' | 'ytd';
@@ -235,11 +236,7 @@ function trendChart(res: CostQueryResult, from: number, end: number, stats: Mont
   const errorColor = token('--status-error');
   return {
     grid: { left: 8, right: 8, top: 26, bottom: 4, containLabel: true },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      valueFormatter: (v) => money(Number(v), { precise: true }),
-    },
+    tooltip: costAxisTooltip((n) => res.series.find((s) => providerLabel(s.tags.providername) === n)?.tags),
     xAxis: {
       type: 'category',
       data: days.map(shortDate),
@@ -249,7 +246,7 @@ function trendChart(res: CostQueryResult, from: number, end: number, stats: Mont
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => moneyAxis(v), color: muted }, splitLine: { lineStyle: { color: border } } },
     series: [
       ...res.series.map((s, si) => ({
-        name: s.tags.providername,
+        name: providerLabel(s.tags.providername),
         type: 'bar' as const,
         stack: 'cost',
         barCategoryGap: '18%',

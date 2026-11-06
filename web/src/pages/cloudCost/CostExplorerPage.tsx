@@ -9,7 +9,7 @@ import { Select } from '../../components/ui/Dropdown';
 import { token } from '../../theme/chartTheme';
 import { colorOf } from './CostBoardPage';
 import { RANGES, filterQuery, groupLabel, money, moneyAxis, pctChange, providerLabel, rangeLabel, rangeOf, shortDate, signedMoney, useCosts, useCostTags, type Filters } from './costModel';
-import { ChangePill, CostFilterBar, ProviderIcon, ShareBar, costValueIcon } from './widgets';
+import { ChangePill, CostFilterBar, ProviderIcon, ShareBar, costAxisTooltip, costValueIcon } from './widgets';
 
 const SHOWN = 8;
 const ROLLUPS: { value: CostInterval; label: string }[] = [
@@ -29,7 +29,7 @@ function chart(res: CostQueryResult, interval: CostInterval): EChartsOption {
   const processing = res.buckets.findIndex((b) => b > through);
   return {
     grid: { left: 8, right: 8, top: 24, bottom: 4, containLabel: true },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true, valueFormatter: (v) => money(Number(v), { precise: true }) },
+    tooltip: costAxisTooltip((n) => series.find((s) => (groupLabel(s.tags) || 'All Cost') === n)?.tags),
     xAxis: { type: 'category', data: res.buckets.map(fmt), axisLabel: { color: muted }, axisTick: { show: false } },
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => moneyAxis(v), color: muted } },
     series: series.map((s, i) => {

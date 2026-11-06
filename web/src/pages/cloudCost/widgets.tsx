@@ -3,10 +3,12 @@ import type { ReactNode } from 'react';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import type { CostTag } from '../../api/cloudCost/client';
 import { INTEGRATION_LOGOS } from '../../assets/integrationLogos.generated';
+import { BRAND_LOGOS } from '../../assets/brandLogos.generated';
 import { BrandLogo, hasBrandLogo } from '../../components/brand/BrandLogo';
+import { escapeHtml } from '../../lib/html';
 import { Select } from '../../components/ui/Dropdown';
 import { CloudIcon } from '../infrastructure/hostIcons';
-import { pctLabel, providerColor, providerLabel, tagValues, type Filters } from './costModel';
+import { money, pctLabel, providerColor, providerLabel, tagValues, type Filters } from './costModel';
 
 /** Logo of a provider or AI vendor whose name isn't its logo's key; others match by name ("Snowflake" → snowflake). */
 const LOGOS: Record<string, string> = { 'amazon bedrock': 'aws', 'azure ai foundry': 'azure', 'vertex ai': 'gcp' };
@@ -59,7 +61,7 @@ const GCP_SERVICES: Record<string, string> = {
 /** The cloud a billing service name belongs to (`AmazonEC2`, `Microsoft.Compute`, `Compute Engine`), if it's recognisable. */
 function serviceCloud(service: string): 'aws' | 'azure' | 'gcp' | null {
   if (/^(amazon|aws)/i.test(service)) return 'aws';
-  if (/^(microsoft\.|azure|virtualmachines$)/i.test(service)) return 'azure';
+  if (/^(microsoft\.|azure|virtualmachines$|foundry)/i.test(service)) return 'azure';
   if (GCP_SERVICES[service.toLowerCase()] || /^(cloud |google|bigquery)/i.test(service)) return 'gcp';
   return null;
 }
@@ -120,6 +122,60 @@ export function costValueIcon(key: string, value: string, size = 16): ReactNode 
   if (key === 'providername') return <ProviderIcon provider={value} size={size} />;
   if (key === 'servicename') return <ServiceIcon service={value} size={size} />;
   return undefined;
+}
+
+// ---------------------------------------------------------------- chart tooltips (HTML strings)
+
+const box = (size: number) => `display:inline-flex;width:${size}px;height:${size}px;margin-right:6px;vertical-align:-3px;flex:none`;
+
+function brandHtml(name: string, size: number): string {
+  const logo = BRAND_LOGOS[name];
+  return `<svg viewBox="0 0 ${logo.width} ${logo.height}" width="${size}" height="${size}" style="${box(size)}" aria-hidden="true">${logo.body}</svg>`;
+}
+
+function providerHtml(provider: string, size: number): string {
+  const key = logoKey(provider);
+  if (hasBrandLogo(key)) return brandHtml(key, size);
+  return `<span style="${box(size)};align-items:center;justify-content:center;border-radius:3px;background:${providerColor(provider)};color:#fff;font-size:${Math.round(size * 0.6)}px;font-weight:600">${escapeHtml(provider.charAt(0).toUpperCase())}</span>`;
+}
+
+/**
+ * A cost series' icon in a chart tooltip, from its tags (the same choice as [`costValueIcon`]): its service's icon
+ * when it is grouped by service, else its provider's; empty for other groupings.
+ */
+export function costIconHtml(tags: Record<string, string> | undefined, size = 14): string {
+  const service = tags?.servicename;
+  if (service) {
+    if (hasBrandLogo(logoKey(service))) return brandHtml(logoKey(service), size);
+    const tile = serviceTile(service);
+    if (tile) return `<img src="/images/integrations/logos/${INTEGRATION_LOGOS[tile]}" alt="" width="${size}" height="${size}" style="${box(size)};object-fit:contain">`;
+    const cloud = serviceCloud(service);
+    if (cloud) return providerHtml(cloud, size);
+  }
+  const provider = tags?.providername;
+  return provider && provider !== 'oci' ? providerHtml(provider, size) : '';
+}
+
+/**
+ * An axis tooltip for stacked cost charts: the bucket, then each series with its marker, its service or provider icon
+ * (`tagsOf` gives a series' tags by its name), its name and its cost; series without cost in the bucket are left out.
+ */
+export function costAxisTooltip(tagsOf: (seriesName: string) => Record<string, string> | undefined) {
+  return {
+    trigger: 'axis' as const,
+    axisPointer: { type: 'shadow' as const },
+    confine: true,
+    formatter: (params: unknown) => {
+      const list = (Array.isArray(params) ? params : [params]) as { axisValueLabel?: string; marker?: string; seriesName?: string; value?: unknown }[];
+      const rows = list
+        .filter((p) => p.value != null && p.value !== '' && Number(p.value) !== 0)
+        .map(
+          (p) =>
+            `<div style="display:flex;align-items:center;gap:2px;line-height:22px">${p.marker ?? ''}${costIconHtml(tagsOf(p.seriesName ?? ''))}<span style="flex:1;margin-right:16px">${escapeHtml(p.seriesName ?? '')}</span><b>${money(Number(p.value), { precise: true })}</b></div>`,
+        );
+      return `<div style="margin-bottom:2px">${escapeHtml(list[0]?.axisValueLabel ?? '')}</div>${rows.join('')}`;
+    },
+  };
 }
 
 /** `22% ↗` in red for increases, green for decreases (lower cost is good). */
