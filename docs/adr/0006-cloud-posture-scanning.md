@@ -58,18 +58,20 @@ rules, and out of scope here.
 
 ## Accounts that already run the providers' services
 
-Customers paying for AWS Security Hub, GuardDuty or Inspector (or Defender, Security Command Center) keep them; their
-findings are imported with the same read-only role, tagged with their origin (`origin: aws_guardduty`, …), never run a
-second rule engine:
-
-- **GuardDuty** findings become Cloud SIEM signals: they are threat detection, which the scans don't cover.
-- **Inspector** findings join the vulnerabilities from the Agent's SBOMs, deduplicated by CVE and resource.
-- **Security Hub** overlaps the scans: per account, either ObserveCraft scanning or the Security Hub import, not both.
+Detection is ObserveCraft's own, as Datadog's is: the scans for posture, Cloud SIEM rules on CloudTrail and the other
+cloud logs for threats. Nothing depends on AWS Security Hub, GuardDuty, Inspector, Microsoft Defender or Google
+Security Command Center, and there is no dedicated import of them. Customers who already run them keep them: their
+findings arrive as logs through the log integrations (EventBridge / the forwarder), and a log pipeline plus Cloud SIEM
+rules turn them into signals, as Datadog does. Customers aren't told to turn them off (GuardDuty's threat intelligence
+has no equivalent here); where the scans cover the same checks (Security Hub CSPM), Cloud Cost → Recommendations may
+show the overlap and its cost, for the customer to decide.
 
 ## Phases
 
 1. AWS: scanner, jobs, findings storage, `/api/v2/security/findings`, the Findings page, permissions on the AWS page.
-2. Import of the AWS services customers already run: GuardDuty (signals) first, then Inspector and Security Hub.
-3. Azure and GCP.
-4. Compliance frameworks (`datadog_compliance_custom_framework`, a compliance page).
-5. Trivy for registry images (ECR, ACR, Artifact Registry).
+2. Azure and GCP.
+3. Compliance frameworks (`datadog_compliance_custom_framework`, a compliance page).
+4. Trivy for registry images (ECR, ACR, Artifact Registry).
+
+Threat detection (Cloud SIEM rules on CloudTrail, Azure activity and GCP audit logs; pipelines for the providers'
+security services' findings arriving as logs) is a separate track.
