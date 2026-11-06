@@ -492,14 +492,23 @@ async fn read_partition(
 }
 
 /// Starts the ingester: leases are synced every few seconds and each held partition has a reader.
+/// Starts the ingester in the background: the server starts while Kafka isn't reachable, and the ingester
+/// connects once it is.
 pub async fn spawn(st: AppState, ix: Arc<Indexer>) -> anyhow::Result<()> {
-    let brokers = st.config.kafka_brokers.clone().ok_or_else(|| anyhow::anyhow!("OC_LOG_INGEST=kafka needs OC_KAFKA_BROKERS"))?;
-    let client = Arc::new(ClientBuilder::new(brokers.split(',').map(|b| b.trim().to_string()).collect()).client_id("observecraft-log-ingester").build().await?);
-    let out = Arc::new(Outputs::new(client.clone()));
-    out.follow_sessions(st.postgres.clone());
-    let leases = Arc::new(Leases::new());
-    let handover = earlier_path_handover(&st).await;
+    let brokers: Vec<String> = st.config.kafka_brokers.clone().ok_or_else(|| anyhow::anyhow!("OC_LOG_INGEST=kafka needs OC_KAFKA_BROKERS"))?.split(',').map(|b| b.trim().to_string()).collect();
     tokio::spawn(async move {
+        let client = loop {
+            match tokio::time::timeout(Duration::from_secs(30), ClientBuilder::new(brokers.clone()).client_id("observecraft-log-ingester").build()).await {
+                Ok(Ok(client)) => break Arc::new(client),
+                Ok(Err(e)) => tracing::warn!(error = %e, "log ingester: Kafka unreachable, retrying"),
+                Err(_) => tracing::warn!("log ingester: Kafka unreachable, retrying"),
+            }
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        };
+        let out = Arc::new(Outputs::new(client.clone()));
+        out.follow_sessions(st.postgres.clone());
+        let leases = Arc::new(Leases::new());
+        let handover = earlier_path_handover(&st).await;
         let mut readers: HashMap<(String, i32), JoinHandle<()>> = HashMap::new();
         let mut tick = tokio::time::interval(SYNC_EVERY);
         loop {
@@ -540,7 +549,7 @@ pub async fn spawn(st: AppState, ix: Arc<Indexer>) -> anyhow::Result<()> {
             }
         }
     });
-    tracing::info!("log ingester reading Kafka");
+    tracing::info!("log ingester started");
     Ok(())
 }
 
@@ -722,6 +731,14 @@ mod tests {
         let margin = Duration::from_secs(30 * 60);
         assert!(matches!(start_at(Some(at), margin), OffsetAt::Timestamp(t) if t == at - chrono::Duration::minutes(30)));
         assert!(matches!(start_at(None, margin), OffsetAt::Earliest), "a new install reads everything kept");
+    }
+
+    /// The server starts without Kafka: the ingester connects in the background and keeps trying.
+    #[tokio::test]
+    async fn starting_without_kafka_does_not_block_the_server() {
+        let Some((_, states)) = crate::test_support::replicas_with(1, |cfg| cfg.kafka_brokers = Some("127.0.0.1:1".into())).await else { return };
+        let started = tokio::time::timeout(Duration::from_secs(5), spawn(states[0].clone(), logproc::test_indexer(&[]))).await;
+        assert!(matches!(started, Ok(Ok(()))), "{started:?}");
     }
 
     #[test]

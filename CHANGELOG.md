@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.14.0](https://github.com/observecraft/observecraft/compare/v0.13.0...v0.14.0) (2026-11-06)
+
+
+### Features
+
+* **intake:** ingest is unlimited by default; instance admins can limit an organization ([b0c3348](https://github.com/observecraft/observecraft/commit/b0c33482c4ce6cb5e33da7b084161db8d349d12a))
+* **logs:** log normalization in Rust, row for row as Vector's normalize.vrl ([a64306e](https://github.com/observecraft/observecraft/commit/a64306ee3d51921e142e4d11fbb13d756adc3713))
+* **logs:** switching to the Kafka ingester starts where the earlier path stopped ([35abdd4](https://github.com/observecraft/observecraft/commit/35abdd45e706200a21521788b3f50cd157d5da6f))
+* **logs:** the server reads the log topics from Kafka itself (OC_LOG_INGEST=kafka) ([bcfaa7d](https://github.com/observecraft/observecraft/commit/bcfaa7d1e4bc6c1c4cc192de4a9694d06e8b200e))
+* **logs:** the server's Kafka log ingester is the default log path ([d9558f1](https://github.com/observecraft/observecraft/commit/d9558f150ff5fa91fa1ee1dc2436cf67001723b7))
+
+
+### Bug fixes
+
+* **logs:** the server starts while Kafka is unreachable ([37d38f5](https://github.com/observecraft/observecraft/commit/37d38f5df707723ba2f2b5717e8088abea3b26a2))
+* **metrics:** keep ~3M active series flowing: series cache and collector memory defaults ([e70e975](https://github.com/observecraft/observecraft/commit/e70e975febfa9bbe16a6496d3767fa2de87eb2a7))
+
+
+### Performance
+
+* **intake:** an org's records spread over the topic's 12 partitions ([7050d87](https://github.com/observecraft/observecraft/commit/7050d87d77191e91c1cbf4ba59b7e0a2ddf7a9a8))
+* **logs:** a partition's next batch is fetched while the last one is stored ([3c5fb5e](https://github.com/observecraft/observecraft/commit/3c5fb5e3915b6b92c41d75d3a56ecc25e31071b1))
+* **logs:** larger, cheaper Kafka ingest batches ([f149b0c](https://github.com/observecraft/observecraft/commit/f149b0cc40dc8f4a68fccd4f45b47d48f30001bd))
+* **logs:** lighter Kafka ingest path: live tail on demand, typed admission, unindexed-only raw copy ([9b3d40c](https://github.com/observecraft/observecraft/commit/9b3d40ce31972dff04db1fcef74b05b75ad7cc1c))
+* **logs:** the Kafka ingester stores log attributes once, in attr ([a676d39](https://github.com/observecraft/observecraft/commit/a676d399d51a26c4f2c57f9d0e50804de633fc25))
+
+
+### Documentation
+
+* **benchmarks:** logs and metrics after the Kafka log ingester ([ae9c3dc](https://github.com/observecraft/observecraft/commit/ae9c3dc6c805c14be7014c41206779a87a08f3f8))
+
 ## [0.13.0](https://github.com/observecraft/observecraft/compare/v0.12.2...v0.13.0) (2026-11-04)
 
 
