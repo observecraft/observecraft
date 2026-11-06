@@ -42,6 +42,8 @@ export function datadogValues(o: KubeInstallOptions): string {
     ['DD_LOGS_CONFIG_LOGS_DD_URL', intake.logs],
     ['DD_LOGS_CONFIG_FORCE_USE_HTTP', 'true'],
     ...(intake.tls ? [] : ([['DD_LOGS_CONFIG_LOGS_NO_SSL', 'true']] as [string, string][])),
+    // Stack traces and other multi-line messages as one log.
+    ['DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION', 'true'],
     ['DD_APM_TELEMETRY_ENABLED', 'true'],
     ['DD_APM_TELEMETRY_DD_URL', intake.url],
     ['DD_INSTRUMENTATION_TELEMETRY_ENABLED', 'false'],

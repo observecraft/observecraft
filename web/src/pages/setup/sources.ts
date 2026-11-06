@@ -55,6 +55,7 @@ datadog:
     - { name: DD_LOGS_CONFIG_LOGS_DD_URL, value: {{intakeHost}} }
     - { name: DD_LOGS_CONFIG_FORCE_USE_HTTP, value: "true" }
     - { name: DD_LOGS_CONFIG_LOGS_NO_SSL, value: "{{logsNoSsl}}" }
+    - { name: DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION, value: "true" }   # stack traces as one log
 clusterAgent:
   enabled: true`;
 
@@ -95,7 +96,7 @@ export const SOURCES: SetupSource[] = [
       { title: 'Install the Agent', text: "Use Datadog's install script or package for your OS, then edit its configuration." },
       {
         title: 'Send to ObserveCraft (datadog.yaml)',
-        code: 'api_key: {{apiKey}}\nsite: observecraft.invalid\ndd_url: {{intake}}\nlogs_enabled: true\nlogs_config:\n  logs_dd_url: {{intakeHost}}\n  force_use_http: true\n  logs_no_ssl: {{logsNoSsl}}\napm_config:\n  apm_dd_url: {{intake}}\nprocess_config:\n  process_dd_url: {{intake}}',
+        code: 'api_key: {{apiKey}}\nsite: observecraft.invalid\ndd_url: {{intake}}\nlogs_enabled: true\nlogs_config:\n  logs_dd_url: {{intakeHost}}\n  force_use_http: true\n  logs_no_ssl: {{logsNoSsl}}\n  auto_multi_line_detection: true\napm_config:\n  apm_dd_url: {{intake}}\nprocess_config:\n  process_dd_url: {{intake}}',
       },
       {
         title: 'Collect log files',

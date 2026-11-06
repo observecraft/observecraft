@@ -95,6 +95,7 @@ logs_config:
   logs_dd_url: intake.observecraft.example.com:443
   force_use_http: true
   # logs_no_ssl: true   # only for a plain-HTTP intake
+  auto_multi_line_detection: true   # stack traces as one log (see "Multi-line logs and stack traces")
 process_config:
   process_dd_url: https://intake.observecraft.example.com
   process_collection: { enabled: true }
@@ -466,6 +467,27 @@ How it works:
   the server, and through the organization's log pipelines and indexes like any other log.
 - The token is stored encrypted and requests go through the Developer Portal connectors' SSRF guard: an instance on
   a private address needs `OC_PORTAL_ALLOW_PRIVATE=true` on the server.
+
+## Multi-line logs and stack traces
+
+An application writing to stdout or a file emits a stack trace as many lines, and a collector reading line by line
+sends each as its own log. Only the collector can join them: it reads a container's lines in order, while the server
+receives them mixed with every other pod's. The best fix is in the application: log JSON (Logback's or Log4j2's JSON
+layout, `python-json-logger`, pino, zap, …) with the stack trace in one field, ideally Datadog's `error.stack`,
+`error.kind` and `error.message`. Otherwise, join the lines where they are collected:
+
+| Sender | Setting |
+|---|---|
+| `observecraft-agent` chart | On by default (`node.logs.multiline`): a line matching `continuationPattern` (indented frames, `Caused by:`, `... N more`, an exception's `SomeError: …` line) joins the line before it from the same container; a line starting at column 0 otherwise starts a new log. |
+| Datadog Agent | `DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION=true` (in the examples and the generated install), or per container a rule on the pod: `ad.datadoghq.com/<container>.logs: '[{"source":"java","log_processing_rules":[{"type":"multi_line","name":"new_log","pattern":"\\d{4}-\\d{2}-\\d{2}"}]}]'` (the pattern matches the line that starts a log). |
+| OpenTelemetry Collector | The `filelog` receiver's `recombine` operator, as the chart configures it (`deploy/helm/observecraft-agent/templates/_node-config.tpl`). |
+| Fluent Bit | `multiline.parser docker, cri, java, python, go` on the `tail` input. |
+| Vector | The `reduce` transform, or `multiline` on the `file` source. |
+
+The server then reads a joined stack trace (`server/crates/oc-api/src/log_stack.rs`): a multi-line message with stack
+frames (Java, Kotlin, .NET, Python, Node.js, Go, Ruby) gets `error.stack`, `error.kind` and `error.message` unless the
+log already has them, so the log shows its error in the side panel and Error Tracking groups it into an issue.
+Integration pipelines (Tomcat, Kafka, Gunicorn, …) set the same attributes for their own formats.
 
 ## Limits and errors
 
