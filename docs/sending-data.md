@@ -439,6 +439,34 @@ How it works:
   instance on a private address needs `OC_PORTAL_ALLOW_PRIVATE=true` on the server.
 - Not imported yet: test reports (flaky tests need test case spans) and job logs.
 
+## authentik events (pulled through authentik's API)
+
+The authentik integration (*Integrations → authentik*) reads an authentik instance's event log and stores each event
+as a log, so logins, failed logins, application authorizations, access requests, users, groups and policies changed
+and the instance's errors can be searched, charted and alerted on. As with GitLab CI, authentik never connects to
+ObserveCraft: the server only needs outbound HTTPS to the instance.
+
+1. In authentik, create a service account, give it a role with the **`authentik_events.view_event`** permission and
+   create an API token (intent *API*) for it.
+2. In *Integrations → authentik*, enter the instance's URL and the token. **Test connection** shows the token's user
+   and how many events it can read. Organization admins only.
+3. Save. Within a minute the server reads the last 24 hours of events, then new ones every minute.
+
+How it works:
+
+- Each event is a log with `source:authentik`, `service:authentik`, the instance's host name as `host` and the
+  event's time. The action is `@evt.name` (`login`, `login_failed`, `authorize_application`, `access_request_*`,
+  `model_created`, …) and `@evt.outcome`; the user is `@usr.*`, the client `@network.client.ip` with its geoip and
+  ASN, the request `@http.*`; the rest of authentik's fields are under `@authentik.*`. Failures and exceptions are
+  errors, denied access requests and impersonation warnings.
+- authentik's events API has no time filter, so each poll reads pages newest first down to a minute before the
+  previous poll's newest event. Log ids are derived from the event ids, so an event read twice is stored once. At
+  most 2,000 events per minute are read; past that the poll warns that older events were skipped.
+- The logs go through Kafka (`oc.logs.json`, with the organization's headers), so `OC_KAFKA_BROKERS` must be set on
+  the server, and through the organization's log pipelines and indexes like any other log.
+- The token is stored encrypted and requests go through the Developer Portal connectors' SSRF guard: an instance on
+  a private address needs `OC_PORTAL_ALLOW_PRIVATE=true` on the server.
+
 ## Limits and errors
 
 - Each organization is rate limited (Helm: `intake.orgRequestsPerSecond`, `intake.orgMegabytesPerSecond`). Over the

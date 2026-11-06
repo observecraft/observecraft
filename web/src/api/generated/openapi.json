@@ -10604,6 +10604,142 @@
         }
       }
     },
+    "/api/v1/integrations/authentik": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "The authentik connection and its sync status (no token).",
+        "operationId": "authentik_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthentikStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Saves the authentik connection (admins). The token is sealed; leave it out to keep the saved one (only while\nthe URL stays the same).",
+        "operationId": "authentik_save",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthentikInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthentikStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Removes the authentik connection, its token and its polling (admins). Stored logs stay.",
+        "operationId": "authentik_delete",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/authentik/sync": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Polls authentik now instead of within the minute (admins).",
+        "operationId": "authentik_sync",
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/authentik/test": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Tests a connection before or after saving it (admins): the token's user and whether it can read events.",
+        "operationId": "authentik_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthentikInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthentikTest"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/integrations/aws/accounts": {
       "get": {
         "tags": [
@@ -35608,6 +35744,126 @@
           },
           "ssoRequired": {
             "type": "boolean"
+          }
+        }
+      },
+      "AuthentikConnection": {
+        "type": "object",
+        "description": "The connection as saved; the token is never answered.",
+        "required": [
+          "baseUrl",
+          "updatedAt"
+        ],
+        "properties": {
+          "baseUrl": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch ms."
+          }
+        }
+      },
+      "AuthentikInput": {
+        "type": "object",
+        "description": "What an admin enters.",
+        "properties": {
+          "baseUrl": {
+            "type": "string",
+            "description": "The instance's URL (`https://auth.example.com`).",
+            "default": ""
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "An API token of a user allowed to view events; leave it out to keep the saved one.",
+            "default": null
+          }
+        }
+      },
+      "AuthentikStatus": {
+        "type": "object",
+        "required": [
+          "eventsLastSync"
+        ],
+        "properties": {
+          "connection": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AuthentikConnection",
+                "description": "None until an admin connects authentik."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CrawlIssue",
+                "description": "Why the last poll failed (token refused, permission missing, …), or its warning."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eventsLastSync": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Events sent by the last poll."
+          },
+          "lastSyncAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms of the last successful poll."
+          },
+          "syncedUntil": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Epoch ms: events created up to here were read."
+          }
+        }
+      },
+      "AuthentikTest": {
+        "type": "object",
+        "description": "A connection test's result.",
+        "required": [
+          "ok",
+          "message"
+        ],
+        "properties": {
+          "events": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Events the token can read.",
+            "minimum": 0
+          },
+          "message": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "user": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The token's user."
           }
         }
       },

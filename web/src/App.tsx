@@ -26,6 +26,7 @@ import { AwsPage } from './pages/integrations/aws/AwsPage';
 import { AddAwsAccountPage } from './pages/integrations/aws/AddAwsAccountPage';
 import { KubernetesIntegrationPage } from './pages/integrations/kubernetes/KubernetesIntegrationPage';
 import { SlackPage } from './pages/integrations/slack/SlackPage';
+import { AuthentikIntegrationPage } from './pages/integrations/authentik/AuthentikIntegrationPage';
 import { AzurePage } from './pages/integrations/azure/AzurePage';
 import { AddAzurePage } from './pages/integrations/azure/AddAzurePage';
 import { GcpPage } from './pages/integrations/gcp/GcpPage';
@@ -380,6 +381,7 @@ function Shell() {
             <Route path="/integrations/aws" element={<AwsPage />} />
             <Route path="/integrations/kubernetes" element={<KubernetesIntegrationPage />} />
             <Route path="/integrations/slack" element={<SlackPage />} />
+            <Route path="/integrations/authentik" element={<AuthentikIntegrationPage />} />
             <Route path="/integrations/aws/add" element={<AddAwsAccountPage />} />
             <Route path="/integrations/azure" element={<AzurePage />} />
             <Route path="/integrations/azure/add" element={<AddAzurePage />} />

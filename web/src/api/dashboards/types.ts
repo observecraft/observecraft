@@ -110,7 +110,13 @@ export type WidgetDefinition =
       fontSize: 'sm' | 'md' | 'lg' | 'xl';
       pointer?: boolean;
     })
-  | (Base & { type: 'image'; src?: string; logo?: string; background?: string })
+  | (Base & {
+      type: 'image';
+      src?: string;
+      logo?: string;
+      background?: string;
+      /** CSS object-fit (Datadog's `sizing`); cover when unset. */ fit?: 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
+    })
   | (Base & {
       type: 'group';
       color: 'blue' | 'purple' | 'green' | 'gray' | 'orange';

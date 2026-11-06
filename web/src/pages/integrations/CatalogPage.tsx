@@ -17,6 +17,7 @@ const OWN_PAGES: Record<string, string> = {
   'google-cloud': '/integrations/gcp',
   kubernetes: '/integrations/kubernetes',
   slack: '/integrations/slack',
+  authentik: '/integrations/authentik',
 };
 
 const STATUSES: Option<IntegrationStatus | 'all'>[] = [

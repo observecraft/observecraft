@@ -765,6 +765,19 @@ const CURATED: Entry[] = [
     },
   },
   {
+    id: 'authentik',
+    name: 'authentik',
+    categories: ['Security', 'Log Collection'],
+    about: 'Events of an authentik identity provider (logins, access requests, users and policies changed, errors), read through its API and stored as logs.',
+    collect: {
+      kind: 'notify',
+      settings: [
+        { key: 'base_url', label: 'authentik URL', placeholder: 'https://auth.example.com' },
+        { key: 'token', label: 'API token', placeholder: '••••', secret: true },
+      ],
+    },
+  },
+  {
     id: 'okta',
     name: 'Okta',
     categories: ['Security'],

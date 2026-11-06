@@ -4134,6 +4134,62 @@ export interface paths {
         patch: operations["datadog_update_slack_channel"];
         trace?: never;
     };
+    "/api/v1/integrations/authentik": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The authentik connection and its sync status (no token). */
+        get: operations["authentik_status"];
+        /**
+         * Saves the authentik connection (admins). The token is sealed; leave it out to keep the saved one (only while
+         *     the URL stays the same).
+         */
+        put: operations["authentik_save"];
+        post?: never;
+        /** Removes the authentik connection, its token and its polling (admins). Stored logs stay. */
+        delete: operations["authentik_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/authentik/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Polls authentik now instead of within the minute (admins). */
+        post: operations["authentik_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/authentik/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tests a connection before or after saving it (admins): the token's user and whether it can read events. */
+        post: operations["authentik_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/aws/accounts": {
         parameters: {
             query?: never;
@@ -12120,6 +12176,59 @@ export interface components {
             saml: components["schemas"]["SamlStatus"];
             serviceProvider: components["schemas"]["ServiceProviderInfo"];
             ssoRequired: boolean;
+        };
+        /** @description The connection as saved; the token is never answered. */
+        AuthentikConnection: {
+            baseUrl: string;
+            /**
+             * Format: int64
+             * @description Epoch ms.
+             */
+            updatedAt: number;
+        };
+        /** @description What an admin enters. */
+        AuthentikInput: {
+            /**
+             * @description The instance's URL (`https://auth.example.com`).
+             * @default
+             */
+            baseUrl: string;
+            /**
+             * @description An API token of a user allowed to view events; leave it out to keep the saved one.
+             * @default null
+             */
+            token: string | null;
+        };
+        AuthentikStatus: {
+            connection?: components["schemas"]["AuthentikConnection"] | null;
+            error?: components["schemas"]["CrawlIssue"] | null;
+            /**
+             * Format: int32
+             * @description Events sent by the last poll.
+             */
+            eventsLastSync: number;
+            /**
+             * Format: int64
+             * @description Epoch ms of the last successful poll.
+             */
+            lastSyncAt?: number | null;
+            /**
+             * Format: int64
+             * @description Epoch ms: events created up to here were read.
+             */
+            syncedUntil?: number | null;
+        };
+        /** @description A connection test's result. */
+        AuthentikTest: {
+            /**
+             * Format: int64
+             * @description Events the token can read.
+             */
+            events?: number | null;
+            message: string;
+            ok: boolean;
+            /** @description The token's user. */
+            user?: string | null;
         };
         AutomationApp: {
             blueprint: string;
@@ -32877,6 +32986,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    authentik_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthentikStatus"];
+                };
+            };
+        };
+    };
+    authentik_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthentikInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthentikStatus"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    authentik_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    authentik_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    authentik_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthentikInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthentikTest"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

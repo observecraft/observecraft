@@ -1,5 +1,6 @@
 pub mod apm;
 pub mod apm_settings;
+pub mod authentik_integration;
 pub mod aws_integration;
 pub mod azure_integration;
 pub mod gcp_integration;
@@ -856,6 +857,11 @@ use crate::state::AppState;
         azure_integration::update_account,
         azure_integration::delete_account,
         azure_integration::account_status,
+        authentik_integration::get_authentik,
+        authentik_integration::put_authentik,
+        authentik_integration::delete_authentik,
+        authentik_integration::test_authentik,
+        authentik_integration::sync_authentik,
         aws_integration::setup,
         aws_integration::external_id,
         aws_integration::list_accounts,
@@ -1632,6 +1638,9 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/integrations/azure/accounts", get(azure_integration::list_accounts).post(azure_integration::create_account))
         .route("/api/v1/integrations/azure/accounts/{id}", axum::routing::put(azure_integration::update_account).delete(azure_integration::delete_account))
         .route("/api/v1/integrations/azure/accounts/{id}/status", get(azure_integration::account_status))
+        .route("/api/v1/integrations/authentik", get(authentik_integration::get_authentik).put(authentik_integration::put_authentik).delete(authentik_integration::delete_authentik))
+        .route("/api/v1/integrations/authentik/test", axum::routing::post(authentik_integration::test_authentik))
+        .route("/api/v1/integrations/authentik/sync", axum::routing::post(authentik_integration::sync_authentik))
         .route("/api/v1/integrations/aws/setup", get(aws_integration::setup))
         .route("/api/v1/integrations/aws/external-id", axum::routing::post(aws_integration::external_id))
         .route("/api/v1/integrations/aws/accounts", get(aws_integration::list_accounts).post(aws_integration::create_account))
@@ -1980,6 +1989,7 @@ mod tests {
             include_str!("changes.rs"),
             include_str!("ci.rs"),
             include_str!("gitlab_ci.rs"),
+            include_str!("authentik_integration.rs"),
             include_str!("sso.rs"),
             include_str!("spans.rs"),
             include_str!("dashboards.rs"),
@@ -2299,6 +2309,7 @@ mod tests {
     /// Every source file of the server, relative to `src/routes`.
     fn server_sources() -> Vec<(&'static str, &'static str)> {
         vec![
+            ("authentik_integration.rs", include_str!("authentik_integration.rs")),
             ("aws_integration.rs", include_str!("aws_integration.rs")),
             ("azure_integration.rs", include_str!("azure_integration.rs")),
             ("gcp_integration.rs", include_str!("gcp_integration.rs")),
@@ -2315,6 +2326,11 @@ mod tests {
             ("../cloud/kafka.rs", include_str!("../cloud/kafka.rs")),
             ("../cloud/naming.rs", include_str!("../cloud/naming.rs")),
             ("../cloud/testing.rs", include_str!("../cloud/testing.rs")),
+            ("../authentik/mod.rs", include_str!("../authentik/mod.rs")),
+            ("../authentik/api.rs", include_str!("../authentik/api.rs")),
+            ("../authentik/crawler.rs", include_str!("../authentik/crawler.rs")),
+            ("../authentik/fixtures.rs", include_str!("../authentik/fixtures.rs")),
+            ("../authentik/logs.rs", include_str!("../authentik/logs.rs")),
             ("../gitlab/mod.rs", include_str!("../gitlab/mod.rs")),
             ("../gitlab/api.rs", include_str!("../gitlab/api.rs")),
             ("../gitlab/crawler.rs", include_str!("../gitlab/crawler.rs")),
@@ -2350,6 +2366,8 @@ mod tests {
             ("cloud_map.rs", include_str!("cloud_map.rs")),
             ("ci.rs", include_str!("ci.rs")),
             ("gitlab_ci.rs", include_str!("gitlab_ci.rs")),
+            ("slack.rs", include_str!("slack.rs")),
+            ("datadog_api/slack_integration.rs", include_str!("datadog_api/slack_integration.rs")),
             ("deployment_gates.rs", include_str!("deployment_gates.rs")),
             ("pr_gates.rs", include_str!("pr_gates.rs")),
             ("dashboards.rs", include_str!("dashboards.rs")),
