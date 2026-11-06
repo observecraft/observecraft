@@ -1511,3 +1511,46 @@
   min-height: 0;
   overflow-y: auto;
 }
+
+/* The log side panel's error (LogError.tsx). */
+.log-error {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--status-error);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+
+.log-error-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+.log-error-head b {
+  color: var(--status-error);
+}
+
+.log-error-stack {
+  margin: 0;
+  max-height: 480px;
+  overflow: auto;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.log-error-lib {
+  color: var(--text-faint);
+}
+
+.log-error-cause {
+  font-weight: var(--fw-semibold);
+}
+
+.log-error .link-btn {
+  align-self: flex-start;
+}

@@ -180,6 +180,10 @@ or SDK features.
   `observecraft-agent` chart only configures the official OpenTelemetry Collector image, for OpenTelemetry-only setups.
 - **Data model:** keep Datadog metric names as sent, so users' dashboards and monitors keep working. Product pages read
   both naming schemes; `hosts.rs` and `kubernetes.rs` show how.
+- **Log normalization is the server's** (`log_normalize.rs`, as Vector's `normalize.vrl` did; no Vector of ours on
+  the log path). Multi-line messages are joined only at the source (the agent chart's `node.logs.multiline`
+  `recombine`, the Datadog Agent's auto multi-line detection); `log_stack.rs` then reads a joined stack trace into
+  `error.stack` / `.kind` / `.message` (Error Tracking, the log side panel), unless the log has them.
 - **Integrations: [`DataDog/integrations-core`](https://github.com/DataDog/integrations-core)** (BSD-3-Clause) is the
   source for Datadog integrations. We don't need all of them now; take them one by one as the integrations catalog
   grows:
