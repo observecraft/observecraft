@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/observecraft/observecraft/compare/v0.14.0...v0.15.0) (2026-11-06)
+
+
+### Features
+
+* **integrations:** authentik events as logs ([eee97e8](https://github.com/observecraft/observecraft/commit/eee97e8160cbb503a2b912f3c3655bc702008c2d))
+
 ## [0.14.0](https://github.com/observecraft/observecraft/compare/v0.13.0...v0.14.0) (2026-11-06)
 
 
