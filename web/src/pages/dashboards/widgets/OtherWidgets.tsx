@@ -47,7 +47,7 @@ export function NoteWidget({ def }: { def: Def<'note'> }) {
 
 export function ImageWidget({ def }: { def: Def<'image'> }) {
   if (def.src && /^(https?:|data:image\/|\/(?!\/))/.test(def.src)) {
-    return <img className="img-widget" src={def.src} alt={def.title ?? ''} />;
+    return <img className="img-widget" src={def.src} alt={def.title ?? ''} style={def.fit ? { objectFit: def.fit } : undefined} />;
   }
   return (
     <div className="img-widget img-logo" style={{ background: def.background ?? 'var(--bg-subtle)' }}>
