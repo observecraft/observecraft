@@ -243,6 +243,9 @@ Dashboards written through `/api/v1/dashboard` are ordinary ObserveCraft dashboa
   supported by ObserveCraft yet`. During `plan`, the provider asks `POST /api/unstable/dashboard/widgets/validate`,
   which answers the same check per widget, so the error appears before anything is applied.
 - `tags` are teams (`team:<name>`, as in Datadog); they become the dashboard's teams.
+- One `logo:<integration>` tag (ObserveCraft's own; Datadog accepts only team tags) gives the dashboard that
+  integration's logo in the dashboard list (`logo:authentik`, `logo:aws`: the catalog's integration ids). It is read
+  back as sent.
 - `filter[shared]=true` lists nothing: shared (public) dashboards are not part of this API.
 
 ### Widget types

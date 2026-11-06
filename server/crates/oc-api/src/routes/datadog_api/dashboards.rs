@@ -111,6 +111,7 @@ pub(super) struct Row {
     pub title: String,
     pub description: Option<String>,
     pub teams: Vec<String>,
+    pub logo: Option<String>,
     pub definition: Value,
     pub datadog_document: Option<Value>,
     pub author_handle: Option<String>,
@@ -120,7 +121,7 @@ pub(super) struct Row {
     pub deleted_at: Option<i64>,
 }
 
-const SELECT: &str = "SELECT d.id, d.title, d.description, d.teams, d.definition, d.datadog_document, u.email AS author_handle, u.name AS author_name, \
+const SELECT: &str = "SELECT d.id, d.title, d.description, d.teams, d.logo, d.definition, d.datadog_document, u.email AS author_handle, u.name AS author_name, \
     (extract(epoch FROM d.created_at) * 1000)::bigint AS created_at, (extract(epoch FROM d.modified_at) * 1000)::bigint AS modified_at, \
     (extract(epoch FROM d.deleted_at) * 1000)::bigint AS deleted_at FROM dashboards d LEFT JOIN users u ON u.id = d.author_id";
 
@@ -134,12 +135,27 @@ pub(super) fn url(id: &str) -> String {
     format!("/dashboards/{id}")
 }
 
-fn team_tags(teams: &[String]) -> Vec<String> {
-    teams.iter().map(|t| format!("team:{t}")).collect()
+/// A dashboard's tags: its teams, then its logo (`logo:<integration>`, ObserveCraft's own tag: the integration
+/// whose logo the dashboard list shows; Datadog accepts only team tags).
+fn tags(teams: &[String], logo: Option<&str>) -> Vec<String> {
+    teams.iter().map(|t| format!("team:{t}")).chain(logo.map(|l| format!("logo:{l}"))).collect()
+}
+
+fn tag_values<'a>(doc: &'a Value, prefix: &'a str) -> impl Iterator<Item = &'a str> + 'a {
+    doc["tags"].as_array().into_iter().flatten().filter_map(Value::as_str).filter_map(move |t| t.strip_prefix(prefix))
 }
 
 fn teams_of(doc: &Value) -> Vec<String> {
-    doc["tags"].as_array().map(|tags| tags.iter().filter_map(Value::as_str).map(|t| t.strip_prefix("team:").unwrap_or(t).to_string()).collect()).unwrap_or_default()
+    tag_values(doc, "team:").map(str::to_string).collect()
+}
+
+fn logo_of(doc: &Value) -> Option<String> {
+    tag_values(doc, "logo:").next().map(str::to_string)
+}
+
+/// An integration's logo key, as the catalog names them (`authentik`, `aws`, `google-cloud`).
+fn is_logo_key(key: &str) -> bool {
+    (1..=64).contains(&key.len()) && key.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
 }
 
 /// The Datadog document of a dashboard: the stored one with what the UI changed since folded in
@@ -161,8 +177,8 @@ pub(super) fn document(row: &Row) -> Value {
     if doc["description"].as_str() != row.description.as_deref() {
         doc["description"] = json!(row.description);
     }
-    if teams_of(&doc) != row.teams {
-        doc["tags"] = json!(team_tags(&row.teams));
+    if teams_of(&doc) != row.teams || logo_of(&doc) != row.logo {
+        doc["tags"] = json!(tags(&row.teams, row.logo.as_deref()));
     }
     let ours_vars = ours["templateVariables"].as_array().cloned().unwrap_or_default();
     if widgets::template_variables(&doc) != ours_vars {
@@ -252,8 +268,13 @@ pub fn validate(doc: &Value) -> Result<(), DdError> {
         if tags.len() > MAX_TAGS {
             return Err(bad_request(format!("tags: at most {MAX_TAGS} tags")));
         }
-        if !tags.iter().all(|t| t.as_str().and_then(|t| t.strip_prefix("team:")).is_some_and(|team| !team.is_empty())) {
-            return Err(bad_request("tags: only team tags (team:<name>) are supported"));
+        let valid = |t: &Value| match t.as_str() {
+            Some(t) if t.starts_with("team:") => t.len() > "team:".len(),
+            Some(t) => t.strip_prefix("logo:").is_some_and(is_logo_key),
+            None => false,
+        };
+        if !tags.iter().all(valid) || tags.iter().filter(|t| t.as_str().is_some_and(|t| t.starts_with("logo:"))).count() > 1 {
+            return Err(bad_request("tags: only team tags (team:<name>) and one logo tag (logo:<integration>) are supported"));
         }
     }
     for (i, v) in items(doc.get("template_variables")).iter().enumerate() {
@@ -313,13 +334,14 @@ pub async fn create(State(st): State<AppState>, DdAuth(ctx): DdAuth, body: Bytes
     validate(&doc)?;
     let doc = prepare(doc);
     let id = new_id();
-    sqlx::query("INSERT INTO dashboards (id, org_id, title, description, kind, author_id, teams, definition, datadog_document) VALUES ($1, $2, $3, $4, 'custom', $5::uuid, $6, $7, $8)")
+    sqlx::query("INSERT INTO dashboards (id, org_id, title, description, kind, author_id, teams, logo, definition, datadog_document) VALUES ($1, $2, $3, $4, 'custom', $5::uuid, $6, $7, $8, $9)")
         .bind(&id)
         .bind(&ctx.org_id)
         .bind(doc["title"].as_str())
         .bind(doc["description"].as_str())
         .bind(&ctx.user_id)
         .bind(teams_of(&doc))
+        .bind(logo_of(&doc))
         .bind(widgets::to_observecraft(&doc))
         .bind(&doc)
         .execute(&st.postgres)
@@ -343,7 +365,7 @@ pub async fn update(State(st): State<AppState>, DdAuth(ctx): DdAuth, Path(id): P
     validate(&doc)?;
     let doc = prepare(doc);
     let done = sqlx::query(
-        "UPDATE dashboards SET title = $3, description = $4, teams = $5, definition = $6, datadog_document = $7, modified_at = now() \
+        "UPDATE dashboards SET title = $3, description = $4, teams = $5, logo = $8, definition = $6, datadog_document = $7, modified_at = now() \
          WHERE org_id = $1 AND id = $2 AND deleted_at IS NULL",
     )
     .bind(&ctx.org_id)
@@ -353,6 +375,7 @@ pub async fn update(State(st): State<AppState>, DdAuth(ctx): DdAuth, Path(id): P
     .bind(teams_of(&doc))
     .bind(widgets::to_observecraft(&doc))
     .bind(&doc)
+    .bind(logo_of(&doc))
     .execute(&st.postgres)
     .await?;
     if done.rows_affected() == 0 {
@@ -789,7 +812,7 @@ pub(super) mod tests {
         for (doc, message) in [
             (json!({ "title": "x", "widgets": [] }), "layout_type: must be ordered or free"),
             (json!({ "title": "x", "layout_type": "ordered" }), "widgets: a list of widgets is required"),
-            (json!({ "title": "x", "layout_type": "ordered", "widgets": [], "tags": ["env:prod"] }), "tags: only team tags (team:<name>) are supported"),
+            (json!({ "title": "x", "layout_type": "ordered", "widgets": [], "tags": ["env:prod"] }), "tags: only team tags (team:<name>) and one logo tag (logo:<integration>) are supported"),
         ] {
             assert_eq!(call("POST", &format!("{}/api/v1/dashboard", s.base), &s.app_key, true, Some(doc)).await, (400, json!({ "errors": [message] })));
         }
@@ -826,6 +849,35 @@ pub(super) mod tests {
         assert_eq!(call("PUT", &url, &reader, true, Some(terraform_dashboard())).await.0, 403);
         assert_eq!(call("DELETE", &url, &reader, true, None).await.0, 403);
         assert_eq!(call("GET", &url, "ocak_not-a-key", true, None).await.0, 403);
+    }
+
+    #[tokio::test]
+    async fn a_logo_tag_shows_the_dashboard_with_an_integrations_logo() {
+        let Some(s) = TestServer::start("dd-dash-logo").await else { return };
+        let mut doc = terraform_dashboard();
+        doc["tags"] = json!(["team:platform", "logo:authentik"]);
+        let (status, created) = call("POST", &format!("{}/api/v1/dashboard", s.base), &s.app_key, true, Some(doc.clone())).await;
+        assert_eq!(status, 200, "{created}");
+        let id = created["id"].as_str().unwrap().to_string();
+        let ours = || async { call("GET", &format!("{}/api/v1/dashboards/{id}", s.base), &s.app_key, false, None).await.1 };
+        let mine = ours().await;
+        assert_eq!((mine["logo"].as_str(), mine["teams"].clone()), (Some("authentik"), json!(["platform"])), "the logo tag is not a team");
+        // Read back as sent (no diff in Terraform), also after the UI renames it.
+        assert_eq!(created["tags"], json!(["team:platform", "logo:authentik"]));
+        call("PATCH", &format!("{}/api/v1/dashboards/{id}", s.base), &s.app_key, false, Some(json!({ "title": "Renamed" }))).await;
+        let (_, read) = call("GET", &format!("{}/api/v1/dashboard/{id}", s.base), &s.app_key, true, None).await;
+        assert_eq!(read["tags"], json!(["team:platform", "logo:authentik"]));
+
+        // Without the tag the dashboard has no logo again.
+        doc["tags"] = json!(["team:platform"]);
+        assert_eq!(call("PUT", &format!("{}/api/v1/dashboard/{id}", s.base), &s.app_key, true, Some(doc.clone())).await.0, 200);
+        assert_eq!(ours().await["logo"], Value::Null);
+
+        for tags in [json!(["logo:"]), json!(["logo:authentik", "logo:aws"]), json!(["logo:../x"]), json!(["env:prod"])] {
+            doc["tags"] = tags.clone();
+            let (status, body) = call("PUT", &format!("{}/api/v1/dashboard/{id}", s.base), &s.app_key, true, Some(doc.clone())).await;
+            assert_eq!(status, 400, "{tags}: {body}");
+        }
     }
 
     #[tokio::test]
