@@ -25,12 +25,12 @@ function checked(input: Input): Input {
   if (!/^https:\/\/[^\s/@]+/.test(baseUrl)) fail('The base URL must use https');
   const groupPath = (input.groupPath ?? '').trim().replace(/^\/+|\/+$/g, '');
   const projectPaths = [...new Set((input.projectPaths ?? []).map((p) => p.trim().replace(/^\/+|\/+$/g, '')).filter(Boolean))];
-  if (!groupPath && projectPaths.length === 0) fail('Choose a group or at least one project to follow');
+  if (!groupPath && projectPaths.length === 0 && !input.allProjects) fail('Choose a group or at least one project to follow');
   return { ...input, baseUrl, groupPath, projectPaths };
 }
 
 function followed(input: Input): string[] {
-  const group = input.groupPath ? PROJECTS.filter((p) => p.startsWith(`${input.groupPath}/`)) : [];
+  const group = input.allProjects ? PROJECTS : input.groupPath ? PROJECTS.filter((p) => p.startsWith(`${input.groupPath}/`)) : [];
   return [...new Set([...group, ...(input.projectPaths ?? [])])].sort();
 }
 
@@ -47,6 +47,7 @@ function status(): Status {
       groupPath: saved.input.groupPath ?? '',
       includeSubgroups: saved.input.includeSubgroups ?? true,
       projectPaths: saved.input.projectPaths ?? [],
+      allProjects: saved.input.allProjects ?? false,
       updatedAt: saved.at,
     },
     projects,

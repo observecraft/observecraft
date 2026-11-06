@@ -27,13 +27,22 @@ interface Form {
   groupPath: string;
   includeSubgroups: boolean;
   projects: string;
+  allProjects: boolean;
 }
 
 function formOf(s: GitlabCiStatus | undefined): Form {
   const c = s?.connection;
-  if (!c) return { install: 'saas', baseUrl: '', token: '', groupPath: '', includeSubgroups: true, projects: '' };
+  if (!c) return { install: 'saas', baseUrl: '', token: '', groupPath: '', includeSubgroups: true, projects: '', allProjects: false };
   const saas = c.baseUrl === SAAS_URL;
-  return { install: saas ? 'saas' : 'self-managed', baseUrl: saas ? '' : c.baseUrl, token: '', groupPath: c.groupPath, includeSubgroups: c.includeSubgroups, projects: c.projectPaths.join('\n') };
+  return {
+    install: saas ? 'saas' : 'self-managed',
+    baseUrl: saas ? '' : c.baseUrl,
+    token: '',
+    groupPath: c.groupPath,
+    includeSubgroups: c.includeSubgroups,
+    projects: c.projectPaths.join('\n'),
+    allProjects: c.allProjects,
+  };
 }
 
 function inputOf(f: Form): GitlabCiInput {
@@ -46,6 +55,7 @@ function inputOf(f: Form): GitlabCiInput {
       .split(/[\s,]+/)
       .map((p) => p.trim())
       .filter(Boolean),
+    allProjects: f.allProjects,
   };
 }
 
@@ -82,7 +92,7 @@ export function GitlabCiSetup() {
   };
   const input = inputOf(form);
   const urlOk = form.install === 'saas' || /^https?:\/\/[^\s/]+/.test(form.baseUrl.trim());
-  const targetOk = !!input.groupPath || input.projectPaths.length > 0;
+  const targetOk = input.allProjects || !!input.groupPath || input.projectPaths.length > 0;
   const tokenOk = !!input.token || (!!saved && saved.baseUrl === input.baseUrl);
   const ready = urlOk && targetOk && tokenOk;
   const link = tokenUrl(form);
@@ -141,6 +151,13 @@ export function GitlabCiSetup() {
             . It is stored encrypted and never shown again.
           </span>
         </label>
+        <label className="ci-check">
+          <input type="checkbox" checked={form.allProjects} onChange={(e) => set({ allProjects: e.target.checked })} disabled={!isAdmin} /> Every project the token can see
+        </label>
+        <p className="muted">
+          With an administrator&apos;s or auditor&apos;s token, the whole instance. Projects active in the last 30 days are followed; one that becomes active is added within the hour. A group and
+          projects below are followed as well.
+        </p>
         <label className="rt-field">
           <span>Group</span>
           <input value={form.groupPath} onChange={(e) => set({ groupPath: e.target.value })} placeholder="example-org" disabled={!isAdmin} />

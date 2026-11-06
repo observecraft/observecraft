@@ -15526,6 +15526,7 @@ export interface components {
         };
         /** @description The connection as saved; the token is never answered. */
         GitlabCiConnection: {
+            allProjects: boolean;
             baseUrl: string;
             groupPath: string;
             includeSubgroups: boolean;
@@ -15538,6 +15539,12 @@ export interface components {
         };
         /** @description What an admin enters. */
         GitlabCiInput: {
+            /**
+             * @description Every project the token sees, active in the last 30 days (with an admin's or auditor's token: the
+             *     whole instance).
+             * @default false
+             */
+            allProjects: boolean;
             /**
              * @description `https://gitlab.com` (empty) or the self-managed instance's URL.
              * @default
