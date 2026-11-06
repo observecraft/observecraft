@@ -2515,6 +2515,7 @@ mod tests {
             ("../log_ingest.rs", include_str!("../log_ingest.rs")),
             ("../log_normalize.rs", include_str!("../log_normalize.rs")),
             ("../log_records.rs", include_str!("../log_records.rs")),
+            ("../log_stack.rs", include_str!("../log_stack.rs")),
             ("../main.rs", include_str!("../main.rs")),
             ("../metric_rollups.rs", include_str!("../metric_rollups.rs")),
             ("../org_limits.rs", include_str!("../org_limits.rs")),
