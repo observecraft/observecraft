@@ -62,6 +62,7 @@ The agent is also reachable through the node-local service `<release>-observecra
 | `clusterName` | `""` | Sent as `kube_cluster_name` on everything from this cluster. |
 | `node.enabled` / `cluster.enabled` | `true` | Run the node agent / the cluster agent. |
 | `node.logs.enabled`, `node.logs.excludeNamespaces` | `true`, `[]` | Container logs, and namespaces to skip (the agent's own are always skipped). |
+| `node.logs.multiline.*` | enabled | Stack traces as one log: lines matching `continuationPattern` (indented frames, `Caused by:`, `... N more`, `SomeError: …`) join the line before them from the same container; `maxLogSize` `256KiB`, `flushPeriod` `1s`. |
 | `node.kubeletMetrics.*`, `node.hostMetrics.*` | enabled, `20s` | Kubelet and host metrics and their interval. |
 | `node.otlp.enabled`, `node.datadog.traces`, `node.datadog.dogstatsd` | `true` | Application endpoints on the node. |
 | `node.hostPorts` | `true` | Expose the application endpoints on each node's IP. |

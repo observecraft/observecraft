@@ -61,6 +61,15 @@
               "items": {
                 "type": "string"
               }
+            },
+            "multiline": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "continuationPattern": { "type": "string", "minLength": 1 },
+                "maxLogSize": { "type": "string" },
+                "flushPeriod": { "type": "string" }
+              }
             }
           }
         },
