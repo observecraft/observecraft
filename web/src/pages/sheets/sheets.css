@@ -63,7 +63,7 @@
 }
 
 .ss-tab.active {
-  background: var(--bg, #fff);
+  background: var(--bg);
   color: var(--primary);
   margin-bottom: -1px;
   height: 31px;

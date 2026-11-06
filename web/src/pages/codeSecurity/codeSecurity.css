@@ -265,6 +265,10 @@
   color: #a8102a;
 }
 
+:root[data-theme='dark'] .cs-sev-text-critical {
+  color: #ff6b7f;
+}
+
 .cs-sev-text-high {
   color: #e5384f;
 }
@@ -273,8 +277,16 @@
   color: #c4660a;
 }
 
+:root[data-theme='dark'] .cs-sev-text-medium {
+  color: #f0a443;
+}
+
 .cs-sev-text-low {
   color: #9a7e00;
+}
+
+:root[data-theme='dark'] .cs-sev-text-low {
+  color: #e0c341;
 }
 
 .cs-pill {
@@ -287,13 +299,13 @@
 }
 
 .cs-pill-orange {
-  background: #fdf0dc;
-  color: #c4660a;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 
 .cs-pill-red {
-  background: #fde6e6;
-  color: #b3122e;
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
 }
 
 .cs-pill-blue {
@@ -302,7 +314,7 @@
 }
 
 .cs-impacted {
-  color: #b3122e;
+  color: var(--badge-error-fg);
   font-weight: var(--fw-semibold);
 }
 
@@ -823,7 +835,7 @@
 }
 
 .cs-pr-card.red {
-  color: #b3122e;
+  color: var(--badge-error-fg);
 }
 
 .cs-pr-card b {
@@ -886,8 +898,8 @@
 }
 
 .cs-status.ok {
-  background: #e3f5e8;
-  color: #1d7a3a;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 
 .cs-choices {

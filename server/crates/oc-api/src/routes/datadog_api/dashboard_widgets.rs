@@ -45,6 +45,19 @@ const LIST_SOURCES: &[&str] = &["event_stream", "infrastructure"];
 /// Rows a group's banner image takes above its widgets (as in the importer).
 const BANNER_ROWS: f64 = 5.0;
 
+/// How an image fills its widget (CSS `object-fit`), from Datadog's `sizing`, whose older names are `zoom`
+/// (cover), `fit` (fill) and `center` (none).
+fn image_fit(sizing: &str) -> Option<&'static str> {
+    Some(match sizing {
+        "cover" | "zoom" => "cover",
+        "contain" => "contain",
+        "fill" | "fit" => "fill",
+        "none" | "center" => "none",
+        "scale-down" => "scale-down",
+        _ => return None,
+    })
+}
+
 /// What can't be rendered: a path inside the widget definition (`requests[0].queries[1].data_source`)
 /// and why.
 #[derive(Debug, PartialEq, Eq)]
@@ -307,7 +320,13 @@ fn convert_level(items: &[Value], source_width: Option<f64>, nested: bool, free:
                 "type": "note", "content": str_of("text"), "background": "white",
                 "align": if d["text_align"] == "center" { "center" } else { "left" }, "fontSize": note_size(&d["font_size"]),
             }),
-            "image" => json!({ "type": "image", "title": "", "src": str_of("url") }),
+            "image" => {
+                let mut image = json!({ "type": "image", "title": "", "src": str_of("url") });
+                if let Some(fit) = d["sizing"].as_str().and_then(image_fit) {
+                    image["fit"] = json!(fit);
+                }
+                image
+            }
             "log_stream" => json!({ "type": "log_stream", "title": str_of("title"), "query": str_of("query"), "limit": 50 }),
             "manage_status" => json!({ "type": "monitor_summary", "title": str_of("title"), "query": str_of("query") }),
             // Requests, formulas, units, thresholds and display options as they are.
@@ -655,7 +674,13 @@ fn reverse_definition(def: &Value) -> Value {
             }
             out
         }
-        "image" => json!({ "type": "image", "url": def["src"].as_str().unwrap_or_default() }),
+        "image" => {
+            let mut image = json!({ "type": "image", "url": def["src"].as_str().unwrap_or_default() });
+            if let Some(fit) = def["fit"].as_str().and_then(image_fit) {
+                image["sizing"] = json!(fit);
+            }
+            image
+        }
         "group" => {
             let mut out = json!({ "type": "group", "layout_type": "ordered", "widgets": [] });
             apply_group_header(&mut out, def);
@@ -849,6 +874,29 @@ mod tests {
         assert_eq!(widgets[2]["definition"]["background_color"], "vivid_green");
         assert_eq!(widgets[2]["definition"]["widgets"][0]["definition"]["requests"][0]["formulas"][0]["limit"], json!({ "count": 5, "order": "desc" }));
         assert_eq!(widgets[2]["layout"], json!({ "x": 0, "y": 2, "width": 12, "height": 4 }));
+    }
+
+    #[test]
+    fn images_keep_how_they_fit_their_widget() {
+        let ours = |sizing: Value| {
+            let mut def = json!({ "type": "image", "url": "https://example.com/logo.svg" });
+            if !sizing.is_null() {
+                def["sizing"] = sizing;
+            }
+            to_observecraft(&json!({ "layout_type": "ordered", "widgets": [{ "definition": def }] }))["widgets"][0]["definition"].clone()
+        };
+        assert_eq!(ours(json!("contain")), json!({ "type": "image", "title": "", "src": "https://example.com/logo.svg", "fit": "contain" }));
+        // Datadog's older names, and no sizing (cover, as before).
+        for (sizing, fit) in [("zoom", "cover"), ("fit", "fill"), ("center", "none"), ("scale-down", "scale-down")] {
+            assert_eq!(ours(json!(sizing))["fit"], fit, "{sizing}");
+        }
+        assert_eq!(ours(Value::Null).get("fit"), None);
+        assert_eq!(ours(json!("sideways")).get("fit"), None);
+
+        // An image added in the UI reads back with its sizing.
+        let added = json!([{ "id": "a", "definition": { "type": "image", "src": "https://example.com/logo.svg", "fit": "contain" }, "layout": { "x": 0, "y": 0, "w": 3, "h": 4 } }]);
+        let (widgets, _) = to_datadog_widgets(items(&added), None, false);
+        assert_eq!(widgets[0]["definition"], json!({ "type": "image", "url": "https://example.com/logo.svg", "sizing": "contain" }));
     }
 
     #[test]

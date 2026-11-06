@@ -200,7 +200,7 @@
 }
 
 .edge-detected .int-card-band {
-  background: var(--brand-strong);
+  background: var(--hero-from);
 }
 
 .edge-installed .int-card-band {

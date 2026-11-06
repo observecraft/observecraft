@@ -4,7 +4,7 @@ import type { EmailSubscriptions, Preferences } from '../identity/personal';
 const delay = <T>(v: T) => new Promise<T>((r) => setTimeout(() => r(structuredClone(v)), 120));
 
 // Not imported from identity/personal (which imports this module): the same defaults.
-let prefs: Preferences = { homePage: null, timeFormat: '12h', weekStart: 'monday', reducedMotion: false, highContrast: false, underlineLinks: false, colorBlindPalette: false };
+let prefs: Preferences = { homePage: null, timeFormat: '12h', weekStart: 'monday', reducedMotion: false, highContrast: false, underlineLinks: false, colorBlindPalette: false, theme: 'system' };
 
 const subs: EmailSubscriptions = {
   email: 'alex.morgan@example.com',

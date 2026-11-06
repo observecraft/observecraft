@@ -765,6 +765,19 @@ const CURATED: Entry[] = [
     },
   },
   {
+    id: 'authentik',
+    name: 'authentik',
+    categories: ['Security', 'Log Collection'],
+    about: 'Events of an authentik identity provider (logins, access requests, users and policies changed, errors), read through its API and stored as logs.',
+    collect: {
+      kind: 'notify',
+      settings: [
+        { key: 'base_url', label: 'authentik URL', placeholder: 'https://auth.example.com' },
+        { key: 'token', label: 'API token', placeholder: '••••', secret: true },
+      ],
+    },
+  },
+  {
     id: 'okta',
     name: 'Okta',
     categories: ['Security'],
@@ -884,7 +897,7 @@ const CLOUDS: Record<CloudId, { page: string; source: string; steps: string[] }>
 };
 
 /** AWS services the demo account collects (mock mode). */
-const DEMO_AWS = new Set(['AWS/ApiGateway', 'AWS/ApplicationELB', 'AWS/DynamoDB', 'AWS/EC2', 'AWS/Lambda', 'AWS/RDS', 'AWS/S3']);
+const DEMO_AWS = new Set(['AWS/ApiGateway', 'AWS/ApplicationELB', 'AWS/CloudFront', 'AWS/DynamoDB', 'AWS/EC2', 'AWS/ECS', 'ECS/ContainerInsights', 'AWS/Lambda', 'AWS/RDS', 'AWS/S3', 'AWS/WAFV2']);
 
 /** One tile per CloudWatch namespace of the AWS integration's catalog (server/seeds/aws_integration.json). */
 const AWS_SERVICES: Entry[] = awsCatalog.namespaces.map((n) => ({

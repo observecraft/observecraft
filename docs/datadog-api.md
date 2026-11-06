@@ -107,6 +107,7 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 | (no Terraform resource: Cloud Security findings) | `GET /api/v2/security/findings`, `POST /api/v2/security/findings/search`, `PATCH /api/v2/security/findings/mute` | ✅ [details](#security-findings) |
 | `datadog_integration_azure` | `/api/v1/integration/azure` (list, create, update, delete), `POST /api/v1/integration/azure/host_filters` | ✅ [details](#azure-integration) |
 | `datadog_integration_gcp_sts` | `/api/v2/integration/gcp/accounts` (create, list, update, delete), `/api/v2/integration/gcp/sts_delegate` | ✅ [details](#gcp-integration) |
+| `datadog_integration_slack_channel` | `/api/v1/integration/slack/configuration/accounts/{account_name}/channels[/{channel_name}]` (list, create, get, update, delete) | ✅ [details](#slack-integration) |
 
 ## Cloud cost
 
@@ -191,6 +192,20 @@ with defaults when it wasn't sent; an update keeps the others; CSPM needs resour
 `meta.accessible_projects` are the projects the crawler found. Metrics are crawled from Cloud Monitoring every 10
 minutes (`gcp.<service>.<metric path>`, e.g. `gcp.gce.instance.cpu.utilization`).
 
+## Slack integration
+
+Channels belong to a workspace connected in Integrations → Slack (with "Add to Slack" or the bot token of the
+workspace's own Slack app): `account_name` is the name it was connected as, and an unknown one answers 404, since
+Datadog's API doesn't create workspaces either. A channel is `{"name": "#…", "display": {…}}`; display options missing
+on create get Datadog's defaults (`message`, `notified`, `snapshot`, `tags` true, `mute_buttons` false) and keep their
+value on update. The path's channel name matches with or without its `#` (the provider sends it escaped, `%23…`),
+ignoring case; a second channel with the same name is a 400. Writes need an admin.
+
+Monitors mention a channel as `@slack-<account_name>-<channel>`, or `@slack-<channel>` when its name is unique across
+the workspaces (else the oldest workspace's). Messages are posted by the bot (`chat.postMessage`) with the display
+options applied; `snapshot` is stored but no graph is drawn yet. Mute buttons create a downtime on the monitor (and the
+alerting group) as the organization member whose email matches the Slack user's, with at least the Standard role.
+
 ## APM retention filters and span-based metrics
 
 APM → Settings reads and writes the same records.
@@ -264,6 +279,9 @@ Dashboards written through `/api/v1/dashboard` are ordinary ObserveCraft dashboa
   supported by ObserveCraft yet`. During `plan`, the provider asks `POST /api/unstable/dashboard/widgets/validate`,
   which answers the same check per widget, so the error appears before anything is applied.
 - `tags` are teams (`team:<name>`, as in Datadog); they become the dashboard's teams.
+- One `logo:<integration>` tag (ObserveCraft's own; Datadog accepts only team tags) gives the dashboard that
+  integration's logo in the dashboard list (`logo:authentik`, `logo:aws`: the catalog's integration ids). It is read
+  back as sent.
 - `filter[shared]=true` lists nothing: shared (public) dashboards are not part of this API.
 
 ### Widget types

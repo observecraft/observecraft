@@ -386,6 +386,20 @@ function AccessibilitySection({ prefs }: { prefs: Preferences }) {
     <section className="settings-card">
       <h2>Display</h2>
       <p className="muted">Applies to every page, in every browser you sign in to.</p>
+      <h3>Theme</h3>
+      <div className="pref-options">
+        {(
+          [
+            ['light', 'Light'],
+            ['dark', 'Dark'],
+            ['system', 'System (follows your browser)'],
+          ] as const
+        ).map(([v, l]) => (
+          <label key={v} className="pref-radio">
+            <input type="radio" name="theme" checked={(prefs.theme ?? 'system') === v} onChange={() => save.mutate({ ...prefs, theme: v })} /> {l}
+          </label>
+        ))}
+      </div>
       <div className="pref-toggles">
         {options.map(([k, l, d]) => (
           <label key={k} className="pref-toggle">

@@ -670,7 +670,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:aws.rds.database_connections{$account,$region}",
+                          "query": "sum:aws.rds.database_connections{$account,$region,dbinstanceidentifier:*}",
                           "aggregator": "avg"
                         }
                       ],
@@ -710,7 +710,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "avg:aws.rds.cpuutilization{$account,$region}",
+                          "query": "avg:aws.rds.cpuutilization{$account,$region,dbinstanceidentifier:*}",
                           "aggregator": "avg"
                         }
                       ],
@@ -750,7 +750,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:aws.rds.free_storage_space{$account,$region}",
+                          "query": "sum:aws.rds.free_storage_space{$account,$region,dbinstanceidentifier:*}",
                           "aggregator": "avg"
                         }
                       ],
@@ -790,7 +790,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "sum:aws.rds.read_iops{$account,$region}",
+                          "query": "sum:aws.rds.read_iops{$account,$region,dbinstanceidentifier:*}",
                           "aggregator": "avg"
                         }
                       ],
@@ -830,7 +830,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "avg:aws.rds.read_latency{$account,$region} by {dbinstanceidentifier}",
+                          "query": "avg:aws.rds.read_latency{$account,$region,dbinstanceidentifier:*} by {dbinstanceidentifier}",
                           "aggregator": "avg"
                         }
                       ],
@@ -880,7 +880,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "avg:aws.rds.free_storage_space{$account,$region} by {dbinstanceidentifier}",
+                          "query": "avg:aws.rds.free_storage_space{$account,$region,dbinstanceidentifier:*} by {dbinstanceidentifier}",
                           "aggregator": "avg"
                         }
                       ],
@@ -929,7 +929,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "avg:aws.rds.database_connections{$account,$region} by {dbinstanceidentifier}",
+                          "query": "avg:aws.rds.database_connections{$account,$region,dbinstanceidentifier:*} by {dbinstanceidentifier}",
                           "aggregator": "avg"
                         }
                       ],
@@ -972,7 +972,7 @@
                         {
                           "data_source": "metrics",
                           "name": "query1",
-                          "query": "avg:aws.rds.write_latency{$account,$region} by {dbinstanceidentifier}",
+                          "query": "avg:aws.rds.write_latency{$account,$region,dbinstanceidentifier:*} by {dbinstanceidentifier}",
                           "aggregator": "avg"
                         }
                       ],

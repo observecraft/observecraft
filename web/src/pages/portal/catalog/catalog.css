@@ -1021,24 +1021,24 @@
 }
 
 .pc-method.m-get {
-  background: #e3f5e8;
-  color: #1d7a3a;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 
 .pc-method.m-post {
-  background: #e3effc;
-  color: #1f5fa8;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 
 .pc-method.m-put,
 .pc-method.m-patch {
-  background: #fdf0dc;
-  color: #94590a;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 
 .pc-method.m-delete {
-  background: #fde6e6;
-  color: #b3122e;
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
 }
 
 .pc-endpoint .pc-name-text {
@@ -1069,11 +1069,11 @@
 }
 
 .pc-mon.ok {
-  background: #e3f5e8;
-  color: #1d7a3a;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 
 .pc-mon.alert {
-  background: #fde6e6;
-  color: #b3122e;
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
 }

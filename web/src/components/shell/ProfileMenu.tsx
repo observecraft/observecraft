@@ -1,12 +1,50 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Monitor, Moon, Search, Sun } from 'lucide-react';
 import { API_MODE } from '../../api/http';
 import { logout, myOrgs, switchOrg } from '../../api/auth/client';
 import { getProfile } from '../../api/identity/client';
 import { usePopover } from '../ui/Dropdown';
 import { UserAvatar } from '../ui/UserAvatar';
+import { DEFAULT_PREFERENCES } from '../../api/identity/personal';
+import { usePreferences, useSavePreferences } from '../../pages/settings/preferences';
+import type { ThemePreference } from '../../theme/mode';
+
+const THEMES: { id: ThemePreference; label: string; Icon: typeof Sun }[] = [
+  { id: 'light', label: 'Light', Icon: Sun },
+  { id: 'dark', label: 'Dark', Icon: Moon },
+  { id: 'system', label: 'System', Icon: Monitor },
+];
+
+/** The member's theme, saved with their preferences (and applied at once by PreferencesEffects). */
+function ThemeSwitch() {
+  const prefs = usePreferences();
+  const save = useSavePreferences();
+  const current = prefs.data?.theme ?? 'system';
+  return (
+    <div className="pm-theme">
+      <span>Theme</span>
+      <div className="pm-theme-options" role="radiogroup" aria-label="Theme">
+        {THEMES.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={current === id}
+            className={current === id ? 'active' : ''}
+            title={label}
+            aria-label={label}
+            disabled={save.isPending}
+            onClick={() => save.mutate({ ...(prefs.data ?? DEFAULT_PREFERENCES), theme: id })}
+          >
+            <Icon size={15} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const LINKS: { label: string; to: string; admin?: boolean }[] = [
   { label: 'Personal Settings', to: '/account/profile' },
@@ -111,6 +149,8 @@ export function ProfileMenu() {
               </button>
             </>
           )}
+          <div className="pm-divider" />
+          <ThemeSwitch />
         </div>
       )}
     </div>

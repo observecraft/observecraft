@@ -9,6 +9,7 @@ import { Chart } from '../../../components/charts/Chart';
 import { hhmm } from '../../../lib/format';
 import { overlaySeries, overlayStatusToken } from '../../../lib/overlays';
 import { palette, seriesColor, token } from '../../../theme/chartTheme';
+import { currentTheme } from '../../../theme/mode';
 import { useDistributionData, useGroupedData, useScalarData, useTimeseriesData } from '../queries';
 import { formatValue, useDashboardContext } from './context';
 
@@ -336,7 +337,7 @@ export function HeatmapWidget({ def }: { def: Def<'heatmap'> | Def<'distribution
       tooltip: { confine: true },
       xAxis: { type: 'category', data: d.times.map((t) => hhmm(t)), splitArea: { show: false } },
       yAxis: { type: 'category', data: d.buckets.map((b) => formatValue(b, 0)) },
-      visualMap: { show: false, min: 0, max, inRange: { color: [token('--bg-muted'), token('--chart-2'), '#3b1f8f'] } },
+      visualMap: { show: false, min: 0, max, inRange: { color: [token('--bg-muted'), token('--chart-2'), currentTheme() === 'dark' ? '#e4d8ff' : '#3b1f8f'] } },
       series: [{ type: 'heatmap', data: d.counts.flatMap((row, ti) => row.map((c, bi) => [ti, bi, c])), itemStyle: { borderColor: token('--bg'), borderWidth: 1 } }],
     };
   }, [q.data, def.type]);

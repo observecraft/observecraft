@@ -128,6 +128,13 @@ mod tests {
         assert!(enabled.contains(&"tile:aws-lambda"), "{enabled:?}");
         let titles: Vec<String> = dashboards_of("tile:aws-lambda").iter().map(|(_, d)| d["title"].as_str().unwrap().to_string()).collect();
         assert_eq!(titles, ["AWS Lambda"]);
+        // The AWS crawler's CloudFront, WAF, ECS (and Container Insights) and RDS metrics install theirs.
+        let seen = ["aws.cloudfront", "aws.wafv2", "aws.waf", "aws.ecs", "ecs.containerinsights", "aws.rds"].map(str::to_string);
+        let enabled = enabled_logos(&BTreeSet::from(seen));
+        for logo in ["tile:aws-cloudfront", "tile:aws-wafv2", "tile:aws-waf", "tile:aws-ecs", "tile:aws-ecs-containerinsights", "tile:aws-rds"] {
+            assert!(enabled.contains(&logo), "{logo}: {enabled:?}");
+            assert_eq!(dashboards_of(logo).len(), 1, "{logo}");
+        }
         let enabled = enabled_logos(&BTreeSet::from(["azure.vm".to_string(), "gcp.gce".to_string()]));
         assert!(enabled.contains(&"tile:azure-compute-virtualmachines") && enabled.contains(&"tile:gcp-gce"), "{enabled:?}");
     }

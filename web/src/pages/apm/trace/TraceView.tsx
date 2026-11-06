@@ -7,6 +7,7 @@ import { useSpanPercentile, useTrace } from '../queries';
 import { BrandLogo } from '../../../components/brand/BrandLogo';
 import { fmtLatency, serviceLogo } from '../visuals';
 import { HttpStatus, ServiceGlyph, serviceColor } from '../explorer/SpanBits';
+import { statusColor } from '../../../theme/chartTheme';
 import { SpanPanel } from './SpanPanel';
 import '../explorer/explorer.css';
 
@@ -120,7 +121,8 @@ function TraceBody({
   const link = `${window.location.origin}/apm/traces?trace=${trace.traceId}${selected ? `&span=${selected}` : ''}`;
   const code = root ? httpCode(root) : '';
   const method = root ? httpMethod(root) : '';
-  const color = (s: TraceSpan) => (colorBy === 'status' ? (isError(s) ? '#e5383b' : '#3ec46d') : serviceColor(colorBy === 'host' ? s.resource['host.name'] || 'unknown' : s.service));
+  const color = (s: TraceSpan) =>
+    colorBy === 'status' ? (isError(s) ? statusColor('error') : statusColor('ok')) : serviceColor(colorBy === 'host' ? s.resource['host.name'] || 'unknown' : s.service);
   // Spans that match the filter (null = no filter).
   const matches = useMemo(() => {
     const f = filter.trim().toLowerCase();
@@ -493,7 +495,7 @@ function ServiceMap({ spans }: { spans: TraceSpan[] }) {
       <svg width={width} height={height}>
         <defs>
           <marker id="tv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b93a3" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-faint)" />
           </marker>
         </defs>
         {edges.map((e) => {
@@ -506,7 +508,13 @@ function ServiceMap({ spans }: { spans: TraceSpan[] }) {
           const mx = (x1 + x2) / 2;
           return (
             <g key={`${e.from}→${e.to}`}>
-              <path d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2 - 2} ${y2}`} fill="none" stroke={e.errors ? '#e5383b' : '#8b93a3'} strokeWidth={1.5} markerEnd="url(#tv-arrow)" />
+              <path
+                d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2 - 2} ${y2}`}
+                fill="none"
+                stroke={e.errors ? 'var(--status-error)' : 'var(--text-faint)'}
+                strokeWidth={1.5}
+                markerEnd="url(#tv-arrow)"
+              />
               <text x={mx} y={(y1 + y2) / 2 - 6} textAnchor="middle" className="tv-map-edge">
                 {e.calls} call{e.calls === 1 ? '' : 's'}
                 {e.errors ? ` · ${e.errors} err` : ''}

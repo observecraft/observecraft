@@ -448,6 +448,7 @@ export const INTEGRATION_LOGOS: Record<string, string> = {
   "tile:aws-ec2spot": "cloud-aws-aws-ec2spot.svg",
   "tile:aws-ecr": "cloud-aws-aws-ecr.svg",
   "tile:aws-ecs": "cloud-aws-aws-ecs.svg",
+  "tile:aws-ecs-containerinsights": "cloud-aws-aws-ecs-containerinsights.svg",
   "tile:aws-efs": "cloud-aws-aws-efs.svg",
   "tile:aws-elasticache": "cloud-aws-aws-elasticache.svg",
   "tile:aws-elasticbeanstalk": "cloud-aws-aws-elasticbeanstalk.svg",

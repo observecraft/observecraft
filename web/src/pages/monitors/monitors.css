@@ -1,8 +1,8 @@
 @import '../settings/settings.css';
 
 :root {
-  --mon-alert: #e5383b;
-  --mon-warn: #f2a93b;
+  --mon-alert: var(--status-error);
+  --mon-warn: var(--status-warn);
   --mon-nodata: #8b93a3;
   --mon-ok: #3ec46d;
 }
@@ -938,6 +938,11 @@
   color: #6a5ae0;
 }
 
+:root[data-theme='dark'] .mon-assist-send {
+  background: #2f2856;
+  color: #b9adff;
+}
+
 .mon-assist-send:disabled {
   opacity: 0.5;
 }
@@ -1125,7 +1130,7 @@
 }
 
 .c-ok {
-  color: #2ea86b;
+  color: var(--status-ok);
 }
 
 .c-nodata {
@@ -1307,7 +1312,7 @@
 .mon-qb-metric {
   width: 300px;
   padding: 0 10px;
-  background: #fffbd6;
+  background: var(--note-yellow);
   font-size: var(--fs-lg);
 }
 
@@ -1342,6 +1347,10 @@
   min-width: 160px;
   padding: 0 8px;
   background: #fde8f1;
+}
+
+:root[data-theme='dark'] .mon-qb-by {
+  background: #3d1f2e;
 }
 
 .mon-qb-modify {
@@ -1624,7 +1633,7 @@
 }
 
 .mon-test-label.t-ok {
-  color: #2ea86b;
+  color: var(--status-ok);
 }
 
 .mon-test-label.t-nodata {
@@ -1701,8 +1710,8 @@
   margin: 14px 40px 0;
   padding: 10px 14px;
   border-radius: var(--radius-md);
-  background: #fff4e5;
-  color: #9a5b06;
+  background: var(--cf-light-yellow);
+  color: var(--badge-warn-fg);
 }
 
 .mon-details {
@@ -1968,13 +1977,13 @@
 }
 
 .rs-alert {
-  background: #fde4e4;
+  background: var(--badge-error-bg);
   color: var(--mon-alert);
 }
 
 .rs-warn {
-  background: #fdefd6;
-  color: #9a5b06;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 
 .rs-nodata {
@@ -1983,8 +1992,8 @@
 }
 
 .rs-ok {
-  background: #dcf4e6;
-  color: #1d7a4b;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 
 .mon-runbook-title {

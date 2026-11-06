@@ -25,6 +25,8 @@ import { ReferenceTableCreatePage } from './pages/integrations/ReferenceTableCre
 import { AwsPage } from './pages/integrations/aws/AwsPage';
 import { AddAwsAccountPage } from './pages/integrations/aws/AddAwsAccountPage';
 import { KubernetesIntegrationPage } from './pages/integrations/kubernetes/KubernetesIntegrationPage';
+import { SlackPage } from './pages/integrations/slack/SlackPage';
+import { AuthentikIntegrationPage } from './pages/integrations/authentik/AuthentikIntegrationPage';
 import { AzurePage } from './pages/integrations/azure/AzurePage';
 import { AddAzurePage } from './pages/integrations/azure/AddAzurePage';
 import { GcpPage } from './pages/integrations/gcp/GcpPage';
@@ -263,6 +265,7 @@ import { LOGS_CONFIG_SLUGS, LogsConfigComingSoon, LogsConfigLayout } from './pag
 import { ImportDetailPage, ImportsPage, NewImportPage } from './pages/logs/migration/ImportPages';
 import { TranslatePage } from './pages/logs/migration/TranslatePage';
 import { HomeRedirect, PreferencesEffects } from './pages/settings/preferences';
+import { useTheme } from './theme/mode';
 import { LogsLayout } from './pages/logs/LogsLayout';
 import { EventExplorer } from './pages/events/EventExplorer';
 import { EventsLayout, EventsSummary } from './pages/events/EventsLayout';
@@ -321,6 +324,8 @@ function ComingSoon() {
 function Shell() {
   const [nav, setNav] = useNavMode();
   const [asking, setAsking] = useState(false);
+  // Charts and canvases read the tokens when they draw: a new theme redraws the page (the data stays cached).
+  const theme = useTheme();
   return (
     <TimeProvider>
       <div className="app" data-nav={nav}>
@@ -329,7 +334,7 @@ function Shell() {
         <PreferencesEffects />
         <main className="app-content">
           <AskAssistPanel open={asking} onClose={() => setAsking(false)} />
-          <Routes>
+          <Routes key={theme}>
             <Route path="/" element={<HomeRedirect />} />
             <Route path="/logs" element={<LogsLayout />}>
               <Route index element={<LogExplorer />} />
@@ -378,6 +383,8 @@ function Shell() {
             <Route path="/integrations/reference-tables/new" element={<ReferenceTableCreatePage />} />
             <Route path="/integrations/aws" element={<AwsPage />} />
             <Route path="/integrations/kubernetes" element={<KubernetesIntegrationPage />} />
+            <Route path="/integrations/slack" element={<SlackPage />} />
+            <Route path="/integrations/authentik" element={<AuthentikIntegrationPage />} />
             <Route path="/integrations/aws/add" element={<AddAwsAccountPage />} />
             <Route path="/integrations/azure" element={<AzurePage />} />
             <Route path="/integrations/azure/add" element={<AddAzurePage />} />

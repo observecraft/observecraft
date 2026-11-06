@@ -9,6 +9,26 @@ struct Count {
     n: u64,
 }
 
+static MIGRATED: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+
+/// The tests of this file share one ClickHouse server and run in parallel: the schema is migrated once
+/// (twice in a row, which must change nothing) before any of them writes, since a migration running
+/// while another test inserts can drop and recreate the views those inserts go through.
+async fn migrated(cfg: &ClickHouseConfig) {
+    MIGRATED
+        .get_or_init(|| async {
+            migrate_clickhouse(cfg, false).await.expect("migrate");
+            migrate_clickhouse(cfg, false).await.expect("migrate again");
+        })
+        .await;
+}
+
+/// Yesterday (`YYYY-MM-DD`): points dated within any retention, so `retention_changes_reach_existing_parts`
+/// (which lowers the metrics retention to 7 days, for every org, while the other tests run) keeps them.
+async fn recent_day(ch: &clickhouse::Client) -> String {
+    ch.query("SELECT toString(yesterday())").fetch_one::<String>().await.expect("yesterday")
+}
+
 #[tokio::test]
 async fn ingested_points_become_series_samples_and_rollups() {
     let Ok(url) = std::env::var("OC_TEST_CLICKHOUSE_URL") else {
@@ -22,10 +42,10 @@ async fn ingested_points_become_series_samples_and_rollups() {
     let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
     let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
     let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-    migrate_clickhouse(&cfg, false).await.expect("migrate");
-    migrate_clickhouse(&cfg, false).await.expect("migrate again");
+    migrated(&cfg).await;
 
     let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password);
+    let day = recent_day(&ch).await;
     let org = format!("metrics-test-{}", std::process::id());
     let count = |sql: String| {
         let ch = ch.clone();
@@ -36,10 +56,10 @@ async fn ingested_points_become_series_samples_and_rollups() {
     // bucket, plus a second series.
     ch.query(&format!(
         "INSERT INTO otel.metrics_ingest_gauge (ResourceAttributes, ServiceName, MetricName, MetricUnit, Attributes, TimeUnix, Value) VALUES \
-         (map('oc.org_id', '{org}', 'k8s.pod.name', 'storefront-7d9', 'host.name', 'i-0a1b2c3d4e5f60001'), 'storefront-api', 'system.cpu.utilization', '1', map('state', 'user', 'cpu', '0'), '2026-10-27 10:00:10', 0.25), \
-         (map('host.name', 'i-0a1b2c3d4e5f60001', 'oc.org_id', '{org}', 'k8s.pod.name', 'storefront-7d9'), 'storefront-api', 'system.cpu.utilization', '1', map('cpu', '0', 'state', 'user'), '2026-10-27 10:01:10', 0.75), \
-         (map('oc.org_id', '{org}', 'k8s.pod.name', 'storefront-7d9', 'host.name', 'i-0a1b2c3d4e5f60001'), 'storefront-api', 'system.cpu.utilization', '1', map('state', 'user', 'cpu', '0'), '2026-10-27 10:02:10', 0.5), \
-         (map('oc.org_id', '{org}', 'host.name', 'i-0a1b2c3d4e5f60002'), 'catalog-service', 'system.cpu.utilization', '1', map('state', 'user', 'cpu', '0'), '2026-10-27 10:00:10', 0.1)"
+         (map('oc.org_id', '{org}', 'k8s.pod.name', 'storefront-7d9', 'host.name', 'i-0a1b2c3d4e5f60001'), 'storefront-api', 'system.cpu.utilization', '1', map('state', 'user', 'cpu', '0'), '{day} 10:00:10', 0.25), \
+         (map('host.name', 'i-0a1b2c3d4e5f60001', 'oc.org_id', '{org}', 'k8s.pod.name', 'storefront-7d9'), 'storefront-api', 'system.cpu.utilization', '1', map('cpu', '0', 'state', 'user'), '{day} 10:01:10', 0.75), \
+         (map('oc.org_id', '{org}', 'k8s.pod.name', 'storefront-7d9', 'host.name', 'i-0a1b2c3d4e5f60001'), 'storefront-api', 'system.cpu.utilization', '1', map('state', 'user', 'cpu', '0'), '{day} 10:02:10', 0.5), \
+         (map('oc.org_id', '{org}', 'host.name', 'i-0a1b2c3d4e5f60002'), 'catalog-service', 'system.cpu.utilization', '1', map('state', 'user', 'cpu', '0'), '{day} 10:00:10', 0.1)"
     ))
     .execute()
     .await
@@ -48,8 +68,8 @@ async fn ingested_points_become_series_samples_and_rollups() {
     // A cumulative, monotonic counter.
     ch.query(&format!(
         "INSERT INTO otel.metrics_ingest_sum (ResourceAttributes, ServiceName, MetricName, Attributes, TimeUnix, Value, AggregationTemporality, IsMonotonic) VALUES \
-         (map('oc.org_id', '{org}'), 'order-service', 'http.server.requests', map('route', '/cart'), '2026-10-27 10:00:00', 10, 2, true), \
-         (map('oc.org_id', '{org}'), 'order-service', 'http.server.requests', map('route', '/cart'), '2026-10-27 10:00:30', 25, 2, true)"
+         (map('oc.org_id', '{org}'), 'order-service', 'http.server.requests', map('route', '/cart'), '{day} 10:00:00', 10, 2, true), \
+         (map('oc.org_id', '{org}'), 'order-service', 'http.server.requests', map('route', '/cart'), '{day} 10:00:30', 25, 2, true)"
     ))
     .execute()
     .await
@@ -58,14 +78,14 @@ async fn ingested_points_become_series_samples_and_rollups() {
     // A gauge and a counter that share a name and labels are two series.
     ch.query(&format!(
         "INSERT INTO otel.metrics_ingest_gauge (ResourceAttributes, MetricName, Attributes, TimeUnix, Value) VALUES \
-         (map('oc.org_id', '{org}'), 'queue.depth', map('queue', 'orders'), '2026-10-27 10:00:00', 3)"
+         (map('oc.org_id', '{org}'), 'queue.depth', map('queue', 'orders'), '{day} 10:00:00', 3)"
     ))
     .execute()
     .await
     .expect("insert gauge with a shared name");
     ch.query(&format!(
         "INSERT INTO otel.metrics_ingest_sum (ResourceAttributes, MetricName, Attributes, TimeUnix, Value, AggregationTemporality, IsMonotonic) VALUES \
-         (map('oc.org_id', '{org}'), 'queue.depth', map('queue', 'orders'), '2026-10-27 10:00:00', 7, 1, false)"
+         (map('oc.org_id', '{org}'), 'queue.depth', map('queue', 'orders'), '{day} 10:00:00', 7, 1, false)"
     ))
     .execute()
     .await
@@ -118,8 +138,9 @@ async fn points_of_known_series_write_samples_but_no_series_rows() {
     let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
     let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
     let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-    migrate_clickhouse(&cfg, false).await.expect("migrate");
+    migrated(&cfg).await;
     let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password);
+    let day = recent_day(&ch).await;
     let org = format!("known-test-{}", std::process::id());
     let count = |sql: String| {
         let ch = ch.clone();
@@ -138,9 +159,9 @@ async fn points_of_known_series_write_samples_but_no_series_rows() {
         )
     };
     for table in ["gauge", "histogram"] {
-        ch.query(&insert(table, false, "2026-10-27 10:00:10")).execute().await.expect("unmarked");
-        ch.query(&insert(table, true, "2026-10-27 10:00:20")).execute().await.expect("marked");
-        ch.query(&insert(table, true, "2026-10-27 10:00:30")).execute().await.expect("marked");
+        ch.query(&insert(table, false, &format!("{day} 10:00:10"))).execute().await.expect("unmarked");
+        ch.query(&insert(table, true, &format!("{day} 10:00:20"))).execute().await.expect("marked");
+        ch.query(&insert(table, true, &format!("{day} 10:00:30"))).execute().await.expect("marked");
     }
     let o = format!("OrgId = '{org}'");
     for (table, samples) in [("gauge", "metrics_samples"), ("histogram", "metrics_dist_samples")] {
@@ -173,15 +194,16 @@ async fn series_feed_the_tag_index() {
     let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
     let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
     let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-    migrate_clickhouse(&cfg, false).await.expect("migrate");
+    migrated(&cfg).await;
     let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password);
+    let day = recent_day(&ch).await;
     let org = format!("tags-test-{}", std::process::id());
     // `env` is both a resource and a point attribute with other values (the point's wins for a
     // plain key); `zone` both, with the same value; `oc.*` stamps are no labels.
     ch.query(&format!(
         "INSERT INTO otel.metrics_ingest_gauge (ResourceAttributes, ServiceName, MetricName, Attributes, TimeUnix, Value) VALUES \
          (map('oc.org_id', '{org}', 'k8s.namespace.name', 'shop', 'env', 'prod', 'zone', 'a', 'oc.series_known', ''), 'storefront-api', 'kubernetes.cpu.usage.total', \
-          map('env', 'canary', 'zone', 'a', 'state', 'user'), '2026-10-27 10:00:10', 1)"
+          map('env', 'canary', 'zone', 'a', 'state', 'user'), '{day} 10:00:10', 1)"
     ))
     .execute()
     .await
@@ -230,7 +252,7 @@ async fn retention_changes_reach_existing_parts() {
     let user = std::env::var("OC_TEST_CLICKHOUSE_USER").unwrap_or_else(|_| "default".into());
     let password = std::env::var("OC_TEST_CLICKHOUSE_PASSWORD").unwrap_or_default();
     let cfg = ClickHouseConfig { url: url.clone(), user: user.clone(), password: password.clone(), database: "oc".into(), cluster: None };
-    migrate_clickhouse(&cfg, false).await.expect("migrate");
+    migrated(&cfg).await;
     let ch = clickhouse::Client::default().with_url(&url).with_user(&user).with_password(&password).with_setting("mutations_sync", "2");
     let org = format!("retention-test-{}", std::process::id());
     let days = |raw: u32| oc_store::RetentionDays { traces: 15, traces_max: 90, metrics: raw, metrics_5m: 90, metrics_1h: 395, ci: 30, raw_logs_hours: 72, metrics_cold_after_days: 0 };

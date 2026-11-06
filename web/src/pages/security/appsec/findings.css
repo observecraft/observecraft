@@ -527,6 +527,13 @@ a.fi-chip {
   background: color-mix(in srgb, var(--sev-low) 18%, transparent);
   color: color-mix(in srgb, var(--sev-low) 70%, #000);
 }
+/* Darkened text only reads on light fills */
+:root[data-theme='dark'] .fi-sev-soft.sev-medium {
+  color: var(--sev-medium);
+}
+:root[data-theme='dark'] .fi-sev-soft.sev-low {
+  color: var(--sev-low);
+}
 .fi-sev-soft.sev-info {
   background: var(--bg-muted);
   color: var(--text-muted);
@@ -689,6 +696,9 @@ td.fi-score.good {
   background: color-mix(in srgb, var(--status-warn) 14%, var(--bg));
   color: color-mix(in srgb, var(--status-warn) 75%, #000);
 }
+:root[data-theme='dark'] .fi-posture.warn {
+  color: var(--status-warn);
+}
 .fi-posture.good {
   background: color-mix(in srgb, var(--status-ok) 12%, var(--bg));
   color: var(--status-ok);
@@ -723,7 +733,7 @@ td.fi-score.good {
   padding: 1px 6px;
   border-radius: 3px;
   background: color-mix(in srgb, #3b82d6 14%, transparent);
-  color: #2563b0;
+  color: var(--badge-info-fg);
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
   white-space: nowrap;

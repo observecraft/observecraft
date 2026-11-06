@@ -173,7 +173,7 @@
   position: absolute;
   inset: 0 auto 0 0;
   min-width: 3px;
-  background: #c9dcf6;
+  background: var(--toplist-bar);
 }
 .inv-toplist-bar span {
   position: relative;
@@ -290,7 +290,7 @@
   white-space: nowrap;
 }
 .inv-ip.blocked {
-  color: #1f6fd1;
+  color: var(--badge-info-fg);
 }
 .inv-flag {
   font-size: 13px;
@@ -323,19 +323,19 @@
   white-space: nowrap;
 }
 .inv-activity.attack {
-  border-color: #f5c88a;
-  background: #fff4e3;
-  color: #a25a00;
+  border-color: var(--sec-warn-border);
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 .inv-activity.biz {
-  border-color: #dccbf7;
-  background: #f4eefd;
-  color: #6d3fc8;
+  border-color: var(--sec-purple-border);
+  background: var(--group-purple-light);
+  color: var(--sec-purple-fg);
 }
 .inv-activity.resp {
-  border-color: #c3d8f5;
-  background: #edf4fd;
-  color: #1f6fd1;
+  border-color: var(--sec-info-border);
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 .inv-qual {
   font-size: var(--fs-sm);
@@ -355,7 +355,7 @@
   font-weight: var(--fw-semibold);
 }
 .inv-qual.unknown {
-  color: #1f6fd1;
+  color: var(--badge-info-fg);
 }
 .inv-chip {
   display: inline-block;
@@ -372,8 +372,8 @@
   margin: 1px 4px 1px 4px;
   padding: 0 6px;
   border-radius: 3px;
-  background: #fff1d6;
-  color: #8a5300;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
   font-size: var(--fs-sm);
   white-space: nowrap;
 }
@@ -553,12 +553,12 @@ button.inv-card:hover {
   font-weight: var(--fw-semibold);
 }
 .inv-cov.on {
-  background: #e7f6ec;
-  color: #1d7a3d;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 .inv-cov.on.blocking {
-  background: #e8f1fd;
-  color: #1f6fd1;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 
 /* ---- empty states */
@@ -700,9 +700,9 @@ button.inv-card:hover {
 }
 .inv-request {
   padding: 12px 14px;
-  border: 1px solid #c3d8f5;
+  border: 1px solid var(--sec-info-border);
   border-radius: var(--radius-md);
-  background: #f5f9fe;
+  background: var(--sec-info-tint);
 }
 .inv-request-head {
   display: flex;
@@ -711,7 +711,7 @@ button.inv-card:hover {
   gap: 8px;
 }
 .inv-request-head > b {
-  color: #1f6fd1;
+  color: var(--badge-info-fg);
 }
 .inv-ua {
   display: inline-flex;
@@ -808,8 +808,8 @@ button.inv-card:hover {
   gap: 4px;
   padding: 1px 7px;
   border-radius: 3px;
-  background: #e8f1fd;
-  color: #1f6fd1;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
 }
@@ -819,9 +819,9 @@ button.inv-card:hover {
   gap: 10px;
   margin-top: 8px;
   padding: 8px 12px;
-  border: 1px solid #f0b54a;
+  border: 1px solid var(--sec-warn-border);
   border-radius: var(--radius-sm);
-  background: #fff8e8;
+  background: var(--cf-light-yellow);
 }
 .inv-agents {
   margin: 0;

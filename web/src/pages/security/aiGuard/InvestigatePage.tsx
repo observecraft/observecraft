@@ -118,7 +118,7 @@ function Investigate() {
         ),
         bar(
           'Blocked',
-          token('--accent') || '#3d7bd9',
+          token('--chart-1') || '#3d7bd9',
           pts.map((p) => p.blocked),
         ),
       ],

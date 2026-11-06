@@ -1643,6 +1643,11 @@
   background: rgb(255 255 255 / 60%);
 }
 
+:root[data-theme='dark'] .onc-summary .onc-card {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
 .onc-summary .onc-card h2 {
   font-size: 24px;
 }

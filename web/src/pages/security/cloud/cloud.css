@@ -134,8 +134,8 @@
   font-size: var(--fs-xs);
 }
 .csm-badge.bad {
-  background: #fdecea;
-  color: #a12020;
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
 }
 .csm-sevs {
   display: flex;
@@ -329,7 +329,7 @@
   border-left-color: var(--sev-high);
 }
 .csm-impact > div.ok {
-  border-left-color: #2e9d57;
+  border-left-color: var(--status-ok);
 }
 .csm-impacted {
   color: var(--sev-high);

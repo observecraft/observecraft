@@ -5,6 +5,16 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ObserveCraft</title>
+    <script>
+      // The theme before the first paint (src/theme/mode.ts keeps oc-theme up to date).
+      (function () {
+        var p = null;
+        try { p = localStorage.getItem('oc-theme'); } catch (e) {}
+        var dark = p === 'dark' || (p !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

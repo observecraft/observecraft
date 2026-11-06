@@ -12,6 +12,7 @@ mod bills;
 mod azure;
 mod cloud;
 mod gcp;
+mod authentik;
 mod gitlab;
 mod cache;
 mod config;
@@ -26,6 +27,7 @@ mod log_metric_outbox;
 mod log_metrics;
 mod log_normalize;
 mod log_records;
+mod log_stack;
 mod logproc;
 mod metric_rollups;
 mod org_limits;
@@ -224,6 +226,10 @@ async fn main() -> anyhow::Result<()> {
         let traces: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, gitlab::crawler::TRACES_TOPIC));
         let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(gitlab::crawler::GitlabCrawler { api: Arc::new(gitlab::api::Rest { allow_private: state.config.portal_allow_private }), sink: traces });
         tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, gitlab::crawler::INTERVAL_SECS, concurrency)));
+        // The authentik integration's poller: the instances' events as logs (JSON logs).
+        let logs: Arc<dyn cloud::jobs::MetricSink> = Arc::new(cloud::kafka::KafkaSink::new(&brokers, authentik::crawler::LOGS_TOPIC));
+        let poller: Arc<dyn cloud::jobs::Crawler> = Arc::new(authentik::crawler::AuthentikCrawler { api: Arc::new(authentik::api::Rest { allow_private: state.config.portal_allow_private }), sink: logs });
+        tokio::spawn(org_limits::background(cloud::jobs::run(state.clone(), poller, authentik::crawler::INTERVAL_SECS, concurrency)));
     }
     // Cloud Cost Management's provider bills (`cost_bill_configs`), for the same clouds; written to ClickHouse directly.
     if state.config.cloud_crawlers.iter().any(|c| c == "aws") {

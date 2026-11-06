@@ -4,12 +4,18 @@
   --dg-hero-from: #062f2d;
   --dg-hero-mid: #0b6e69;
   --dg-hero-to: #2d6fb8;
-  --dg-pass: #2ea86b;
-  --dg-fail: #e5383b;
+  --dg-pass: var(--status-ok);
+  --dg-fail: var(--status-error);
   --dg-dry: #7c5cc4;
   --prg-bg-a: #e7f4f1;
   --prg-bg-b: #eef0fb;
   --prg-bg-c: #fbf1e8;
+}
+
+:root[data-theme='dark'] {
+  --prg-bg-a: #15302e;
+  --prg-bg-b: #1f2340;
+  --prg-bg-c: #33261a;
 }
 
 .dg-page {
@@ -200,8 +206,16 @@
   color: var(--brand-strong);
 }
 
+:root[data-theme='dark'] .dg-btn-white {
+  color: #073f3d;
+}
+
 .dg-btn-white:hover {
   background: var(--brand-subtle);
+}
+
+:root[data-theme='dark'] .dg-btn-white:hover {
+  background: #e3f2ee;
 }
 
 .dg-btn-outline {
@@ -522,7 +536,11 @@
   padding: 14px 16px;
   border: 1px solid #f4c7c8;
   border-radius: var(--radius-md);
-  background: #fdf3f3;
+  background: var(--error-row-bg);
+}
+
+:root[data-theme='dark'] .dg-why {
+  border-color: #5a2a2e;
 }
 
 .dg-why-card + .dg-why-card {
@@ -632,6 +650,11 @@
   text-align: left;
 }
 
+:root[data-theme='dark'] .prg-suggested {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(24, 28, 33, 0.6);
+}
+
 .prg-suggested-title {
   display: block;
   text-align: center;
@@ -689,8 +712,8 @@
   margin-left: 8px;
   padding: 1px 7px;
   border-radius: 9px;
-  background: #fff4dc;
-  color: #8a5a00;
+  background: var(--cf-light-yellow);
+  color: var(--badge-warn-fg);
   font-size: var(--fs-sm);
   white-space: nowrap;
 }
@@ -700,8 +723,12 @@
   padding: 10px 12px;
   border: 1px solid #f2d494;
   border-radius: var(--radius-md);
-  background: #fff8e8;
+  background: var(--cf-light-yellow);
   line-height: 1.5;
+}
+
+:root[data-theme='dark'] .prg-notice {
+  border-color: #6b5320;
 }
 
 .prg-condition {

@@ -63,7 +63,7 @@ export function WidgetIllustration({ type }: { type: WidgetType }) {
         return (
           <>
             <circle cx="32" cy="25" r="17" fill="none" stroke={g} strokeWidth="9" strokeDasharray="60 47" />
-            <circle cx="32" cy="25" r="17" fill="none" stroke="#e7dcff" strokeWidth="9" strokeDasharray="47 60" strokeDashoffset="-60" />
+            <circle cx="32" cy="25" r="17" fill="none" stroke="var(--group-purple-light)" strokeWidth="9" strokeDasharray="47 60" strokeDashoffset="-60" />
           </>
         );
       case 'bar_chart':
@@ -88,13 +88,13 @@ export function WidgetIllustration({ type }: { type: WidgetType }) {
             {[30, 22, 14].map((w, i) => (
               <rect key={i} x="12" y={12 + i * 10} width={w} height="6" rx="3" fill={g} />
             ))}
-            <path d="M50 30 l5 -8 l5 8z" fill="#2ea86b" />
+            <path d="M50 30 l5 -8 l5 8z" fill="var(--status-ok)" />
           </>
         );
       case 'note':
         return (
           <>
-            <rect x="10" y="6" width="44" height="34" rx="2" fill="#fff4c2" stroke="#f2c94c" />
+            <rect x="10" y="6" width="44" height="34" rx="2" fill="var(--note-yellow)" stroke="#f2c94c" />
             {[0, 1, 2].map((i) => (
               <rect key={i} x="16" y={14 + i * 7} width={30 - i * 6} height="3" fill="#b8902a" />
             ))}
@@ -119,7 +119,7 @@ export function WidgetIllustration({ type }: { type: WidgetType }) {
       case 'monitor_summary':
         return (
           <>
-            {['#e5383b', '#f2a93b', '#2ea86b'].map((c, i) => (
+            {['var(--status-error)', 'var(--status-warn)', 'var(--status-ok)'].map((c, i) => (
               <rect key={c} x="8" y={8 + i * 12} width="10" height="7" rx="1" fill={c} />
             ))}
             {[0, 1, 2].map((i) => (
@@ -130,7 +130,7 @@ export function WidgetIllustration({ type }: { type: WidgetType }) {
       case 'log_stream':
         return [0, 1, 2, 3, 4].map((i) => (
           <g key={i}>
-            <rect x="8" y={7 + i * 7} width="3" height="5" fill={i === 1 ? '#e5383b' : '#9cc3ea'} />
+            <rect x="8" y={7 + i * 7} width="3" height="5" fill={i === 1 ? 'var(--status-error)' : 'var(--status-info)'} />
             <rect x="14" y={8 + i * 7} width={36 - (i % 3) * 6} height="3" fill={g} opacity="0.6" />
           </g>
         ));

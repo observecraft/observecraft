@@ -5,6 +5,7 @@ import { Navigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DEFAULT_PREFERENCES, getPreferences, setPreferences, type Preferences } from '../../api/identity/personal';
 import { setClockFormat } from '../../lib/format';
+import { applyThemePreference } from '../../theme/mode';
 import './preferences.css';
 
 const KEY = ['identity', 'preferences'] as const;
@@ -24,6 +25,7 @@ function apply(p: Preferences) {
   flag('data-underline-links', p.underlineLinks);
   flag('data-color-blind', p.colorBlindPalette);
   setClockFormat(p.timeFormat);
+  applyThemePreference(p.theme ?? 'system');
 }
 
 /** Applies the signed-in member's preferences; renders nothing. */

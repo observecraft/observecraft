@@ -32,6 +32,23 @@ receivers:
       # CRI-O / containerd / Docker formats; sets k8s.namespace.name, k8s.pod.name, k8s.pod.uid, k8s.container.name.
       - type: container
         id: container-parser
+      {{- with $n.logs.multiline }}
+      {{- if .enabled }}
+      # Stack traces and other multi-line messages become one log: a line matching continuationPattern (indented
+      # frames, "Caused by:", "... 12 more") joins the line before it from the same container. A line starting at
+      # column 0 always starts a new log, so separate logs are never merged.
+      - type: recombine
+        id: multiline
+        combine_field: body
+        combine_with: "\n"
+        source_identifier: attributes["log.file.path"]
+        # A raw (backtick) string: the regex reaches the expression unescaped.
+        is_first_entry: {{ printf "not (body matches `%s`)" .continuationPattern | squote }}
+        max_log_size: {{ .maxLogSize }}
+        max_batch_size: 1000
+        force_flush_period: {{ .flushPeriod }}
+      {{- end }}
+      {{- end }}
   {{- end }}
   {{- if $n.kubeletMetrics.enabled }}
   kubeletstats:

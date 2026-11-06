@@ -579,7 +579,24 @@ pub fn normalize(event: LogEvent, now: DateTime<Utc>) -> Option<Row> {
     tags.extend(dd);
 
     attrs.retain(|k, _| !used.contains(&k.as_str()));
-    let attr: HashMap<String, String> = flatten(&attrs).iter().map(|(k, v)| (k.clone(), text(v))).collect();
+    // A plain-text stack trace (lines the collector joined) gets Datadog's error attributes, unless set (log_stack).
+    let mut attr: HashMap<String, String> = flatten(&attrs).iter().map(|(k, v)| (k.clone(), text(v))).collect();
+    if !attr.contains_key("error.stack") && !attr.contains_key("exception.stacktrace") {
+        if let Some(st) = crate::log_stack::extract(&msg) {
+            let mut error = match attrs.remove("error") {
+                Some(Value::Object(m)) => m,
+                Some(other) => Map::from_iter([("message".to_string(), other)]),
+                None => Map::new(),
+            };
+            for (k, v) in [("stack", st.stack), ("kind", st.kind), ("message", st.message)] {
+                if !v.is_empty() && !error.contains_key(k) {
+                    attr.insert(format!("error.{k}"), v.clone());
+                    error.insert(k.into(), Value::String(v));
+                }
+            }
+            attrs.insert("error".into(), Value::Object(error));
+        }
+    }
     let scope = fields.get("scope").and_then(Value::as_object).and_then(|s| s.get("name")).and_then(to_string).unwrap_or_default();
     let id = if V7.is_match(&ingest_id) { ingest_id } else { uuid_v7(ts) };
 

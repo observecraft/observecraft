@@ -6,6 +6,10 @@
   --wp-violet-line: color-mix(in srgb, #8e6ae0 45%, var(--bg));
   scroll-margin-top: 8px;
 }
+:root[data-theme='dark'] .wp-flow-wrap,
+:root[data-theme='dark'] .wp-section {
+  --wp-violet: #a982ee;
+}
 .wp-hero {
   margin: 6px 0 22px;
   padding-bottom: 10px;
@@ -401,7 +405,7 @@
   color: var(--sev-medium);
 }
 .wp-cov-level.good {
-  color: var(--status-ok, #2e8b57);
+  color: var(--status-ok);
 }
 .wp-cov-bar {
   height: 6px;
@@ -522,8 +526,8 @@
   text-align: center;
 }
 .wp-pack-status.active {
-  background: color-mix(in srgb, var(--status-ok, #2e8b57) 15%, var(--bg));
-  color: var(--status-ok, #2e8b57);
+  background: color-mix(in srgb, var(--status-ok) 15%, var(--bg));
+  color: var(--status-ok);
 }
 .wp-deeper {
   display: flex;

@@ -38,7 +38,8 @@ export function seriesPalette(name?: string): string[] {
   return colors;
 }
 
-let registered = false;
+/** The theme (`data-theme`) the ECharts theme was last registered with: its colors are read from the tokens. */
+let registeredFor: string | null = null;
 
 /**
  * Registers the "observecraft" ECharts theme: thin dashed-free gridlines, small
@@ -46,8 +47,9 @@ let registered = false;
  * Datadog-style timeseries widgets.
  */
 export function registerChartTheme(): void {
-  if (registered) return;
-  registered = true;
+  const theme = document.documentElement.dataset.theme ?? 'light';
+  if (registeredFor === theme) return;
+  registeredFor = theme;
 
   const axisLabel = { color: token('--chart-axis'), fontSize: 11, fontFamily: token('--font-sans') };
   const grid = token('--chart-grid');

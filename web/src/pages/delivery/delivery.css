@@ -2,7 +2,7 @@
 
 :root {
   --ci-success: #3ec46d;
-  --ci-error: #e5383b;
+  --ci-error: var(--status-error);
   --ci-canceled: #8b93a3;
 }
 
@@ -99,6 +99,10 @@
   margin-left: 10px;
   border-radius: 2px;
   background: #24206b;
+}
+
+:root[data-theme='dark'] .ci-level i {
+  background: #7b73d9;
 }
 
 .ci-level select {
@@ -416,7 +420,7 @@
 }
 
 .ci-good {
-  color: #1d8a52;
+  color: var(--badge-ok-fg);
 }
 
 .ci-bad {
@@ -424,7 +428,7 @@
 }
 
 .ci-warn {
-  color: #c96a10;
+  color: var(--badge-warn-fg);
 }
 
 /* ---------- drawer ---------- */
@@ -511,7 +515,7 @@
 }
 
 .ci-count.bad {
-  background: #fde4e4;
+  background: var(--badge-error-bg);
   color: var(--ci-error);
 }
 
@@ -571,6 +575,11 @@
 .ci-wf-env {
   background: #ede7fb;
   color: #5b2ea6;
+}
+
+:root[data-theme='dark'] .ci-wf-env {
+  background: #2a2440;
+  color: #c3a8ff;
 }
 
 .ci-wf-track {
@@ -692,7 +701,7 @@
 }
 
 .ci-kpi em.ci-good {
-  color: #1d8a52;
+  color: var(--badge-ok-fg);
 }
 
 .ci-kpi em.ci-bad {
@@ -824,23 +833,23 @@
 }
 
 .r-elite {
-  background: #dcf4e6;
-  color: #1d7a4b;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 
 .r-high {
-  background: #dcebfb;
-  color: #2459b5;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 
 .r-medium {
-  background: #fdefd6;
-  color: #9a5b06;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 
 .r-low {
-  background: #fde4e4;
-  color: #b3122e;
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
 }
 
 .ci-attr-table tbody tr {

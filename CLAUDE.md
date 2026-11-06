@@ -170,8 +170,18 @@ or SDK features.
   translated to our search syntax plus an aggregation (stats/timechart/top/chart), with macros from an uploaded
   macros file; imports of exported alerts and Simple XML dashboards become log monitors and log-stream dashboards.
   Unsupported SPL (eval, rex, join, OR across fields, numeric comparisons) is reported, not guessed.
-- **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, accessibility) in
+- **authentik** (Integrations → authentik, `oc-api/src/authentik/`, `routes/authentik_integration.rs`): the server polls an
+  instance's events API (`/api/v3/events/events/`, token in Postgres `authentik_connections`, sealed) on the cloud
+  crawlers' jobs (provider `authentik`) and sends each event as a log (`source:authentik`) to `oc.logs.json`.
+- **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
+- **Slack** (`routes/slack.rs`, `datadog_api/slack_integration.rs`, page `web/src/pages/integrations/slack/`): workspaces
+  are connected through a Slack app (Postgres `slack_accounts`, sealed bot token): "Add to Slack" with this install's app
+  (`OC_SLACK_CLIENT_ID` / `_SECRET` / `OC_SLACK_SIGNING_SECRET`) or the bot token of the workspace's own app (manifest on
+  the page). Channels are `datadog_integration_slack_channel` (`slack_channels`, Datadog's display options); monitors
+  mention `@slack-<account>-<channel>` or `@slack-<channel>`, posted with `chat.postMessage` as a card; mute buttons
+  (`/api/v1/public/slack/interactive`, signature-checked) create downtimes as the member with the Slack user's email.
+  Other `@slack-<name>` handles are the older incoming-webhook channels (`notification_channels`).
 - **New features start from the Terraform provider.** Before designing the API of a product area, check whether
   [`DataDog/terraform-provider-datadog`](https://github.com/DataDog/terraform-provider-datadog) (MPL-2.0: read it,
   don't copy it) has resources for it (`datadog_<area>_*`). If it does, the configuration lives under the Datadog
@@ -185,6 +195,10 @@ or SDK features.
   `observecraft-agent` chart only configures the official OpenTelemetry Collector image, for OpenTelemetry-only setups.
 - **Data model:** keep Datadog metric names as sent, so users' dashboards and monitors keep working. Product pages read
   both naming schemes; `hosts.rs` and `kubernetes.rs` show how.
+- **Log normalization is the server's** (`log_normalize.rs`, as Vector's `normalize.vrl` did; no Vector of ours on
+  the log path). Multi-line messages are joined only at the source (the agent chart's `node.logs.multiline`
+  `recombine`, the Datadog Agent's auto multi-line detection); `log_stack.rs` then reads a joined stack trace into
+  `error.stack` / `.kind` / `.message` (Error Tracking, the log side panel), unless the log has them.
 - **Integrations: [`DataDog/integrations-core`](https://github.com/DataDog/integrations-core)** (BSD-3-Clause) is the
   source for Datadog integrations. We don't need all of them now; take them one by one as the integrations catalog
   grows:
@@ -242,6 +256,11 @@ or SDK features.
   Monitor's supported-metrics reference; GCP: Cloud Monitoring's metrics list; names, units and aggregations only), and
   `scripts/cloud-service-dashboards.mjs` turns them into `integrations/cloud/services.ndjson.gz` (installed lazily like
   integrations-core's, by metric prefix), `service-units.csv` and the mock subset `cloudServiceDashboards.generated.json`.
+  CloudFront, ECS (+ `ECS/ContainerInsights` → `ecs.containerinsights.*`), RDS (+ Proxy → `aws.rds.proxy.*`) and WAF
+  follow Datadog exactly (`scripts/aws-datadog-metrics.json`, merged into `aws-metrics.json` by `import-cloud-metrics.mjs
+  --aws-datadog`): the crawler publishes their bare names with Datadog's statistic (counts are sums), its names and
+  `aws.ecs.cluster.*` / `.service.*` variants, and collects the global services (CloudFront, CloudFront web ACLs) from
+  us-east-1 even when the account's regions leave it out (`aws/naming.rs`).
 - **Integration dashboards are listed once their integration is enabled** (`routes/dashboards.rs`, by the dashboard's
   `logo`): AWS / Azure / GCP with an account, synthetics with a test, Kubernetes / hosts / APM with data in the last
   day; other logos always. Cached 30 s per server (`EnabledChange` drops it when an account is added or removed);
@@ -325,6 +344,9 @@ browser (live and, where relevant, mock mode).
 - **API.** Document handlers with `utoipa`, keep operation ids unique across route modules, run `make openapi`.
 - **Web.** Fetch data only through `web/src/api/*/client.ts` and TanStack Query hooks. Keep the mocks working so
   `make web-mock` shows the feature too. Reuse existing components and CSS classes.
+- **Themes.** Colors come from `web/src/theme/tokens.css` (`var(--…)` in CSS, `token('--…')` in chart options, read at
+  render); the dark theme overrides the tokens under `:root[data-theme='dark']`. A color with no token gets a
+  `:root[data-theme='dark']` override next to its rule. Check new pages in both themes (profile menu → Theme).
 - **Demo data is fictional.** Seeds, generators, mocks, fixtures and screenshots use the e-commerce demo domain
   (`api-gateway`, `storefront-api`, `order-service`, `billing`, `catalog-service`, `inventory-service`, …),
   `example-org/*` repos, hosts like `i-0a1b2c3d4e5f6000N`, AWS account `123456789012`, `@example.com` people.

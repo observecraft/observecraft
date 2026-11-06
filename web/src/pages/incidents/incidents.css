@@ -671,13 +671,18 @@
   padding: 16px 20px;
   border: 1px solid #c9c6f5;
   border-radius: var(--radius-md);
-  background: #eeedfd;
+  background: var(--investigate-bg);
   color: #5b45d6;
   font-size: 18px;
 }
 
 .assist-card .btn {
   margin-left: auto;
+}
+
+:root[data-theme='dark'] .assist-card {
+  border-color: #3d3670;
+  color: #b3a6f5;
 }
 
 .inc-center-side {
@@ -761,7 +766,7 @@
   gap: 12px;
   height: 66px;
   padding: 0 18px 0 22px;
-  background: linear-gradient(90deg, var(--brand-strong) 0%, var(--brand) 55%, #1d8a84 100%);
+  background: linear-gradient(90deg, var(--hero-from) 0%, var(--hero-mid) 55%, #1d8a84 100%);
   color: #fff;
 }
 

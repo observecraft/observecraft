@@ -26,8 +26,12 @@ export function hasReportedMetrics(id: string, declared: { name: string }[], nam
   return false;
 }
 
+/** Namespaces Datadog doesn't name `aws.<namespace>.` (server aws/naming.rs PREFIXES). */
+const AWS_PREFIXES: Record<string, string> = { 'AWS/RDS/Proxy': 'aws.rds.proxy.', 'ECS/ContainerInsights': 'ecs.containerinsights.' };
+
 /** The Datadog metric prefix of a CloudWatch namespace: `AWS/EC2` → `aws.ec2.`. */
 export const awsMetricPrefix = (namespace: string) =>
+  AWS_PREFIXES[namespace] ??
   `aws.${namespace
     .replace(/^\/?aws\//i, '')
     .toLowerCase()

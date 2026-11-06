@@ -56,6 +56,12 @@ datadog:
     - { name: DD_LOGS_CONFIG_LOGS_DD_URL, value: *logsIntake }
     - { name: DD_LOGS_CONFIG_FORCE_USE_HTTP, value: "true" }
     - { name: DD_LOGS_CONFIG_LOGS_NO_SSL, value: "true" }
+    # Stack traces and other multi-line messages as one log instead of one log per line: the Agent
+    # groups lines that don't start a new log (a timestamp it recognises) with the line before. For an
+    # application it doesn't get right, a rule on its pod (the pattern of a line that starts a log):
+    #   ad.datadoghq.com/<container>.logs: '[{"source":"java","service":"order-service",
+    #     "log_processing_rules":[{"type":"multi_line","name":"new_log","pattern":"\\d{4}-\\d{2}-\\d{2}"}]}]'
+    - { name: DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION, value: "true" }
     # Tracers' telemetry (the libraries each service loads) feeds Code Security.
     - { name: DD_APM_TELEMETRY_ENABLED, value: "true" }
     - { name: DD_APM_TELEMETRY_DD_URL, value: *intake }

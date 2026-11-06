@@ -340,6 +340,16 @@
       ]
     },
     {
+      "namespace": "ECS/ContainerInsights",
+      "name": "Amazon ECS Container Insights",
+      "id": "aws-ecs-containerinsights",
+      "categories": [
+        "AWS",
+        "Containers",
+        "Orchestration"
+      ]
+    },
+    {
       "namespace": "AWS/EFS",
       "name": "Amazon EFS",
       "id": "aws-efs",

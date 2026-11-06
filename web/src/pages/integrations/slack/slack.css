@@ -1,0 +1,115 @@
+/* Integrations → Slack, on top of the cloud pages' layout (aws.css). */
+
+.slack-banner {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.slack-banner span {
+  flex: 1;
+}
+
+.slack-connect {
+  max-width: 640px;
+}
+
+.slack-connect h2,
+.slack-setup h2 {
+  margin: 0;
+  font-size: var(--fs-lg);
+}
+
+.slack-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+}
+
+.slack-or {
+  margin: 4px 0 0;
+}
+
+.slack-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 900px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.slack-manifest {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.slack-manifest pre {
+  width: 100%;
+  max-height: 320px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-size: var(--fs-sm);
+}
+
+.slack-add-channel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.slack-add-channel input {
+  width: 260px;
+  max-width: 100%;
+}
+
+.slack-channels {
+  max-width: 1100px;
+}
+
+.slack-channels .slack-opt {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.slack-channel-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+}
+
+.slack-channels td > code {
+  white-space: nowrap;
+}
+
+.slack-channels td small {
+  display: block;
+}
+
+.slack-actions {
+  white-space: nowrap;
+}
+
+.slack-actions .icon-plain {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.slack-warn {
+  color: var(--badge-warn-fg);
+}
+
+.slack-ok {
+  color: var(--badge-ok-fg);
+}

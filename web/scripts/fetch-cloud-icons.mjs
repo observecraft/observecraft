@@ -58,6 +58,7 @@ const ALIASES = {
   'aws-amazonmwaa': 'managedworkflowsforapacheairflow',
   'aws-natgateway': 'virtualprivate',
   'aws-ecs': 'elasticcontainerservice',
+  'aws-ecs-containerinsights': 'elasticcontainerservice',
   'aws-gamelift': 'gameliftservers',
   'aws-opsworks': 'systemsmanager',
   'aws-servicequotas': 'systemsmanager',

@@ -1,4 +1,4 @@
-//! Posture scans and findings in Postgres (`posture_scans`, `posture_checks`, `posture_findings`, migration 0087).
+//! Posture scans and findings in Postgres (`posture_scans`, `posture_checks`, `posture_findings`, migration 0088).
 //!
 //! - **Queue** ([`plan`]): a scan per account whose posture collection is on, every
 //!   `OC_POSTURE_SCAN_INTERVAL_HOURS`; a failed scan is retried after an hour. At most one queued or running scan per

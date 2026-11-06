@@ -2,7 +2,8 @@
 //!
 //! - `@webhook-<name>`: JSON POST to the org's webhook channel, signed with HMAC-SHA256
 //!   (`X-ObserveCraft-Signature: sha256=<hex>` over the raw body) when the channel has a secret.
-//! - `@slack-<name>`: Slack incoming webhook.
+//! - `@slack-<account>-<channel>` / `@slack-<channel>`: a channel of a connected Slack workspace
+//!   ([`super::slack`]); otherwise `@slack-<name>` is a Slack incoming-webhook channel.
 //! - `@someone@example.com`: email through the install's SMTP server (`OC_SMTP_URL`). Only addresses
 //!   of the organization's members are mailed, so monitors can't be used to send mail to anyone.
 //! - `@oncall-<team>`: pages the team through On-Call (its escalation policy); a recovery resolves
@@ -44,9 +45,13 @@ pub struct NotificationChannel {
     pub handle: String,
     /// webhook | slack
     pub kind: String,
-    /// Host of the URL (the full URL is a credential and never returned).
+    /// Host of the URL (the full URL is a credential and never returned), or the Slack workspace and channel.
     #[sqlx(skip)]
     pub target: String,
+    /// webhook: an incoming-webhook channel of this list; slack_app: a channel of a connected Slack
+    /// workspace, managed in Integrations → Slack.
+    #[sqlx(skip)]
+    pub source: String,
     #[serde(skip)]
     pub url_enc: String,
     pub signed: bool,
@@ -63,7 +68,23 @@ async fn channels(st: &AppState, org: &str) -> Result<Vec<NotificationChannel>, 
     .await?;
     for r in &mut rows {
         r.target = st.secrets.decrypt(&r.url_enc).ok().and_then(|u| url::Url::parse(&u).ok()).and_then(|u| u.host_str().map(str::to_string)).unwrap_or_default();
+        r.source = "webhook".into();
     }
+    for a in super::slack::accounts(st, org).await? {
+        for c in super::slack::channels(st, org, &a.id).await? {
+            rows.push(NotificationChannel {
+                id: c.id,
+                handle: super::slack::handle(&a.name, &c.name),
+                kind: "slack".into(),
+                target: format!("{} · {}", if a.team_name.is_empty() { &a.name } else { &a.team_name }, c.name),
+                source: "slack_app".into(),
+                url_enc: String::new(),
+                signed: false,
+                created_at: c.created_at,
+            });
+        }
+    }
+    rows.sort_by(|a, b| a.handle.cmp(&b.handle));
     Ok(rows)
 }
 
@@ -232,7 +253,13 @@ pub(crate) async fn deliver(st: &AppState, recipient: &str, n: &Notice) -> Outco
         return super::workflows::start_from_monitor(st, handle, n).await;
     }
     let link = format!("{}/monitors/{}", st.config.public_url, n.monitor_id);
-    send(st, recipient, &n.outgoing(&link)).await
+    let out = n.outgoing(&link);
+    if recipient.starts_with("slack-") {
+        if let Some(outcome) = super::slack::deliver(st, recipient, &out, Some((n, &link))).await {
+            return outcome;
+        }
+    }
+    send(st, recipient, &out).await
 }
 
 /// Sends a message to an email address (of a member) or a channel handle (`slack-…`, `webhook-…`).
@@ -240,13 +267,19 @@ pub(crate) async fn send(st: &AppState, recipient: &str, out: &Outgoing) -> Outc
     if recipient.contains('@') {
         return send_email(st, recipient, out).await;
     }
+    if recipient.starts_with("slack-") {
+        if let Some(outcome) = super::slack::deliver(st, recipient, out, None).await {
+            return outcome;
+        }
+    }
     let row: Option<(String, String, Option<String>)> =
         match sqlx::query_as("SELECT kind, url_enc, secret_enc FROM notification_channels WHERE org_id = $1 AND handle = $2").bind(&out.org).bind(recipient).fetch_optional(&st.postgres).await {
             Ok(r) => r,
             Err(e) => return Outcome::Failed(e.to_string()),
         };
     let Some((kind, url_enc, secret_enc)) = row else {
-        return Outcome::Unknown(format!("No channel named @{recipient}. Add it under Monitors → Settings → Notification Channels."));
+        let hint = if recipient.starts_with("slack-") { "Add the Slack channel under Integrations → Slack" } else { "Add it under Monitors → Settings → Notification Channels" };
+        return Outcome::Unknown(format!("No channel named @{recipient}. {hint}."));
     };
     let (Ok(url), secret) = (st.secrets.decrypt(&url_enc), secret_enc.and_then(|s| st.secrets.decrypt(&s).ok())) else {
         return Outcome::Failed("The channel's URL can't be decrypted (was OC_SECRET_KEY changed?)".into());

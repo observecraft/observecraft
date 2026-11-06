@@ -30,6 +30,19 @@ node:
     enabled: true
     # -- Namespaces whose container logs are not collected (the agent's own are never collected).
     excludeNamespaces: []
+    # Multi-line messages (stack traces) as one log instead of one log per line. Lines matching
+    # continuationPattern join the line before them from the same container; a line starting at
+    # column 0 always starts a new log. Applications logging JSON don't need it.
+    multiline:
+      enabled: true
+      # -- Regex of a continuation line: indented (Java "\tat …", Python "  File …"), Java's
+      # "Caused by:" and "... N more" / "... N common frames omitted", and an exception's first or
+      # last line ("java.lang.IllegalStateException: …", Python's "ValueError: …"). No backticks.
+      continuationPattern: '^(\s|Caused by:|\.\.\. \d+ (more|common frames omitted)|[\w.$]*[A-Za-z](Exception|Error)(:|$))'
+      # -- Largest combined log; longer ones are cut.
+      maxLogSize: 256KiB
+      # -- How long a log waits for more lines before it is sent.
+      flushPeriod: 1s
   kubeletMetrics:
     enabled: true
     interval: 20s

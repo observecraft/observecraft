@@ -493,7 +493,7 @@
   margin-bottom: 18px;
   padding: 16px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--brand-strong), var(--brand));
+  background: linear-gradient(135deg, var(--hero-from), var(--hero-mid));
   color: #fff;
   font-size: var(--fs-lg);
 }
