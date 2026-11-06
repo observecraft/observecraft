@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.16.0](https://github.com/observecraft/observecraft/compare/v0.15.0...v0.16.0) (2026-11-06)
+
+
+### Features
+
+* **agent:** join stack traces into one log where logs are collected ([f796b4c](https://github.com/observecraft/observecraft/commit/f796b4cbdb2728aa6f53cca52b5ab6781042f01b))
+* **dashboards:** a logo tag shows an API dashboard with an integration's logo ([f6a2122](https://github.com/observecraft/observecraft/commit/f6a2122c4de49860229113bd813fecda4b4d0616))
+* **integrations:** Slack app for monitor notifications; Datadog-accurate AWS WAF, CloudFront, ECS and RDS ([#93](https://github.com/observecraft/observecraft/issues/93)) ([ce7b32d](https://github.com/observecraft/observecraft/commit/ce7b32d1fa40dcbbf5ee8bff49ee96f68ee13701))
+* **logs:** read joined stack traces into error attributes and show them ([7178bdc](https://github.com/observecraft/observecraft/commit/7178bdc24c70db5465325497162f57cc9c816c7d))
+* **web:** dark theme ([9072077](https://github.com/observecraft/observecraft/commit/9072077bba9a5790bac4e0dd08bad23f5f015034))
+
+
+### Bug fixes
+
+* **dashboards:** images keep Datadog's sizing ([7e9e3a3](https://github.com/observecraft/observecraft/commit/7e9e3a388822f6823ba42256dc392725a3f99fa8))
+* **metrics:** a rollup after a query's group-by belongs to the query ([f824bb7](https://github.com/observecraft/observecraft/commit/f824bb7109ba2725826dd335882fc9f304063e12))
+
 ## [0.15.0](https://github.com/observecraft/observecraft/compare/v0.14.0...v0.15.0) (2026-11-06)
 
 
