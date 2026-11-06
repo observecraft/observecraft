@@ -745,6 +745,7 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
         }
     }
     let addr = st.config.logproc_addr.clone();
+    let st_posture = st.clone();
     let profiles = Router::new()
         .route("/ingest/profiles", post(crate::routes::profiles::ingest))
         .route("/ingest/feature-flag-evaluations", post(crate::routes::feature_flags::ingest_evaluations))
@@ -758,6 +759,7 @@ pub async fn serve(st: AppState) -> anyhow::Result<()> {
         .route("/ingest/logs", post(ingest))
         .with_state((st, ix))
         .merge(profiles)
+        .merge(crate::posture::internal_router(st_posture))
         .layer(axum::extract::DefaultBodyLimit::max(64 * 1024 * 1024));
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!(%addr, "log indexer listening");

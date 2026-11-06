@@ -145,6 +145,14 @@ or SDK features.
   (`/api/v2/remote_config/products/asm/waf/...`, Postgres `appsec_waf_objects`); the denylist is `appsec_denylist`;
   API findings are our own rules mapped to the OWASP API Top 10; `application_security` detection rules run in
   `security_engine.rs`.
+- **Cloud Security account scans** (ADR-0006, `posture/`, `routes/cloud_posture.rs`,
+  `datadog_api/security_findings.rs`): third-party scanners, unmodified and pinned by digest, never floating tags. The
+  `scanner` deployment (Prowler's official image + `deploy/helm/observecraft/files/scanner/scan.py`) claims a daily scan
+  per AWS account with `cloud_security_posture_management_collection` on from the internal listener
+  (`/internal/posture/*`, bearer `OC_SCANNER_TOKEN`), gets credentials narrowed to read-only session policies
+  (`SecurityAudit`, `ViewOnlyAccess`, `seeds/posture/aws-scan-session-policy.json`) and uploads OCSF results into
+  Postgres `posture_findings`; served as Datadog's `/api/v2/security/findings` and on Cloud Security → Findings.
+  Threat detection (CloudTrail) is a separate track (Cloud SIEM).
 - **Workload Protection** (`workload_protection.rs`, `workload_catalog.rs`, `datadog_api/csm_threats.rs`): agent
   policies and agent rules are `datadog_csm_threats_policy` / `_agent_rule` (`/api/v2/remote_config/products/cws/...`,
   Postgres `cws_policies` / `cws_agent_rules`; the default ones are our catalog, installed per org); Agents and coverage
@@ -246,9 +254,9 @@ or SDK features.
   - Cloud Cost Management's Google Cloud billing export (`datadog_gcp_uc_config`), tag pipelines and custom allocation
     rules (budgets, custom forecasts, custom costs files, `datadog_api/cost.rs`, and the AWS and Azure bills exist; costs
     are the cost metrics `all.cost`, `aws.cost.amortized`, …, `cloud_cost.rs`);
-  - Cloud Security's cloud account scanning (provider APIs: misconfigurations of cloud resources, identity risks,
-    attack paths), compliance frameworks and the resource map (its misconfigurations cover hosts and Kubernetes,
-    `cloud_security_rules.rs`); the live debugger and remote configuration;
+  - Cloud Security's account scans of Azure and GCP (AWS is scanned, see below), identity risks, attack paths,
+    compliance framework pages (`datadog_compliance_custom_framework`), image scanning with Trivy and the resource map;
+    the live debugger and remote configuration;
   - Workload Protection's delivery of policies to Agents (Remote Configuration; policy files are downloaded instead),
     blocking and kill actions, security profiles and its dashboards (threats, findings, FIM, IMDS, sessions);
   - AI Guard's LLM-based judging (an optional OpenAI-compatible judge is not built), redaction replacements, the

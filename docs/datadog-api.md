@@ -104,6 +104,7 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 | `datadog_apm_retention_filter`, `datadog_apm_retention_filter_order` | `/api/v2/apm/config/retention-filters` (create, list, get, update, delete), `PUT /api/v2/apm/config/retention-filters-execution-order` | ✅ [details](#apm-retention-filters-and-span-based-metrics) |
 | `datadog_spans_metric` | `/api/v2/apm/config/metrics` (create, list, get, update, delete) | ✅ [details](#apm-retention-filters-and-span-based-metrics) |
 | `datadog_integration_aws_account`, `datadog_integration_aws_external_id`, data sources `datadog_integration_aws_available_namespaces` / `datadog_integration_aws_iam_permissions` | `/api/v2/integration/aws/accounts` (create, list, get, update, delete), `/available_namespaces`, `/logs/services`, `/generate_new_external_id`, `/iam_permissions[/standard\|/resource_collection]` | ✅ [details](#aws-integration) |
+| (no Terraform resource: Cloud Security findings) | `GET /api/v2/security/findings`, `POST /api/v2/security/findings/search`, `PATCH /api/v2/security/findings/mute` | ✅ [details](#security-findings) |
 | `datadog_integration_azure` | `/api/v1/integration/azure` (list, create, update, delete), `POST /api/v1/integration/azure/host_filters` | ✅ [details](#azure-integration) |
 | `datadog_integration_gcp_sts` | `/api/v2/integration/gcp/accounts` (create, list, update, delete), `/api/v2/integration/gcp/sts_delegate` | ✅ [details](#gcp-integration) |
 
@@ -133,6 +134,25 @@ the query's `by {…}` once, and each tag combination has an entry for every mon
 `actual=true` or `forecast=true` adds each entry's `costs`: what the month cost so far and, for the current month, the
 cost at the pace so far (or the custom forecast).
 
+## Security findings
+
+Cloud Security's account scans ([ADR-0006](adr/0006-cloud-posture-scanning.md)) run Prowler, pinned by digest, every
+day on each AWS account whose `resources_config.cloud_security_posture_management_collection` is on. Each check's
+latest evaluation of each resource is a finding (`finding_type: misconfiguration`) in Datadog's document shape:
+`attributes.attributes.custom` holds `rule`, `severity`, `status` (`open` / `muted`), `compliance.evaluation`
+(`pass` / `fail`), `cloud_resource` and `workflow.mute`; the tags carry `framework:`, `resource_type:` and the
+resource's own tags.
+
+- `filter[query]` takes terms that must all match: `@facet:value` on the document (`@severity:(critical OR high)`,
+  `@status:open`, `@compliance.evaluation:fail`, `@rule.id:s3_*`), `tag:value`, free text, `-` to negate one, `*`.
+  `OR` between terms and the rest of the logs search syntax are a `400`, not a guess.
+- Paging: `page[limit]` (1–150, default 10), with `meta.page.after` as the next `page[cursor]`; `sort` is
+  `-@detection_changed_at` (the default) or `@detection_changed_at`.
+- Muting takes up to 100 findings, with the reasons Datadog allows for each direction and an `expire_at` in the future
+  (`422` otherwise). It needs the Standard role and is audited; ids that aren't this org's findings are a `404`.
+- Not served: host and container vulnerabilities, identity risks and attack paths as findings, cases, Jira issues and
+  assignees, and the legacy `/api/v2/posture_management/findings` (deprecated upstream).
+
 ## AWS integration
 
 AWS accounts are stored as the API documents them, with the Terraform provider's defaults filled in
@@ -144,7 +164,8 @@ collection on). An update keeps the fields it doesn't send; `aws_regions` and ea
   the two (`400`, as Datadog).
 - **Namespaces and log sources** come from ObserveCraft's own catalog (`server/seeds/aws_integration.json`).
 - **IAM permissions** are the ones ObserveCraft's crawler calls (`cloudwatch:ListMetrics`, `cloudwatch:GetMetricData`,
-  `tag:GetResources`); resource collection isn't built, so its list is empty.
+  `tag:GetResources`); `/resource_collection` lists the read-only actions Cloud Security's account scans need on top of
+  the AWS managed `SecurityAudit` policy ([security findings](#security-findings)).
 - One AWS account per organization (`409` for a second one with the same `aws_account_id`); writes need an admin.
 - Metrics are collected by ObserveCraft's crawler (`server/crates/oc-api/src/aws/`) every 10 minutes: Average as
   `aws.<namespace>.<metric>`, Sum and Maximum as `.sum` / `.maximum`, tagged with the dimensions (lowercased), the

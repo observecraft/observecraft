@@ -8,9 +8,12 @@
 //   GET  /api/v1/cloud-security/cves                searchCves
 //   GET  /api/v1/code-security/advisories/:id       getCve (the advisory, shared with Code Security)
 //   POST /api/v1/code-security/triage               triageFinding (mute / reopen)
+//   GET  /api/v1/cloud-security/scans               listPostureScans (each cloud account's latest scan)
+//   POST /api/v1/cloud-security/scans               scanAccountNow
 import { API_MODE, get, post } from '../http';
 import * as mock from '../mock/cloudSecurity';
-import type { AdvisoryDetail, CloudSecuritySummary, CvePage, CveQuery, FindingStatus, InfraPackage, InfraVulnerability, MisconfigPage, ResourceCategory } from './types';
+import * as posture from '../mock/cloudPosture';
+import type { AdvisoryDetail, CloudSecuritySummary, CvePage, CveQuery, FindingStatus, InfraPackage, InfraVulnerability, MisconfigPage, PostureScans, ResourceCategory } from './types';
 
 export * from './types';
 
@@ -36,5 +39,7 @@ export const searchCves = (q: CveQuery): Promise<CvePage> =>
       )
     : mock.cves(q);
 export const getCve = (id: string): Promise<AdvisoryDetail> => (live ? get('/api/v1/code-security/advisories/{id}', { id }) : mock.advisory(id));
+export const listPostureScans = (): Promise<PostureScans> => (live ? get('/api/v1/cloud-security/scans', {}) : posture.postureScans());
+export const scanAccountNow = (accountRef: string): Promise<void> => (live ? post('/api/v1/cloud-security/scans', { accountRef }).then(() => undefined) : posture.scanAccountNow(accountRef));
 export const triageFinding = (key: string, status: 'open' | 'muted'): Promise<void> =>
   live ? post('/api/v1/code-security/triage', { key, status, reason: '' }).then(() => undefined) : mock.setTriage(key, status);

@@ -330,6 +330,8 @@ starts `OC_LOG_INGEST_HANDOVER_MINUTES`, 30, before the newest log Vector stored
 | `OC_SESSION_HOURS` | `12` | Idle session lifetime (sessions also end 7 days after sign-in) |
 | `OC_WEB_DIST` | — | Serve the built web app from the API (production-style) |
 | `OC_LOG_FORWARD_ALLOW_PRIVATE` | `false` | Custom destinations may forward logs to private and loopback addresses |
+| `OC_SCANNER_TOKEN` | — | Bearer token of Cloud Security's account scanners (16+ characters; the `scanner` service / `scanner.enabled`). Without it no account is scanned |
+| `OC_POSTURE_SCAN_INTERVAL_HOURS` | `24` | Hours between two Prowler scans of a cloud account |
 | `OC_KEV_URL` | CISA's catalog | Known Exploited Vulnerabilities JSON the Security research feed reads every six hours (`off` without internet access) |
 | `OC_SEED_DEMO` | `true` | Fictional demo users, teams, monitors and incidents, a demo ingest key and archive. **Set `false` in production.** |
 

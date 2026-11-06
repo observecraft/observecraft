@@ -374,3 +374,28 @@
 .csm-cves td:nth-child(4) {
   white-space: nowrap;
 }
+
+/* Findings → cloud account scans (Prowler). */
+.csm-scans {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-size: var(--fs-sm);
+}
+
+.csm-scan {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.csm-scan-error {
+  color: var(--badge-warn-fg);
+}

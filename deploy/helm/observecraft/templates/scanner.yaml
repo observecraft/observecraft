@@ -1,0 +1,79 @@
+{{- if .Values.scanner.enabled }}
+{{- $fullname := include "oc.fullname" . -}}
+{{- $secret := include "oc.secretName" . -}}
+# Cloud Security's account scanner (docs/adr/0006-cloud-posture-scanning.md): Prowler's official image, pinned by
+# digest and unmodified, running files/scanner/scan.py (mounted from a ConfigMap). It claims scans from the server's
+# internal listener (:8090), runs Prowler with the short-lived read-only credentials the server hands out and uploads
+# the results. More replicas scan more accounts at once.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-scanner
+  labels:
+    {{- include "oc.componentLabels" (list . "scanner") | nindent 4 }}
+data:
+  scan.py: |
+    {{- .Files.Get "files/scanner/scan.py" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-scanner
+  labels:
+    {{- include "oc.componentLabels" (list . "scanner") | nindent 4 }}
+spec:
+  replicas: {{ .Values.scanner.replicas }}
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      {{- include "oc.selector" (list . "scanner") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "oc.componentLabels" (list . "scanner") | nindent 8 }}
+      annotations:
+        checksum/script: {{ .Files.Get "files/scanner/scan.py" | sha256sum }}
+    spec:
+      {{- include "oc.pullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      securityContext:
+        # The image's `prowler` user.
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: scanner
+          image: "{{ include "oc.registry" . }}{{ .Values.scanner.image.repository }}:{{ .Values.scanner.image.tag }}@{{ required "scanner.image.digest is required: scanners run only pinned images" .Values.scanner.image.digest }}"
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "/scanner/scan.py"]
+          env:
+            - { name: OC_SCANNER_SERVER, value: "http://{{ $fullname }}-server:8090" }
+            - name: OC_SCANNER_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: scanner-token } }
+            - name: OC_SCANNER_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - { name: HOME, value: /tmp }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: script, mountPath: /scanner, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+          resources:
+            {{- toYaml .Values.scanner.resources | nindent 12 }}
+      volumes:
+        - name: script
+          configMap: { name: {{ $fullname }}-scanner }
+        - name: tmp
+          emptyDir: { sizeLimit: {{ .Values.scanner.tmpSize | quote }} }
+      {{- with .Values.scanner.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scanner.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

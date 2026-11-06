@@ -10,7 +10,7 @@ import { compact, timeAgo } from '../../../lib/format';
 import { formatQuery, parseQuery, type Term } from '../../../lib/searchQuery';
 import { SeverityBadge } from '../common';
 import { FINDING_TABS, SubTabs } from './CloudSecurityLayout';
-import { useCve, useInfraVulnerabilities, useMisconfigurations, useTriage } from './queries';
+import { useCve, useInfraVulnerabilities, useMisconfigurations, usePostureScans, useScanNow, useTriage } from './queries';
 
 const RANK = ['low', 'medium', 'high', 'critical'];
 
@@ -161,12 +161,63 @@ const MISCONFIG_FIELDS = (f: MisconfigFinding, key: string): (string | null | un
       return [f.team];
     case 'account':
       return [f.account];
+    case 'region':
+      return [f.region];
     case 'framework':
       return f.frameworks;
     default:
       return [];
   }
 };
+
+/** Where a resource is: its cluster and namespace, or (cloud resources) its account and region. */
+const where = (f: MisconfigFinding) => (f.cluster ? [f.cluster, f.namespace] : [f.account, f.region]).filter(Boolean).join(' / ');
+
+/** Each cloud account's latest scan (Prowler, docs/adr/0006), with a scan on demand. */
+function AccountScans() {
+  const q = usePostureScans();
+  const scan = useScanNow();
+  const accounts = q.data?.accounts ?? [];
+  if (!accounts.length) return null;
+  const enabled = accounts.filter((a) => a.enabled);
+  return (
+    <div className="csm-scans">
+      <b>Cloud account scans</b>
+      {!enabled.length ? (
+        <span className="muted">
+          Off for every account: turn on Cloud Security Management scanning in <Link to="/integrations/aws">Integrations → AWS</Link> (Resource collection).
+        </span>
+      ) : !q.data!.scannerConfigured ? (
+        <span className="muted">No scanner runs for this install: deploy it with the server&apos;s OC_SCANNER_TOKEN (the chart&apos;s scanner.enabled, or compose&apos;s security profile).</span>
+      ) : (
+        enabled.map((a) => (
+          <span key={a.accountRef} className="csm-scan">
+            <span className="muted">AWS</span> <b>{a.accountId}</b>{' '}
+            {a.status === 'queued' || a.status === 'running' ? (
+              <span className="muted">{a.status === 'queued' ? 'scan queued' : `scanning since ${timeAgo(a.startedAt ?? a.queuedAt ?? Date.now())}`}</span>
+            ) : a.status === 'failed' ? (
+              <span className="csm-scan-error" title={a.error ?? ''}>
+                last scan failed {timeAgo(a.finishedAt ?? Date.now())}: {a.error}
+              </span>
+            ) : a.status === 'done' ? (
+              <span className="muted">
+                scanned {timeAgo(a.finishedAt ?? Date.now())} with Prowler {a.toolVersion} · {a.failed} failing, {a.passed} passing
+              </span>
+            ) : (
+              <span className="muted">first scan within a minute of turning it on</span>
+            )}
+            {a.status !== 'queued' && a.status !== 'running' && (
+              <button className="btn btn-sm" disabled={scan.isPending} onClick={() => scan.mutate(a.accountRef)}>
+                Scan now
+              </button>
+            )}
+          </span>
+        ))
+      )}
+      {scan.isError && <span className="csm-scan-error">{(scan.error as Error).message}</span>}
+    </div>
+  );
+}
 
 /** Cloud Security → Findings → Misconfigurations. */
 export function MisconfigurationsPage() {
@@ -186,6 +237,8 @@ export function MisconfigurationsPage() {
     ['resource_type', 'Resource Type', 'CORE', (f) => [f.resourceType]],
     ['cluster', 'Cluster', 'KUBERNETES', (f) => [f.cluster]],
     ['namespace', 'Namespace', 'KUBERNETES', (f) => [f.namespace]],
+    ['account', 'Account', 'CLOUD', (f) => [f.account]],
+    ['region', 'Region', 'CLOUD', (f) => [f.region]],
     ['env', 'Env', 'TAGS', (f) => [f.env]],
     ['service', 'Service', 'TAGS', (f) => [f.service]],
     ['team', 'Team', 'TAGS', (f) => [f.team]],
@@ -203,6 +256,7 @@ export function MisconfigurationsPage() {
   return (
     <div className="sec-explorer">
       <SubTabs tabs={FINDING_TABS} />
+      <AccountScans />
       <Toolbar
         query={query}
         onQuery={(v) => (set('rule', null), set('q', v || null))}
@@ -265,7 +319,7 @@ export function MisconfigurationsPage() {
                     <tr key={k} className={open === f.ruleId ? 'selected' : ''} onClick={() => set('finding', f.ruleId)}>
                       <td>
                         <b>{group === 'resource' ? f.resourceName : f.ruleName}</b>
-                        <div className="muted sec-sub">{group === 'resource' ? [f.cluster, f.namespace].filter(Boolean).join(' / ') : f.ruleId}</div>
+                        <div className="muted sec-sub">{group === 'resource' ? where(f) : f.ruleId}</div>
                       </td>
                       <td>
                         <SeverityBadge severity={worst} />
@@ -305,7 +359,7 @@ export function MisconfigurationsPage() {
                     <tr key={x.key}>
                       <td>
                         <b>{x.resourceName}</b>
-                        <div className="muted sec-sub">{[x.resourceType.replace(/^kube_/, ''), x.cluster, x.namespace].filter(Boolean).join(' · ')}</div>
+                        <div className="muted sec-sub">{[x.resourceType.replace(/^kube_/, ''), where(x)].filter(Boolean).join(' · ')}</div>
                       </td>
                       <td className="csm-detail">{x.detail}</td>
                       <td className="num">

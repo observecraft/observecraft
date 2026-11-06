@@ -38,6 +38,7 @@ pub mod gcp_integration;
 pub mod appsec;
 pub mod csm_threats;
 pub mod rum;
+pub mod security_findings;
 pub mod security_monitoring;
 pub mod teams;
 pub mod users;
@@ -104,6 +105,9 @@ pub fn router() -> Router<AppState> {
         .route("/api/v2/integration/gcp/sts_delegate", get(gcp_integration::get_delegate).post(gcp_integration::make_delegate))
         .route("/api/v2/rum/applications", get(rum::list).post(rum::create))
         .route("/api/v2/rum/applications/{id}", get(rum::get).patch(rum::update).delete(rum::delete))
+        .route("/api/v2/security/findings", get(security_findings::list))
+        .route("/api/v2/security/findings/search", axum::routing::post(security_findings::search))
+        .route("/api/v2/security/findings/mute", axum::routing::patch(security_findings::mute))
         .route("/api/v2/remote_config/products/cws/policy", get(csm_threats::list_policies).post(csm_threats::create_policy))
         .route("/api/v2/remote_config/products/cws/policy/download", get(csm_threats::download))
         .route("/api/v2/remote_config/products/cws/policy/{id}", get(csm_threats::get_policy).patch(csm_threats::update_policy).delete(csm_threats::delete_policy))

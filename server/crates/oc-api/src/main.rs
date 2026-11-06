@@ -30,6 +30,7 @@ mod logproc;
 mod metric_rollups;
 mod org_limits;
 mod pipelines;
+mod posture;
 mod routes;
 mod s3;
 mod spl;
@@ -194,6 +195,7 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(org_limits::background(routes::security_engine::run(state.clone())));
     tokio::spawn(org_limits::background(routes::apm_settings::run_spans_metrics(state.clone())));
     tokio::spawn(org_limits::background(routes::security_feed::run_kev_sync(state.clone())));
+    tokio::spawn(org_limits::background(posture::run(state.clone())));
     tokio::spawn(org_limits::background(routes::workflows::run_executor(state.clone())));
     tokio::spawn(org_limits::background(metric_rollups::run(state.clone())));
     // The cloud integrations' crawlers publish to Kafka (docs/adr/0004), so they need it.

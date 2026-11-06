@@ -11,6 +11,8 @@ export type InfraPackage = S['InfraPackage'];
 export type CvePage = S['CvePage'];
 export type CveRow = S['CveRow'];
 export type AdvisoryDetail = S['AdvisoryDetail'];
+export type PostureScans = S['PostureScans'];
+export type AccountScan = S['AccountScan'];
 export interface CveQuery {
   query?: string;
   severity?: string;

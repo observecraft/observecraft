@@ -124,6 +124,7 @@ pub mod ai_guard;
 pub mod ai_guard_engine;
 pub mod workload_catalog;
 pub mod workload_protection;
+pub mod cloud_posture;
 pub mod cloud_security;
 pub mod cloud_security_rules;
 pub mod security_catalog;
@@ -253,6 +254,9 @@ use crate::state::AppState;
         datadog_api::rum::create,
         datadog_api::rum::update,
         datadog_api::rum::delete,
+        datadog_api::security_findings::list,
+        datadog_api::security_findings::search,
+        datadog_api::security_findings::mute,
         datadog_api::csm_threats::list_policies,
         datadog_api::csm_threats::get_policy,
         datadog_api::csm_threats::create_policy,
@@ -905,6 +909,8 @@ use crate::state::AppState;
         appsec::set_setting,
         cloud_security::summary,
         cloud_security::misconfigurations,
+        cloud_posture::scans,
+        cloud_posture::scan_now,
         cloud_security::vulnerabilities,
         cloud_security::resources,
         cloud_security::packages,
@@ -1662,6 +1668,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/appsec/waf/{kind}/{id}", axum::routing::put(appsec::waf_update).delete(appsec::waf_delete))
         .route("/api/v1/appsec/settings/{key}", get(appsec::setting).put(appsec::set_setting))
         .route("/api/v1/cloud-security/misconfigurations", post(cloud_security::misconfigurations))
+        .route("/api/v1/cloud-security/scans", get(cloud_posture::scans).post(cloud_posture::scan_now))
         .route("/api/v1/cloud-security/vulnerabilities", post(cloud_security::vulnerabilities))
         .route("/api/v1/cloud-security/resources", get(cloud_security::resources))
         .route("/api/v1/cloud-security/packages", get(cloud_security::packages))
