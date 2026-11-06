@@ -12,7 +12,7 @@ export function rng(seed: number): Rand {
   };
 }
 
-const pick = <T,>(r: Rand, arr: readonly T[]): T => arr[Math.floor(r() * arr.length)];
+const pick = <T>(r: Rand, arr: readonly T[]): T => arr[Math.floor(r() * arr.length)];
 
 function hex(r: Rand, len: number): string {
   let s = '';
@@ -108,6 +108,26 @@ const WORKLOADS: Workload[] = [
     emit: (r): Emitted => {
       const x = r();
       const request_id = uuid(r);
+      // A plain-text stack trace the collector joined into one log, with the error attributes the server reads from
+      // it (log_stack.rs).
+      if (x < 0.02) {
+        const stack = [
+          'java.lang.IllegalStateException: inventory unavailable for sku-1042',
+          '\tat com.example.orders.OrderService.place(OrderService.java:42)',
+          '\tat com.example.orders.OrderController.create(OrderController.java:17)',
+          '\tat org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)',
+          '\tat org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:166)',
+          'Caused by: java.net.SocketTimeoutException: Read timed out',
+          '\tat java.base/java.net.SocketInputStream.read(SocketInputStream.java:168)',
+          '\tat com.example.inventory.InventoryClient.reserve(InventoryClient.java:58)',
+          '\t... 24 more',
+        ].join('\n');
+        return {
+          message: `ERROR order-service failed to place order ${request_id}\n${stack}`,
+          status: 'error',
+          attributes: { request_id, error: { kind: 'java.lang.IllegalStateException', message: 'inventory unavailable for sku-1042', stack } },
+        };
+      }
       if (x < 0.06)
         return {
           message: pick(r, ['handleOrder', 'handleOrder.GetCustomer', 'GetCustomer bad response']),
@@ -136,10 +156,7 @@ const WORKLOADS: Workload[] = [
     service: 'billing-watcher',
     weight: 5,
     namespace: 'ns-billing-prod',
-    emit: (r) =>
-      r() < 0.4
-        ? { message: "'lineItems' missing in invoice", status: 'warn' }
-        : { message: pick(r, ['sending event', 'event acknowledged', 'watch cycle complete']) },
+    emit: (r) => (r() < 0.4 ? { message: "'lineItems' missing in invoice", status: 'warn' } : { message: pick(r, ['sending event', 'event acknowledged', 'watch cycle complete']) }),
   },
   {
     service: 'workflow-engine',

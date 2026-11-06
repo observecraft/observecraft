@@ -3,6 +3,7 @@ import { Box, Check, Copy, Hexagon, ListTree, Search, X } from 'lucide-react';
 import type { LogEvent } from '../../api/types';
 import { formatLongDate, timeAgo } from '../../lib/format';
 import { JsonTree } from '../../components/json/JsonTree';
+import { LogError } from './LogError';
 import { LogMessage } from './LogMessage';
 import { API_MODE } from '../../api/http';
 import { useTrace } from '../apm/queries';
@@ -103,6 +104,8 @@ export function LogDetail({ log, onClose, onPrev, onNext, onFilter, onViewInCont
           )}
         </div>
       </section>
+
+      <LogError attributes={log.attributes} />
 
       <section className="detail-section">
         <h4>LOG MESSAGE</h4>

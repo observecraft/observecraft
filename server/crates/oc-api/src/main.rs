@@ -27,6 +27,7 @@ mod log_metric_outbox;
 mod log_metrics;
 mod log_normalize;
 mod log_records;
+mod log_stack;
 mod logproc;
 mod metric_rollups;
 mod org_limits;
