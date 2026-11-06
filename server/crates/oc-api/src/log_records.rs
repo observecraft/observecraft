@@ -26,6 +26,34 @@ pub enum Topic {
 
 impl Topic {
     pub const ALL: [(Topic, &'static str); 3] = [(Topic::Otlp, "oc.otlp.logs"), (Topic::OtlpJson, "oc.otlp-json.logs"), (Topic::Json, "oc.logs.json")];
+
+    pub fn name(self) -> &'static str {
+        Topic::ALL.iter().find(|(t, _)| *t == self).map_or("", |(_, n)| n)
+    }
+}
+
+/// Where a record was read: logs without the intake's identity get one from it (`Origin::id`), so reading the record
+/// again stores the same rows.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Origin {
+    pub topic: &'static str,
+    pub partition: i32,
+    pub offset: i64,
+}
+
+impl Origin {
+    /// The identity of the record's `index`-th log, timed at the record (when the intake would have stamped it).
+    fn id(&self, at: DateTime<Utc>, index: usize) -> String {
+        let fnv = |h: u64, bytes: &[u8]| bytes.iter().fold(h, |h, b| (h ^ *b as u64).wrapping_mul(0x0100_0000_01b3));
+        let key = format!("{}|{}|{}|{index}", self.topic, self.partition, self.offset);
+        let high = fnv(0xcbf2_9ce4_8422_2325, key.as_bytes());
+        let low = fnv(high, b"low");
+        crate::log_normalize::uuid_v7_seeded(at, ((high as u128) << 64) | low as u128)
+    }
+}
+
+fn has_identity(id: Option<&Value>) -> bool {
+    id.and_then(Value::as_str).is_some_and(|id| id.len() == 36 && id.as_bytes()[14] == b'7')
 }
 
 /// `oc.signal` values the Collector routes to their own tables (`deploy/otel/collector.yaml`).
@@ -133,13 +161,13 @@ pub struct KeyValueList {
 /// The events of one Kafka record.
 #[cfg(test)]
 pub fn events(topic: Topic, record: &Record) -> Result<Vec<LogEvent>, String> {
-    decode(topic, record).map(|(events, _)| events)
+    decode(topic, record, Origin::default()).map(|(events, _)| events)
 }
 
 /// The log events of one Kafka record, and its resources carrying another signal, re-encoded as an OTLP
 /// protobuf request for the Collector's topic (`oc.otlp.signals`): senders such as the cluster collector mark
 /// Kubernetes objects on the ordinary logs endpoint.
-pub fn decode(topic: Topic, record: &Record) -> Result<(Vec<LogEvent>, Option<Vec<u8>>), String> {
+pub fn decode(topic: Topic, record: &Record, origin: Origin) -> Result<(Vec<LogEvent>, Option<Vec<u8>>), String> {
     let value = record.value.as_deref().unwrap_or_default();
     let req = match topic {
         Topic::Otlp => <ExportLogsServiceRequest as prost::Message>::decode(value).map_err(|e| format!("OTLP logs: {e}"))?,
@@ -147,11 +175,11 @@ pub fn decode(topic: Topic, record: &Record) -> Result<(Vec<LogEvent>, Option<Ve
             let body: Value = serde_json::from_slice(value).map_err(|e| format!("OTLP JSON logs: {e}"))?;
             otlp_from_json(&body)?
         }
-        Topic::Json => return json_events(value, record).map(|events| (events, None)),
+        Topic::Json => return json_events(value, record, origin).map(|events| (events, None)),
     };
     let signals: Vec<ResourceLogs> = req.resource_logs.iter().filter(|rl| other_signal(rl)).cloned().collect();
     let signals = (!signals.is_empty()).then(|| prost::Message::encode_to_vec(&ExportLogsServiceRequest { resource_logs: signals }));
-    Ok((otlp_events(&req, record), signals))
+    Ok((otlp_events(&req, record, origin), signals))
 }
 
 fn other_signal(rl: &ResourceLogs) -> bool {
@@ -166,7 +194,7 @@ fn header(record: &Record, name: &str) -> Option<String> {
 
 /// Vector's `kafka` source with the `json` codec: each object of the record is an event, its `timestamp` the
 /// record's, its headers in `_oc_kafka_headers`.
-fn json_events(value: &[u8], record: &Record) -> Result<Vec<LogEvent>, String> {
+fn json_events(value: &[u8], record: &Record, origin: Origin) -> Result<Vec<LogEvent>, String> {
     let body: Value = serde_json::from_slice(value).map_err(|e| format!("JSON logs: {e}"))?;
     let logs = match body {
         Value::Array(items) => items,
@@ -175,9 +203,18 @@ fn json_events(value: &[u8], record: &Record) -> Result<Vec<LogEvent>, String> {
     let headers: Map<String, Value> = record.headers.iter().map(|(k, v)| (k.clone(), Value::String(String::from_utf8_lossy(v).into_owned()))).collect();
     Ok(logs
         .into_iter()
-        .filter_map(|log| match log {
+        .enumerate()
+        .filter_map(|(index, log)| match log {
             Value::Object(mut fields) => {
                 fields.remove("timestamp");
+                if !has_identity(fields.get("_oc_ingest").and_then(|i| i.get("id"))) {
+                    let ingest = fields.entry("_oc_ingest").or_insert_with(|| Value::Object(Map::new()));
+                    if let Value::Object(ingest) = ingest {
+                        ingest.insert("id".into(), Value::String(origin.id(record.timestamp, index)));
+                    } else {
+                        *ingest = serde_json::json!({ "id": origin.id(record.timestamp, index) });
+                    }
+                }
                 fields.insert("source_type".into(), "kafka".into());
                 fields.insert("_oc_kafka_headers".into(), Value::Object(headers.clone()));
                 Some(LogEvent { fields, timestamp: Some(record.timestamp) })
@@ -214,9 +251,10 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 /// The Collector's `resource/org` processor, then Vector's `opentelemetry` source: one event per log record.
-fn otlp_events(req: &ExportLogsServiceRequest, record: &Record) -> Vec<LogEvent> {
+fn otlp_events(req: &ExportLogsServiceRequest, record: &Record, origin: Origin) -> Vec<LogEvent> {
     let org = header(record, "x-oc-org");
     let mut out = Vec::new();
+    let mut index = 0;
     for rl in req.resource_logs.iter().filter(|rl| !other_signal(rl)) {
         let mut resources = rl.resource.as_ref().map(|r| key_values(&r.attributes)).unwrap_or_default();
         resources.remove("oc.org_id");
@@ -230,9 +268,12 @@ fn otlp_events(req: &ExportLogsServiceRequest, record: &Record) -> Vec<LogEvent>
                 if !resources.is_empty() {
                     fields.insert("resources".into(), Value::Object(resources.clone()));
                 }
-                if !log.attributes.is_empty() {
-                    fields.insert("attributes".into(), Value::Object(key_values(&log.attributes)));
+                let mut attributes = key_values(&log.attributes);
+                if !has_identity(attributes.get("oc.ingest_id")) {
+                    attributes.insert("oc.ingest_id".into(), Value::String(origin.id(record.timestamp, index)));
                 }
+                index += 1;
+                fields.insert("attributes".into(), Value::Object(attributes));
                 if let Some(body) = log.body.as_ref().filter(|b| b.value.is_some()) {
                     fields.insert("message".into(), any_value(body));
                 }
@@ -456,11 +497,34 @@ mod tests {
 
     #[test]
     fn other_signals_are_passed_on_whole_as_protobuf() {
-        let (_, signals) = decode(Topic::Otlp, &record(request().encode_to_vec(), Some("acme"))).unwrap();
+        let (_, signals) = decode(Topic::Otlp, &record(request().encode_to_vec(), Some("acme")), Origin::default()).unwrap();
         let passed = ExportLogsServiceRequest::decode(signals.expect("the dd.events resource").as_slice()).unwrap();
         assert_eq!(passed.resource_logs, vec![request().resource_logs[1].clone()]);
-        let (_, none) = decode(Topic::Otlp, &record(ExportLogsServiceRequest { resource_logs: vec![request().resource_logs[0].clone()] }.encode_to_vec(), Some("acme"))).unwrap();
+        let (_, none) = decode(Topic::Otlp, &record(ExportLogsServiceRequest { resource_logs: vec![request().resource_logs[0].clone()] }.encode_to_vec(), Some("acme")), Origin::default()).unwrap();
         assert!(none.is_none());
+    }
+
+    /// Logs without the intake's identity (trusted agents writing to Kafka) get one from their place in Kafka, so
+    /// reading a record again stores the same rows.
+    #[test]
+    fn logs_without_an_identity_get_one_from_their_kafka_offset() {
+        let id_of = |e: &LogEvent| crate::log_normalize::normalize(e.clone(), chrono::Utc::now()).unwrap().id;
+        let body = json!([{ "message": "a" }, { "message": "b" }, { "message": "c", "_oc_ingest": { "id": "019a4000-0000-7000-8000-000000000009" } }]);
+        let rec = record(body.to_string().into_bytes(), Some("acme"));
+        let (first, _) = decode(Topic::Json, &rec, Origin { topic: "oc.logs.json", partition: 3, offset: 77 }).unwrap();
+        let (again, _) = decode(Topic::Json, &rec, Origin { topic: "oc.logs.json", partition: 3, offset: 77 }).unwrap();
+        let (elsewhere, _) = decode(Topic::Json, &rec, Origin { topic: "oc.logs.json", partition: 3, offset: 78 }).unwrap();
+        let ids: Vec<String> = first.iter().map(id_of).collect();
+        assert_eq!(ids, again.iter().map(id_of).collect::<Vec<_>>(), "the same record, the same ids");
+        assert_ne!(ids[0], ids[1], "each log of a record has its own");
+        assert_ne!(ids[0], id_of(&elsewhere[0]), "another offset, other ids");
+        assert_eq!(ids[2], "019a4000-0000-7000-8000-000000000009", "the intake's identity is kept");
+        // OTLP records without oc.ingest_id too.
+        let mut req = request();
+        req.resource_logs[0].scope_logs[0].log_records[0].attributes.retain(|kv| kv.key != "oc.ingest_id");
+        let rec = record(req.encode_to_vec(), Some("acme"));
+        let origin = Origin { topic: "oc.otlp.logs", partition: 1, offset: 5 };
+        assert_eq!(id_of(&decode(Topic::Otlp, &rec, origin).unwrap().0[0]), id_of(&decode(Topic::Otlp, &rec, origin).unwrap().0[0]));
     }
 
     #[test]
@@ -501,7 +565,10 @@ mod tests {
         let got = events(Topic::Otlp, &record(req.encode_to_vec(), Some("acme"))).unwrap();
         assert_eq!(got[0].timestamp.unwrap().to_rfc3339(), "2026-11-05T09:30:00+00:00");
         assert_eq!(got[1].timestamp.unwrap().to_rfc3339(), "2026-11-05T10:00:00+00:00");
-        assert_eq!(Value::Object(got[1].fields.clone()), json!({ "source_type": "opentelemetry", "resources": { "oc.org_id": "acme" }, "severity_number": 0 }));
+        let mut fields = got[1].fields.clone();
+        let attributes = fields.remove("attributes").unwrap();
+        assert!(has_identity(attributes.get("oc.ingest_id")), "an identity from the record's place in Kafka");
+        assert_eq!(Value::Object(fields), json!({ "source_type": "opentelemetry", "resources": { "oc.org_id": "acme" }, "severity_number": 0 }));
     }
 
     #[test]
@@ -514,12 +581,12 @@ mod tests {
 
     #[test]
     fn json_records_are_one_event_per_log_with_the_kafka_headers() {
-        let body = json!([{ "message": "a", "timestamp": "2020-01-01T00:00:00Z", "_oc_ingest": { "id": "x" } }, { "message": "b" }, 7]);
+        let body = json!([{ "message": "a", "timestamp": "2020-01-01T00:00:00Z", "_oc_ingest": { "id": "019a4000-0000-7000-8000-000000000001" } }, { "message": "b" }, 7]);
         let got = events(Topic::Json, &record(body.to_string().into_bytes(), Some("acme"))).unwrap();
         assert_eq!(got.len(), 2, "only objects are logs");
         assert_eq!(
             Value::Object(got[0].fields.clone()),
-            json!({ "message": "a", "_oc_ingest": { "id": "x" }, "source_type": "kafka", "_oc_kafka_headers": { "x-oc-org": "acme", "x-oc-retention-days": "15" } })
+            json!({ "message": "a", "_oc_ingest": { "id": "019a4000-0000-7000-8000-000000000001" }, "source_type": "kafka", "_oc_kafka_headers": { "x-oc-org": "acme", "x-oc-retention-days": "15" } })
         );
         assert_eq!(got[0].timestamp.unwrap().to_rfc3339(), "2026-11-05T10:00:00+00:00", "the record's time replaces the log's, as Vector's kafka source does");
         let one = events(Topic::Json, &record(br#"{"message":"c"}"#.to_vec(), Some("acme"))).unwrap();

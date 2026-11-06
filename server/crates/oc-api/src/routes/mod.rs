@@ -2617,6 +2617,11 @@ mod tests {
                 "one-time per-org/index cutover quota baseline (count only)",
             ),
             (
+                "../log_ingest.rs",
+                "max(UUIDv7ToDateTime(id))) FROM logs_raw_dedup WHERE timestamp",
+                "where the earlier log path stopped, once at startup (internal ingestion, a single id)",
+            ),
+            (
                 "../logproc.rs",
                 "retention_days FROM logs_read WHERE org_id = ?",
                 "the indexer's persisted quota admissions (internal ingestion, scoped to the org)",
