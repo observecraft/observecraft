@@ -1152,6 +1152,10 @@
   border-color: #f0e08a;
 }
 
+:root[data-theme='dark'] .note-yellow {
+  border-color: #5c5426;
+}
+
 .note-blue {
   background: var(--note-blue);
   border-color: var(--note-blue);
@@ -1216,6 +1220,10 @@
   background: inherit;
   border-right: 1px solid #f0e08a;
   border-bottom: 1px solid #f0e08a;
+}
+
+:root[data-theme='dark'] .note-pointer::after {
+  border-color: #5c5426;
 }
 
 .img-widget {
@@ -1672,7 +1680,7 @@
 }
 
 .note-sw-white {
-  background: #fff;
+  background: var(--bg);
   border: 1px solid var(--border-strong);
 }
 

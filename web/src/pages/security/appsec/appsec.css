@@ -55,8 +55,12 @@
 }
 .aap-sw.monitoring,
 .aap-stack .monitoring {
-  background: repeating-linear-gradient(45deg, #fbe3b8, #fbe3b8 3px, #fff 3px, #fff 6px);
+  background: repeating-linear-gradient(45deg, #fbe3b8, #fbe3b8 3px, var(--bg) 3px, var(--bg) 6px);
   border: 1px dashed #e8a33b;
+}
+:root[data-theme='dark'] .aap-sw.monitoring,
+:root[data-theme='dark'] .aap-stack .monitoring {
+  background: repeating-linear-gradient(45deg, #5a4318, #5a4318 3px, var(--bg) 3px, var(--bg) 6px);
 }
 .aap-sw.off,
 .aap-stack .off {
@@ -64,15 +68,15 @@
 }
 .aap-exposure {
   margin-top: 12px;
-  border: 1px solid #f0b54d;
+  border: 1px solid var(--sec-warn-border);
   border-radius: 6px;
-  background: #fffaf0;
+  background: var(--sec-warn-tint);
 }
 .aap-exposure h5 {
   margin: 0;
   padding: 6px 12px;
-  background: #fff1d6;
-  color: #8a5300;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 .aap-exposure div {
   display: grid;
@@ -198,26 +202,26 @@
   color: var(--sev-high);
 }
 .aap-bars em.down {
-  color: #2e9d57;
+  color: var(--status-ok);
 }
 .aap-method {
   display: inline-block;
   min-width: 42px;
   padding: 1px 6px;
   border-radius: 3px;
-  background: #e8f1fd;
-  color: #1f6fd1;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   text-align: center;
 }
 .aap-method.m-get {
-  background: #e7f6ec;
-  color: #1d7a3d;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 .aap-method.m-delete {
-  background: #fdecea;
-  color: #a12020;
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
 }
 .aap-sev-filter {
   display: flex;
@@ -242,7 +246,7 @@
   font-weight: var(--fw-semibold);
 }
 .aap-score.good {
-  background: #2e9d57;
+  background: var(--status-ok);
 }
 .aap-score.warn {
   background: #e8812f;
@@ -273,16 +277,16 @@
   font-size: 28px;
 }
 .aap-posture.bad {
-  background: #fdecea;
-  color: #b4232f;
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
 }
 .aap-posture.warn {
-  background: #fff4e5;
-  color: #a35c00;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 .aap-posture.good {
-  background: #e7f6ec;
-  color: #1d7a3d;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 .aap-sev-row {
   display: grid;
@@ -293,7 +297,7 @@
   font-size: var(--fs-sm);
 }
 .aap-ok {
-  color: #2e9d57;
+  color: var(--status-ok);
 }
 .aap-graphs {
   display: grid;
@@ -306,7 +310,7 @@
   color: #fff;
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
-  background: #2e9d57;
+  background: var(--status-ok);
 }
 .aap-status.s4 {
   background: #e8812f;
@@ -322,19 +326,19 @@
   font-size: var(--fs-xs);
 }
 .aap-activity.attack {
-  background: #fff1d6;
-  color: #8a5300;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 .aap-activity.biz {
-  background: #f1e9fd;
-  color: #6d3fc8;
+  background: var(--group-purple-light);
+  color: var(--sec-purple-fg);
 }
 .aap-activity.resp {
-  background: #e8f1fd;
-  color: #1f6fd1;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 .aap-blocked {
-  color: #1f6fd1;
+  color: var(--badge-info-fg);
 }
 .aap-request {
   display: flex;
@@ -343,7 +347,7 @@
   gap: 8px;
   padding: 10px 12px;
   border-radius: 4px;
-  background: #eef5fe;
+  background: var(--sec-info-tint);
 }
 .aap-cards {
   display: grid;
@@ -387,12 +391,12 @@
   font-weight: var(--fw-semibold);
 }
 .aap-mode.blocking {
-  background: #e8f1fd;
-  color: #1f6fd1;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 .aap-mode.monitoring {
-  background: #fff1d6;
-  color: #a35c00;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 .aap-mode.disabled {
   background: var(--bg-muted);
@@ -420,9 +424,9 @@
   font-size: 10px;
 }
 .aap-cov.on {
-  border-color: #8fd3a5;
-  background: #e7f6ec;
-  color: #1d7a3d;
+  border-color: var(--sec-ok-border);
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 .aap-waf {
   display: grid;
@@ -443,12 +447,12 @@
   text-align: center;
 }
 .aap-rules .b {
-  background: #e8f1fd;
-  color: #1f6fd1;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 .aap-rules .m {
-  background: #fff1d6;
-  color: #a35c00;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 .aap-rules .d {
   background: var(--bg-muted);
@@ -488,9 +492,9 @@
 }
 .aap-callout {
   padding: 14px 16px;
-  border: 1px solid #b9d6f6;
+  border: 1px solid var(--sec-info-border);
   border-radius: 6px;
-  background: #eef5fe;
+  background: var(--sec-info-tint);
 }
 .aap-callout p {
   margin: 4px 0 10px;

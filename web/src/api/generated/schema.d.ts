@@ -19379,6 +19379,11 @@ export interface components {
             /** @default false */
             reducedMotion: boolean;
             /**
+             * @description light | dark | system (the browser's)
+             * @default system
+             */
+            theme: string;
+            /**
              * @description 12h | 24h
              * @default 12h
              */

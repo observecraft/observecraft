@@ -165,7 +165,7 @@ or SDK features.
 - **authentik** (Integrations → authentik, `oc-api/src/authentik/`, `routes/authentik_integration.rs`): the server polls an
   instance's events API (`/api/v3/events/events/`, token in Postgres `authentik_connections`, sealed) on the cloud
   crawlers' jobs (provider `authentik`) and sends each event as a log (`source:authentik`) to `oc.logs.json`.
-- **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, accessibility) in
+- **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, theme, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
 - **New features start from the Terraform provider.** Before designing the API of a product area, check whether
   [`DataDog/terraform-provider-datadog`](https://github.com/DataDog/terraform-provider-datadog) (MPL-2.0: read it,
@@ -320,6 +320,9 @@ browser (live and, where relevant, mock mode).
 - **API.** Document handlers with `utoipa`, keep operation ids unique across route modules, run `make openapi`.
 - **Web.** Fetch data only through `web/src/api/*/client.ts` and TanStack Query hooks. Keep the mocks working so
   `make web-mock` shows the feature too. Reuse existing components and CSS classes.
+- **Themes.** Colors come from `web/src/theme/tokens.css` (`var(--…)` in CSS, `token('--…')` in chart options, read at
+  render); the dark theme overrides the tokens under `:root[data-theme='dark']`. A color with no token gets a
+  `:root[data-theme='dark']` override next to its rule. Check new pages in both themes (profile menu → Theme).
 - **Demo data is fictional.** Seeds, generators, mocks, fixtures and screenshots use the e-commerce demo domain
   (`api-gateway`, `storefront-api`, `order-service`, `billing`, `catalog-service`, `inventory-service`, …),
   `example-org/*` repos, hosts like `i-0a1b2c3d4e5f6000N`, AWS account `123456789012`, `@example.com` people.

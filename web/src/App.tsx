@@ -264,6 +264,7 @@ import { LOGS_CONFIG_SLUGS, LogsConfigComingSoon, LogsConfigLayout } from './pag
 import { ImportDetailPage, ImportsPage, NewImportPage } from './pages/logs/migration/ImportPages';
 import { TranslatePage } from './pages/logs/migration/TranslatePage';
 import { HomeRedirect, PreferencesEffects } from './pages/settings/preferences';
+import { useTheme } from './theme/mode';
 import { LogsLayout } from './pages/logs/LogsLayout';
 import { EventExplorer } from './pages/events/EventExplorer';
 import { EventsLayout, EventsSummary } from './pages/events/EventsLayout';
@@ -322,6 +323,8 @@ function ComingSoon() {
 function Shell() {
   const [nav, setNav] = useNavMode();
   const [asking, setAsking] = useState(false);
+  // Charts and canvases read the tokens when they draw: a new theme redraws the page (the data stays cached).
+  const theme = useTheme();
   return (
     <TimeProvider>
       <div className="app" data-nav={nav}>
@@ -330,7 +333,7 @@ function Shell() {
         <PreferencesEffects />
         <main className="app-content">
           <AskAssistPanel open={asking} onClose={() => setAsking(false)} />
-          <Routes>
+          <Routes key={theme}>
             <Route path="/" element={<HomeRedirect />} />
             <Route path="/logs" element={<LogsLayout />}>
               <Route index element={<LogExplorer />} />

@@ -778,7 +778,7 @@
 }
 
 .linked-trace-err {
-  color: var(--status-error, #d33d3d);
+  color: var(--status-error);
 }
 
 .linked-trace .btn {
@@ -913,7 +913,7 @@
 }
 
 .ar-status.ok {
-  color: var(--status-ok, #2a9d5c);
+  color: var(--status-ok);
 }
 
 .ar-status.bad {
@@ -921,7 +921,7 @@
 }
 
 .ar-note {
-  color: var(--status-ok, #2a9d5c);
+  color: var(--status-ok);
 }
 
 .ar-runs-row > td {
@@ -996,7 +996,7 @@
 }
 
 .ix-quota-bar.high i {
-  background: var(--status-warn, #e5a00d);
+  background: var(--status-warn);
 }
 
 .ix-quota-bar.full i {
@@ -1440,7 +1440,7 @@
 
 .pl-sample-result.miss,
 .pl-test-result.miss {
-  border-left-color: var(--status-warn, #e5a00d);
+  border-left-color: var(--status-warn);
 }
 
 .pl-sample-rule {

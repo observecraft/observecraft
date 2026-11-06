@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
+import { statusColor, token } from '../../theme/chartTheme';
 import type { DoraResponse, DoraSummary } from '../../api/ci/client';
 import { Chart } from '../../components/charts/Chart';
 import { ErrorState, Loading } from '../../components/ui/AsyncState';
@@ -172,7 +173,7 @@ function bars(d: DoraResponse, k: 'deployments' | 'failed'): EChartsOption {
         type: 'bar',
         name: k === 'failed' ? 'Failed' : 'Deployments',
         barMaxWidth: 16,
-        color: k === 'failed' ? '#e5383b' : '#6a3fd1',
+        color: k === 'failed' ? statusColor('error') : token('--chart-2'),
         data: d.days.map((x) => [x.day + 43_200_000, k === 'failed' ? x.failed : x.deployments - x.failed]),
       },
     ],
@@ -193,7 +194,7 @@ function leadTime(d: DoraResponse): EChartsOption {
       {
         type: 'line',
         name: 'Median lead time',
-        color: '#29a8a0',
+        color: token('--chart-3'),
         connectNulls: true,
         data: d.days.map((x) => [x.day + 43_200_000, x.leadTimeMs ?? null]),
       },

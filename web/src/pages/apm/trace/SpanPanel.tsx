@@ -8,7 +8,7 @@ import { queryTimeseries } from '../../../api/dashboards/client';
 import { getHostMetrics, listProcesses } from '../../../api/infrastructure/client';
 import { Chart } from '../../../components/charts/Chart';
 import { ErrorState, Loading } from '../../../components/ui/AsyncState';
-import { palette } from '../../../theme/chartTheme';
+import { palette, token } from '../../../theme/chartTheme';
 import { useSpanPercentile } from '../queries';
 import { fmtLatency } from '../visuals';
 import { ServiceGlyph } from '../explorer/SpanBits';
@@ -252,7 +252,7 @@ function lineChart(series: { name: string; points: [number, number][] }[], at: n
       showSymbol: false,
       color: colors[i % colors.length],
       data: s.points,
-      ...(i === 0 ? { markLine: { symbol: 'none', silent: true, lineStyle: { color: '#0b6e69', type: 'dashed' }, label: { formatter: 'span' }, data: [{ xAxis: at }] } } : {}),
+      ...(i === 0 ? { markLine: { symbol: 'none', silent: true, lineStyle: { color: token('--primary'), type: 'dashed' }, label: { formatter: 'span' }, data: [{ xAxis: at }] } } : {}),
     })),
   };
 }

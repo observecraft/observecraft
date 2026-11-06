@@ -1503,11 +1503,11 @@
 }
 
 .ct-diff-old {
-  background: var(--badge-error-bg, #fdecec);
+  background: var(--badge-error-bg);
 }
 
 .ct-diff-new {
-  background: var(--badge-ok-bg, #e7f6ec);
+  background: var(--badge-ok-bg);
 }
 
 .rc-searchbox .dd-floating-label {

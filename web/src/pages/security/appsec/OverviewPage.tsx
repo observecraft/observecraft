@@ -233,13 +233,13 @@ function ApiPosture({ keep, endpoints }: { keep: Keep; endpoints: ReturnType<typ
                 parts={[
                   [authenticated, '#1c5fc4'],
                   [unauthWrites, '#6fa5e8'],
-                  [undetected, '#dde3ee'],
+                  [undetected, 'var(--border-strong)'],
                 ]}
               />
               <ul className="ov-legend">
                 <Legend color="#1c5fc4" label="Authenticated" value={authenticated} />
                 <Legend color="#6fa5e8" label="Unauthenticated writes" value={unauthWrites} warn />
-                <Legend color="#dde3ee" label="Undetected" value={undetected} warn />
+                <Legend color="var(--border-strong)" label="Undetected" value={undetected} warn />
               </ul>
             </div>
           </div>

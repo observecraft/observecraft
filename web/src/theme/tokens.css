@@ -185,3 +185,142 @@
 
   --shadow-pop: 0 4px 16px rgba(20, 24, 36, 0.16);
 }
+
+/*
+ * Dark theme (Personal Settings → Theme, or the browser's when "System"): graphite surfaces with a hint of the
+ * brand teal, a lighter teal for actions and links, and status colors kept readable on dark backgrounds.
+ * Only colors change; sizes, spacing and fonts are shared.
+ */
+:root[data-theme='dark'] {
+  /* Navigation chrome: a step darker than the page */
+  --nav-bg: #0f1716;
+  --nav-bg-hover: #1a2625;
+  --nav-text: #c3cecc;
+  --nav-divider: #24302f;
+  --topbar-bg: #0f1716;
+  --topbar-search-bg: #1a2625;
+  --topbar-search-border: #2c3a39;
+  --topbar-search-text: #b9c5c3;
+
+  /* Surfaces */
+  --bg: #181c21;
+  --bg-subtle: #1d2228;
+  --bg-muted: #242a31;
+  --bg-group: #2b323a;
+  --bg-hover: #1f2b2c;
+  --bg-selected: #173533;
+
+  /* Borders */
+  --border: #2d343d;
+  --border-strong: #3d4550;
+  --border-focus: #3fb8ab;
+
+  /* Text */
+  --text: #e2e6ec;
+  --text-muted: #a3acb9;
+  --text-faint: #7a8392;
+  --text-inverse: #ffffff;
+
+  /* Interactive */
+  --primary: #15877d;
+  --primary-hover: #1a9a8f;
+  --primary-subtle: #15302e;
+  --link: #5ac8bc;
+
+  /* Brand */
+  --brand: #3fb8ab;
+  --brand-subtle: #15302e;
+  --brand-strong: #8fd9cf;
+  --hero-tint: #8fd1c7;
+
+  /* Scorecard levels */
+  --level-0-bg: #2b323a;
+  --level-0-fg: #a3acb9;
+  --level-1-bg: #17403b;
+  --level-1-fg: #8fd9cf;
+  --level-2-bg: #2f8f81;
+  --level-2-fg: #ffffff;
+  --level-3-bg: #6cc9ba;
+  --level-3-fg: #062f2d;
+  --insight: #f05aa9;
+
+  /* Status */
+  --status-error: #f0565a;
+  --status-warn: #f5b54f;
+  --status-info: #7fb3e6;
+  --status-ok: #3dbd7d;
+  --status-debug: #8a93a3;
+  --status-nodata: #4a5260;
+
+  /* Status badges: tinted fill, light text */
+  --badge-error-bg: #3d1e22;
+  --badge-error-fg: #ff9a9e;
+  --badge-warn-bg: #3d2e14;
+  --badge-warn-fg: #f8c777;
+  --badge-info-bg: #1a2f47;
+  --badge-info-fg: #9cc7f2;
+  --badge-ok-bg: #173623;
+  --badge-ok-fg: #85dca8;
+  --badge-debug-bg: #2b323a;
+  --badge-debug-fg: #a3acb9;
+
+  /* Log message highlighting */
+  --hl-link: #5ac8bc;
+  --hl-muted: #7a8392;
+  --pill-bg: #2b323a;
+  --json-literal: #c39bff;
+
+  /* Error Tracking */
+  --issue-for-review: #f0565a;
+  --issue-reviewed: #6b9bf0;
+  --issue-ignored: #7a8392;
+  --issue-resolved: #3dbd7d;
+  --crash-bg: #c9333a;
+  --regression-bg: #8f2430;
+  --cause-fg: #f0a443;
+  --cause-border: #6b4a1e;
+  --error-row-bg: #2e1c1f;
+  --investigate-bg: #24203a;
+
+  /* Dashboards */
+  --qv-green: #3dbd7d;
+  --qv-yellow: #f5a524;
+  --qv-red: #f0565a;
+  --qv-gray: #8a93a3;
+  --qv-blue: #6b9bf0;
+  --cf-light-red: #3d1e22;
+  --cf-light-yellow: #3d3214;
+  --cf-light-green: #173623;
+  --cf-light-gray: #2b323a;
+  --group-blue: #2a5fb0;
+  --group-purple: #6440b0;
+  --group-green: #24855a;
+  --group-orange: #b8680a;
+  --group-gray: #4a5260;
+  --group-blue-light: #1c2f48;
+  --group-purple-light: #2a2343;
+  --group-green-light: #17362a;
+  --group-orange-light: #3b2a16;
+  --group-gray-light: #2b323a;
+  --note-yellow: #3a3518;
+  --note-blue: #1c2b40;
+  --note-purple: #2a2440;
+  --note-green: #1a3326;
+  --note-red: #3d1e22;
+  --note-gray: #242a31;
+  --toplist-bar: #24426b;
+
+  /* Charts */
+  --chart-1: #5b9cf0;
+  --chart-2: #a07cf8;
+  --chart-3: #3cc4bb;
+  --chart-4: #f5b54f;
+  --chart-5: #f0565a;
+  --chart-6: #72c96c;
+  --chart-7: #e27cc1;
+  --chart-8: #8a93a3;
+  --chart-grid: #2b323a;
+  --chart-axis: #7a8392;
+
+  --shadow-pop: 0 6px 20px rgba(0, 0, 0, 0.5);
+}

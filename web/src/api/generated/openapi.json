@@ -59465,6 +59465,11 @@
             "type": "boolean",
             "default": false
           },
+          "theme": {
+            "type": "string",
+            "description": "light | dark | system (the browser's)",
+            "default": "system"
+          },
           "timeFormat": {
             "type": "string",
             "description": "12h | 24h",

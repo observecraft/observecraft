@@ -104,7 +104,7 @@
   font-weight: var(--fw-medium);
 }
 .replay-bad {
-  color: var(--danger, #c62828);
+  color: var(--badge-error-fg);
 }
 .replay-watch {
   display: inline-flex;
@@ -306,7 +306,7 @@
   background: #e08a00;
 }
 .replay-dot.error {
-  background: var(--danger, #c62828);
+  background: var(--status-error);
 }
 .replay-skip {
   display: inline-flex;
@@ -379,7 +379,7 @@
   background: var(--bg-selected);
 }
 .replay-events li.error .replay-ev-icon {
-  color: var(--danger, #c62828);
+  color: var(--badge-error-fg);
 }
 .replay-ev-icon {
   padding-top: 2px;

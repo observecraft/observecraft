@@ -112,6 +112,9 @@
 .wpx-toplist li:hover .inv-toplist-bar i {
   background: #a9c6ef;
 }
+:root[data-theme='dark'] .wpx-toplist li:hover .inv-toplist-bar i {
+  background: #2f5585;
+}
 .wpx-table td {
   vertical-align: middle;
 }
@@ -138,20 +141,20 @@
   white-space: nowrap;
 }
 .wpx-cat.c-file {
-  background: #e3edfb;
-  color: #2a5db0;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 .wpx-cat.c-process {
-  background: #efe6fb;
-  color: #6a3db8;
+  background: var(--group-purple-light);
+  color: var(--sec-purple-fg);
 }
 .wpx-cat.c-network {
-  background: #def3e7;
-  color: #1f7a45;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
 }
 .wpx-cat.c-kernel {
-  background: #fbefdc;
-  color: #9a5a00;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
 }
 .wpx-more {
   margin: 8px 0;
@@ -207,7 +210,7 @@
   color: var(--text);
 }
 .wpx-tree li.self b {
-  color: #6a3db8;
+  color: var(--sec-purple-fg);
 }
 .wpx-args {
   padding: 0 5px;
@@ -267,8 +270,8 @@
   font-weight: var(--fw-semibold);
 }
 .wpx-status.open {
-  background: #e3edfb;
-  color: #2a5db0;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 .wpx-status.muted {
   background: var(--bg-muted);

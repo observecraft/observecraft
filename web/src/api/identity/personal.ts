@@ -15,6 +15,7 @@ export interface Preferences {
   highContrast: boolean;
   underlineLinks: boolean;
   colorBlindPalette: boolean;
+  theme: 'light' | 'dark' | 'system';
 }
 
 export interface EmailSubscriptions {
@@ -25,7 +26,7 @@ export interface EmailSubscriptions {
   monitors: { id: number; name: string }[];
 }
 
-export const DEFAULT_PREFERENCES: Preferences = { homePage: null, timeFormat: '12h', weekStart: 'monday', reducedMotion: false, highContrast: false, underlineLinks: false, colorBlindPalette: false };
+export const DEFAULT_PREFERENCES: Preferences = { homePage: null, timeFormat: '12h', weekStart: 'monday', reducedMotion: false, highContrast: false, underlineLinks: false, colorBlindPalette: false, theme: 'system' };
 
 const live = API_MODE === 'live';
 

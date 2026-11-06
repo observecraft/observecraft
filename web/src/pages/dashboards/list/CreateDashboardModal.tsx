@@ -49,11 +49,11 @@ function TeamPicker({ value, onChange }: { value: string[]; onChange: (v: string
 function GridArt() {
   return (
     <svg viewBox="0 0 280 120" width="280" height="120" aria-hidden>
-      <rect x="2" y="2" width="174" height="108" rx="2" fill="#e3f2ee" stroke="#8fd1c7" strokeWidth="2" />
-      <rect x="186" y="2" width="38" height="18" rx="2" fill="#e3f2ee" stroke="#8fd1c7" strokeWidth="2" />
-      <rect x="186" y="28" width="38" height="18" rx="2" fill="#e3f2ee" stroke="#8fd1c7" strokeWidth="2" />
-      <rect x="232" y="2" width="38" height="46" rx="2" fill="#e3f2ee" stroke="#8fd1c7" strokeWidth="2" />
-      <rect x="186" y="56" width="84" height="54" rx="2" fill="#e3f2ee" stroke="#8fd1c7" strokeWidth="2" />
+      <rect x="2" y="2" width="174" height="108" rx="2" fill="var(--primary-subtle)" stroke="var(--hero-tint)" strokeWidth="2" />
+      <rect x="186" y="2" width="38" height="18" rx="2" fill="var(--primary-subtle)" stroke="var(--hero-tint)" strokeWidth="2" />
+      <rect x="186" y="28" width="38" height="18" rx="2" fill="var(--primary-subtle)" stroke="var(--hero-tint)" strokeWidth="2" />
+      <rect x="232" y="2" width="38" height="46" rx="2" fill="var(--primary-subtle)" stroke="var(--hero-tint)" strokeWidth="2" />
+      <rect x="186" y="56" width="84" height="54" rx="2" fill="var(--primary-subtle)" stroke="var(--hero-tint)" strokeWidth="2" />
     </svg>
   );
 }
@@ -62,7 +62,7 @@ function MiniArt({ variant }: { variant: 'auto' | 'free' }) {
   return (
     <svg viewBox="0 0 140 56" width="140" height="56" aria-hidden>
       {variant === 'auto'
-        ? [0, 1].flatMap((r) => [0, 1, 2].map((c) => <rect key={`${r}${c}`} x={2 + c * 46} y={2 + r * 28} width="42" height="24" fill="none" stroke="#c8ccd6" strokeWidth="1.5" />))
+        ? [0, 1].flatMap((r) => [0, 1, 2].map((c) => <rect key={`${r}${c}`} x={2 + c * 46} y={2 + r * 28} width="42" height="24" fill="none" stroke="var(--border-strong)" strokeWidth="1.5" />))
         : [
             [2, 2, 60, 10],
             [66, 2, 40, 10],
@@ -71,7 +71,7 @@ function MiniArt({ variant }: { variant: 'auto' | 'free' }) {
             [36, 16, 50, 14],
             [90, 16, 22, 30],
             [2, 34, 84, 12],
-          ].map(([x, y, w, h], i) => <rect key={i} x={x} y={y} width={w} height={h} fill="none" stroke="#c8ccd6" strokeWidth="1.5" />)}
+          ].map(([x, y, w, h], i) => <rect key={i} x={x} y={y} width={w} height={h} fill="none" stroke="var(--border-strong)" strokeWidth="1.5" />)}
     </svg>
   );
 }

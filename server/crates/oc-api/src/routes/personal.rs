@@ -35,6 +35,8 @@ pub struct Preferences {
     pub underline_links: bool,
     /// Charts use a palette told apart without red/green.
     pub color_blind_palette: bool,
+    /// light | dark | system (the browser's)
+    pub theme: String,
 }
 
 impl Default for Preferences {
@@ -47,6 +49,7 @@ impl Default for Preferences {
             high_contrast: false,
             underline_links: false,
             color_blind_palette: false,
+            theme: "system".into(),
         }
     }
 }
@@ -58,6 +61,9 @@ impl Preferences {
         }
         if !matches!(self.week_start.as_str(), "monday" | "sunday") {
             return Err(ApiError::BadRequest("the week starts on monday or sunday".into()));
+        }
+        if !matches!(self.theme.as_str(), "light" | "dark" | "system") {
+            return Err(ApiError::BadRequest("the theme is light, dark or system".into()));
         }
         self.home_page = self.home_page.map(|p| p.trim().to_string()).filter(|p| !p.is_empty() && p != "/");
         if let Some(p) = &self.home_page {
@@ -241,6 +247,17 @@ mod tests {
         assert!(Preferences { time_format: "13h".into(), ..Default::default() }.validate().is_err());
         let p: Preferences = serde_json::from_value(serde_json::json!({"highContrast": true})).unwrap();
         assert!(p.high_contrast && p.time_format == "12h");
+    }
+
+    #[test]
+    fn the_theme_follows_the_system_unless_chosen() {
+        // Saved before themes existed: the system's.
+        let p: Preferences = serde_json::from_value(serde_json::json!({"timeFormat": "24h"})).unwrap();
+        assert_eq!(p.theme, "system");
+        for theme in ["light", "dark", "system"] {
+            assert_eq!(Preferences { theme: theme.into(), ..Default::default() }.validate().unwrap().theme, theme);
+        }
+        assert!(Preferences { theme: "sepia".into(), ..Default::default() }.validate().is_err());
     }
 
     /// Preferences round-trip, and a report sent to the member shows and can be left. Skipped

@@ -2,7 +2,6 @@ import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayou
 import type { CloudMapEdge, CloudMapOverlay } from '../../api/cloudMap/client';
 import type { Cloud } from '../../api/infrastructure/types';
 import { BrandLogo } from '../../components/brand/BrandLogo';
-import { token } from '../../theme/chartTheme';
 import { TYPE_LABELS } from './catalogModel';
 import { TypeIcon } from './CatalogPanel';
 import {
@@ -27,7 +26,7 @@ import {
   type ViewMode,
   type Viewport,
 } from './cloudMapLayout';
-import { blockColor, DEFAULT_PALETTE, faces, groupColor, type Palette } from './cloudMapStyle';
+import { blockColor, faces, groupColor, readPalette, type Palette } from './cloudMapStyle';
 import { CLOUD_LABEL, CloudIcon } from './hostIcons';
 
 /** Pixels per grid unit at zoom 1. */
@@ -55,27 +54,6 @@ interface Props {
   onSelect: (b: PlacedBlock | null) => void;
   /** A label for an empty group value ("No region", "Cluster-wide"). */
   groupLabel: (key: string, value: string) => string;
-}
-
-function readPalette(): Palette {
-  const t = (name: string, fallback: string) => token(name) || fallback;
-  const d = DEFAULT_PALETTE;
-  return {
-    brand: t('--brand', d.brand),
-    blue: t('--group-blue', d.blue),
-    purple: t('--group-purple', d.purple),
-    orange: t('--group-orange', d.orange),
-    green: t('--group-green', d.green),
-    gray: t('--group-gray', d.gray),
-    ok: t('--status-ok', d.ok),
-    warn: t('--status-warn', d.warn),
-    error: t('--status-error', d.error),
-    nodata: t('--status-nodata', d.nodata),
-    text: t('--text', d.text),
-    muted: t('--text-muted', d.muted),
-    border: t('--border', d.border),
-    bg: t('--bg', d.bg),
-  };
 }
 
 /** The mark drawn on a group's label strip. */
@@ -159,7 +137,7 @@ const Block = memo(function Block({ b, mode, palette, overlay, selected, icons }
           </text>
         </g>
       )}
-      {n.alerts > 0 && <circle cx={project(b.x + 1, b.y, topZ, mode, UNIT).x} cy={project(b.x + 1, b.y, topZ, mode, UNIT).y} r={5} fill={palette.error} stroke="#fff" strokeWidth={1.5} />}
+      {n.alerts > 0 && <circle cx={project(b.x + 1, b.y, topZ, mode, UNIT).x} cy={project(b.x + 1, b.y, topZ, mode, UNIT).y} r={5} fill={palette.error} stroke={palette.bg} strokeWidth={1.5} />}
     </g>
   );
 });
