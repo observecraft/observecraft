@@ -124,7 +124,7 @@ impl Parser<'_> {
         self.metric_query()
     }
 
-    /// `<agg>:<metric>{filters}` and an optional ` by {tags}`.
+    /// `<agg>:<metric>{filters}`, an optional ` by {tags}` and an optional `.rollup(…)`.
     fn metric_query(&mut self) -> Result<Expr, String> {
         let start = self.pos;
         let close = |from: usize, s: &str| s[from..].find('}').map(|i| from + i + 1);
@@ -135,6 +135,9 @@ impl Parser<'_> {
         if let Some(after_by) = by.strip_prefix("by").filter(|a| a.trim_start().starts_with('{')) {
             let brace = self.s.len() - after_by.trim_start().len();
             end = close(brace, self.s).ok_or("unclosed 'by {'")?;
+        }
+        if self.s[end..].starts_with(".rollup(") {
+            end = self.s[end..].find(')').map(|i| end + i + 1).ok_or("unclosed '.rollup('")?;
         }
         let text = self.s[start..end].trim();
         parse_metric_query(text)?;
@@ -226,6 +229,18 @@ mod tests {
             parse_formula("(sum:a{*} + sum:b{*}) / 2").unwrap().expr,
             Expr::Bin(Op::Div, Box::new(Expr::Bin(Op::Add, Box::new(Expr::Query(0)), Box::new(Expr::Query(1)))), Box::new(Expr::Num(2.0)))
         );
+    }
+
+    #[test]
+    fn a_rollup_after_the_query_belongs_to_it() {
+        // As dashboards send cost queries (`.rollup(sum, daily)`: the method here, the interval as points).
+        let f = parse_formula("sum:aws.cost.amortized{resourceid:*authentik*} by {servicename}.rollup(sum)").unwrap();
+        assert_eq!(f.queries, vec!["sum:aws.cost.amortized{resourceid:*authentik*} by {servicename}.rollup(sum)"]);
+        assert_eq!(f.expr, Expr::Query(0));
+        let f = parse_formula("sum:a{*}.rollup(max) / sum:b{*} by {x}.rollup(sum, 60) * 100").unwrap();
+        assert_eq!(f.queries, vec!["sum:a{*}.rollup(max)", "sum:b{*} by {x}.rollup(sum, 60)"]);
+        assert!(parse_formula("sum:a{*}.rollup(median)").is_err());
+        assert!(parse_formula("sum:a{*}.rollup(sum").is_err());
     }
 
     #[test]
