@@ -173,7 +173,7 @@ const MISCONFIG_FIELDS = (f: MisconfigFinding, key: string): (string | null | un
 /** Where a resource is: its cluster and namespace, or (cloud resources) its account and region. */
 const where = (f: MisconfigFinding) => (f.cluster ? [f.cluster, f.namespace] : [f.account, f.region]).filter(Boolean).join(' / ');
 
-/** Each cloud account's latest scan (Prowler, docs/adr/0006), with a scan on demand. */
+/** Each cloud account's latest ObserveCraft scan (docs/adr/0006), with a scan on demand. */
 function AccountScans() {
   const q = usePostureScans();
   const scan = useScanNow();
@@ -182,10 +182,10 @@ function AccountScans() {
   const enabled = accounts.filter((a) => a.enabled);
   return (
     <div className="csm-scans">
-      <b>Cloud account scans</b>
+      <b>ObserveCraft scanning</b>
       {!enabled.length ? (
         <span className="muted">
-          Off for every account: turn on Cloud Security Management scanning in <Link to="/integrations/aws">Integrations → AWS</Link> (Resource collection).
+          Off for every account: turn on ObserveCraft scanning in <Link to="/integrations/aws">Integrations → AWS</Link> (Resource collection).
         </span>
       ) : !q.data!.scannerConfigured ? (
         <span className="muted">No scanner runs for this install: deploy it with the server&apos;s OC_SCANNER_TOKEN (the chart&apos;s scanner.enabled, or compose&apos;s security profile).</span>
@@ -201,7 +201,7 @@ function AccountScans() {
               </span>
             ) : a.status === 'done' ? (
               <span className="muted">
-                scanned {timeAgo(a.finishedAt ?? Date.now())} with Prowler {a.toolVersion} · {a.failed} failing, {a.passed} passing
+                scanned {timeAgo(a.finishedAt ?? Date.now())} · {a.failed} failing, {a.passed} passing
               </span>
             ) : (
               <span className="muted">first scan within a minute of turning it on</span>

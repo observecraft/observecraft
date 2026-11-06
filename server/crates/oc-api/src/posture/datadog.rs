@@ -61,7 +61,7 @@ pub fn tags(row: &FindingRow) -> Vec<String> {
         format!("evaluation:{}", row.evaluation),
         format!("severity:{}", row.severity),
         format!("rule_id:{}", row.check_id),
-        "source:prowler".to_string(),
+        "scanner:observecraft".to_string(),
     ];
     if !row.region.is_empty() {
         tags.push(format!("region:{}", row.region));
@@ -103,7 +103,7 @@ pub fn custom(row: &FindingRow) -> Value {
         "last_seen_at": row.last_seen_at,
         "metadata": { "schema_version": "2" },
         "message": row.detail,
-        "origin": ["prowler"],
+        "origin": ["agentless"],
         "remediation": { "description": row.remediation, "references": row.reference_urls.clone().unwrap_or(json!([])) },
         "resource_id": row.resource_uid,
         "resource_name": row.resource_name,
