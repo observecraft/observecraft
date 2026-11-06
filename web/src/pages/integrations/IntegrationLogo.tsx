@@ -14,7 +14,6 @@ const FALLBACK: Record<string, { text: string; color: string; style: 'word' | 't
   'tile:aws-appstream': { text: 'AS', color: '#01a88d', style: 'tile' },
   'tile:aws-bedrock': { text: 'Br', color: '#01a88d', style: 'tile' },
   'tile:haproxy': { text: 'HA', color: '#106da9', style: 'tile' },
-  'tile:azure-devops': { text: 'AzD', color: '#0078d4', style: 'tile' },
   'tile:servicenow': { text: 'SN', color: '#293e40', style: 'tile' },
 };
 

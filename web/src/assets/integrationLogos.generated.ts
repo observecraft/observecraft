@@ -153,7 +153,7 @@ export const INTEGRATION_LOGOS: Record<string, string> = {
   "genesys": "brand-genesys.svg",
   "gigamon": "brand-gigamon.png",
   "gitea": "si-gitea.svg",
-  "gitlab": "logos-gitlab.svg",
+  "gitlab": "logos-gitlab-icon.svg",
   "gitlab-runner": "logos-gitlab.svg",
   "gke": "logos-kubernetes.svg",
   "glusterfs": "logos-redhat-icon.svg",

@@ -126,7 +126,7 @@ const MAP = {
   // devtools / collaboration / security
   github: 'github-icon',
   githubactions: 'github-actions',
-  gitlab: 'gitlab',
+  gitlab: 'gitlab-icon',
   jira: 'jira',
   linear: 'linear-icon',
   bitbucket: 'bitbucket',
@@ -228,6 +228,8 @@ function add(group, key, ref) {
   group.keys[key] = ref;
 }
 for (const [key, name] of Object.entries(MAP)) add(brand, key, name.startsWith('si:') ? name : `logos:${name}`);
+// Providers without an SVG Logos / Simple Icons icon: their official icon from the cloud icon packages (fetch-cloud-icons.mjs).
+add(brand, 'tile:azure-devops', 'cloud:azure/azure-devops');
 const lobeDir = dirname(require.resolve('@lobehub/icons-static-svg/package.json'));
 for (const [key, name] of Object.entries(LOBE)) {
   let svg;
