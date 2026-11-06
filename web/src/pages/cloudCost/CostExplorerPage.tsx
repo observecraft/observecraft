@@ -9,7 +9,7 @@ import { Select } from '../../components/ui/Dropdown';
 import { token } from '../../theme/chartTheme';
 import { colorOf } from './CostBoardPage';
 import { RANGES, filterQuery, groupLabel, money, moneyAxis, pctChange, providerLabel, rangeLabel, rangeOf, shortDate, signedMoney, useCosts, useCostTags, type Filters } from './costModel';
-import { ChangePill, CostFilterBar, ProviderIcon, ShareBar } from './widgets';
+import { ChangePill, CostFilterBar, ProviderIcon, ShareBar, costValueIcon } from './widgets';
 
 const SHOWN = 8;
 const ROLLUPS: { value: CostInterval; label: string }[] = [
@@ -106,7 +106,10 @@ export function CostExplorerPage() {
         <Select
           label="Provider"
           value={provider}
-          options={[{ value: '', label: 'All' }, ...(tags.data?.find((t) => t.key === 'providername')?.values ?? []).map((v) => ({ value: v.value, label: providerLabel(v.value) }))]}
+          options={[
+            { value: '', label: 'All' },
+            ...(tags.data?.find((t) => t.key === 'providername')?.values ?? []).map((v) => ({ value: v.value, label: providerLabel(v.value), icon: costValueIcon('providername', v.value) })),
+          ]}
           onChange={(v) => set({ provider: v })}
           triggerClassName="dd-trigger ccm-filter"
         />

@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import type { CostTag } from '../../api/cloudCost/client';
+import { INTEGRATION_LOGOS } from '../../assets/integrationLogos.generated';
 import { BrandLogo, hasBrandLogo } from '../../components/brand/BrandLogo';
 import { Select } from '../../components/ui/Dropdown';
 import { CloudIcon } from '../infrastructure/hostIcons';
@@ -39,6 +40,86 @@ export function ProviderIcon({ provider, service, size = 18 }: { provider: strin
       {provider.charAt(0).toUpperCase()}
     </span>
   );
+}
+
+/** Google Cloud's billing service names whose service icon isn't named after them. */
+const GCP_SERVICES: Record<string, string> = {
+  'compute engine': 'gce',
+  'cloud storage': 'gcs',
+  'kubernetes engine': 'gke',
+  'cloud sql': 'cloudsql',
+  'cloud run': 'run',
+  'cloud functions': 'cloudfunctions',
+  'cloud pub/sub': 'pubsub',
+  'cloud memorystore for redis': 'redis',
+  'cloud dns': 'dns',
+  'vertex ai': 'aiplatform',
+};
+
+/** The cloud a billing service name belongs to (`AmazonEC2`, `Microsoft.Compute`, `Compute Engine`), if it's recognisable. */
+function serviceCloud(service: string): 'aws' | 'azure' | 'gcp' | null {
+  if (/^(amazon|aws)/i.test(service)) return 'aws';
+  if (/^(microsoft\.|azure|virtualmachines$)/i.test(service)) return 'azure';
+  if (GCP_SERVICES[service.toLowerCase()] || /^(cloud |google|bigquery)/i.test(service)) return 'gcp';
+  return null;
+}
+
+/** The cloud provider's own icon of a billing service, from the integrations catalog's logo files. */
+function serviceTile(service: string): string | null {
+  const cloud = serviceCloud(service);
+  const has = (k: string) => k in INTEGRATION_LOGOS;
+  if (cloud === 'aws') {
+    const key = `tile:aws-${service.replace(/^(amazon|aws)/i, '').toLowerCase()}`;
+    return has(key) ? key : null;
+  }
+  if (cloud === 'azure') {
+    // Microsoft.Compute → the resource provider's first resource type (tile:azure-compute-…), shortest first.
+    const ns = service.toLowerCase() === 'virtualmachines' ? 'compute' : service.replace(/^microsoft\./i, '').toLowerCase();
+    const keys = Object.keys(INTEGRATION_LOGOS)
+      .filter((k) => k.startsWith(`tile:azure-${ns}-`) || k === `tile:azure-${ns}`)
+      .sort((a, b) => a.length - b.length);
+    return keys.find((k) => k.endsWith('virtualmachines')) ?? keys[0] ?? null;
+  }
+  if (cloud === 'gcp') {
+    const key = `tile:gcp-${
+      GCP_SERVICES[service.toLowerCase()] ??
+      service
+        .toLowerCase()
+        .replace(/^cloud /, '')
+        .replace(/[^a-z0-9]/g, '')
+    }`;
+    return has(key) ? key : null;
+  }
+  return null;
+}
+
+/** A billing service's icon: its product logo, the cloud's service icon, or its provider's logo; none when unknown. */
+export function ServiceIcon({ service, size = 16 }: { service: string; size?: number }) {
+  if (hasBrandLogo(logoKey(service))) {
+    return (
+      <span className="ccm-provider" title={service} style={{ width: size, height: size }}>
+        <BrandLogo name={logoKey(service)} size={size} title={service} />
+      </span>
+    );
+  }
+  const tile = serviceTile(service);
+  if (tile) {
+    return (
+      <span className="ccm-provider" title={service} style={{ width: size, height: size }}>
+        <img className="logo-file" src={`/images/integrations/logos/${INTEGRATION_LOGOS[tile]}`} alt="" loading="lazy" width={size} height={size} />
+      </span>
+    );
+  }
+  const cloud = serviceCloud(service);
+  return cloud ? <ProviderIcon provider={cloud} size={size} /> : null;
+}
+
+/** The icon of a cost tag's value in pickers and filters: providers and services show their logos. */
+export function costValueIcon(key: string, value: string, size = 16): ReactNode {
+  if (!value) return undefined;
+  if (key === 'providername') return <ProviderIcon provider={value} size={size} />;
+  if (key === 'servicename') return <ServiceIcon service={value} size={size} />;
+  return undefined;
 }
 
 /** `22% ↗` in red for increases, green for decreases (lower cost is good). */
@@ -84,7 +165,7 @@ export function CostFilterBar({
           key={k}
           label={labels?.[k] ?? k}
           value={filters[k]?.[0] ?? ''}
-          options={[{ value: '', label: 'All' }, ...tagValues(tags, k).map((v) => ({ value: v, label: k === 'providername' ? providerLabel(v) : v }))]}
+          options={[{ value: '', label: 'All' }, ...tagValues(tags, k).map((v) => ({ value: v, label: k === 'providername' ? providerLabel(v) : v, icon: costValueIcon(k, v) }))]}
           onChange={(v) => onChange({ ...filters, [k]: v ? [v] : [] })}
           triggerClassName="dd-trigger ccm-filter"
         />
