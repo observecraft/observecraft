@@ -10366,6 +10366,244 @@
         }
       }
     },
+    "/api/v1/integration/slack/configuration/accounts/{account_name}/channels": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_list_slack_channels",
+        "parameters": [
+          {
+            "name": "account_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_create_slack_channel",
+        "parameters": [
+          {
+            "name": "account_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integration/slack/configuration/accounts/{account_name}/channels/{channel_name}": {
+      "get": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_get_slack_channel",
+        "parameters": [
+          {
+            "name": "account_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_delete_slack_channel",
+        "parameters": [
+          {
+            "name": "account_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datadog-api"
+        ],
+        "operationId": "datadog_update_slack_channel",
+        "parameters": [
+          {
+            "name": "account_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/integrations/aws/accounts": {
       "get": {
         "tags": [
@@ -10876,6 +11114,267 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GcpSetup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/slack": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "The org's Slack workspaces and channels, and what connecting one needs.",
+        "operationId": "get_slack_integration",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackOverview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/slack/accounts": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Connects a workspace with its own Slack app's bot token (or reconnects the account with that name).",
+        "operationId": "connect_slack_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectSlackAccount"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackAccount"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/slack/accounts/{id}": {
+      "delete": {
+        "tags": [
+          "notifications"
+        ],
+        "operationId": "disconnect_slack_account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/api/v1/integrations/slack/accounts/{id}/channels": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "operationId": "create_slack_channel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlackChannelInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackChannel"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/slack/accounts/{id}/conversations": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "The workspace's channels the bot can see, for the channel picker.",
+        "operationId": "list_slack_conversations",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SlackConversation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/slack/channels/{id}": {
+      "delete": {
+        "tags": [
+          "notifications"
+        ],
+        "operationId": "delete_slack_channel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {}
+        }
+      },
+      "patch": {
+        "tags": [
+          "notifications"
+        ],
+        "operationId": "update_slack_channel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlackChannelInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackChannel"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/slack/channels/{id}/test": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Sends a sample monitor alert to the channel.",
+        "operationId": "test_slack_channel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestDelivery"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/slack/oauth": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Starts \"Add to Slack\": the URL of Slack's consent page for this install's app.",
+        "operationId": "start_slack_oauth",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartSlackOAuth"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackOAuthStart"
                 }
               }
             }
@@ -18430,6 +18929,59 @@
               }
             }
           }
+        }
+      }
+    },
+    "/api/v1/public/slack/interactive": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Button presses on messages the bot posted (Mute 1h / 4h / 1d). Always answers 200 quickly, as\nSlack expects; the outcome goes back to the presser as an ephemeral message.",
+        "operationId": "slack_interactive",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {},
+          "401": {}
+        }
+      }
+    },
+    "/api/v1/public/slack/oauth/callback": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Slack sends the browser back here after the consent page; the state names the org and member.",
+        "operationId": "slack_oauth_callback",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {}
         }
       }
     },
@@ -37945,6 +38497,30 @@
           }
         }
       },
+      "ConnectSlackAccount": {
+        "type": "object",
+        "required": [
+          "name",
+          "botToken"
+        ],
+        "properties": {
+          "botToken": {
+            "type": "string",
+            "description": "Bot User OAuth Token (`xoxb-…`) of the workspace's Slack app."
+          },
+          "name": {
+            "type": "string",
+            "description": "Account name (`@slack-<name>-<channel>`)."
+          },
+          "signingSecret": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The app's signing secret, for mute buttons."
+          }
+        }
+      },
       "ConnectedAccounts": {
         "type": "object",
         "required": [
@@ -41775,6 +42351,39 @@
               "null"
             ],
             "description": "Where to send the browser; absent when no organization offers SSO."
+          }
+        }
+      },
+      "Display": {
+        "type": "object",
+        "description": "What a monitor notification shows (Datadog's `SlackIntegrationChannelDisplay`).",
+        "required": [
+          "message",
+          "notified",
+          "snapshot",
+          "tags",
+          "mute_buttons"
+        ],
+        "properties": {
+          "message": {
+            "type": "boolean",
+            "description": "The monitor's message."
+          },
+          "mute_buttons": {
+            "type": "boolean",
+            "description": "Buttons to mute the monitor from Slack."
+          },
+          "notified": {
+            "type": "boolean",
+            "description": "The @-handles the message notified."
+          },
+          "snapshot": {
+            "type": "boolean",
+            "description": "A graph snapshot (stored; not drawn yet)."
+          },
+          "tags": {
+            "type": "boolean",
+            "description": "The scope that alerted and the monitor's tags."
           }
         }
       },
@@ -55572,6 +56181,7 @@
           "handle",
           "kind",
           "target",
+          "source",
           "signed",
           "createdAt"
         ],
@@ -55594,9 +56204,13 @@
           "signed": {
             "type": "boolean"
           },
+          "source": {
+            "type": "string",
+            "description": "webhook: an incoming-webhook channel of this list; slack_app: a channel of a connected Slack\nworkspace, managed in Integrations → Slack."
+          },
           "target": {
             "type": "string",
-            "description": "Host of the URL (the full URL is a credential and never returned)."
+            "description": "Host of the URL (the full URL is a credential and never returned), or the Slack workspace and channel."
           }
         }
       },
@@ -65981,6 +66595,200 @@
           }
         }
       },
+      "SlackAccount": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "teamId",
+          "teamName",
+          "botUserId",
+          "installedVia",
+          "interactive",
+          "missingScopes",
+          "channels",
+          "createdAt"
+        ],
+        "properties": {
+          "botUserId": {
+            "type": "string"
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SlackChannel"
+            }
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installedVia": {
+            "type": "string",
+            "description": "oauth | token"
+          },
+          "interactive": {
+            "type": "boolean",
+            "description": "Mute buttons can be verified (this install's signing secret, or the workspace app's own)."
+          },
+          "missingScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Scopes of [`BOT_SCOPES`] the OAuth install didn't grant (empty for token installs: not reported by Slack)."
+          },
+          "name": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "teamName": {
+            "type": "string"
+          }
+        }
+      },
+      "SlackChannel": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "handle",
+          "display",
+          "createdAt"
+        ],
+        "properties": {
+          "conversationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Slack's conversation id once a message was delivered."
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "display": {
+            "$ref": "#/components/schemas/Display"
+          },
+          "handle": {
+            "type": "string",
+            "description": "Mention it as `@<handle>`."
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": "As configured: `#checkout-alerts`."
+          }
+        }
+      },
+      "SlackChannelInput": {
+        "type": "object",
+        "properties": {
+          "display": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Display",
+                "description": "Display options; missing ones keep their current (or default) value."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`#checkout-alerts`; optional on update."
+          }
+        }
+      },
+      "SlackConversation": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "isPrivate",
+          "isMember"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "isMember": {
+            "type": "boolean",
+            "description": "The bot is in it (private channels need that)."
+          },
+          "isPrivate": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "SlackOAuthStart": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Slack's authorize page; open it in the browser."
+          }
+        }
+      },
+      "SlackOverview": {
+        "type": "object",
+        "required": [
+          "oauthAvailable",
+          "redirectUrl",
+          "interactivityUrl",
+          "appManifest",
+          "scopes",
+          "accounts"
+        ],
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SlackAccount"
+            }
+          },
+          "appManifest": {
+            "type": "string",
+            "description": "A Slack app manifest for workspaces that connect with their own app's bot token."
+          },
+          "interactivityUrl": {
+            "type": "string",
+            "description": "Where Slack posts button presses (the app's Interactivity Request URL)."
+          },
+          "oauthAvailable": {
+            "type": "boolean",
+            "description": "\"Add to Slack\" is available (this install has a Slack app)."
+          },
+          "redirectUrl": {
+            "type": "string",
+            "description": "Where Slack sends OAuth installs back."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "SloComparator": {
         "type": "string",
         "enum": [
@@ -68281,6 +69089,18 @@
               "null"
             ],
             "description": "Judge this security signal."
+          }
+        }
+      },
+      "StartSlackOAuth": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Account name for the workspace being connected."
           }
         }
       },

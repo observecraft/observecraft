@@ -164,6 +164,13 @@ or SDK features.
   Unsupported SPL (eval, rex, join, OR across fields, numeric comparisons) is reported, not guessed.
 - **Personal Settings** (`routes/personal.rs`): per-member preferences (home page, time format, accessibility) in
   Postgres `user_preferences`, email subscriptions (dashboard reports, monitor mentions) and email verification links.
+- **Slack** (`routes/slack.rs`, `datadog_api/slack_integration.rs`, page `web/src/pages/integrations/slack/`): workspaces
+  are connected through a Slack app (Postgres `slack_accounts`, sealed bot token): "Add to Slack" with this install's app
+  (`OC_SLACK_CLIENT_ID` / `_SECRET` / `OC_SLACK_SIGNING_SECRET`) or the bot token of the workspace's own app (manifest on
+  the page). Channels are `datadog_integration_slack_channel` (`slack_channels`, Datadog's display options); monitors
+  mention `@slack-<account>-<channel>` or `@slack-<channel>`, posted with `chat.postMessage` as a card; mute buttons
+  (`/api/v1/public/slack/interactive`, signature-checked) create downtimes as the member with the Slack user's email.
+  Other `@slack-<name>` handles are the older incoming-webhook channels (`notification_channels`).
 - **New features start from the Terraform provider.** Before designing the API of a product area, check whether
   [`DataDog/terraform-provider-datadog`](https://github.com/DataDog/terraform-provider-datadog) (MPL-2.0: read it,
   don't copy it) has resources for it (`datadog_<area>_*`). If it does, the configuration lives under the Datadog

@@ -11,7 +11,13 @@ import { IntegrationModal } from './IntegrationModal';
 import { useCatalog } from './queries';
 
 /** Integrations with their own page instead of the detail modal. */
-const OWN_PAGES: Record<string, string> = { aws: '/integrations/aws', azure: '/integrations/azure', 'google-cloud': '/integrations/gcp', kubernetes: '/integrations/kubernetes' };
+const OWN_PAGES: Record<string, string> = {
+  aws: '/integrations/aws',
+  azure: '/integrations/azure',
+  'google-cloud': '/integrations/gcp',
+  kubernetes: '/integrations/kubernetes',
+  slack: '/integrations/slack',
+};
 
 const STATUSES: Option<IntegrationStatus | 'all'>[] = [
   { value: 'all', label: 'All Statuses' },

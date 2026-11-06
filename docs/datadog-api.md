@@ -106,6 +106,7 @@ Errors come back in Datadog's shape, `{"errors": ["…"]}`, with Datadog's statu
 | `datadog_integration_aws_account`, `datadog_integration_aws_external_id`, data sources `datadog_integration_aws_available_namespaces` / `datadog_integration_aws_iam_permissions` | `/api/v2/integration/aws/accounts` (create, list, get, update, delete), `/available_namespaces`, `/logs/services`, `/generate_new_external_id`, `/iam_permissions[/standard\|/resource_collection]` | ✅ [details](#aws-integration) |
 | `datadog_integration_azure` | `/api/v1/integration/azure` (list, create, update, delete), `POST /api/v1/integration/azure/host_filters` | ✅ [details](#azure-integration) |
 | `datadog_integration_gcp_sts` | `/api/v2/integration/gcp/accounts` (create, list, update, delete), `/api/v2/integration/gcp/sts_delegate` | ✅ [details](#gcp-integration) |
+| `datadog_integration_slack_channel` | `/api/v1/integration/slack/configuration/accounts/{account_name}/channels[/{channel_name}]` (list, create, get, update, delete) | ✅ [details](#slack-integration) |
 
 ## Cloud cost
 
@@ -169,6 +170,20 @@ Service accounts are impersonated by this install's own service account (`OC_GCP
 with defaults when it wasn't sent; an update keeps the others; CSPM needs resource collection (400). A list's
 `meta.accessible_projects` are the projects the crawler found. Metrics are crawled from Cloud Monitoring every 10
 minutes (`gcp.<service>.<metric path>`, e.g. `gcp.gce.instance.cpu.utilization`).
+
+## Slack integration
+
+Channels belong to a workspace connected in Integrations → Slack (with "Add to Slack" or the bot token of the
+workspace's own Slack app): `account_name` is the name it was connected as, and an unknown one answers 404, since
+Datadog's API doesn't create workspaces either. A channel is `{"name": "#…", "display": {…}}`; display options missing
+on create get Datadog's defaults (`message`, `notified`, `snapshot`, `tags` true, `mute_buttons` false) and keep their
+value on update. The path's channel name matches with or without its `#` (the provider sends it escaped, `%23…`),
+ignoring case; a second channel with the same name is a 400. Writes need an admin.
+
+Monitors mention a channel as `@slack-<account_name>-<channel>`, or `@slack-<channel>` when its name is unique across
+the workspaces (else the oldest workspace's). Messages are posted by the bot (`chat.postMessage`) with the display
+options applied; `snapshot` is stored but no graph is drawn yet. Mute buttons create a downtime on the monitor (and the
+alerting group) as the organization member whose email matches the Slack user's, with at least the Standard role.
 
 ## APM retention filters and span-based metrics
 

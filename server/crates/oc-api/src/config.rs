@@ -35,6 +35,14 @@ pub struct Config {
     /// `OC_GCP_PRINCIPAL_EMAIL`: the GCP service account this install impersonates customers' service
     /// accounts with (the STS delegate); customers grant it the Service Account Token Creator role.
     pub gcp_principal_email: Option<String>,
+    /// `OC_SLACK_CLIENT_ID` / `OC_SLACK_CLIENT_SECRET`: this install's Slack app, for "Add to Slack"
+    /// (OAuth). Without them workspaces are connected with the bot token of their own Slack app.
+    pub slack_client_id: Option<String>,
+    pub slack_client_secret: Option<String>,
+    /// `OC_SLACK_SIGNING_SECRET`: verifies the interactive buttons (mute) Slack posts for this install's app.
+    pub slack_signing_secret: Option<String>,
+    /// `OC_SLACK_API_URL` (default `https://slack.com/api`): Slack's Web API (tests point it elsewhere).
+    pub slack_api_url: String,
     /// `OC_CLOUD_CRAWLERS` (default `aws,azure,gcp`): the cloud integrations whose metrics this server
     /// crawls (they publish to Kafka, so they need it) and whose bills it imports (Cloud Cost
     /// Management's `cost_bill_configs`); empty turns them off.
@@ -200,6 +208,10 @@ impl Config {
                 tracing::warn!("OC_SECRET_KEY is not set: using an insecure development key. Set it in production.");
                 "observecraft-insecure-development-key".into()
             }),
+            slack_client_id: env::var("OC_SLACK_CLIENT_ID").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+            slack_client_secret: env::var("OC_SLACK_CLIENT_SECRET").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+            slack_signing_secret: env::var("OC_SLACK_SIGNING_SECRET").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+            slack_api_url: var("OC_SLACK_API_URL", "https://slack.com/api").trim_end_matches('/').to_string(),
             gcp_principal_email: env::var("OC_GCP_PRINCIPAL_EMAIL").ok().map(|s| s.trim().to_string()).filter(|s| s.contains('@')),
             cloud_crawlers: var("OC_CLOUD_CRAWLERS", "aws,azure,gcp").split(',').map(|c| c.trim().to_ascii_lowercase()).filter(|c| !c.is_empty()).collect(),
             cloud_crawl_interval_secs: var("OC_CLOUD_CRAWL_INTERVAL_SECS", "600").parse().unwrap_or(600).max(60),

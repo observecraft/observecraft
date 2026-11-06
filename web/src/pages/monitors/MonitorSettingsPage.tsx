@@ -49,6 +49,10 @@ export function MonitorSettingsPage() {
           Mention a channel in a monitor's message (<code>@webhook-oncall</code>, <code>@slack-checkout-alerts</code>) to notify it on every alert, warning, recovery and no-data transition. Emails (
           <code>@name@example.com</code>) go to members of this organization through the install's SMTP server.
         </p>
+        <p className="muted">
+          Slack channels of a connected workspace (formatted alerts, mute buttons, private channels) are added in <Link to="/integrations/slack">Integrations → Slack</Link>; a Slack incoming webhook
+          added here posts plain text.
+        </p>
         {isAdmin && (
           <form
             className="mon-channel-form"
@@ -59,7 +63,7 @@ export function MonitorSettingsPage() {
           >
             <select value={kind} onChange={(e) => setKind(e.target.value as 'webhook' | 'slack')}>
               <option value="webhook">Webhook</option>
-              <option value="slack">Slack</option>
+              <option value="slack">Slack (incoming webhook)</option>
             </select>
             <span className="mon-channel-handle">
               @{kind}-
@@ -104,7 +108,7 @@ export function MonitorSettingsPage() {
                   <td>
                     <span className="mon-channel-kind">
                       <BrandLogo name={c.kind === 'slack' ? 'slack' : 'webhook'} size={16} />
-                      {c.kind === 'slack' ? 'Slack' : 'Webhook'}
+                      {c.kind === 'slack' ? (c.source === 'slack_app' ? 'Slack' : 'Slack webhook') : 'Webhook'}
                     </span>
                   </td>
                   <td>{c.target}</td>
@@ -112,9 +116,15 @@ export function MonitorSettingsPage() {
                   <td className="muted">{timeAgo(c.createdAt)}</td>
                   {isAdmin && (
                     <td className="num">
-                      <button className="icon-plain" title="Delete" onClick={() => window.confirm(`Delete @${c.handle}? Monitors mentioning it stop notifying it.`) && remove.mutate(c.id)}>
-                        <Trash2 size={15} />
-                      </button>
+                      {c.source === 'slack_app' ? (
+                        <Link to="/integrations/slack" className="small">
+                          Manage
+                        </Link>
+                      ) : (
+                        <button className="icon-plain" title="Delete" onClick={() => window.confirm(`Delete @${c.handle}? Monitors mentioning it stop notifying it.`) && remove.mutate(c.id)}>
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </td>
                   )}
                 </tr>
