@@ -300,6 +300,74 @@ const COMMITMENTS: Commitment[] = [
   },
 ];
 
+const SUB = '/subscriptions/0a1b2c3d-0000-4000-8000-000000000001/resourceGroups';
+const ec2 = (n: number) => `arn:aws:ec2:us-east-1:123456789012:instance/i-0a1b2c3d4e5f6000${n}`;
+
+/**
+ * The billed resources of a line and their share of its cost (the bills' ResourceId), so Cost Explorer's breakdown
+ * shows which VM, instance, bucket or model deployment cost what. Lines without resources are billed as a whole.
+ */
+function resourcesOf([provider, service, account, , , , desc]: Line): [string, number][] {
+  const gpu = /GPU/.test(desc);
+  if (provider === 'aws' && service === 'AmazonEC2') {
+    if (gpu) return [[ec2(7), 1]];
+    return account === 'ecommerce-staging'
+      ? [
+          [ec2(5), 0.6],
+          [ec2(6), 0.4],
+        ]
+      : [
+          [ec2(1), 0.4],
+          [ec2(2), 0.3],
+          [ec2(3), 0.2],
+          [ec2(4), 0.1],
+        ];
+  }
+  if (provider === 'aws' && service === 'AmazonRDS')
+    return [
+      ['arn:aws:rds:us-east-1:123456789012:db:orders-primary', 0.65],
+      ['arn:aws:rds:us-east-1:123456789012:db:orders-replica', 0.35],
+    ];
+  if (provider === 'aws' && service === 'AmazonS3')
+    return /Glacier/.test(desc)
+      ? [['arn:aws:s3:::example-shop-archive', 1]]
+      : [
+          ['arn:aws:s3:::example-shop-assets', 0.7],
+          ['arn:aws:s3:::example-shop-logs', 0.3],
+        ];
+  if (provider === 'azure' && service === 'VirtualMachines') {
+    const vm = (rg: string, name: string) => `${SUB}/${rg}/providers/Microsoft.Compute/virtualMachines/${name}`;
+    if (gpu) return [[vm('rg-ml', 'vm-ml-gpu-01'), 1]];
+    return [
+      [vm('rg-storefront', 'vm-storefront-01'), 0.4],
+      [vm('rg-storefront', 'vm-storefront-02'), 0.35],
+      [vm('rg-storefront', 'vm-storefront-03'), 0.25],
+    ];
+  }
+  if (provider === 'azure' && service === 'FoundryModels') {
+    const deployment = (name: string) => `${SUB}/rg-ml/providers/Microsoft.CognitiveServices/accounts/example-shop-ai/deployments/${name}`;
+    return /Embedding/.test(desc)
+      ? [[deployment('embed-small'), 1]]
+      : [
+          [deployment('chat-large'), 0.8],
+          [deployment('chat-large-batch'), 0.2],
+        ];
+  }
+  if (provider === 'azure' && service === 'SQLDatabase') return [[`${SUB}/rg-checkout/providers/Microsoft.Sql/servers/sql-orders/databases/orders`, 1]];
+  if (provider === 'gcp' && service === 'Compute Engine') {
+    const vm = (name: string) => `//compute.googleapis.com/projects/ecommerce-analytics/zones/us-central1-a/instances/${name}`;
+    return gpu
+      ? [[vm('ml-a2-gpu-1'), 1]]
+      : [
+          [vm('analytics-n2-1'), 0.55],
+          [vm('analytics-n2-2'), 0.45],
+        ];
+  }
+  if (provider === 'gcp' && service === 'Vertex AI') return [['//aiplatform.googleapis.com/projects/ecommerce-analytics/locations/us-central1/endpoints/chat-medium', 1]];
+  if (provider === 'gcp' && service === 'Cloud Storage') return [['//storage.googleapis.com/projects/_/buckets/example-shop-analytics', 1]];
+  return [['', 1]];
+}
+
 interface Row {
   day: number;
   billed: number;
@@ -338,46 +406,46 @@ function bills(): Row[] {
     const weekend = date.getUTCDay() === 0 || date.getUTCDay() === 6;
     const trend = 1 - 0.18 * Math.min(age / 365, 1.5);
     const swing = 1 + 0.06 * Math.sin((n * Math.PI * 2) / 29);
-    const push = (
-      [provider, service, account, region, , , desc, tags]: Line,
-      c: { billed: number; effective: number; list: number; quantity?: number; pricing?: string; commitment?: [Commitment, string] },
-      category: string,
-    ) => {
+    const push = (line: Line, c: { billed: number; effective: number; list: number; quantity?: number; pricing?: string; commitment?: [Commitment, string] }, category: string) => {
+      const [provider, service, account, region, , , desc, tags] = line;
       const price = category === 'usage' ? priceOf(service, desc) : undefined;
       const cm = c.commitment?.[0];
       const bd = new Date(bought);
-      rows.push({
-        day,
-        billed: c.billed,
-        effective: c.effective,
-        list: c.list,
-        quantity: c.quantity ?? 0,
-        category,
-        fields: {
-          ...tags,
-          ...(price?.[4] ?? {}),
-          ...(provider === 'aws' ? { aws_account: '123456789012' } : {}),
-          ...(cm
-            ? {
-                commitment_term: cm.term % 12 === 0 ? `${cm.term / 12} year${cm.term === 12 ? '' : 's'}` : `${cm.term} months`,
-                commitment_purchase_option: cm.upfront ? 'All Upfront' : 'No Upfront',
-                commitment_start: isoDay(bought),
-                commitment_end: isoDay(Date.UTC(bd.getUTCFullYear(), bd.getUTCMonth() + cm.term, 1)),
-                commitmentdiscountid: cm.id,
-                commitmentdiscounttype: cm.kind,
-                commitmentdiscountstatus: c.commitment![1],
-              }
-            : {}),
-          providername: provider,
-          servicename: service,
-          subaccountname: account,
-          regionname: region,
-          chargedescription: desc,
-          chargecategory: category,
-          ...(price ? { pricingunit: price[2] } : {}),
-          ...(c.pricing ? { pricingcategory: c.pricing } : {}),
-        },
-      });
+      // Split over the line's resources (resourcesOf).
+      for (const [resource, share] of resourcesOf(line))
+        rows.push({
+          day,
+          billed: c.billed * share,
+          effective: c.effective * share,
+          list: c.list * share,
+          quantity: (c.quantity ?? 0) * share,
+          category,
+          fields: {
+            ...(resource ? { resourceid: resource } : {}),
+            ...tags,
+            ...(price?.[4] ?? {}),
+            ...(provider === 'aws' ? { aws_account: '123456789012' } : {}),
+            ...(cm
+              ? {
+                  commitment_term: cm.term % 12 === 0 ? `${cm.term / 12} year${cm.term === 12 ? '' : 's'}` : `${cm.term} months`,
+                  commitment_purchase_option: cm.upfront ? 'All Upfront' : 'No Upfront',
+                  commitment_start: isoDay(bought),
+                  commitment_end: isoDay(Date.UTC(bd.getUTCFullYear(), bd.getUTCMonth() + cm.term, 1)),
+                  commitmentdiscountid: cm.id,
+                  commitmentdiscounttype: cm.kind,
+                  commitmentdiscountstatus: c.commitment![1],
+                }
+              : {}),
+            providername: provider,
+            servicename: service,
+            subaccountname: account,
+            regionname: region,
+            chargedescription: desc,
+            chargecategory: category,
+            ...(price ? { pricingunit: price[2] } : {}),
+            ...(c.pricing ? { pricingcategory: c.pricing } : {}),
+          },
+        });
     };
     LINES.forEach((line, i) => {
       const [, service, account, , base, weekendFactor, desc] = line;
