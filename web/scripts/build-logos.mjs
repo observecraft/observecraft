@@ -162,6 +162,7 @@ const MAP = {
   box: 'box',
   zoom: 'zoom-icon',
   // Simple Icons (one colour, in the brand's colour)
+  authentik: 'si:authentik',
   backstage: 'si:backstage',
   celery: 'si:celery',
   containerd: 'si:containerd',

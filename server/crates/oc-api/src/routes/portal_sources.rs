@@ -83,15 +83,9 @@ impl PortalProvider {
     }
 }
 
-/// Validates the base URL an admin configured: https (http only when private targets are allowed),
-/// no credentials, query or fragment; Linear's API host is fixed. A host given as an IP literal is
-/// checked against the SSRF policy now; names are checked when requests are sent.
-pub fn check_base_url(provider: PortalProvider, raw: &str, allow_private: bool) -> Result<String, String> {
-    let raw = raw.trim();
-    let raw = if raw.is_empty() { provider.default_base_url() } else { raw };
-    if raw.is_empty() {
-        return Err(format!("{} needs a site URL (https://your-site.atlassian.net)", provider.label()));
-    }
+/// Validates a site's URL that tokens are sent to: https (http only with `OC_PORTAL_ALLOW_PRIVATE`), no
+/// credentials, query or fragment, no private address unless allowed; answered without the trailing slash.
+pub fn check_site_url(raw: &str, allow_private: bool) -> Result<String, String> {
     if raw.len() > 512 {
         return Err("The base URL is too long".into());
     }
@@ -113,7 +107,19 @@ pub fn check_base_url(provider: PortalProvider, raw: &str, allow_private: bool) 
         url::Host::Ipv6(ip) => check_addr(ip.into(), allow_private)?,
         url::Host::Domain(_) => {}
     }
-    let out = url.as_str().trim_end_matches('/').to_string();
+    Ok(url.as_str().trim_end_matches('/').to_string())
+}
+
+/// Validates the base URL an admin configured: https (http only when private targets are allowed),
+/// no credentials, query or fragment; Linear's API host is fixed. A host given as an IP literal is
+/// checked against the SSRF policy now; names are checked when requests are sent.
+pub fn check_base_url(provider: PortalProvider, raw: &str, allow_private: bool) -> Result<String, String> {
+    let raw = raw.trim();
+    let raw = if raw.is_empty() { provider.default_base_url() } else { raw };
+    if raw.is_empty() {
+        return Err(format!("{} needs a site URL (https://your-site.atlassian.net)", provider.label()));
+    }
+    let out = check_site_url(raw, allow_private)?;
     if provider == PortalProvider::Linear && out != provider.default_base_url() && !allow_private {
         return Err("Linear's API URL cannot be changed".into());
     }
