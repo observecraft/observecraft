@@ -151,11 +151,12 @@ impl Leases {
 
 /// The rows of a fetch's records, and the other signals some of them carried (`(org, record)` for
 /// `oc.otlp.signals`, with the record's key and headers): decoding and normalization, off the async workers.
-fn rows_of(topic: Topic, records: Vec<Record>) -> (Vec<Row>, Vec<(String, Record)>) {
+fn rows_of(topic: Topic, at: (&'static str, i32), records: Vec<(i64, Record)>) -> (Vec<Row>, Vec<(String, Record)>) {
     let now = chrono::Utc::now();
     let (mut rows, mut signals) = (Vec::new(), Vec::new());
-    for record in records {
-        match log_records::decode(topic, &record) {
+    for (offset, record) in records {
+        let origin = log_records::Origin { topic: at.0, partition: at.1, offset };
+        match log_records::decode(topic, &record, origin) {
             Ok((events, passed)) => {
                 rows.extend(events.into_iter().filter_map(|e| log_normalize::normalize(e, now)));
                 if let Some(value) = passed {
@@ -318,10 +319,39 @@ impl Outputs {
         self.live.produce(records).await
     }
 }
+/// How far before the earlier path's newest log a partition without an offset starts
+/// (`OC_LOG_INGEST_HANDOVER_MINUTES`, 30): the overlap is stored again under the same ids.
+fn handover_margin() -> Duration {
+    Duration::from_secs(60 * std::env::var("OC_LOG_INGEST_HANDOVER_MINUTES").ok().and_then(|v| v.parse().ok()).unwrap_or(30))
+}
+
+/// Where a partition without a committed offset starts: shortly before the newest log the earlier path (Vector)
+/// stored, when it stored any (an upgrade: the logs before were stored already), else the earliest record kept.
+fn start_at(handover: Option<chrono::DateTime<chrono::Utc>>, margin: Duration) -> OffsetAt {
+    match handover {
+        Some(at) => OffsetAt::Timestamp(at - chrono::Duration::from_std(margin).unwrap_or_default()),
+        None => OffsetAt::Earliest,
+    }
+}
+
+/// The newest log the earlier path stored in the 72-hour copy (it writes every log there), if any.
+async fn earlier_path_handover(st: &AppState) -> Option<chrono::DateTime<chrono::Utc>> {
+    // The time inside the UUIDv7: ClickHouse doesn't order UUIDs as their text, so max(id) isn't the newest.
+    let newest: Result<i64, _> =
+        st.clickhouse.query("SELECT toUnixTimestamp64Milli(max(UUIDv7ToDateTime(id))) FROM logs_raw_dedup WHERE timestamp > now() - INTERVAL 4 DAY").fetch_one().await;
+    match newest {
+        Ok(ms) => (ms > 0).then(|| chrono::DateTime::from_timestamp_millis(ms)).flatten(),
+        Err(e) => {
+            tracing::warn!(error = %e, "reading where the earlier log path stopped failed: new partitions start at their earliest record");
+            None
+        }
+    }
+}
+
 /// What a partition's next batch is.
 enum Fetched {
-    /// Records, and the offset after them.
-    Batch(Vec<Record>, i64),
+    /// Records with their offsets, and the offset after them.
+    Batch(Vec<(i64, Record)>, i64),
     Nothing,
     /// The offset asked for is past retention: the earliest kept.
     Expired(i64),
@@ -354,15 +384,15 @@ async fn collect(pc: &PartitionClient, offset: i64) -> Result<Fetched, String> {
         };
         next = last + 1;
         size += fresh.iter().map(|r| r.record.value.as_ref().map_or(0, Vec::len)).sum::<usize>();
-        records.extend(fresh.into_iter().map(|r| r.record));
+        records.extend(fresh.into_iter().map(|r| (r.offset, r.record)));
     }
     Ok(Fetched::Batch(records, next))
 }
 
 /// Decodes a batch and stores it: the other signals to their topic, the logs to ClickHouse and live tail.
-async fn process(st: AppState, ix: Arc<Indexer>, out: Arc<Outputs>, topic: Topic, records: Vec<Record>) -> Result<(), String> {
+async fn process(st: AppState, ix: Arc<Indexer>, out: Arc<Outputs>, topic: Topic, at: (&'static str, i32), records: Vec<(i64, Record)>) -> Result<(), String> {
     let _slot = STORE_SLOTS.acquire().await.map_err(|e| e.to_string())?;
-    let (rows, signals) = tokio::task::spawn_blocking(move || rows_of(topic, records)).await.map_err(|e| e.to_string())?;
+    let (rows, signals) = tokio::task::spawn_blocking(move || rows_of(topic, at, records)).await.map_err(|e| e.to_string())?;
     if !signals.is_empty() {
         out.signals.produce(signals).await.map_err(|e| format!("passing on other signals: {e}"))?;
     }
@@ -373,7 +403,7 @@ async fn process(st: AppState, ix: Arc<Indexer>, out: Arc<Outputs>, topic: Topic
 #[cfg(test)]
 async fn drain(st: &AppState, ix: &Arc<Indexer>, out: &Arc<Outputs>, pc: &PartitionClient, topic: Topic, offset: i64) -> Result<i64, String> {
     match collect(pc, offset).await? {
-        Fetched::Batch(records, next) => process(st.clone(), ix.clone(), out.clone(), topic, records).await.map(|()| next),
+        Fetched::Batch(records, next) => process(st.clone(), ix.clone(), out.clone(), topic, (topic.name(), pc.partition()), records).await.map(|()| next),
         Fetched::Nothing => Ok(offset),
         Fetched::Expired(earliest) => Ok(earliest),
     }
@@ -381,7 +411,17 @@ async fn drain(st: &AppState, ix: &Arc<Indexer>, out: &Arc<Outputs>, pc: &Partit
 
 /// Reads a partition while this server holds it. A batch is stored while the next one is fetched; offsets
 /// are committed in order, and a batch that fails is read again from the last committed offset.
-async fn read_partition(st: AppState, ix: Arc<Indexer>, out: Arc<Outputs>, leases: Arc<Leases>, topic: (Topic, String), partition: i32, offset: Option<i64>) {
+#[allow(clippy::too_many_arguments)]
+async fn read_partition(
+    st: AppState,
+    ix: Arc<Indexer>,
+    out: Arc<Outputs>,
+    leases: Arc<Leases>,
+    topic: (Topic, String),
+    partition: i32,
+    offset: Option<i64>,
+    handover: Option<chrono::DateTime<chrono::Utc>>,
+) {
     let pc = loop {
         match out.client.partition_client(topic.1.clone(), partition, UnknownTopicHandling::Retry).await {
             Ok(pc) => break pc,
@@ -393,7 +433,17 @@ async fn read_partition(st: AppState, ix: Arc<Indexer>, out: Arc<Outputs>, lease
     };
     let mut committed = match offset {
         Some(o) => o,
-        None => pc.get_offset(OffsetAt::Earliest).await.unwrap_or(0),
+        None => {
+            let at = start_at(handover, handover_margin());
+            let from = match pc.get_offset(at).await {
+                // No record that recent: everything kept is older, i.e. stored already.
+                Ok(o) if o < 0 => pc.get_offset(OffsetAt::Latest).await.unwrap_or(0),
+                Ok(o) => o,
+                Err(_) => pc.get_offset(OffsetAt::Earliest).await.unwrap_or(0),
+            };
+            tracing::info!(topic = %topic.1, partition, offset = from, ?handover, "log partition read for the first time");
+            from
+        }
     };
     let mut next = committed;
     let mut storing: Option<(JoinHandle<Result<(), String>>, i64)> = None;
@@ -424,7 +474,7 @@ async fn read_partition(st: AppState, ix: Arc<Indexer>, out: Arc<Outputs>, lease
         match fetched {
             Ok(Fetched::Batch(records, end)) => {
                 next = end;
-                storing = Some((tokio::spawn(process(st.clone(), ix.clone(), out.clone(), topic.0, records)), end));
+                storing = Some((tokio::spawn(process(st.clone(), ix.clone(), out.clone(), topic.0, (topic.0.name(), partition), records)), end));
             }
             Ok(Fetched::Nothing) => {}
             Ok(Fetched::Expired(earliest)) => match leases.commit(&st.postgres, &topic.1, partition, earliest).await {
@@ -448,6 +498,7 @@ pub async fn spawn(st: AppState, ix: Arc<Indexer>) -> anyhow::Result<()> {
     let out = Arc::new(Outputs::new(client.clone()));
     out.follow_sessions(st.postgres.clone());
     let leases = Arc::new(Leases::new());
+    let handover = earlier_path_handover(&st).await;
     tokio::spawn(async move {
         let mut readers: HashMap<(String, i32), JoinHandle<()>> = HashMap::new();
         let mut tick = tokio::time::interval(SYNC_EVERY);
@@ -485,7 +536,7 @@ pub async fn spawn(st: AppState, ix: Arc<Indexer>) -> anyhow::Result<()> {
                     continue;
                 }
                 let Some((topic, _)) = Topic::ALL.into_iter().find(|(_, n)| *n == name) else { continue };
-                readers.insert(key, tokio::spawn(read_partition(st.clone(), ix.clone(), out.clone(), leases.clone(), (topic, name), partition, offset)));
+                readers.insert(key, tokio::spawn(read_partition(st.clone(), ix.clone(), out.clone(), leases.clone(), (topic, name), partition, offset, handover)));
             }
         }
     });
@@ -662,6 +713,15 @@ mod tests {
         assert_eq!(concurrency(None, 64), 16);
         assert_eq!(concurrency(Some("3"), 64), 3);
         assert_eq!(concurrency(Some("0"), 8), 8);
+    }
+
+    #[test]
+    fn a_new_partition_starts_where_the_earlier_path_stopped() {
+        let at = chrono::DateTime::parse_from_rfc3339("2026-11-06T10:00:00Z").unwrap().to_utc();
+        // The earlier path's newest stored log (a UUIDv7 from the intake): its millisecond.
+        let margin = Duration::from_secs(30 * 60);
+        assert!(matches!(start_at(Some(at), margin), OffsetAt::Timestamp(t) if t == at - chrono::Duration::minutes(30)));
+        assert!(matches!(start_at(None, margin), OffsetAt::Earliest), "a new install reads everything kept");
     }
 
     #[test]

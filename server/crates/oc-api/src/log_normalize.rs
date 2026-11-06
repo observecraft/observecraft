@@ -175,7 +175,12 @@ fn from_unix(n: i64) -> Option<DateTime<Utc>> {
 
 /// UUIDv7 of `at`: its milliseconds, then random bits, with the version and variant set.
 fn uuid_v7(at: DateTime<Utc>) -> String {
-    let mut bits = ((at.timestamp_millis() as u128 & 0xffff_ffff_ffff) << 80) | (rand::random::<u128>() & 0xffff_ffff_ffff_ffff_ffff);
+    uuid_v7_seeded(at, rand::random::<u128>())
+}
+
+/// UUIDv7 of `at` whose other bits come from `seed`: the same seed, the same id.
+pub fn uuid_v7_seeded(at: DateTime<Utc>, seed: u128) -> String {
+    let mut bits = ((at.timestamp_millis() as u128 & 0xffff_ffff_ffff) << 80) | (seed & 0xffff_ffff_ffff_ffff_ffff);
     bits = (bits & !(0xf << 76)) | (7 << 76);
     bits = (bits & !(3 << 62)) | (2 << 62);
     let hex = format!("{bits:032x}");

@@ -57,6 +57,13 @@ intake ─► Kafka oc.otlp.signals ─► OTel Collector ─► ClickHouse otel
 - **The intake doesn't limit an organization by default** (`OC_INTAKE_ORG_MBPS` / `OC_INTAKE_ORG_RPS` = 0); instance
   admins can limit one. The former 50 MiB/s default capped an org at ~55k lines/s of 1 KB logs.
 
+- **Switching from the earlier path**: a partition read for the first time starts shortly before the newest log
+  the earlier path stored (the time inside the newest UUIDv7 id of `oc.logs_raw_dedup`, where Vector wrote every log,
+  minus `OC_LOG_INGEST_HANDOVER_MINUTES`, 30), not at the earliest record kept (72 hours of logs stored again). With
+  no such log (a new install) it starts at the earliest record. The overlap is stored again under the same ids; logs
+  that reached Kafka without the intake's identity (a trusted agent writing to it) get one from their topic,
+  partition and offset, so reading a record again stores the same rows, though not the ids Vector gave them.
+
 `OC_LOG_INGEST=vector` (with `--profile vector` in Compose) keeps the earlier path, which an intake without Kafka needs.
 
 ## Consequences
