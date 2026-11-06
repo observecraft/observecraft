@@ -56,9 +56,20 @@ rules, and out of scope here.
 - Customers already paying for Security Hub, GuardDuty or Defender may later import those findings into the same model;
   it is not required.
 
+## Accounts that already run the providers' services
+
+Customers paying for AWS Security Hub, GuardDuty or Inspector (or Defender, Security Command Center) keep them; their
+findings are imported with the same read-only role, tagged with their origin (`origin: aws_guardduty`, …), never run a
+second rule engine:
+
+- **GuardDuty** findings become Cloud SIEM signals: they are threat detection, which the scans don't cover.
+- **Inspector** findings join the vulnerabilities from the Agent's SBOMs, deduplicated by CVE and resource.
+- **Security Hub** overlaps the scans: per account, either ObserveCraft scanning or the Security Hub import, not both.
+
 ## Phases
 
 1. AWS: scanner, jobs, findings storage, `/api/v2/security/findings`, the Findings page, permissions on the AWS page.
-2. Azure and GCP.
-3. Compliance frameworks (`datadog_compliance_custom_framework`, a compliance page).
-4. Trivy for registry images (ECR, ACR, Artifact Registry).
+2. Import of the AWS services customers already run: GuardDuty (signals) first, then Inspector and Security Hub.
+3. Azure and GCP.
+4. Compliance frameworks (`datadog_compliance_custom_framework`, a compliance page).
+5. Trivy for registry images (ECR, ACR, Artifact Registry).
